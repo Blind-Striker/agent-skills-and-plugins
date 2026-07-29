@@ -19,8 +19,10 @@ test("loads a valid manifest", () => {
     ),
   );
   assert.equal(m.plugin.name, "deniz-process");
-  assert.equal(m.items[0].source, "superpowers/skills/brainstorming");
-  assert.equal(m.items[0].as, "command");
+  const item = m.items[0];
+  assert.ok(item);
+  assert.equal(item.source, "superpowers/skills/brainstorming");
+  assert.equal(item.as, "command");
 });
 
 test("items defaults to empty array", () => {

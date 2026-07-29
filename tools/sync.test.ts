@@ -22,10 +22,13 @@ test("reports only changed curated items with overlay flag", () => {
     manifests,
   );
   assert.equal(lines.length, 2);
-  assert.match(lines[0], /alpha/);
-  assert.match(lines[0], /auto-updated/);
-  assert.match(lines[1], /beta/);
-  assert.match(lines[1], /OVERLAY/);
+  const [alpha, beta] = lines;
+  assert.ok(alpha);
+  assert.ok(beta);
+  assert.match(alpha, /alpha/);
+  assert.match(alpha, /auto-updated/);
+  assert.match(beta, /beta/);
+  assert.match(beta, /OVERLAY/);
 });
 
 test("no changes yields empty report", () => {
@@ -35,5 +38,7 @@ test("no changes yields empty report", () => {
 test("excluded item reports no action", () => {
   const lines = syncReport("sp", ["skills/gone/SKILL.md"], manifests);
   assert.equal(lines.length, 1);
-  assert.match(lines[0], /excluded — no action/);
+  const only = lines[0];
+  assert.ok(only);
+  assert.match(only, /excluded — no action/);
 });

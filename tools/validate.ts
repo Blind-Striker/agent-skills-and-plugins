@@ -162,7 +162,8 @@ export function validateRepo(root: string): Finding[] {
       }
       const content = readFileSync(file, "utf8");
       for (const match of content.matchAll(refPattern)) {
-        if (upstreamNs.has(match[1])) {
+        const ns = match[1];
+        if (ns !== undefined && upstreamNs.has(ns)) {
           findings.push({
             level: "warn",
             message: `${relative(root, file).replaceAll("\\", "/")}: unrewritten upstream reference ${match[0]} — include it in a manifest or eject and edit the reference out`,

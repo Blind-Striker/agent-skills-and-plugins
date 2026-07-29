@@ -42,7 +42,9 @@ test("falls back to submodule dir name when no plugin.json", () => {
   mkdirSync(join(ext, "raw", "skills", "x"), { recursive: true });
   writeFileSync(join(ext, "raw", "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
   const comps = scanSubmodule(ext, "raw");
-  assert.equal(comps[0].namespace, "raw");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "raw");
 });
 
 test("tolerates trailing separator on submodule name", () => {
@@ -51,8 +53,10 @@ test("tolerates trailing separator on submodule name", () => {
   writeFileSync(join(ext, "raw", "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
   const comps = scanSubmodule(ext, "raw/");
   assert.equal(comps.length, 1);
-  assert.equal(comps[0].namespace, "raw");
-  assert.equal(comps[0].sourcePath, "raw/skills/x");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "raw");
+  assert.equal(first.sourcePath, "raw/skills/x");
 });
 
 test("reads namespace from a bare plugin.json in a marketplace monorepo", () => {
@@ -63,7 +67,9 @@ test("reads namespace from a bare plugin.json in a marketplace monorepo", () => 
   writeFileSync(join(plugin, "skills", "s1", "SKILL.md"), "---\nname: s1\ndescription: S1\n---\n\nB");
   const comps = scanSubmodule(ext, "mono");
   assert.equal(comps.length, 1);
-  assert.equal(comps[0].namespace, "toolx");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "toolx");
 });
 
 test("prefers .claude-plugin/plugin.json over a sibling bare plugin.json", () => {
@@ -75,7 +81,9 @@ test("prefers .claude-plugin/plugin.json over a sibling bare plugin.json", () =>
   writeFileSync(join(plugin, "plugin.json"), JSON.stringify({ name: "bare" }));
   writeFileSync(join(plugin, "skills", "s1", "SKILL.md"), "---\nname: s1\ndescription: S1\n---\n\nB");
   const comps = scanSubmodule(ext, "mono");
-  assert.equal(comps[0].namespace, "canonical");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "canonical");
 });
 
 test("falls back past a malformed plugin.json instead of throwing", () => {
@@ -86,7 +94,9 @@ test("falls back past a malformed plugin.json instead of throwing", () => {
   writeFileSync(join(ext, "bad", "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
   const comps = scanSubmodule(ext, "bad");
   assert.equal(comps.length, 1);
-  assert.equal(comps[0].namespace, "bad");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "bad");
 });
 
 test("falls back past a plugin.json with no string name", () => {
@@ -96,7 +106,9 @@ test("falls back past a plugin.json with no string name", () => {
   writeFileSync(join(plugin, "plugin.json"), JSON.stringify({ version: "1.0.0" }));
   writeFileSync(join(plugin, "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
   const comps = scanSubmodule(ext, "noname");
-  assert.equal(comps[0].namespace, "noname");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "noname");
 });
 
 test("skips symlinked mirrors so a skill is not counted twice", (t) => {
@@ -119,7 +131,9 @@ test("skips symlinked mirrors so a skill is not counted twice", (t) => {
   }
   const comps = scanSubmodule(ext, "mirror");
   assert.equal(comps.length, 1);
-  assert.equal(comps[0].sourcePath, "mirror/skills/one");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.sourcePath, "mirror/skills/one");
 });
 
 test("still finds real files under .github", () => {
@@ -131,5 +145,7 @@ test("still finds real files under .github", () => {
   );
   const comps = scanSubmodule(ext, "gh");
   assert.equal(comps.length, 1);
-  assert.equal(comps[0].name, "pr-review");
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.name, "pr-review");
 });

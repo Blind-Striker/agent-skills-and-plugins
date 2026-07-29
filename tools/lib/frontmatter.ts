@@ -7,10 +7,11 @@ export interface ParsedDoc {
 
 export function parseDoc(content: string): ParsedDoc {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(content);
-  if (!m) {
+  const raw = m?.[1];
+  if (!m || raw === undefined) {
     return { frontmatter: {}, body: content };
   }
-  const frontmatter = (parseYaml(m[1]) as Record<string, unknown> | null) ?? {};
+  const frontmatter = (parseYaml(raw) as Record<string, unknown> | null) ?? {};
   return { frontmatter, body: content.slice(m[0].length).replace(/^\r?\n/, "") };
 }
 
