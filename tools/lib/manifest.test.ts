@@ -28,7 +28,10 @@ test('items defaults to empty array', () => {
 
 test('missing plugin.name throws with path', () => {
   const p = write('plugin:\n  description: d\n  version: 0.1.0\n');
-  assert.throws(() => loadManifest(p), new RegExp('plugin\\.name'));
+  assert.throws(
+    () => loadManifest(p),
+    (err: unknown) => err instanceof Error && err.message.includes(p) && /plugin\.name/.test(err.message),
+  );
 });
 
 test('item without source throws', () => {
