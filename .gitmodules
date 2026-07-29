@@ -1,0 +1,15 @@
+[submodule "external/superpowers"]
+	path = external/superpowers
+	url = https://github.com/obra/superpowers.git
+[submodule "external/mattpocock-skills"]
+	path = external/mattpocock-skills
+	url = https://github.com/mattpocock/skills.git
+[submodule "external/dotnet-skills"]
+	path = external/dotnet-skills
+	url = https://github.com/Aaronontheweb/dotnet-skills.git
+[submodule "external/aspire-skills"]
+	path = external/aspire-skills
+	url = https://github.com/microsoft/aspire-skills.git
+[submodule "external/dotnet-agent-skills"]
+	path = external/dotnet-agent-skills
+	url = https://github.com/dotnet/skills.git
