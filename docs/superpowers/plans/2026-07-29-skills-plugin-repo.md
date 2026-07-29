@@ -1586,7 +1586,7 @@ git commit -m "chore: CI validation workflow and README"
 ### Task 14: Docs structure (AGENTS.md, ADRs, research, ROADMAP)
 
 **Files:**
-- Create: `AGENTS.md`, `CLAUDE.md`, `docs/ROADMAP.md`, `docs/adr/0001-submodule-manifest-overlay-architecture.md`, `docs/adr/0002-multi-harness-output.md`, `docs/research/README.md`
+- Create: `AGENTS.md`, `CLAUDE.md`, `docs/ROADMAP.md`, `docs/adr/0001-submodule-manifest-overlay-architecture.md`, `docs/adr/0002-multi-harness-output.md`, `docs/adr/0003-docs-structure.md`, `docs/research/README.md`
 - Modify: `README.md` (link the new docs)
 
 **Interfaces:**
@@ -1673,6 +1673,8 @@ This file intentionally stays as a relay only.
 - [ ] **Step 4: Write the two ADRs** (condense from the design spec, one decision per file, `Date:` line each):
   - `docs/adr/0001-submodule-manifest-overlay-architecture.md` — context (curate external skill repos with controlled upstream tracking), decision (submodules + YAML manifests + full-file overlays + committed build output; alternatives considered: vendor+3-way-merge, quilt patches), consequences (indirection via build step; clean upstream diffs; eject workflow).
   - `docs/adr/0002-multi-harness-output.md` — context (Claude Code primary, OpenCode secondary; SKILL.md is an open standard), decision (single source → harness-native artifacts; skills pass through, commands/agents transformed, unmappable features dropped with a build report), consequences (no lowest-common-denominator translation; per-harness adapters stay small).
+
+- [ ] **Step 4b: Write `docs/adr/0003-docs-structure.md`** — records the docs-structure decision itself: context (repo needs an agent contract usable by multiple harnesses), decision (short canonical `AGENTS.md` + `CLAUDE.md` relay; evergreen docs in `docs/adr/` + `docs/research/`, operational state in `docs/ROADMAP.md`), adaptation source credited as: "Pattern adapted and heavily condensed from the AGENTS.md contract of Homerun's discount-service (internal repo); service-specific policy, approval gates, and .NET-specific guidance deliberately dropped — this is a personal tooling repo, not a production service." Do NOT quote content from that repo and do NOT include local filesystem paths — the credit line above is the full extent of the reference (safe if this repo ever goes public).
 
 - [ ] **Step 5: Write `docs/research/README.md`** — 5-10 lines: this folder holds harness research and integration notes (e.g. OpenCode consumption, future Codex/Cursor investigation); one topic per file; `Date:` line per file.
 
