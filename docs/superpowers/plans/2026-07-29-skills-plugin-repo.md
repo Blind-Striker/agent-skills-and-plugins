@@ -13,10 +13,11 @@
 ## Global Constraints
 
 - Node ≥ 24 (dev machine has v24.13.0; npm 11.6.2). All scripts run as `node tools/<name>.ts` — no compile step.
-- Runtime dependencies: **only `yaml`**. Dev dependencies: only `@types/node`, `typescript` (for `tsc --noEmit` typechecking). No test framework (use `node:test`), no CLI framework, no schema library.
+- Runtime dependencies: **only `yaml`**. Dev dependencies: only `@types/node`, `typescript` (^7.x — Go-native TS7, used solely for `tsc --noEmit`), `@biomejs/biome` (format + lint). No test framework (use `node:test`), no CLI framework, no schema library.
 - ESM everywhere (`"type": "module"`); relative imports include the `.ts` extension (required by Node type stripping).
 - Plugin names exactly: `deniz-process`, `deniz-dotnet-general`, `deniz-dotnet-aspire`, `deniz-dotnet-akka`. Marketplace name: `deniz-skills`.
-- npm scripts exactly: `build`, `inventory`, `eject`, `sync`, `validate`, `test`, `typecheck`.
+- npm scripts exactly: `build`, `inventory`, `eject`, `sync`, `validate`, `test`, `typecheck`, `format`, `format:check`, `lint`. (`test` is `node --test "tools/**/*.test.ts"` — a bare directory arg breaks on Node 24.)
+- Biome config (`biome.json`) excludes `external/`, `plugins/`, `opencode/` — tooling never touches submodules or build output.
 - `external/`, `plugins/`, `opencode/` are NEVER hand-edited. `plugins/` and `opencode/` are build outputs but ARE committed.
 - Keep tooling small (spec: "over-engineering yok"). If a feature isn't needed by a task below, don't build it. `hooks.include` non-empty → build throws "not implemented yet".
 - Code and comments in English. Windows dev machine: always build paths with `node:path.join`, never hardcode `/` or `\` in joins (forward slashes OK inside string *values* like `sourcePath`).
@@ -63,7 +64,7 @@ curation/*.yaml (4 starter manifests)              — Task 12 (+ first committe
     "eject": "node tools/eject.ts",
     "sync": "node tools/sync.ts",
     "validate": "node tools/validate.ts",
-    "test": "node --test tools/",
+    "test": "node --test \"tools/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": { "yaml": "^2.6.0" },
@@ -1485,11 +1486,16 @@ Ask the user to run `/plugin marketplace add E:\repos\my-projects\agent-skills-a
 ### Task 13: CI workflow + README
 
 **Files:**
+- Modify: `tsconfig.json` (strictness hardening)
 - Create: `.github/workflows/validate.yml`, `README.md`
 
 **Interfaces:**
 - Consumes: npm scripts from all prior tasks.
-- Produces: CI that fails when tests/validate fail or when committed `plugins/`/`opencode/` output is stale relative to sources.
+- Produces: CI that fails when tests/validate/lint/format fail or when committed `plugins/`/`opencode/` output is stale relative to sources.
+
+- [ ] **Step 0: tsconfig strictness hardening (deferred from Biome adoption)**
+
+Add to `tsconfig.json` compilerOptions: `"noUncheckedIndexedAccess": true`, `"exactOptionalPropertyTypes": true`, `"noImplicitReturns": true`, `"noFallthroughCasesInSwitch": true`, `"forceConsistentCasingInFileNames": true`. Run `npm run typecheck`; fix every resulting error in `tools/` with minimal, behavior-preserving changes (e.g. guard indexed accesses that are now `T | undefined`). Run `npm test` (all passing) after fixes. Commit as `chore: enable strict tsconfig hardening flags`.
 
 - [ ] **Step 1: Write the workflow**
 
@@ -1513,6 +1519,8 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
       - run: npm run build
       - run: npm run validate
       - name: Built output must be committed and fresh
@@ -1549,6 +1557,7 @@ Design: `docs/superpowers/specs/2026-07-29-skills-plugin-repo-design.md`
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
 | `npm run validate` | Check sources, frontmatter, collisions, dangling refs, marketplace |
 | `npm test` | Run the tooling test suite |
+| `npm run lint` / `npm run format` | Biome lint / format (submodules and build output excluded) |
 
 ## Consuming
 
@@ -1570,6 +1579,112 @@ Expected: everything passes; `git status` shows only the two new files (build ou
 ```bash
 git add .github/workflows/validate.yml README.md
 git commit -m "chore: CI validation workflow and README"
+```
+
+---
+
+### Task 14: Docs structure (AGENTS.md, ADRs, research, ROADMAP)
+
+**Files:**
+- Create: `AGENTS.md`, `CLAUDE.md`, `docs/ROADMAP.md`, `docs/adr/0001-submodule-manifest-overlay-architecture.md`, `docs/adr/0002-multi-harness-output.md`, `docs/research/README.md`
+- Modify: `README.md` (link the new docs)
+
+**Interfaces:**
+- Consumes: the design spec (`docs/superpowers/specs/2026-07-29-skills-plugin-repo-design.md`) as the source for ADR content.
+- Produces: the repo's canonical agent contract. Pattern adapted (simplified) from the user's discount-service repo: evergreen vs operational split, ADRs, CLAUDE.md as relay. OpenCode reads AGENTS.md natively.
+
+- [ ] **Step 1: Write `AGENTS.md`** (keep it SHORT — target under 70 lines; this is the essence, not the discount-service original)
+
+```markdown
+# Agent Instructions
+
+Operating rules for LLM/code agents working in this repository.
+
+This document is canonical and evergreen: it holds only what stays true. Current state, in-flight
+work and next steps live in `docs/ROADMAP.md`.
+
+## Purpose
+
+Personal multi-harness skill/plugin marketplace. Upstream skill repos are vendored as git submodules
+in `external/`; curation manifests in `curation/*.yaml` select and customize what gets packaged into
+the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencode/`).
+
+## Hard Rules
+
+- `external/`, `plugins/` and `opencode/` are never hand-edited. `external/` belongs to upstream;
+  the other two are build output (committed, regenerated by `npm run build`).
+- Your world: `curation/` (what to take, how to tweak), `overlays/` (full-file body edits),
+  `skills/` (original skills), `tools/` (the build toolchain).
+- No skill-by-skill curation decision without the catalog: `npm run inventory` → `docs/inventory.md`.
+- Once a `deniz-*` plugin covers an upstream source, uninstall the upstream plugin from the harness —
+  two similar skills confuse trigger selection.
+- Never commit secrets, tokens, or machine-specific paths.
+
+## Sources of Truth
+
+| Fact | Source |
+|---|---|
+| Commands | `package.json` scripts |
+| What is curated, and how | `curation/*.yaml` |
+| What upstream offers | `docs/inventory.md` (generated — regenerate, don't edit) |
+| Architecture decisions and why | `docs/adr/` |
+| Harness research and notes | `docs/research/` |
+| Status and next steps | `docs/ROADMAP.md` (operational — expected to change) |
+
+## Documentation Hygiene
+
+Evergreen (`AGENTS.md`, `docs/adr/`, `docs/research/`) answers "how it works and why". Operational
+(`docs/ROADMAP.md`) answers "what is done, what is next" and shrinks as work lands. A sentence that
+needs rewriting when a task completes is operational. Keep documentation current in the same change
+as the code it describes. Documents describe the status quo, not their own history — no amendment
+notes, no renumbering; git carries history. Every document carries a `Date:` line.
+
+## Working Style
+
+- Prefer small correct changes over broad refactors.
+- When something is ambiguous, lay out options with a recommendation and ask — don't resolve it
+  silently.
+- Verify before claiming: "builds" and "works" are different words. After changing `tools/`, run
+  `npm test` and `npm run typecheck`; after changing `curation/` or `overlays/`, run
+  `npm run build` and `npm run validate`.
+- Intended behaviour changes get an ADR; a change whose purpose is not to change behaviour must not
+  change behaviour.
+
+## Harness Independence
+
+`AGENTS.md` is the canonical contract; `CLAUDE.md` is a relay only. Harness-specific notes live in
+`docs/research/`. OpenCode reads `AGENTS.md` natively; keep it short and harness-neutral.
+```
+
+- [ ] **Step 2: Write `CLAUDE.md`** (relay only)
+
+```markdown
+# CLAUDE.md
+
+The canonical agent contract for Claude Code and other LLM assistants lives in [AGENTS.md](AGENTS.md).
+
+Read [AGENTS.md](AGENTS.md) first.
+
+This file intentionally stays as a relay only.
+```
+
+- [ ] **Step 3: Write `docs/ROADMAP.md`** (operational; seed with current reality — check the progress ledger and git log, list at minimum: per-module curation sessions pending, GitHub publishing/visibility decision pending, hooks.include not implemented, OpenCode consumption not yet wired on a real machine)
+
+- [ ] **Step 4: Write the two ADRs** (condense from the design spec, one decision per file, `Date:` line each):
+  - `docs/adr/0001-submodule-manifest-overlay-architecture.md` — context (curate external skill repos with controlled upstream tracking), decision (submodules + YAML manifests + full-file overlays + committed build output; alternatives considered: vendor+3-way-merge, quilt patches), consequences (indirection via build step; clean upstream diffs; eject workflow).
+  - `docs/adr/0002-multi-harness-output.md` — context (Claude Code primary, OpenCode secondary; SKILL.md is an open standard), decision (single source → harness-native artifacts; skills pass through, commands/agents transformed, unmappable features dropped with a build report), consequences (no lowest-common-denominator translation; per-harness adapters stay small).
+
+- [ ] **Step 5: Write `docs/research/README.md`** — 5-10 lines: this folder holds harness research and integration notes (e.g. OpenCode consumption, future Codex/Cursor investigation); one topic per file; `Date:` line per file.
+
+- [ ] **Step 6: Update `README.md`** — add a short "Docs" section linking AGENTS.md, docs/adr/, docs/research/, docs/ROADMAP.md.
+
+- [ ] **Step 7: Verify and commit**
+
+Run: `npm run format:check` (new .md files are excluded or clean), then commit all new/changed docs:
+
+```bash
+git add AGENTS.md CLAUDE.md docs/ROADMAP.md docs/adr docs/research README.md
+git commit -m "docs: canonical agent contract, ADRs, research folder, roadmap"
 ```
 
 ---
