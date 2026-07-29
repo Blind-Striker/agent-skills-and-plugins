@@ -25,7 +25,7 @@ External skill repolarını (superpowers, mattpocock/skills, dotnet-skills, aspi
 ## Repo Yapısı
 
 ```
-agent-skills-and-plugings/            (GitHub: public kişisel marketplace)
+agent-skills-and-plugings/            (GitHub'da kişisel marketplace; public/private kararı implementasyonda)
 ├── .claude-plugin/
 │   └── marketplace.json              # 4 plugin'i listeler (build günceller)
 ├── external/                         # submodule'ler — SALT OKUNUR
@@ -134,9 +134,10 @@ Skill-by-skill listeler bu tasarımın kapsamı dışındadır; inventory katalo
 
 ## OpenCode Çıktısı
 
-- SKILL.md formatı açık standart (agentskills.io); OpenCode skill'leri native okur → skill'ler için dönüşüm ~passthrough (`opencode/skills/`).
-- `as: command` işaretliler → `.opencode/command/*.md` formatına.
-- Agent'lar → `.opencode/agent/*.md`; permission eşlemesi ilk sürümde YOK (YAGNI).
+- Tüm OpenCode çıktısı repo'daki `opencode/` klasörüne üretilir; alt klasörler OpenCode konvansiyonlarını izler (`opencode/skill/`, `opencode/command/`, `opencode/agent/`). Tüketim tarafında bu klasörler OpenCode config'ine bağlanır (detay implementasyon planında).
+- SKILL.md formatı açık standart (agentskills.io); OpenCode skill'leri native okur → skill'ler için dönüşüm ~passthrough.
+- `as: command` işaretliler → OpenCode command markdown formatına.
+- Agent'lar → OpenCode agent markdown formatına; permission eşlemesi ilk sürümde YOK (YAGNI).
 - Claude-özgü, OpenCode'da karşılığı olmayan öğeler (hooks, allowed-tools vb.) düşürülür ve build raporunda listelenir — sessiz kayıp yok.
 - İlham: wshobson/agents modeli ("harness-native artifacts, not lowest-common-denominator translations").
 
