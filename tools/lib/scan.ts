@@ -16,7 +16,10 @@ export interface ComponentInfo {
 
 function* walk(dir: string): Generator<string> {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === ".git" || e.name === "node_modules") {
+    // Symlinks are mirrors of content that already lives elsewhere in the tree
+    // (e.g. aspire-skills republishes skills/ under .github/plugins/), so
+    // following them would double-count every component behind the link.
+    if (e.name === ".git" || e.name === "node_modules" || e.isSymbolicLink()) {
       continue;
     }
     const p = join(dir, e.name);
@@ -28,12 +31,28 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+/** Reads `name` from a plugin manifest, or undefined if it is missing, unreadable or malformed. */
+function readPluginName(manifest: string): string | undefined {
+  if (!existsSync(manifest)) {
+    return undefined;
+  }
+  let name: unknown;
+  try {
+    name = (JSON.parse(readFileSync(manifest, "utf8")) as { name?: unknown } | null)?.name;
+  } catch {
+    return undefined;
+  }
+  return typeof name === "string" && name !== "" ? name : undefined;
+}
+
 function findNamespace(startDir: string, stopDir: string): string {
   let dir = startDir;
   while (true) {
-    const pj = join(dir, ".claude-plugin", "plugin.json");
-    if (existsSync(pj)) {
-      return (JSON.parse(readFileSync(pj, "utf8")) as { name: string }).name;
+    // Canonical layout first, then the bare manifest used by marketplace
+    // monorepos such as dotnet/skills (plugins/<name>/plugin.json).
+    const name = readPluginName(join(dir, ".claude-plugin", "plugin.json")) ?? readPluginName(join(dir, "plugin.json"));
+    if (name !== undefined) {
+      return name;
     }
     const parent = dirname(dir);
     if (dir === stopDir || dir === parent) {
