@@ -2,7 +2,9 @@
   "name": "deniz-agent-skills",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "node tools/build.ts",
     "inventory": "node tools/inventory.ts",
@@ -10,8 +12,17 @@
     "sync": "node tools/sync.ts",
     "validate": "node tools/validate.ts",
     "test": "node --test \"tools/**/*.test.ts\"",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
+    "lint": "biome lint ."
   },
-  "dependencies": { "yaml": "^2.6.0" },
-  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^7.0.2" }
+  "dependencies": {
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.6",
+    "@types/node": "^24.0.0",
+    "typescript": "^7.0.2"
+  }
 }
