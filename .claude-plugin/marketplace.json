@@ -1,0 +1,29 @@
+{
+  "name": "deniz-skills",
+  "owner": {
+    "name": "Deniz Irgin",
+    "email": "denizirgin@gmail.com"
+  },
+  "plugins": [
+    {
+      "name": "deniz-dotnet-akka",
+      "source": "./plugins/deniz-dotnet-akka",
+      "description": "Deniz's curated Akka.NET skills"
+    },
+    {
+      "name": "deniz-dotnet-aspire",
+      "source": "./plugins/deniz-dotnet-aspire",
+      "description": "Deniz's curated .NET Aspire skills"
+    },
+    {
+      "name": "deniz-dotnet-general",
+      "source": "./plugins/deniz-dotnet-general",
+      "description": "Deniz's curated general .NET skills"
+    },
+    {
+      "name": "deniz-process",
+      "source": "./plugins/deniz-process",
+      "description": "Deniz's curated process skills (brainstorming, planning, debugging)"
+    }
+  ]
+}

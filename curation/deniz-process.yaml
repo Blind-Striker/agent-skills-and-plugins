@@ -1,0 +1,6 @@
+plugin:
+  name: deniz-process
+  description: "Deniz's curated process skills (brainstorming, planning, debugging)"
+  version: 0.1.0
+items:
+  - source: superpowers/skills/systematic-debugging

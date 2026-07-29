@@ -1,0 +1,6 @@
+plugin:
+  name: deniz-dotnet-aspire
+  description: "Deniz's curated .NET Aspire skills"
+  version: 0.1.0
+items:
+  - source: aspire-skills/skills/aspire
