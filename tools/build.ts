@@ -36,6 +36,7 @@ export function buildAll(root: string): string[] {
 
   writeMarketplace(root, manifests);
   rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components));
+  emitOpenCode(root, report);
   return report;
 }
 
@@ -143,6 +144,43 @@ function rewriteTree(dir: string, map: Map<string, string>): void {
       rewriteTree(p, map);
     } else if (e.name.endsWith(".md")) {
       writeFileSync(p, rewriteRefs(readFileSync(p, "utf8"), map));
+    }
+  }
+}
+
+// OpenCode reads SKILL.md natively, so skills copy verbatim; commands/agents keep only
+// the frontmatter OpenCode understands and every dropped key is reported (no silent loss).
+function emitOpenCode(root: string, report: string[]): void {
+  const pluginsDir = join(root, "plugins");
+  if (!existsSync(pluginsDir)) {
+    return;
+  }
+  for (const plugin of readdirSync(pluginsDir)) {
+    const skillsDir = join(pluginsDir, plugin, "skills");
+    if (existsSync(skillsDir)) {
+      for (const name of readdirSync(skillsDir)) {
+        cpSync(join(skillsDir, name), join(root, "opencode", "skill", name), { recursive: true });
+      }
+    }
+    for (const kind of ["commands", "agents"] as const) {
+      const dir = join(pluginsDir, plugin, kind);
+      if (!existsSync(dir)) {
+        continue;
+      }
+      const outKind = kind === "commands" ? "command" : "agent";
+      mkdirSync(join(root, "opencode", outKind), { recursive: true });
+      for (const f of readdirSync(dir)) {
+        const doc = parseDoc(readFileSync(join(dir, f), "utf8"));
+        const kept: Record<string, unknown> = { description: doc.frontmatter.description };
+        if (outKind === "agent") {
+          kept.mode = "subagent";
+        }
+        const dropped = Object.keys(doc.frontmatter).filter((k) => k !== "description" && k !== "name");
+        if (dropped.length) {
+          report.push(`opencode ${outKind} ${f}: dropped frontmatter keys: ${dropped.join(", ")}`);
+        }
+        writeFileSync(join(root, "opencode", outKind, f), serializeDoc({ frontmatter: kept, body: doc.body }));
+      }
     }
   }
 }

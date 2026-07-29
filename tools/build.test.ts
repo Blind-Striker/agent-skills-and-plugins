@@ -36,6 +36,19 @@ test("buildAll compiles plugins with overrides, overlays, conversions, rewrites"
   assert.equal(mp.plugins[0].source, "./plugins/deniz-process");
 });
 
+test("buildAll emits opencode tree and reports dropped keys", () => {
+  const root = makeRepo();
+  const report = buildAll(root);
+  assert.ok(existsSync(join(root, "opencode", "skill", "alpha", "SKILL.md")));
+  assert.ok(existsSync(join(root, "opencode", "skill", "my-own", "SKILL.md")));
+  const cmd = parseDoc(readFileSync(join(root, "opencode", "command", "deniz-beta.md"), "utf8"));
+  assert.equal(cmd.frontmatter.description, "Beta overlay");
+  // references were rewritten before opencode emission
+  const alpha = readFileSync(join(root, "opencode", "skill", "alpha", "SKILL.md"), "utf8");
+  assert.match(alpha, /deniz-process:deniz-beta/);
+  assert.ok(Array.isArray(report));
+});
+
 test("missing overlay throws a helpful error", () => {
   const root = makeRepo();
   writeFileSync(
