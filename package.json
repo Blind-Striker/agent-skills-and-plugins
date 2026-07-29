@@ -9,7 +9,7 @@
     "eject": "node tools/eject.ts",
     "sync": "node tools/sync.ts",
     "validate": "node tools/validate.ts",
-    "test": "node --test tools/",
+    "test": "node --test \"tools/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": { "yaml": "^2.6.0" },
