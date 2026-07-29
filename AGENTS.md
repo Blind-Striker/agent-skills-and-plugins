@@ -39,7 +39,7 @@ Evergreen (`AGENTS.md`, `docs/adr/`, `docs/research/`) answers "how it works and
 (`docs/ROADMAP.md`) answers "what is done, what is next" and shrinks as work lands. A sentence that
 needs rewriting when a task completes is operational. Keep documentation current in the same change
 as the code it describes. Documents describe the status quo, not their own history — no amendment
-notes, no renumbering; git carries history. Every document carries a `Date:` line.
+notes, no renumbering; git carries history. Every document in `docs/` carries a `Date:` line.
 
 ## Working Style
 

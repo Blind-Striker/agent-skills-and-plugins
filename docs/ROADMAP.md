@@ -15,8 +15,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - Four starter plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
   `deniz-dotnet-aspire`, `deniz-dotnet-akka`), one curated skill each, plus the matching
   `opencode/skill/` output and `marketplace.json`.
-- `npm run validate` on the current build: 0 errors, 4 warnings (upstream placeholder references in
-  passthrough skill bodies).
+- `npm run validate` on the current build: 0 errors, 4 warnings (unrewritten cross-references to
+  uncurated superpowers skills, counted once per output tree).
 
 ## Next Up
 
@@ -37,8 +37,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   cross-reference rewrite map keys on frontmatter `name`. 32 of 223 upstream components have
   divergent names, so a reference to one of them would not be rewritten. No impact on what is built
   today. Re-key on the upstream directory basename before large curation batches.
-- **Upstream noise in output.** Author-facing and test files travel with curated skills (6 of 11
+- **Upstream noise in output.** Author-facing and test files travel with curated skills (5 of 11
   files in `systematic-debugging`). Per-item exclude patterns in the manifest are the candidate fix.
+- **`invocable: false` passthrough.** Two emitted skills carry this upstream frontmatter key; confirm
+  Claude Code's semantics for it before real curation rather than assuming it is harmless.
 - **`hooks.include` unimplemented.** The build throws on a non-empty list. Deliberate: no upstream
   hook is wanted yet (this is how the superpowers session-start behaviour stays off). Implement only
   when a specific hook is.
