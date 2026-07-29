@@ -5,7 +5,16 @@ submodules in `external/`; curation manifests in `curation/*.yaml` select and
 customize what gets packaged into the `deniz-*` Claude Code plugins in
 `plugins/` and the OpenCode output in `opencode/`.
 
-Design: `docs/superpowers/specs/2026-07-29-skills-plugin-repo-design.md`
+## Docs
+
+| Document | Contents |
+|---|---|
+| [AGENTS.md](AGENTS.md) | Canonical contract for agents working in this repo (Claude Code reads it via [CLAUDE.md](CLAUDE.md)) |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Current state, next steps, known gaps |
+| [docs/adr/](docs/adr/) | Architecture decisions and why |
+| [docs/research/](docs/research/) | Harness and integration notes |
+| [docs/inventory.md](docs/inventory.md) | Generated catalog of everything upstream offers |
+| [design spec](docs/superpowers/specs/2026-07-29-skills-plugin-repo-design.md) | Original design (Turkish) |
 
 ## Rules
 
