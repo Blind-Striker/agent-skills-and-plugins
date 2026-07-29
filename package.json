@@ -1,0 +1,17 @@
+{
+  "name": "deniz-agent-skills",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24" },
+  "scripts": {
+    "build": "node tools/build.ts",
+    "inventory": "node tools/inventory.ts",
+    "eject": "node tools/eject.ts",
+    "sync": "node tools/sync.ts",
+    "validate": "node tools/validate.ts",
+    "test": "node --test tools/",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "yaml": "^2.6.0" },
+  "devDependencies": { "@types/node": "^24.0.0", "typescript": "^5.8.0" }
+}
