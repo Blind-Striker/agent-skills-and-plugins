@@ -1,5 +1,15 @@
-import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
@@ -40,6 +50,20 @@ export function buildAll(root: string): string[] {
   return report;
 }
 
+// cpSync copies a symlink as a symlink but resolves its target to an ABSOLUTE local path, so a
+// copied link is machine-specific and dangles in every other clone. Committed build output must be
+// plain files: skip links (a rejected directory link skips its subtree) and report every skip.
+function skipSymlinks(root: string, label: string, report: string[]): (src: string) => boolean {
+  return (src) => {
+    if (!lstatSync(src).isSymbolicLink()) {
+      return true;
+    }
+    const rel = relative(root, src).replaceAll("\\", "/");
+    report.push(`WARN ${label}: skipped symlink ${rel.startsWith("..") ? basename(src) : rel}`);
+    return false;
+  };
+}
+
 function emitItem(
   root: string,
   m: CurationManifest,
@@ -71,9 +95,10 @@ function emitItem(
       throw new Error(`${item.source}: ${comp.type} -> skill conversion not supported`);
     }
     const destDir = join(pluginDir, "skills", outName);
-    cpSync(srcPath, destDir, { recursive: true });
+    const filter = skipSymlinks(root, `${m.plugin.name}/${outName}`, report);
+    cpSync(srcPath, destDir, { recursive: true, filter });
     if (item.body === "overlay") {
-      cpSync(overlayDir, destDir, { recursive: true, force: true });
+      cpSync(overlayDir, destDir, { recursive: true, force: true, filter });
     }
     const skillMd = join(destDir, "SKILL.md");
     const doc = parseDoc(readFileSync(skillMd, "utf8"));
@@ -115,7 +140,10 @@ function emitOwnSkills(root: string, m: CurationManifest, report: string[]): voi
     if (!statSync(join(ownDir, name)).isDirectory()) {
       continue;
     }
-    cpSync(join(ownDir, name), join(root, "plugins", m.plugin.name, "skills", name), { recursive: true });
+    cpSync(join(ownDir, name), join(root, "plugins", m.plugin.name, "skills", name), {
+      recursive: true,
+      filter: skipSymlinks(root, `${m.plugin.name}/${name}`, report),
+    });
     report.push(`${m.plugin.name}: skill ${name} <- skills/ (own)`);
   }
 }
@@ -159,7 +187,10 @@ function emitOpenCode(root: string, report: string[]): void {
     const skillsDir = join(pluginsDir, plugin, "skills");
     if (existsSync(skillsDir)) {
       for (const name of readdirSync(skillsDir)) {
-        cpSync(join(skillsDir, name), join(root, "opencode", "skill", name), { recursive: true });
+        cpSync(join(skillsDir, name), join(root, "opencode", "skill", name), {
+          recursive: true,
+          filter: skipSymlinks(root, `opencode/${name}`, report),
+        });
       }
     }
     for (const kind of ["commands", "agents"] as const) {

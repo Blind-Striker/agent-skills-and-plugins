@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -62,6 +62,30 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.equal(ocAgent.frontmatter.description, "Beta upstream");
   assert.equal("model" in ocAgent.frontmatter, false);
   assert.ok(report.includes("opencode agent beta-agent.md: dropped frontmatter keys: model"));
+});
+
+// aspire-skills links evals/fixtures out of its skill dir; cpSync would copy that link with its
+// target resolved to an absolute local path — a dangling, machine-specific artifact once committed.
+test("symlinks inside a curated skill are skipped, not copied", (t) => {
+  const root = makeRepo();
+  mkdirSync(join(root, "external", "sp", "shared"), { recursive: true });
+  writeFileSync(join(root, "external", "sp", "shared", "fixture.txt"), "outside the skill dir\n");
+  try {
+    symlinkSync(join("..", "..", "shared"), join(root, "external", "sp", "skills", "alpha", "fixtures"), "dir");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+  const report = buildAll(root);
+  const copied = join(root, "plugins", "deniz-process", "skills", "alpha", "fixtures");
+  // nothing at all at that path: not a real dir, not a dangling link
+  assert.throws(() => lstatSync(copied), /ENOENT/);
+  // the rest of the skill still copied — the filter must reject only the link
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")));
+  assert.ok(
+    report.includes("WARN deniz-process/alpha: skipped symlink external/sp/skills/alpha/fixtures"),
+    `expected a skipped-symlink warning, got ${JSON.stringify(report, null, 2)}`,
+  );
 });
 
 test("missing overlay throws a helpful error", () => {

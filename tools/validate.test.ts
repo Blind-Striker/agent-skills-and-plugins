@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -36,6 +36,30 @@ test("leftover upstream reference is a warning", () => {
   );
   const findings = validateRepo(root);
   assert.ok(findings.some((f) => f.level === "warn" && f.message.includes("superpowers:some-skill")));
+});
+
+// A symlink can only reach plugins/ by hand or from a future build regression; either way the
+// committed output stops being portable, so validate must fail rather than warn.
+test("a symlink in built output is an error", (t) => {
+  const root = makeRepo();
+  buildAll(root);
+  const link = join(root, "plugins", "deniz-process", "skills", "alpha", "fixtures");
+  try {
+    symlinkSync(join(root, "external", "sp", "skills", "beta"), link, "dir");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) =>
+        f.level === "error" &&
+        f.message.includes("must not contain symlinks") &&
+        f.message.includes("plugins/deniz-process/skills/alpha/fixtures"),
+    ),
+    `expected a symlink error, got ${JSON.stringify(findings, null, 2)}`,
+  );
 });
 
 // The fixture curates sp/skills/beta twice (command + agent) and gives alpha a dead

@@ -24,6 +24,22 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
+// walk() cannot see links: a symlinked directory fails isDirectory() and a symlinked file is
+// dropped by every caller's .md filter, so the portability check needs its own pass.
+function* walkSymlinks(dir: string): Generator<string> {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === ".git") {
+      continue;
+    }
+    const p = join(dir, e.name);
+    if (e.isSymbolicLink()) {
+      yield p;
+    } else if (e.isDirectory()) {
+      yield* walkSymlinks(p);
+    }
+  }
+}
+
 export function validateRepo(root: string): Finding[] {
   const findings: Finding[] = [];
   const manifests = readdirSync(join(root, "curation"))
@@ -126,12 +142,19 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // 4. leftover upstream references in built output
+  // 3. portability of built output + 4. leftover upstream references in it
   const refPattern = /([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
   for (const outDir of ["plugins", "opencode"]) {
     const dir = join(root, outDir);
     if (!existsSync(dir)) {
       continue;
+    }
+    // 3. a copied symlink carries an absolute local target, so it dangles in every other clone
+    for (const link of walkSymlinks(dir)) {
+      findings.push({
+        level: "error",
+        message: `committed build output must not contain symlinks: ${relative(root, link).replaceAll("\\", "/")}`,
+      });
     }
     for (const file of walk(dir)) {
       if (!file.endsWith(".md")) {
