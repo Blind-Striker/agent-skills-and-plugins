@@ -35,10 +35,11 @@ function findNamespace(startDir: string, stopDir: string): string {
     if (existsSync(pj)) {
       return (JSON.parse(readFileSync(pj, "utf8")) as { name: string }).name;
     }
-    if (dir === stopDir) {
+    const parent = dirname(dir);
+    if (dir === stopDir || dir === parent) {
       return basename(stopDir);
     }
-    dir = dirname(dir);
+    dir = parent;
   }
 }
 
@@ -46,7 +47,8 @@ function rel(root: string, p: string): string {
   return relative(root, p).replaceAll("\\", "/");
 }
 
-export function scanSubmodule(externalDir: string, submodule: string): ComponentInfo[] {
+export function scanSubmodule(externalDir: string, submoduleArg: string): ComponentInfo[] {
+  const submodule = submoduleArg.replace(/[\\/]+$/, "");
   const root = join(externalDir, submodule);
   const out: ComponentInfo[] = [];
   for (const file of walk(root)) {

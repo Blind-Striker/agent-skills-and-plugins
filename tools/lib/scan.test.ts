@@ -44,3 +44,13 @@ test("falls back to submodule dir name when no plugin.json", () => {
   const comps = scanSubmodule(ext, "raw");
   assert.equal(comps[0].namespace, "raw");
 });
+
+test("tolerates trailing separator on submodule name", () => {
+  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  mkdirSync(join(ext, "raw", "skills", "x"), { recursive: true });
+  writeFileSync(join(ext, "raw", "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
+  const comps = scanSubmodule(ext, "raw/");
+  assert.equal(comps.length, 1);
+  assert.equal(comps[0].namespace, "raw");
+  assert.equal(comps[0].sourcePath, "raw/skills/x");
+});
