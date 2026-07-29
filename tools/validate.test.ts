@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { symlinkSync, writeFileSync } from "node:fs";
+import { rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -36,6 +36,37 @@ test("leftover upstream reference is a warning", () => {
   );
   const findings = validateRepo(root);
   assert.ok(findings.some((f) => f.level === "warn" && f.message.includes("superpowers:some-skill")));
+});
+
+// Two plugins can each curate the same upstream skill without either manifest looking wrong, but
+// Claude Code addresses a skill by name alone, so only one of the two would ever be reachable.
+test("duplicate output name across plugins is an error", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n",
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("duplicate skill name across plugins: alpha")),
+    `expected a duplicate-name error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// marketplace.json is what a harness reads to find the plugins; a build that half-failed, or a
+// hand-deleted plugin dir, leaves it advertising directories that are not there.
+test("marketplace.json listing a plugin that is not built is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  rmSync(join(root, "plugins", "deniz-process"), { recursive: true });
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) => f.level === "error" && f.message.includes("marketplace lists deniz-process but plugins/deniz-process"),
+    ),
+    `expected a marketplace mismatch error, got ${JSON.stringify(findings, null, 2)}`,
+  );
 });
 
 // A symlink can only reach plugins/ by hand or from a future build regression; either way the

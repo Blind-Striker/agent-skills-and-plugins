@@ -13,10 +13,12 @@ import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { requireSubmodules } from "./lib/preflight.ts";
 import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export function buildAll(root: string): string[] {
+  requireSubmodules(root);
   const report: string[] = [];
   const manifests = readdirSync(join(root, "curation"))
     .filter((f) => f.endsWith(".yaml"))

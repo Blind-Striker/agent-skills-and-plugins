@@ -34,8 +34,8 @@ npm install
 ```
 
 Already cloned without submodules? `git submodule update --init --recursive`.
-The build, validate and inventory commands all read `external/`, so the
-submodules must be checked out.
+Every command reads `external/`, so the submodules must be checked out —
+each one refuses to run while a submodule directory is still empty.
 
 ## Commands
 
@@ -46,7 +46,7 @@ submodules must be checked out.
 | `npm run eject <plugin> <name>` | Copy an item to `overlays/` for body editing |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
 | `npm run validate` | Check sources, frontmatter, collisions, dangling refs, marketplace |
-| `npm test` | Run the tooling test suite |
+| `npm test` | Run the tooling test suite (a `pretest` guard fails if the glob stops finding it) |
 | `npm run typecheck` | Type-check `tools/` with `tsc --noEmit` |
 | `npm run lint` / `npm run format` | Biome lint / format (submodules and build output excluded) |
 

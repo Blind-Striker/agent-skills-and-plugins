@@ -11,6 +11,7 @@
     "eject": "node tools/eject.ts",
     "sync": "node tools/sync.ts",
     "validate": "node tools/validate.ts",
+    "pretest": "node tools/check-test-discovery.ts",
     "test": "node --test \"tools/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",

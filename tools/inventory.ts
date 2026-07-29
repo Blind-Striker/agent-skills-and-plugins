@@ -1,9 +1,11 @@
 import { existsSync, mkdirSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadManifest } from "./lib/manifest.ts";
+import { requireSubmodules } from "./lib/preflight.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 const root = process.cwd();
+requireSubmodules(root);
 const curated = new Map<string, string>();
 const curationDir = join(root, "curation");
 if (existsSync(curationDir)) {

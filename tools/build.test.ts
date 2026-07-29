@@ -135,6 +135,14 @@ test("an overlay directory missing the file the build reads aborts before deleti
   assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
 });
 
+// An uninitialised clone has empty external/* dirs, which every tool would read as "no upstream
+// components exist" — a fresh checkout would otherwise fail with a confusing unknown-source list.
+test("an uninitialised submodule aborts with the init command", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "external", "not-checked-out"), { recursive: true });
+  assert.throws(() => buildAll(root), /submodule update/);
+});
+
 test("non-empty hooks.include throws not-implemented and preserves existing output", () => {
   const root = makeRepo();
   buildAll(root);

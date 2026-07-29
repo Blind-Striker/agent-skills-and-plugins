@@ -3,6 +3,7 @@ import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
+import { requireSubmodules } from "./lib/preflight.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -41,6 +42,7 @@ function* walkSymlinks(dir: string): Generator<string> {
 }
 
 export function validateRepo(root: string): Finding[] {
+  requireSubmodules(root);
   const findings: Finding[] = [];
   const manifests = readdirSync(join(root, "curation"))
     .filter((f) => f.endsWith(".yaml"))

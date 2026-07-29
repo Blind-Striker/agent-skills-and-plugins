@@ -3,6 +3,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { requireSubmodules } from "./lib/preflight.ts";
 
 export function syncReport(sub: string, changed: string[], manifests: CurationManifest[]): string[] {
   const lines: string[] = [];
@@ -34,6 +35,9 @@ function git(args: string[], cwd?: string): string {
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const root = process.cwd();
+  // `git submodule update --remote` cannot bootstrap an uninitialised submodule, and the rev-parse
+  // below would fail first with a bare git error, so say the init command instead.
+  requireSubmodules(root);
   const only = process.argv[2];
   const subs = only ? [only] : readdirSync(join(root, "external"));
   const manifests = readdirSync(join(root, "curation"))

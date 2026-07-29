@@ -1,6 +1,7 @@
 import { cpSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { loadManifest } from "./lib/manifest.ts";
+import { requireSubmodules } from "./lib/preflight.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 const [plugin, name] = process.argv.slice(2);
@@ -9,6 +10,7 @@ if (!plugin || !name) {
   process.exit(1);
 }
 const root = process.cwd();
+requireSubmodules(root);
 const manifest = loadManifest(join(root, "curation", `${plugin}.yaml`));
 // Output names must resolve exactly as build.ts resolves them (item.name ?? the scanner's
 // frontmatter name), or the `npm run eject` command that build's missing-overlay error
