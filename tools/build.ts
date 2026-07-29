@@ -31,6 +31,15 @@ export function buildAll(root: string): string[] {
     .filter((s) => statSync(join(root, "external", s)).isDirectory())
     .flatMap((s) => scanSubmodule(join(root, "external"), s));
 
+  // Everything emitItem could fail on is resolved here, BEFORE the rmSync pair below: a failure
+  // discovered mid-emit would leave the committed output half-deleted and marketplace.json stale,
+  // so a single typo'd source: would cost a `git checkout`. One error lists every problem.
+  const problems = collectProblems(root, manifests, components);
+  if (problems.length) {
+    const header = problems.length > 1 ? `${problems.length} unresolvable curation items, nothing deleted:\n` : "";
+    throw new Error(header + problems.join("\n"));
+  }
+
   rmSync(join(root, "plugins"), { recursive: true, force: true });
   rmSync(join(root, "opencode"), { recursive: true, force: true });
 
@@ -48,6 +57,50 @@ export function buildAll(root: string): string[] {
   rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components));
   emitOpenCode(root, report);
   return report;
+}
+
+/** The single file emitItem reads out of an overlay when the target is a command or an agent. */
+function overlayBodyFile(comp: ComponentInfo, item: CurationItem): string {
+  return comp.type === "skill" ? "SKILL.md" : basename(item.source);
+}
+
+// Mirrors every throw in emitItem, with the identical wording, so the messages a user sees are the
+// same whichever side reports them. The emitItem throws stay as unreachable safety nets.
+function collectProblems(root: string, manifests: CurationManifest[], components: ComponentInfo[]): string[] {
+  const problems: string[] = [];
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude) {
+        continue;
+      }
+      const comp = components.find((c) => c.sourcePath === item.source);
+      if (!comp) {
+        problems.push(`${m.plugin.name}: source not found in external/: ${item.source}`);
+        continue;
+      }
+      const outName = item.name ?? comp.name;
+      const outType = item.as ?? comp.type;
+      const overlayDir = join(root, "overlays", m.plugin.name, outName);
+      if (item.body === "overlay" && !existsSync(overlayDir)) {
+        problems.push(
+          `${m.plugin.name}/${outName}: body is overlay but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject ${m.plugin.name} ${outName}`,
+        );
+      } else if (item.body === "overlay" && outType !== "skill") {
+        // A skill target copies the whole overlay dir, but a conversion reads one file out of it —
+        // and the build looks it up by the SOURCE name, so an overlay renamed by hand is invisible.
+        const file = overlayBodyFile(comp, item);
+        if (!existsSync(join(overlayDir, file))) {
+          problems.push(
+            `${m.plugin.name}/${outName}: overlays/${m.plugin.name}/${outName}/${file} is missing — a ${outType} overlay is read by its source file name, so do not rename it`,
+          );
+        }
+      }
+      if (outType === "skill" && comp.type !== "skill") {
+        problems.push(`${item.source}: ${comp.type} -> skill conversion not supported`);
+      }
+    }
+  }
+  return problems;
 }
 
 // cpSync copies a symlink as a symlink but resolves its target to an ABSOLUTE local path, so a
@@ -110,7 +163,7 @@ function emitItem(
     const srcFile = comp.type === "skill" ? join(srcPath, "SKILL.md") : srcPath;
     let doc = parseDoc(readFileSync(srcFile, "utf8"));
     if (item.body === "overlay") {
-      doc = parseDoc(readFileSync(join(overlayDir, basename(srcFile)), "utf8"));
+      doc = parseDoc(readFileSync(join(overlayDir, overlayBodyFile(comp, item)), "utf8"));
     }
     if (comp.type === "skill") {
       const extras = readdirSync(srcPath).filter((f) => f !== "SKILL.md");

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, lstatSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -95,6 +95,44 @@ test("missing overlay throws a helpful error", () => {
     "plugin:\n  name: deniz-process\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n    body: overlay\n",
   );
   assert.throws(() => buildAll(root), /overlay/);
+});
+
+// The build wipes plugins/ and opencode/ before re-emitting them, so any failure it discovers
+// mid-emit destroys committed output and leaves a stale marketplace.json behind. Every
+// per-item failure has to be found by the pre-pass, i.e. before the first rmSync.
+test("unresolvable items abort the build before any output is deleted, and report all of them", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const alpha = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  assert.ok(existsSync(alpha));
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: d",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/typo",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "",
+    ].join("\n"),
+  );
+  assert.throws(() => buildAll(root), /sp\/skills\/typo/);
+  // both problems in one message: a build must not have to be re-run once per typo
+  assert.throws(() => buildAll(root), /overlays\/deniz-process\/alpha\/ is missing/);
+  assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
+});
+
+test("an overlay directory missing the file the build reads aborts before deleting output", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const alpha = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  // deniz-beta converts sp/skills/beta to a command, so the build reads overlays/.../SKILL.md
+  rmSync(join(root, "overlays", "deniz-process", "deniz-beta", "SKILL.md"));
+  assert.throws(() => buildAll(root), /deniz-beta\/SKILL\.md is missing/);
+  assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
 });
 
 test("non-empty hooks.include throws not-implemented and preserves existing output", () => {
