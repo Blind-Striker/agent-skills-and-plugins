@@ -31,3 +31,9 @@ test("reports only changed curated items with overlay flag", () => {
 test("no changes yields empty report", () => {
   assert.deepEqual(syncReport("sp", [], manifests), []);
 });
+
+test("excluded item reports no action", () => {
+  const lines = syncReport("sp", ["skills/gone/SKILL.md"], manifests);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /excluded — no action/);
+});

@@ -1,6 +1,7 @@
-import { cpSync, mkdirSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, readdirSync, statSync } from "node:fs";
 import { basename, join } from "node:path";
 import { loadManifest } from "./lib/manifest.ts";
+import { scanSubmodule } from "./lib/scan.ts";
 
 const [plugin, name] = process.argv.slice(2);
 if (!plugin || !name) {
@@ -9,7 +10,16 @@ if (!plugin || !name) {
 }
 const root = process.cwd();
 const manifest = loadManifest(join(root, "curation", `${plugin}.yaml`));
-const item = manifest.items.find((i) => (i.name ?? basename(i.source, ".md")) === name);
+// Output names must resolve exactly as build.ts resolves them (item.name ?? the scanner's
+// frontmatter name), or the `npm run eject` command that build's missing-overlay error
+// prints would not find its own item. The basename is the last resort for sources the
+// scanner cannot see (a stale manifest entry, a source outside external/).
+const components = readdirSync(join(root, "external"))
+  .filter((s) => statSync(join(root, "external", s)).isDirectory())
+  .flatMap((s) => scanSubmodule(join(root, "external"), s));
+const item = manifest.items.find(
+  (i) => (i.name ?? components.find((c) => c.sourcePath === i.source)?.name ?? basename(i.source, ".md")) === name,
+);
 if (!item) {
   console.error(`No item with output name '${name}' in curation/${plugin}.yaml`);
   process.exit(1);
