@@ -13,12 +13,13 @@ test("buildAll compiles plugins with overrides, overlays, conversions, rewrites"
   assert.ok(report.includes("deniz-process: skill alpha <- sp/skills/alpha"));
   assert.ok(report.includes("WARN deniz-process/deniz-beta: dropped in skill->command conversion: references"));
 
-  // skill copied with frontmatter override + reference rewrite (beta excluded from skills, so alpha's ref maps to the command name)
+  // skill copied with frontmatter override + reference rewrite. beta is curated twice (command +
+  // agent) and buildRewriteMap is last-write-wins per source, so alpha's ref maps to the agent name.
   const alpha = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"));
   assert.equal(alpha.frontmatter.description, "Alpha curated");
   // forced name wins over item.frontmatter's name: sneaky — dir name and rewrite map both use outName
   assert.equal(alpha.frontmatter.name, "alpha");
-  assert.match(alpha.body, /deniz-process:deniz-beta/);
+  assert.match(alpha.body, /deniz-process:beta-agent/);
   assert.doesNotMatch(alpha.body, /superpowers:beta/);
 
   // skill -> command conversion with overlay body
@@ -45,8 +46,22 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.equal(cmd.frontmatter.description, "Beta overlay");
   // references were rewritten before opencode emission
   const alpha = readFileSync(join(root, "opencode", "skill", "alpha", "SKILL.md"), "utf8");
-  assert.match(alpha, /deniz-process:deniz-beta/);
-  assert.ok(Array.isArray(report));
+  assert.match(alpha, /deniz-process:beta-agent/);
+
+  // skill -> agent conversion, plugins side: forced name, item.frontmatter carried, description from source
+  const agentPath = join(root, "plugins", "deniz-process", "agents", "beta-agent.md");
+  assert.ok(existsSync(agentPath));
+  const agent = parseDoc(readFileSync(agentPath, "utf8"));
+  assert.equal(agent.frontmatter.name, "beta-agent");
+  assert.equal(agent.frontmatter.model, "opus");
+  assert.equal(agent.frontmatter.description, "Beta upstream");
+
+  // opencode side keeps description + mode only; model is dropped and reported, never silently lost
+  const ocAgent = parseDoc(readFileSync(join(root, "opencode", "agent", "beta-agent.md"), "utf8"));
+  assert.equal(ocAgent.frontmatter.mode, "subagent");
+  assert.equal(ocAgent.frontmatter.description, "Beta upstream");
+  assert.equal("model" in ocAgent.frontmatter, false);
+  assert.ok(report.includes("opencode agent beta-agent.md: dropped frontmatter keys: model"));
 });
 
 test("missing overlay throws a helpful error", () => {

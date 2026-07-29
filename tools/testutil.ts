@@ -36,6 +36,13 @@ export function makeRepo(): string {
       "    as: command",
       "    name: deniz-beta",
       "    body: overlay",
+      // same source emitted a second time, as an agent: covers the agent branches of
+      // emitItem (forced name) and emitOpenCode (mode: subagent + dropped-key report)
+      "  - source: sp/skills/beta",
+      "    as: agent",
+      "    name: beta-agent",
+      "    frontmatter:",
+      "      model: opus",
     ].join("\n")}\n`,
   );
   // overlay for beta
