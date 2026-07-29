@@ -12,16 +12,17 @@ export function makeRepo(): string {
     join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
     "---\nname: alpha\ndescription: Alpha upstream\n---\n\nUse superpowers:beta next.\n",
   );
-  mkdirSync(join(root, "external", "sp", "skills", "beta"), { recursive: true });
+  mkdirSync(join(root, "external", "sp", "skills", "beta", "references"), { recursive: true });
   writeFileSync(
     join(root, "external", "sp", "skills", "beta", "SKILL.md"),
     "---\nname: beta\ndescription: Beta upstream\n---\n\nBeta body.\n",
   );
+  writeFileSync(join(root, "external", "sp", "skills", "beta", "references", "notes.md"), "extra asset\n");
   // curation manifest
   mkdirSync(join(root, "curation"), { recursive: true });
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
-    [
+    `${[
       "plugin:",
       "  name: deniz-process",
       "  description: Process skills",
@@ -30,11 +31,12 @@ export function makeRepo(): string {
       "  - source: sp/skills/alpha",
       "    frontmatter:",
       "      description: Alpha curated",
+      "      name: sneaky",
       "  - source: sp/skills/beta",
       "    as: command",
       "    name: deniz-beta",
       "    body: overlay",
-    ].join("\n") + "\n",
+    ].join("\n")}\n`,
   );
   // overlay for beta
   mkdirSync(join(root, "overlays", "deniz-process", "deniz-beta"), { recursive: true });

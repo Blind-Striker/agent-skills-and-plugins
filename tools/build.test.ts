@@ -10,10 +10,14 @@ test("buildAll compiles plugins with overrides, overlays, conversions, rewrites"
   const root = makeRepo();
   const report = buildAll(root);
   assert.ok(report.length > 0);
+  assert.ok(report.includes("deniz-process: skill alpha <- sp/skills/alpha"));
+  assert.ok(report.includes("WARN deniz-process/deniz-beta: dropped in skill->command conversion: references"));
 
   // skill copied with frontmatter override + reference rewrite (beta excluded from skills, so alpha's ref maps to the command name)
   const alpha = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"));
   assert.equal(alpha.frontmatter.description, "Alpha curated");
+  // forced name wins over item.frontmatter's name: sneaky — dir name and rewrite map both use outName
+  assert.equal(alpha.frontmatter.name, "alpha");
   assert.match(alpha.body, /deniz-process:deniz-beta/);
   assert.doesNotMatch(alpha.body, /superpowers:beta/);
 
@@ -41,11 +45,15 @@ test("missing overlay throws a helpful error", () => {
   assert.throws(() => buildAll(root), /overlay/);
 });
 
-test("non-empty hooks.include throws not-implemented", () => {
+test("non-empty hooks.include throws not-implemented and preserves existing output", () => {
   const root = makeRepo();
+  buildAll(root);
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")));
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
     "plugin:\n  name: deniz-process\n  description: d\n  version: 0.1.0\nitems: []\nhooks:\n  include: [x]\n",
   );
   assert.throws(() => buildAll(root), /not implemented/);
+  // guard fires before rmSync — previous build output must survive
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")));
 });

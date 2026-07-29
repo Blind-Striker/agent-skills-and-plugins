@@ -12,22 +12,26 @@ export function buildAll(root: string): string[] {
     .filter((f) => f.endsWith(".yaml"))
     .sort()
     .map((f) => loadManifest(join(root, "curation", f)));
-  const components = readdirSync(join(root, "external")).flatMap((s) => scanSubmodule(join(root, "external"), s));
+  for (const m of manifests) {
+    if (m.hooks?.include?.length) {
+      throw new Error(`${m.plugin.name}: hooks.include is not implemented yet — keep it empty (YAGNI)`);
+    }
+  }
+  const components = readdirSync(join(root, "external"))
+    .filter((s) => statSync(join(root, "external", s)).isDirectory())
+    .flatMap((s) => scanSubmodule(join(root, "external"), s));
 
   rmSync(join(root, "plugins"), { recursive: true, force: true });
   rmSync(join(root, "opencode"), { recursive: true, force: true });
 
   for (const m of manifests) {
-    if (m.hooks?.include?.length) {
-      throw new Error(`${m.plugin.name}: hooks.include is not implemented yet — keep it empty (YAGNI)`);
-    }
     for (const item of m.items) {
       emitItem(root, m, item, components, report);
     }
     emitOwnSkills(root, m, report);
     const pluginDir = join(root, "plugins", m.plugin.name);
     mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
-    writeFileSync(join(pluginDir, ".claude-plugin", "plugin.json"), JSON.stringify(m.plugin, null, 2) + "\n");
+    writeFileSync(join(pluginDir, ".claude-plugin", "plugin.json"), `${JSON.stringify(m.plugin, null, 2)}\n`);
   }
 
   writeMarketplace(root, manifests);
@@ -72,7 +76,8 @@ function emitItem(
     }
     const skillMd = join(destDir, "SKILL.md");
     const doc = parseDoc(readFileSync(skillMd, "utf8"));
-    doc.frontmatter = { ...doc.frontmatter, name: outName, ...item.frontmatter };
+    // forced name last: emitted dir names and the rewrite map both key on outName
+    doc.frontmatter = { ...doc.frontmatter, ...item.frontmatter, name: outName };
     writeFileSync(skillMd, serializeDoc(doc));
     report.push(`${m.plugin.name}: skill ${outName} <- ${item.source}${item.body === "overlay" ? " (overlay)" : ""}`);
   } else {
@@ -91,7 +96,8 @@ function emitItem(
       outType === "command"
         ? { description: String(doc.frontmatter.description ?? "") }
         : { name: outName, description: String(doc.frontmatter.description ?? "") };
-    doc = { frontmatter: { ...base, ...item.frontmatter }, body: doc.body };
+    const forcedName: Record<string, unknown> = outType === "agent" ? { name: outName } : {};
+    doc = { frontmatter: { ...base, ...item.frontmatter, ...forcedName }, body: doc.body };
     const kindDir = outType === "command" ? "commands" : "agents";
     mkdirSync(join(pluginDir, kindDir), { recursive: true });
     writeFileSync(join(pluginDir, kindDir, `${outName}.md`), serializeDoc(doc));
@@ -124,7 +130,7 @@ function writeMarketplace(root: string, manifests: CurationManifest[]): void {
     })),
   };
   mkdirSync(join(root, ".claude-plugin"), { recursive: true });
-  writeFileSync(join(root, ".claude-plugin", "marketplace.json"), JSON.stringify(marketplace, null, 2) + "\n");
+  writeFileSync(join(root, ".claude-plugin", "marketplace.json"), `${JSON.stringify(marketplace, null, 2)}\n`);
 }
 
 function rewriteTree(dir: string, map: Map<string, string>): void {
