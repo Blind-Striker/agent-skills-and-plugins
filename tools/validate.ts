@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -5,7 +6,7 @@ import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { listFiles, loadLock, LOCK_FILE, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
-import { resolveItem } from "./lib/resolve.ts";
+import { isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -41,6 +42,33 @@ function* walkSymlinks(dir: string): Generator<string> {
       yield* walkSymlinks(p);
     }
   }
+}
+
+/**
+ * Index modes keyed by repository-relative POSIX path. The index, not the filesystem: a checkout
+ * with `core.filemode=false` — every Windows one — reports 0644 for a file git records as 100755,
+ * so the filesystem cannot answer this question. Returns empty for anything that is not a git
+ * repository, which is how a throwaway fixture and a consumer clone stay silent rather than noisy.
+ */
+function indexModes(dir: string, paths: string[]): Map<string, string> {
+  const modes = new Map<string, string>();
+  let out: string;
+  try {
+    out = execFileSync("git", ["-C", dir, "ls-files", "-s", "--", ...paths], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch {
+    return modes;
+  }
+  for (const line of out.split("\n")) {
+    const m = /^(\d{6}) [0-9a-f]+ \d+\t(.+)$/.exec(line);
+    if (m?.[1] && m[2]) {
+      modes.set(m[2], m[1]);
+    }
+  }
+  return modes;
 }
 
 export function validateRepo(root: string): Finding[] {
@@ -159,6 +187,83 @@ export function validateRepo(root: string): Finding[] {
   }
 
   const pluginsDir = join(root, "plugins");
+
+  // 1d. omit lists. A conversion reads one file and drops the rest by construction, and a pattern
+  // that matches nothing removes nothing — silently, so the file you meant to drop still ships.
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude || !item.omit?.length) {
+        continue;
+      }
+      const { comp, outName, outType, id } = resolveItem(root, m.plugin.name, item, components);
+      if (outType !== "skill") {
+        findings.push({
+          level: "warn",
+          message: `${id}: omit has no effect on a ${outType} — the conversion already keeps only the body of ${outName}`,
+        });
+        continue;
+      }
+      if (!comp) {
+        continue; // already reported as an unknown source
+      }
+      const base = upstreamBase(root, item, comp);
+      const upstream = existsSync(base) ? [...walk(base)].map((f) => itemRelative(base, f)) : [];
+      for (const pattern of item.omit) {
+        if (!upstream.some((rel) => isOmitted(rel, [pattern]))) {
+          findings.push({
+            level: "warn",
+            message: `${id}: omit pattern ${pattern} matches nothing under ${item.source} — check the spelling, it is dropping no file`,
+          });
+        }
+      }
+    }
+  }
+
+  // 1e. executable bit. A Windows checkout cannot see it, so a script curated there is committed
+  // 100644 while a Linux rebuild produces 0755: CI's freshness gate fails on the mode diff, and the
+  // shipped script is not executable for anyone who installs the plugin. git's index is the only
+  // place the bit survives such a checkout, so both sides are read from there. Untracked output is
+  // skipped — it cannot be wrong yet, and it becomes visible the moment it is staged.
+  const ourModes = indexModes(root, ["plugins", "opencode"]);
+  const subModes = new Map<string, Map<string, string>>();
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude) {
+        continue;
+      }
+      const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
+      if (!comp || outType !== "skill") {
+        continue;
+      }
+      const [sub, ...rest] = item.source.split("/");
+      if (!sub) {
+        continue;
+      }
+      if (!subModes.has(sub)) {
+        subModes.set(sub, indexModes(join(root, "external", sub), []));
+      }
+      const upstream = subModes.get(sub) ?? new Map();
+      const builtDir = join(pluginsDir, m.plugin.name, "skills", outName);
+      if (!existsSync(builtDir)) {
+        continue;
+      }
+      for (const file of walk(builtDir)) {
+        const rel = itemRelative(builtDir, file);
+        if (upstream.get([...rest, rel].join("/")) !== "100755") {
+          continue;
+        }
+        for (const out of [`plugins/${m.plugin.name}/skills/${outName}/${rel}`, `opencode/skills/${outName}/${rel}`]) {
+          if (ourModes.has(out) && ourModes.get(out) !== "100755") {
+            findings.push({
+              level: "error",
+              message: `${out}: upstream is executable but this copy is recorded ${ourModes.get(out)} — run: git update-index --chmod=+x ${out}`,
+            });
+          }
+        }
+      }
+    }
+  }
+
   const outputNames = new Map<string, string>();
   const upstreamNs = new Set(components.map((c) => c.namespace));
   for (const m of manifests) {

@@ -66,6 +66,45 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.ok(report.includes("opencode agent beta-agent.md: dropped frontmatter keys: model"));
 });
 
+// Author-facing files travel with upstream skills — creation logs, pressure tests, fixtures. Until
+// now the only way to leave one behind was to own the whole item through an overlay.
+test("omit drops matching files from a curated skill", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/delta",
+      "    omit:",
+      '      - "references/**"',
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const dest = join(root, "plugins", "deniz-process", "skills", "delta");
+  assert.ok(existsSync(join(dest, "SKILL.md")), "the skill itself still ships");
+  assert.ok(!existsSync(join(dest, "references", "notes.md")), "omitted file is gone");
+  // an emptied directory is not left behind as a husk
+  assert.ok(!existsSync(join(dest, "references")), "emptied directory is pruned");
+  // the OpenCode mirror is emitted from plugins/, so it inherits the omission
+  assert.ok(!existsSync(join(root, "opencode", "skills", "delta", "references")));
+});
+
+// Omitting a file the patch edits would leave the patch nothing to land on. git apply would say so,
+// but only after the output tree was already deleted — this belongs in the fail-fast pass.
+test("omit that swallows a patch target aborts the build", () => {
+  const root = makeRepo();
+  const manifest = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    manifest,
+    readFileSync(manifest, "utf8").replace("    body: patch", '    body: patch\n    omit:\n      - "SKILL.md"'),
+  );
+  assert.throws(() => buildAll(root), /gamma.*SKILL\.md/s);
+});
+
 // aspire-skills links evals/fixtures out of its skill dir; cpSync would copy that link with its
 // target resolved to an absolute local path — a dangling, machine-specific artifact once committed.
 test("symlinks inside a curated skill are skipped, not copied", (t) => {

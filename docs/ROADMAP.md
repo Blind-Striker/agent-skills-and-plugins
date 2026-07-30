@@ -30,6 +30,11 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
   are warnings. Item resolution lives once, in `tools/lib/resolve.ts`, so a per-item rule can no
   longer be added to one side of the build only.
+- Items can shed upstream files with `omit:` (glob patterns, ADR-0001) instead of owning the whole
+  file through an overlay. `validate` warns on a pattern that matches nothing and on `omit` under a
+  conversion, and the build refuses a pattern that swallows a file the patch edits. It also errors
+  when a built copy of an upstream-executable file is recorded non-executable — the Windows
+  checkout failure that otherwise surfaces as an opaque CI staleness diff.
 
 ## Next Up
 
@@ -67,9 +72,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `.agent` while harness references spell the bare name — such a reference would not be rewritten.
   Affected files: `find external -name "*.agent.md"`. No impact on what is built today; fix before
   any agent curation.
-- **Upstream noise in output.** Author-facing and test files travel with curated skills (creation
-  logs and pressure-test files in `systematic-debugging`, for instance). Per-item exclude patterns
-  in the manifest are the candidate fix.
 - **Doubled validate warnings.** `validate` scans both `plugins/` and its byte-identical
   `opencode/` mirror, so every real unrewritten reference is reported twice. Superpowers skills
   cross-reference heavily; a partial curation batch could produce dozens of lines. Candidate fix:
@@ -91,8 +93,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   SHA is right there in the lock. Print the diff, and require confirmation.
 - **File modes are invisible to both overlay guards.** `git hash-object` hashes content, and
   patches are cut with `core.fileMode=false`, so upstream flipping a bundled script's executable
-  bit produces no signal. Related to the executable-bit item below; the same `git ls-files` read
-  fixes both.
+  bit produces no signal. `validate` now reads `git ls-files` to compare built output against
+  upstream, but the overlay *lock* still records content only, so a mode-only upstream change does
+  not force a re-bless.
 - **A patch cannot touch anything at or beyond a symlink.** `git apply` refuses such paths outright;
   `aspire-skills` carries symlinks inside curated skills. Undocumented in ADR-0001.
 - **`sync` still mislabels a deleted or renamed source** as "auto-updated on next build", while the
@@ -118,9 +121,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   when a specific hook is.
 - **Re-serialization drift.** Frontmatter is parsed and re-emitted, so a passthrough skill is never
   byte-identical to upstream. Harmless, but it adds noise to `npm run sync` diffs.
-- **Executable-bit parity.** Windows checkouts cannot see the exec bit; any newly curated skill
-  bundling a script needs `git update-index --chmod=+x` on its built copies once, or CI's freshness
-  gate fails on the mode diff. Candidate automation: build reads upstream modes via git ls-files.
 
 ## Deferred
 

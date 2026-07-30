@@ -5,7 +5,14 @@ export type ComponentType = "skill" | "command" | "agent";
 
 export interface CurationItem {
   source: string;
+  /** Reject the whole item. For dropping FILES from an item that is taken, see `omit`. */
   exclude?: boolean;
+  /**
+   * Glob patterns, item-relative and POSIX-spelled, for upstream files to leave behind — author
+   * logs, pressure tests, fixtures. Applied to the upstream copy before any overlay or patch, so
+   * `body:` describes edits to what survives.
+   */
+  omit?: string[];
   name?: string;
   as?: ComponentType;
   frontmatter?: Record<string, unknown>;

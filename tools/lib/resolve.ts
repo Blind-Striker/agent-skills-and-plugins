@@ -1,4 +1,5 @@
-import { basename, join } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
+import { matchesGlob } from "node:path";
 import type { ComponentType, CurationItem } from "./manifest.ts";
 import type { ComponentInfo } from "./scan.ts";
 
@@ -37,4 +38,24 @@ export function resolveItem(
     overlayDir: join(root, "overlays", plugin, outName),
     id: `${plugin}/${outName}`,
   };
+}
+
+/**
+ * Directory the names inside an overlay — and every `omit` pattern — resolve against upstream. A
+ * skill source is already a directory; a bare command/agent file is addressed from its parent,
+ * where its own name lives.
+ */
+export function upstreamBase(root: string, item: CurationItem, comp: ComponentInfo): string {
+  const src = join(root, "external", item.source);
+  return comp.type === "skill" ? src : dirname(src);
+}
+
+/** Item-relative POSIX path — the spelling every `omit` pattern is matched against. */
+export function itemRelative(base: string, file: string): string {
+  return relative(base, file).replaceAll("\\", "/");
+}
+
+/** True when an item-relative path is dropped by the item's `omit` list. */
+export function isOmitted(rel: string, omit: string[] | undefined): boolean {
+  return omit?.some((p) => matchesGlob(rel, p)) ?? false;
 }

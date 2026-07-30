@@ -9,7 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
@@ -22,8 +22,9 @@ import {
   lockKey,
   type OverlayLock,
   PATCH_FILE,
+  patchTargets,
 } from "./lib/overlay.ts";
-import { resolveItem } from "./lib/resolve.ts";
+import { isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
 import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -77,12 +78,32 @@ function overlayBodyFile(comp: ComponentInfo, item: CurationItem): string {
 }
 
 /**
- * Directory the names inside an overlay resolve against upstream. A skill source is already a
- * directory; a bare command/agent file is addressed from its parent, where its own name lives.
+ * Upstream files an item leaves behind. Applied to the copy of upstream, BEFORE any overlay or
+ * patch, so `body:` describes edits to what survives rather than racing against a later deletion.
+ * A directory is kept whenever anything under it is kept; emptied ones are pruned afterwards.
  */
-export function upstreamBase(root: string, item: CurationItem, comp: ComponentInfo): string {
-  const src = join(root, "external", item.source);
-  return comp.type === "skill" ? src : dirname(src);
+function omitFilter(srcRoot: string, item: CurationItem): (src: string) => boolean {
+  if (!item.omit?.length) {
+    return () => true;
+  }
+  return (src) => {
+    const rel = itemRelative(srcRoot, src);
+    return rel === "" || !isOmitted(rel, item.omit);
+  };
+}
+
+/** cpSync still creates a directory whose every child was filtered out; it should not survive. */
+function pruneEmptyDirs(dir: string): void {
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    if (!e.isDirectory()) {
+      continue;
+    }
+    const p = join(dir, e.name);
+    pruneEmptyDirs(p);
+    if (!readdirSync(p).length) {
+      rmSync(p, { recursive: true, force: true });
+    }
+  }
 }
 
 /**
@@ -149,6 +170,15 @@ function collectProblems(root: string, manifests: CurationManifest[], components
           );
         } else {
           problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, lock));
+          // omit runs first, so a pattern that swallows a file the patch edits leaves the hunk
+          // nothing to land on. git apply would say so — but only after the output tree was
+          // already deleted, which is precisely what this pass exists to prevent.
+          const swallowed = patchTargets(readFileSync(join(overlayDir, PATCH_FILE), "utf8")).filter((t) =>
+            isOmitted(t, item.omit),
+          );
+          if (swallowed.length) {
+            problems.push(`${id}: omit drops ${swallowed.join(", ")}, which ${PATCH_FILE} edits`);
+          }
           // --check writes nothing, so this runs against pristine upstream in the fail-fast pass.
           // No cause is asserted: a patch also stops applying when upstream adopted the same edit,
           // or when the path now sits at or beyond a symlink, and git's own message says which.
@@ -221,7 +251,11 @@ function emitItem(
     }
     const destDir = join(pluginDir, "skills", outName);
     const filter = skipSymlinks(root, `${m.plugin.name}/${outName}`, report);
-    cpSync(srcPath, destDir, { recursive: true, filter });
+    const keep = omitFilter(srcPath, item);
+    cpSync(srcPath, destDir, { recursive: true, filter: (src) => filter(src) && keep(src) });
+    if (item.omit?.length) {
+      pruneEmptyDirs(destDir);
+    }
     if (item.body === "overlay") {
       cpSync(overlayDir, destDir, { recursive: true, force: true, filter });
     } else if (item.body === "patch") {

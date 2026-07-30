@@ -21,8 +21,11 @@ Four pieces:
 1. **Upstream as git submodules** in `external/`, read-only. Pinned commits; `npm run sync` moves the
    pins on request and reports the impact on curated items.
 2. **A curation manifest per plugin** (`curation/<plugin>.yaml`) listing the items to take and their
-   per-item customizations (`exclude`, `frontmatter` overrides, `name`, `as: command|agent`,
+   per-item customizations (`exclude`, `omit`, `frontmatter` overrides, `name`, `as: command|agent`,
    `body: overlay`). Deliberate rejections stay in the file as `exclude: true` so they remain visible.
+   `omit` is the file-level counterpart: glob patterns for upstream files an item leaves behind —
+   creation logs, pressure tests, fixtures — so shedding author-facing material does not require
+   owning the whole item through an overlay.
 3. **Overlays for body edits** (`overlays/<plugin>/<item>/`), in two kinds, both created by
    `npm run eject`:
    - `body: patch` stores an `overlay.patch`, cut from an edited working copy and applied to the
@@ -87,5 +90,14 @@ Four pieces:
 - Taking the same source into two items (say, once as a command and once as an agent) is legal, but
   the cross-reference map keys on the upstream address, so all upstream references resolve to the
   last such item in manifest order — `validate` warns, naming both outputs.
+- `omit` is applied to the copy of upstream **before** any overlay or patch, so `body:` describes
+  edits to what survives rather than racing a later deletion. The consequence is that a pattern
+  which swallows a file the patch edits is a contradiction; the build refuses it in the fail-fast
+  pass rather than letting `git apply` discover it after the output tree is already deleted.
+- The executable bit does not survive a checkout with `core.filemode=false` — every Windows one —
+  so a curated script is committed non-executable while a Linux rebuild produces `0755`. That is
+  both a stale-output failure in CI and a shipped script nobody can run. git's index is the only
+  place the bit still exists on such a checkout, so `validate` compares index modes on both sides
+  and names the `git update-index --chmod=+x` that fixes it.
 - The build resolves every source before deleting old output (fail-fast), but a crash mid-emission
   still leaves `plugins/` and `opencode/` partial; rerunning the build repairs it.

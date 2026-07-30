@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -159,6 +160,71 @@ test("a patch overlay holding a stranded working copy is a warning", () => {
     ),
     `expected a stranded-working-copy warning, got ${JSON.stringify(findings, null, 2)}`,
   );
+});
+
+// A conversion reads exactly one file out of the source and drops the rest anyway, so an omit
+// list there is describing work the conversion already did.
+test("omit on a converted item is a warning", () => {
+  const root = makeRepo();
+  const manifest = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    manifest,
+    readFileSync(manifest, "utf8").replace("    as: agent", '    as: agent\n    omit:\n      - "references/**"'),
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "warn" && f.message.includes("beta-agent") && f.message.includes("omit")),
+    `expected an omit-on-conversion warning, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// A typo'd pattern removes nothing and says nothing — the file you meant to drop ships.
+test("an omit pattern that matches nothing is a warning", () => {
+  const root = makeRepo();
+  const manifest = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    manifest,
+    readFileSync(manifest, "utf8").replace(
+      "  - source: sp/skills/delta",
+      '  - source: sp/skills/delta\n    omit:\n      - "refrences/**"',
+    ),
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "warn" && f.message.includes("refrences/**")),
+    `expected a dead-omit-pattern warning, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// The exec bit cannot survive a Windows checkout, so a script curated there is committed 100644
+// while a Linux rebuild produces 0755 — CI's freshness gate fails on the mode diff, and worse, the
+// shipped script is not executable for anyone who installs the plugin. git's index is the only
+// place the bit still exists on such a checkout, so both trees have to be real repositories here.
+test("a built file whose upstream is executable must be recorded executable", () => {
+  const root = makeRepo();
+  const sp = join(root, "external", "sp");
+  writeFileSync(join(sp, "skills", "delta", "run.sh"), "#!/bin/sh\necho hi\n");
+  execFileSync("git", ["init", "-q", "."], { cwd: sp });
+  execFileSync("git", ["add", "-A"], { cwd: sp });
+  // marks the bit in the index only, so the fixture behaves identically on Windows and Linux
+  execFileSync("git", ["update-index", "--chmod=+x", "skills/delta/run.sh"], { cwd: sp });
+  execFileSync("git", ["init", "-q", "."], { cwd: root });
+  buildAll(root);
+  execFileSync("git", ["add", "-A", "--", "plugins", "opencode"], { cwd: root });
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("run.sh") && f.message.includes("executable")),
+    `expected an exec-bit error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// The rule must stay quiet when nothing upstream is executable, and when there is no index to read.
+test("no exec-bit finding on a clean fixture", () => {
+  const root = makeRepo();
+  buildAll(root);
+  assert.ok(!validateRepo(root).some((f) => f.message.includes("executable")));
 });
 
 // The fixture curates sp/skills/beta twice (command + agent) and gives alpha a dead
