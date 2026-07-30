@@ -89,6 +89,15 @@ rg -n '^(invocable|user-invocable|disable-model-invocation):' external
   `skills/using-superpowers/SKILL.md` and injects its full text wrapped in `<EXTREMELY_IMPORTANT>`.
   The bootstrap is not a separate skill — it is the delivery mechanism, and `using-superpowers` is
   its payload. This repo packages no hooks, so that amplification is absent from our output.
+
+  The coercive language is narrower than it looks, and worth locating precisely before deciding
+  what to strip. `1%` appears in exactly one place: the `<EXTREMELY-IMPORTANT>` block of
+  `using-superpowers` ("even a 1% chance … YOU DO NOT HAVE A CHOICE"). `brainstorming` carries the
+  only other trigger pressure, in its `description` and one body line. Two further matches for
+  "You MUST" are different things and should not be swept up with them:
+  `systematic-debugging` uses it for *procedural* discipline inside the skill ("complete each phase
+  before proceeding"), and `writing-skills` uses it to declare a dependency ("REQUIRED BACKGROUND").
+  Re-derive with `rg -n '\b1%|You MUST|DO NOT HAVE A CHOICE' external/superpowers/skills --glob '**/SKILL.md'`.
 - **dotnet-skills** sets `invocable: true|false` on most of its skills. That is not a field in
   either harness's frontmatter reference; it is upstream's own convention and reaches our output as
   dead metadata.

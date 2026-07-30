@@ -84,6 +84,27 @@ taste. Its hard gate, its "You MUST" phrasing, its hard-coded coupling to `writi
 references to skills outside our set, and its spec path under `docs/superpowers/specs/` — a
 directory this repo treats as merge-transient scratch — all have to go.
 
+### Where the two overlap, and where they do not
+
+Same job, both frameworks — the pairs any mix-and-match decision has to compare on content:
+
+| Job | superpowers | mattpocock-skills |
+|---|---|---|
+| Sharpening requirements | `brainstorming` | `grill-me` + `grill-with-docs` → `grilling` |
+| Writing a spec | `writing-plans` | `to-spec` |
+| Breaking work down | (inside `writing-plans`) | `to-tickets` |
+| Implementing | `executing-plans`, `subagent-driven-development` | `implement` |
+| Test-first | `test-driven-development` | `tdd` |
+| Debugging | `systematic-debugging` | `diagnosing-bugs` |
+| Reviewing | `requesting-code-review`, `receiving-code-review` | `code-review` |
+| Authoring skills | `writing-skills` | `writing-great-skills` |
+
+Only superpowers has: `using-git-worktrees`, `finishing-a-development-branch`,
+`verification-before-completion`, `dispatching-parallel-agents`.
+
+Only mattpocock has: `domain-modeling` and `codebase-design` (the DDD side), `wayfinder` (mapping
+work too large for one session), `handoff`, `research`, `prototype`, `teach`.
+
 The standing warning against mixing: two frameworks installed as *routers* fight over command names,
 compete on routing logic, and pull in different TDD philosophies. Cherry-picking individual skills is
 fine as long as exactly one thing routes. In this repo nothing upstream routes — selection is the
