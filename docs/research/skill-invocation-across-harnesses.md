@@ -78,16 +78,42 @@ rg -n '^(invocable|user-invocable|disable-model-invocation):' external
 ```
 
 - **mattpocock-skills** sets `disable-model-invocation: true` on `grill-me`, `teach`, `handoff`,
-  `edit-article` and `writing-great-skills` — its best-known skills are user-invoked by design.
+  `edit-article` and `writing-great-skills` — its best-known skills are user-invoked by design, and
+  the repo documents the rule it follows (see the composition pattern below).
 - **superpowers** sets no invocation frontmatter anywhere; every skill carries `name` and
-  `description` only. Its pressure to fire lives in description prose (`brainstorming` opens with
-  "You MUST use this before any creative work") and in a SessionStart hook this repo does not
-  package. Because that pressure sits in the *description*, which is injected into the system
-  prompt, an overlay of the body cannot remove it — only a manifest `frontmatter.description`
-  override can.
+  `description` only. It reaches for automatic invocation two other ways. First, description prose:
+  `brainstorming` opens with "You MUST use this before any creative work" — pressure written into
+  the field that gets injected into the system prompt, so an overlay of the body cannot remove it;
+  only a manifest `frontmatter.description` override can. Second, a **SessionStart bootstrap**:
+  `hooks/hooks.json` registers a `startup|clear|compact` hook whose script reads
+  `skills/using-superpowers/SKILL.md` and injects its full text wrapped in `<EXTREMELY_IMPORTANT>`.
+  The bootstrap is not a separate skill — it is the delivery mechanism, and `using-superpowers` is
+  its payload. This repo packages no hooks, so that amplification is absent from our output.
 - **dotnet-skills** sets `invocable: true|false` on most of its skills. That is not a field in
   either harness's frontmatter reference; it is upstream's own convention and reaches our output as
   dead metadata.
+
+## The composition pattern
+
+mattpocock-skills documents an architecture in `.agents/invocation.md` that is the intent matrix
+applied consistently, and it is worth borrowing rather than reinventing:
+
+- **A user-invoked skill is a trigger; a model-invoked skill is the knowledge.** `grill-me` is seven
+  lines and its whole body is "Run a `/grilling` session"; `grill-with-docs` is the same trigger
+  plus `/domain-modeling`. The interview discipline itself lives in `grilling`, which is
+  model-invoked. Two entry points, one body of knowledge.
+- **A user-invoked skill may invoke model-invoked skills, but never another user-invoked skill.**
+  That keeps the human the only entry point to a ceremony.
+- **Dependencies are prose `/skill` invocations, not file cross-references.** Shared material lives
+  inside the skill that owns it and is reached by invoking that skill.
+- **The description's audience follows the invocation.** User-invoked: human-facing, one line, no
+  trigger lists — it is read by a person browsing slash commands. Model-invoked: model-facing, rich
+  trigger phrasing, because auto-invocation depends on it.
+
+The contrast with superpowers is structural, not cosmetic. Superpowers expresses dependencies as
+`superpowers:<name>` references and deep links into sibling skill directories, which is what
+produces its dense cross-reference graph — and, for us, the dangling references that every partial
+curation leaves behind.
 
 ## Prior art: wshobson/agents
 

@@ -25,6 +25,30 @@ particular is defended at every model tier: reproduce → isolate → hypothesiz
 A second criticism is rigidity: plans that pre-specify the exact files to edit hurt on exploratory
 work, where the right implementation is discovered rather than declared up front.
 
+### What its maintainers say about all this
+
+Two positions in the upstream `CLAUDE.md` bear directly on curation.
+
+On authoring guidance: superpowers **deliberately** diverges from Anthropic's published
+best-practices and will not accept PRs that reformat skills to comply "without extensive eval
+evidence". So a skill body over the recommended length is a tested choice, not sloppiness — and its
+content deserves to be judged on how it steers an agent, not on conformance.
+
+On invocation: they hold that without the SessionStart bootstrap the skills are "dead weight —
+present on disk but never invoked", and their acceptance test for a new harness is that
+`brainstorming` auto-triggers on "Let's make a react todo list". That claim is overstated as
+written — a harness loads every skill's name and description regardless, so a skill with a good
+description is reachable on its own. What the bootstrap actually supplies is *propensity and
+priority*: a near-zero threshold for invoking, an ordering rule between process and implementation
+skills, and a table of pre-refuted excuses for not invoking. The honest reading is that without it
+the skills fire less aggressively and less predictably, not never.
+
+The two objectives are simply different. Upstream optimises for *never miss*; a curated set that
+puts the trigger in the user's hand optimises for *never surprise*. Both are coherent, and the
+frontmatter dial exists precisely to choose. The real cost of choosing the second is that upstream
+descriptions were tuned assuming the bootstrap did the routing — strip the pressure out of one and
+it must be replaced with an honest trigger sentence, or the skill simply never fires.
+
 ## Three philosophies
 
 The frameworks this repo draws from differ in what they try to own:
@@ -37,6 +61,28 @@ The frameworks this repo draws from differ in what they try to own:
   (`grill-me`, `grill-with-docs`) are its most-used pieces.
 - **Addy Osmani's agent-skills** — broad lifecycle coverage rather than depth, monolithic in
   adoption. Not vendored here.
+
+### Fused versus split ceremonies
+
+Comparing the two entry points head to head shows where "too heavy for small tasks" actually comes
+from, and it is not verbosity.
+
+`grilling` is six sentences and carries the whole interview discipline: one question at a time, look
+facts up yourself but put every *decision* to the human, and do not act until they confirm.
+`brainstorming` contains that and adds project-context exploration, decomposition of over-large
+requests, two-to-three approaches with a recommendation, sectioned design presentation, spec
+writing, a self-review pass and a user review gate.
+
+The difference that matters is that superpowers **fuses** those steps into one mandatory flow whose
+terminal state is invoking `writing-plans` — there is no supported way to grill and stop. Pocock
+**splits** the same ground into separately invoked steps (`grill-me` → `to-spec` → `to-tickets` →
+`implement`), so the human chooses how far to go. The weight complaint is a complaint about fusion,
+not about content.
+
+A practical consequence for curation: taking `brainstorming` means owning body edits regardless of
+taste. Its hard gate, its "You MUST" phrasing, its hard-coded coupling to `writing-plans`, its
+references to skills outside our set, and its spec path under `docs/superpowers/specs/` — a
+directory this repo treats as merge-transient scratch — all have to go.
 
 The standing warning against mixing: two frameworks installed as *routers* fight over command names,
 compete on routing logic, and pull in different TDD philosophies. Cherry-picking individual skills is
