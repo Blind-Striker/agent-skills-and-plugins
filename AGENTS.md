@@ -18,8 +18,6 @@ the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencod
 - Your world: `curation/` (what to take, how to tweak), `overlays/` (full-file body edits),
   `skills/` (original skills), `tools/` (the build toolchain).
 - No skill-by-skill curation decision without the catalog: `npm run inventory` → `docs/inventory.md`.
-- Once a `deniz-*` plugin covers an upstream source, uninstall the upstream plugin from the harness —
-  two similar skills confuse trigger selection.
 - Never commit secrets, tokens, or machine-specific paths.
 
 ## Sources of Truth

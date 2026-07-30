@@ -7,16 +7,18 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Current State
 
-- Toolchain complete: `build`, `inventory`, `eject`, `sync`, `validate` in `tools/`, 32 tests green,
-  TypeScript 7 typecheck, Biome lint + format.
-- CI (`.github/workflows/validate.yml`) runs tests, typecheck, lint, format, build, inventory and
-  validate, then fails if committed build output is stale.
-- Five upstream repos vendored in `external/`; `docs/inventory.md` catalogs 223 components.
+- Toolchain complete: `build`, `inventory`, `eject`, `sync`, `validate` in `tools/`; all gates green
+  (`npm test`, typecheck, Biome lint + format).
+- Repo lives on GitHub as `Blind-Striker/agent-skills-and-plugins`, private, default branch `master`.
+  CI (`.github/workflows/validate.yml`) runs the gates plus build, inventory and validate, then fails
+  if committed build output is stale.
+- Upstream repos vendored in `external/`; `docs/inventory.md` (regenerate via `npm run inventory`)
+  catalogs what they offer.
 - Four starter plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
-  `deniz-dotnet-aspire`, `deniz-dotnet-akka`), one curated skill each, plus the matching
+  `deniz-dotnet-aspire`, `deniz-dotnet-akka`), one pipeline-proof skill each, plus the matching
   `opencode/skill/` output and `marketplace.json`.
-- `npm run validate` on the current build: 0 errors, 4 warnings (unrewritten cross-references to
-  uncurated superpowers skills, counted once per output tree).
+- `npm run validate` on the current build: 0 errors; remaining warnings are unrewritten
+  cross-references to uncurated superpowers skills.
 
 ## Next Up
 
@@ -25,8 +27,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, which routes by
    bare name to five skills that are not curated yet — a hollow router. Either curate the targets or
    eject and rewrite the body. Bare-name references are invisible to `validate`.
-3. **Publish decision.** Public vs private on GitHub is undecided; nothing is pushed. The repo works
-   fully locally. Pushing and `claude marketplace add` are user actions.
+3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+   review the ADR-0003 credit wording, fix or pull the aspire router, and confirm the
+   `invocable: false` semantics. Until then, do not install `deniz-dotnet-aspire`.
 4. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
    Link the tree into an OpenCode config, confirm skills/commands/agents resolve; research notes go
    to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
@@ -46,12 +49,11 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   when a specific hook is.
 - **Re-serialization drift.** Frontmatter is parsed and re-emitted, so a passthrough skill is never
   byte-identical to upstream. Harmless, but it adds noise to `npm run sync` diffs.
+- **Executable-bit parity.** Windows checkouts cannot see the exec bit; any newly curated skill
+  bundling a script needs `git update-index --chmod=+x` on its built copies once, or CI's freshness
+  gate fails on the mode diff. Candidate automation: build reads upstream modes via git ls-files.
 
 ## Deferred
 
 Out of scope until there is a concrete need: OpenCode agent permission mapping; Codex, Cursor and
 Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manual).
-
-- **Executable-bit parity.** Windows checkouts cannot see the exec bit; any newly curated skill
-  bundling a script needs `git update-index --chmod=+x` on its built copies once, or CI's freshness
-  gate fails on the mode diff. Candidate automation: build reads upstream modes via git ls-files.

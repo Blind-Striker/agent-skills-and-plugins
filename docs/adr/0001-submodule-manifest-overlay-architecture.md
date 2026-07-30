@@ -5,8 +5,8 @@ Status: Accepted
 
 ## Context
 
-This repo curates skills from five external repositories into a small set of personal `deniz-*`
-plugins. Curation is not just subsetting: it includes frontmatter and trigger edits, body rewrites,
+This repo curates skills from external upstream repositories (vendored in `external/`) into a small
+set of personal `deniz-*` plugins. Curation is not just subsetting: it includes frontmatter and trigger edits, body rewrites,
 renames, type conversions (skill → command/agent) and original skills of our own. Upstream keeps
 moving, and we want to track it deliberately — see what changed, decide, and never be surprised by an
 automatic update.
@@ -40,8 +40,8 @@ Four pieces:
 
 - Nothing in `plugins/`/`opencode/` is authored — every change goes through `curation/` or `overlays/`
   and a build. That is one layer of indirection, and it is the price of the property we want.
-- Upstream diffs stay clean: a submodule bump plus a report, with overlay conflicts surfaced as diffs
-  for a human decision rather than merged silently.
+- Upstream diffs stay clean: a submodule bump plus a report, with overlay conflicts surfaced for a
+  human decision (`sync` prints the exact diff command) rather than merged silently.
 - Overlays are full files, so an upstream improvement to an overlaid item does not arrive
   automatically; `sync` flags it and the diff is applied by hand. Acceptable, because overlays are
   chosen deliberately and stay rare.
