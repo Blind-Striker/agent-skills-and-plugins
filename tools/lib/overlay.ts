@@ -1,11 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, resolve } from "node:path";
 
 /** The one file a `body: patch` overlay directory is allowed to contain. */
 export const PATCH_FILE = "overlay.patch";
 
-/** Records what a full-file overlay was written against. Patches are self-checking (ADR-0001). */
+/** Records the upstream content every overlay — of either kind — was written against. */
 export const LOCK_FILE = "overlays.lock.json";
 
 export interface LockEntry {
@@ -34,11 +34,54 @@ export function saveLock(root: string, lock: OverlayLock): void {
 }
 
 /**
- * Content hash of a file, as git would compute it. `hash-object` is pure hashing — it needs no
- * repository, so this works the same in the real tree and in a throwaway test fixture.
+ * Content hash of a file, as git would compute it. `hash-object` needs no repository, so this
+ * works the same in the real tree and in a throwaway fixture. `--no-filters` keeps the value a
+ * function of the bytes alone: without it the answer depends on the caller's `core.autocrlf` and
+ * clean filters, and a lock is worthless if two machines disagree about what it recorded.
  */
 export function blobSha(file: string): string {
-  return execFileSync("git", ["hash-object", "--", file], { encoding: "utf8" }).trim();
+  return execFileSync("git", ["hash-object", "--no-filters", "--", file], { encoding: "utf8" }).trim();
+}
+
+/**
+ * Every file under `dir`, as POSIX paths relative to it. Recursive because most upstream skills
+ * carry a `references/` or `scripts/` directory, and a flat listing fed directory names to a
+ * hasher that can only hash files. Symlinks are skipped for the reason ADR-0001 gives: a copied
+ * link absolutizes its target and cannot travel.
+ */
+export function listFiles(dir: string, prefix = ""): string[] {
+  if (!existsSync(dir)) {
+    return [];
+  }
+  const out: string[] = [];
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const rel = prefix ? `${prefix}/${e.name}` : e.name;
+    if (lstatSync(join(dir, e.name)).isSymbolicLink()) {
+      continue;
+    }
+    if (e.isDirectory()) {
+      out.push(...listFiles(join(dir, e.name), rel));
+    } else if (rel !== PATCH_FILE) {
+      out.push(rel);
+    }
+  }
+  return out.sort();
+}
+
+/**
+ * The item-relative paths a patch reads or writes, from its `---`/`+++` headers. Both sides are
+ * taken so a rename records each end; `/dev/null` marks a pure add or delete and has no upstream
+ * counterpart to stamp.
+ */
+export function patchTargets(patchText: string): string[] {
+  const out = new Set<string>();
+  for (const line of patchText.split("\n")) {
+    const m = /^(?:---|\+\+\+) (?!\/dev\/null)[ab]\/(.+?)\s*$/.exec(line);
+    if (m?.[1]) {
+      out.add(m[1]);
+    }
+  }
+  return [...out].sort();
 }
 
 function toplevel(dir: string): string | null {
@@ -66,6 +109,13 @@ function gitApply(dir: string, patch: string, check: boolean): string | null {
   const top = toplevel(dir);
   const rel = top ? relative(resolve(top), resolve(dir)).replaceAll("\\", "/") : "";
   const args = [
+    // The host's git config must not decide what a build produces.
+    "-c",
+    "core.autocrlf=false",
+    "-c",
+    "core.eol=lf",
+    "-c",
+    "core.longpaths=true",
     "apply",
     "-p1",
     ...(check ? ["--check"] : []),
@@ -74,7 +124,12 @@ function gitApply(dir: string, patch: string, check: boolean): string | null {
     resolve(patch),
   ];
   try {
-    execFileSync("git", args, { cwd: top ?? dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    execFileSync("git", args, {
+      cwd: top ?? dir,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" },
+    });
     return null;
   } catch (e) {
     const err = e as { stderr?: string };
@@ -92,18 +147,18 @@ export function applyPatch(dir: string, patch: string): string | null {
 }
 
 /**
- * Files a full-file overlay replaces, paired with the upstream content they were written against.
- * Overlay-only additions have no upstream counterpart and are not tracked.
+ * The upstream content an overlay was written against. Files the overlay adds have no upstream
+ * counterpart and cannot be stamped; everything else is recorded by content hash.
  */
-export function stampFiles(upstreamDir: string, overlayFiles: string[]): Record<string, string> {
-  const files: Record<string, string> = {};
-  for (const f of overlayFiles.sort()) {
+export function stampFiles(upstreamDir: string, files: string[]): Record<string, string> {
+  const stamped: Record<string, string> = {};
+  for (const f of [...files].sort()) {
     const up = join(upstreamDir, f);
-    if (existsSync(up)) {
-      files[f] = blobSha(up);
+    if (existsSync(up) && lstatSync(up).isFile()) {
+      stamped[f] = blobSha(up);
     }
   }
-  return files;
+  return stamped;
 }
 
 /** Upstream files whose content no longer matches what the overlay was blessed against. */

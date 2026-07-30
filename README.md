@@ -36,7 +36,7 @@ each one refuses to run while a submodule directory is still empty.
 |---|---|
 | `npm run build` | Compile manifests + overlays + own skills into `plugins/` and `opencode/` |
 | `npm run inventory` | Regenerate `docs/inventory.md` catalog |
-| `npm run eject <plugin> <name>` | Copy an item to `overlays/` for body editing |
+| `npm run eject -- <plugin> <name>` | Copy an item to `overlays/` for body editing |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
 | `npm run validate` | Check sources, frontmatter, collisions, dangling refs, marketplace |
 | `npm test` | Run the tooling test suite (a `pretest` guard fails if the glob stops finding it) |

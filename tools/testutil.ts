@@ -19,6 +19,14 @@ export function makeRepo(): string {
     "---\nname: beta\ndescription: Beta upstream\n---\n\nBeta body.\n",
   );
   writeFileSync(join(root, "external", "sp", "skills", "beta", "references", "notes.md"), "extra asset\n");
+  // a plain passthrough skill that carries a subdirectory — the shape most upstream skills have,
+  // and the one every overlay path has to survive
+  mkdirSync(join(root, "external", "sp", "skills", "delta", "references"), { recursive: true });
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: Delta upstream\n---\n\nDelta body.\n",
+  );
+  writeFileSync(join(root, "external", "sp", "skills", "delta", "references", "notes.md"), "delta note\n");
   mkdirSync(join(root, "external", "sp", "skills", "gamma"), { recursive: true });
   writeFileSync(
     join(root, "external", "sp", "skills", "gamma", "SKILL.md"),
@@ -67,6 +75,7 @@ export function makeRepo(): string {
       "      model: opus",
       "  - source: sp/skills/gamma",
       "    body: patch",
+      "  - source: sp/skills/delta",
     ].join("\n")}\n`,
   );
   // full-file overlay for beta, blessed against the upstream content it was written from
@@ -75,10 +84,10 @@ export function makeRepo(): string {
     join(root, "overlays", "deniz-process", "deniz-beta", "SKILL.md"),
     "---\nname: beta\ndescription: Beta overlay\n---\n\nOverlay body.\n",
   );
-  saveLock(root, {
-    [lockKey("deniz-process", "deniz-beta")]: {
-      source: "sp/skills/beta",
-      files: stampFiles(join(root, "external", "sp", "skills", "beta"), ["SKILL.md"]),
+  const blessed = (item: string, source: string, files: string[]) => ({
+    [lockKey("deniz-process", item)]: {
+      source,
+      files: stampFiles(join(root, "external", ...source.split("/")), files),
     },
   });
   // patch overlay for gamma: item-relative paths so `git apply -p1` lands on the emitted dir
@@ -101,6 +110,11 @@ export function makeRepo(): string {
       "",
     ].join("\n"),
   );
+  // Both overlay kinds are blessed against the upstream content they were written from.
+  saveLock(root, {
+    ...blessed("deniz-beta", "sp/skills/beta", ["SKILL.md"]),
+    ...blessed("gamma", "sp/skills/gamma", ["SKILL.md"]),
+  });
   // own skill
   mkdirSync(join(root, "skills", "deniz-process", "my-own"), { recursive: true });
   writeFileSync(

@@ -25,11 +25,15 @@ Four pieces:
    `body: overlay`). Deliberate rejections stay in the file as `exclude: true` so they remain visible.
 3. **Overlays for body edits** (`overlays/<plugin>/<item>/`), in two kinds, both created by
    `npm run eject`:
-   - `body: patch` stores an `overlay.patch`. The build applies it to the emitted item and fails if
-     it no longer applies. Upstream changes outside the patched region are absorbed for free.
-   - `body: overlay` stores full replacement files, for edits too sweeping to read as a diff. A full
-     copy cannot notice that upstream moved underneath it, so the upstream content hash of every
-     replaced file is recorded in `overlays/overlays.lock.json` and the build fails on mismatch.
+   - `body: patch` stores an `overlay.patch`, cut from an edited working copy and applied to the
+     emitted item. Most edits are surgical, and a diff both expresses that intent and lets an
+     upstream improvement arrive without re-merging a whole file by hand.
+   - `body: overlay` stores full replacement files, for edits too sweeping to read as a diff.
+
+   Both kinds are blessed against the upstream content they were written from: the hash of every
+   file the overlay replaces, or that its patch touches, is recorded in
+   `overlays/overlays.lock.json`. Any upstream change to one of those files stops the build until
+   `npm run eject -- <plugin> <item> --bless` re-blesses it.
 4. **Build output committed** (`plugins/`, `opencode/`, `.claude-plugin/marketplace.json`) so a clone
    of the marketplace works immediately, with CI failing if the committed output is stale.
 
@@ -51,15 +55,17 @@ Four pieces:
   and a build. That is one layer of indirection, and it is the price of the property we want.
 - Upstream diffs stay clean: a submodule bump plus a report, with overlay conflicts surfaced for a
   human decision (`sync` prints the exact diff command) rather than merged silently.
-- Each overlay kind carries the guardrail the other cannot provide, and neither needs the other's.
-  A patch is self-checking: `git apply` fails exactly when upstream changed the region we edited,
-  and stays silent when it changed anything else, which is the case we want absorbed. A recorded
-  hash would destroy that by firing on every benign upstream touch — so patches are not hashed. A
-  full-file overlay has no such signal, so it is hashed, and any upstream edit to a replaced file
-  breaks the build until a human re-blesses it.
+- `git apply` is not a staleness guard, which is why both kinds are hashed. It searches for a
+  hunk's context with an unbounded line offset and takes the first match, failing only when that
+  context appears nowhere in the file. So a hunk silently relocates when upstream inserts lines
+  above it, and — where a file repeats a passage — lands on a different region that still matches
+  while the region we meant to edit is gone. Both exit 0. The hash is what actually notices.
+- Hashing costs the ability to absorb an unrelated upstream edit without looking at it. That is the
+  intended trade: this repo exists to decide what its plugins contain, and an upstream change
+  arriving unreviewed is the same failure as a stale overlay, only faster.
 - Both failures are hard, not warnings. A stale overlay that still builds is the failure mode this
   design exists to prevent, and a warning in a green build is one nobody reads.
-- Re-blessing is a deliberate act (`npm run eject <plugin> <item> --bless`), which means a submodule
+- Re-blessing is a deliberate act (`npm run eject -- <plugin> <item> --bless`), which means a submodule
   bump that touches an overlaid file blocks the build until someone looks. That is friction by
   choice; it scales badly only if overlays stop being rare, which is itself the signal to stop.
 - Patches apply to skill-shaped output only. A `command`/`agent` conversion re-serializes

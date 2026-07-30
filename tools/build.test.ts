@@ -161,14 +161,21 @@ test("a patch applies when the tree is inside a git repository", () => {
   assert.doesNotMatch(body, /Replace this line\./);
 });
 
-// The whole reason patches are preferred: upstream keeps improving the parts we did not touch.
-test("a patch still applies when upstream changes outside the patched region", () => {
+// `git apply` would have taken this change silently — it does not touch the patched region. The
+// hash is what stops it, and the improvement only lands once a human has blessed it.
+test("upstream changing a patched file stops the build, and is absorbed once blessed", () => {
   const root = makeRepo();
   const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
   writeFileSync(up, readFileSync(up, "utf8").replace("Far region.", "Far region, improved upstream."));
+  assert.throws(() => buildAll(root), /upstream changed under the overlay \(SKILL\.md\)/);
+
+  execFileSync(process.execPath, [join(import.meta.dirname, "eject.ts"), "deniz-process", "gamma", "--bless"], {
+    cwd: root,
+    stdio: "ignore",
+  });
   buildAll(root);
   const body = readFileSync(join(root, "plugins", "deniz-process", "skills", "gamma", "SKILL.md"), "utf8");
-  assert.match(body, /Far region, improved upstream\./, "upstream improvement must be absorbed");
+  assert.match(body, /Far region, improved upstream\./, "the upstream improvement lands after blessing");
   assert.match(body, /Patched line\./, "our edit must survive");
 });
 

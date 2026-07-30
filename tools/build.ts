@@ -85,9 +85,11 @@ export function upstreamBase(root: string, item: CurationItem, comp: ComponentIn
 }
 
 /**
- * A full-file overlay cannot notice upstream moving underneath it, so it is blessed against
- * recorded content hashes. Patches are deliberately not hashed: `git apply` already fires exactly
- * on the conflicting case, and a hash would also fire on the benign one we want absorbed.
+ * Neither overlay kind can notice upstream moving underneath it on its own. `git apply` looked like
+ * a guard for patches, but it searches for its context with an unbounded offset and takes the first
+ * match — so a hunk relocates, or lands on a different region that still matches, and exits 0. Both
+ * kinds are therefore blessed against recorded content hashes, and an upstream edit to any file the
+ * overlay depends on stops the build until a human has looked.
  */
 function overlayDrift(
   root: string,
@@ -98,10 +100,16 @@ function overlayDrift(
   lock: OverlayLock,
 ): string[] {
   const id = `${plugin}/${outName}`;
-  const bless = `npm run eject ${plugin} ${outName} --bless`;
+  const bless = `npm run eject -- ${plugin} ${outName} --bless`;
   const entry = lock[lockKey(plugin, outName)];
   if (!entry) {
-    return [`${id}: full-file overlay is not recorded in overlays/overlays.lock.json — run: ${bless}`];
+    return [`${id}: overlay is not recorded in overlays/overlays.lock.json — run: ${bless}`];
+  }
+  if (entry.source !== item.source) {
+    return [`${id}: lock was blessed against ${entry.source}, but the item now curates ${item.source} — run: ${bless}`];
+  }
+  if (!Object.keys(entry.files).length) {
+    return [`${id}: lock records no upstream file, so nothing guards this overlay — run: ${bless}`];
   }
   const drifted = driftedFiles(upstreamBase(root, item, comp), entry);
   if (!drifted.length) {
@@ -131,7 +139,7 @@ function collectProblems(root: string, manifests: CurationManifest[], components
       const id = `${m.plugin.name}/${outName}`;
       if (item.body && !existsSync(overlayDir)) {
         problems.push(
-          `${id}: body is ${item.body} but overlays/${id}/ is missing — run: npm run eject ${m.plugin.name} ${outName}${item.body === "patch" ? " --patch" : ""}`,
+          `${id}: body is ${item.body} but overlays/${id}/ is missing — run: npm run eject -- ${m.plugin.name} ${outName}${item.body === "patch" ? " --patch" : ""}`,
         );
       } else if (item.body === "patch") {
         // A conversion re-serializes frontmatter around a body, so there is no stable file for a
@@ -140,15 +148,16 @@ function collectProblems(root: string, manifests: CurationManifest[], components
           problems.push(`${id}: body: patch applies to skill output only — a ${outType} needs body: overlay`);
         } else if (!existsSync(join(overlayDir, PATCH_FILE))) {
           problems.push(
-            `${id}: body is patch but overlays/${id}/${PATCH_FILE} is missing — run: npm run eject ${m.plugin.name} ${outName} --patch`,
+            `${id}: body is patch but overlays/${id}/${PATCH_FILE} is missing — run: npm run eject -- ${m.plugin.name} ${outName} --patch`,
           );
         } else {
+          problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, lock));
           // --check writes nothing, so this runs against pristine upstream in the fail-fast pass.
+          // No cause is asserted: a patch also stops applying when upstream adopted the same edit,
+          // or when the path now sits at or beyond a symlink, and git's own message says which.
           const err = checkPatch(upstreamBase(root, item, comp), join(overlayDir, PATCH_FILE));
           if (err) {
-            problems.push(
-              `${id}: ${PATCH_FILE} no longer applies to ${item.source} — upstream moved under it:\n${err}`,
-            );
+            problems.push(`${id}: ${PATCH_FILE} no longer applies to ${item.source}:\n${err}`);
           }
         }
       } else if (item.body === "overlay") {
@@ -208,7 +217,7 @@ function emitItem(
 
   if (item.body && !existsSync(overlayDir)) {
     throw new Error(
-      `${m.plugin.name}/${outName}: body is ${item.body} but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject ${m.plugin.name} ${outName}`,
+      `${m.plugin.name}/${outName}: body is ${item.body} but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject -- ${m.plugin.name} ${outName}`,
     );
   }
 
