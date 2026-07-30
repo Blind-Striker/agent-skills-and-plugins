@@ -21,9 +21,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   cross-references to uncurated superpowers skills.
 - The cross-reference rewrite path has never run on real data — no starter pick references another
   pick, so it is proven by unit tests only. The first real curation batch exercises it.
-- Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch` and fails when
-  upstream moves under it, `body: overlay` replaces whole files and is hash-blessed through
-  `overlays/overlays.lock.json`. Neither has a real curated user yet — `overlays/` does not exist.
+- Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
+  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Exercised
+  end to end against real upstream skills, but no curated item uses either yet — `overlays/` does
+  not exist. The gaps two independent reviews left open are listed below.
 
 ## Next Up
 
@@ -72,6 +73,28 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Own-skill collision false negative.** An original skill in `skills/` silently overwrites a
   curated skill of the same name in the same plugin — own skills are emitted last, and `validate`'s
   duplicate check only errors across plugins.
+- **`validate` knows nothing about overlays.** It is the designated footgun-catcher, but an
+  `overlays/<plugin>/<item>/` with no matching `body:` in the manifest is silently ignored by the
+  build, which then ships pristine upstream — every guardrail bypassed by the overlay simply never
+  being consulted. Same for a lock entry with no overlay directory, and a `body: patch` directory
+  still holding a stranded phase-1 working copy. All three are cheap validate rules.
+- **Item resolution is written twice.** `collectProblems` and `emitItem` in `tools/build.ts` each
+  re-derive `comp`/`outName`/`outType`/`overlayDir`, so the fail-fast guarantee holds by convention
+  and every new per-item rule has to be added in both places. A rule added to one side only is how
+  the unguarded-skill-overlay hole got in. Collapsing them into one resolver is the change that
+  stops the class recurring.
+- **`--bless` shows nothing before it stamps.** ADR-0001 calls re-blessing deliberate, but the
+  command re-records whatever is on disk without displaying what changed — and the previous blob
+  SHA is right there in the lock. Print the diff, and require confirmation.
+- **File modes are invisible to both overlay guards.** `git hash-object` hashes content, and
+  patches are cut with `core.fileMode=false`, so upstream flipping a bundled script's executable
+  bit produces no signal. Related to the executable-bit item below; the same `git ls-files` read
+  fixes both.
+- **A patch cannot touch anything at or beyond a symlink.** `git apply` refuses such paths outright;
+  `aspire-skills` carries symlinks inside curated skills. Undocumented in ADR-0001.
+- **`sync` still mislabels a deleted or renamed source** as "auto-updated on next build", while the
+  next build fails with `source not found in external/` — the same class as the patch mislabel
+  already fixed.
 - **Manifest overrides have no staleness guard.** Overlays are guarded — a patch stops applying, a
   full-file overlay's recorded hash stops matching — but a `frontmatter.description` override
   written for one upstream body keeps being applied after upstream rewrites that body, with nothing
