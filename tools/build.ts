@@ -242,7 +242,7 @@ function emitOpenCode(root: string, report: string[]): void {
     const skillsDir = join(pluginsDir, plugin, "skills");
     if (existsSync(skillsDir)) {
       for (const name of readdirSync(skillsDir)) {
-        cpSync(join(skillsDir, name), join(root, "opencode", "skill", name), {
+        cpSync(join(skillsDir, name), join(root, "opencode", "skills", name), {
           recursive: true,
           filter: skipSymlinks(root, `opencode/${name}`, report),
         });
@@ -253,8 +253,9 @@ function emitOpenCode(root: string, report: string[]): void {
       if (!existsSync(dir)) {
         continue;
       }
+      // `kind` is the output directory (OpenCode documents plural); `outKind` is the singular label
       const outKind = kind === "commands" ? "command" : "agent";
-      mkdirSync(join(root, "opencode", outKind), { recursive: true });
+      mkdirSync(join(root, "opencode", kind), { recursive: true });
       for (const f of readdirSync(dir)) {
         const doc = parseDoc(readFileSync(join(dir, f), "utf8"));
         const kept: Record<string, unknown> = { description: doc.frontmatter.description };
@@ -265,7 +266,7 @@ function emitOpenCode(root: string, report: string[]): void {
         if (dropped.length) {
           report.push(`opencode ${outKind} ${f}: dropped frontmatter keys: ${dropped.join(", ")}`);
         }
-        writeFileSync(join(root, "opencode", outKind, f), serializeDoc({ frontmatter: kept, body: doc.body }));
+        writeFileSync(join(root, "opencode", kind, f), serializeDoc({ frontmatter: kept, body: doc.body }));
       }
     }
   }

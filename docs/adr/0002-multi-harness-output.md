@@ -18,8 +18,8 @@ could have had.
 ## Decision
 
 One source (`curation/` + `overlays/` + `skills/`), one build, and a separate native artifact tree per
-harness: `plugins/` for Claude Code, `opencode/` for OpenCode (`opencode/skill/`, `opencode/command/`,
-`opencode/agent/`). Per harness:
+harness: `plugins/` for Claude Code, `opencode/` for OpenCode (`opencode/skills/`,
+`opencode/commands/`, `opencode/agents/` — the directory names OpenCode documents). Per harness:
 
 - **Skills pass through** — the shared `SKILL.md` format, no translation.
 - **Commands and agents are transformed** into each harness's markdown shape.
@@ -37,7 +37,7 @@ translations.
 - Anything OpenCode cannot represent is visible in the build report, so a curation decision can be
   made instead of discovering the gap in use. OpenCode agent permission mapping is deliberately absent
   in the first version.
-- The OpenCode tree is flat (`opencode/skill/`, `opencode/command/`, `opencode/agent/`), not
+- The OpenCode tree is flat (`opencode/skills/`, `opencode/commands/`, `opencode/agents/`), not
   namespaced by plugin, so every output name must be unique across all `deniz-*` plugins —
   `validate` treats a cross-plugin duplicate as an error, and the same name cannot be curated into
   two modules.

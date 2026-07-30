@@ -40,12 +40,13 @@ test("buildAll compiles plugins with overrides, overlays, conversions, rewrites"
 test("buildAll emits opencode tree and reports dropped keys", () => {
   const root = makeRepo();
   const report = buildAll(root);
-  assert.ok(existsSync(join(root, "opencode", "skill", "alpha", "SKILL.md")));
-  assert.ok(existsSync(join(root, "opencode", "skill", "my-own", "SKILL.md")));
-  const cmd = parseDoc(readFileSync(join(root, "opencode", "command", "deniz-beta.md"), "utf8"));
+  // directory names are the ones OpenCode documents: skills/, commands/, agents/ — all plural
+  assert.ok(existsSync(join(root, "opencode", "skills", "alpha", "SKILL.md")));
+  assert.ok(existsSync(join(root, "opencode", "skills", "my-own", "SKILL.md")));
+  const cmd = parseDoc(readFileSync(join(root, "opencode", "commands", "deniz-beta.md"), "utf8"));
   assert.equal(cmd.frontmatter.description, "Beta overlay");
   // references were rewritten before opencode emission
-  const alpha = readFileSync(join(root, "opencode", "skill", "alpha", "SKILL.md"), "utf8");
+  const alpha = readFileSync(join(root, "opencode", "skills", "alpha", "SKILL.md"), "utf8");
   assert.match(alpha, /deniz-process:beta-agent/);
 
   // skill -> agent conversion, plugins side: forced name, item.frontmatter carried, description from source
@@ -57,7 +58,7 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.equal(agent.frontmatter.description, "Beta upstream");
 
   // opencode side keeps description + mode only; model is dropped and reported, never silently lost
-  const ocAgent = parseDoc(readFileSync(join(root, "opencode", "agent", "beta-agent.md"), "utf8"));
+  const ocAgent = parseDoc(readFileSync(join(root, "opencode", "agents", "beta-agent.md"), "utf8"));
   assert.equal(ocAgent.frontmatter.mode, "subagent");
   assert.equal(ocAgent.frontmatter.description, "Beta upstream");
   assert.equal("model" in ocAgent.frontmatter, false);
