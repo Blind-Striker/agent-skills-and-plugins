@@ -16,7 +16,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   catalogs what they offer.
 - Four starter plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
   `deniz-dotnet-aspire`, `deniz-dotnet-akka`), one pipeline-proof skill each, plus the matching
-  `opencode/skill/` output and `marketplace.json`.
+  `opencode/skills/` output and `marketplace.json`.
 - `npm run validate` on the current build: 0 errors; remaining warnings are unrewritten
   cross-references to uncurated superpowers skills.
 - The cross-reference rewrite path has never run on real data — no starter pick references another
@@ -24,19 +24,26 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
+1. **Implement invocation intent** (ADR-0005). Add the item-level `invocation: model | user | both`
+   field, derive `disable-model-invocation` / `user-invocable` in the Claude emitter and the
+   skill-vs-command choice in the OpenCode emitter, drop `as: command`, and extend `validate` for the
+   new collision class. Needed before or alongside the first curation session, since "the user starts
+   this" is otherwise inexpressible. Verify against a live install first that
+   `disable-model-invocation: true` still permits the user's own slash invocation.
+2. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
    module by module against `docs/inventory.md`, with the user, one plugin per session. The
    intended upstream sources of each module are noted at the top of its manifest.
-2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, which routes by
+   `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
+   beside the item.
+3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, which routes by
    bare name to five skills that are not curated yet — a hollow router. Either curate the targets or
    eject and rewrite the body. Bare-name references are invisible to `validate`.
-3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
-   fix or pull the aspire router, confirm the `invocable: false` semantics, and decide whether
-   `marketplace.json`'s embedded owner name and email (format-required) may go public. Until then,
-   do not install `deniz-dotnet-aspire`.
-4. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
-   Link the tree into an OpenCode config, confirm skills/commands/agents resolve; research notes go
-   to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
+4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+   fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
+   email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
+5. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
+   Link the tree into an OpenCode config and confirm skills, commands and agents resolve; research
+   notes go to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
 
 ## Known Gaps
 
@@ -72,8 +79,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),
   unlike the other four submodules, which sit on releases. Hold or move is an open decision for the
   next `npm run sync`.
-- **`invocable: false` passthrough.** Two emitted skills carry this upstream frontmatter key; confirm
-  Claude Code's semantics for it before real curation rather than assuming it is harmless.
+- **Dead `invocable:` metadata in output.** Upstream `dotnet-skills` sets `invocable: true|false`,
+  which is not a frontmatter field in either target harness, and it travels into our output
+  untouched. Strip it during curation, or leave it as harmless noise — a decision, not a bug.
 - **`hooks.include` unimplemented.** The build throws on a non-empty list. Deliberate: no upstream
   hook is wanted yet (this is how the superpowers session-start behaviour stays off). Implement only
   when a specific hook is.
