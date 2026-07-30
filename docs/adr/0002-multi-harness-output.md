@@ -37,3 +37,11 @@ translations.
 - Anything OpenCode cannot represent is visible in the build report, so a curation decision can be
   made instead of discovering the gap in use. OpenCode agent permission mapping is deliberately absent
   in the first version.
+- The OpenCode tree is flat (`opencode/skill/`, `opencode/command/`, `opencode/agent/`), not
+  namespaced by plugin, so every output name must be unique across all `deniz-*` plugins —
+  `validate` treats a cross-plugin duplicate as an error, and the same name cannot be curated into
+  two modules.
+- Cross-reference rewriting runs before the OpenCode tree is emitted from `plugins/`, so OpenCode
+  bodies carry Claude Code-style `deniz-*:name` references that OpenCode cannot resolve. A
+  deliberate first-version passthrough; revisit when `opencode/` is wired on a real machine (see
+  `docs/ROADMAP.md`).

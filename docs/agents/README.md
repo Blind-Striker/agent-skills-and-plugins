@@ -6,17 +6,9 @@ This directory contains repository-specific guidance for AI coding agents. Audie
 developer working without an agent never needs anything in here. Shared human+agent knowledge lives
 in `docs/adr/`, `docs/research/` and `docs/ROADMAP.md`.
 
-`AGENTS.md` is the canonical always-on contract. Files here relay to it or extend it with
-harness-native detail; they do not own policy.
-
-## File map
-
-| File | Purpose |
-| --- | --- |
-| `AGENTS.md` | Canonical repository contract |
-| `CLAUDE.md` | Claude Code relay to `AGENTS.md` |
-| `docs/agents/README.md` | Harness adapter guide (this file) |
-| `docs/agents/handover-prompts/` | Session-pickup prompts for stateful handovers |
+`AGENTS.md` is the canonical always-on contract, and its "Sources of Truth" table is the repo's one
+routing table. Files here relay to it or extend it with harness-native detail; they do not own
+policy.
 
 ## Harness notes
 

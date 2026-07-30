@@ -47,3 +47,19 @@ Four pieces:
   chosen deliberately and stay rare.
 - The eject workflow is the escape hatch: any item can graduate from passthrough to fully owned
   without changing the pipeline.
+- Committed output must be machine-independent and self-contained, so symlinks are never copied
+  into it — Node's `cpSync` absolutizes relative symlink targets (an upstream fixture symlink once
+  leaked an absolute local path into a committed blob). The build warns per skipped symlink;
+  `validate` errors on any symlink found in output.
+- For a converted item (`as: command|agent`) the build reads exactly one overlay file, named after
+  the source (`SKILL.md` when the source is a skill, otherwise the source file's own name) —
+  renaming that file inside the overlay breaks it. `eject` copies the whole item directory even
+  though only that one file is ever read.
+- A manifest `frontmatter:` block cannot rename an item: the build forces the output `name` last,
+  so a `frontmatter.name` override is dead weight (`validate` warns). Renaming is the item-level
+  `name:` field.
+- Taking the same source into two items (say, once as a command and once as an agent) is legal, but
+  the cross-reference map keys on the upstream address, so all upstream references resolve to the
+  last such item in manifest order — `validate` warns, naming both outputs.
+- The build resolves every source before deleting old output (fail-fast), but a crash mid-emission
+  still leaves `plugins/` and `opencode/` partial; rerunning the build repairs it.

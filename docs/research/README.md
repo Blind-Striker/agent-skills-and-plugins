@@ -2,9 +2,10 @@
 
 Date: 2026-07-30
 
-Harness research and integration notes: how a harness discovers and loads what this repo builds, what
-it cannot express, and what a real setup took. Examples: wiring `opencode/` into an OpenCode config;
-investigating whether Codex or Cursor are worth an emitter.
+Harness and upstream research notes: how a harness discovers and loads what this repo builds, what
+it cannot express, what the vendored upstream repos actually look like, and what a real setup took.
+Examples: wiring `opencode/` into an OpenCode config; investigating whether Codex or Cursor are
+worth an emitter; the layout traps of the five submodules.
 
 Conventions:
 

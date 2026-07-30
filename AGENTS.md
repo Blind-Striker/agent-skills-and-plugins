@@ -18,6 +18,7 @@ the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencod
 - Your world: `curation/` (what to take, how to tweak), `overlays/` (full-file body edits),
   `skills/` (original skills), `tools/` (the build toolchain).
 - No skill-by-skill curation decision without the catalog: `npm run inventory` → `docs/inventory.md`.
+  Record the why of every take/skip/modify as a comment beside the item in `curation/*.yaml`.
 - Never commit secrets, tokens, or machine-specific paths.
 
 ## Sources of Truth
@@ -25,7 +26,7 @@ the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencod
 | Fact | Source |
 |---|---|
 | Commands | `package.json` scripts |
-| What is curated, and how | `curation/*.yaml` |
+| What is curated, how, and why | `curation/*.yaml` (why = item comments) |
 | What upstream offers | `docs/inventory.md` (generated — regenerate, don't edit) |
 | Architecture decisions and why | `docs/adr/` |
 | Harness research and notes | `docs/research/` |
@@ -43,14 +44,16 @@ Every hand-written document in `docs/` carries a `Date:` line (generated files a
 
 Audience decides placement: `docs/agents/` holds guidance only an AI agent needs (test: a human
 developer working without an agent never reads it); knowledge shared by humans and agents lives in
-`docs/adr/`, `docs/research/` and `docs/ROADMAP.md`. Prefer consolidating into an existing document
-over creating a new one; state a fact once and link. Prefer a command over a number that will drift
+`docs/adr/`, `docs/research/` and `docs/ROADMAP.md`. Every fact has exactly one canonical home;
+any other appearance is a relay that links there instead of restating it. Prefer consolidating
+into an existing document over creating a new one. Prefer a command over a number that will drift
 — counts belong to `npm run inventory`, not prose. Planning scratch (specs/plans written by
 planning skills, e.g. `docs/superpowers/`) is transient: delete it when the work merges.
 
 ## Working Style
 
-- Prefer small correct changes over broad refactors.
+- Prefer small correct changes over broad refactors. `tools/` stays minimal — five commands, one
+  runtime dependency (ADR-0004); growing it is a deliberate decision.
 - When something is ambiguous, lay out options with a recommendation and ask — don't resolve it
   silently.
 - Verify before claiming: "builds" and "works" are different words. After changing `tools/`, run

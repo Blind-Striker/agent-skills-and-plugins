@@ -5,16 +5,8 @@ submodules in `external/`; curation manifests in `curation/*.yaml` select and
 customize what gets packaged into the `deniz-*` Claude Code plugins in
 `plugins/` and the OpenCode output in `opencode/`.
 
-## Docs
-
-| Document | Contents |
-|---|---|
-| [AGENTS.md](AGENTS.md) | Canonical contract for agents working in this repo (Claude Code reads it via [CLAUDE.md](CLAUDE.md)) |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Current state, next steps, known gaps |
-| [docs/adr/](docs/adr/) | Architecture decisions and why |
-| [docs/research/](docs/research/) | Harness and integration notes |
-| [docs/inventory.md](docs/inventory.md) | Generated catalog of everything upstream offers |
-| [docs/agents/](docs/agents/README.md) | Agent-facing guidance: harness adapter guide, handover prompts |
+Working in this repo — human or agent — start at [AGENTS.md](AGENTS.md): the
+contract, and the map of where everything else lives.
 
 ## How it works
 
@@ -56,7 +48,7 @@ each one refuses to run while a submodule directory is still empty.
 Build output is committed. CI rebuilds and fails if `plugins/`, `opencode/`,
 `.claude-plugin/` or `docs/inventory.md` differ from what is checked in, so run
 `npm run build && npm run inventory` and commit the result with any curation
-change.
+change or submodule bump — all four trees move when upstream moves.
 
 ## Consuming
 

@@ -19,29 +19,59 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `opencode/skill/` output and `marketplace.json`.
 - `npm run validate` on the current build: 0 errors; remaining warnings are unrewritten
   cross-references to uncurated superpowers skills.
+- The cross-reference rewrite path has never run on real data — no starter pick references another
+  pick, so it is proven by unit tests only. The first real curation batch exercises it.
 
 ## Next Up
 
 1. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
-   module by module against `docs/inventory.md`, with the user, one plugin per session.
+   module by module against `docs/inventory.md`, with the user, one plugin per session. The
+   intended upstream sources of each module are noted at the top of its manifest.
 2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, which routes by
    bare name to five skills that are not curated yet — a hollow router. Either curate the targets or
    eject and rewrite the body. Bare-name references are invisible to `validate`.
 3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
-   fix or pull the aspire router and confirm the `invocable: false` semantics. Until then, do not
-   install `deniz-dotnet-aspire`.
+   fix or pull the aspire router, confirm the `invocable: false` semantics, and decide whether
+   `marketplace.json`'s embedded owner name and email (format-required) may go public. Until then,
+   do not install `deniz-dotnet-aspire`.
 4. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
    Link the tree into an OpenCode config, confirm skills/commands/agents resolve; research notes go
    to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
 
 ## Known Gaps
 
-- **Rewrite-map key mismatch.** Claude Code addresses plugin skills by directory name; the
-  cross-reference rewrite map keys on frontmatter `name`. 32 of 223 upstream components have
-  divergent names, so a reference to one of them would not be rewritten. No impact on what is built
-  today. Re-key on the upstream directory basename before large curation batches.
-- **Upstream noise in output.** Author-facing and test files travel with curated skills (5 of 11
-  files in `systematic-debugging`). Per-item exclude patterns in the manifest are the candidate fix.
+- **`.agent.md` double-extension addresses.** `addressOf` in `tools/lib/rewrite.ts` strips only
+  `.md`, so an upstream agent file named `<name>.agent.md` gets a rewrite-map key ending in
+  `.agent` while harness references spell the bare name — such a reference would not be rewritten.
+  Affected files: `find external -name "*.agent.md"`. No impact on what is built today; fix before
+  any agent curation.
+- **Upstream noise in output.** Author-facing and test files travel with curated skills (creation
+  logs and pressure-test files in `systematic-debugging`, for instance). Per-item exclude patterns
+  in the manifest are the candidate fix.
+- **Doubled validate warnings.** `validate` scans both `plugins/` and its byte-identical
+  `opencode/` mirror, so every real unrewritten reference is reported twice. Superpowers skills
+  cross-reference heavily; a partial curation batch could produce dozens of lines. Candidate fix:
+  scan `plugins/` only, or group per reference.
+- **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
+  (avoids prose false positives), so a `Superpowers:Foo` spelling slips through — alongside the
+  bare-name blindness already noted under Next Up 2.
+- **Scanner blind spots.** Commands and agents are discovered only directly under a
+  `commands/`/`agents/` directory, so upstream subdirectory grouping is silently missing from the
+  inventory; conversely such a directory nested inside a skill is double-counted as a standalone
+  component.
+- **Own-skill collision false negative.** An original skill in `skills/` silently overwrites a
+  curated skill of the same name in the same plugin — own skills are emitted last, and `validate`'s
+  duplicate check only errors across plugins.
+- **`eject` silently overwrites an existing overlay**, discarding hand edits (recoverable only via
+  git). A small pre-existence guard would fix it.
+- **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
+  mid-sentence, so curation sessions must open the upstream file to judge an item.
+- **Biome checks generated `marketplace.json`.** `biome.json` excludes the other build output but
+  not `.claude-plugin/`; `format:check` passes only because the emitter happens to write
+  Biome-compatible JSON. Candidate fix: add `!.claude-plugin` to the excludes.
+- **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),
+  unlike the other four submodules, which sit on releases. Hold or move is an open decision for the
+  next `npm run sync`.
 - **`invocable: false` passthrough.** Two emitted skills carry this upstream frontmatter key; confirm
   Claude Code's semantics for it before real curation rather than assuming it is harmless.
 - **`hooks.include` unimplemented.** The build throws on a non-empty list. Deliberate: no upstream
@@ -57,3 +87,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 Out of scope until there is a concrete need: OpenCode agent permission mapping; Codex, Cursor and
 Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manual).
+
+- **Docs-structure template skill.** Package this repo's documentation structure (single canonical
+  home + relay principle, evergreen/operational split, audience-based placement, ADR and roadmap
+  skeletons) as an original skill under `skills/` so any repo can adopt it. The skill form looks
+  right, but the idea needs its own brainstorming session before any work starts.
