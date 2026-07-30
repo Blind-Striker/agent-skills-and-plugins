@@ -14,7 +14,7 @@ customize what gets packaged into the `deniz-*` Claude Code plugins in
 | [docs/adr/](docs/adr/) | Architecture decisions and why |
 | [docs/research/](docs/research/) | Harness and integration notes |
 | [docs/inventory.md](docs/inventory.md) | Generated catalog of everything upstream offers |
-| [design spec](docs/superpowers/specs/2026-07-29-skills-plugin-repo-design.md) | Original design (Turkish) |
+| [docs/agents/](docs/agents/README.md) | Agent-facing guidance: harness adapter guide, handover prompts |
 
 ## Rules
 

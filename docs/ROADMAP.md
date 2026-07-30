@@ -28,8 +28,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 3. **Publish decision.** Public vs private on GitHub is undecided; nothing is pushed. The repo works
    fully locally. Pushing and `claude marketplace add` are user actions.
 4. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
-   Link the tree into an OpenCode config, confirm skills/commands/agents resolve, write it up in
-   `docs/research/`.
+   Link the tree into an OpenCode config, confirm skills/commands/agents resolve; research notes go
+   to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
 
 ## Known Gaps
 

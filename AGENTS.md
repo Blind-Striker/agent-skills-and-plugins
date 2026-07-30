@@ -31,6 +31,7 @@ the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencod
 | What upstream offers | `docs/inventory.md` (generated — regenerate, don't edit) |
 | Architecture decisions and why | `docs/adr/` |
 | Harness research and notes | `docs/research/` |
+| Agent-facing SDLC guidance (harness relays, handover prompts) | `docs/agents/` |
 | Status and next steps | `docs/ROADMAP.md` (operational — expected to change) |
 
 ## Documentation Hygiene
@@ -38,8 +39,16 @@ the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencod
 Evergreen (`AGENTS.md`, `docs/adr/`, `docs/research/`) answers "how it works and why". Operational
 (`docs/ROADMAP.md`) answers "what is done, what is next" and shrinks as work lands. A sentence that
 needs rewriting when a task completes is operational. Keep documentation current in the same change
-as the code it describes. Documents describe the status quo, not their own history — no amendment
-notes, no renumbering; git carries history. Every document in `docs/` carries a `Date:` line.
+as the code it describes — docs are a first-class citizen, not follow-up work. Documents describe
+the status quo, not their own history — no amendment notes, no renumbering; git carries history.
+Every hand-written document in `docs/` carries a `Date:` line (generated files are exempt).
+
+Audience decides placement: `docs/agents/` holds guidance only an AI agent needs (test: a human
+developer working without an agent never reads it); knowledge shared by humans and agents lives in
+`docs/adr/`, `docs/research/` and `docs/ROADMAP.md`. Prefer consolidating into an existing document
+over creating a new one; state a fact once and link. Prefer a command over a number that will drift
+— counts belong to `npm run inventory`, not prose. Planning scratch (specs/plans written by
+planning skills, e.g. `docs/superpowers/`) is transient: delete it when the work merges.
 
 ## Working Style
 
@@ -54,5 +63,6 @@ notes, no renumbering; git carries history. Every document in `docs/` carries a 
 
 ## Harness Independence
 
-`AGENTS.md` is the canonical contract; `CLAUDE.md` is a relay only. Harness-specific notes live in
-`docs/research/`. OpenCode reads `AGENTS.md` natively; keep it short and harness-neutral.
+`AGENTS.md` is the canonical contract; `CLAUDE.md` is a relay only. The harness adapter guide
+(which file relays where, harness-native behaviour) is `docs/agents/README.md`. OpenCode reads
+`AGENTS.md` natively; keep it short and harness-neutral.
