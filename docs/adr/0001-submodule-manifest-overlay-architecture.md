@@ -23,8 +23,13 @@ Four pieces:
 2. **A curation manifest per plugin** (`curation/<plugin>.yaml`) listing the items to take and their
    per-item customizations (`exclude`, `frontmatter` overrides, `name`, `as: command|agent`,
    `body: overlay`). Deliberate rejections stay in the file as `exclude: true` so they remain visible.
-3. **Overlays for body edits** (`overlays/<plugin>/<item>/`): a full copy of the file, not a patch.
-   `npm run eject` creates it.
+3. **Overlays for body edits** (`overlays/<plugin>/<item>/`), in two kinds, both created by
+   `npm run eject`:
+   - `body: patch` stores an `overlay.patch`. The build applies it to the emitted item and fails if
+     it no longer applies. Upstream changes outside the patched region are absorbed for free.
+   - `body: overlay` stores full replacement files, for edits too sweeping to read as a diff. A full
+     copy cannot notice that upstream moved underneath it, so the upstream content hash of every
+     replaced file is recorded in `overlays/overlays.lock.json` and the build fails on mismatch.
 4. **Build output committed** (`plugins/`, `opencode/`, `.claude-plugin/marketplace.json`) so a clone
    of the marketplace works immediately, with CI failing if the committed output is stale.
 
@@ -33,8 +38,12 @@ Four pieces:
 - **Vendor upstream files directly and 3-way-merge on update.** Rejected: every upstream change turns
   into a conflict resolution in the file we edited, and the boundary between "ours" and "theirs" is
   lost after the first merge.
-- **Quilt-style patch series per file.** Rejected: patches rot against upstream churn, and reading a
-  patch stack is a worse way to answer "what does my version say" than reading the file.
+- **Full-file overlays as the only mechanism.** Rejected: most edits are surgical — deleting a
+  block, rewording a gate, repointing a path — and expressing twenty lines of intent as a
+  hundred-and-fifty-line copy hides what we changed, silently discards every later upstream
+  improvement to that file, and offers no way to notice it went stale.
+- **Patches as the only mechanism.** Rejected: an edit that rewrites most of a file is unreadable as
+  a diff, and the escape hatch of simply owning the file outright is worth keeping.
 
 ## Consequences
 
@@ -42,9 +51,20 @@ Four pieces:
   and a build. That is one layer of indirection, and it is the price of the property we want.
 - Upstream diffs stay clean: a submodule bump plus a report, with overlay conflicts surfaced for a
   human decision (`sync` prints the exact diff command) rather than merged silently.
-- Overlays are full files, so an upstream improvement to an overlaid item does not arrive
-  automatically; `sync` flags it and the diff is applied by hand. Acceptable, because overlays are
-  chosen deliberately and stay rare.
+- Each overlay kind carries the guardrail the other cannot provide, and neither needs the other's.
+  A patch is self-checking: `git apply` fails exactly when upstream changed the region we edited,
+  and stays silent when it changed anything else, which is the case we want absorbed. A recorded
+  hash would destroy that by firing on every benign upstream touch — so patches are not hashed. A
+  full-file overlay has no such signal, so it is hashed, and any upstream edit to a replaced file
+  breaks the build until a human re-blesses it.
+- Both failures are hard, not warnings. A stale overlay that still builds is the failure mode this
+  design exists to prevent, and a warning in a green build is one nobody reads.
+- Re-blessing is a deliberate act (`npm run eject <plugin> <item> --bless`), which means a submodule
+  bump that touches an overlaid file blocks the build until someone looks. That is friction by
+  choice; it scales badly only if overlays stop being rare, which is itself the signal to stop.
+- Patches apply to skill-shaped output only. A `command`/`agent` conversion re-serializes
+  frontmatter around a body, so there is no stable file for a diff to land on; those items take a
+  full-file overlay.
 - The eject workflow is the escape hatch: any item can graduate from passthrough to fully owned
   without changing the pipeline.
 - Committed output must be machine-independent and self-contained, so symlinks are never copied

@@ -9,7 +9,8 @@ export interface CurationItem {
   name?: string;
   as?: ComponentType;
   frontmatter?: Record<string, unknown>;
-  body?: "overlay";
+  /** `patch` applies overlays/<plugin>/<item>/overlay.patch; `overlay` replaces whole files. */
+  body?: "overlay" | "patch";
 }
 
 export interface CurationManifest {

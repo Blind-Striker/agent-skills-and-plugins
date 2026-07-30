@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 
 export function makeRepo(): string {
   const root = mkdtempSync(join(tmpdir(), "build-"));
@@ -18,6 +19,27 @@ export function makeRepo(): string {
     "---\nname: beta\ndescription: Beta upstream\n---\n\nBeta body.\n",
   );
   writeFileSync(join(root, "external", "sp", "skills", "beta", "references", "notes.md"), "extra asset\n");
+  mkdirSync(join(root, "external", "sp", "skills", "gamma"), { recursive: true });
+  writeFileSync(
+    join(root, "external", "sp", "skills", "gamma", "SKILL.md"),
+    // long enough that "Far region." sits outside the patch hunk's 3 lines of context, so a test
+    // can change upstream there and prove the patch still applies
+    [
+      "---",
+      "name: gamma",
+      "description: Gamma upstream",
+      "---",
+      "",
+      "Keep this line.",
+      "Replace this line.",
+      "Filler A.",
+      "Filler B.",
+      "Filler C.",
+      "Filler D.",
+      "Far region.",
+      "",
+    ].join("\n"),
+  );
   // curation manifest
   mkdirSync(join(root, "curation"), { recursive: true });
   writeFileSync(
@@ -43,13 +65,41 @@ export function makeRepo(): string {
       "    name: beta-agent",
       "    frontmatter:",
       "      model: opus",
+      "  - source: sp/skills/gamma",
+      "    body: patch",
     ].join("\n")}\n`,
   );
-  // overlay for beta
+  // full-file overlay for beta, blessed against the upstream content it was written from
   mkdirSync(join(root, "overlays", "deniz-process", "deniz-beta"), { recursive: true });
   writeFileSync(
     join(root, "overlays", "deniz-process", "deniz-beta", "SKILL.md"),
     "---\nname: beta\ndescription: Beta overlay\n---\n\nOverlay body.\n",
+  );
+  saveLock(root, {
+    [lockKey("deniz-process", "deniz-beta")]: {
+      source: "sp/skills/beta",
+      files: stampFiles(join(root, "external", "sp", "skills", "beta"), ["SKILL.md"]),
+    },
+  });
+  // patch overlay for gamma: item-relative paths so `git apply -p1` lands on the emitted dir
+  mkdirSync(join(root, "overlays", "deniz-process", "gamma"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "gamma", "overlay.patch"),
+    [
+      "diff --git a/SKILL.md b/SKILL.md",
+      "--- a/SKILL.md",
+      "+++ b/SKILL.md",
+      "@@ -4,7 +4,7 @@",
+      " ---",
+      " ",
+      " Keep this line.",
+      "-Replace this line.",
+      "+Patched line.",
+      " Filler A.",
+      " Filler B.",
+      " Filler C.",
+      "",
+    ].join("\n"),
   );
   // own skill
   mkdirSync(join(root, "skills", "deniz-process", "my-own"), { recursive: true });

@@ -21,6 +21,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   cross-references to uncurated superpowers skills.
 - The cross-reference rewrite path has never run on real data — no starter pick references another
   pick, so it is proven by unit tests only. The first real curation batch exercises it.
+- Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch` and fails when
+  upstream moves under it, `body: overlay` replaces whole files and is hash-blessed through
+  `overlays/overlays.lock.json`. Neither has a real curated user yet — `overlays/` does not exist.
 
 ## Next Up
 
@@ -69,8 +72,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Own-skill collision false negative.** An original skill in `skills/` silently overwrites a
   curated skill of the same name in the same plugin — own skills are emitted last, and `validate`'s
   duplicate check only errors across plugins.
-- **`eject` silently overwrites an existing overlay**, discarding hand edits (recoverable only via
-  git). A small pre-existence guard would fix it.
+- **Manifest overrides have no staleness guard.** Overlays are guarded — a patch stops applying, a
+  full-file overlay's recorded hash stops matching — but a `frontmatter.description` override
+  written for one upstream body keeps being applied after upstream rewrites that body, with nothing
+  to notice. Same class as overlay drift, rarer, and unsolved.
 - **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
   mid-sentence, so curation sessions must open the upstream file to judge an item.
 - **Biome checks generated `marketplace.json`.** `biome.json` excludes the other build output but

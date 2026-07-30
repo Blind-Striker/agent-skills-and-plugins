@@ -9,11 +9,20 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
+import {
+  applyPatch,
+  checkPatch,
+  driftedFiles,
+  loadLock,
+  lockKey,
+  type OverlayLock,
+  PATCH_FILE,
+} from "./lib/overlay.ts";
 import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -66,10 +75,46 @@ function overlayBodyFile(comp: ComponentInfo, item: CurationItem): string {
   return comp.type === "skill" ? "SKILL.md" : basename(item.source);
 }
 
+/**
+ * Directory the names inside an overlay resolve against upstream. A skill source is already a
+ * directory; a bare command/agent file is addressed from its parent, where its own name lives.
+ */
+export function upstreamBase(root: string, item: CurationItem, comp: ComponentInfo): string {
+  const src = join(root, "external", item.source);
+  return comp.type === "skill" ? src : dirname(src);
+}
+
+/**
+ * A full-file overlay cannot notice upstream moving underneath it, so it is blessed against
+ * recorded content hashes. Patches are deliberately not hashed: `git apply` already fires exactly
+ * on the conflicting case, and a hash would also fire on the benign one we want absorbed.
+ */
+function overlayDrift(
+  root: string,
+  item: CurationItem,
+  comp: ComponentInfo,
+  plugin: string,
+  outName: string,
+  lock: OverlayLock,
+): string[] {
+  const id = `${plugin}/${outName}`;
+  const bless = `npm run eject ${plugin} ${outName} --bless`;
+  const entry = lock[lockKey(plugin, outName)];
+  if (!entry) {
+    return [`${id}: full-file overlay is not recorded in overlays/overlays.lock.json — run: ${bless}`];
+  }
+  const drifted = driftedFiles(upstreamBase(root, item, comp), entry);
+  if (!drifted.length) {
+    return [];
+  }
+  return [`${id}: upstream changed under the overlay (${drifted.join(", ")}) — review the diff, then: ${bless}`];
+}
+
 // Mirrors every throw in emitItem, with the identical wording, so the messages a user sees are the
 // same whichever side reports them. The emitItem throws stay as unreachable safety nets.
 function collectProblems(root: string, manifests: CurationManifest[], components: ComponentInfo[]): string[] {
   const problems: string[] = [];
+  const lock = loadLock(root);
   for (const m of manifests) {
     for (const item of m.items) {
       if (item.exclude) {
@@ -83,19 +128,41 @@ function collectProblems(root: string, manifests: CurationManifest[], components
       const outName = item.name ?? comp.name;
       const outType = item.as ?? comp.type;
       const overlayDir = join(root, "overlays", m.plugin.name, outName);
-      if (item.body === "overlay" && !existsSync(overlayDir)) {
+      const id = `${m.plugin.name}/${outName}`;
+      if (item.body && !existsSync(overlayDir)) {
         problems.push(
-          `${m.plugin.name}/${outName}: body is overlay but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject ${m.plugin.name} ${outName}`,
+          `${id}: body is ${item.body} but overlays/${id}/ is missing — run: npm run eject ${m.plugin.name} ${outName}${item.body === "patch" ? " --patch" : ""}`,
         );
-      } else if (item.body === "overlay" && outType !== "skill") {
-        // A skill target copies the whole overlay dir, but a conversion reads one file out of it —
-        // and the build looks it up by the SOURCE name, so an overlay renamed by hand is invisible.
-        const file = overlayBodyFile(comp, item);
-        if (!existsSync(join(overlayDir, file))) {
+      } else if (item.body === "patch") {
+        // A conversion re-serializes frontmatter around a body, so there is no stable file for a
+        // diff to land on — those items take a full-file overlay instead (ADR-0001).
+        if (outType !== "skill") {
+          problems.push(`${id}: body: patch applies to skill output only — a ${outType} needs body: overlay`);
+        } else if (!existsSync(join(overlayDir, PATCH_FILE))) {
           problems.push(
-            `${m.plugin.name}/${outName}: overlays/${m.plugin.name}/${outName}/${file} is missing — a ${outType} overlay is read by its source file name, so do not rename it`,
+            `${id}: body is patch but overlays/${id}/${PATCH_FILE} is missing — run: npm run eject ${m.plugin.name} ${outName} --patch`,
           );
+        } else {
+          // --check writes nothing, so this runs against pristine upstream in the fail-fast pass.
+          const err = checkPatch(upstreamBase(root, item, comp), join(overlayDir, PATCH_FILE));
+          if (err) {
+            problems.push(
+              `${id}: ${PATCH_FILE} no longer applies to ${item.source} — upstream moved under it:\n${err}`,
+            );
+          }
         }
+      } else if (item.body === "overlay") {
+        if (outType !== "skill") {
+          // A skill target copies the whole overlay dir, but a conversion reads one file out of it —
+          // and the build looks it up by the SOURCE name, so an overlay renamed by hand is invisible.
+          const file = overlayBodyFile(comp, item);
+          if (!existsSync(join(overlayDir, file))) {
+            problems.push(
+              `${id}: overlays/${id}/${file} is missing — a ${outType} overlay is read by its source file name, so do not rename it`,
+            );
+          }
+        }
+        problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, lock));
       }
       if (outType === "skill" && comp.type !== "skill") {
         problems.push(`${item.source}: ${comp.type} -> skill conversion not supported`);
@@ -139,9 +206,9 @@ function emitItem(
   const overlayDir = join(root, "overlays", m.plugin.name, outName);
   const pluginDir = join(root, "plugins", m.plugin.name);
 
-  if (item.body === "overlay" && !existsSync(overlayDir)) {
+  if (item.body && !existsSync(overlayDir)) {
     throw new Error(
-      `${m.plugin.name}/${outName}: body is overlay but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject ${m.plugin.name} ${outName}`,
+      `${m.plugin.name}/${outName}: body is ${item.body} but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject ${m.plugin.name} ${outName}`,
     );
   }
 
@@ -154,6 +221,13 @@ function emitItem(
     cpSync(srcPath, destDir, { recursive: true, filter });
     if (item.body === "overlay") {
       cpSync(overlayDir, destDir, { recursive: true, force: true, filter });
+    } else if (item.body === "patch") {
+      // collectProblems already --check'd this against pristine upstream; a failure here means the
+      // copy above differs from what was checked, so report it rather than emit a half-patched item.
+      const err = applyPatch(destDir, join(overlayDir, PATCH_FILE));
+      if (err) {
+        throw new Error(`${m.plugin.name}/${outName}: ${PATCH_FILE} failed to apply:\n${err}`);
+      }
     }
     const skillMd = join(destDir, "SKILL.md");
     const doc = parseDoc(readFileSync(skillMd, "utf8"));

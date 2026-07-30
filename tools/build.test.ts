@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -134,6 +135,67 @@ test("an overlay directory missing the file the build reads aborts before deleti
   rmSync(join(root, "overlays", "deniz-process", "deniz-beta", "SKILL.md"));
   assert.throws(() => buildAll(root), /deniz-beta\/SKILL\.md is missing/);
   assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
+});
+
+test("a patch overlay edits the emitted skill and leaves overlay.patch out of the output", () => {
+  const root = makeRepo();
+  const report = buildAll(root);
+  const dir = join(root, "plugins", "deniz-process", "skills", "gamma");
+  const body = readFileSync(join(dir, "SKILL.md"), "utf8");
+  assert.match(body, /Patched line\./);
+  assert.doesNotMatch(body, /Replace this line\./);
+  assert.match(body, /Keep this line\./, "unpatched content must survive");
+  assert.ok(!existsSync(join(dir, "overlay.patch")), "the patch is an input, never shipped");
+  assert.ok(report.includes("deniz-process: skill gamma <- sp/skills/gamma"));
+});
+
+// Regression: inside a work tree, `git apply` resolves patch paths against the repository root and
+// silently ignores anything outside the cwd — exit 0, nothing patched. A fixture in tmpdir is not a
+// repository, so it cannot see this; only a git-initialised one reproduces the real tree.
+test("a patch applies when the tree is inside a git repository", () => {
+  const root = makeRepo();
+  execFileSync("git", ["init", "-q", "."], { cwd: root });
+  buildAll(root);
+  const body = readFileSync(join(root, "plugins", "deniz-process", "skills", "gamma", "SKILL.md"), "utf8");
+  assert.match(body, /Patched line\./, "the patch must land even when the output sits in a repository");
+  assert.doesNotMatch(body, /Replace this line\./);
+});
+
+// The whole reason patches are preferred: upstream keeps improving the parts we did not touch.
+test("a patch still applies when upstream changes outside the patched region", () => {
+  const root = makeRepo();
+  const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Far region.", "Far region, improved upstream."));
+  buildAll(root);
+  const body = readFileSync(join(root, "plugins", "deniz-process", "skills", "gamma", "SKILL.md"), "utf8");
+  assert.match(body, /Far region, improved upstream\./, "upstream improvement must be absorbed");
+  assert.match(body, /Patched line\./, "our edit must survive");
+});
+
+test("a patch that no longer applies aborts before any output is deleted", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const alpha = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Replace this line.", "Upstream rewrote this line."));
+  assert.throws(() => buildAll(root), /overlay\.patch no longer applies to sp\/skills\/gamma/);
+  assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
+});
+
+// A full-file overlay cannot detect upstream moving under it, so the recorded hash has to.
+test("upstream drifting under a full-file overlay aborts with the bless command", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const up = join(root, "external", "sp", "skills", "beta", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Beta body.", "Beta body, rewritten upstream."));
+  assert.throws(() => buildAll(root), /upstream changed under the overlay \(SKILL\.md\)/);
+  assert.throws(() => buildAll(root), /--bless/);
+});
+
+test("a full-file overlay with no lock entry aborts", () => {
+  const root = makeRepo();
+  rmSync(join(root, "overlays", "overlays.lock.json"));
+  assert.throws(() => buildAll(root), /not recorded in overlays\/overlays\.lock\.json/);
 });
 
 // An uninitialised clone has empty external/* dirs, which every tool would read as "no upstream
