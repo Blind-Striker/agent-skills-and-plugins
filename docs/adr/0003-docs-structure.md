@@ -41,9 +41,3 @@ Once one paragraph is known to be out of date, the reader stops trusting the res
 - Roadmap churn no longer touches the evergreen documents, which makes a stale line in them a bug
   rather than background noise.
 - A new architectural decision costs a small ADR file. That is the intended cost.
-
-## Credit
-
-Pattern adapted and heavily condensed from the AGENTS.md contract of Homerun's discount-service
-(internal repo); service-specific policy, approval gates, and .NET-specific guidance deliberately
-dropped — this is a personal tooling repo, not a production service.

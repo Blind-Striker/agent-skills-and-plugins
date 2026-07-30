@@ -28,8 +28,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    bare name to five skills that are not curated yet — a hollow router. Either curate the targets or
    eject and rewrite the body. Bare-name references are invisible to `validate`.
 3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
-   review the ADR-0003 credit wording, fix or pull the aspire router, and confirm the
-   `invocable: false` semantics. Until then, do not install `deniz-dotnet-aspire`.
+   fix or pull the aspire router and confirm the `invocable: false` semantics. Until then, do not
+   install `deniz-dotnet-aspire`.
 4. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
    Link the tree into an OpenCode config, confirm skills/commands/agents resolve; research notes go
    to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
