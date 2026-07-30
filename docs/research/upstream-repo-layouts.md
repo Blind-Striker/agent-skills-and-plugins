@@ -47,24 +47,51 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
 ## superpowers
 
 - Standard layout, but the skills are **densely cross-referenced**, which couples curation
-  decisions: skipping a skill leaves a dangling `superpowers:<name>` reference in the body of every
-  skill that points at it, and that is a body edit, not a manifest one. Regenerate the graph with:
+  decisions: skipping a skill leaves a dangling reference in the body of every skill that points at
+  it, and that is a body edit, not a manifest one.
+
+  References come in three spellings, and only the first is visible to `validate`:
+
+  | Spelling | Example | Seen by `validate`? |
+  |---|---|---|
+  | Namespaced | `superpowers:writing-plans` | yes — rewritten or warned |
+  | Bare name | `invoke writing-plans skill` | **no** |
+  | Relative path | `../using-superpowers/references/` | **no** |
+
+  A graph built from the namespaced spelling alone is therefore not the coupling graph — it is a
+  lower bound. Regenerate the full one with:
 
   ```
+  SKILLS=$(ls -d external/superpowers/skills/*/ | xargs -n1 basename)
   for d in external/superpowers/skills/*/; do
-    printf '%-32s %s\n' "$(basename $d)" \
-      "$(grep -oh 'superpowers:[a-z-]*' -r "$d" | sed 's/superpowers://' | sort -u | tr '\n' ',')"
+    b=$(basename "$d"); hits=""
+    for s in $SKILLS; do
+      [ "$s" = "$b" ] && continue
+      grep -rqE "(^|[^a-z-])$s([^a-z-]|$)" "$d" && hits="$hits$s,"
+    done
+    printf '%-32s %s\n' "$b" "$hits"
   done
   ```
 
-  As pinned today it forms three groups. **Free to take** — reference nothing, referenced by
-  nothing but `using-superpowers`: `brainstorming`, `dispatching-parallel-agents`,
+  It over-reports slightly — an edge can come from an example argument inside a bundled script
+  rather than from content — so read the hit before letting it decide anything.
+
+  As pinned today the output forms three groups, treating `using-superpowers` as neither a
+  candidate nor a referrer (it is the bootstrap payload, and this repo packages no hooks).
+  **Free to take** — reference nothing, referenced by nothing: `dispatching-parallel-agents`,
   `receiving-code-review`. **Sinks** — referenced but reference nothing, so skipping one breaks its
-  referrers while taking it drags nothing along: `using-git-worktrees` (3 referrers),
-  `finishing-a-development-branch` (2), `requesting-code-review` (2),
-  `verification-before-completion` (1). **Coupled** — `writing-plans` → `executing-plans` →
-  `subagent-driven-development` pulls in six skills transitively, and
-  `systematic-debugging` ↔ `test-driven-development` ↔ `writing-skills` is a cycle.
+  referrers while taking it drags nothing along: `using-git-worktrees`,
+  `finishing-a-development-branch`, `verification-before-completion`, `requesting-code-review`.
+  **Coupled** — everything else, in two clusters joined by `writing-skills`:
+  `brainstorming` ↔ `writing-plans` ↔ `executing-plans` ↔ `subagent-driven-development` on the
+  planning side, and `systematic-debugging` ↔ `test-driven-development` ↔ `writing-skills` on the
+  authoring side.
+
+  `brainstorming` is the trap. It carries no namespaced reference at all, so it looks free, but it
+  names `writing-plans` seven times in bare form — including a graphviz terminal node and "**The
+  terminal state is invoking writing-plans.** … The ONLY skill you invoke after brainstorming is
+  writing-plans." Taking it without `writing-plans` ships a skill whose documented exit is a skill
+  that is not there, and nothing in the toolchain will say so.
 
 - Three skills bundle executable scripts, so each needs the `git update-index --chmod=+x` treatment
   on its built copies: `brainstorming` (`scripts/helper.js`, `start-server.sh`, `stop-server.sh` —

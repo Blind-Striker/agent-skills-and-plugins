@@ -71,15 +71,35 @@ OpenCode it is a choice of artifact.
 
 ## What the vendored upstreams use
 
-Re-derive with:
+Re-derive per repo with:
 
 ```
-rg -n '^(invocable|user-invocable|disable-model-invocation):' external
+for r in external/*/; do
+  printf '%-24s %s\n' "$(basename $r)" \
+    "$(grep -rlE '^(invocable|user-invocable|disable-model-invocation):' "$r" 2>/dev/null | wc -l)"
+done
 ```
 
-- **mattpocock-skills** sets `disable-model-invocation: true` on `grill-me`, `teach`, `handoff`,
-  `edit-article` and `writing-great-skills` — its best-known skills are user-invoked by design, and
-  the repo documents the rule it follows (see the composition pattern below).
+Three of the five vendored repos set invocation frontmatter; `superpowers` and `aspire-skills` set
+none at all.
+
+- **mattpocock-skills** uses `disable-model-invocation: true` as its *default posture*, not as a
+  mark on a few flagship skills — it carries the flag across most of both promoted buckets, and
+  through `in-progress`, `personal` and `deprecated` as well. The interesting artefact is which
+  skills **lack** it, because that set is the composition pattern below made mechanical:
+
+  ```
+  for f in external/mattpocock-skills/skills/{engineering,productivity}/*/SKILL.md; do
+    grep -qE '^disable-model-invocation:' "$f" || echo "${f#*/skills/}"
+  done
+  ```
+
+  Everything that survives that filter is a *knowledge* skill — `grilling`, `tdd`,
+  `diagnosing-bugs`, `code-review`, `domain-modeling`, `codebase-design`, `research`, `prototype`,
+  `resolving-merge-conflicts`. Everything flagged is a *trigger*: `grill-me` and `grill-with-docs`
+  are user-only, while the `grilling` discipline they invoke is model-only. That is the ADR-0005
+  matrix already implemented upstream, and it maps to our field directly — flagged means
+  `invocation: user`, unflagged means `invocation: model`.
 - **superpowers** sets no invocation frontmatter anywhere; every skill carries `name` and
   `description` only. It reaches for automatic invocation two other ways. First, description prose:
   `brainstorming` opens with "You MUST use this before any creative work" — pressure written into
@@ -101,6 +121,14 @@ rg -n '^(invocable|user-invocable|disable-model-invocation):' external
 - **dotnet-skills** sets `invocable: true|false` on most of its skills. That is not a field in
   either harness's frontmatter reference; it is upstream's own convention and reaches our output as
   dead metadata.
+- **dotnet-agent-skills** uses both real keys, and mostly on agents rather than skills. The
+  dominant use is `user-invocable: false` on the `code-testing-*` sub-agents — pipeline stages
+  meant to be dispatched by an orchestrator, kept out of the user's slash menu. A few skills
+  (`filter-syntax`, `platform-detection`, and the two `*-extensions`) set `user-invocable: false`
+  **and** `disable-model-invocation: true` together, which in Claude Code leaves nothing able to
+  invoke them directly: they are reference material for another skill to read, not entry points.
+  Worth knowing before curating any of them, since our `invocation` field has no value that means
+  "neither".
 
 ## The composition pattern
 
