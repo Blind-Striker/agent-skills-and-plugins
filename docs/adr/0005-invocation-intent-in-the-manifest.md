@@ -24,27 +24,35 @@ output shape.
 
 ## Decision
 
-Each item gains an optional `invocation` field with values `model`, `user` or `both`, defaulting to
-`model`. It applies to items emitted as skills; upstream command and agent components are
+Each item gains an optional `invocation` field with values `auto`, `manual` or `both`, defaulting to
+`auto`. It applies to items emitted as skills; upstream command and agent components are
 user-invoked by nature and the field is meaningless on them (`validate` warns if it is set).
 
 Each emitter derives its own mechanism:
 
 | `invocation` | Claude Code | OpenCode |
 |---|---|---|
-| `model` (default) | skill, `user-invocable: false` | `skill/` |
-| `user` | skill, `disable-model-invocation: true` | `command/` |
-| `both` | skill, neither key set | `skill/` **and** `command/` |
+| `auto` (default) | skill, `user-invocable: false` | `skills/` |
+| `manual` | skill, `disable-model-invocation: true` | `commands/` |
+| `both` | skill, neither key set | `skills/` **and** `commands/` |
 
-`as: agent` is unchanged. **`as: command` is removed**: it was the only way to say "the user starts
-this", and it says it badly.
+`as:` is untouched and stays orthogonal. It is the **shape** dial of
+[ADR-0006](0006-output-is-a-transformation.md) — what artifact the item becomes — while `invocation`
+is the **trigger** dial. The table above gives each invocation value its default shape per harness;
+`as:` states the shape explicitly when that default is wrong.
 
 ### Alternatives considered
 
-- **Keep `as: command` as the dial.** Rejected: it names where a file goes, not who pulls the
-  trigger. It cannot express `both`, and since Claude Code merged custom commands into skills the
-  conversion buys nothing on that side — the same file under `commands/` and under `skills/`
-  behaves identically. The path has never run on real data, so removing it costs nothing.
+- **Keep `as: command` as the invocation dial.** Rejected *as the trigger dial* — it names what a
+  file is, not who pulls the trigger, and cannot express `both`. It is not removed, because shape is
+  a real second axis: converting an upstream skill into a command is a curation decision worth
+  making on its own, and on OpenCode a command is a genuinely different artifact with its own
+  frontmatter (`agent`, `model`, `subtask`, `template`) that a skill cannot carry.
+- **Name the values `model` / `user` instead of `auto` / `manual`.** Rejected: `model`/`user` names
+  the *actor*, which is the emitter's view of the problem. The manifest is read by the person
+  deciding, and the decision they are actually making is whether the thing fires on its own or waits
+  to be asked for. `auto`/`manual` says that in the words the decision is thought in, and stays true
+  on a harness where the actor distinction is expressed by a different artifact rather than a flag.
 - **Set `disable-model-invocation` by hand through the existing `frontmatter:` override.** Rejected:
   it works for Claude Code only and silently no-ops for OpenCode, which is exactly the
   lowest-common-denominator failure ADR-0002 was written to avoid. It also puts a harness-specific
@@ -63,6 +71,6 @@ this", and it says it badly.
   `validate` has to cover.
 - Suppressing model invocation is a bet on one harness key. Claude Code has an open report that
   `disable-model-invocation: true` also blocks the user's own slash invocation; until that is checked
-  against a live install, `invocation: user` is unproven on the Claude side.
-- Nothing forces an item to declare intent. The `model` default reproduces today's behaviour, so
+  against a live install, `invocation: manual` is unproven on the Claude side.
+- Nothing forces an item to declare intent. The `auto` default reproduces today's behaviour, so
   curation can adopt the field item by item rather than in one pass.

@@ -20,8 +20,11 @@ an operational fact recorded in a handover prompt but missing from the roadmap.
 ## Decision
 
 - **`AGENTS.md` is the canonical contract** for everyone who works in the repo, human or agent —
-  short (under 70 lines), harness-neutral, evergreen. The living rule text is there and only there;
-  this ADR records the shape of the structure and why, without restating the rules.
+  harness-neutral, evergreen, and short because it loads in full at the start of every session. Its
+  length is governed by that purpose, not by a line count: what earns a place is what an agent must
+  hold before it proposes anything, and a rule that pushes the most load-bearing paragraph out to
+  save lines has inverted the reason for keeping it short. The living rule text is there and only
+  there; this ADR records the shape of the structure and why, without restating the rules.
 - **Every fact has exactly one canonical home; every other appearance is a relay that links there.**
   `AGENTS.md`'s "Sources of Truth" table is the repo's one routing table.
 - **Entry documents are relays, not homes.** `CLAUDE.md` relays Claude Code to `AGENTS.md` and holds

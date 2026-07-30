@@ -99,7 +99,7 @@ none at all.
   `resolving-merge-conflicts`. Everything flagged is a *trigger*: `grill-me` and `grill-with-docs`
   are user-only, while the `grilling` discipline they invoke is model-only. That is the ADR-0005
   matrix already implemented upstream, and it maps to our field directly — flagged means
-  `invocation: user`, unflagged means `invocation: model`.
+  `invocation: manual`, unflagged means `invocation: auto`.
 - **superpowers** sets no invocation frontmatter anywhere; every skill carries `name` and
   `description` only. It reaches for automatic invocation two other ways. First, description prose:
   `brainstorming` opens with "You MUST use this before any creative work" — pressure written into

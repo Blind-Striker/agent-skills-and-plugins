@@ -38,18 +38,24 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Implement invocation intent** (ADR-0005). Add the item-level `invocation: model | user | both`
+1. **Implement invocation intent** (ADR-0005). Add the item-level `invocation: auto | manual | both`
    field, derive `disable-model-invocation` / `user-invocable` in the Claude emitter and the
-   skill-vs-command choice in the OpenCode emitter, drop `as: command`, and extend `validate` for the
-   new collision class. Needed before or alongside the first curation session, since "the user starts
-   this" is otherwise inexpressible. Verify against a live install first that
-   `disable-model-invocation: true` still permits the user's own slash invocation.
-2. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
+   skill-vs-command choice in the OpenCode emitter, and extend `validate` for the new collision
+   class. `as:` stays — it is the orthogonal shape dial (ADR-0006), not a second trigger dial.
+   Needed before or alongside the first curation session, since "the user starts this" is otherwise
+   inexpressible. Verify against a live install first that `disable-model-invocation: true` still
+   permits the user's own slash invocation.
+2. **Make the skill path a real OpenCode adapter** (ADR-0006 axis 3). Skills are copied from
+   `plugins/` to `opencode/` verbatim today, so the tree is a mirror, not an adaptation: Claude-only
+   frontmatter travels there as dead metadata with no drop report, and cross-references keep Claude's
+   `<plugin>:<name>` spelling, which OpenCode cannot resolve. The commands/agents path already does
+   this correctly and is the model to follow.
+3. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
    module by module against `docs/inventory.md`, with the user, one plugin per session. The
    intended upstream sources of each module are noted at the top of its manifest.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
+4. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
    aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
@@ -58,10 +64,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
    targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
    invisible to `validate`.
-4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+5. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-5. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
+6. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
    Link the tree into an OpenCode config and confirm skills, commands and agents resolve; research
    notes go to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
 

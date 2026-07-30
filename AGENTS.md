@@ -1,15 +1,21 @@
 # Agent Instructions
 
-Operating rules for LLM/code agents working in this repository.
-
-This document is canonical and evergreen: it holds only what stays true. Current state, in-flight
-work and next steps live in `docs/ROADMAP.md`.
+Operating rules for LLM/code agents working in this repository. Canonical and evergreen: it holds
+only what stays true. Current state and next steps live in `docs/ROADMAP.md`.
 
 ## Purpose
 
-Personal multi-harness skill/plugin marketplace. Upstream skill repos are vendored as git submodules
-in `external/`; curation manifests in `curation/*.yaml` select and customize what gets packaged into
-the `deniz-*` Claude Code plugins (`plugins/`) and the OpenCode output (`opencode/`).
+Personal multi-harness skill/plugin marketplace. Upstream repos are vendored as git submodules in
+`external/`; `curation/*.yaml` decides what is packaged into the `deniz-*` Claude Code plugins
+(`plugins/`) and the OpenCode output (`opencode/`).
+
+**Read this before proposing anything.** Selection is the cheapest thing here — if picking skills
+were the point, you would install the upstream plugins. The product is **transformation**, decided
+per item and resolved *per harness*: **how it fires** (auto, manual, both), **what artifact it
+becomes** (skill, command, agent — never inherited from upstream), and **whether it is idiomatic
+where it lands**. Copying an item unchanged into another harness is not adaptation.
+[ADR-0006](docs/adr/0006-output-is-a-transformation.md) holds the contract and the shortcuts it
+forbids.
 
 ## Hard Rules
 
