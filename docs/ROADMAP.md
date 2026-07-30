@@ -51,3 +51,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 Out of scope until there is a concrete need: OpenCode agent permission mapping; Codex, Cursor and
 Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manual).
+
+- **Executable-bit parity.** Windows checkouts cannot see the exec bit; any newly curated skill
+  bundling a script needs `git update-index --chmod=+x` on its built copies once, or CI's freshness
+  gate fails on the mode diff. Candidate automation: build reads upstream modes via git ls-files.
