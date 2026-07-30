@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
+import { loadLock, lockKey, saveLock } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
 
@@ -90,6 +91,73 @@ test("a symlink in built output is an error", (t) => {
         f.message.includes("plugins/deniz-process/skills/alpha/fixtures"),
     ),
     `expected a symlink error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// The failure ADR-0001's guardrails exist to prevent, arriving through the one door they do not
+// watch: the build only consults an overlay when the item says `body:`, so dropping that line
+// ships pristine upstream with every hash check and patch check simply never running.
+test("an overlay directory with no body: on its item is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  // delta is curated as a plain passthrough — no body: line anywhere in the manifest
+  mkdirSync(join(root, "overlays", "deniz-process", "delta"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: Delta edited\n---\n\nEdited body.\n",
+  );
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) => f.level === "error" && f.message.includes("deniz-process/delta") && f.message.includes("body:"),
+    ),
+    `expected an ignored-overlay error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// A renamed item, or a hand-made directory, leaves an overlay no item can ever reach.
+test("an overlay directory matching no item is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  mkdirSync(join(root, "overlays", "deniz-process", "ghost"), { recursive: true });
+  writeFileSync(join(root, "overlays", "deniz-process", "ghost", "SKILL.md"), "---\nname: ghost\n---\n\nBody.\n");
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("deniz-process/ghost")),
+    `expected an unmatched-overlay error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// Bookkeeping rot rather than a bypass: nothing reads the entry, but it claims a guard exists.
+test("a lock entry with no overlay directory is a warning", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const lock = loadLock(root);
+  lock[lockKey("deniz-process", "vanished")] = { source: "sp/skills/delta", files: { "SKILL.md": "deadbeef" } };
+  saveLock(root, lock);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "warn" && f.message.includes("deniz-process/vanished")),
+    `expected a stale-lock warning, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+// `eject --patch` cuts the patch and then deletes the working copy it was cut from. Anything left
+// beside overlay.patch is dead weight the build never reads — and the next person to edit it will
+// not be told their edit does nothing.
+test("a patch overlay holding a stranded working copy is a warning", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "gamma", "SKILL.md"),
+    "---\nname: gamma\ndescription: stranded\n---\n\nNever read.\n",
+  );
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) => f.level === "warn" && f.message.includes("deniz-process/gamma") && f.message.includes("SKILL.md"),
+    ),
+    `expected a stranded-working-copy warning, got ${JSON.stringify(findings, null, 2)}`,
   );
 });
 

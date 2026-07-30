@@ -25,6 +25,11 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Exercised
   end to end against real upstream skills, but no curated item uses either yet — `overlays/` does
   not exist. The gaps two independent reviews left open are listed below.
+- `validate` covers the overlay wiring the build cannot see: an overlay directory that no item
+  claims, or whose item declares no `body:`, is an error (the build would ship pristine upstream in
+  silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
+  are warnings. Item resolution lives once, in `tools/lib/resolve.ts`, so a per-item rule can no
+  longer be added to one side of the build only.
 
 ## Next Up
 
@@ -39,9 +44,15 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    intended upstream sources of each module are noted at the top of its manifest.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, which routes by
-   bare name to five skills that are not curated yet — a hollow router. Either curate the targets or
-   eject and rewrite the body. Bare-name references are invisible to `validate`.
+3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
+   five targets are not curated. The misdirection sits in two different places, and they are worth
+   separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
+   aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
+   system prompt and therefore the part that actually misleads a model; the body's routing table
+   points at upstream GitHub URLs, which resolve for a human reader, but labels three rows
+   "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
+   targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
+   invisible to `validate`.
 4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
@@ -65,7 +76,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   scan `plugins/` only, or group per reference.
 - **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
   (avoids prose false positives), so a `Superpowers:Foo` spelling slips through — alongside the
-  bare-name blindness already noted under Next Up 2.
+  bare-name and relative-path blindness catalogued in
+  [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers), which is the larger
+  hole: only the namespaced spelling is visible to `validate` at all.
 - **Scanner blind spots.** Commands and agents are discovered only directly under a
   `commands/`/`agents/` directory, so upstream subdirectory grouping is silently missing from the
   inventory; conversely such a directory nested inside a skill is double-counted as a standalone
@@ -73,16 +86,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Own-skill collision false negative.** An original skill in `skills/` silently overwrites a
   curated skill of the same name in the same plugin — own skills are emitted last, and `validate`'s
   duplicate check only errors across plugins.
-- **`validate` knows nothing about overlays.** It is the designated footgun-catcher, but an
-  `overlays/<plugin>/<item>/` with no matching `body:` in the manifest is silently ignored by the
-  build, which then ships pristine upstream — every guardrail bypassed by the overlay simply never
-  being consulted. Same for a lock entry with no overlay directory, and a `body: patch` directory
-  still holding a stranded phase-1 working copy. All three are cheap validate rules.
-- **Item resolution is written twice.** `collectProblems` and `emitItem` in `tools/build.ts` each
-  re-derive `comp`/`outName`/`outType`/`overlayDir`, so the fail-fast guarantee holds by convention
-  and every new per-item rule has to be added in both places. A rule added to one side only is how
-  the unguarded-skill-overlay hole got in. Collapsing them into one resolver is the change that
-  stops the class recurring.
 - **`--bless` shows nothing before it stamps.** ADR-0001 calls re-blessing deliberate, but the
   command re-records whatever is on disk without displaying what changed — and the previous blob
   SHA is right there in the lock. Print the diff, and require confirmation.

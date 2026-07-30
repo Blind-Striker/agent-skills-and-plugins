@@ -23,6 +23,7 @@ import {
   type OverlayLock,
   PATCH_FILE,
 } from "./lib/overlay.ts";
+import { resolveItem } from "./lib/resolve.ts";
 import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -128,15 +129,11 @@ function collectProblems(root: string, manifests: CurationManifest[], components
       if (item.exclude) {
         continue;
       }
-      const comp = components.find((c) => c.sourcePath === item.source);
+      const { comp, outName, outType, overlayDir, id } = resolveItem(root, m.plugin.name, item, components);
       if (!comp) {
         problems.push(`${m.plugin.name}: source not found in external/: ${item.source}`);
         continue;
       }
-      const outName = item.name ?? comp.name;
-      const outType = item.as ?? comp.type;
-      const overlayDir = join(root, "overlays", m.plugin.name, outName);
-      const id = `${m.plugin.name}/${outName}`;
       if (item.body && !existsSync(overlayDir)) {
         problems.push(
           `${id}: body is ${item.body} but overlays/${id}/ is missing — run: npm run eject -- ${m.plugin.name} ${outName}${item.body === "patch" ? " --patch" : ""}`,
@@ -205,14 +202,11 @@ function emitItem(
   if (item.exclude) {
     return;
   }
-  const comp = components.find((c) => c.sourcePath === item.source);
+  const { comp, outName, outType, overlayDir } = resolveItem(root, m.plugin.name, item, components);
   if (!comp) {
     throw new Error(`${m.plugin.name}: source not found in external/: ${item.source}`);
   }
-  const outName = item.name ?? comp.name;
-  const outType = item.as ?? comp.type;
   const srcPath = join(root, "external", item.source);
-  const overlayDir = join(root, "overlays", m.plugin.name, outName);
   const pluginDir = join(root, "plugins", m.plugin.name);
 
   if (item.body && !existsSync(overlayDir)) {

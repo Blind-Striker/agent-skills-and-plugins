@@ -3,7 +3,9 @@ import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
+import { listFiles, loadLock, LOCK_FILE, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
+import { resolveItem } from "./lib/resolve.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -51,20 +53,18 @@ export function validateRepo(root: string): Finding[] {
   const components = readdirSync(join(root, "external"))
     .filter((s) => statSync(join(root, "external", s)).isDirectory())
     .flatMap((s) => scanSubmodule(join(root, "external"), s));
-  const bySource = new Map(components.map((c) => [c.sourcePath, c]));
   const firstUse = new Map<string, string>();
 
   // 1. manifest sources exist, plus the two curation footguns the build resolves silently
   for (const m of manifests) {
     for (const item of m.items) {
-      const comp = bySource.get(item.source);
+      const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
       if (!comp) {
         findings.push({ level: "error", message: `${m.plugin.name}: unknown source ${item.source}` });
       }
       if (item.exclude) {
         continue;
       }
-      const outName = item.name ?? comp?.name ?? basename(item.source);
       const ref = `${m.plugin.name}:${outName}`;
       // 1a. same source curated twice: buildRewriteMap keys on the source, so the last item wins
       // and upstream references to the earlier one silently resolve to the later name.
@@ -82,7 +82,7 @@ export function validateRepo(root: string): Finding[] {
       const declared = item.frontmatter?.name;
       if (typeof declared === "string" && declared !== outName) {
         const fate =
-          (item.as ?? comp?.type) === "command"
+          outType === "command"
             ? `a command is addressed by its file name (${outName}.md), so it is dead metadata`
             : `the build forces name: ${outName} on the output, so it is discarded`;
         findings.push({
@@ -90,6 +90,71 @@ export function validateRepo(root: string): Finding[] {
           message: `${m.plugin.name}/${outName}: item frontmatter.name is "${declared}" but ${fate} — use the item's own name: field to rename it`,
         });
       }
+    }
+  }
+
+  // 1c. overlay wiring. The build consults an overlay ONLY when its item says `body:`, so an
+  // overlay no item claims is skipped in silence and pristine upstream ships in its place — every
+  // hash and patch guard ADR-0001 specifies bypassed by simply never being consulted. That is the
+  // one overlay failure the build cannot report, because from its side nothing happened.
+  const claimed = new Map<string, { body: "overlay" | "patch" | undefined; exclude: boolean; overlayDir: string }>();
+  for (const m of manifests) {
+    for (const item of m.items) {
+      const { id, overlayDir } = resolveItem(root, m.plugin.name, item, components);
+      claimed.set(id, { body: item.body, exclude: item.exclude === true, overlayDir });
+    }
+  }
+  const overlaysDir = join(root, "overlays");
+  for (const plugin of existsSync(overlaysDir) ? readdirSync(overlaysDir) : []) {
+    const pluginDir = join(overlaysDir, plugin);
+    if (!statSync(pluginDir).isDirectory()) {
+      continue; // overlays.lock.json lives beside the plugin directories
+    }
+    for (const name of readdirSync(pluginDir)) {
+      if (!statSync(join(pluginDir, name)).isDirectory()) {
+        continue;
+      }
+      const id = `${plugin}/${name}`;
+      const entry = claimed.get(id);
+      if (!entry) {
+        findings.push({
+          level: "error",
+          message: `overlays/${id}/ matches no curated item — the build never reads it; delete it, or fix the item's name in curation/${plugin}.yaml`,
+        });
+      } else if (!entry.body && !entry.exclude) {
+        // An excluded item is exempt: nothing is emitted for it, so nothing can silently ship.
+        findings.push({
+          level: "error",
+          message: `overlays/${id}/ exists but its item declares no body: — the build ships pristine upstream and every overlay guard is bypassed; add body: overlay or body: patch in curation/${plugin}.yaml`,
+        });
+      }
+    }
+  }
+  // A lock entry claims a guard over an overlay that is not there. Nothing ships wrong, so this is
+  // rot rather than a bypass — but a lock nobody can trace back to a directory is how the next
+  // stale entry hides.
+  const lock = loadLock(root);
+  for (const key of Object.keys(lock)) {
+    if (!existsSync(join(overlaysDir, ...key.split("/")))) {
+      findings.push({
+        level: "warn",
+        message: `overlays/${LOCK_FILE} records ${key} but overlays/${key}/ does not exist — drop the entry`,
+      });
+    }
+  }
+  // `eject --patch` cuts the patch and then deletes the working copy it came from. Anything left
+  // beside overlay.patch is read by nothing, and the next person to edit it is not told so. A
+  // warning rather than an error: `--force` re-cutting passes through this state legitimately.
+  for (const [id, entry] of claimed) {
+    if (entry.body !== "patch" || !existsSync(join(entry.overlayDir, PATCH_FILE))) {
+      continue;
+    }
+    const stranded = listFiles(entry.overlayDir);
+    if (stranded.length) {
+      findings.push({
+        level: "warn",
+        message: `overlays/${id}/ holds ${stranded.join(", ")} beside ${PATCH_FILE} — a cut patch leaves no working copy, and the build reads only the patch`,
+      });
     }
   }
 
