@@ -9,6 +9,7 @@ const manifests: CurationManifest[] = [
     items: [
       { source: "sp/skills/alpha" },
       { source: "sp/skills/beta", body: "overlay" },
+      { source: "sp/skills/gamma", body: "patch" },
       { source: "sp/skills/gone", exclude: true },
       { source: "other/skills/x" },
     ],
@@ -29,6 +30,17 @@ test("reports only changed curated items with overlay flag", () => {
   assert.match(alpha, /auto-updated/);
   assert.match(beta, /beta/);
   assert.match(beta, /OVERLAY/);
+});
+
+// "auto-updated on next build" is a lie for a patch item: upstream moving into the patched region
+// stops the build instead, so the default tag must not be what sync prints for one.
+test("a patch item is reported as neither auto-updated nor an overlay", () => {
+  const lines = syncReport("sp", ["skills/gamma/SKILL.md"], manifests);
+  assert.equal(lines.length, 1);
+  const only = lines[0];
+  assert.ok(only);
+  assert.match(only, /PATCH/);
+  assert.doesNotMatch(only, /auto-updated/);
 });
 
 test("no changes yields empty report", () => {

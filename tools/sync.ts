@@ -17,11 +17,17 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
       if (!hit) {
         continue;
       }
+      const review = `git -C external/${sub} diff <old> <new> -- ${rel}`;
       let tag = "auto-updated on next build";
       if (item.exclude) {
         tag = "excluded — no action";
       } else if (item.body === "overlay") {
-        tag = `OVERLAY — review: git -C external/${sub} diff <old> <new> -- ${rel}`;
+        // Nothing arrives on its own: the copy shadows upstream until it is re-blessed.
+        tag = `OVERLAY — review, then re-bless: ${review}`;
+      } else if (item.body === "patch") {
+        // Either the change lands outside the patched region and is absorbed silently, or the build
+        // stops. Both deserve a look, and neither is the "auto-updated" the default tag promises.
+        tag = `PATCH — absorbed if it misses the patched region, otherwise the build stops: ${review}`;
       }
       lines.push(`${m.plugin.name}: ${item.source} changed upstream (${tag})`);
     }
