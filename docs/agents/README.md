@@ -16,6 +16,11 @@ policy.
   `plugins/deniz-*`). It addresses a plugin skill by its **directory name**, namespaced as
   `<plugin>:<skill-dir>`. The build forces emitted directory name = frontmatter `name`, so the two
   never diverge in our output. Human-facing install steps live in the root `README.md` (Consuming).
+- **Claude Code does not read `AGENTS.md` natively** — `CLAUDE.md` pulls it in via the `@AGENTS.md`
+  import, which inlines the contract at session start (no Read call, no obedience dependency).
+  Import parsing applies to the imported file too: a bare `@token` in AGENTS.md outside backticks
+  would be treated as an import path — keep such tokens in code spans. Caveat: the built-in
+  Explore and Plan subagents skip `CLAUDE.md` entirely, so the contract does not reach them.
 - **OpenCode** reads `AGENTS.md` natively and consumes the `opencode/` tree (SKILL.md is the open
   agent-skills standard). Wiring has not been exercised yet — see `docs/ROADMAP.md`; once done, the
   agent-relevant findings land here and research notes in `docs/research/`.

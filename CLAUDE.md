@@ -1,7 +1,4 @@
-# CLAUDE.md
+@AGENTS.md
 
-The canonical agent contract for Claude Code and other LLM assistants lives in [AGENTS.md](AGENTS.md).
-
-Read [AGENTS.md](AGENTS.md) first.
-
-This file intentionally stays as a relay only.
+This file is a relay only: the line above imports the canonical contract, AGENTS.md, into Claude
+Code's context at session start.
