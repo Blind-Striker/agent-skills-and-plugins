@@ -31,7 +31,7 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
     for (const item of m.items) {
       // A merge source may live in a different submodule than the item's primary, so this runs
       // outside — and before — the primary-source guard: the pin that moved is often the other one.
-      for (const msrc of item.merged_from ?? []) {
+      for (const { source: msrc } of item.merged_from ?? []) {
         if (!msrc.startsWith(`${sub}/`)) {
           continue;
         }

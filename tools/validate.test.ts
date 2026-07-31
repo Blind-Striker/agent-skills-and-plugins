@@ -553,3 +553,33 @@ test("a merged_from source that is not in external/ is an error", () => {
   );
   assert.equal(hits.length, 1, JSON.stringify(hits, null, 2));
 });
+
+// Under the filename rule an absent file is deliberate — the list comes from the overlay, and a
+// later appearance is drift. A file a human NAMED is a claim, and a misspelled claim stamps null:
+// a guard over nothing, with the all-null check silent because the other names stamped fine.
+test("a merged_from files entry naming a file the source lacks is a warning", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from:",
+      "      - source: sp/skills/beta",
+      "        files: [SKILL.md, references/note.md]", // the file is notes.md
+    ].join("\n")}\n`,
+  );
+  const findings = validateRepo(root);
+  const hits = findings.filter((f) => f.level === "warn" && f.message.includes("references/note.md"));
+  assert.equal(hits.length, 1, JSON.stringify(findings, null, 2));
+  assert.equal(
+    findings.filter((f) => f.message.includes("SKILL.md, which is not there")).length,
+    0,
+    "a name that resolves must stay silent",
+  );
+});

@@ -151,12 +151,26 @@ export function validateRepo(root: string): Finding[] {
       // An address that is in no submodule has nothing to stamp, so it is a guard over nothing —
       // and the build cannot say so: an unstampable source is simply absent from the lock, which
       // reads exactly like a source nobody declared.
-      for (const src of item.merged_from ?? []) {
-        if (!components.some((c) => c.sourcePath === src)) {
+      for (const ms of item.merged_from ?? []) {
+        if (!components.some((c) => c.sourcePath === ms.source)) {
           findings.push({
             level: "error",
-            message: `${m.plugin.name}/${outName}: merged_from source not found in external/: ${src}`,
+            message: `${m.plugin.name}/${outName}: merged_from source not found in external/: ${ms.source}`,
           });
+          continue;
+        }
+        // Absence means two different things either side of the filename rule. Under the rule the
+        // file list comes from the overlay, so a source that lacks one is recorded absent on
+        // purpose and its later appearance is drift. A file a HUMAN named is a claim about where
+        // the merge drew from — misspell it and the stamp is null, guarding nothing, with the
+        // all-null check silent because the other names stamped fine.
+        for (const f of ms.files ?? []) {
+          if (!existsSync(join(root, "external", ms.source, f))) {
+            findings.push({
+              level: "warn",
+              message: `${m.plugin.name}/${outName}: merged_from ${ms.source} declares ${f}, which is not there — a stamp over a missing file guards nothing; check the spelling`,
+            });
+          }
         }
       }
       // L7. own skills are copied last and into the same directory, so one of the same name

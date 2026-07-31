@@ -80,11 +80,15 @@ function stamp(): void {
   const lock = loadLock(root);
   const entry: LockEntry = { source: item.source, files: stampFiles(base, stampedNames()) };
   // A merged body has ingredients the primary stamp cannot see, so each declared source is stamped
-  // in the same act, under the same-filename rule ADR-0001 gives: what the source lacks is recorded
-  // absent rather than left unguarded.
+  // in the same act. The same-filename rule ADR-0001 gives is the default — what the source lacks
+  // is recorded absent rather than left unguarded — and a declared `files` list replaces it, for the
+  // merge whose ingredients live under names the overlay does not own.
   if (item.merged_from?.length) {
     entry.mergeSources = Object.fromEntries(
-      item.merged_from.map((addr) => [addr, stampMergeFiles(join(root, "external", addr), stampedNames())]),
+      item.merged_from.map((ms) => [
+        ms.source,
+        stampMergeFiles(join(root, "external", ms.source), ms.files ?? stampedNames()),
+      ]),
     );
   }
   lock[lockKey(plugin, name)] = entry;
@@ -169,7 +173,7 @@ if (flags.has("--bless")) {
     process.exit(1);
   }
   stamp();
-  const against = [item.source, ...(item.merged_from ?? [])].join(", ");
+  const against = [item.source, ...(item.merged_from ?? []).map((ms) => ms.source)].join(", ");
   console.log(`Blessed overlays/${plugin}/${name}/ against current upstream (${against}).`);
   process.exit(0);
 }

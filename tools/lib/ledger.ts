@@ -97,7 +97,9 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
         source: item.source,
         ...(item.invocation ? { invocation: item.invocation } : {}),
         ...(item.body ? { body: item.body } : {}),
-        ...(item.merged_from ? { mergedFrom: [...item.merged_from].sort() } : {}),
+        // Addresses only: which files a merge drew from is a guard detail, and the lock's
+        // `mergeSources` map is already the review surface for it.
+        ...(item.merged_from ? { mergedFrom: item.merged_from.map((ms) => ms.source).sort() } : {}),
         ...(item.depends_on ? { dependsOn: [...item.depends_on].sort() } : {}),
         description: String(doc.frontmatter.description ?? ""),
         claude: { artifacts: [outType], edges: claudeEdges },

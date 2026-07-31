@@ -225,6 +225,46 @@ test("eject --bless names the merge-source drift and refuses to record it withou
   assert.match(stamp ?? "", /^[0-9a-f]{40}$/, "every declared source is stamped in one act");
 });
 
+// The filename rule can only stamp names the overlay itself owns, so a merge that drew from a
+// differently named file in its source was unguarded — and shrinking the merge to fit the guard
+// would be letting the toolchain decide curation. The declared list is how the guard follows.
+test("eject --bless stamps the files a merge source declares, not just the overlay's own names", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from:",
+      "      - source: sp/skills/beta",
+      "        files: [SKILL.md, references/notes.md]",
+      "  - source: sp/skills/beta",
+      "    exclude: true",
+    ].join("\n")}\n`,
+  );
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: merged\n---\n\nMerged body.\n",
+  );
+  saveLock(root, {});
+
+  const r = eject(root, ["deniz-process", "alpha", "--bless"]);
+  assert.ok(r.ok, r.out);
+  const stamped = loadLock(root)[lockKey("deniz-process", "alpha")]?.mergeSources?.["sp/skills/beta"];
+  assert.deepEqual(
+    Object.keys(stamped ?? {}).sort(),
+    ["SKILL.md", "references/notes.md"],
+    "the declared list replaces the same-filename default",
+  );
+  assert.match(stamped?.["references/notes.md"] ?? "", /^[0-9a-f]{40}$/, "a name the overlay never carries");
+});
+
 // The lock holds the previous blob SHA, and only the submodule that owns the address can resolve it
 // back into content — without that lookup "review the diff" has no diff to review.
 test("eject --bless shows the recorded content against the current one", () => {

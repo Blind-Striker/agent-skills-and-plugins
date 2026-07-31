@@ -28,7 +28,7 @@ const manifests: CurationManifest[] = [
       { source: "other/skills/x" },
       // A merge source in a different submodule than the primary — the case a primary-source guard
       // hides, and the one the real manifests actually contain.
-      { source: "sp/skills/host", body: "overlay", merged_from: ["mp/skills/beta"] },
+      { source: "sp/skills/host", body: "overlay", merged_from: [{ source: "mp/skills/beta" }] },
     ],
   },
 ];

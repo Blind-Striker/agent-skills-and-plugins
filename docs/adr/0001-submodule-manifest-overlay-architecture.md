@@ -38,15 +38,33 @@ Four pieces:
    `overlays/overlays.lock.json`. Any upstream change to one of those files stops the build until
    `npm run eject -- <plugin> <item> --bless` re-blesses it.
 
-   A body that merges content from further upstream items declares them in `merged_from:` (a list
-   of upstream addresses). Every declared source is blessed like the primary, under the
-   same-filename rule: for each source, the files the overlay replaces — or the patch touches —
-   are stamped from that source into the lock's `mergeSources` map. A file a source does not have
-   is recorded as absent, and its later appearance upstream is drift like any other. Drift in any
-   source is the same hard build failure, naming the source that moved; `--bless` re-stamps every
-   declared source in one act, and shows the diff between recorded and current content before it
-   stamps — a re-bless that displays nothing invites rubber-stamping the very look it exists to
-   force.
+   A body that merges content from further upstream items declares them in `merged_from:`, and each
+   entry is blessed like the primary — stamped into the lock's `mergeSources` map, drift in any of
+   them the same hard build failure, naming the source that moved. Which files get stamped is said
+   two ways, because a merge draws from where it draws from:
+
+   ```yaml
+   merged_from:
+     - upstream/skills/a                         # same-filename rule
+     - source: upstream/skills/b
+       files: [SKILL.md, tests.md, mocking.md]   # named explicitly
+   ```
+
+   A bare address takes the **same-filename rule**: the files the overlay replaces — or the patch
+   touches — are looked up under those same names in that source. It is the cheap spelling and it
+   is right whenever a merge is file-against-file. A file the source does not have is recorded as
+   absent, and its later appearance upstream is drift like any other.
+
+   The rule only sees names the overlay itself owns, so a merge that folded a source's differently
+   named file into our body — its `tests.md` into our `SKILL.md` — would be guarded by nothing at
+   all, silently. A `files:` list is the answer, and it **replaces** the rule for that source: it
+   states where the merge actually drew from. Cutting the merge down to what the filename rule
+   happens to cover is the inversion this repo exists to refuse — the guard follows the curation
+   decision, never the other way round.
+
+   `--bless` re-stamps every declared source in one act, and shows the diff between recorded and
+   current content before it stamps — a re-bless that displays nothing invites rubber-stamping the
+   very look it exists to force.
 4. **Build output committed** (`plugins/`, `opencode/`, `.claude-plugin/marketplace.json`) so a clone
    of the marketplace works immediately, with CI failing if the committed output is stale.
 
@@ -88,6 +106,13 @@ Four pieces:
   blessed it. `sync` tags a pin move that touches a merge source exactly as it tags one touching
   the primary — a report must never say "no curated items affected" about a body whose
   ingredients moved.
+- A `files:` list is a human claim rather than a derived fact, so it fails in ways the filename rule
+  cannot. Growing the list without re-blessing leaves names declared but unstamped, and the build
+  stops on that as it does on an unblessed source — the source *set* is unchanged, so the coarser
+  check would have passed. A misspelled name stamps null, which guards nothing while the all-null
+  check stays quiet because its siblings stamped fine; `validate` warns on a declared file the
+  source does not have. Under the filename rule the same absence is deliberate and stays silent,
+  because there the list comes from the overlay rather than from someone typing.
 - Patches apply to skill-shaped output only. A `command`/`agent` conversion re-serializes
   frontmatter around a body, so there is no stable file for a diff to land on; those items take a
   full-file overlay.
