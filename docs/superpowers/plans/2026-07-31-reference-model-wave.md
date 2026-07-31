@@ -1620,6 +1620,176 @@ git add -A
 git commit -m "docs: the reference-model wave lands; the plan retires"
 ```
 
+### Task 12: The provenance rule — the curation layer stamps no names, no dates
+
+**Files:**
+- Modify: `tools/validate.ts` (new rule section)
+- Modify: `tools/validate.test.ts` (three rule tests)
+- Modify: `AGENTS.md` (Hard Rules bullet gains the sentence)
+
+Rule (user's ruling): comments in `curation/*.yaml` (only the segment after `#` on each line —
+values like `description:` keep their branding), every text file under `overlays/` except the
+lock (patch files: **added** lines only — context lines are upstream's, not ours), and
+`skills/**` must not contain the curator's name (`\bDeniz\b`, `\bIrgin\b` — case-sensitive, so
+`deniz-process` never matches) or an ISO date (`\b20\d{2}-\d{2}-\d{2}\b`). Each hit is an
+**error**: git carries who and when; inline stamps are noise.
+
+- [ ] **Step 1: Failing tests** (append to `tools/validate.test.ts`):
+
+```ts
+test("provenance: a name or a date in a manifest comment is an error; a description keeps its branding", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "# reviewed by Deniz on 2026-07-31",
+      "plugin:",
+      "  name: deniz-process",
+      '  description: "Deniz curated set"', // a value, not a comment — exempt
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
+  assert.equal(hits.length, 2, JSON.stringify(hits, null, 2)); // the name and the date, nothing for the value
+});
+
+test("provenance: overlay bodies are scanned; the lock is exempt", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: x\n---\nRewritten by Deniz on 2026-07-31.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  const lock = {
+    "deniz-process/alpha": {
+      source: "sp/skills/alpha",
+      files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+    },
+  };
+  writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
+  assert.equal(hits.length, 2); // name + date in the overlay body; the lock's own content never scanned
+});
+
+test("provenance: a patch's context lines are upstream's — only added lines are ours", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "overlay.patch"),
+    ["diff --git a/SKILL.md b/SKILL.md", "--- a/SKILL.md", "+++ b/SKILL.md", "@@ -1,3 +1,3 @@", " Deniz appears upstream here", "-old line", "+new line, no stamps"].join("\n"),
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: patch",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
+  assert.equal(hits.length, 0, JSON.stringify(hits, null, 2));
+});
+```
+
+(`stampFiles` from `./lib/overlay.ts`; these tests call `validateRepo` without a build where the
+scan needs no output tree — the unrelated overlay-wiring findings those fixtures also produce are
+filtered out by the message filter.)
+
+- [ ] **Step 2: Run to verify the three fail** — `npm test` → FAIL (no provenance findings).
+
+- [ ] **Step 3: Implement in `tools/validate.ts`** — new section after the marketplace check:
+
+```ts
+  // 7. provenance: the curation layer stamps no names, no dates — git carries who and when.
+  // Scope is the authored layer only: yaml COMMENT segments (values keep their branding),
+  // overlay bodies, a patch's added lines (context lines are upstream's), own skills.
+  const BANNED = [/\bDeniz\b/, /\bIrgin\b/, /\b20\d{2}-\d{2}-\d{2}\b/];
+  const provenance = (text: string, where: string): void => {
+    for (const re of BANNED) {
+      const m = re.exec(text);
+      if (m) {
+        findings.push({
+          level: "error",
+          message: `${where}: the curation layer stamps no names or dates — git carries provenance (found "${m[0]}")`,
+        });
+      }
+    }
+  };
+  for (const f of readdirSync(join(root, "curation")).filter((n) => n.endsWith(".yaml"))) {
+    readFileSync(join(root, "curation", f), "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        const hash = line.indexOf("#");
+        if (hash >= 0) {
+          provenance(line.slice(hash), `curation/${f}:${i + 1}`);
+        }
+      });
+  }
+  for (const base of ["overlays", "skills"]) {
+    const dir = join(root, base);
+    if (!existsSync(dir)) {
+      continue;
+    }
+    for (const file of walk(dir)) {
+      const rel = relative(root, file).replaceAll("\\", "/");
+      if (rel.endsWith(LOCK_FILE)) {
+        continue;
+      }
+      const text = readFileSync(file, "utf8");
+      if (rel.endsWith(".patch")) {
+        text.split("\n").forEach((line, i) => {
+          if (line.startsWith("+") && !line.startsWith("+++")) {
+            provenance(line, `${rel}:${i + 1}`);
+          }
+        });
+      } else {
+        provenance(text, rel);
+      }
+    }
+  }
+```
+
+- [ ] **Step 4: AGENTS.md Hard Rules** — extend the secrets bullet:
+
+```markdown
+- Never commit secrets, tokens, or machine-specific paths. The curation layer (manifest
+  comments, `overlays/`, `skills/`) stamps no curator names and no dates — git carries
+  provenance; `validate` errors on both.
+```
+
+- [ ] **Step 5: All gates + real-repo validate 0/0** (the manifests were scrubbed before this
+  task landed — if validate finds a leftover stamp, that is the rule working: fix the stamp, not
+  the rule).
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add tools/validate.ts tools/validate.test.ts AGENTS.md
+git commit -m "feat: the curation layer stamps no names, no dates - validate enforces it"
+```
+
 ---
 
 ## Post-wave verification (event-driven, not CI)

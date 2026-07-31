@@ -1,16 +1,16 @@
-# Intended sources (2026-07-29 design): superpowers + mattpocock-skills — brainstorming, TDD,
+# Intended sources: superpowers + mattpocock-skills — brainstorming, TDD,
 # debugging, planning, code review, skill writing. No upstream hooks; triggers tuned per item.
 #
-# Batch 1 (2026-07-31, decided with Deniz): the daily-flow spine — brainstorm/grill → plan →
+# Batch 1: the daily-flow spine — brainstorm/grill → plan →
 # execute → review/verify — plus the passive disciplines. Invocation rule that shaped it:
 # `manual` is unreachable even from another skill's body, so every link another taken skill
 # invokes is `both` or `auto`; only true entry points are `manual`.
 #
-# Batch 2 (2026-07-31, decided with Deniz) closes the module: the whole mattpocock production
+# Batch 2 closes the module: the whole mattpocock production
 # chain taken as upstream shipped it (compile-time/runtime boundary, AGENTS.md — tracker/setup
 # behaviour is the wizard's job at use time), the authoring pair, and superpowers' last two.
 #
-# Remaining open, Deniz's call (2026-07-31): two merge passes in the systematic-debugging mold —
+# Remaining open, curator's call: two merge passes in the systematic-debugging mold —
 # a TDD mix (superpowers test-driven-development × matt tdd) and a review mix
 # (requesting-code-review × matt code-review). Matt's two items stay out of the manifest until
 # each mix lands as draft → review → overlay; each pass also repoints implement's bare /tdd and
@@ -22,7 +22,7 @@ plugin:
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
-    invocation: both # Deniz's call (2026-07-31): reachable both ways — he types it, and a
+    invocation: both # curator's call: reachable both ways — typed by hand, and a
     # skill-driven session may open the ceremony itself (using-superpowers routes "build X" here);
     # its exit invokes writing-plans (taken). Measured before flipping: the only jump-pressure was
     # the upstream description (overridden below); the body's one "You MUST" is in-ceremony
@@ -32,7 +32,7 @@ items:
       # read by a human browsing the / menu and by the model matching triggers — honest, no pressure
       description: "Collaborative design session: turn an idea into an approved design and spec."
   - source: superpowers/skills/writing-plans
-    invocation: both # Deniz invokes it directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
+    invocation: both # typed directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
     depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
     invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
@@ -52,7 +52,7 @@ items:
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
     invocation: auto # invoked from systematic-debugging's body (clears 2 of the 4 standing validate warnings)
-    # One-line patch (2026-07-31, Deniz's call): writing-good-tests.md cited writing-skills, which is
+    # One-line patch, curator's call: writing-good-tests.md cited writing-skills, which is
     # upstream authoring culture — in our set that target is a manual ceremony the reading model
     # cannot open, and the sentence stands without it. Removed rather than repointed.
     body: patch
@@ -61,7 +61,7 @@ items:
   - source: superpowers/skills/systematic-debugging
     invocation: auto # debugging discipline should engage when a bug appears, unprompted
     depends_on: [test-driven-development, verification-before-completion] # Phase 6 invokes both
-    # SKILL.md is a merge (2026-07-31, Deniz's call): superpowers' root-cause armor + mattpocock
+    # SKILL.md is a merge, curator's call: superpowers' root-cause armor + mattpocock
     # diagnosing-bugs' feedback-loop engineering, in seven phases. The overlay covers SKILL.md
     # only, so the sibling technique files keep flowing from upstream. Known cost: matt-side
     # upstream improvements no longer flow — glance at diagnosing-bugs on sync bumps.
@@ -74,11 +74,11 @@ items:
       - test-academic.md
       - "test-pressure-*.md"
   - source: superpowers/skills/using-superpowers
-    invocation: manual # the opt-in "work skill-driven this session" switch — Deniz flips it, never a bootstrap hook (ADR-0007)
-    # Softened body, decided with Deniz 2026-07-31 (level ii of three): the "1% chance" coercion
+    invocation: manual # the opt-in "work skill-driven this session" switch — flipped by hand, never a bootstrap hook (ADR-0007)
+    # Softened body, curator's call (level ii of three): the "1% chance" coercion
     # block, the Red Flags rationalization table and the Codex/Pi platform section are cut; the
     # ordering rule (process skills before implementation), the announce habit and the subagent
-    # guard stay. Deniz invokes it himself, so the persuasion apparatus has no one left to persuade.
+    # guard stay. It is invoked by hand, so the persuasion apparatus has no one left to persuade.
     body: patch
     depends_on: [brainstorming, systematic-debugging] # the ordering rule's two worked examples route to them
     frontmatter:
@@ -124,30 +124,30 @@ items:
     invocation: manual # upstream's own flag; its bare /tdd and /code-review prose gets repointed when the merge passes land (header)
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/setup-matt-pocock-skills
-    invocation: manual # Deniz's call: the wizard comes too — useful, harmless, pure runtime
+    invocation: manual # curator's call: the wizard comes too — useful, harmless, pure runtime
     omit: ["agents/**"]
   # --- mattpocock design & standalone (batch 2) ---
   - source: mattpocock-skills/skills/engineering/codebase-design
-    invocation: auto # a glossary other skills pull in, not a ceremony — Deniz floated `both`, flipping is one word if typing it ever feels natural
+    invocation: auto # a glossary other skills pull in, not a ceremony — `both` was floated, flipping is one word if typing it ever feels natural
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/improve-codebase-architecture
     invocation: manual # upstream's own flag; spare-moment architecture survey
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/research
-    invocation: both # Deniz's call: "şunu araştır" is as natural typed as model-delegated
-    # First cross-framework stitch (Deniz's idea): the background-agent dispatch is crafted per
+    invocation: both # curator's call: "şunu araştır" is as natural typed as model-delegated
+    # First cross-framework stitch, curator's idea: the background-agent dispatch is crafted per
     # superpowers' dispatching-parallel-agents — one-line patch, namespaced so each tree localizes it
     body: patch
     depends_on: [dispatching-parallel-agents] # the stitch above
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/prototype
-    invocation: both # Deniz's call: a deliberate "bir prototip yap" is as real as the model reaching for it
+    invocation: both # curator's call: a deliberate "bir prototip yap" is as real as the model reaching for it
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/resolving-merge-conflicts
     invocation: auto # the trigger is the situation (an in-progress conflict), not a wish
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/teach
-    invocation: manual # upstream's own flag; stateful learning workspace, Deniz wants it around
+    invocation: manual # upstream's own flag; stateful learning workspace, wanted around
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/writing-great-skills
     invocation: manual # upstream's own flag; authoring vocabulary — complement, not substitute, of writing-skills
@@ -159,6 +159,6 @@ items:
   - source: superpowers/skills/dispatching-parallel-agents
     invocation: auto # dependency-free dispatch knowledge; research's stitch points at it
   - source: superpowers/skills/writing-skills
-    invocation: manual # authoring ceremony; Deniz opens it — its body then reaches the two auto disciplines below
+    invocation: manual # authoring ceremony, opened by hand — its body then reaches the two auto disciplines below
     depends_on: [systematic-debugging, test-driven-development]
 

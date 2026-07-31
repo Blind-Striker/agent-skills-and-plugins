@@ -1,4 +1,4 @@
-# Intended sources (2026-07-29 design): dotnet-skills + dotnet-agent-skills — C# standards,
+# Intended sources: dotnet-skills + dotnet-agent-skills — C# standards,
 # EF Core, DI/config, serialization, test/diag skills and agents.
 plugin:
   name: deniz-dotnet-general

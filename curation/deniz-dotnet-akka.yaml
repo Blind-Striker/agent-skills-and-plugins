@@ -1,4 +1,4 @@
-# Intended sources (2026-07-29 design): the akka-* skills of dotnet-skills plus the
+# Intended sources: the akka-* skills of dotnet-skills plus the
 # akka-net-specialist agent — Akka.NET patterns, hosting, management, testing.
 plugin:
   name: deniz-dotnet-akka

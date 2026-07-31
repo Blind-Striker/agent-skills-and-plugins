@@ -1,4 +1,4 @@
-# Intended sources (2026-07-29 design): aspire-skills + the aspire-* skills of dotnet-skills —
+# Intended sources: aspire-skills + the aspire-* skills of dotnet-skills —
 # orchestration, integration testing, service defaults, monitoring.
 plugin:
   name: deniz-dotnet-aspire

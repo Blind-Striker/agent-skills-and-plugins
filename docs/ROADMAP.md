@@ -115,6 +115,16 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    model-mediated composition, parked-bundle reachability and all three invocation surfaces
    verified on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
    install mechanism remains open.
+7. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+   the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
+   read a curated item's upstream original, its overlay/patch and the recorded intent (the
+   manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
+   skills fight inside one module, did a softening pass over-prune the wording, would a small
+   touch serve the recorded intent better. Output is opinion for the curator; nothing fails a
+   build, nothing is deterministic, nothing repeats twice the same way — that is the point.
+   Natural triggers: after a merge pass lands, before a module is declared closed. Deliberately
+   after the reference-model wave; needs a short design pass for the panel prompt and the
+   presentation shape before anything runs.
 
 ## Known Gaps
 
