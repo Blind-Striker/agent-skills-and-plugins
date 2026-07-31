@@ -95,7 +95,30 @@ unrelated to where the assets sit, so `@` cannot reach them and the body must na
 for the agent's own read tool instead.
 
 `opencode run` expands neither slash commands nor `@file` — both are TUI-level — so command
-behaviour cannot be exercised non-interactively.
+behaviour cannot be exercised non-interactively. Discovery, however, can: **`opencode debug skill`
+prints every resolved skill as JSON with its `location`**, and `opencode debug paths` prints the
+resolved home/data/config/cache/state roots. Both are free and deterministic — far better than
+asking a model what it can see, which is how the earlier rounds were run.
+
+Read that way, discovery resolves as:
+
+| Mount point | Discovered? |
+|---|---|
+| project-local `.opencode/skills/` | yes, walking up from the working directory |
+| global `<home>/.config/opencode/skills/` | yes, from any working directory |
+| `OPENCODE_CONFIG_DIR/skills/` | yes — and on a name collision it **shadows** the global copy |
+
+`OPENCODE_CONFIG_DIR` is additive: it does not hide the global config dir, and `opencode debug paths`
+still reports the standard `config` root when it is set. A directory under `skills/` with no
+`SKILL.md` appears in no listing at all — the parking-spot finding, now from a deterministic source
+rather than the absence of a complaint.
+
+That the global mount works has a consequence for the conversion recipe above. Assets for a globally
+installed item sit under `<home>/.config/opencode/skills/<name>/`, which no project-root-relative
+`@` reference can reach. So the recipe splits by mount point: `@.opencode/skills/<name>/…` for a
+project-local install, and a prose instruction naming the path for a global one. Which mount points
+this repo intends to support is therefore a decision the emitter needs before it can write the
+reference.
 
 Access control is config-side — `opencode.json` carries allow/deny/ask patterns over skill names,
 and an agent can drop skills entirely with `skill: false`. None of that travels inside a
