@@ -85,6 +85,13 @@ is the **trigger** dial. The table above gives each invocation value its default
   landed — pulling them out of the `/` menu, and inverting upstream's stated intent wherever it had
   set `disable-model-invocation` itself. Adopting the field item by item is only possible if not
   adopting it is free.
+- `manual` costs an OpenCode skill its shape. A skill is a directory that can carry `references/`
+  and `scripts/`; a command is one file, so the bundle has nowhere to go. It is parked under
+  `opencode/skills/<name>/` **without** a `SKILL.md` — a directory OpenCode's discovery ignores, so
+  the command body can still reach the files while the item stays out of the model's reach, which is
+  the one thing `manual` exists to guarantee. Their references are *not* rewritten: the spelling
+  depends on which mount point is supported, `@file` resolving against the project root, so the
+  build names the parked files in its report rather than implying the conversion was lossless.
 - Passthrough is honest on the Claude side and lossy on the OpenCode one. Upstream's keys are
   meaningful to Claude Code and meaningless to OpenCode, so an item that states no intent arrives in
   OpenCode as a plain model-only skill whatever upstream wanted. Stating `manual` is the only way to

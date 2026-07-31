@@ -90,6 +90,25 @@ Four pieces:
 - Taking the same source into two items (say, once as a command and once as an agent) is legal, but
   the cross-reference map keys on the upstream address, so all upstream references resolve to the
   last such item in manifest order — `validate` warns, naming both outputs.
+- Several mechanisms can express the same curation intent, and they are not equal in cost. Reach for
+  the lowest rung that says what you mean, because every rung above it is a guardrail somebody has
+  to maintain when upstream moves:
+
+  | Intent | Mechanism | Cost when upstream changes |
+  |---|---|---|
+  | Do not take it | `exclude: true` | none |
+  | Take it without some files | `omit:` (globs) | a dead pattern, which `validate` warns about |
+  | Change its metadata | `frontmatter:` override | none — and no staleness guard either (see below) |
+  | Change its name | `name:` | none |
+  | Change who triggers it | `invocation:` (ADR-0005) | none |
+  | Change what artifact it is | `as:` (ADR-0006 axis 2) | none |
+  | Edit part of the body | `body: patch` | the patch stops applying, or its hash stops matching — a hard build failure until re-blessed |
+  | Own the body outright | `body: overlay` | the same hard failure, plus every later upstream improvement to that file is silently forgone |
+
+  The two body rungs are where the cost lives, and they are the reason the ladder is worth walking
+  from the bottom. A file you only want gone is an `omit`, not an overlay. A description you want
+  reworded is a `frontmatter` override, not an overlay — even when the description is the thing
+  steering the model, and especially then, because an overlay of the body cannot reach it.
 - `omit` is applied to the copy of upstream **before** any overlay or patch, so `body:` describes
   edits to what survives rather than racing a later deletion. The consequence is that a pattern
   which swallows a file the patch edits is a contradiction; the build refuses it in the fail-fast
