@@ -68,7 +68,6 @@ export function buildAll(root: string): string[] {
   }
 
   writeMarketplace(root, manifests);
-  rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components));
   // Output name -> stated intent. Own skills and items that state nothing are absent from the map,
   // and an absent entry means "a plain skill", which is what OpenCode makes of silence anyway.
   const invocations = new Map<string, NonNullable<CurationItem["invocation"]>>();
@@ -80,7 +79,12 @@ export function buildAll(root: string): string[] {
       }
     }
   }
+  // OpenCode is emitted from the PRISTINE plugin tree, before the Claude rewrite, so each tree can
+  // then be rewritten with the spelling its own harness resolves (ADR-0006 axis 3). Emitting after
+  // the rewrite is what left OpenCode carrying `<plugin>:<name>` references it cannot resolve.
   emitOpenCode(root, invocations, report);
+  rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components, "claude"));
+  rewriteTree(join(root, "opencode"), buildRewriteMap(manifests, components, "opencode"));
   return report;
 }
 
@@ -381,6 +385,17 @@ function rewriteTree(dir: string, map: Map<string, string>): void {
   }
 }
 
+/** Skill frontmatter OpenCode recognises; everything else it ignores, so we drop and report it. */
+const OPENCODE_SKILL_KEYS = new Set(["name", "description", "license", "compatibility", "metadata"]);
+
+/** No silent loss (ADR-0002): whatever the target harness cannot represent is named in the report. */
+function reportDropped(label: string, from: Record<string, unknown>, kept: Record<string, unknown>, report: string[]) {
+  const dropped = Object.keys(from).filter((k) => !(k in kept));
+  if (dropped.length) {
+    report.push(`${label}: dropped frontmatter keys: ${dropped.join(", ")}`);
+  }
+}
+
 /**
  * OpenCode's half of ADR-0005: the dial is which artifact exists, because its skills are model-only
  * by construction and a command is its only user-invocable surface.
@@ -401,6 +416,7 @@ function emitOpenCodeSkill(
   const filter = skipSymlinks(root, `opencode/${name}`, report);
   const destSkill = join(root, "opencode", "skills", name);
   const wantsSkill = invocation !== "manual";
+  const doc = parseDoc(readFileSync(join(srcDir, "SKILL.md"), "utf8"));
 
   cpSync(srcDir, destSkill, {
     recursive: true,
@@ -408,18 +424,26 @@ function emitOpenCodeSkill(
     // model-reachable — which is the one thing `manual` exists to prevent.
     filter: (src) => filter(src) && (wantsSkill || basename(src) !== "SKILL.md"),
   });
-  if (!wantsSkill && !readdirSync(destSkill).length) {
+  if (wantsSkill) {
+    // Adapt rather than mirror: OpenCode recognises a fixed set of skill keys and ignores the rest,
+    // so a Claude-only key reaching this tree is dead metadata. Dropping it silently is the failure
+    // ADR-0002 exists to prevent, so the drop is reported instead.
+    const kept = Object.fromEntries(Object.entries(doc.frontmatter).filter(([k]) => OPENCODE_SKILL_KEYS.has(k)));
+    reportDropped(`opencode skill ${name}`, doc.frontmatter, kept, report);
+    writeFileSync(join(destSkill, "SKILL.md"), serializeDoc({ frontmatter: kept, body: doc.body }));
+  } else if (!readdirSync(destSkill).length) {
     rmSync(destSkill, { recursive: true, force: true }); // nothing was bundled; leave no husk
   }
 
   if (invocation !== "manual" && invocation !== "both") {
     return;
   }
-  const doc = parseDoc(readFileSync(join(srcDir, "SKILL.md"), "utf8"));
+  const command = { description: doc.frontmatter.description };
+  reportDropped(`opencode command ${name}`, doc.frontmatter, command, report);
   mkdirSync(join(root, "opencode", "commands"), { recursive: true });
   writeFileSync(
     join(root, "opencode", "commands", `${name}.md`),
-    serializeDoc({ frontmatter: { description: doc.frontmatter.description }, body: doc.body }),
+    serializeDoc({ frontmatter: command, body: doc.body }),
   );
   const parked = existsSync(destSkill) ? listFiles(destSkill) : [];
   if (parked.length) {

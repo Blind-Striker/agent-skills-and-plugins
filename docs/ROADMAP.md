@@ -30,6 +30,14 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
   are warnings. Item resolution lives once, in `tools/lib/resolve.ts`, so a per-item rule can no
   longer be added to one side of the build only.
+- Items declare who pulls the trigger with `invocation: auto | manual | both` (ADR-0005). Absent
+  states no intent and passes upstream frontmatter through unchanged. Claude Code gets a frontmatter
+  flag; OpenCode gets a choice of artifact, and a `manual` item's bundled files are parked under
+  `opencode/skills/<name>/` without a `SKILL.md` so its command body can still reach them.
+- The OpenCode skill path adapts instead of mirroring (ADR-0006 axis 3): frontmatter is filtered to
+  the keys OpenCode recognises with every drop reported, and each tree is rewritten with its own
+  reference spelling — `<plugin>:<name>` for Claude Code, the bare name for OpenCode. The two trees
+  are no longer byte-identical, which is the point.
 - Items can shed upstream files with `omit:` (glob patterns, ADR-0001) instead of owning the whole
   file through an overlay. `validate` warns on a pattern that matches nothing and on `omit` under a
   conversion, and the build refuses a pattern that swallows a file the patch edits. It also errors
@@ -38,24 +46,12 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Implement invocation intent** (ADR-0005). Add the item-level `invocation: auto | manual | both`
-   field, derive `disable-model-invocation` / `user-invocable` in the Claude emitter and the
-   skill-vs-command choice in the OpenCode emitter, and extend `validate` for the new collision
-   class. `as:` stays — it is the orthogonal shape dial (ADR-0006), not a second trigger dial.
-   Needed before or alongside the first curation session, since "the user starts this" is otherwise
-   inexpressible. The live-install precondition is discharged: all three frontmatter states were
-   measured on Claude Code 2.1.220 and behave as ADR-0005 assumes.
-2. **Make the skill path a real OpenCode adapter** (ADR-0006 axis 3). Skills are copied from
-   `plugins/` to `opencode/` verbatim today, so the tree is a mirror, not an adaptation: Claude-only
-   frontmatter travels there as dead metadata with no drop report, and cross-references keep Claude's
-   `<plugin>:<name>` spelling, which OpenCode cannot resolve. The commands/agents path already does
-   this correctly and is the model to follow.
-3. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
+1. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
    module by module against `docs/inventory.md`, with the user, one plugin per session. The
    intended upstream sources of each module are noted at the top of its manifest.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-4. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
+2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
    aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
@@ -64,10 +60,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
    targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
    invisible to `validate`.
-5. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-6. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
+4. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
    mount points, frontmatter tolerance, `@file` resolution, all recorded in
    `docs/research/skill-invocation-across-harnesses.md` using the method in
    `docs/agents/harness-probing.md` — but always with purpose-built fixtures, never with our own
@@ -82,8 +78,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `.agent` while harness references spell the bare name — such a reference would not be rewritten.
   Affected files: `find external -name "*.agent.md"`. No impact on what is built today; fix before
   any agent curation.
-- **Doubled validate warnings.** `validate` scans both `plugins/` and its byte-identical
-  `opencode/` mirror, so every real unrewritten reference is reported twice. Superpowers skills
+- **Doubled validate warnings.** `validate` scans both `plugins/` and `opencode/`, so every real
+  unrewritten reference is reported once per tree. Superpowers skills
   cross-reference heavily; a partial curation batch could produce dozens of lines. Candidate fix:
   scan `plugins/` only, or group per reference.
 - **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
@@ -123,9 +119,11 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),
   unlike the other four submodules, which sit on releases. Hold or move is an open decision for the
   next `npm run sync`.
-- **Dead `invocable:` metadata in output.** Upstream `dotnet-skills` sets `invocable: true|false`,
-  which is not a frontmatter field in either target harness, and it travels into our output
-  untouched. Strip it during curation, or leave it as harmless noise — a decision, not a bug.
+- **Dead `invocable:` metadata in the Claude tree.** Upstream `dotnet-skills` sets
+  `invocable: true|false`, which is a field in neither target harness. The OpenCode adapter now
+  drops and reports it; the Claude tree still carries it, because that tree passes upstream
+  frontmatter through and filtering it would need a recognised-key list for Claude Code too. Strip
+  it per item during curation, or leave it as harmless noise — a decision, not a bug.
 - **`hooks.include` unimplemented.** The build throws on a non-empty list. Deliberate: no upstream
   hook is wanted yet (this is how the superpowers session-start behaviour stays off). Implement only
   when a specific hook is.

@@ -9,7 +9,21 @@ function addressOf(c: ComponentInfo): string {
   return c.type === "skill" ? basename(c.sourcePath) : basename(c.sourcePath, ".md");
 }
 
-export function buildRewriteMap(manifests: CurationManifest[], components: ComponentInfo[]): Map<string, string> {
+/**
+ * How the target harness spells a reference to one of our own components — the other half of the
+ * rewrite, and the reason there is one map per output tree rather than one shared map.
+ *
+ * Claude Code addresses a plugin skill as `<plugin>:<name>`. OpenCode has no plugin concept and a
+ * flat namespace: it addresses a skill by its `name` alone, so the qualified form is not merely
+ * redundant there, it resolves to nothing.
+ */
+export type RefStyle = "claude" | "opencode";
+
+export function buildRewriteMap(
+  manifests: CurationManifest[],
+  components: ComponentInfo[],
+  style: RefStyle = "claude",
+): Map<string, string> {
   const bySource = new Map(components.map((c) => [c.sourcePath, c]));
   const map = new Map<string, string>();
   for (const m of manifests) {
@@ -22,7 +36,8 @@ export function buildRewriteMap(manifests: CurationManifest[], components: Compo
         continue;
       }
       // The value is our own output name, which build.ts forces onto the emitted dir/file name.
-      map.set(`${c.namespace}:${addressOf(c)}`, `${m.plugin.name}:${item.name ?? c.name}`);
+      const outName = item.name ?? c.name;
+      map.set(`${c.namespace}:${addressOf(c)}`, style === "opencode" ? outName : `${m.plugin.name}:${outName}`);
     }
   }
   return map;

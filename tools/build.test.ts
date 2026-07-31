@@ -46,9 +46,15 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.ok(existsSync(join(root, "opencode", "skills", "my-own", "SKILL.md")));
   const cmd = parseDoc(readFileSync(join(root, "opencode", "commands", "deniz-beta.md"), "utf8"));
   assert.equal(cmd.frontmatter.description, "Beta overlay");
-  // references were rewritten before opencode emission
+  // each tree carries the reference spelling its own harness resolves: OpenCode has no plugin
+  // concept, so the qualified form would resolve to nothing there
   const alpha = readFileSync(join(root, "opencode", "skills", "alpha", "SKILL.md"), "utf8");
-  assert.match(alpha, /deniz-process:beta-agent/);
+  assert.doesNotMatch(alpha, /deniz-process:beta-agent/);
+  assert.match(alpha, /(^|[^:\w-])beta-agent\b/);
+  assert.match(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    /deniz-process:beta-agent/,
+  );
 
   // skill -> agent conversion, plugins side: forced name, item.frontmatter carried, description from source
   const agentPath = join(root, "plugins", "deniz-process", "agents", "beta-agent.md");
@@ -64,6 +70,43 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.equal(ocAgent.frontmatter.description, "Beta upstream");
   assert.equal("model" in ocAgent.frontmatter, false);
   assert.ok(report.includes("opencode agent beta-agent.md: dropped frontmatter keys: model"));
+});
+
+// ADR-0006 axis 3. The OpenCode skill path was a verbatim copy of the Claude one, so Claude-only
+// frontmatter arrived as dead metadata with no drop report, and cross-references kept Claude's
+// <plugin>:<name> spelling — which OpenCode cannot resolve, since it addresses a skill by its name.
+test("the OpenCode skill path adapts rather than mirrors", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha", // body references superpowers:beta
+      "    invocation: manual", // a Claude-only key the OpenCode copy must not carry
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  const report = buildAll(root);
+
+  const claude = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"));
+  const oc = parseDoc(readFileSync(join(root, "opencode", "commands", "alpha.md"), "utf8"));
+
+  // Claude keeps its own dial; OpenCode has no use for it and must not be handed it
+  assert.equal(claude.frontmatter["disable-model-invocation"], true);
+  assert.equal("disable-model-invocation" in oc.frontmatter, false, "Claude-only keys must not travel");
+  assert.ok(
+    report.some((l) => l.includes("alpha") && l.includes("disable-model-invocation")),
+    `every dropped key is reported, never silently lost — got ${JSON.stringify(report, null, 2)}`,
+  );
+
+  // each tree gets the reference spelling its own harness resolves
+  assert.match(claude.body, /deniz-process:beta/, "Claude addresses a plugin skill namespaced");
+  assert.doesNotMatch(oc.body, /deniz-process:beta/, "that spelling is meaningless to OpenCode");
+  assert.match(oc.body, /(^|[^:\w-])beta\b/, "OpenCode addresses a skill by its bare name");
 });
 
 // ADR-0005: one word per item says who pulls the trigger, and each emitter derives its own
