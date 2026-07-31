@@ -554,6 +554,104 @@ test("a merged_from source that is not in external/ is an error", () => {
   assert.equal(hits.length, 1, JSON.stringify(hits, null, 2));
 });
 
+// R1 (L8): a path into a sibling item is an edge spelled as a path. Renaming, excluding or
+// omitting the target breaks it in silence — and a merge does all three.
+test("a relative path into a sibling item that no longer has the file is an error", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\n\nSee [notes](../beta/references/notes.md).\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+      "    omit:", // the very file alpha points at
+      '      - "references/**"',
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const hits = validateRepo(root).filter(
+    (f) => f.level === "error" && f.message.includes("../beta/references/notes.md"),
+  );
+  assert.equal(hits.length, 2, `both trees, once each — ${JSON.stringify(hits, null, 2)}`);
+});
+
+// The same link, sound in the skill tree, cannot resolve from a command sitting in another
+// directory. That is the conversion's doing, not the reference's, and the right spelling waits on
+// a parked mount-point decision — so it is named rather than failed.
+test("a sibling path that resolves from the skill copy but not the command copy is a warning", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\n\nSee [notes](../beta/references/notes.md).\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    invocation: both", // skill AND command in OpenCode — same body, two locations
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const findings = validateRepo(root).filter((f) => f.message.includes("../beta/references/notes.md"));
+  assert.deepEqual(
+    findings.map((f) => f.level),
+    ["warn"],
+    `the skill copy resolves, so only the command copy speaks — ${JSON.stringify(findings, null, 2)}`,
+  );
+  assert.match(findings[0]?.message ?? "", /converted command/);
+});
+
+// R2 (L8): the noise this rule exists to not make. Upstream bodies are full of illustrative paths
+// that never resolved anywhere; only a file OUR build dropped is our problem.
+test("a link to a file the build dropped is an error; a path upstream never had is silent", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    `---\nname: delta\ndescription: Delta upstream\n---\n\nReal: [notes](references/notes.md).\nIllustrative: [forms](FORMS.md) and [ctx](./src/ordering/CONTEXT.md).\n`,
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/delta",
+      "    omit:",
+      '      - "references/**"',
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.equal(
+    findings.filter((f) => f.level === "error" && f.message.includes("references/notes.md")).length,
+    2,
+    `dropped by omit, in both trees — ${JSON.stringify(findings, null, 2)}`,
+  );
+  for (const quiet of ["FORMS.md", "CONTEXT.md"]) {
+    assert.equal(
+      findings.filter((f) => f.message.includes(quiet)).length,
+      0,
+      `${quiet} never existed upstream — reporting it is the warning nobody reads`,
+    );
+  }
+});
+
 // Under the filename rule an absent file is deliberate — the list comes from the overlay, and a
 // later appearance is drift. A file a human NAMED is a claim, and a misspelled claim stamps null:
 // a guard over nothing, with the all-null check silent because the other names stamped fine.

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
@@ -13,6 +13,19 @@ import { scanSubmodule } from "./lib/scan.ts";
 export interface Finding {
   level: "error" | "warn";
   message: string;
+}
+
+/** Markdown link targets, minus anchors and anything with a scheme (http:, mailto:, file:). */
+const MD_LINK = /\[[^\]]*\]\(([^)\s]+)\)/g;
+function linkTargets(text: string): string[] {
+  const out: string[] = [];
+  for (const m of text.matchAll(MD_LINK)) {
+    const raw = (m[1] as string).split("#")[0];
+    if (raw && !/^[a-z][a-z0-9+.-]*:/i.test(raw)) {
+      out.push(raw);
+    }
+  }
+  return out;
 }
 
 function* walk(dir: string): Generator<string> {
@@ -548,6 +561,120 @@ export function validateRepo(root: string): Finding[] {
         findings.push({
           level: "error",
           message: `opencode/commands/${f}: references skills/${name}/${target}, which is not among the parked files`,
+        });
+      }
+    }
+  }
+
+  // L8: the third reference spelling — relative paths (upstream-repo-layouts.md). A namespaced
+  // reference is a fact the linker resolves; a bare name is irreducibly heuristic and stays a
+  // candidate. A path is neither: resolving it is deterministic. What is NOT deterministic is
+  // whether a broken one is our fault — upstream bodies are full of illustrative paths
+  // (`./src/ordering/CONTEXT.md`, `FORMS.md`) that never resolved anywhere and never will, and
+  // reporting those is the green-build warning nobody reads. So both rules below ask the same
+  // narrowing question: could OUR transformation have broken this?
+  interface EmittedItem {
+    upstream: string;
+    manual: boolean;
+  }
+  const emitted = new Map<string, EmittedItem>();
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude) {
+        continue;
+      }
+      const { comp, outName } = resolveItem(root, m.plugin.name, item, components);
+      if (comp) {
+        emitted.set(outName, { upstream: upstreamBase(root, item, comp), manual: item.invocation === "manual" });
+      }
+    }
+  }
+  // A skill is a directory and owns everything under it; a command or an agent is one file and
+  // owns nothing, so its same-directory links are the parked-bundle case the build already reports.
+  const owningItem = (tree: string, file: string): { name: string; dir: string | null } | null => {
+    const p = relative(root, file).replaceAll("\\", "/").split("/");
+    if (tree === "plugins" && p[2] === "skills" && p[3]) {
+      return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
+    }
+    if (tree === "opencode" && p[1] === "skills" && p[2]) {
+      return { name: p[2], dir: join(root, ...p.slice(0, 3)) };
+    }
+    const leaf = p.at(-1);
+    return leaf?.endsWith(".md") ? { name: basename(leaf, ".md"), dir: null } : null;
+  };
+  const inside = (parent: string, child: string): boolean =>
+    child === parent || !relative(parent, child).startsWith("..");
+
+  for (const tree of ["plugins", "opencode"]) {
+    const treeRoot = join(root, tree);
+    if (!existsSync(treeRoot)) {
+      continue;
+    }
+    const skillsOf = (name: string): string[] =>
+      tree === "plugins"
+        ? readdirSync(join(root, "plugins")).map((p) => join(root, "plugins", p, "skills", name))
+        : [join(root, "opencode", "skills", name)];
+    for (const file of [...walk(treeRoot)].filter((f) => f.endsWith(".md"))) {
+      const own = owningItem(tree, file);
+      if (!own) {
+        continue;
+      }
+      const rel = relative(root, file).replaceAll("\\", "/");
+      for (const link of linkTargets(readFileSync(file, "utf8"))) {
+        const abs = resolve(dirname(file), link);
+        if (existsSync(abs)) {
+          continue;
+        }
+        // R1 — a link that CLAIMS another shipped item: it either resolves into that item's
+        // directory, or names it in a segment and lands nowhere (a conversion moved the body out
+        // of the skill tree, so `../other/` no longer points at anything). Renaming, excluding or
+        // omitting the target breaks these silently, and a merge does all three.
+        // `../<item>/` is structurally "climb out of my directory into a sibling item's" — the
+        // layout both trees have. Requiring the climb is what keeps ordinary words out: an item
+        // called `research` matches `../research/x.md` and never `docs/research/x.md`. The target
+        // is NOT required to exist first; a target that vanished entirely (excluded, or a husk
+        // the emitter removed) is the loudest version of this failure, not an exemption from it.
+        const climb = /^(?:\.\.\/)+([^/]+)\//.exec(link)?.[1];
+        const claimed = climb && climb !== own.name && emitted.has(climb) ? climb : undefined;
+        const landsInOther = [...emitted.keys()]
+          .filter((n) => n !== own.name)
+          .some((n) => skillsOf(n).some((d) => existsSync(d) && inside(d, abs)));
+        if (claimed || landsInOther) {
+          // A command is one file in a different directory, so a path written for a skill tree
+          // cannot resolve from it — and no single spelling serves both copies of a `both` item.
+          // Where the SKILL copy resolves the very same link, the reference is sound and the
+          // conversion is what broke it; the right spelling depends on which mount point the
+          // install supports, which is a parked decision (ROADMAP), so this is named, not failed.
+          const skillCopy = own.dir === null ? join(root, tree, "skills", own.name) : null;
+          const soundInSkillTree = skillCopy !== null && existsSync(resolve(skillCopy, link));
+          findings.push({
+            level: soundInSkillTree ? "warn" : "error",
+            message: soundInSkillTree
+              ? `${rel}: relative reference ${link} resolves from skills/${own.name}/ but not from a converted command — the conversion moved the body out of the skill tree`
+              : `${rel}: relative reference ${link} does not resolve in ${tree}/ — the target item was renamed, excluded, omitted, or is unreachable from this artifact's location`,
+          });
+          continue;
+        }
+        // R2 — a link into the item's OWN directory that upstream can still satisfy. If the same
+        // path is absent upstream too, it is upstream's illustrative prose and none of our
+        // business; if upstream has it, we are the ones who removed it.
+        if (!own.dir || !inside(own.dir, abs)) {
+          continue;
+        }
+        const info = emitted.get(own.name);
+        const within = relative(own.dir, abs).replaceAll("\\", "/");
+        if (!info || !existsSync(join(info.upstream, within))) {
+          continue;
+        }
+        // `manual` deliberately withholds the OpenCode SKILL.md so the model cannot reach the item
+        // (ADR-0005). The parked file's link is dead all the same, and only an emitter decision
+        // fixes it — so it is named rather than treated as a mistake.
+        const designed = tree === "opencode" && within === "SKILL.md" && info.manual;
+        findings.push({
+          level: designed ? "warn" : "error",
+          message: designed
+            ? `${rel}: links to ${link}, which manual withholds from this tree — the parked bundle keeps a dead link to its own SKILL.md`
+            : `${rel}: links to ${link}, which this build dropped from the item though ${own.name} still ships it upstream — an omit or a conversion took a file the body names`,
         });
       }
     }

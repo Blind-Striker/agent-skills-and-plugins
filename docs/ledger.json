@@ -1037,6 +1037,7 @@
   "deniz-process/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "invocation": "manual",
+    "body": "patch",
     "dependsOn": [
       "systematic-debugging",
       "test-driven-development"

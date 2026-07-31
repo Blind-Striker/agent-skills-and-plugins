@@ -40,5 +40,11 @@
     "files": {
       "SKILL.md": "8a08873ba07c1437f4f3cfd0d06c333eaf2e2715"
     }
+  },
+  "deniz-process/writing-skills": {
+    "source": "superpowers/skills/writing-skills",
+    "files": {
+      "SKILL.md": "f33f39f523c8a3ae2ec0eaf365a524571df8ff3d"
+    }
   }
 }

@@ -193,4 +193,10 @@ items:
   - source: superpowers/skills/writing-skills
     invocation: manual # authoring ceremony, opened by hand — its body then reaches the two auto disciplines below
     depends_on: [systematic-debugging, test-driven-development]
+    # One-line patch, finishing a decision already made: using-superpowers omits references/**
+    # (dead harness tool maps), and this body still sent the reader to two of those files. In
+    # OpenCode the omit left that item with no bundle at all, so the emitter dropped the husk and
+    # the target directory does not exist either. The clause named nothing but those two links;
+    # the runtime paths it wrapped stay, because they are the ones our harnesses actually use.
+    body: patch
 

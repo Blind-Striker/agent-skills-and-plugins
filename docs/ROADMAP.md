@@ -26,7 +26,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - `validate` is a linker (ADR-0008): one reference scanner (`tools/lib/refs.ts`) feeds the
   rewrite and the checks — facts must resolve in each tree's own address space, a model-edge's
   target must be `auto`/`both`, a pointer's target `manual`/`both`, and `depends_on` is enforced
-  in both directions as errors. The build emits `docs/ledger.json` (resolved invocation,
+  in both directions as errors. Relative paths are checked too, but only where the build could
+  have broken them: a `../<item>/` climb into a sibling must still land, and a missing
+  same-directory file is a finding only when upstream still ships it — upstream's illustrative
+  paths stay silent. The build emits `docs/ledger.json` (resolved invocation,
   artifacts, edges and drops per item × harness); CI's freshness gate covers it, and its git
   diff is the notification channel for posture changes. The curation layer (manifest comments,
   overlays, own skills) is scanned for curator-name and date stamps — provenance is git's job.
@@ -131,10 +134,18 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   files live outside the project tree, so the first read asks permission. Whether to
   pre-authorize is an installer-decision detail (config `permission` block).
 - **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
-  (avoids prose false positives), so a `Superpowers:Foo` spelling slips through — alongside the
-  bare-name and relative-path blindness catalogued in
-  [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers), which is the larger
-  hole: only the namespaced spelling is visible to `validate` at all.
+  (avoids prose false positives), so a `Superpowers:Foo` spelling slips through.
+- **Bare names stay invisible, by decision rather than by omission.** Upstream names are ordinary
+  words, so a bare-name scan measurably over-reports; ADR-0008 keeps that tier as candidates,
+  surfaced by `sync` for human reading and never build state. The three spellings and what each
+  earns are tabulated in
+  [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers).
+- **A converted command cannot resolve a sibling-item path.** A command is one file in
+  `commands/`, so a `../<item>/` path written for a skill directory does not land — and no single
+  spelling serves both copies of a `both` item. `validate` names each case (it can tell, because
+  the skill copy resolves the same link), but the fix is a spelling that depends on which mount
+  point an install supports, which is the parked installer decision below. Same family as the
+  parked-bundle references and the long-body `manual` bodies.
 - **Linker's unreachable-cause string assumes a skill target.** A model-edge pointing at a
   command or agent reports "(disable-model-invocation in the Claude tree)" — right verdict,
   wrong cause text. A `kind` on the target state fixes the parenthetical.

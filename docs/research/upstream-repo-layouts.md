@@ -50,16 +50,23 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
   decisions: skipping a skill leaves a dangling reference in the body of every skill that points at
   it, and that is a body edit, not a manifest one.
 
-  References come in three spellings, and only the first is visible to `validate`:
+  References come in three spellings, and each gets the treatment its ambiguity deserves:
 
   | Spelling | Example | Seen by `validate`? |
   |---|---|---|
-  | Namespaced | `superpowers:writing-plans` | yes — rewritten or warned |
-  | Bare name | `invoke writing-plans skill` | **no** |
-  | Relative path | `../using-superpowers/references/` | **no** |
+  | Namespaced | `superpowers:writing-plans` | yes — a fact: resolved, kind-checked, declared |
+  | Relative path | `../using-superpowers/references/` | yes, where our build could have broken it |
+  | Bare name | `invoke writing-plans skill` | **no** — a candidate, never build state |
 
-  A graph built from the namespaced spelling alone is therefore not the coupling graph — it is a
-  lower bound. Regenerate the full one with:
+  The middle row is narrower than it looks, deliberately. Resolving a path is deterministic, but
+  whether a broken one is *our* fault is not: upstream bodies carry illustrative paths that never
+  resolved anywhere. So two questions are asked instead of one — does a `../<item>/` climb into a
+  sibling item still land, and is a missing same-directory file one upstream still ships? Anything
+  else is upstream's prose and stays silent (ADR-0008 rationale: a warning in a green build is one
+  nobody reads).
+
+  A graph built from the namespaced spelling alone is therefore still not the coupling graph — it
+  is a lower bound. Regenerate the full one with:
 
   ```
   SKILLS=$(ls -d external/superpowers/skills/*/ | xargs -n1 basename)
