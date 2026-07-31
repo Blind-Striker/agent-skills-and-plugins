@@ -40,7 +40,12 @@ translations.
 - The OpenCode tree is flat (`opencode/skills/`, `opencode/commands/`, `opencode/agents/`), not
   namespaced by plugin, so every output name must be unique across all `deniz-*` plugins —
   `validate` treats a cross-plugin duplicate as an error, and the same name cannot be curated into
-  two modules.
+  two modules. Claude Code is not the reason: its `/` menu namespaces every plugin skill and refuses
+  a bare name, so a duplicate is unambiguous *there* for a user. It is not unambiguous for the
+  model, which resolves the bare name and silently takes the first in listing order — so the rule
+  earns its keep on both sides, but only for items the model can reach. Once `invocation` exists
+  (ADR-0005) the constraint could be narrowed to `auto` and `both` items, leaving `manual` ones free
+  to share a name; it stays global until then because today every item is model-reachable.
 - Cross-reference rewriting runs before the OpenCode tree is emitted from `plugins/`, so OpenCode
   bodies carry Claude Code-style `deniz-*:name` references that OpenCode cannot resolve. A
   deliberate first-version passthrough; revisit when `opencode/` is wired on a real machine (see

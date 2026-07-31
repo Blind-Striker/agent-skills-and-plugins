@@ -48,6 +48,28 @@ The harness ships bundled skills of its own — `/debug`, `/code-review`, `/veri
 the harness making the same trade this repo cares about: keep long, expensive checks under the
 user's control.
 
+### A duplicate skill name across plugins is safe for the user and unsafe for the model
+
+Measured with two locally installed plugins shipping the same skill name, plus a unique skill in
+each as a control:
+
+- **User invocation is unambiguous by construction.** The `/` menu namespaces *every* plugin skill —
+  `/lab-alpha:dup-skill (dup-skill)` and `/lab-beta:dup-skill (dup-skill)` appear as two separate
+  entries, and the bare name cannot be typed at all: the picker forces a choice. Each qualified form
+  invokes its own copy correctly.
+- **Model invocation silently picks one.** Given the shared trigger phrase, the model called its
+  Skill tool with the *unqualified* `dup-skill`. That resolved without error to `lab-alpha` — first
+  in listing order — even though `lab-beta`'s copy had been the one invoked most recently. There is
+  no ambiguity signal at all.
+
+So a name collision is not one hazard but two different situations, and `invocation` is exactly the
+axis that separates them: a `manual` item is reached through the namespaced menu and can safely share
+a name, while anything the model can reach (`auto`, `both`) is resolved by bare name and cannot.
+
+(Unrelated but noted while measuring: `/reload-plugins` reported `2 plugins · 0 skills · 6 agents`
+for two plugins carrying four working skills. The skill counter is wrong; do not use it to check
+whether an install took.)
+
 ## OpenCode
 
 Skills are model-only. There is no way for a user to invoke one — no slash form, no menu entry.
