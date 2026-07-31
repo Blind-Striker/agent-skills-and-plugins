@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { CurationManifest } from "./manifest.ts";
+import { scanRefs } from "./refs.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 // How a harness ADDRESSES the component upstream, which is what its references spell out: a skill by
@@ -44,19 +45,23 @@ export function buildRewriteMap(
   return map;
 }
 
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
+/**
+ * One pass over the shared scan (ADR-0008), so the rewrite touches exactly what every other reader
+ * calls a reference. The lookup is exact because the scan already returns the maximal address: a
+ * curated `sp:foo` cannot eat the prefix of an uncurated `sp:foo-bar`, which is what the old
+ * longest-key-first ordering existed to prevent. Everything outside a replaced address is copied
+ * byte-for-byte — a pointer's leading slash included, since it sits outside `address`.
+ */
 export function rewriteRefs(content: string, map: Map<string, string>): string {
-  // Longest first: `sp:foo-bar` must be rewritten before `sp:foo` matches its prefix.
-  const entries = [...map].sort(([a], [b]) => b.length - a.length);
-  let out = content;
-  for (const [key, value] of entries) {
-    // Boundary-anchored, so a curated `sp:foo` never eats the prefix of an uncurated `sp:foo-bar`
-    // and turn it into a dangling reference. Replacement is a function: values are plain text and
-    // must not be read for $-patterns.
-    out = out.replace(new RegExp(`(?<![a-z0-9-])${escapeRegExp(key)}(?![a-z0-9-])`, "g"), () => value);
+  let out = "";
+  let cut = 0;
+  for (const ref of scanRefs(content)) {
+    const value = map.get(ref.address);
+    if (value === undefined) {
+      continue;
+    }
+    out += content.slice(cut, ref.index) + value;
+    cut = ref.index + ref.address.length;
   }
-  return out;
+  return out + content.slice(cut);
 }

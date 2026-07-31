@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { candidateHits, extractRefs } from "./refs.ts";
+import { candidateHits, extractRefs, scanRefs } from "./refs.ts";
 
 test("extractRefs finds namespaced references and classifies their kind by the leading slash", () => {
   const body = [
@@ -28,6 +28,29 @@ test("extractRefs ignores lookalikes: longer tokens, chained colons, URLs", () =
     "C:\\Users\\deniz is a Windows path", // uppercase ns never matches
   ].join("\n");
   assert.deepEqual(extractRefs(body), []);
+});
+
+// A chain is rejected because `a:b` addresses nothing there — but a colon is also ordinary
+// punctuation, and the sentence that ends a reference with one still names a real target.
+test("a colon that opens prose ends the reference rather than chaining it", () => {
+  assert.deepEqual(extractRefs("use superpowers:tdd: it gates the loop"), [
+    { kind: "model", ns: "superpowers", name: "tdd", address: "superpowers:tdd" },
+  ]);
+});
+
+// The rewrite replaces in place, so it needs the position of every hit — and it must be THIS scan's
+// position, or the two readers disagree about what a reference is at exactly the margin.
+test("scanRefs carries the offset of the address, the pointer slash excluded", () => {
+  const body = "see /superpowers:brainstorming first";
+  assert.deepEqual(scanRefs(body), [
+    {
+      kind: "pointer",
+      ns: "superpowers",
+      name: "brainstorming",
+      address: "superpowers:brainstorming",
+      index: body.indexOf("superpowers:brainstorming"),
+    },
+  ]);
 });
 
 // A namespace may carry hyphens (`dotnet-skills:akka-best-practices`), so a hyphenated lookalike is

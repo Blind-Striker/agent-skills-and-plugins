@@ -188,6 +188,19 @@ function overlayDrift(
     const held = [...blessedSources].join(", ") || "none";
     return [`${id}: merge sources are not blessed (declared: ${declared}; lock has: ${held}) — run: ${bless} --yes`];
   }
+  // Naming the same sources is not yet a guard. A stamp is taken under the same-filename rule, so an
+  // address that shares no file name with the overlay records absence and nothing else — and an
+  // absent stamp only speaks when a file APPEARS, which is why blessing such an address succeeds and
+  // the guard can then never fire. Re-blessing would only re-record the nulls: the address is wrong.
+  const unguarded = Object.entries(entry.mergeSources ?? {})
+    .filter(([, files]) => Object.values(files).every((sha) => sha === null))
+    .map(([addr]) => addr);
+  if (unguarded.length) {
+    return unguarded.map(
+      (addr) =>
+        `${id}: merge source ${addr} shares no filename with the overlay — nothing guards it; wrong address? Fix merged_from, then re-bless`,
+    );
+  }
   const mergeDrift = driftedMergeSources(root, entry);
   if (mergeDrift.length) {
     return [

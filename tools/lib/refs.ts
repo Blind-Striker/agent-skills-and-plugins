@@ -1,8 +1,9 @@
 /**
  * The one reference scanner (ADR-0008). Facts are namespaced spellings; the leading slash is the
  * kind: `ns:name` is a model-edge (the model invokes the target), `/ns:name` is a user-pointer
- * (the human is told what to open). Boundaries mirror rewriteRefs, so everything the rewrite
- * would touch is exactly what this extracts.
+ * (the human is told what to open). Every reader goes through this scan — the rewrite replaces
+ * what it returns, the linker resolves it, the ledger records it — so the grammar is decided here
+ * and nowhere else.
  */
 export type RefKind = "model" | "pointer";
 
@@ -14,16 +15,29 @@ export interface Ref {
   address: string;
 }
 
-const REF = /([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
+/** A reference with its position: `index` is where `address` starts, the pointer slash excluded. */
+export interface ScannedRef extends Ref {
+  index: number;
+}
 
-export function extractRefs(content: string): Ref[] {
-  const out: Ref[] = [];
+const REF = /([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
+/** What continues a ref token, so a hit hugged by one of these is a slice of something longer. */
+const TOKEN = /[a-z0-9-]/;
+
+/**
+ * Every reference in `content`, in the order written and positioned — the form a rewrite needs to
+ * replace one in place. Two shapes are rejected: a hit inside a longer token (`2fa:setup`, and the
+ * tail of `x:a:b`), and a chain `a:b:c`, which addresses nothing. A colon followed by anything else
+ * is prose, and the reference before it stands: "use superpowers:tdd: it gates the loop" names a
+ * real target.
+ */
+export function scanRefs(content: string): ScannedRef[] {
+  const out: ScannedRef[] = [];
   for (const m of content.matchAll(REF)) {
     const before = m.index > 0 ? (content[m.index - 1] as string) : "";
-    const after = content[m.index + m[0].length] ?? "";
-    // Inside a longer token, or part of an a:b:c chain — not a reference. The after-side needs
-    // only the colon check: REF already consumed every trailing [a-z0-9-].
-    if (/[a-z0-9-]/.test(before) || before === ":" || after === ":") {
+    const end = m.index + m[0].length;
+    // The after-side needs only the colon check: REF already consumed every trailing [a-z0-9-].
+    if (TOKEN.test(before) || before === ":" || (content[end] === ":" && TOKEN.test(content[end + 1] ?? ""))) {
       continue;
     }
     out.push({
@@ -31,9 +45,15 @@ export function extractRefs(content: string): Ref[] {
       ns: m[1] as string,
       name: m[2] as string,
       address: m[0],
+      index: m.index,
     });
   }
   return out;
+}
+
+/** The same scan with the position dropped: what a reader that only resolves references wants. */
+export function extractRefs(content: string): Ref[] {
+  return scanRefs(content).map(({ kind, ns, name, address }) => ({ kind, ns, name, address }));
 }
 
 function escapeRegExp(s: string): string {

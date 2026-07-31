@@ -507,3 +507,44 @@ test("merged_from declared but not blessed stops the build", () => {
   writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
   assert.throws(() => buildAll(root), /merge sources are not blessed .* --bless/);
 });
+
+// The same-filename rule is what a merge stamp guards by, so an address that shares no filename with
+// the overlay stamps all-null — and a null only speaks when a file APPEARS. The bless succeeds, the
+// build stays green, and nothing can ever fire: the merge twin of the primary's "lock records no
+// upstream file, so nothing guards this overlay".
+test("a merge source that shares no filename with the overlay stops the build", () => {
+  const root = makeRepo();
+  // a source directory with none of the overlay's file names — a wrong address looks exactly like this
+  mkdirSync(join(root, "external", "sp", "skills", "epsilon"), { recursive: true });
+  writeFileSync(join(root, "external", "sp", "skills", "epsilon", "notes.md"), "no SKILL.md here\n");
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from: [sp/skills/epsilon]",
+    ].join("\n")}\n`,
+  );
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: merged\n---\nMerged body.\n",
+  );
+  const mergeStamp = stampMergeFiles(join(root, "external", "sp", "skills", "epsilon"), ["SKILL.md"]);
+  // the precondition, stated: blessing this address records absence and nothing else
+  assert.deepEqual(mergeStamp, { "SKILL.md": null });
+  const lock = {
+    "deniz-process/alpha": {
+      source: "sp/skills/alpha",
+      files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+      mergeSources: { "sp/skills/epsilon": mergeStamp },
+    },
+  };
+  writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
+  assert.throws(() => buildAll(root), /merge source sp\/skills\/epsilon shares no filename with the overlay/);
+});

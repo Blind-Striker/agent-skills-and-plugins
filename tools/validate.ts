@@ -381,18 +381,18 @@ export function validateRepo(root: string): Finding[] {
 
   // 4. leftover upstream references — plugins/ only. opencode/ is rendered from the same bodies, so
   // scanning both reported every leftover twice; the OpenCode tree's own address space is checked
-  // by the linker below (L4), where a namespace is a leak rather than a missing rewrite.
-  const refPattern = /([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
+  // by the linker below (L4), where a namespace is a leak rather than a missing rewrite. The scan is
+  // the shared one: a leftover is by definition something the rewrite did not take, so the two must
+  // agree on what a reference is, or this reports text no rewrite could ever have touched.
   for (const file of existsSync(pluginsDir) ? walk(pluginsDir) : []) {
     if (!file.endsWith(".md")) {
       continue;
     }
-    for (const match of readFileSync(file, "utf8").matchAll(refPattern)) {
-      const ns = match[1];
-      if (ns !== undefined && upstreamNs.has(ns)) {
+    for (const ref of extractRefs(readFileSync(file, "utf8"))) {
+      if (upstreamNs.has(ref.ns)) {
         findings.push({
           level: "warn",
-          message: `${relative(root, file).replaceAll("\\", "/")}: unrewritten upstream reference ${match[0]} — include it in a manifest or eject and edit the reference out`,
+          message: `${relative(root, file).replaceAll("\\", "/")}: unrewritten upstream reference ${ref.address} — include it in a manifest or eject and edit the reference out`,
         });
       }
     }
