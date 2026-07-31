@@ -17,6 +17,7 @@ test("the build writes a deterministic ledger describing each item's resolved st
       "items:",
       "  - source: sp/skills/alpha", // fixture body references superpowers:beta
       "    invocation: auto",
+      "    depends_on: [beta]",
       "  - source: sp/skills/beta",
       "    invocation: manual",
     ].join("\n")}\n`,
@@ -30,6 +31,7 @@ test("the build writes a deterministic ledger describing each item's resolved st
   assert.deepEqual(alpha.claude.artifacts, ["skill"]);
   assert.deepEqual(alpha.claude.edges.model, ["deniz-process:beta"]);
   assert.deepEqual(alpha.opencode.edges.model, ["beta"]);
+  assert.deepEqual(alpha.dependsOn, ["beta"]); // the manifest's declaration, beside the derived edges
 
   const beta = ledger["deniz-process/beta"];
   assert.deepEqual(beta.claude.artifacts, ["skill"]); // Claude: manual is still a skill, flagged

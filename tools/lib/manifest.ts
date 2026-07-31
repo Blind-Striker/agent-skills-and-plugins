@@ -20,6 +20,12 @@ export interface CurationItem {
    * means the item states no intent and upstream's own frontmatter passes through untouched.
    */
   invocation?: "auto" | "manual" | "both";
+  /**
+   * Output names of this item's model-edge targets (ADR-0008). Enforced both ways by validate:
+   * a declared name with no matching fact in the shipped body is stale, a fact with no
+   * declaration is undeclared — both are errors.
+   */
+  depends_on?: string[];
   frontmatter?: Record<string, unknown>;
   /** `patch` applies overlays/<plugin>/<item>/overlay.patch; `overlay` replaces whole files. */
   body?: "overlay" | "patch";

@@ -6,6 +6,7 @@ import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { listFiles, loadLock, LOCK_FILE, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
+import { extractRefs } from "./lib/refs.ts";
 import { isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
@@ -85,6 +86,8 @@ export function validateRepo(root: string): Finding[] {
 
   // 1. manifest sources exist, plus the two curation footguns the build resolves silently
   for (const m of manifests) {
+    const ownDir = join(root, "skills", m.plugin.name);
+    const own = existsSync(ownDir) ? readdirSync(ownDir).filter((n) => statSync(join(ownDir, n)).isDirectory()) : [];
     for (const item of m.items) {
       const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
       if (!comp) {
@@ -135,6 +138,15 @@ export function validateRepo(root: string): Finding[] {
             message: `${m.plugin.name}/${outName}: frontmatter.${k} is overwritten by invocation: ${item.invocation} — drop one`,
           });
         }
+      }
+      // L7. own skills are copied last and into the same directory, so one of the same name
+      // overwrites the curated item at emit time — and the cross-plugin duplicate check below sees
+      // the single surviving directory, never the collision.
+      if (own.includes(outName)) {
+        findings.push({
+          level: "error",
+          message: `${m.plugin.name}/${outName}: own skill skills/${m.plugin.name}/${outName}/ silently overwrites this curated item — rename one`,
+        });
       }
     }
   }
@@ -332,33 +344,177 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // 3. portability of built output + 4. leftover upstream references in it
-  const refPattern = /([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
+  // 3. portability: a copied symlink carries an absolute local target, so it dangles in every
+  // other clone. Both trees, because both are committed.
   for (const outDir of ["plugins", "opencode"]) {
     const dir = join(root, outDir);
     if (!existsSync(dir)) {
       continue;
     }
-    // 3. a copied symlink carries an absolute local target, so it dangles in every other clone
     for (const link of walkSymlinks(dir)) {
       findings.push({
         level: "error",
         message: `committed build output must not contain symlinks: ${relative(root, link).replaceAll("\\", "/")}`,
       });
     }
-    for (const file of walk(dir)) {
-      if (!file.endsWith(".md")) {
+  }
+
+  // 4. leftover upstream references — plugins/ only. opencode/ is rendered from the same bodies, so
+  // scanning both reported every leftover twice; the OpenCode tree's own address space is checked
+  // by the linker below (L4), where a namespace is a leak rather than a missing rewrite.
+  const refPattern = /([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
+  for (const file of existsSync(pluginsDir) ? walk(pluginsDir) : []) {
+    if (!file.endsWith(".md")) {
+      continue;
+    }
+    for (const match of readFileSync(file, "utf8").matchAll(refPattern)) {
+      const ns = match[1];
+      if (ns !== undefined && upstreamNs.has(ns)) {
+        findings.push({
+          level: "warn",
+          message: `${relative(root, file).replaceAll("\\", "/")}: unrewritten upstream reference ${match[0]} — include it in a manifest or eject and edit the reference out`,
+        });
+      }
+    }
+  }
+
+  // 4b. reference linking (ADR-0008). plugins/ carries the canonical namespaced text; opencode/ is
+  // derived from it, so facts are read once and each tree is checked in its own address space.
+  interface TargetState {
+    modelReachClaude: boolean;
+    userReachClaude: boolean;
+    ocSkill: boolean;
+    ocCommand: boolean;
+  }
+  const targetState = new Map<string, TargetState>();
+  for (const plugin of existsSync(pluginsDir) ? readdirSync(pluginsDir) : []) {
+    const skillsDir = join(pluginsDir, plugin, "skills");
+    for (const name of existsSync(skillsDir) ? readdirSync(skillsDir) : []) {
+      const doc = parseDoc(readFileSync(join(skillsDir, name, "SKILL.md"), "utf8"));
+      targetState.set(name, {
+        modelReachClaude: doc.frontmatter["disable-model-invocation"] !== true,
+        userReachClaude: doc.frontmatter["user-invocable"] !== false,
+        ocSkill: existsSync(join(root, "opencode", "skills", name, "SKILL.md")),
+        ocCommand: existsSync(join(root, "opencode", "commands", `${name}.md`)),
+      });
+    }
+    for (const kind of ["commands", "agents"] as const) {
+      const dir = join(pluginsDir, plugin, kind);
+      for (const f of existsSync(dir) ? readdirSync(dir) : []) {
+        const name = basename(f, ".md");
+        targetState.set(name, {
+          modelReachClaude: kind === "commands", // agents are dispatched, not skill-invoked
+          userReachClaude: true,
+          ocSkill: false,
+          ocCommand: existsSync(join(root, "opencode", "commands", `${name}.md`)),
+        });
+      }
+    }
+  }
+
+  const ownNs = new Set(manifests.map((m) => m.plugin.name));
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude) {
         continue;
       }
-      const content = readFileSync(file, "utf8");
-      for (const match of content.matchAll(refPattern)) {
-        const ns = match[1];
-        if (ns !== undefined && upstreamNs.has(ns)) {
+      const { outName, outType, id } = resolveItem(root, m.plugin.name, item, components);
+      const built = join(
+        pluginsDir,
+        m.plugin.name,
+        outType === "skill" ? join("skills", outName) : join(`${outType}s`, `${outName}.md`),
+      );
+      if (!existsSync(built)) {
+        continue;
+      }
+      const files = outType === "skill" ? [...walk(built)].filter((f) => f.endsWith(".md")) : [built];
+      const derived = new Set<string>();
+      for (const file of files) {
+        const rel = relative(root, file).replaceAll("\\", "/");
+        for (const ref of extractRefs(readFileSync(file, "utf8"))) {
+          if (!ownNs.has(ref.ns)) {
+            continue; // upstream-namespace leftovers stay section 4's warning, not the linker's
+          }
+          const t = targetState.get(ref.name);
+          if (!t) {
+            findings.push({
+              level: "error",
+              message: `${rel}: dangling reference ${ref.address} — no built output has that name`,
+            });
+            continue;
+          }
+          if (ref.kind === "model") {
+            derived.add(ref.name);
+            if (!t.modelReachClaude || !t.ocSkill) {
+              const cause = !t.modelReachClaude
+                ? "disable-model-invocation in the Claude tree"
+                : "no opencode/skills entry";
+              findings.push({
+                level: "error",
+                message: `${rel}: model-edge to a target the model cannot reach: ${ref.name} (${cause}) — make the target auto/both, or spell the reference /${ref.address} if the human is the audience`,
+              });
+            }
+          } else if (!t.userReachClaude || !t.ocCommand) {
+            const cause = !t.userReachClaude
+              ? "user-invocable: false in the Claude tree"
+              : "no opencode/commands entry";
+            findings.push({
+              level: "error",
+              message: `${rel}: pointer to a target the user cannot reach: ${ref.name} (${cause}) — make the target manual/both, or drop the slash if the model is the audience`,
+            });
+          }
+        }
+      }
+      const declared = new Set(item.depends_on ?? []);
+      for (const d of derived) {
+        if (!declared.has(d)) {
           findings.push({
-            level: "warn",
-            message: `${relative(root, file).replaceAll("\\", "/")}: unrewritten upstream reference ${match[0]} — include it in a manifest or eject and edit the reference out`,
+            level: "error",
+            message: `${id}: undeclared dependency: ${d} — add it to depends_on in curation/${m.plugin.name}.yaml`,
           });
         }
+      }
+      for (const d of declared) {
+        if (!derived.has(d)) {
+          findings.push({
+            level: "error",
+            message: `${id}: stale depends_on: ${d} — no model-edge in the shipped body references it`,
+          });
+        }
+      }
+    }
+  }
+
+  // L4: output namespaces must never reach the OpenCode tree — it has no plugin concept.
+  const ocDir = join(root, "opencode");
+  for (const file of existsSync(ocDir) ? [...walk(ocDir)].filter((f) => f.endsWith(".md")) : []) {
+    for (const ref of extractRefs(readFileSync(file, "utf8"))) {
+      if (ownNs.has(ref.ns)) {
+        findings.push({
+          level: "error",
+          message: `${relative(root, file).replaceAll("\\", "/")}: output namespace leaked into opencode/: ${ref.address}`,
+        });
+      }
+    }
+  }
+
+  // L6: a command body naming a parked file that is not there (omitted, renamed) ships a dead path.
+  const cmdsDir = join(root, "opencode", "commands");
+  for (const f of existsSync(cmdsDir) ? readdirSync(cmdsDir) : []) {
+    const name = basename(f, ".md");
+    const parkedDir = join(root, "opencode", "skills", name);
+    if (!existsSync(parkedDir)) {
+      continue;
+    }
+    const parkedFiles = new Set(listFiles(parkedDir));
+    const body = readFileSync(join(cmdsDir, f), "utf8");
+    for (const hit of body.matchAll(new RegExp(`skills/${name}/([A-Za-z0-9._/-]+)`, "g"))) {
+      const target = (hit[1] as string).replace(/[).,:;'"]+$/, "");
+      if (!parkedFiles.has(target)) {
+        findings.push({
+          level: "error",
+          message: `opencode/commands/${f}: references skills/${name}/${target}, which is not among the parked files`,
+        });
       }
     }
   }

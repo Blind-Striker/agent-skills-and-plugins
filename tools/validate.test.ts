@@ -8,14 +8,19 @@ import { loadLock, lockKey, saveLock } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
 
-test("clean build validates without errors", () => {
+// The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
+// model-edge at an AGENT — an edge the model cannot traverse, and undeclared besides. That debt is
+// the linker working, not a regression: it is tolerated by name so every OTHER error class stays a
+// hard zero on a clean build.
+const FIXTURE_DEBT = ["model-edge to a target the model cannot reach: beta-agent", "undeclared dependency: beta-agent"];
+
+test("a clean build has no errors beyond the fixture's own model-edge debt", () => {
   const root = makeRepo();
   buildAll(root);
-  const findings = validateRepo(root);
-  assert.deepEqual(
-    findings.filter((f) => f.level === "error"),
-    [],
+  const errors = validateRepo(root).filter(
+    (f) => f.level === "error" && !FIXTURE_DEBT.some((known) => f.message.includes(known)),
   );
+  assert.deepEqual(errors, []);
 });
 
 test("unknown manifest source is an error", () => {
@@ -264,5 +269,160 @@ test("curation footguns are warnings on a clean build", () => {
   assert.ok(
     warnings.some((msg) => msg.includes("deniz-process/alpha") && msg.includes("sneaky")),
     `expected a dead frontmatter.name warning, got ${JSON.stringify(warnings, null, 2)}`,
+  );
+});
+
+test("linker: a model-edge to a manual target is an error in both trees", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha", // body says: use the superpowers:beta skill (model-edge)
+      "    depends_on: [beta]",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("model-edge to a target the model cannot reach")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("linker: a pointer to a model-only target is an error", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\nSuggest /superpowers:beta to the user.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+      "    invocation: auto", // OpenCode gets no command for beta -> nothing for a user to type
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("pointer to a target the user cannot reach")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("linker: depends_on is enforced in both directions", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha", // body has a model-edge to beta, but declares gamma instead
+      "    depends_on: [gamma]",
+      "  - source: sp/skills/beta",
+      "  - source: sp/skills/gamma",
+    ].join("\n")}\n`,
+  );
+  mkdirSync(join(root, "external", "sp", "skills", "gamma"), { recursive: true });
+  writeFileSync(
+    join(root, "external", "sp", "skills", "gamma", "SKILL.md"),
+    "---\nname: gamma\ndescription: Gamma upstream\n---\nBody.\n",
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("undeclared dependency: beta")),
+    JSON.stringify(findings, null, 2),
+  );
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("stale depends_on: gamma")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("linker: an output namespace leaking into opencode/ is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  // simulate the historical bug: a hand-authored output-space reference surviving into opencode
+  writeFileSync(
+    join(root, "opencode", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: x\n---\nUse the deniz-process:beta skill.\n",
+  );
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("output namespace leaked into opencode/")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("linker: a dangling namespaced reference is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: x\n---\nUse the deniz-process:nonexistent skill.\n",
+  );
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("dangling reference")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("linker: a command body naming a missing parked file is an error", () => {
+  const root = makeRepo();
+  writeFileSync(join(root, "external", "sp", "skills", "beta", "notes.md"), "bundled\n");
+  writeFileSync(
+    join(root, "external", "sp", "skills", "beta", "SKILL.md"),
+    "---\nname: beta\ndescription: Beta upstream\n---\nRead skills/beta/other.md first.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("skills/beta/other.md")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("linker: an own skill colliding with a curated item in the same plugin is an error", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "skills", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "skills", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: own\n---\nOwn.\n",
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("own skill") && f.message.includes("alpha")),
+    JSON.stringify(findings, null, 2),
   );
 });

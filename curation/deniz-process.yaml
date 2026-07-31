@@ -22,18 +22,24 @@ plugin:
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
-    invocation: manual # entry ceremony — Deniz opens it; its exit invokes writing-plans (taken)
+    invocation: both # Deniz's call (2026-07-31): reachable both ways — he types it, and a
+    # skill-driven session may open the ceremony itself (using-superpowers routes "build X" here);
+    # its exit invokes writing-plans (taken). Measured before flipping: the only jump-pressure was
+    # the upstream description (overridden below); the body's one "You MUST" is in-ceremony
+    # discipline and stays.
     frontmatter:
-      # upstream description is coercive trigger prose ("You MUST use this before any creative
-      # work"); manual makes it unreachable by the model, so the description's only reader is a
-      # human browsing the / menu — one honest line
+      # replaces upstream's coercive trigger prose ("You MUST use this before any creative work");
+      # read by a human browsing the / menu and by the model matching triggers — honest, no pressure
       description: "Collaborative design session: turn an idea into an approved design and spec."
   - source: superpowers/skills/writing-plans
     invocation: both # Deniz invokes it directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
+    depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
     invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
+    depends_on: [finishing-a-development-branch, requesting-code-review, using-git-worktrees] # end-of-run finish, the reviewer template, worktree setup
   - source: superpowers/skills/executing-plans
     invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain
+    depends_on: [finishing-a-development-branch, subagent-driven-development, using-git-worktrees]
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
   - source: superpowers/skills/using-git-worktrees
@@ -46,10 +52,15 @@ items:
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
     invocation: auto # invoked from systematic-debugging's body (clears 2 of the 4 standing validate warnings)
+    # One-line patch (2026-07-31, Deniz's call): writing-good-tests.md cited writing-skills, which is
+    # upstream authoring culture — in our set that target is a manual ceremony the reading model
+    # cannot open, and the sentence stands without it. Removed rather than repointed.
+    body: patch
   - source: superpowers/skills/verification-before-completion
     invocation: auto # fires before any "done" claim; clears the other 2 standing warnings
   - source: superpowers/skills/systematic-debugging
     invocation: auto # debugging discipline should engage when a bug appears, unprompted
+    depends_on: [test-driven-development, verification-before-completion] # Phase 6 invokes both
     # SKILL.md is a merge (2026-07-31, Deniz's call): superpowers' root-cause armor + mattpocock
     # diagnosing-bugs' feedback-loop engineering, in seven phases. The overlay covers SKILL.md
     # only, so the sibling technique files keep flowing from upstream. Known cost: matt-side
@@ -69,6 +80,7 @@ items:
     # ordering rule (process skills before implementation), the announce habit and the subagent
     # guard stay. Deniz invokes it himself, so the persuasion apparatus has no one left to persuade.
     body: patch
+    depends_on: [brainstorming, systematic-debugging] # the ordering rule's two worked examples route to them
     frontmatter:
       # manual → the description's only reader is a human browsing the menu
       description: "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first."
@@ -126,6 +138,7 @@ items:
     # First cross-framework stitch (Deniz's idea): the background-agent dispatch is crafted per
     # superpowers' dispatching-parallel-agents — one-line patch, namespaced so each tree localizes it
     body: patch
+    depends_on: [dispatching-parallel-agents] # the stitch above
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/prototype
     invocation: both # Deniz's call: a deliberate "bir prototip yap" is as real as the model reaching for it
@@ -146,5 +159,6 @@ items:
   - source: superpowers/skills/dispatching-parallel-agents
     invocation: auto # dependency-free dispatch knowledge; research's stitch points at it
   - source: superpowers/skills/writing-skills
-    invocation: manual # authoring ceremony; taking it also rewrites writing-good-tests.md's reference — the last two standing warnings retire
+    invocation: manual # authoring ceremony; Deniz opens it — its body then reaches the two auto disciplines below
+    depends_on: [systematic-debugging, test-driven-development]
 

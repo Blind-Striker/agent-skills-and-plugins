@@ -77,7 +77,7 @@
   },
   "deniz-process/brainstorming": {
     "source": "superpowers/skills/brainstorming",
-    "invocation": "manual",
+    "invocation": "both",
     "description": "Collaborative design session: turn an idea into an approved design and spec.",
     "claude": {
       "artifacts": [
@@ -90,25 +90,15 @@
     },
     "opencode": {
       "artifacts": [
+        "skill",
         "command"
       ],
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "scripts/frame-template.html",
-        "scripts/helper.js",
-        "scripts/server.cjs",
-        "scripts/start-server.sh",
-        "scripts/stop-server.sh",
-        "spec-document-reviewer-prompt.md",
-        "visual-companion.md"
-      ]
+      "dropped": [],
+      "parked": []
     }
   },
   "deniz-process/codebase-design": {
@@ -195,6 +185,11 @@
   "deniz-process/executing-plans": {
     "source": "superpowers/skills/executing-plans",
     "invocation": "both",
+    "dependsOn": [
+      "finishing-a-development-branch",
+      "subagent-driven-development",
+      "using-git-worktrees"
+    ],
     "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
     "claude": {
       "artifacts": [
@@ -505,6 +500,9 @@
     "source": "mattpocock-skills/skills/engineering/research",
     "invocation": "both",
     "body": "patch",
+    "dependsOn": [
+      "dispatching-parallel-agents"
+    ],
     "description": "Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.",
     "claude": {
       "artifacts": [
@@ -596,6 +594,11 @@
   "deniz-process/subagent-driven-development": {
     "source": "superpowers/skills/subagent-driven-development",
     "invocation": "both",
+    "dependsOn": [
+      "finishing-a-development-branch",
+      "requesting-code-review",
+      "using-git-worktrees"
+    ],
     "description": "Use when executing implementation plans with independent tasks in the current session",
     "claude": {
       "artifacts": [
@@ -631,6 +634,10 @@
     "source": "superpowers/skills/systematic-debugging",
     "invocation": "auto",
     "body": "overlay",
+    "dependsOn": [
+      "test-driven-development",
+      "verification-before-completion"
+    ],
     "description": "Use when encountering any bug, test failure, performance regression, or unexpected behavior, before proposing fixes",
     "claude": {
       "artifacts": [
@@ -698,15 +705,14 @@
   "deniz-process/test-driven-development": {
     "source": "superpowers/skills/test-driven-development",
     "invocation": "auto",
+    "body": "patch",
     "description": "Use when implementing any feature or bugfix, before writing implementation code",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [
-          "deniz-process:writing-skills"
-        ],
+        "model": [],
         "pointer": []
       }
     },
@@ -715,9 +721,7 @@
         "skill"
       ],
       "edges": {
-        "model": [
-          "writing-skills"
-        ],
+        "model": [],
         "pointer": []
       },
       "dropped": [
@@ -844,6 +848,10 @@
     "source": "superpowers/skills/using-superpowers",
     "invocation": "manual",
     "body": "patch",
+    "dependsOn": [
+      "brainstorming",
+      "systematic-debugging"
+    ],
     "description": "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first.",
     "claude": {
       "artifacts": [
@@ -963,6 +971,11 @@
   "deniz-process/writing-plans": {
     "source": "superpowers/skills/writing-plans",
     "invocation": "both",
+    "dependsOn": [
+      "executing-plans",
+      "subagent-driven-development",
+      "using-git-worktrees"
+    ],
     "description": "Use when you have a spec or requirements for a multi-step task, before touching code",
     "claude": {
       "artifacts": [
@@ -997,6 +1010,10 @@
   "deniz-process/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "invocation": "manual",
+    "dependsOn": [
+      "systematic-debugging",
+      "test-driven-development"
+    ],
     "description": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
     "claude": {
       "artifacts": [

@@ -20,6 +20,7 @@ interface LedgerEntry {
   source: string;
   invocation?: string;
   body?: string;
+  dependsOn?: string[];
   description: string;
   claude: HarnessState;
   opencode: HarnessState;
@@ -95,6 +96,7 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
         source: item.source,
         ...(item.invocation ? { invocation: item.invocation } : {}),
         ...(item.body ? { body: item.body } : {}),
+        ...(item.depends_on ? { dependsOn: [...item.depends_on].sort() } : {}),
         description: String(doc.frontmatter.description ?? ""),
         claude: { artifacts: [outType], edges: claudeEdges },
         opencode: {

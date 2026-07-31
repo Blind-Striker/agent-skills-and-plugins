@@ -11,6 +11,12 @@
       "SKILL.md": "095d194ac041502905f15b01d22d294fb94db8b2"
     }
   },
+  "deniz-process/test-driven-development": {
+    "source": "superpowers/skills/test-driven-development",
+    "files": {
+      "writing-good-tests.md": "d3c4482fd30b4f9084bb61545fe73939a7502c28"
+    }
+  },
   "deniz-process/using-superpowers": {
     "source": "superpowers/skills/using-superpowers",
     "files": {
