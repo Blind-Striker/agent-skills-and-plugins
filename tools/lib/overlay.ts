@@ -12,6 +12,8 @@ export interface LockEntry {
   source: string;
   /** upstream file name -> git blob SHA of its content when the overlay was written */
   files: Record<string, string>;
+  /** merge source address -> same-filename stamps; null records "absent when blessed". */
+  mergeSources?: Record<string, Record<string, string | null>>;
 }
 export type OverlayLock = Record<string, LockEntry>;
 
@@ -169,4 +171,33 @@ export function driftedFiles(upstreamDir: string, entry: LockEntry): string[] {
       return !existsSync(up) || blobSha(up) !== sha;
     })
     .map(([f]) => f);
+}
+
+/** Same-filename rule for a merge source: stamp what exists, record what does not. */
+export function stampMergeFiles(dir: string, files: string[]): Record<string, string | null> {
+  const out: Record<string, string | null> = {};
+  for (const f of [...files].sort()) {
+    const p = join(dir, f);
+    out[f] = existsSync(p) && lstatSync(p).isFile() ? blobSha(p) : null;
+  }
+  return out;
+}
+
+/** Merge-source files that no longer match their stamp — including ones that appeared over a null. */
+export function driftedMergeSources(root: string, entry: LockEntry): string[] {
+  const msgs: string[] = [];
+  for (const [addr, files] of Object.entries(entry.mergeSources ?? {})) {
+    const dir = join(root, "external", addr);
+    for (const [f, sha] of Object.entries(files)) {
+      const p = join(dir, f);
+      if (sha === null) {
+        if (existsSync(p)) {
+          msgs.push(`${addr}: ${f} (appeared upstream)`);
+        }
+      } else if (!existsSync(p) || blobSha(p) !== sha) {
+        msgs.push(`${addr}: ${f}`);
+      }
+    }
+  }
+  return msgs.sort();
 }
