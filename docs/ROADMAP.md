@@ -156,9 +156,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   to notice. Same class as overlay drift, rarer, and unsolved.
 - **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
   mid-sentence, so curation sessions must open the upstream file to judge an item.
-- **Biome checks generated `marketplace.json`.** `biome.json` excludes the other build output but
-  not `.claude-plugin/`; `format:check` passes only because the emitter happens to write
-  Biome-compatible JSON. Candidate fix: add `!.claude-plugin` to the excludes.
 - **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),
   unlike the other four submodules, which sit on releases. Hold or move is an open decision for the
   next `npm run sync`.

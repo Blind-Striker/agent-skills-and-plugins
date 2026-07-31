@@ -6,7 +6,7 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!node_modules", "!external", "!plugins", "!opencode"]
+    "includes": ["**", "!node_modules", "!external", "!plugins", "!opencode", "!.claude-plugin", "!docs/ledger.json"]
   },
   "formatter": {
     "enabled": true,
