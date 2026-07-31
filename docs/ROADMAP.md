@@ -67,7 +67,15 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-4. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
+4. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
+   globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
+   package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
+   replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
+   big-bang. First in line: the OpenCode superpowers package (`plugin:` entry in
+   `~/.config/opencode/opencode.json`), because measured precedence (package cache >
+   `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
+   every colliding name — the one global our tree cannot shadow away.
+5. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
    mount points, frontmatter tolerance, `@file` resolution, all recorded in
    `docs/research/skill-invocation-across-harnesses.md` using the method in
    `docs/agents/harness-probing.md` — but always with purpose-built fixtures, never with our own
