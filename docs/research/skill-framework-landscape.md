@@ -141,8 +141,10 @@ best-practices and the academic treatment of skills as software artifacts:
 - Evaluations before documentation — measure the gap without the skill first, so the skill solves an
   observed failure rather than an imagined one.
 
-On volume: roughly 8–12 well-chosen skills are reported to cover most of a senior developer's day,
-after which every additional skill is context tax paid on every session.
+On volume, one reported figure: roughly 8–12 well-chosen skills are said to cover most of a senior
+developer's day, after which every additional skill is context tax paid on every session. It is
+cited here as an observation from the sources below, **not** as a budget for this repo — the size of
+a module is a curation decision like any other, and no count has been agreed.
 
 ## Sources
 

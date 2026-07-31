@@ -56,6 +56,31 @@ Access control is config-side — `opencode.json` carries allow/deny/ask pattern
 and an agent can drop skills entirely with `skill: false`. None of that travels inside a
 distributed artifact, so it cannot substitute for getting the output shape right.
 
+## What the three words mean per harness
+
+`skill`, `command` and `agent` name different things in each harness, and most confusion about this
+repo starts by assuming they travel. They do not.
+
+| | Claude Code | OpenCode |
+|---|---|---|
+| **skill** | The *same mechanism* as a command: `.claude/skills/x/SKILL.md` and `.claude/commands/x.md` both produce `/x` and behave identically. The only difference is packaging — a command is one file, a skill is a directory that can carry assets | **Model-only, always.** A user cannot reach it at all; agents load it through a native `skill` tool |
+| **command** | A skill in one-file packaging | **The user surface, always.** The only user-invocable artifact, carrying `agent`, `model`, `subtask`, `template`, `$ARGUMENTS` |
+| **agent** | A subagent with its own context, dispatched rather than invoked | The same, declared `mode: subagent` |
+| **who invokes it** | a **frontmatter flag**, independent of packaging | **which artifact it is** — there is no flag |
+
+Two consequences this repo is built around:
+
+- **Shape does not carry intent.** In Claude Code a `manual` item can be either packaging, because the
+  flag decides. In OpenCode the choice of artifact *is* the decision. So `invocation` is the word
+  that means the same thing on both sides, and `as:` is a separate dial for when a specific artifact
+  is wanted regardless (ADR-0006 axis 2).
+- **`manual` and `command` are not synonyms.** They coincide in Claude Code (a flagged skill and a
+  command behave alike) and coincide by construction in OpenCode (manual can only be a command).
+  They come apart in three places: `both` needs two artifacts in OpenCode and one flagless skill in
+  Claude Code, which `as: command` cannot express; a `manual` item carrying assets wants a directory
+  on one side and a single file on the other, so only the intent survives the crossing; and
+  `as: agent` is a shape for which invocation is not the question at all.
+
 ## The intent matrix
 
 The same curation intent, expressed natively per harness:
@@ -154,16 +179,44 @@ curation leaves behind.
 
 ## Prior art: wshobson/agents
 
-The multi-harness marketplace ADR-0002 took its model from. One source-of-truth tree, and a
-per-harness adapter that emits idiomatic artifacts rather than a shared subset. Its OpenCode adapter
-emits agents, commands and skills, rewriting slash commands into the commands directory and
-converting `tools:` allowlists into `permission:` deny blocks. Its Codex adapter runs the same
-conversion in reverse — commands become skills, because Codex has no command concept.
+The multi-harness marketplace ADR-0002 took its model from. One source-of-truth tree
+(`plugins/<name>/{agents,commands,skills}/`), a generator (`tools/generate.py`) and a per-harness
+adapter (`tools/adapters/{codex,copilot,cursor,gemini,opencode}.py`) that emits idiomatic artifacts
+rather than a shared subset.
 
 The governing sentence, which is the design target for our manifest:
 
 > Each adapter handles incompatibilities mechanically — authors don't need to know the per-harness
 > rules to write portable content.
+
+**What it does, read from the adapters** — worth knowing precisely, because the differences from
+this repo are as instructive as the similarities:
+
+- **Type is inherited, never chosen.** Each source type maps 1:1 to the target's equivalent
+  "without intermediate transformations". Conversion happens *only* where the target lacks the
+  concept — Codex has no commands, so commands become skills there. Nothing lets an author say "emit
+  this skill as a command"; that is [ADR-0006](../adr/0006-output-is-a-transformation.md) axis 2, and
+  it is where this repo is more ambitious than its prior art.
+- **Skill directories are mirrored whole.** `skill.dir.rglob("*")` copies `references/`, `assets/`,
+  `scripts/`, `examples/` verbatim, preserving relative paths and binary content. Sibling references
+  inside a body keep working because the directory survives — so the problem of a converted item
+  pointing at files that no longer exist never arises for them.
+- **Body rewriting is limited to tool names.** `strip_claude_tool_refs()` in `adapters/base.py`
+  turns Claude Code's tool vocabulary into the target's — `` `Read` `` → `` `read` ``, "the Read
+  tool" → `` `open` ``, `` `Bash` `` → `` `shell` ``. There is no link or file-reference rewriting
+  anywhere. This is the one mechanical adaptation this repo does not do at all, and upstream bodies
+  are full of Claude tool names.
+- **Flat namespaces get a prefix.** OpenCode output is `.opencode/skills/<plugin>-<skill>/SKILL.md`
+  and `.opencode/{commands,agents}/<plugin>__<name>.md` — the plugin name is carried into the
+  artifact name rather than requiring globally unique names as ADR-0002 does.
+- **Agent permissions are mapped, not dropped.** Claude Code's `tools:` allowlist becomes an
+  OpenCode `permission:` deny block — the concrete recipe for the mapping ADR-0002 deferred.
+- **A hard size cap is absorbed by splitting.** Codex truncates skill bodies over 8 KB at load, so
+  the adapter splits the overflow into `references/details.md` and `_overflow.md` rather than
+  letting the truncation happen silently.
+- **Most generated output is gitignored** and rebuilt by `make generate`; only the small registries
+  are committed. This repo commits everything instead, because ADR-0001 wants a clone to work
+  immediately — a different goal, not a disagreement.
 
 ## Sources
 
