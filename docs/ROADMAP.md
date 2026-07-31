@@ -14,17 +14,19 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   if committed build output is stale.
 - Upstream repos vendored in `external/`; `docs/inventory.md` (regenerate via `npm run inventory`)
   catalogs what they offer.
-- Four starter plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
-  `deniz-dotnet-aspire`, `deniz-dotnet-akka`), one pipeline-proof skill each, plus the matching
-  `opencode/skills/` output and `marketplace.json`.
+- Four plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
+  `deniz-dotnet-aspire`, `deniz-dotnet-akka`), plus the matching `opencode/` output and
+  `marketplace.json`. `deniz-process` carries its first real batch — sixteen items decided with
+  the user (2026-07-31), invocation set per item, exercising the rewrite path on real data
+  (`deniz-process:*` in the Claude tree, bare names in the OpenCode one). The three dotnet
+  modules still hold one pipeline-proof starter each.
 - `npm run validate` on the current build: 0 errors; remaining warnings are unrewritten
   cross-references to uncurated superpowers skills.
-- The cross-reference rewrite path has never run on real data — no starter pick references another
-  pick, so it is proven by unit tests only. The first real curation batch exercises it.
 - Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
-  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Exercised
-  end to end against real upstream skills, but no curated item uses either yet — `overlays/` does
-  not exist. The gaps two independent reviews left open are listed below.
+  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. One real
+  overlay exists: systematic-debugging's merged SKILL.md — scoped to that one file, so the
+  sibling technique files keep flowing from upstream. The gaps two independent reviews left open
+  are listed below.
 - `validate` covers the overlay wiring the build cannot see: an overlay directory that no item
   claims, or whose item declares no `body:`, is an error (the build would ship pristine upstream in
   silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
@@ -46,9 +48,11 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** Each manifest currently holds a single starter item. Fill them
-   module by module against `docs/inventory.md`, with the user, one plugin per session. The
-   intended upstream sources of each module are noted at the top of its manifest.
+1. **Per-module curation sessions.** `deniz-process` batch 1 landed (2026-07-31); its deferred
+   clusters are recorded in the manifest header — the mattpocock production chain waits on an
+   issue-tracker decision, and using-superpowers plus the skill-authoring pair each want their own
+   pass. The three dotnet modules still hold one starter each; fill them against
+   `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
 2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
