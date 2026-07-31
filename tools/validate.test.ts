@@ -4,7 +4,7 @@ import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "nod
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
-import { loadLock, lockKey, saveLock } from "./lib/overlay.ts";
+import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
 
@@ -425,4 +425,87 @@ test("linker: an own skill colliding with a curated item in the same plugin is a
     findings.some((f) => f.level === "error" && f.message.includes("own skill") && f.message.includes("alpha")),
     JSON.stringify(findings, null, 2),
   );
+});
+
+test("provenance: a name or a date in a manifest comment is an error; a description keeps its branding", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "# reviewed by Deniz on 2026-07-31",
+      "plugin:",
+      "  name: deniz-process",
+      '  description: "Deniz curated set"', // a value, not a comment — exempt
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
+  assert.equal(hits.length, 2, JSON.stringify(hits, null, 2)); // the name and the date, nothing for the value
+});
+
+test("provenance: overlay bodies are scanned; the lock is exempt", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: x\n---\nRewritten by Deniz on 2026-07-31.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  const lock = {
+    "deniz-process/alpha": {
+      source: "sp/skills/alpha",
+      files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+    },
+  };
+  writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
+  assert.equal(hits.length, 2); // name + date in the overlay body; the lock's own content never scanned
+});
+
+test("provenance: a patch's context lines are upstream's — only added lines are ours", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "overlay.patch"),
+    [
+      "diff --git a/SKILL.md b/SKILL.md",
+      "--- a/SKILL.md",
+      "+++ b/SKILL.md",
+      "@@ -1,3 +1,3 @@",
+      " Deniz appears upstream here",
+      "-old line",
+      "+new line, no stamps",
+    ].join("\n"),
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: patch",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
+  assert.equal(hits.length, 0, JSON.stringify(hits, null, 2));
 });

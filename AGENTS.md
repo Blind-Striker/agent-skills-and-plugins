@@ -41,7 +41,9 @@ solved.
   `skills/` (original skills), `tools/` (the build toolchain).
 - No skill-by-skill curation decision without the catalog: `npm run inventory` → `docs/inventory.md`.
   Record the why of every take/skip/modify as a comment beside the item in `curation/*.yaml`.
-- Never commit secrets, tokens, or machine-specific paths.
+- Never commit secrets, tokens, or machine-specific paths. The curation layer (manifest
+  comments, `overlays/`, `skills/`) stamps no curator names and no dates — git carries
+  provenance; `validate` errors on both.
 
 ## Sources of Truth
 

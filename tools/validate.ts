@@ -539,6 +539,54 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
+  // 7. provenance: the curation layer stamps no names, no dates — git carries who and when.
+  // Scope is the authored layer only: yaml COMMENT segments (values keep their branding),
+  // overlay bodies, a patch's added lines (context lines are upstream's), own skills.
+  const BANNED = [/\bDeniz\b/, /\bIrgin\b/, /\b20\d{2}-\d{2}-\d{2}\b/];
+  const provenance = (text: string, where: string): void => {
+    for (const re of BANNED) {
+      const m = re.exec(text);
+      if (m) {
+        findings.push({
+          level: "error",
+          message: `${where}: the curation layer stamps no names or dates — git carries provenance (found "${m[0]}")`,
+        });
+      }
+    }
+  };
+  for (const f of readdirSync(join(root, "curation")).filter((n) => n.endsWith(".yaml"))) {
+    readFileSync(join(root, "curation", f), "utf8")
+      .split("\n")
+      .forEach((line, i) => {
+        const hash = line.indexOf("#");
+        if (hash >= 0) {
+          provenance(line.slice(hash), `curation/${f}:${i + 1}`);
+        }
+      });
+  }
+  for (const base of ["overlays", "skills"]) {
+    const dir = join(root, base);
+    if (!existsSync(dir)) {
+      continue;
+    }
+    for (const file of walk(dir)) {
+      const rel = relative(root, file).replaceAll("\\", "/");
+      if (rel.endsWith(LOCK_FILE)) {
+        continue;
+      }
+      const text = readFileSync(file, "utf8");
+      if (rel.endsWith(".patch")) {
+        text.split("\n").forEach((line, i) => {
+          if (line.startsWith("+") && !line.startsWith("+++")) {
+            provenance(line, `${rel}:${i + 1}`);
+          }
+        });
+      } else {
+        provenance(text, rel);
+      }
+    }
+  }
+
   return findings;
 }
 
