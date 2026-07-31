@@ -260,10 +260,11 @@ none at all.
   The coercive language is narrower than it looks, and worth locating precisely before deciding
   what to strip. `1%` appears in exactly one place: the `<EXTREMELY-IMPORTANT>` block of
   `using-superpowers` ("even a 1% chance … YOU DO NOT HAVE A CHOICE"). `brainstorming` carries the
-  only other trigger pressure, in its `description` and one body line. Two further matches for
+  only other trigger pressure, in its `description` and one body line. The remaining matches for
   "You MUST" are different things and should not be swept up with them:
   `systematic-debugging` uses it for *procedural* discipline inside the skill ("complete each phase
-  before proceeding"), and `writing-skills` uses it to declare a dependency ("REQUIRED BACKGROUND").
+  before proceeding"), and `writing-skills` uses it twice — declaring a dependency
+  ("REQUIRED BACKGROUND") and again inside an authoring example of that same convention.
   Re-derive with `rg -n '\b1%|You MUST|DO NOT HAVE A CHOICE' external/superpowers/skills --glob '**/SKILL.md'`.
 - **dotnet-skills** sets `invocable: true|false` on most of its skills. That is not a field in
   either harness's frontmatter reference; it is upstream's own convention and reaches our output as

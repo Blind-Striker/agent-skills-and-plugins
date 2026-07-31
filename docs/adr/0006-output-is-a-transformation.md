@@ -7,8 +7,9 @@ Status: Accepted
 
 Agents onboarding onto this repository keep forming the same wrong model: that curation means
 picking upstream skills and copying them, with a few frontmatter tweaks. Everything they read early
-supports that reading — the manifests look like allow-lists, the skill path of the build is a file
-copy, and `opencode/skills/` is today byte-identical to the built Claude skills.
+supports that reading — the manifests look like allow-lists, and until the OpenCode adapter landed
+the skill path of the build was a plain file copy that left `opencode/skills/` byte-identical to
+the built Claude skills.
 
 The consequence is not academic. Proposals arrive that assume the OpenCode tree mirrors the Claude
 tree, that an item's artifact type is fixed by whatever upstream made it, and that "who invokes

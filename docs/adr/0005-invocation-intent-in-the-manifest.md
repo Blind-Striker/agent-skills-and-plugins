@@ -67,10 +67,10 @@ is the **trigger** dial. The table above gives each invocation value its default
 
 - The manifest reads as a statement of taste rather than of packaging: one word per item says who
   holds the trigger, and knowing the per-harness rules stops being the author's problem.
-- The OpenCode tree stops being a mirror of the Claude one. Today `opencode/skills/` is byte-identical
-  to the built plugin skills; once an item is `user`, the two harnesses receive different artifacts.
-  Reasoning about the build now requires reading both emitters, and `validate`'s duplicated findings
-  across the two trees no longer duplicate uniformly.
+- The OpenCode tree stops being a mirror of the Claude one: a `manual` item arrives as a different
+  artifact, and the skill adapter (ADR-0006 axis 3) filters frontmatter even where no intent is
+  stated. Reasoning about the build now requires reading both emitters, and `validate`'s duplicated
+  findings across the two trees no longer duplicate uniformly.
 - `both` emits the same item twice into OpenCode. Output names are already required to be unique
   across all plugins (ADR-0002), and a skill and a command sharing one name is a new collision class
   `validate` has to cover.

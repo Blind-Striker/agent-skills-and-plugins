@@ -57,12 +57,11 @@ translations.
   two modules. Claude Code is not the reason: its `/` menu namespaces every plugin skill and refuses
   a bare name, so a duplicate is unambiguous *there* for a user. It is not unambiguous for the
   model, which resolves the bare name and silently takes the first in listing order — so the rule
-  earns its keep on both sides, but only for items the model can reach. Once `invocation` exists
-  (ADR-0005) the constraint could be narrowed to `auto` and `both` items, leaving `manual` ones free
-  to share a name; it stays global until then because today every item is model-reachable.
-- Cross-reference rewriting runs before the OpenCode tree is emitted from `plugins/`, so OpenCode
-  bodies carry Claude Code-style `deniz-*:name` references that OpenCode cannot resolve. That was a
-  deliberate first-version passthrough pending a real machine; the measurement has since been made,
-  and the fix is to emit the OpenCode tree *before* the Claude rewrite and then rewrite each tree
-  with its own map — bare names for OpenCode, which addresses a skill by its `name` field. Tracked
-  in `docs/ROADMAP.md`.
+  earns its keep on both sides, but only for items the model can reach. `invocation` (ADR-0005)
+  would allow narrowing the constraint to `auto` and `both` items, leaving `manual` ones free to
+  share a name; it stays global because today every curated item is model-reachable.
+- The OpenCode tree is emitted from `plugins/` *before* cross-reference rewriting, and each tree is
+  then rewritten with its own map — `<plugin>:<name>` for Claude Code, bare names for OpenCode,
+  which addresses a skill by its `name` field. The order is load-bearing: emitting after the Claude
+  rewrite is how OpenCode once ended up carrying `deniz-*:name` references it cannot resolve, since
+  OpenCode has no plugin concept.
