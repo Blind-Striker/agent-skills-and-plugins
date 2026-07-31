@@ -23,5 +23,5 @@ jobs:
       - run: npm run validate
       - name: Built output must be committed and fresh
         run: |
-          git add -A -- plugins opencode .claude-plugin docs/inventory.md
-          git diff --cached --exit-code -- plugins opencode .claude-plugin docs/inventory.md
+          git add -A -- plugins opencode .claude-plugin docs/inventory.md docs/ledger.json
+          git diff --cached --exit-code -- plugins opencode .claude-plugin docs/inventory.md docs/ledger.json
