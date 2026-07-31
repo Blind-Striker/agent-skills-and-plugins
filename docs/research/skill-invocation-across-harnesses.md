@@ -67,6 +67,22 @@ reads `~/.config/opencode/skills/`. Commands and agents live alongside, in `comm
 `agents/`, under either `.opencode/` or `~/.config/opencode/`. All three directory names are plural,
 and this repo's `opencode/` tree uses the same spelling.
 
+Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
+
+- **`OPENCODE_CONFIG_DIR` is searched for skills**, though the documentation lists only agents,
+  commands, modes and plugins for it. So the built `opencode/` tree has two viable mount points, not
+  one: that variable, or a project-local `.opencode/`.
+- **It adds a location rather than replacing the default.** Setting it does not hide
+  `~/.config/opencode/` or the package cache — unlike Claude Code's `CLAUDE_CONFIG_DIR`, which does
+  replace. Relevant to anyone trying to get a clean listing.
+- **Unrecognised frontmatter really is ignored.** A skill carrying `disable-model-invocation`,
+  `user-invocable` and `allowed-tools` loaded and ran without complaint. Claude-only keys reaching
+  the OpenCode tree are therefore dead weight rather than breakage — still worth dropping and
+  reporting (ADR-0006 axis 3), but a tidiness problem rather than a correctness one.
+- **A directory under `skills/` with no `SKILL.md` is ignored silently.** This is the parking spot a
+  skill→command conversion needs: an item emitted as an OpenCode command can keep its bundled files
+  at `skills/<name>/` and reference them from the command body, instead of losing them.
+
 Access control is config-side — `opencode.json` carries allow/deny/ask patterns over skill names,
 and an agent can drop skills entirely with `skill: false`. None of that travels inside a
 distributed artifact, so it cannot substitute for getting the output shape right.
