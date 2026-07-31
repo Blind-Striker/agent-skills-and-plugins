@@ -1,4 +1,10 @@
 {
+  "deniz-process/research": {
+    "source": "mattpocock-skills/skills/engineering/research",
+    "files": {
+      "SKILL.md": "0ba594a07f306479baa67104381f48e209ab6aae"
+    }
+  },
   "deniz-process/systematic-debugging": {
     "source": "superpowers/skills/systematic-debugging",
     "files": {

@@ -6,11 +6,15 @@
 # `manual` is unreachable even from another skill's body, so every link another taken skill
 # invokes is `both` or `auto`; only true entry points are `manual`.
 #
-# Deferred to the next batch conversation, deliberately: matt's production chain (to-spec,
-# to-tickets, triage, wayfinder, code-review, implement, setup-matt-pocock-skills — a runtime
-# flow that works as upstream shipped it; nothing compile-time gates it), the skill-authoring
-# pair (writing-skills, writing-great-skills), research/prototype/teach/
-# resolving-merge-conflicts/codebase-design/improve-codebase-architecture.
+# Batch 2 (2026-07-31, decided with Deniz) closes the module: the whole mattpocock production
+# chain taken as upstream shipped it (compile-time/runtime boundary, AGENTS.md — tracker/setup
+# behaviour is the wizard's job at use time), the authoring pair, and superpowers' last two.
+#
+# Remaining open, Deniz's call (2026-07-31): two merge passes in the systematic-debugging mold —
+# a TDD mix (superpowers test-driven-development × matt tdd) and a review mix
+# (requesting-code-review × matt code-review). Matt's two items stay out of the manifest until
+# each mix lands as draft → review → overlay; each pass also repoints implement's bare /tdd and
+# /code-review prose at the mix names.
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
@@ -91,4 +95,56 @@ items:
     exclude: true # not rejected — merged: its feedback-loop phases live inside the
     # systematic-debugging overlay; taking it as well would put two auto debugging
     # skills in trigger competition
+  # --- mattpocock production chain (batch 2) ---
+  - source: mattpocock-skills/skills/engineering/to-spec
+    invocation: manual # upstream's own flag; conversation → spec ceremony
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/to-tickets
+    invocation: manual # upstream's own flag; spec → tracer-bullet tickets
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/triage
+    invocation: manual # upstream's own flag; issue-tracker state machine
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/wayfinder
+    invocation: manual # upstream's own flag; the heaviest ceremony — decision maps for foggy efforts
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/implement
+    invocation: manual # upstream's own flag; its bare /tdd and /code-review prose gets repointed when the merge passes land (header)
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/setup-matt-pocock-skills
+    invocation: manual # Deniz's call: the wizard comes too — useful, harmless, pure runtime
+    omit: ["agents/**"]
+  # --- mattpocock design & standalone (batch 2) ---
+  - source: mattpocock-skills/skills/engineering/codebase-design
+    invocation: auto # a glossary other skills pull in, not a ceremony — Deniz floated `both`, flipping is one word if typing it ever feels natural
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/improve-codebase-architecture
+    invocation: manual # upstream's own flag; spare-moment architecture survey
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/research
+    invocation: both # Deniz's call: "şunu araştır" is as natural typed as model-delegated
+    # First cross-framework stitch (Deniz's idea): the background-agent dispatch is crafted per
+    # superpowers' dispatching-parallel-agents — one-line patch, namespaced so each tree localizes it
+    body: patch
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/prototype
+    invocation: both # Deniz's call: a deliberate "bir prototip yap" is as real as the model reaching for it
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/resolving-merge-conflicts
+    invocation: auto # the trigger is the situation (an in-progress conflict), not a wish
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/productivity/teach
+    invocation: manual # upstream's own flag; stateful learning workspace, Deniz wants it around
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/productivity/writing-great-skills
+    invocation: manual # upstream's own flag; authoring vocabulary — complement, not substitute, of writing-skills
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/ask-matt
+    exclude: true # the router over upstream's own set — it would lie about ours (diagnosing-bugs
+    # merged away, names differ), and nothing routes except the curator (ADR-0007)
+  # --- superpowers, the last two (batch 2) ---
+  - source: superpowers/skills/dispatching-parallel-agents
+    invocation: auto # dependency-free dispatch knowledge; research's stitch points at it
+  - source: superpowers/skills/writing-skills
+    invocation: manual # authoring ceremony; taking it also rewrites writing-good-tests.md's reference — the last two standing warnings retire
 
