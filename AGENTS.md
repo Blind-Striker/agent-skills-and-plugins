@@ -17,6 +17,11 @@ where it lands**. Copying an item unchanged into another harness is not adaptati
 [ADR-0006](docs/adr/0006-output-is-a-transformation.md) holds the contract and the shortcuts it
 forbids.
 
+What the transformation is *for*: a set that reflects the curator's own working style — the
+trigger in their hand where they want it, control over upstream fidelity, heavy modification
+unfeared. [ADR-0007](docs/adr/0007-control-beats-fidelity.md) states that intent; upstream is
+never the yardstick.
+
 ## Hard Rules
 
 - `external/`, `plugins/` and `opencode/` are never hand-edited. `external/` belongs to upstream;
@@ -67,6 +72,8 @@ planning skills, e.g. `docs/superpowers/`) is transient: delete it when the work
   `npm run build` and `npm run validate`.
 - Intended behaviour changes get an ADR; a change whose purpose is not to change behaviour must not
   change behaviour.
+- ADRs are living documents: when a need and an ADR disagree, rewrite the ADR in place — don't bend
+  the need to fit the document.
 
 ## Harness Independence
 

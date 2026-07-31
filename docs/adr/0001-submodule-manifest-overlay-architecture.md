@@ -70,7 +70,9 @@ Four pieces:
   design exists to prevent, and a warning in a green build is one nobody reads.
 - Re-blessing is a deliberate act (`npm run eject -- <plugin> <item> --bless`), which means a submodule
   bump that touches an overlaid file blocks the build until someone looks. That is friction by
-  choice; it scales badly only if overlays stop being rare, which is itself the signal to stop.
+  choice, and it grows with every overlay — a price ADR-0007 accepts deliberately: a set that
+  reflects its curator is expected to own bodies, so the growth is budgeted, not a signal to
+  curate less.
 - Patches apply to skill-shaped output only. A `command`/`agent` conversion re-serializes
   frontmatter around a body, so there is no stable file for a diff to land on; those items take a
   full-file overlay.
