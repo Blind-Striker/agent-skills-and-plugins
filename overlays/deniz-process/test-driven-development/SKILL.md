@@ -1,8 +1,6 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing
-  implementation code — the red-green loop, the seam to test at, and one slice
-  at a time
+description: Use when implementing any feature or bugfix, before writing implementation code — the red-green loop, the seam to test at, and one slice at a time
 ---
 
 # Test-Driven Development (TDD)
@@ -232,7 +230,7 @@ Keep tests green. Don't add behavior.
 **Structural work is not part of this step.** Reshaping a module, moving a boundary, splitting a
 class that grew wrong — that is review's judgement, not the loop's, and doing it here quietly turns
 one slice into an unreviewable change. Note it and take it to the
-requesting-code-review skill.
+superpowers:requesting-code-review skill.
 
 ### Repeat
 
@@ -361,7 +359,7 @@ Can't check all boxes? You skipped TDD. Start over.
 
 ## Debugging Integration
 
-Bug found? Don't start here — start with the systematic-debugging skill, which builds
+Bug found? Don't start here — start with the superpowers:systematic-debugging skill, which builds
 the red signal first and finds the root cause. It comes back to this skill for the regression test,
 at a seam that exercises the real bug pattern. Never fix bugs without a test.
 

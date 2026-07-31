@@ -10,11 +10,11 @@
 # chain taken as upstream shipped it (compile-time/runtime boundary, AGENTS.md — tracker/setup
 # behaviour is the wizard's job at use time), the authoring pair, and superpowers' last two.
 #
-# Remaining open, curator's call: two merge passes in the systematic-debugging mold —
-# a TDD mix (superpowers test-driven-development × matt tdd) and a review mix
-# (requesting-code-review × matt code-review). Matt's two items stay out of the manifest until
-# each mix lands as draft → review → overlay; each pass also repoints implement's bare /tdd and
-# /code-review prose at the mix names.
+# The TDD mix has landed (superpowers test-driven-development × matt tdd), and repointed both of
+# implement's bare slash references while it was there. Remaining open, curator's call: the review
+# mix (requesting-code-review × matt code-review), in the same mold — matt's code-review stays out
+# of the manifest until it lands as draft → review → overlay. That pass changes what
+# requesting-code-review contains, not its name, so nothing pointing at it moves again.
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
@@ -51,11 +51,32 @@ items:
     invocation: auto # behavioural discipline that should kick in whenever review feedback arrives — never typed
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
-    invocation: auto # invoked from systematic-debugging's body (clears 2 of the 4 standing validate warnings)
-    # One-line patch, curator's call: writing-good-tests.md cited writing-skills, which is
-    # upstream authoring culture — in our set that target is a manual ceremony the reading model
-    # cannot open, and the sentence stands without it. Removed rather than repointed.
-    body: patch
+    invocation: auto # invoked from systematic-debugging's body and from implement's
+    # Both files are a merge, curator's call: superpowers' discipline (Iron Law, watch-it-fail,
+    # the rationalization tables) is the spine, and mattpocock tdd's one idea our set was missing
+    # is installed as an organ — the SEAM. Two items we already ship point at the word and had
+    # nowhere to send a reader: systematic-debugging Phase 6 ("at a correct seam") and implement
+    # ("at pre-agreed seams"). Its second idea, one slice at a time / tracer bullets, names the
+    # bulk-tests-first failure superpowers never named. Matt's gate ("no test at an unconfirmed
+    # seam, confirm with the user") is kept as a conditional: this item is `auto` and fires
+    # unprompted, so an unconditional human round-trip would make a discipline into an interrupt.
+    # Refactor stays in the loop for cleanup under green; structural work routes to review, which
+    # is where matt put all of it — both are true, so the contradiction dissolves.
+    # matt's mocking.md contributes the boundary list superpowers lacked; its SDK-interface advice
+    # is design prescription and belongs to codebase-design (taken). tests.md is not drawn from:
+    # superpowers' own writing-good-tests.md is denser on the same ground, and its one unique
+    # example — verifying around the interface instead of through it — was written fresh.
+    # writing-good-tests.md is owned rather than patched because its citation of writing-skills is
+    # a dangling model-edge in our set (that target is manual), so the file could not flow pristine.
+    body: overlay
+    merged_from:
+      - source: mattpocock-skills/skills/engineering/tdd
+        files: [SKILL.md, mocking.md] # where the merge actually drew from — not the filename rule
+    depends_on: [requesting-code-review, systematic-debugging] # structural refactor routes out; bugs route in
+    frontmatter:
+      # auto item, so the description is the trigger: it now covers the seam and the slice, not
+      # just the red-green loop, and an honest trigger line is half of taking the pressure out
+      description: "Use when implementing any feature or bugfix, before writing implementation code — the red-green loop, the seam to test at, and one slice at a time"
   - source: superpowers/skills/verification-before-completion
     invocation: auto # fires before any "done" claim; clears the other 2 standing warnings
   - source: superpowers/skills/systematic-debugging
@@ -122,7 +143,13 @@ items:
     invocation: manual # upstream's own flag; the heaviest ceremony — decision maps for foggy efforts
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/implement
-    invocation: manual # upstream's own flag; its bare /tdd and /code-review prose gets repointed when the merge passes land (header)
+    invocation: manual # upstream's own flag; the ceremony that opens an implementation run
+    # Two-line patch, curator's call: upstream's bare `/tdd` and `/code-review` are matt's own
+    # convention for "the model invokes this", which collides with our grammar where a slash means
+    # the human is the audience — and both targets are model-reachable here, so a pointer would
+    # not even link. Repointed to neutral-space model-edges; each tree localizes them.
+    body: patch
+    depends_on: [requesting-code-review, test-driven-development]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/setup-matt-pocock-skills
     invocation: manual # curator's call: the wizard comes too — useful, harmless, pure runtime
@@ -153,6 +180,10 @@ items:
   - source: mattpocock-skills/skills/productivity/writing-great-skills
     invocation: manual # upstream's own flag; authoring vocabulary — complement, not substitute, of writing-skills
     omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/tdd
+    exclude: true # not rejected — merged: the seam and the one-slice rule live inside the
+    # test-driven-development overlay. Taking it as well would put two auto TDD skills in trigger
+    # competition, the same reason diagnosing-bugs is excluded above.
   - source: mattpocock-skills/skills/engineering/ask-matt
     exclude: true # the router over upstream's own set — it would lie about ours (diagnosing-bugs
     # merged away, names differ), and nothing routes except the curator (ADR-0007)

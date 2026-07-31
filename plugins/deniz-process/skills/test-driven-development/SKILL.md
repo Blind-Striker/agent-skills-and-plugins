@@ -1,6 +1,8 @@
 ---
 name: test-driven-development
-description: Use when implementing any feature or bugfix, before writing implementation code
+description: Use when implementing any feature or bugfix, before writing
+  implementation code — the red-green loop, the seam to test at, and one slice
+  at a time
 user-invocable: false
 ---
 
@@ -11,6 +13,9 @@ user-invocable: false
 Write the test first. Watch it fail. Write minimal code to pass.
 
 **Core principle:** If you didn't watch the test fail, you don't know if it tests the right thing.
+
+Two things decide whether the loop produces tests worth keeping, and neither is the loop itself:
+**where** you test — the seam — and **how much** you take per cycle — one slice.
 
 **Violating the letter of the rules is violating the spirit of the rules.**
 
@@ -45,18 +50,50 @@ Write code before the test? Delete it. Start over.
 
 Implement fresh from tests. Period.
 
+## Seams — Where the Test Goes
+
+A **seam** is the public boundary you observe behavior at without reaching inside: the interface a
+caller actually uses. Tests live at seams, never against internals. Code can change entirely; a test
+written at a seam shouldn't. It reads like a specification — "user can checkout with valid cart"
+names a capability — and survives refactors because it doesn't care about internal structure.
+
+**Name the seam before writing the test.** Every cycle, say which boundary this test observes. If
+you cannot name one, you are about to test an internal, and the test will break on the next
+refactor while sleeping through real bugs.
+
+**Put the seam to your human partner when the choice is consequential** — several boundaries would
+work, the obvious one is expensive or slow, or testing there would drive a design change. You can't
+test everything; agreeing the seams is how effort lands on critical paths and complex logic instead
+of on every edge case. Ask: "What's the public interface, and which seams should we test?"
+
+A too-shallow seam gives false confidence: it exercises a stand-in rather than the pattern as it
+occurs at the call site. **If no correct seam exists, that itself is a finding** — the architecture
+is preventing the behavior from being locked down. Say so rather than testing an internal instead.
+
+## One Slice at a Time
+
+One seam, one test, one minimal implementation per cycle. Each test is a **tracer bullet**: it
+responds to what the last cycle taught you.
+
+**Never write all the tests first, then all the implementation.** Bulk tests verify *imagined*
+behavior — you test the shape of things rather than what a caller experiences, the tests go
+insensitive to real changes, and you commit to a test structure before understanding the
+implementation you are about to write.
+
 ## Red-Green-Refactor
 
 ```dot
 digraph tdd_cycle {
     rankdir=LR;
+    seam [label="SEAM\nName the boundary", shape=box, style=filled, fillcolor="#ffe0b2"];
     red [label="RED\nWrite failing test", shape=box, style=filled, fillcolor="#ffcccc"];
     verify_red [label="Verify fails\ncorrectly", shape=diamond];
     green [label="GREEN\nMinimal code", shape=box, style=filled, fillcolor="#ccffcc"];
     verify_green [label="Verify passes\nAll green", shape=diamond];
     refactor [label="REFACTOR\nClean up", shape=box, style=filled, fillcolor="#ccccff"];
-    next [label="Next", shape=ellipse];
+    next [label="Next slice", shape=ellipse];
 
+    seam -> red;
     red -> verify_red;
     verify_red -> green [label="yes"];
     verify_red -> red [label="wrong\nfailure"];
@@ -65,13 +102,13 @@ digraph tdd_cycle {
     verify_green -> green [label="no"];
     refactor -> verify_green [label="stay\ngreen"];
     verify_green -> next;
-    next -> red;
+    next -> seam;
 }
 ```
 
 ### RED - Write Failing Test
 
-Write one minimal test showing what should happen.
+Write one minimal test showing what should happen, at the seam you just named.
 
 <Good>
 ```typescript
@@ -185,16 +222,22 @@ Confirm:
 
 ### REFACTOR - Clean Up
 
-After green only:
+After green only, and only what this slice touched:
+
 - Remove duplication
 - Improve names
 - Extract helpers
 
 Keep tests green. Don't add behavior.
 
+**Structural work is not part of this step.** Reshaping a module, moving a boundary, splitting a
+class that grew wrong — that is review's judgement, not the loop's, and doing it here quietly turns
+one slice into an unreviewable change. Note it and take it to the
+deniz-process:requesting-code-review skill.
+
 ### Repeat
 
-Next failing test for next feature.
+Next seam, next failing test, next slice.
 
 ## Good Tests
 
@@ -203,12 +246,15 @@ Next failing test for next feature.
 | **Minimal** | One thing. "and" in name? Split it. | `test('validates email and domain and whitespace')` |
 | **Clear** | Name describes behavior | `test('test1')` |
 | **Shows intent** | Demonstrates desired API | Obscures what code should do |
+| **At a seam** | Public interface, survives refactors | Private methods, internal collaborators, call counts |
 
-When writing or changing any test, read [writing-good-tests.md](writing-good-tests.md) for the rules that keep tests honest:
+When writing or changing any test, read [writing-good-tests.md](writing-good-tests.md) for the rules
+that keep tests honest:
 - Name the production change that would make the test fail — before writing it
 - Assert on real behavior, never on mock behavior
+- Derive expected values independently, never with the code under test
+- Mock at system boundaries only; keep what the test depends on real
 - Keep test-only code in test utilities, out of production classes
-- Understand a dependency's side effects before mocking it
 
 ## Common Rationalizations
 
@@ -225,6 +271,8 @@ When writing or changing any test, read [writing-good-tests.md](writing-good-tes
 | "TDD will slow me down" | TDD IS the pragmatic path: catches bugs before commit, prevents regressions, lets you refactor without fear. "Pragmatic" shortcuts mean debugging in production — slower, not faster. |
 | "Manual test faster" | Manual doesn't prove edge cases. You'll re-test every change. |
 | "Existing code has no tests" | You're improving it. Add tests for existing code. |
+| "I'll write all the tests, then implement" | Bulk tests verify imagined behavior. One slice at a time. |
+| "No clean seam, I'll test the internal instead" | The missing seam is the finding. Say so; don't bury it in a brittle test. |
 
 ## Red Flags - STOP and Start Over
 
@@ -232,6 +280,9 @@ When writing or changing any test, read [writing-good-tests.md](writing-good-tes
 - Test after implementation
 - Test passes immediately
 - Can't explain why test failed
+- Can't name the seam the test observes
+- Writing a batch of tests before any implementation
+- Restructuring a module inside the REFACTOR step
 - Tests added "later"
 - Rationalizing "just this once"
 - "I already manually tested it"
@@ -247,6 +298,8 @@ When writing or changing any test, read [writing-good-tests.md](writing-good-tes
 ## Example: Bug Fix
 
 **Bug:** Empty email accepted
+
+**SEAM** — the form submission interface callers use, not the validator inside it.
 
 **RED**
 ```typescript
@@ -279,16 +332,17 @@ PASS
 ```
 
 **REFACTOR**
-Extract validation for multiple fields if needed.
+Extract validation for multiple fields if needed — inside this slice only.
 
 ## Verification Checklist
 
 Before marking work complete:
 
-- [ ] Every new function/method has a test
+- [ ] Every new behavior has a test at a named seam
 - [ ] Watched each test fail before implementing
 - [ ] Each test failed for expected reason (feature missing, not typo)
 - [ ] Wrote minimal code to pass each test
+- [ ] One slice per cycle — no batch of tests written ahead of implementation
 - [ ] All tests pass
 - [ ] Output pristine (no errors, warnings)
 - [ ] Tests use real code (mocks only if unavoidable)
@@ -301,15 +355,16 @@ Can't check all boxes? You skipped TDD. Start over.
 | Problem | Solution |
 |---------|----------|
 | Don't know how to test | Write wished-for API. Write assertion first. Ask your human partner. |
+| Can't find a seam | Say so — it is a finding about the design, not a reason to test an internal. |
 | Test too complicated | Design too complicated. Simplify interface. |
 | Must mock everything | Code too coupled. Use dependency injection. |
 | Test setup huge | Extract helpers. Still complex? Simplify design. |
 
 ## Debugging Integration
 
-Bug found? Write failing test reproducing it. Follow TDD cycle. Test proves fix and prevents regression.
-
-Never fix bugs without a test.
+Bug found? Don't start here — start with the deniz-process:systematic-debugging skill, which builds
+the red signal first and finds the root cause. It comes back to this skill for the regression test,
+at a seam that exercises the real bug pattern. Never fix bugs without a test.
 
 ## Final Rule
 

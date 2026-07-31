@@ -38,6 +38,18 @@ expect(buildSearchQuery({ tag: 'urgent' })).toBe(expected);
 expect(buildSearchQuery({ tag: 'urgent' })).toBe('tag:"urgent"');
 ```
 
+The same trap wearing a friendlier face — the expected value recomputed
+the way the implementation computes it:
+
+```typescript
+// ❌ Passes by construction; it can never disagree with the code
+const expected = items.reduce((sum, i) => sum + i.price, 0);
+expect(calculateTotal(items)).toBe(expected);
+
+// ✅ An independent known-good value
+expect(calculateTotal([{ price: 10 }, { price: 5 }])).toBe(15);
+```
+
 **No change detectors.** If only intentional decisions can fail a test —
 a constant's value, exact message wording, private structure — it fires
 on redesign and sleeps through bugs. Test the behavior that depends on
@@ -48,8 +60,7 @@ retried 5 times and the 6th attempt never happens."
 contains an exact line proves only that the source is the source. Run
 scripts against controlled inputs and assert outputs, side effects, or
 exit codes. Documents that instruct agents are tested by the consuming
-agent's behavior; prose for humans earns no
-test at all.
+agent's behavior; prose for humans earns no test at all.
 
 **Your code, not the framework.** Test the contract your code makes at
 its boundaries — the route you register, the query you emit, the payload
@@ -79,6 +90,21 @@ BEFORE writing the test body:
 ```
 
 ## Principle 2: Exercise the Real Thing
+
+**Mock at system boundaries, and nowhere else.** The boundary is where
+your code stops:
+
+- External APIs — payment, email, third-party services
+- Databases — sometimes; prefer a test database
+- Time and randomness
+- The filesystem — sometimes
+
+Do **not** mock your own classes, internal collaborators, or anything you
+control. A test that mocks an internal is coupled to structure rather
+than behavior, and it breaks on refactors that changed nothing a caller
+can see. When an external dependency is hard to substitute, that is a
+design signal: pass it in rather than constructing it inside, so the seam
+exists before the test needs it.
 
 **The mock earns no assertions.** A mock assertion passes when the mock
 is present and fails when it is absent — it says nothing about the
@@ -136,8 +162,10 @@ mock here?"
 
 ```
 BEFORE adding a mock or test helper:
-  List the real method's side effects; keep the ones the test
-  depends on real — mock the slow/external level below them.
+  Is the thing you are mocking OUTSIDE your code?
+    No  → do not mock it; test through the seam instead
+    Yes → list the real method's side effects; keep the ones the
+          test depends on real — mock the slow/external level below them.
 
   Mock responses mirror the complete real structure.
 
@@ -146,6 +174,30 @@ BEFORE adding a mock or test helper:
   About to assert on the mock itself?
     Unmock it or delete the assertion.
 ```
+
+## Verifying Through the Interface, Not Around It
+
+A test that reaches past the seam to check its work is coupled to
+structure even when it mocks nothing:
+
+```typescript
+// ❌ Bypasses the interface to verify
+test('createUser saves to database', async () => {
+  await createUser({ name: 'Alice' });
+  const row = await db.query('SELECT * FROM users WHERE name = ?', ['Alice']);
+  expect(row).toBeDefined();
+});
+
+// ✅ Verifies through the interface
+test('createUser makes user retrievable', async () => {
+  const user = await createUser({ name: 'Alice' });
+  const retrieved = await getUser(user.id);
+  expect(retrieved.name).toBe('Alice');
+});
+```
+
+The rule generalises: whatever the production code writes to, read it
+back the way a caller would.
 
 ## Tests Ship With the Implementation
 
@@ -177,8 +229,9 @@ test as tautological.
 | Test a script or document | Run it / pressure-test its consumer; never grep its text |
 | Reach for a dependency test | Test your boundary contract, not their documented mechanics |
 | Want to assert on a mocked element | Test the real component, or unmock it |
-| Are about to mock a method | Learn its side effects; mock the slow/external level |
+| Are about to mock a method | Is it outside your code? If not, don't. If so, mock the slow/external level |
 | Build a mock response | Mirror the real structure completely |
+| Want to check what was written | Read it back through the interface, not around it |
 | Need cleanup only tests use | Put it in test utilities |
 | Watch mock setup balloon | Switch to an integration test with real components |
 | Finish a test file | Run the mutation check |
@@ -193,6 +246,7 @@ test as tautological.
 - The test would still matter if only the framework remained
 - The test exists for coverage, checking no side effect or outcome
 - An assertion checks a `*-mock` test ID, or fails if you remove the mock
+- The test asserts on call counts or call order for an internal collaborator
 - A method is called only from test files
 - Mock setup is more than half the test, or you can't explain why the mock is needed
 - Mocking "just to be safe"

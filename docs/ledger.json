@@ -362,13 +362,21 @@
   "deniz-process/implement": {
     "source": "mattpocock-skills/skills/engineering/implement",
     "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "requesting-code-review",
+      "test-driven-development"
+    ],
     "description": "Implement a piece of work based on a spec or set of tickets.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:requesting-code-review",
+          "deniz-process:test-driven-development"
+        ],
         "pointer": []
       }
     },
@@ -377,7 +385,10 @@
         "command"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "requesting-code-review",
+          "test-driven-development"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -708,14 +719,24 @@
   "deniz-process/test-driven-development": {
     "source": "superpowers/skills/test-driven-development",
     "invocation": "auto",
-    "body": "patch",
-    "description": "Use when implementing any feature or bugfix, before writing implementation code",
+    "body": "overlay",
+    "mergedFrom": [
+      "mattpocock-skills/skills/engineering/tdd"
+    ],
+    "dependsOn": [
+      "requesting-code-review",
+      "systematic-debugging"
+    ],
+    "description": "Use when implementing any feature or bugfix, before writing implementation code — the red-green loop, the seam to test at, and one slice at a time",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:requesting-code-review",
+          "deniz-process:systematic-debugging"
+        ],
         "pointer": []
       }
     },
@@ -724,7 +745,10 @@
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "requesting-code-review",
+          "systematic-debugging"
+        ],
         "pointer": []
       },
       "dropped": [

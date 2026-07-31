@@ -16,7 +16,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   catalogs what they offer.
 - Four plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
   `deniz-dotnet-aspire`, `deniz-dotnet-akka`), plus the matching `opencode/` output and
-  `marketplace.json`. `deniz-process` is a complete module but for the two merge passes (item 1
+  `marketplace.json`. `deniz-process` is a complete module but for the review merge pass (item 1
   below): every source item has an answer in the manifest, invocation set per item, exercising
   the rewrite path on real data (`deniz-process:*` in the Claude tree, bare names in the
   OpenCode one). The built `opencode/` tree is TUI-verified end to end
@@ -30,16 +30,19 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   artifacts, edges and drops per item × harness); CI's freshness gate covers it, and its git
   diff is the notification channel for posture changes. The curation layer (manifest comments,
   overlays, own skills) is scanned for curator-name and date stamps — provenance is git's job.
-- Merges are guarded end to end (ADR-0001): `merged_from:` blesses every source under the
-  same-filename rule (`mergeSources` in the lock), drift in any source stops the build naming
-  it, and `--bless` shows the drift it accepts before stamping (`--yes` confirms). `sync`
+- Merges are guarded end to end (ADR-0001): `merged_from:` blesses every source (`mergeSources` in
+  the lock), drift in any source stops the build naming it, and `--bless` shows the drift it
+  accepts before stamping (`--yes` confirms). A bare address is stamped under the same-filename
+  rule; an entry may instead name its `files:` when the merge drew from names the overlay does not
+  own, which is the only way such an ingredient is guarded at all. `sync`
   reports meaning on pin moves: posture drift on passthrough items, merge-source hits (across
   submodules), and candidate-edge diffs against the ledger.
 - Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
-  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. One real
-  overlay exists: systematic-debugging's merged SKILL.md — scoped to that one file, so the
-  sibling technique files keep flowing from upstream. The gaps two independent reviews left open
-  are listed below.
+  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Two
+  full-file overlays exist, both merges: systematic-debugging owns SKILL.md alone, so its sibling
+  technique files keep flowing from upstream, while test-driven-development owns both of its files
+  — the sibling could not flow, because upstream's citation of writing-skills is a dangling
+  model-edge in our set. The gaps two independent reviews left open are listed below.
 - `validate` covers the overlay wiring the build cannot see: an overlay directory that no item
   claims, or whose item declares no `body:`, is an error (the build would ship pristine upstream in
   silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
@@ -61,12 +64,12 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** `deniz-process` is closed but for two merge passes
-   (batches 1+2, 2026-07-31): every superpowers and mattpocock-promoted candidate has an answer
-   in the manifest except matt's `tdd` and `code-review`, which await their mixes — a TDD mix
-   (superpowers test-driven-development × matt tdd) and a review mix (requesting-code-review ×
-   matt code-review), each in the systematic-debugging mold, each also repointing `implement`'s
-   bare `/tdd` and `/code-review` prose. The three dotnet modules still hold one starter each;
+1. **Per-module curation sessions.** `deniz-process` is closed but for one merge pass: every
+   superpowers and mattpocock-promoted candidate has an answer in the manifest except matt's
+   `code-review`, which awaits the review mix (superpowers requesting-code-review × matt
+   code-review), in the systematic-debugging mold. `implement`'s two bare slash references were
+   repointed with the TDD mix, and that pass changes what `requesting-code-review` contains rather
+   than its name, so nothing pointing at it moves again. The three dotnet modules hold one starter each;
    fill them against `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
