@@ -62,15 +62,23 @@ a subagent, so it does not pollute the primary context) and `template`; the body
 `$ARGUMENTS`, positional `$1`, shell injection and `@file` references.
 
 Discovery walks up from the working directory to the git worktree root, reading
-`.opencode/skills/<name>/SKILL.md`; globally it reads `~/.config/opencode/skills/`. Commands and
-agents live alongside, in `commands/` and `agents/`, under either `.opencode/` or
-`~/.config/opencode/`. All three directory names are plural, and this repo's `opencode/` tree uses
-the same spelling.
+`.opencode/skills/<name>/SKILL.md`, `.claude/skills/<name>/SKILL.md` and
+`.agents/skills/<name>/SKILL.md`; globally it reads the same three under `~/.config/opencode/`,
+`~/.claude/` and `~/.agents/`. Commands and agents live alongside, in `commands/` and `agents/`,
+under either `.opencode/` or `~/.config/opencode/`. All three directory names are plural, and this
+repo's `opencode/` tree uses the same spelling.
 
-Measured on 1.18.7, discovery also picks up `.agents/skills/` — but **not** `.claude/skills/`, which
-earlier notes here claimed and which does not hold: a well-formed skill placed there appears in no
-listing. So Claude Code's own tree is not a back door into OpenCode, and the two output trees really
-are independent.
+**OpenCode reads Claude Code's skill tree, and its own wins.** Both measured on 1.18.7: a skill
+placed only in `.claude/skills/` is discovered, and when the same name exists in `.opencode/`,
+`.claude/` and `.agents/` at once, exactly one entry survives — the `.opencode/` copy. Reading the
+Claude tree can be switched off with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`.
+
+That has a consequence ADR-0002 does not currently account for. **The two output trees are not
+independent on a machine that runs both harnesses**: installing the `deniz-*` plugins for Claude
+Code also exposes those skills to OpenCode, unadapted — Claude-namespaced cross-references,
+Claude-only frontmatter and all. The saving grace is the precedence rule: where our adapted
+`opencode/` tree provides the same name, it wins. So the adapted copy shadows the raw one rather
+than competing with it, provided the names match.
 
 Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
 
