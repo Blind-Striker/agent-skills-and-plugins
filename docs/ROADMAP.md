@@ -57,7 +57,27 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    fill them against `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
+2. **The guardrail wave — designed with the user (2026-07-31), not yet built; lands before the
+   two merge passes.** Three legs, one ADR-0001 extension, RED tests first:
+   (a) **`merged_from:`** on a `body:`-bearing item — merges are a norm now (one landed, two
+   scoped), so every merge source gets hash-blessed like the primary: same-filename rule (the
+   files the overlay replaces, hashed from each declared source; a missing file is recorded
+   absent, and appearing later is drift), the lock gains `mergeSources`, the build fails hard
+   naming the source that moved, `eject --bless` stamps every source it reads from the manifest.
+   Retrofit systematic-debugging and retire its "glance at diagnosing-bugs by hand" comment —
+   that debt is this feature's justification.
+   (b) **`depends_on: [<output names>]`** — the declared dependency map, full scope (intra-set
+   and cross-set edges of taken items; the measured coupling graphs are the seed, transcribed
+   into a draft the user reviews — invocation edges only, the greps over-report). `validate`
+   errors when a target is absent from the output set or is `manual` (measured: a manual item is
+   unreachable even from another skill's body, so every body-invoked target must be auto/both —
+   the rule graduates from manifest comments to a validator). No content hashing: dependency
+   targets are passthrough items whose upstream updates are wanted to flow.
+   (c) **`npm run sync` re-check** — the sustainability leg (user's requirement): upstream
+   bodies only enter through pin moves, so sync re-derives candidate edges for taken items the
+   bump touched and diffs them against the declared map, reporting appeared/vanished candidates
+   for human review. The declared map can never go silently stale.
+3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
    aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
@@ -66,10 +86,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
    targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
    invisible to `validate`.
-3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-4. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
+5. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
    replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
@@ -77,7 +97,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    `~/.config/opencode/opencode.json`), because measured precedence (package cache >
    `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
    every colliding name — the one global our tree cannot shadow away.
-5. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
+6. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
    model is an installer, symmetric to the Claude marketplace; a permanent `OPENCODE_CONFIG_DIR`
    is rejected (env vars are for throwaway tests, consumption goes through a native mechanism).
    Candidates, in current order: (a) OpenCode's own package mechanism (`opencode.json` `plugin:`
