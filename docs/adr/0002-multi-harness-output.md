@@ -47,6 +47,8 @@ translations.
   (ADR-0005) the constraint could be narrowed to `auto` and `both` items, leaving `manual` ones free
   to share a name; it stays global until then because today every item is model-reachable.
 - Cross-reference rewriting runs before the OpenCode tree is emitted from `plugins/`, so OpenCode
-  bodies carry Claude Code-style `deniz-*:name` references that OpenCode cannot resolve. A
-  deliberate first-version passthrough; revisit when `opencode/` is wired on a real machine (see
-  `docs/ROADMAP.md`).
+  bodies carry Claude Code-style `deniz-*:name` references that OpenCode cannot resolve. That was a
+  deliberate first-version passthrough pending a real machine; the measurement has since been made,
+  and the fix is to emit the OpenCode tree *before* the Claude rewrite and then rewrite each tree
+  with its own map — bare names for OpenCode, which addresses a skill by its `name` field. Tracked
+  in `docs/ROADMAP.md`.

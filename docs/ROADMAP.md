@@ -67,9 +67,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 5. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-6. **Wire OpenCode on a real machine.** `opencode/` is emitted but has never been loaded by OpenCode.
-   Link the tree into an OpenCode config and confirm skills, commands and agents resolve; research
-   notes go to `docs/research/`, agent-facing operational findings to `docs/agents/README.md`.
+6. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
+   mount points, frontmatter tolerance, `@file` resolution, all recorded in
+   `docs/research/skill-invocation-across-harnesses.md` using the method in
+   `docs/agents/harness-probing.md` — but always with purpose-built fixtures, never with our own
+   output. Mount the real tree, confirm skills, commands and agents resolve, and decide which mount
+   points we support: project-local `.opencode/` and global `~/.config/opencode/` both work, and the
+   choice determines how a converted command's asset references must be spelled.
 
 ## Known Gaps
 
