@@ -1,6 +1,6 @@
 # ADR-0005: The manifest states invocation intent; each emitter picks the mechanism
 
-Date: 2026-07-30
+Date: 2026-07-31
 Status: Accepted
 
 ## Context
@@ -69,8 +69,9 @@ is the **trigger** dial. The table above gives each invocation value its default
   holds the trigger, and knowing the per-harness rules stops being the author's problem.
 - The OpenCode tree stops being a mirror of the Claude one: a `manual` item arrives as a different
   artifact, and the skill adapter (ADR-0006 axis 3) filters frontmatter even where no intent is
-  stated. Reasoning about the build now requires reading both emitters, and `validate`'s duplicated
-  findings across the two trees no longer duplicate uniformly.
+  stated. Reasoning about the build requires reading both emitters; `validate` reads references
+  once, from the canonical `plugins/` text, and checks each tree in its own address space
+  (ADR-0008).
 - `both` emits the same item twice into OpenCode. Output names are already required to be unique
   across all plugins (ADR-0002), and a skill and a command sharing one name is a new collision class
   `validate` has to cover.

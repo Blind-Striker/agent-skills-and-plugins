@@ -33,7 +33,7 @@ boundary), and the machine does not currently check it.
 
 ## Decision
 
-Five parts, decided together (2026-07-31).
+Five parts, decided together.
 
 **1. One reference model.** A single library extracts every cross-item reference from the final
 neutral bodies — post-overlay, pre-rewrite, the address space overlays are authored in. It is the

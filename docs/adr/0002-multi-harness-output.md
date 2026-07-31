@@ -1,6 +1,6 @@
 # ADR-0002: Harness-native output instead of a common format
 
-Date: 2026-07-30
+Date: 2026-07-31
 Status: Accepted
 
 ## Context
@@ -59,7 +59,9 @@ translations.
   model, which resolves the bare name and silently takes the first in listing order — so the rule
   earns its keep on both sides, but only for items the model can reach. `invocation` (ADR-0005)
   would allow narrowing the constraint to `auto` and `both` items, leaving `manual` ones free to
-  share a name; it stays global because today every curated item is model-reachable.
+  share a name; it stays global because a name is also an identity everywhere else — the ledger's
+  keys, the rewrite map's values and `depends_on` targets (ADR-0008) all resolve by output name,
+  whatever the trigger.
 - The OpenCode tree is emitted from `plugins/` *before* cross-reference rewriting, and each tree is
   then rewritten with its own map — `<plugin>:<name>` for Claude Code, bare names for OpenCode,
   which addresses a skill by its `name` field. The order is load-bearing: emitting after the Claude

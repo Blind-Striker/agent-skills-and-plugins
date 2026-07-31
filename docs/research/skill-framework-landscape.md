@@ -113,7 +113,7 @@ work too large for one session), `handoff`, `research`, `prototype`, `teach`.
 The standing warning against mixing: two frameworks installed as *routers* fight over command names,
 compete on routing logic, and pull in different TDD philosophies. Cherry-picking individual skills is
 fine as long as exactly one thing routes. In this repo nothing upstream routes — selection is the
-manifest's job and the trigger is the user's.
+manifest's job and the trigger is decided per item (ADR-0005).
 
 ## What the harness now does itself
 
