@@ -38,7 +38,7 @@ each one refuses to run while a submodule directory is still empty.
 | `npm run inventory` | Regenerate `docs/inventory.md` catalog |
 | `npm run eject -- <plugin> <name>` | Copy an item to `overlays/` for body editing |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
-| `npm run validate` | Check sources, frontmatter, collisions, dangling refs, marketplace |
+| `npm run validate` | Link the built trees: references resolve and are reachable, `depends_on` matches the bodies, plus sources, frontmatter, collisions, overlay wiring, file modes, marketplace |
 | `npm test` | Run the tooling test suite (a `pretest` guard fails if the glob stops finding it) |
 | `npm run typecheck` | Type-check `tools/` with `tsc --noEmit` |
 | `npm run lint` / `npm run format` | Biome lint / format (submodules and build output excluded) |
@@ -46,9 +46,12 @@ each one refuses to run while a submodule directory is still empty.
 `npm run format:check` is the non-writing variant of `format`, used by CI.
 
 Build output is committed. CI rebuilds and fails if `plugins/`, `opencode/`,
-`.claude-plugin/` or `docs/inventory.md` differ from what is checked in, so run
-`npm run build && npm run inventory` and commit the result with any curation
-change or submodule bump — all four trees move when upstream moves.
+`.claude-plugin/`, `docs/inventory.md` or `docs/ledger.json` differ from what is
+checked in, so run `npm run build && npm run inventory` and commit the result
+with any curation change or submodule bump — all five move when upstream moves.
+`docs/ledger.json` is the resolved state of every curated item per harness
+(invocation, artifacts, references, dropped keys); its diff is how a posture
+change — yours or upstream's — shows up in review.
 
 ## Consuming
 
