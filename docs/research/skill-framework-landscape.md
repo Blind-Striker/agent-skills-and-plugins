@@ -80,10 +80,12 @@ terminal state is invoking `writing-plans` — there is no supported way to gril
 not about content.
 
 A practical consequence for curation, and a measured one: what taking `brainstorming` costs
-depends entirely on who may trigger it. Taken model-reachable, its coercive description and
-"You MUST" phrasing would need owning. Taken `manual` — the decision on record — the pressure has
-no audience left: suppression is structural, so the description's only reader is a human browsing
-a menu (one overridden line), the body fires only after the user opens the ceremony, the
+depends entirely on where its pressure actually lives — and measurement put all of it in the
+description ("You MUST use this before any creative work"), with the body's single "You MUST"
+being in-ceremony discipline, the same class as systematic-debugging's phase gates. So the
+decision on record takes it `both` with one overridden description line: the model may open the
+ceremony when a request genuinely matches the honest trigger text, the human can always type it,
+the jump-pressure is gone because the only line that ever carried it was replaced, the
 `writing-plans` coupling holds because that skill is taken alongside, and the spec path under
 `docs/superpowers/` is runtime behaviour, working as shipped. The body needed no edit at all.
 

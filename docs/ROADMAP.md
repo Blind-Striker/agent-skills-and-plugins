@@ -132,6 +132,23 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   bare-name and relative-path blindness catalogued in
   [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers), which is the larger
   hole: only the namespaced spelling is visible to `validate` at all.
+- **Linker's unreachable-cause string assumes a skill target.** A model-edge pointing at a
+  command or agent reports "(disable-model-invocation in the Claude tree)" — right verdict,
+  wrong cause text. A `kind` on the target state fixes the parenthetical.
+- **L6 interpolates the output name into a RegExp unescaped.** Safe for kebab-case names; one
+  `escapeRegExp` call removes the latent throw.
+- **Own skills are edge targets but never edge sources.** The derived-edge scan walks manifest
+  items only, so the day an own skill under `skills/` carries a namespaced reference, nothing
+  scans or declares it. No own skill exists today.
+- **The clean-fixture test filters two named findings (`FIXTURE_DEBT`)** instead of asserting
+  their presence, so it also passes if the linker stops reporting them. A fixture split retires
+  the tolerance.
+- **`--bless` hints disagree on ceremony.** The primary-drift message prints the two-step form
+  (see the diff, re-run with `--yes`); the merge-drift messages hand over `--bless --yes`
+  one-step. The drift is printed either way, so nothing is hidden — but one ceremony should win.
+- **A directory appearing at a recorded-absent merge filename** reports "(appeared upstream)"
+  though it could never be stamped, and the non-null sibling branch would `blobSha` a directory
+  into a raw git error instead of a finding.
 - **Scanner blind spots.** Commands and agents are discovered only directly under a
   `commands/`/`agents/` directory, so upstream subdirectory grouping is silently missing from the
   inventory; conversely such a directory nested inside a skill is double-counted as a standalone
