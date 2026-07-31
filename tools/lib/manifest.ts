@@ -15,6 +15,11 @@ export interface CurationItem {
   omit?: string[];
   name?: string;
   as?: ComponentType;
+  /**
+   * Who pulls the trigger (ADR-0005), for items emitted as skills. Absent is not a default: it
+   * means the item states no intent and upstream's own frontmatter passes through untouched.
+   */
+  invocation?: "auto" | "manual" | "both";
   frontmatter?: Record<string, unknown>;
   /** `patch` applies overlays/<plugin>/<item>/overlay.patch; `overlay` replaces whole files. */
   body?: "overlay" | "patch";

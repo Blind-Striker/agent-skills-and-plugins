@@ -162,6 +162,23 @@ test("a patch overlay holding a stranded working copy is a warning", () => {
   );
 });
 
+// ADR-0005: the field applies to items emitted as skills. An upstream command or agent is
+// user-invoked by nature, so stating an intent there describes nothing.
+test("invocation on a converted item is a warning", () => {
+  const root = makeRepo();
+  const manifest = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    manifest,
+    readFileSync(manifest, "utf8").replace("    as: agent", "    as: agent\n    invocation: manual"),
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "warn" && f.message.includes("beta-agent") && f.message.includes("invocation")),
+    `expected an invocation-on-conversion warning, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
 // A conversion reads exactly one file out of the source and drops the rest anyway, so an omit
 // list there is describing work the conversion already did.
 test("omit on a converted item is a warning", () => {

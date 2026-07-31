@@ -24,15 +24,20 @@ output shape.
 
 ## Decision
 
-Each item gains an optional `invocation` field with values `auto`, `manual` or `both`, defaulting to
-`auto`. It applies to items emitted as skills; upstream command and agent components are
-user-invoked by nature and the field is meaningless on them (`validate` warns if it is set).
+Each item gains an optional `invocation` field with values `auto`, `manual` or `both`. It applies to
+items emitted as skills; upstream command and agent components are user-invoked by nature and the
+field is meaningless on them (`validate` warns if it is set).
+
+**Absent is not a fourth value with a default meaning.** An item that says nothing is an item that
+states no intent, and upstream's own frontmatter passes through untouched. Stating a value replaces
+whatever upstream said — that is the point of stating it.
 
 Each emitter derives its own mechanism:
 
 | `invocation` | Claude Code | OpenCode |
 |---|---|---|
-| `auto` (default) | skill, `user-invocable: false` | `skills/` |
+| *(absent)* | upstream's frontmatter, untouched | `skills/` |
+| `auto` | skill, `user-invocable: false` | `skills/` |
 | `manual` | skill, `disable-model-invocation: true` | `commands/` |
 | `both` | skill, neither key set | `skills/` **and** `commands/` |
 
@@ -74,5 +79,14 @@ is the **trigger** dial. The table above gives each invocation value its default
   invocation working, and the model reports the skill as absent from the list it can name at all.
   The suppression is structural, so a `manual` item cannot be reached by the model whatever its
   description says.
-- Nothing forces an item to declare intent. The `auto` default reproduces today's behaviour, so
-  curation can adopt the field item by item rather than in one pass.
+- Nothing forces an item to declare intent, and silence changes nothing: an item without the field
+  emits exactly what it emits today. That is why absent means passthrough rather than defaulting to
+  `auto`. A default of `auto` would have made every curated skill model-only the moment the field
+  landed — pulling them out of the `/` menu, and inverting upstream's stated intent wherever it had
+  set `disable-model-invocation` itself. Adopting the field item by item is only possible if not
+  adopting it is free.
+- Passthrough is honest on the Claude side and lossy on the OpenCode one. Upstream's keys are
+  meaningful to Claude Code and meaningless to OpenCode, so an item that states no intent arrives in
+  OpenCode as a plain model-only skill whatever upstream wanted. Stating `manual` is the only way to
+  say otherwise there — which is the asymmetry ADR-0006 axis 1 exists to name, showing up in the
+  first field that has to cross it.

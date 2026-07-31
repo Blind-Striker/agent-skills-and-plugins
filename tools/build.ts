@@ -18,6 +18,7 @@ import {
   applyPatch,
   checkPatch,
   driftedFiles,
+  listFiles,
   loadLock,
   lockKey,
   type OverlayLock,
@@ -68,7 +69,18 @@ export function buildAll(root: string): string[] {
 
   writeMarketplace(root, manifests);
   rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components));
-  emitOpenCode(root, report);
+  // Output name -> stated intent. Own skills and items that state nothing are absent from the map,
+  // and an absent entry means "a plain skill", which is what OpenCode makes of silence anyway.
+  const invocations = new Map<string, NonNullable<CurationItem["invocation"]>>();
+  for (const m of manifests) {
+    for (const item of m.items) {
+      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
+      if (!item.exclude && item.invocation && outType === "skill") {
+        invocations.set(outName, item.invocation);
+      }
+    }
+  }
+  emitOpenCode(root, invocations, report);
   return report;
 }
 
@@ -90,6 +102,25 @@ function omitFilter(srcRoot: string, item: CurationItem): (src: string) => boole
     const rel = itemRelative(srcRoot, src);
     return rel === "" || !isOmitted(rel, item.omit);
   };
+}
+
+/** The two Claude Code invocation keys, so a stated intent replaces whatever upstream said. */
+const CLAUDE_INVOCATION_KEYS = ["user-invocable", "disable-model-invocation"] as const;
+
+/**
+ * Claude Code's half of ADR-0005: one artifact, and the dial is frontmatter. An item that states no
+ * intent is left alone entirely — silence is not a default, so adopting the field item by item
+ * costs nothing on the items that have not adopted it.
+ */
+function claudeInvocation(item: CurationItem): Record<string, unknown> {
+  switch (item.invocation) {
+    case "auto":
+      return { "user-invocable": false };
+    case "manual":
+      return { "disable-model-invocation": true };
+    default:
+      return {}; // `both` sets neither; absent sets nothing at all
+  }
 }
 
 /** cpSync still creates a directory whose every child was filtered out; it should not survive. */
@@ -268,8 +299,16 @@ function emitItem(
     }
     const skillMd = join(destDir, "SKILL.md");
     const doc = parseDoc(readFileSync(skillMd, "utf8"));
+    const merged: Record<string, unknown> = { ...doc.frontmatter, ...item.frontmatter };
+    // A stated intent replaces whatever upstream said, so its keys go before one is written back.
+    // Absent states nothing, and upstream's own keys survive untouched (ADR-0005).
+    if (item.invocation) {
+      for (const k of CLAUDE_INVOCATION_KEYS) {
+        delete merged[k];
+      }
+    }
     // forced name last: emitted dir names and the rewrite map both key on outName
-    doc.frontmatter = { ...doc.frontmatter, ...item.frontmatter, name: outName };
+    doc.frontmatter = { ...merged, ...claudeInvocation(item), name: outName };
     writeFileSync(skillMd, serializeDoc(doc));
     report.push(`${m.plugin.name}: skill ${outName} <- ${item.source}${item.body === "overlay" ? " (overlay)" : ""}`);
   } else {
@@ -342,9 +381,61 @@ function rewriteTree(dir: string, map: Map<string, string>): void {
   }
 }
 
+/**
+ * OpenCode's half of ADR-0005: the dial is which artifact exists, because its skills are model-only
+ * by construction and a command is its only user-invocable surface.
+ *
+ * `manual` therefore emits a command and no skill — but a command is a single file, and the bundled
+ * files a skill directory carries would have nowhere to live. They are parked under `skills/<name>/`
+ * without a `SKILL.md`, which OpenCode's discovery ignores (measured; see the research note), so the
+ * command body can still reach them. Their references are not rewritten yet: the spelling depends on
+ * which mount point is supported, which is an open curation decision, so the drop is reported.
+ */
+function emitOpenCodeSkill(
+  root: string,
+  srcDir: string,
+  name: string,
+  invocation: NonNullable<CurationItem["invocation"]> | undefined,
+  report: string[],
+): void {
+  const filter = skipSymlinks(root, `opencode/${name}`, report);
+  const destSkill = join(root, "opencode", "skills", name);
+  const wantsSkill = invocation !== "manual";
+
+  cpSync(srcDir, destSkill, {
+    recursive: true,
+    // `manual` parks the assets but must not leave a SKILL.md, or the item would still be
+    // model-reachable — which is the one thing `manual` exists to prevent.
+    filter: (src) => filter(src) && (wantsSkill || basename(src) !== "SKILL.md"),
+  });
+  if (!wantsSkill && !readdirSync(destSkill).length) {
+    rmSync(destSkill, { recursive: true, force: true }); // nothing was bundled; leave no husk
+  }
+
+  if (invocation !== "manual" && invocation !== "both") {
+    return;
+  }
+  const doc = parseDoc(readFileSync(join(srcDir, "SKILL.md"), "utf8"));
+  mkdirSync(join(root, "opencode", "commands"), { recursive: true });
+  writeFileSync(
+    join(root, "opencode", "commands", `${name}.md`),
+    serializeDoc({ frontmatter: { description: doc.frontmatter.description }, body: doc.body }),
+  );
+  const parked = existsSync(destSkill) ? listFiles(destSkill) : [];
+  if (parked.length) {
+    report.push(
+      `WARN opencode command ${name}: bundled files parked at skills/${name}/ (${parked.join(", ")}) — body references to them are not rewritten`,
+    );
+  }
+}
+
 // OpenCode reads SKILL.md natively, so skills copy verbatim; commands/agents keep only
 // the frontmatter OpenCode understands and every dropped key is reported (no silent loss).
-function emitOpenCode(root: string, report: string[]): void {
+function emitOpenCode(
+  root: string,
+  invocations: Map<string, NonNullable<CurationItem["invocation"]>>,
+  report: string[],
+): void {
   const pluginsDir = join(root, "plugins");
   if (!existsSync(pluginsDir)) {
     return;
@@ -353,10 +444,7 @@ function emitOpenCode(root: string, report: string[]): void {
     const skillsDir = join(pluginsDir, plugin, "skills");
     if (existsSync(skillsDir)) {
       for (const name of readdirSync(skillsDir)) {
-        cpSync(join(skillsDir, name), join(root, "opencode", "skills", name), {
-          recursive: true,
-          filter: skipSymlinks(root, `opencode/${name}`, report),
-        });
+        emitOpenCodeSkill(root, join(skillsDir, name), name, invocations.get(name), report);
       }
     }
     for (const kind of ["commands", "agents"] as const) {

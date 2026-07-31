@@ -118,6 +118,24 @@ export function validateRepo(root: string): Finding[] {
           message: `${m.plugin.name}/${outName}: item frontmatter.name is "${declared}" but ${fate} — use the item's own name: field to rename it`,
         });
       }
+      // 1c. invocation belongs to skill output. A command or an agent is user-invoked by nature
+      // (ADR-0005), so the field states an intent neither emitter has anywhere to put.
+      if (item.invocation && outType !== "skill") {
+        findings.push({
+          level: "warn",
+          message: `${m.plugin.name}/${outName}: invocation: ${item.invocation} has no effect on a ${outType} — the field applies to skill output only`,
+        });
+      }
+      // 1d. the manifest's own key beats a hand-written frontmatter override of the same thing,
+      // silently, so the override is dead weight rather than a second opinion.
+      for (const k of ["user-invocable", "disable-model-invocation"]) {
+        if (item.invocation && item.frontmatter && k in item.frontmatter) {
+          findings.push({
+            level: "warn",
+            message: `${m.plugin.name}/${outName}: frontmatter.${k} is overwritten by invocation: ${item.invocation} — drop one`,
+          });
+        }
+      }
     }
   }
 

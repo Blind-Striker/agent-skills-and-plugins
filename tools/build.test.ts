@@ -66,6 +66,66 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.ok(report.includes("opencode agent beta-agent.md: dropped frontmatter keys: model"));
 });
 
+// ADR-0005: one word per item says who pulls the trigger, and each emitter derives its own
+// mechanism — a frontmatter flag in Claude Code, a choice of artifact in OpenCode.
+test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    invocation: auto",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+      "  - source: sp/skills/delta",
+      "    invocation: both",
+      "  - source: sp/skills/gamma", // states nothing — must stay untouched
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const fm = (...p: string[]) => parseDoc(readFileSync(join(root, ...p), "utf8")).frontmatter;
+
+  // Silence is not a default: an item that states no intent keeps upstream's frontmatter
+  const gamma = fm("plugins", "deniz-process", "skills", "gamma", "SKILL.md");
+  assert.equal("user-invocable" in gamma, false, "absent must not imply auto");
+  assert.equal("disable-model-invocation" in gamma, false);
+
+  // Claude Code: one artifact, the dial is frontmatter
+  const alpha = fm("plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  assert.equal(alpha["user-invocable"], false);
+  assert.equal("disable-model-invocation" in alpha, false);
+  const beta = fm("plugins", "deniz-process", "skills", "beta", "SKILL.md");
+  assert.equal(beta["disable-model-invocation"], true);
+  assert.equal("user-invocable" in beta, false);
+  const delta = fm("plugins", "deniz-process", "skills", "delta", "SKILL.md");
+  assert.equal("user-invocable" in delta, false, "both sets neither key");
+  assert.equal("disable-model-invocation" in delta, false);
+
+  // OpenCode: the dial is which artifact exists
+  assert.ok(existsSync(join(root, "opencode", "skills", "alpha", "SKILL.md")));
+  assert.ok(!existsSync(join(root, "opencode", "commands", "alpha.md")), "auto is model-only");
+
+  assert.ok(existsSync(join(root, "opencode", "commands", "beta.md")), "manual is a command");
+  assert.ok(
+    !existsSync(join(root, "opencode", "skills", "beta", "SKILL.md")),
+    "a manual item must not also be a model-reachable skill",
+  );
+  // ...but its bundled files still need a home the command body can point at, and a directory
+  // with no SKILL.md is ignored by OpenCode's discovery — measured, see the research note.
+  assert.ok(
+    existsSync(join(root, "opencode", "skills", "beta", "references", "notes.md")),
+    "bundled files are parked where the command can reach them",
+  );
+
+  assert.ok(existsSync(join(root, "opencode", "skills", "delta", "SKILL.md")), "both emits a skill");
+  assert.ok(existsSync(join(root, "opencode", "commands", "delta.md")), "both emits a command too");
+});
+
 // Author-facing files travel with upstream skills — creation logs, pressure tests, fixtures. Until
 // now the only way to leave one behind was to own the whole item through an overlay.
 test("omit drops matching files from a curated skill", () => {
