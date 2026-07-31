@@ -73,12 +73,16 @@ placed only in `.claude/skills/` is discovered, and when the same name exists in
 `.claude/` and `.agents/` at once, exactly one entry survives — the `.opencode/` copy. Reading the
 Claude tree can be switched off with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`.
 
-That has a consequence ADR-0002 does not currently account for. **The two output trees are not
-independent on a machine that runs both harnesses**: installing the `deniz-*` plugins for Claude
-Code also exposes those skills to OpenCode, unadapted — Claude-namespaced cross-references,
-Claude-only frontmatter and all. The saving grace is the precedence rule: where our adapted
-`opencode/` tree provides the same name, it wins. So the adapted copy shadows the raw one rather
-than competing with it, provided the names match.
+**It does not, however, reach a plugin.** Claude Code installs marketplace plugins under
+`~/.claude/plugins/cache/<marketplace>/<plugin>/skills/…`, and only `~/.claude/skills/` is on
+OpenCode's search path. Measured both ways at once: a skill placed the way a plugin actually lands
+is invisible to OpenCode, while a hand-placed one beside it under `~/.claude/skills/` is found.
+
+So the two output trees **are** independent for the distribution path this repo uses. Installing the
+`deniz-*` plugins for Claude Code does not leak them into OpenCode, and `opencode/` is the only way
+they arrive there — which is what ADR-0002 assumes. The Claude-tree reading only becomes relevant if
+someone hand-copies skills into `.claude/skills/`, and it can be switched off outright with
+`OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`.
 
 Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
 
