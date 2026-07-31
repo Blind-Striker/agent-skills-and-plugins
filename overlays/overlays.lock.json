@@ -4,5 +4,11 @@
     "files": {
       "SKILL.md": "095d194ac041502905f15b01d22d294fb94db8b2"
     }
+  },
+  "deniz-process/using-superpowers": {
+    "source": "superpowers/skills/using-superpowers",
+    "files": {
+      "SKILL.md": "8a08873ba07c1437f4f3cfd0d06c333eaf2e2715"
+    }
   }
 }

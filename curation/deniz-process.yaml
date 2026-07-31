@@ -6,11 +6,11 @@
 # `manual` is unreachable even from another skill's body, so every link another taken skill
 # invokes is `both` or `auto`; only true entry points are `manual`.
 #
-# Deferred to later batches, deliberately: matt's production chain (to-spec, to-tickets, triage,
-# wayfinder, code-review, implement — all gated on the issue-tracker/setup decision), the
-# skill-authoring pair (writing-skills, writing-great-skills), using-superpowers (wants its own
-# body-edit conversation), research/prototype/teach/resolving-merge-conflicts/codebase-design/
-# improve-codebase-architecture.
+# Deferred to the next batch conversation, deliberately: matt's production chain (to-spec,
+# to-tickets, triage, wayfinder, code-review, implement, setup-matt-pocock-skills — a runtime
+# flow that works as upstream shipped it; nothing compile-time gates it), the skill-authoring
+# pair (writing-skills, writing-great-skills), research/prototype/teach/
+# resolving-merge-conflicts/codebase-design/improve-codebase-architecture.
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
@@ -58,6 +58,17 @@ items:
       - CREATION-LOG.md
       - test-academic.md
       - "test-pressure-*.md"
+  - source: superpowers/skills/using-superpowers
+    invocation: manual # the opt-in "work skill-driven this session" switch — Deniz flips it, never a bootstrap hook (ADR-0007)
+    # Softened body, decided with Deniz 2026-07-31 (level ii of three): the "1% chance" coercion
+    # block, the Red Flags rationalization table and the Codex/Pi platform section are cut; the
+    # ordering rule (process skills before implementation), the announce habit and the subagent
+    # guard stay. Deniz invokes it himself, so the persuasion apparatus has no one left to persuade.
+    body: patch
+    frontmatter:
+      # manual → the description's only reader is a human browsing the menu
+      description: "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first."
+    omit: ["references/**"] # codex/pi/antigravity/gemini tool maps — dead in both target harnesses
   # --- mattpocock grilling core ---
   # All matt items omit agents/** — every matt skill bundles an agents/openai.yaml, which is
   # Codex/OpenAI harness config; dead weight in both of our target harnesses.
