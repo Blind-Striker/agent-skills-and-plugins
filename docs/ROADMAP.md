@@ -16,8 +16,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   catalogs what they offer.
 - Four plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
   `deniz-dotnet-aspire`, `deniz-dotnet-akka`), plus the matching `opencode/` output and
-  `marketplace.json`. `deniz-process` is a complete module but for the review merge pass (item 1
-  below): every source item has an answer in the manifest, invocation set per item, exercising
+  `marketplace.json`. `deniz-process` is **closed**: every source item in both upstreams' promoted
+  sets has an answer in the manifest — taken, merged, or excluded with the reason beside it —
+  invocation set per item, exercising
   the rewrite path on real data (`deniz-process:*` in the Claude tree, bare names in the
   OpenCode one). The built `opencode/` tree is TUI-verified end to end
   (`docs/research/skill-invocation-across-harnesses.md`, "Verified on this repo's real
@@ -41,11 +42,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   reports meaning on pin moves: posture drift on passthrough items, merge-source hits (across
   submodules), and candidate-edge diffs against the ledger.
 - Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
-  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Two
-  full-file overlays exist, both merges: systematic-debugging owns SKILL.md alone, so its sibling
-  technique files keep flowing from upstream, while test-driven-development owns both of its files
-  — the sibling could not flow, because upstream's citation of writing-skills is a dangling
-  model-edge in our set. The gaps two independent reviews left open are listed below.
+  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Three
+  full-file overlays exist, all three merges: systematic-debugging owns SKILL.md alone, so its
+  sibling technique files keep flowing from upstream, while test-driven-development and
+  requesting-code-review own both of their files — in the first because upstream's citation of
+  writing-skills is a dangling model-edge in our set, in the second because the merged rubric
+  lives in the reviewer template rather than the skill. The gaps two independent reviews left
+  open are listed below.
 - `validate` covers the overlay wiring the build cannot see: an overlay directory that no item
   claims, or whose item declares no `body:`, is an error (the build would ship pristine upstream in
   silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
@@ -67,15 +70,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** `deniz-process` is closed but for one merge pass: every
-   superpowers and mattpocock-promoted candidate has an answer in the manifest except matt's
-   `code-review`, which awaits the review mix (superpowers requesting-code-review × matt
-   code-review), in the systematic-debugging mold. `implement`'s two bare slash references were
-   repointed with the TDD mix, and that pass changes what `requesting-code-review` contains rather
-   than its name, so nothing pointing at it moves again. The three dotnet modules hold one starter each;
-   fill them against `docs/inventory.md`, with the user, one plugin per session.
-   `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
-   beside the item.
+1. **Per-module curation sessions.** `deniz-process` is closed. The three dotnet modules hold one
+   pipeline-proof starter each; fill them against `docs/inventory.md`, with the user, one plugin
+   per session. `docs/research/skill-framework-landscape.md` is the standing input; the why of
+   each decision goes beside the item. These modules differ from `deniz-process` in a way worth
+   planning for: their upstreams are single-vendor and overlapping by *subject* rather than by
+   job (both `aspire-skills` and `dotnet-skills` cover Aspire), so the merge question that shaped
+   `deniz-process` is likely replaced by a naming and scope question.
 2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,

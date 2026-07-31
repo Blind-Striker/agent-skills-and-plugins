@@ -5,6 +5,19 @@
       "SKILL.md": "7a0b11f5f4fe9505ea5c7983c3083ba1bf754f69"
     }
   },
+  "deniz-process/requesting-code-review": {
+    "source": "superpowers/skills/requesting-code-review",
+    "files": {
+      "SKILL.md": "fa4f2f9965591d6d8a7ef4ad47e6ba4d5ac344d0",
+      "code-reviewer.md": "db84ae2a0f91834f93de9cf9f9cf8602bbd78a11"
+    },
+    "mergeSources": {
+      "mattpocock-skills/skills/engineering/code-review": {
+        "SKILL.md": "2a0b5240731b927caa9ac0bf43c3e2af9dc3f0a7",
+        "code-reviewer.md": null
+      }
+    }
+  },
   "deniz-process/research": {
     "source": "mattpocock-skills/skills/engineering/research",
     "files": {

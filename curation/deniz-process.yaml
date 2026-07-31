@@ -10,11 +10,10 @@
 # chain taken as upstream shipped it (compile-time/runtime boundary, AGENTS.md — tracker/setup
 # behaviour is the wizard's job at use time), the authoring pair, and superpowers' last two.
 #
-# The TDD mix has landed (superpowers test-driven-development × matt tdd), and repointed both of
-# implement's bare slash references while it was there. Remaining open, curator's call: the review
-# mix (requesting-code-review × matt code-review), in the same mold — matt's code-review stays out
-# of the manifest until it lands as draft → review → overlay. That pass changes what
-# requesting-code-review contains, not its name, so nothing pointing at it moves again.
+# Both merge passes have landed — the TDD mix (superpowers test-driven-development × matt tdd,
+# which also repointed implement's two bare slash references) and the review mix
+# (requesting-code-review × matt code-review). Every source item in both upstreams' promoted sets
+# now has an answer here: taken, merged, or excluded with the reason beside it.
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
@@ -46,7 +45,24 @@ items:
     invocation: auto # only ever reached from other skills' bodies or model judgment; asks consent itself before creating anything
   # --- review pair ---
   - source: superpowers/skills/requesting-code-review
-    invocation: both # "yok bu böyle olmamış" → model may propose/fire a review; SDD also uses its code-reviewer.md template (cross-skill file dep)
+    invocation: both # typed as a ceremony ("review since main"), and the model fires it after a task; SDD also uses its code-reviewer.md template (cross-skill file dep)
+    # Both files are a merge, curator's call: superpowers brings the dispatch protocol, the
+    # severity calibration, the read-only discipline and the output format — the weight is in
+    # code-reviewer.md, not the skill. mattpocock code-review brings what superpowers had no word
+    # for: a STANDARDS axis with a real rubric (twelve Fowler smells, each a judgement call, the
+    # repo's own documented standard overriding), range pinning that fails before a subagent burns
+    # context on a bad ref, and spec-source discovery, which is what makes the typed "review since
+    # X" use work at all. His two-axis separation is kept as a reporting rule — severity within an
+    # axis, never across — because that insight is about masking, not about topology.
+    # Topology is the one place we diverge from him: one reviewer by default, two only when the
+    # spec is a genuinely separate document. Every review inside subagent-driven-development has
+    # the plan AS the requirements, so a second subagent would read one document twice per range,
+    # in a skill that already warns its final-review fix wave outcosts all its tasks.
+    # code-reviewer.md keeps its name and place: SDD reaches it by relative path from three spots
+    # including a flowchart, and validate now guards that (ADR-0008 path tier).
+    body: overlay
+    merged_from: [mattpocock-skills/skills/engineering/code-review] # same-filename rule suffices — matt ships only a SKILL.md
+    depends_on: [receiving-code-review] # taking the feedback is its own discipline, and it is taken
   - source: superpowers/skills/receiving-code-review
     invocation: auto # behavioural discipline that should kick in whenever review feedback arrives — never typed
   # --- passive disciplines ---
@@ -180,6 +196,10 @@ items:
   - source: mattpocock-skills/skills/productivity/writing-great-skills
     invocation: manual # upstream's own flag; authoring vocabulary — complement, not substitute, of writing-skills
     omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/code-review
+    exclude: true # not rejected — merged: the standards axis, the smell baseline, the range
+    # pinning and the spec discovery all live inside the requesting-code-review overlay. Taking it
+    # as well would give the model two review skills whose triggers overlap almost exactly.
   - source: mattpocock-skills/skills/engineering/tdd
     exclude: true # not rejected — merged: the seam and the one-slice rule live inside the
     # test-driven-development overlay. Taking it as well would put two auto TDD skills in trigger

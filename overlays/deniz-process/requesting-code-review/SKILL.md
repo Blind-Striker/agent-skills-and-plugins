@@ -1,7 +1,6 @@
 ---
-description: Use when completing a task, finishing a feature, before merging, or
-  when asked to review changes since a commit, branch or tag — pins the range,
-  then reports Standards and Spec separately
+name: requesting-code-review
+description: Use when completing a task, finishing a feature, before merging, or when asked to review changes since a commit, branch or tag — pins the range, then reports Standards and Spec separately
 ---
 
 # Requesting Code Review
@@ -61,7 +60,7 @@ What the change was *supposed* to do, in this order:
    plan file, and it is the spec. Stop here.
 2. **Issue references in the commit messages** (`#123`, `Closes #45`) — fetch them the way this
    repo's issue-tracker notes describe. If that convention has not been set up here, tell the human
-   to open `/setup-matt-pocock-skills` rather than guessing at a tracker.
+   to open `/mattpocock-skills:setup-matt-pocock-skills` rather than guessing at a tracker.
 3. **A path the human passed.**
 4. **A spec or PRD** under `docs/`, `specs/` or `.scratch/` matching the branch or feature.
 5. **Ask.** If they say there is no spec, the Spec axis reports "no spec available" — it does not
@@ -110,7 +109,7 @@ A merge verdict is still one decision — but it must name what each axis contri
 - Push back if the reviewer is wrong, with technical reasoning
 
 How to take the feedback — what to accept, what to question, how to push back without
-capitulating or getting defensive — is the receiving-code-review skill's job. It
+capitulating or getting defensive — is the superpowers:receiving-code-review skill's job. It
 applies to a subagent's findings exactly as it applies to a human's.
 
 ## Common Rationalizations

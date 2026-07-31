@@ -484,14 +484,25 @@
   "deniz-process/requesting-code-review": {
     "source": "superpowers/skills/requesting-code-review",
     "invocation": "both",
-    "description": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
+    "body": "overlay",
+    "mergedFrom": [
+      "mattpocock-skills/skills/engineering/code-review"
+    ],
+    "dependsOn": [
+      "receiving-code-review"
+    ],
+    "description": "Use when completing a task, finishing a feature, before merging, or when asked to review changes since a commit, branch or tag — pins the range, then reports Standards and Spec separately",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "deniz-process:receiving-code-review"
+        ],
+        "pointer": [
+          "deniz-process:setup-matt-pocock-skills"
+        ]
       }
     },
     "opencode": {
@@ -500,8 +511,12 @@
         "command"
       ],
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "receiving-code-review"
+        ],
+        "pointer": [
+          "setup-matt-pocock-skills"
+        ]
       },
       "dropped": [],
       "parked": []
