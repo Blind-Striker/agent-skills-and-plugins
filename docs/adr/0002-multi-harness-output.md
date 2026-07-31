@@ -29,6 +29,20 @@ harness: `plugins/` for Claude Code, `opencode/` for OpenCode (`opencode/skills/
 Model borrowed from wshobson/agents: harness-native artifacts, not lowest-common-denominator
 translations.
 
+### Alternatives considered
+
+- **Carry the plugin name into the artifact name for OpenCode**, as wshobson does
+  (`<plugin>-<skill>`), so a flat namespace cannot collide. Rejected. wshobson needs it because its
+  source types are fixed and two plugins can genuinely ship the same name; here the uniqueness rule
+  below already makes a collision impossible, and where one ever threatens, the item-level `name:`
+  charges the rename to that item instead of lengthening every name. Measured across the five
+  vendored repos: no two skills share a name, and no two come close — what overlaps is *subject*
+  (both `aspire-skills` and `dotnet-skills` cover Aspire, under different names), which is a
+  curation choice rather than a naming problem. The cost lands where it hurts most: under ADR-0005
+  a `manual` item becomes an OpenCode command, and a command is a name the user types.
+  Reconsider only if the uniqueness rule itself becomes the constraint — a prefix is what would buy
+  back the ability to curate one upstream skill into two modules.
+
 ## Consequences
 
 - Claude Code output is not constrained by what OpenCode can express, and vice versa.
