@@ -82,6 +82,20 @@ Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends 
 - **A directory under `skills/` with no `SKILL.md` is ignored silently.** This is the parking spot a
   skill→command conversion needs: an item emitted as an OpenCode command can keep its bundled files
   at `skills/<name>/` and reference them from the command body, instead of losing them.
+- **`@file` in a command body resolves against the project root** — the directory OpenCode was
+  started in. Not the command file's own directory, and not `.opencode/`. Measured by probing all
+  three bases at once: `@h5-root.md` and `@.opencode/skills/…` substituted, a sibling of the command
+  file and a `.opencode/`-relative spelling did not.
+
+Together those two give the full recipe for a skill→command conversion: park the bundled files at
+`skills/<name>/`, and spell the body's references from the project root as
+`@.opencode/skills/<name>/…`. The catch is that project-root resolution ties the recipe to a
+**project-local mount**; for a global install under `~/.config/opencode/` the project root is
+unrelated to where the assets sit, so `@` cannot reach them and the body must name the path in prose
+for the agent's own read tool instead.
+
+`opencode run` expands neither slash commands nor `@file` — both are TUI-level — so command
+behaviour cannot be exercised non-interactively.
 
 Access control is config-side — `opencode.json` carries allow/deny/ask patterns over skill names,
 and an agent can drop skills entirely with `skill: false`. None of that travels inside a
