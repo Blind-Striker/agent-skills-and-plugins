@@ -75,7 +75,18 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    `~/.config/opencode/opencode.json`), because measured precedence (package cache >
    `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
    every colliding name — the one global our tree cannot shadow away.
-5. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
+5. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
+   model is an installer, symmetric to the Claude marketplace; a permanent `OPENCODE_CONFIG_DIR`
+   is rejected (env vars are for throwaway tests, consumption goes through a native mechanism).
+   Candidates, in current order: (a) OpenCode's own package mechanism (`opencode.json` `plugin:`
+   list — measured today: package cache tops discovery precedence; feasibility of a git-subdir
+   ref for `opencode/` unmeasured), (b) a switchboard-style installer — prior art in the user's
+   `opencode-switchboard` repo (`tools/install.py`): hash-compared sync, manifest-owned prune,
+   and the known hard part, surgical JSONC merge into the user's existing config behind
+   validation gates with backup restore ("config concat" concern), (c) a sync command in
+   `tools/` (a deliberate ADR-0004 growth decision). wshobson/agents is the third reference:
+   generate harness-native trees, commit only registries.
+6. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
    mount points, frontmatter tolerance, `@file` resolution, all recorded in
    `docs/research/skill-invocation-across-harnesses.md` using the method in
    `docs/agents/harness-probing.md` — but always with purpose-built fixtures, never with our own
