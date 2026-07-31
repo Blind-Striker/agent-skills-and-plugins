@@ -43,8 +43,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    skill-vs-command choice in the OpenCode emitter, and extend `validate` for the new collision
    class. `as:` stays — it is the orthogonal shape dial (ADR-0006), not a second trigger dial.
    Needed before or alongside the first curation session, since "the user starts this" is otherwise
-   inexpressible. Verify against a live install first that `disable-model-invocation: true` still
-   permits the user's own slash invocation.
+   inexpressible. The live-install precondition is discharged: all three frontmatter states were
+   measured on Claude Code 2.1.220 and behave as ADR-0005 assumes.
 2. **Make the skill path a real OpenCode adapter** (ADR-0006 axis 3). Skills are copied from
    `plugins/` to `opencode/` verbatim today, so the tree is a mirror, not an adaptation: Claude-only
    frontmatter travels there as dead metadata with no drop report, and cross-references keep Claude's

@@ -69,8 +69,10 @@ is the **trigger** dial. The table above gives each invocation value its default
 - `both` emits the same item twice into OpenCode. Output names are already required to be unique
   across all plugins (ADR-0002), and a skill and a command sharing one name is a new collision class
   `validate` has to cover.
-- Suppressing model invocation is a bet on one harness key. Claude Code has an open report that
-  `disable-model-invocation: true` also blocks the user's own slash invocation; until that is checked
-  against a live install, `invocation: manual` is unproven on the Claude side.
+- Suppressing model invocation rests on one harness key, and that bet has now been settled by
+  measurement rather than documentation: on Claude Code 2.1.220 the flag leaves the user's own slash
+  invocation working, and the model reports the skill as absent from the list it can name at all.
+  The suppression is structural, so a `manual` item cannot be reached by the model whatever its
+  description says.
 - Nothing forces an item to declare intent. The `auto` default reproduces today's behaviour, so
   curation can adopt the field item by item rather than in one pass.

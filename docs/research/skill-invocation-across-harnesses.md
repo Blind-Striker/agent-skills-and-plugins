@@ -23,6 +23,21 @@ who may pull the trigger:
 | `disable-model-invocation: true` | **User only.** Also stops the skill being preloaded into subagents, and stops it firing when a scheduled task names it |
 | `user-invocable: false` | **Model only.** Hides the skill from the `/` menu |
 
+All three rows were verified on a live install (Claude Code 2.1.220), against skills isolated in
+their own `CLAUDE_CONFIG_DIR` so nothing else was loaded. Two results are worth carrying:
+
+- **`disable-model-invocation: true` does not block the user.** The report below said it does; it
+  did not reproduce. The flagged skill appeared in the `/` menu and ran when invoked.
+- **Model suppression is structural, not instructional.** Asked to act on the flagged skill's
+  trigger phrase, the model reported that the skill was *absent from the available-skills list in
+  its context* — "there's no name for me to pass to the Skill tool". It is filtered out of the
+  listing rather than told to refrain.
+
+The second point has a consequence for curation: a `manual` item is unreachable by the model no
+matter what its description says. Stripping coercive trigger prose from an upstream skill is
+therefore a matter of taste, not a safety measure — the description never gets the chance to
+persuade anything.
+
 Other dials that bear on curation: `when_to_use` (trigger phrases appended to `description`;
 the pair is truncated at 1,536 characters in the skill listing), `paths` (globs that gate automatic
 loading), `context: fork` + `agent` + `background` (run the skill in a subagent), `model` and
@@ -226,4 +241,5 @@ this repo are as instructive as the similarities:
 - [OpenCode — Commands](https://opencode.ai/docs/commands/)
 - [wshobson/agents — docs/harnesses.md](https://github.com/wshobson/agents/blob/main/docs/harnesses.md)
 - [claude-code#26251](https://github.com/anthropics/claude-code/issues/26251) — `disable-model-invocation`
-  reported as blocking user slash invocation too; closed as duplicate, unverified
+  reported as blocking user slash invocation too; closed as duplicate, and **did not reproduce** on
+  Claude Code 2.1.220
