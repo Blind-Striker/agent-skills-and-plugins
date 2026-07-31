@@ -48,11 +48,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** `deniz-process` batch 1 landed (2026-07-31); its deferred
-   clusters are recorded in the manifest header — the mattpocock production chain waits on an
-   issue-tracker decision, and using-superpowers plus the skill-authoring pair each want their own
-   pass. The three dotnet modules still hold one starter each; fill them against
-   `docs/inventory.md`, with the user, one plugin per session.
+1. **Per-module curation sessions.** `deniz-process` is closed but for two merge passes
+   (batches 1+2, 2026-07-31): every superpowers and mattpocock-promoted candidate has an answer
+   in the manifest except matt's `tdd` and `code-review`, which await their mixes — a TDD mix
+   (superpowers test-driven-development × matt tdd) and a review mix (requesting-code-review ×
+   matt code-review), each in the systematic-debugging mold, each also repointing `implement`'s
+   bare `/tdd` and `/code-review` prose. The three dotnet modules still hold one starter each;
+   fill them against `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
 2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
