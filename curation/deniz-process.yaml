@@ -63,9 +63,10 @@ items:
     depends_on: [test-driven-development, verification-before-completion] # Phase 6 invokes both
     # SKILL.md is a merge, curator's call: superpowers' root-cause armor + mattpocock
     # diagnosing-bugs' feedback-loop engineering, in seven phases. The overlay covers SKILL.md
-    # only, so the sibling technique files keep flowing from upstream. Known cost: matt-side
-    # upstream improvements no longer flow — glance at diagnosing-bugs on sync bumps.
+    # only, so the sibling technique files keep flowing from upstream; the merge source is
+    # blessed below — its drift stops the build exactly like the primary's.
     body: overlay
+    merged_from: [mattpocock-skills/skills/engineering/diagnosing-bugs]
     frontmatter:
       # merged skill also covers matt's perf-regression ground, so the trigger names it
       description: "Use when encountering any bug, test failure, performance regression, or unexpected behavior, before proposing fixes"

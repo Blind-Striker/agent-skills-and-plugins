@@ -9,6 +9,11 @@
     "source": "superpowers/skills/systematic-debugging",
     "files": {
       "SKILL.md": "095d194ac041502905f15b01d22d294fb94db8b2"
+    },
+    "mergeSources": {
+      "mattpocock-skills/skills/engineering/diagnosing-bugs": {
+        "SKILL.md": "f400de7c1937377fec7ff9bae3b0c072670f1e81"
+      }
     }
   },
   "deniz-process/test-driven-development": {

@@ -634,6 +634,9 @@
     "source": "superpowers/skills/systematic-debugging",
     "invocation": "auto",
     "body": "overlay",
+    "mergedFrom": [
+      "mattpocock-skills/skills/engineering/diagnosing-bugs"
+    ],
     "dependsOn": [
       "test-driven-development",
       "verification-before-completion"
