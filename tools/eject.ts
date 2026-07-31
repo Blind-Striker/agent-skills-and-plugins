@@ -16,13 +16,17 @@ import { basename, dirname, join } from "node:path";
 import { loadManifest } from "./lib/manifest.ts";
 import {
   checkPatch,
+  driftedFiles,
+  driftedMergeSources,
   listFiles,
   loadLock,
   lockKey,
+  type LockEntry,
   PATCH_FILE,
   patchTargets,
   saveLock,
   stampFiles,
+  stampMergeFiles,
 } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { scanSubmodule } from "./lib/scan.ts";
@@ -31,7 +35,7 @@ const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith("--")));
 const [pluginArg, nameArg] = argv.filter((a) => !a.startsWith("--"));
 if (!pluginArg || !nameArg) {
-  console.error("Usage: npm run eject -- <plugin> <name> [--patch] [--bless] [--force]");
+  console.error("Usage: npm run eject -- <plugin> <name> [--patch] [--bless [--yes]] [--force]");
   process.exit(1);
 }
 // Re-bound after the guard: a closure below cannot see flow narrowing on the destructured bindings.
@@ -74,8 +78,67 @@ const noSymlinks = { filter: (s: string) => !lstatSync(s).isSymbolicLink() };
 
 function stamp(): void {
   const lock = loadLock(root);
-  lock[lockKey(plugin, name)] = { source: item.source, files: stampFiles(base, stampedNames()) };
+  const entry: LockEntry = { source: item.source, files: stampFiles(base, stampedNames()) };
+  // A merged body has ingredients the primary stamp cannot see, so each declared source is stamped
+  // in the same act, under the same-filename rule ADR-0001 gives: what the source lacks is recorded
+  // absent rather than left unguarded.
+  if (item.merged_from?.length) {
+    entry.mergeSources = Object.fromEntries(
+      item.merged_from.map((addr) => [addr, stampMergeFiles(join(root, "external", addr), stampedNames())]),
+    );
+  }
+  lock[lockKey(plugin, name)] = entry;
   saveLock(root, lock);
+}
+
+/**
+ * The content a stamp recorded, against what is on disk now. The stamp is a blob SHA, so only the
+ * submodule owning the address can turn it back into text — a shallow clone or a rewritten history
+ * may no longer hold the object, and losing the diff must not cost the bless.
+ */
+function showDrift(addr: string, file: string, sha: string): void {
+  // Merge sources are addressed as directories; the primary may be a bare command or agent file,
+  // whose own names resolve against the containing directory.
+  const now = addr === item.source ? join(base, file) : join(root, "external", addr, file);
+  if (!existsSync(now)) {
+    console.log("  (gone upstream)");
+    return;
+  }
+  const submodule = addr.split("/")[0] ?? addr;
+  let recorded: string;
+  try {
+    recorded = execFileSync("git", ["-C", join(root, "external", submodule), "cat-file", "blob", sha], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch {
+    console.log(`  (blob ${sha.slice(0, 7)} is not in ${submodule} — blessing records this file unreviewed)`);
+    return;
+  }
+  // Both sides land in one throwaway tree under the same name, so git's headers read `recorded/` and
+  // `current/` instead of two absolute machine paths — the hunks are what this exists to show.
+  const tmp = mkdtempSync(join(tmpdir(), "bless-"));
+  const was = join(tmp, "recorded", file);
+  const is = join(tmp, "current", file);
+  mkdirSync(dirname(was), { recursive: true });
+  mkdirSync(dirname(is), { recursive: true });
+  writeFileSync(was, recorded);
+  cpSync(now, is);
+  let diff: string;
+  try {
+    // A review must show what upstream wrote, not what someone's difftool makes of it.
+    const sides = [`recorded/${file}`, `current/${file}`];
+    diff = execFileSync("git", ["diff", "--no-ext-diff", "--no-textconv", "--no-index", "--", ...sides], {
+      cwd: tmp,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (e) {
+    // --no-index exits 1 when the two sides differ, which is the only reason this is being shown.
+    diff = (e as { stdout?: string }).stdout ?? "";
+  }
+  rmSync(tmp, { recursive: true, force: true });
+  console.log(diff.trimEnd());
 }
 
 if (flags.has("--bless")) {
@@ -83,8 +146,31 @@ if (flags.has("--bless")) {
     console.error(`Nothing to bless: overlays/${plugin}/${name}/ does not exist`);
     process.exit(1);
   }
+  // Re-blessing is the moment an upstream change enters the overlay unread, so everything this
+  // would overwrite is shown first and only --yes accepts it (ADR-0001). A first blessing has
+  // nothing recorded to compare against, and a confirmation with nothing above it is theatre.
+  const prior = loadLock(root)[lockKey(plugin, name)];
+  const moved = prior
+    ? [...driftedFiles(base, prior).map((f) => `${item.source}: ${f}`), ...driftedMergeSources(root, prior)]
+    : [];
+  for (const line of moved) {
+    console.log(`DRIFTED ${line}`);
+    // The line reads "<address>: <file>", and an address is a directory path — so the first ": "
+    // separates them. An exotic file name that also holds one costs the diff, never the report.
+    const [addr = "", file = ""] = line.replace(" (appeared upstream)", "").split(": ");
+    // A file that appeared over an absent stamp has no recorded content, and the line said so.
+    const sha = addr === item.source ? prior?.files[file] : prior?.mergeSources?.[addr]?.[file];
+    if (sha) {
+      showDrift(addr, file, sha);
+    }
+  }
+  if (moved.length && !flags.has("--yes")) {
+    console.error("Re-blessing records the content above as reviewed. Re-run with --yes to accept it.");
+    process.exit(1);
+  }
   stamp();
-  console.log(`Blessed overlays/${plugin}/${name}/ against current upstream (${item.source}).`);
+  const against = [item.source, ...(item.merged_from ?? [])].join(", ");
+  console.log(`Blessed overlays/${plugin}/${name}/ against current upstream (${against}).`);
   process.exit(0);
 }
 

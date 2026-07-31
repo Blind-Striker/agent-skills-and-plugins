@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
-import { loadLock, lockKey } from "./lib/overlay.ts";
+import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 
 // eject is a script, not a library: it reads process.argv and exits. Driving it as a subprocess is
@@ -21,6 +21,40 @@ function eject(root: string, args: string[]): { ok: boolean; out: string } {
     const err = e as { stdout?: string; stderr?: string };
     return { ok: false, out: `${err.stdout ?? ""}${err.stderr ?? ""}` };
   }
+}
+
+// What a merged body looks like on disk: one overlay, a manifest declaring what it was merged from,
+// and a lock stamping the primary plus every declared source.
+function mergedAlpha(root: string): void {
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from: [sp/skills/beta]",
+      "  - source: sp/skills/beta",
+      "    exclude: true",
+    ].join("\n")}\n`,
+  );
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: merged\n---\n\nMerged body.\n",
+  );
+  saveLock(root, {
+    [lockKey("deniz-process", "alpha")]: {
+      source: "sp/skills/alpha",
+      files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+      mergeSources: {
+        "sp/skills/beta": stampMergeFiles(join(root, "external", "sp", "skills", "beta"), ["SKILL.md"]),
+      },
+    },
+  });
 }
 
 function manifestWithDeltaOverlay(root: string): string {
@@ -147,7 +181,11 @@ test("eject --bless re-stamps a drifted full-file overlay and unblocks the build
   writeFileSync(up, readFileSync(up, "utf8").replace("Beta body.", "Beta body, moved upstream."));
   assert.throws(() => buildAll(root), /upstream changed under the overlay/);
 
-  const r = eject(root, ["deniz-process", "deniz-beta", "--bless"]);
+  const unconfirmed = eject(root, ["deniz-process", "deniz-beta", "--bless"]);
+  assert.equal(unconfirmed.ok, false, "what upstream did is shown for review before it is recorded");
+  assert.match(unconfirmed.out, /sp\/skills\/beta: SKILL\.md/);
+
+  const r = eject(root, ["deniz-process", "deniz-beta", "--bless", "--yes"]);
   assert.ok(r.ok, r.out);
   assert.doesNotThrow(() => buildAll(root));
 });
@@ -158,9 +196,61 @@ test("eject --bless re-stamps a patch overlay against the files its patch touche
   writeFileSync(up, readFileSync(up, "utf8").replace("Far region.", "Far region, moved upstream."));
   assert.throws(() => buildAll(root), /upstream changed under the overlay/);
 
-  const r = eject(root, ["deniz-process", "gamma", "--bless"]);
+  const r = eject(root, ["deniz-process", "gamma", "--bless", "--yes"]);
   assert.ok(r.ok, r.out);
   const files = loadLock(root)[lockKey("deniz-process", "gamma")]?.files ?? {};
   assert.deepEqual(Object.keys(files), ["SKILL.md"], "only the files the patch touches are stamped");
   assert.doesNotThrow(() => buildAll(root));
+});
+
+// ADR-0001: a re-bless that displays nothing invites rubber-stamping the very look it exists to
+// force. Merge sources sharpen it — they are ingredients the primary stamp cannot see at all.
+test("eject --bless names the merge-source drift and refuses to record it without --yes", () => {
+  const root = makeRepo();
+  mergedAlpha(root);
+  const beta = join(root, "external", "sp", "skills", "beta", "SKILL.md");
+  writeFileSync(beta, readFileSync(beta, "utf8").replace("Beta body.", "Beta body, moved upstream."));
+  const lockFile = join(root, "overlays", "overlays.lock.json");
+  const before = readFileSync(lockFile, "utf8");
+
+  const unconfirmed = eject(root, ["deniz-process", "alpha", "--bless"]);
+  assert.equal(unconfirmed.ok, false);
+  assert.match(unconfirmed.out, /sp\/skills\/beta: SKILL\.md/, "the source that moved has to be named");
+  assert.match(unconfirmed.out, /--yes/);
+  assert.equal(readFileSync(lockFile, "utf8"), before, "a refused bless records nothing");
+
+  const confirmed = eject(root, ["deniz-process", "alpha", "--bless", "--yes"]);
+  assert.ok(confirmed.ok, confirmed.out);
+  const stamp = loadLock(root)[lockKey("deniz-process", "alpha")]?.mergeSources?.["sp/skills/beta"]?.["SKILL.md"];
+  assert.match(stamp ?? "", /^[0-9a-f]{40}$/, "every declared source is stamped in one act");
+});
+
+// The lock holds the previous blob SHA, and only the submodule that owns the address can resolve it
+// back into content — without that lookup "review the diff" has no diff to review.
+test("eject --bless shows the recorded content against the current one", () => {
+  const root = makeRepo();
+  mergedAlpha(root);
+  const sp = join(root, "external", "sp");
+  execFileSync("git", ["init", "-q", "."], { cwd: sp });
+  // -w puts the blessed content in the submodule's object database, which is what a real checkout
+  // has and the only thing that gives the diff a "before" side.
+  execFileSync("git", ["hash-object", "-w", "--no-filters", "--", "skills/beta/SKILL.md"], { cwd: sp });
+  const beta = join(sp, "skills", "beta", "SKILL.md");
+  writeFileSync(beta, readFileSync(beta, "utf8").replace("Beta body.", "Beta body, moved upstream."));
+
+  const r = eject(root, ["deniz-process", "alpha", "--bless"]);
+  assert.equal(r.ok, false);
+  assert.match(r.out, /^-Beta body\.$/m, "the content the overlay was written against");
+  assert.match(r.out, /^\+Beta body, moved upstream\.$/m, "what is there now");
+});
+
+// build sends you here when the lock has no entry at all. Nothing is recorded, so there is nothing
+// to review and a confirmation prompt would be theatre.
+test("eject --bless records a first blessing without asking for confirmation", () => {
+  const root = makeRepo();
+  assert.ok(eject(root, ["deniz-process", "delta"]).ok);
+  saveLock(root, {});
+  const r = eject(root, ["deniz-process", "delta", "--bless"]);
+  assert.ok(r.ok, r.out);
+  assert.ok(loadLock(root)[lockKey("deniz-process", "delta")]?.files["SKILL.md"], "the first bless still stamps");
 });

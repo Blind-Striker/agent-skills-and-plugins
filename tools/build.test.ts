@@ -312,10 +312,11 @@ test("upstream changing a patched file stops the build, and is absorbed once ble
   writeFileSync(up, readFileSync(up, "utf8").replace("Far region.", "Far region, improved upstream."));
   assert.throws(() => buildAll(root), /upstream changed under the overlay \(SKILL\.md\)/);
 
-  execFileSync(process.execPath, [join(import.meta.dirname, "eject.ts"), "deniz-process", "gamma", "--bless"], {
-    cwd: root,
-    stdio: "ignore",
-  });
+  execFileSync(
+    process.execPath,
+    [join(import.meta.dirname, "eject.ts"), "deniz-process", "gamma", "--bless", "--yes"],
+    { cwd: root, stdio: "ignore" },
+  );
   buildAll(root);
   const body = readFileSync(join(root, "plugins", "deniz-process", "skills", "gamma", "SKILL.md"), "utf8");
   assert.match(body, /Far region, improved upstream\./, "the upstream improvement lands after blessing");
