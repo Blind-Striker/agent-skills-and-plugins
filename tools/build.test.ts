@@ -367,3 +367,59 @@ test("non-empty hooks.include throws not-implemented and preserves existing outp
   // guard fires before rmSync — previous build output must survive
   assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")));
 });
+
+// ADR-0008: a user-pointer `/ns:name` must localize exactly like a model-edge — `/deniz-process:x`
+// in the Claude tree, `/x` in the OpenCode one — because each is the form its harness lets a user type.
+test("pointer spellings rewrite in both trees", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\nWhen unsure, suggest /superpowers:beta to the user.\n",
+  );
+  // The default manifest converts beta to a command AND an agent, so its output name is not `beta`.
+  // Both items are curated as plain skills here, which is what a pointer to `beta` has to resolve to.
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const claude = readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8");
+  const oc = readFileSync(join(root, "opencode", "skills", "alpha", "SKILL.md"), "utf8");
+  assert.match(claude, /\/deniz-process:beta/);
+  assert.match(oc, /suggest \/beta to the user/);
+});
+
+// One address computation: an upstream agent file carries a double extension, and references spell
+// the bare name — so stripping only `.md` keyed the map on `ns:zeta.agent`, which nothing references.
+test("an upstream agent named zeta.agent.md is addressed as ns:zeta", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "external", "sp", "agents"), { recursive: true });
+  writeFileSync(join(root, "external", "sp", "agents", "zeta.agent.md"), "---\nname: zeta\ndescription: Z\n---\nZ.\n");
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\nDispatch superpowers:zeta for this.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/agents/zeta.agent.md",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const alpha = readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8");
+  assert.match(alpha, /deniz-process:zeta/);
+});

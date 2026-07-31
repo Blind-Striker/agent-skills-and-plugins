@@ -5,8 +5,9 @@ import type { ComponentInfo } from "./scan.ts";
 // How a harness ADDRESSES the component upstream, which is what its references spell out: a skill by
 // its directory name, a command or agent by its file name. The frontmatter `name` is not the address
 // and diverges from it in 32 of the 223 upstream components, so keying on it missed the real refs.
+// `<name>.agent.md` is a double extension, not part of the address — references spell the bare name.
 function addressOf(c: ComponentInfo): string {
-  return c.type === "skill" ? basename(c.sourcePath) : basename(c.sourcePath, ".md");
+  return c.type === "skill" ? basename(c.sourcePath) : basename(c.sourcePath, ".md").replace(/\.agent$/, "");
 }
 
 /**
