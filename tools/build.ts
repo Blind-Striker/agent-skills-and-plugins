@@ -179,7 +179,7 @@ function overlayDrift(
   // lock have to name the same sources before either guards anything. Both directions are caught:
   // a source declared but never stamped is unguarded, and a stamp the manifest no longer declares
   // is a lock still guarding an ingredient this body stopped using.
-  const declaredSources = new Set(item.merged_from ?? []);
+  const declaredSources = new Set((item.merged_from ?? []).map((ms) => ms.source));
   const blessedSources = new Set(Object.keys(entry.mergeSources ?? {}));
   const sameSources =
     declaredSources.size === blessedSources.size && [...declaredSources].every((s) => blessedSources.has(s));
@@ -187,6 +187,18 @@ function overlayDrift(
     const declared = [...declaredSources].join(", ") || "none";
     const held = [...blessedSources].join(", ") || "none";
     return [`${id}: merge sources are not blessed (declared: ${declared}; lock has: ${held}) — run: ${bless} --yes`];
+  }
+  // Naming the same sources is still not enough once a source can declare its own files: that list
+  // grows without the source SET changing, so the check above passes while the lock holds only the
+  // older names. Declared, unstamped, guarding nothing — the unblessed-source failure one level down.
+  for (const ms of item.merged_from ?? []) {
+    const stamped = entry.mergeSources?.[ms.source] ?? {};
+    const unstamped = (ms.files ?? []).filter((f) => !(f in stamped));
+    if (unstamped.length) {
+      return [
+        `${id}: merge source ${ms.source} declares ${unstamped.join(", ")}, which the lock does not stamp — run: ${bless} --yes`,
+      ];
+    }
   }
   // Naming the same sources is not yet a guard. A stamp is taken under the same-filename rule, so an
   // address that shares no file name with the overlay records absence and nothing else — and an
@@ -477,7 +489,12 @@ function emitOpenCodeSkill(
     join(root, "opencode", "commands", `${name}.md`),
     serializeDoc({ frontmatter: command, body: doc.body }),
   );
-  const parked = existsSync(destSkill) ? listFiles(destSkill) : [];
+  // Parking is what `manual` costs, so only `manual` reports it. A `both` item's directory is a
+  // live discoverable skill carrying its own SKILL.md — calling that "parked" made most of this
+  // warning class false, and a report more than half wrong is one nobody reads. The command copy's
+  // bundle references are unrewritten there too, but the same body is reachable through the skill,
+  // where OpenCode resolves them natively; what is left is the out-of-project read (ROADMAP).
+  const parked = !wantsSkill && existsSync(destSkill) ? listFiles(destSkill) : [];
   if (parked.length) {
     report.push(
       `WARN opencode command ${name}: bundled files parked at skills/${name}/ (${parked.join(", ")}) — body references to them are not rewritten`,

@@ -170,6 +170,32 @@ test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
   assert.ok(existsSync(join(root, "opencode", "commands", "delta.md")), "both emits a command too");
 });
 
+// Parking is the price of `manual`, and only `manual` pays it. Reporting it for `both` — whose
+// directory is a live skill with its own SKILL.md — made most of this warning class false, which
+// costs the build report the thing it exists for (ADR-0002: no silent loss, hence no fake loss).
+test("only a manual conversion reports parked files", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta", // bundles references/notes.md
+      "    invocation: manual",
+      "  - source: sp/skills/delta", // bundles references/notes.md too
+      "    invocation: both",
+    ].join("\n")}\n`,
+  );
+  const report = buildAll(root);
+  const parked = (name: string) => report.filter((l) => l.includes("parked") && l.includes(name));
+  assert.equal(parked("beta").length, 1, `manual loses its skill shape and must say so — ${JSON.stringify(report)}`);
+  assert.match(parked("beta")[0] as string, /references\/notes\.md/);
+  assert.deepEqual(parked("delta"), [], "both keeps a discoverable skill — nothing is parked");
+});
+
 // Author-facing files travel with upstream skills — creation logs, pressure tests, fixtures. Until
 // now the only way to leave one behind was to own the whole item through an overlay.
 test("omit drops matching files from a curated skill", () => {
@@ -472,6 +498,73 @@ test("a drifted merge source stops the build, naming the source that moved", () 
     "---\nname: beta\ndescription: moved\n---\nMoved.\n",
   );
   assert.throws(() => buildAll(root), /merge source changed under the overlay \(sp\/skills\/beta: SKILL\.md\)/);
+});
+
+// The filename rule stamps what the OVERLAY owns, so a merge that folded in a source's differently
+// named file — matt's tests.md into our SKILL.md — was guarded by nothing, silently. A declared
+// files list says where the merge actually drew from, and the guard follows the merge rather than
+// the merge being cut down to fit the guard.
+test("a declared files list guards a source file the overlay does not own", () => {
+  const root = makeRepo();
+  // the ingredient: a sibling of beta's SKILL.md, a name the overlay never carries
+  writeFileSync(join(root, "external", "sp", "skills", "beta", "references", "notes.md"), "ingredient v1\n");
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from:",
+      "      - source: sp/skills/beta",
+      "        files: [SKILL.md, references/notes.md]",
+      "  - source: sp/skills/beta",
+      "    exclude: true",
+    ].join("\n")}\n`,
+  );
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: merged\n---\nMerged body, including what notes.md said.\n",
+  );
+  const beta = join(root, "external", "sp", "skills", "beta");
+  const lockWith = (files: string[]) =>
+    writeFileSync(
+      join(root, "overlays", "overlays.lock.json"),
+      `${JSON.stringify(
+        {
+          "deniz-process/alpha": {
+            source: "sp/skills/alpha",
+            files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+            mergeSources: { "sp/skills/beta": stampMergeFiles(beta, files) },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+
+  // What the same-filename rule alone would have produced: the overlay owns SKILL.md, so that is
+  // all it can stamp. The declaration now says the merge drew from more than that, and a lock that
+  // does not hold the difference is guarding nothing — the build has to say so rather than run.
+  lockWith(["SKILL.md"]);
+  assert.throws(
+    () => buildAll(root),
+    /declares references\/notes\.md, which the lock does not stamp/,
+    "a files list that outgrew its stamp is an unblessed merge",
+  );
+
+  lockWith(["SKILL.md", "references/notes.md"]);
+  buildAll(root); // clean once the declared list is actually blessed
+  writeFileSync(join(beta, "references", "notes.md"), "ingredient v2 — upstream rewrote it\n");
+  assert.throws(
+    () => buildAll(root),
+    /merge source changed under the overlay \(sp\/skills\/beta: references\/notes\.md\)/,
+    "drift in a declared file stops the build like any other ingredient",
+  );
 });
 
 // The declaration and the lock are two halves of one guard: a source nobody stamped is guarded by
