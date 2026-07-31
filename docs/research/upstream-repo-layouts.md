@@ -1,6 +1,6 @@
 # Upstream repo layouts
 
-Date: 2026-07-30
+Date: 2026-07-31
 
 What the five vendored repos actually look like on disk, where that deviates from the obvious, and
 what it means for curation. `docs/inventory.md` lists the components; this records the traps.
@@ -77,7 +77,11 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
   rather than from content — so read the hit before letting it decide anything.
 
   As pinned today the output forms three groups, treating `using-superpowers` as neither a
-  candidate nor a referrer (it is the bootstrap payload, and this repo packages no hooks).
+  candidate nor a referrer for the purpose of reading the *upstream* graph — upstream it is the
+  bootstrap payload, and this repo packages no hooks. (It is curated all the same: a `manual`
+  opt-in switch whose patched body keeps two of upstream's seven outgoing references. Any
+  dependency reading must use the shipped body, not this upstream graph — the graphs here are
+  the finder, never the record.)
   **Free to take** — reference nothing, referenced by nothing: `dispatching-parallel-agents`,
   `receiving-code-review`. **Sinks** — referenced but reference nothing, so skipping one breaks its
   referrers while taking it drags nothing along: `using-git-worktrees`,

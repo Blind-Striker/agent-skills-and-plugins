@@ -23,10 +23,15 @@ unfeared. [ADR-0007](docs/adr/0007-control-beats-fidelity.md) states that intent
 never the yardstick.
 
 **Compile-time, not runtime.** This repo's job ends when an artifact is rendered into `plugins/`
-or `opencode/`. What a skill does when invoked — writing specs or tickets into the working repo,
-running its own per-project setup wizard, reading its own config conventions — is runtime:
-upstream's design, working as shipped. Curation touches runtime behaviour only when it
-contradicts a recorded curation intent, never to re-solve a problem upstream already solved.
+or `opencode/` — but rendering carries a promise: everything an artifact needs at runtime must
+resolve where it lands. What a skill *does* when invoked — writing specs or tickets into the
+working repo, running its own per-project setup wizard, reading its own config conventions — is
+runtime: upstream's design, working as shipped. What a skill *needs* — references that resolve in
+each tree's own address space, invocation targets their audience can actually reach, bundled
+files where the body expects them — is this repo's obligation, discharged at compile time
+([ADR-0008](docs/adr/0008-references-are-symbols.md)). Curation touches runtime behaviour only
+when it contradicts a recorded curation intent, never to re-solve a problem upstream already
+solved.
 
 ## Hard Rules
 

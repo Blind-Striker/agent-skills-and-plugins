@@ -1,6 +1,6 @@
 # ADR-0001: Submodule + manifest + overlay architecture
 
-Date: 2026-07-30
+Date: 2026-07-31
 Status: Accepted
 
 ## Context
@@ -37,6 +37,16 @@ Four pieces:
    file the overlay replaces, or that its patch touches, is recorded in
    `overlays/overlays.lock.json`. Any upstream change to one of those files stops the build until
    `npm run eject -- <plugin> <item> --bless` re-blesses it.
+
+   A body that merges content from further upstream items declares them in `merged_from:` (a list
+   of upstream addresses). Every declared source is blessed like the primary, under the
+   same-filename rule: for each source, the files the overlay replaces — or the patch touches —
+   are stamped from that source into the lock's `mergeSources` map. A file a source does not have
+   is recorded as absent, and its later appearance upstream is drift like any other. Drift in any
+   source is the same hard build failure, naming the source that moved; `--bless` re-stamps every
+   declared source in one act, and shows the diff between recorded and current content before it
+   stamps — a re-bless that displays nothing invites rubber-stamping the very look it exists to
+   force.
 4. **Build output committed** (`plugins/`, `opencode/`, `.claude-plugin/marketplace.json`) so a clone
    of the marketplace works immediately, with CI failing if the committed output is stale.
 
@@ -73,6 +83,11 @@ Four pieces:
   choice, and it grows with every overlay — a price ADR-0007 accepts deliberately: a set that
   reflects its curator is expected to own bodies, so the growth is budgeted, not a signal to
   curate less.
+- `merged_from` multiplies that friction by the number of sources, deliberately: a merged body is
+  a decision about several upstreams at once, and any of them moving invalidates the look that
+  blessed it. `sync` tags a pin move that touches a merge source exactly as it tags one touching
+  the primary — a report must never say "no curated items affected" about a body whose
+  ingredients moved.
 - Patches apply to skill-shaped output only. A `command`/`agent` conversion re-serializes
   frontmatter around a body, so there is no stable file for a diff to land on; those items take a
   full-file overlay.

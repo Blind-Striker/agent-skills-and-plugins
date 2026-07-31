@@ -1,6 +1,6 @@
 # Skill framework landscape
 
-Date: 2026-07-30
+Date: 2026-07-31
 
 What the wider community concluded about the skill frameworks this repo vendors, and what the
 evidence says about skill quality in general. This is *input* to curation; the why of any individual
@@ -79,10 +79,13 @@ terminal state is invoking `writing-plans` — there is no supported way to gril
 `implement`), so the human chooses how far to go. The weight complaint is a complaint about fusion,
 not about content.
 
-A practical consequence for curation: taking `brainstorming` means owning body edits regardless of
-taste. Its hard gate, its "You MUST" phrasing, its hard-coded coupling to `writing-plans`, its
-references to skills outside our set, and its spec path under `docs/superpowers/specs/` — a
-directory this repo treats as merge-transient scratch — all have to go.
+A practical consequence for curation, and a measured one: what taking `brainstorming` costs
+depends entirely on who may trigger it. Taken model-reachable, its coercive description and
+"You MUST" phrasing would need owning. Taken `manual` — the decision on record — the pressure has
+no audience left: suppression is structural, so the description's only reader is a human browsing
+a menu (one overridden line), the body fires only after the user opens the ceremony, the
+`writing-plans` coupling holds because that skill is taken alongside, and the spec path under
+`docs/superpowers/` is runtime behaviour, working as shipped. The body needed no edit at all.
 
 ### Where the two overlap, and where they do not
 

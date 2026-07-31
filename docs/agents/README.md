@@ -1,6 +1,6 @@
 # Agent Guide
 
-Date: 2026-07-30
+Date: 2026-07-31
 
 This directory contains repository-specific guidance for AI coding agents. Audience test: a human
 developer working without an agent never needs anything in here. Shared human+agent knowledge lives
@@ -22,8 +22,12 @@ policy.
   would be treated as an import path — keep such tokens in code spans. Caveat: the built-in
   Explore and Plan subagents skip `CLAUDE.md` entirely, so the contract does not reach them.
 - **OpenCode** reads `AGENTS.md` natively and consumes the `opencode/` tree (SKILL.md is the open
-  agent-skills standard). Wiring has not been exercised yet — see `docs/ROADMAP.md`; once done, the
-  agent-relevant findings land here and research notes in `docs/research/`.
+  agent-skills standard). The built tree has been mounted three ways and exercised end to end in
+  a TUI; the durable findings live in
+  [`skill-invocation-across-harnesses.md`](../research/skill-invocation-across-harnesses.md)
+  ("Verified on this repo's real output"), the method that produced them in
+  [`harness-probing.md`](harness-probing.md). The install mechanism is an open decision —
+  `docs/ROADMAP.md`.
 - Planning skills (superpowers brainstorming/writing-plans) write specs and plans under
   `docs/superpowers/`. That output is merge-transient scratch: delete it in the merge that completes
   the work; git carries the history.

@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-07-30
+Date: 2026-07-31
 
 Operational document: what is done, what is next. It shrinks as work lands. How things work and why
 lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
@@ -16,12 +16,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   catalogs what they offer.
 - Four plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
   `deniz-dotnet-aspire`, `deniz-dotnet-akka`), plus the matching `opencode/` output and
-  `marketplace.json`. `deniz-process` carries its first real batch — sixteen items decided with
-  the user (2026-07-31), invocation set per item, exercising the rewrite path on real data
-  (`deniz-process:*` in the Claude tree, bare names in the OpenCode one). The three dotnet
-  modules still hold one pipeline-proof starter each.
-- `npm run validate` on the current build: 0 errors; remaining warnings are unrewritten
-  cross-references to uncurated superpowers skills.
+  `marketplace.json`. `deniz-process` is a complete module but for the two merge passes (item 1
+  below): every source item has an answer in the manifest, invocation set per item, exercising
+  the rewrite path on real data (`deniz-process:*` in the Claude tree, bare names in the
+  OpenCode one). The built `opencode/` tree is TUI-verified end to end
+  (`docs/research/skill-invocation-across-harnesses.md`, "Verified on this repo's real
+  output"). The three dotnet modules still hold one pipeline-proof starter each.
+- `npm run validate` on the current build: 0 errors, 0 warnings.
 - Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
   replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. One real
   overlay exists: systematic-debugging's merged SKILL.md — scoped to that one file, so the
@@ -57,26 +58,36 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    fill them against `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-2. **The guardrail wave — designed with the user (2026-07-31), not yet built; lands before the
-   two merge passes.** Three legs, one ADR-0001 extension, RED tests first:
-   (a) **`merged_from:`** on a `body:`-bearing item — merges are a norm now (one landed, two
-   scoped), so every merge source gets hash-blessed like the primary: same-filename rule (the
-   files the overlay replaces, hashed from each declared source; a missing file is recorded
-   absent, and appearing later is drift), the lock gains `mergeSources`, the build fails hard
-   naming the source that moved, `eject --bless` stamps every source it reads from the manifest.
-   Retrofit systematic-debugging and retire its "glance at diagnosing-bugs by hand" comment —
-   that debt is this feature's justification.
-   (b) **`depends_on: [<output names>]`** — the declared dependency map, full scope (intra-set
-   and cross-set edges of taken items; the measured coupling graphs are the seed, transcribed
-   into a draft the user reviews — invocation edges only, the greps over-report). `validate`
-   errors when a target is absent from the output set or is `manual` (measured: a manual item is
-   unreachable even from another skill's body, so every body-invoked target must be auto/both —
-   the rule graduates from manifest comments to a validator). No content hashing: dependency
-   targets are passthrough items whose upstream updates are wanted to flow.
-   (c) **`npm run sync` re-check** — the sustainability leg (user's requirement): upstream
-   bodies only enter through pin moves, so sync re-derives candidate edges for taken items the
-   bump touched and diffs them against the declared map, reporting appeared/vanished candidates
-   for human review. The declared map can never go silently stale.
+2. **The reference-model wave — machinery, two sessions, designed with the user (2026-07-31);
+   lands before the two merge passes.** The contract is
+   [ADR-0008](adr/0008-references-are-symbols.md) plus the `merged_from` extension of ADR-0001;
+   the task breakdown is
+   [the plan](superpowers/plans/2026-07-31-reference-model-wave.md) (transient — deleted when the
+   wave merges). RED tests first, all gates per change.
+   **Phase 1 — space.** One reference model in `tools/lib/refs.ts`: facts are namespaced
+   spellings in the neutral (post-overlay, pre-rewrite) bodies — `ns:name` a model-edge,
+   `/ns:name` a user-pointer — candidates are heuristic bare-name matches that never become
+   build state. The rewrite consumes the model (gate: byte-identical output), the build emits
+   `docs/ledger.json` (resolved invocation, artifacts, edges and drops per item × harness — git
+   diff of one file becomes the notification channel), and `validate` becomes a linker: every
+   fact resolves per tree, model-edges must target `auto`/`both`, pointers must target
+   `manual`/`both`, and `depends_on` is enforced in both directions as errors. The declared map
+   is transcribed from a ledger-generated draft the user reviews; the shipped
+   using-superpowers → brainstorming line becomes a pointer (user's ruling, 2026-07-31).
+   Retires the doubled-warnings, own-skill-collision and `.agent.md` gaps below.
+   **Phase 2 — time.** `merged_from:` lands per ADR-0001: the lock gains `mergeSources`
+   (same-filename rule, a missing file recorded absent, its appearance is drift), the build
+   fails naming the source that moved, `--bless` stamps every declared source and shows the
+   diff before stamping (retires the "--bless shows nothing" gap). Retrofit
+   systematic-debugging; retire its "glance at diagnosing-bugs by hand" comment — that debt is
+   the feature's justification. `sync` turns semantic: it reports posture drift on passthrough
+   items (an upstream invocation or description flip is curation-relevant, not file noise),
+   tags merge-source hits, and diffs candidate edges against the ledger on pin moves — the
+   declared map can never go silently stale.
+   Pre-flight: the rewriter's handling of the `/ns:name` form is unit-tested (our code, not a
+   probe); the model's reading of pointer wording is TUI-probed per
+   [harness-probing.md](agents/harness-probing.md) — an hour, decides the wording template, not
+   the mechanism.
 3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
@@ -127,12 +138,12 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **`.agent.md` double-extension addresses.** `addressOf` in `tools/lib/rewrite.ts` strips only
   `.md`, so an upstream agent file named `<name>.agent.md` gets a rewrite-map key ending in
   `.agent` while harness references spell the bare name — such a reference would not be rewritten.
-  Affected files: `find external -name "*.agent.md"`. No impact on what is built today; fix before
-  any agent curation.
+  Affected files: `find external -name "*.agent.md"`. No impact on what is built today; item 2
+  (phase 1) retires this (one address computation).
 - **Doubled validate warnings.** `validate` scans both `plugins/` and `opencode/`, so every real
   unrewritten reference is reported once per tree. Superpowers skills
-  cross-reference heavily; a partial curation batch could produce dozens of lines. Candidate fix:
-  scan `plugins/` only, or group per reference.
+  cross-reference heavily; a partial curation batch could produce dozens of lines. Item 2
+  (phase 1) retires this: one reference model, findings grouped at the source.
 - **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
   (avoids prose false positives), so a `Superpowers:Foo` spelling slips through — alongside the
   bare-name and relative-path blindness catalogued in
@@ -144,10 +155,12 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   component.
 - **Own-skill collision false negative.** An original skill in `skills/` silently overwrites a
   curated skill of the same name in the same plugin — own skills are emitted last, and `validate`'s
-  duplicate check only errors across plugins.
+  duplicate check only errors across plugins. Item 2 (phase 1) retires this: one symbol table
+  across all emissions.
 - **`--bless` shows nothing before it stamps.** ADR-0001 calls re-blessing deliberate, but the
   command re-records whatever is on disk without displaying what changed — and the previous blob
-  SHA is right there in the lock. Print the diff, and require confirmation.
+  SHA is right there in the lock. Print the diff, and require confirmation. Item 2 (phase 2)
+  does exactly this.
 - **File modes are invisible to both overlay guards.** `git hash-object` hashes content, and
   patches are cut with `core.fileMode=false`, so upstream flipping a bundled script's executable
   bit produces no signal. `validate` now reads `git ls-files` to compare built output against
