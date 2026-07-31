@@ -300,8 +300,16 @@ this repo are as instructive as the similarities:
 - **Body rewriting is limited to tool names.** `strip_claude_tool_refs()` in `adapters/base.py`
   turns Claude Code's tool vocabulary into the target's — `` `Read` `` → `` `read` ``, "the Read
   tool" → `` `open` ``, `` `Bash` `` → `` `shell` ``. There is no link or file-reference rewriting
-  anywhere. This is the one mechanical adaptation this repo does not do at all, and upstream bodies
-  are full of Claude tool names.
+  anywhere.
+
+  **This repo does not need that rewrite, and implementing it would cause a bug.** OpenCode's own
+  tool identifiers (from its config schema) are `read`, `edit`, `glob`, `grep`, `list`, `bash`,
+  `task`, `todowrite`, `question`, `webfetch`, `websearch`, `lsp`, `skill`, `external_directory`,
+  `doom_loop` — the same words as Claude Code's, differing only in case, so the transform reduces to
+  a case fold. And the vendored corpus does not need even that: of 206 upstream `SKILL.md` files,
+  the search for Claude tool names returns four hits, all of them `` `Task` `` inside .NET skills
+  where it means `System.Threading.Tasks.Task`. A case-folding rewrite would have silently corrupted
+  three .NET skills to fix zero real references.
 - **Flat namespaces get a prefix.** OpenCode output is `.opencode/skills/<plugin>-<skill>/SKILL.md`
   and `.opencode/{commands,agents}/<plugin>__<name>.md` — the plugin name is carried into the
   artifact name rather than requiring globally unique names as ADR-0002 does.
