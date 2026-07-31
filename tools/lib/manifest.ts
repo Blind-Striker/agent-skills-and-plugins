@@ -29,6 +29,11 @@ export interface CurationItem {
   frontmatter?: Record<string, unknown>;
   /** `patch` applies overlays/<plugin>/<item>/overlay.patch; `overlay` replaces whole files. */
   body?: "overlay" | "patch";
+  /**
+   * Upstream addresses whose content this item's body merges in (ADR-0001). Each is blessed like
+   * the primary under the same-filename rule; drift in any source stops the build.
+   */
+  merged_from?: string[];
 }
 
 export interface CurationManifest {

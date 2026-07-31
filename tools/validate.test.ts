@@ -509,3 +509,47 @@ test("provenance: a patch's context lines are upstream's — only added lines ar
   const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("stamps no names"));
   assert.equal(hits.length, 0, JSON.stringify(hits, null, 2));
 });
+
+// The build reads merge stamps only for an item that says `body:`, so a declaration without one is
+// a guard nothing consults — the same silent bypass an unclaimed overlay is, spelled differently.
+test("merged_from on an item with no body: is an error", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    merged_from: [sp/skills/beta]",
+      "  - source: sp/skills/beta",
+      "    exclude: true",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const findings = validateRepo(root);
+  assert.ok(findings.some((f) => f.level === "error" && f.message.includes("merged_from without body:")));
+});
+
+test("a merged_from source that is not in external/ is an error", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from: [sp/skills/nowhere]",
+    ].join("\n")}\n`,
+  );
+  const hits = validateRepo(root).filter((f) =>
+    f.message.includes("merged_from source not found in external/: sp/skills/nowhere"),
+  );
+  assert.equal(hits.length, 1, JSON.stringify(hits, null, 2));
+});

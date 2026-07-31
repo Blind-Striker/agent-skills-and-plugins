@@ -19,6 +19,7 @@ import {
   applyPatch,
   checkPatch,
   driftedFiles,
+  driftedMergeSources,
   listFiles,
   loadLock,
   lockKey,
@@ -171,10 +172,29 @@ function overlayDrift(
     return [`${id}: lock records no upstream file, so nothing guards this overlay — run: ${bless}`];
   }
   const drifted = driftedFiles(upstreamBase(root, item, comp), entry);
-  if (!drifted.length) {
-    return [];
+  if (drifted.length) {
+    return [`${id}: upstream changed under the overlay (${drifted.join(", ")}) — review the diff, then: ${bless}`];
   }
-  return [`${id}: upstream changed under the overlay (${drifted.join(", ")}) — review the diff, then: ${bless}`];
+  // A merged body has ingredients the primary stamp knows nothing about, so the declaration and the
+  // lock have to name the same sources before either guards anything. Both directions are caught:
+  // a source declared but never stamped is unguarded, and a stamp the manifest no longer declares
+  // is a lock still guarding an ingredient this body stopped using.
+  const declaredSources = new Set(item.merged_from ?? []);
+  const blessedSources = new Set(Object.keys(entry.mergeSources ?? {}));
+  const sameSources =
+    declaredSources.size === blessedSources.size && [...declaredSources].every((s) => blessedSources.has(s));
+  if ((declaredSources.size || blessedSources.size) && !sameSources) {
+    const declared = [...declaredSources].join(", ") || "none";
+    const held = [...blessedSources].join(", ") || "none";
+    return [`${id}: merge sources are not blessed (declared: ${declared}; lock has: ${held}) — run: ${bless} --yes`];
+  }
+  const mergeDrift = driftedMergeSources(root, entry);
+  if (mergeDrift.length) {
+    return [
+      `${id}: merge source changed under the overlay (${mergeDrift.join("; ")}) — review the diff, then: ${bless} --yes`,
+    ];
+  }
+  return [];
 }
 
 // Mirrors every throw in emitItem, with the identical wording, so the messages a user sees are the

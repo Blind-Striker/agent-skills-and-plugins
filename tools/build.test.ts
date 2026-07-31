@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
+import { stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
@@ -422,4 +423,86 @@ test("an upstream agent named zeta.agent.md is addressed as ns:zeta", () => {
   buildAll(root);
   const alpha = readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8");
   assert.match(alpha, /deniz-process:zeta/);
+});
+
+// A merged body's ingredients are guarded exactly like its primary (ADR-0001): the source that
+// moved is named, because "something upstream changed" is unactionable when a body has several.
+test("a drifted merge source stops the build, naming the source that moved", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from: [sp/skills/beta]",
+      "  - source: sp/skills/beta",
+      "    exclude: true",
+    ].join("\n")}\n`,
+  );
+  // what a blessed merge looks like on disk: the overlay directory, plus a lock entry stamping the
+  // primary and every declared source
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: merged\n---\nMerged body.\n",
+  );
+  const lock = {
+    "deniz-process/alpha": {
+      source: "sp/skills/alpha",
+      files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+      mergeSources: {
+        "sp/skills/beta": stampMergeFiles(join(root, "external", "sp", "skills", "beta"), ["SKILL.md"]),
+      },
+    },
+  };
+  writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
+  buildAll(root); // clean: primary and merge source both match their stamps
+  // the ledger carries the declaration, so an item's resolved state names the bodies it was made of
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  assert.deepEqual(ledger["deniz-process/alpha"].mergedFrom, ["sp/skills/beta"]);
+
+  writeFileSync(
+    join(root, "external", "sp", "skills", "beta", "SKILL.md"),
+    "---\nname: beta\ndescription: moved\n---\nMoved.\n",
+  );
+  assert.throws(() => buildAll(root), /merge source changed under the overlay \(sp\/skills\/beta: SKILL\.md\)/);
+});
+
+// The declaration and the lock are two halves of one guard: a source nobody stamped is guarded by
+// nothing, and saying so is the only way a merge cannot be half-blessed.
+test("merged_from declared but not blessed stops the build", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    body: overlay",
+      "    merged_from: [sp/skills/beta]",
+      "  - source: sp/skills/beta",
+      "    exclude: true",
+    ].join("\n")}\n`,
+  );
+  mkdirSync(join(root, "overlays", "deniz-process", "alpha"), { recursive: true });
+  writeFileSync(
+    join(root, "overlays", "deniz-process", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: merged\n---\nMerged body.\n",
+  );
+  const lock = {
+    "deniz-process/alpha": {
+      source: "sp/skills/alpha",
+      files: stampFiles(join(root, "external", "sp", "skills", "alpha"), ["SKILL.md"]),
+    },
+  };
+  writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
+  assert.throws(() => buildAll(root), /merge sources are not blessed .* --bless/);
 });

@@ -139,6 +139,26 @@ export function validateRepo(root: string): Finding[] {
           });
         }
       }
+      // merged_from is a claim about the BODY, and the build reads merge stamps only for an item
+      // that declares one — so a declaration without `body:` ships pristine upstream while reading
+      // as a guarded merge, which is the overlay-wiring bypass below spelled a second way.
+      if (item.merged_from?.length && !item.body) {
+        findings.push({
+          level: "error",
+          message: `${m.plugin.name}/${outName}: merged_from without body: — a merge is a body edit; declare body: overlay|patch or drop merged_from`,
+        });
+      }
+      // An address that is in no submodule has nothing to stamp, so it is a guard over nothing —
+      // and the build cannot say so: an unstampable source is simply absent from the lock, which
+      // reads exactly like a source nobody declared.
+      for (const src of item.merged_from ?? []) {
+        if (!components.some((c) => c.sourcePath === src)) {
+          findings.push({
+            level: "error",
+            message: `${m.plugin.name}/${outName}: merged_from source not found in external/: ${src}`,
+          });
+        }
+      }
       // L7. own skills are copied last and into the same directory, so one of the same name
       // overwrites the curated item at emit time — and the cross-plugin duplicate check below sees
       // the single surviving directory, never the collision.
