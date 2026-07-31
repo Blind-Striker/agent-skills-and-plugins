@@ -28,6 +28,15 @@ policy.
   `docs/superpowers/`. That output is merge-transient scratch: delete it in the merge that completes
   the work; git carries the history.
 
+## Measuring a harness
+
+Every emitter encodes an assumption about a harness, and both the documentation and plain reasoning
+have been wrong about those assumptions repeatedly. [`harness-probing.md`](harness-probing.md) is the
+method: how to build a throwaway lab, how to isolate each harness (they differ), which introspection
+commands answer a question for free, what only a human at a TUI can observe, and the traps that have
+already produced wrong entries in `docs/research/`. Read it before adding a fact about harness
+behaviour anywhere.
+
 ## Handover prompts
 
 At the end of a session that closed a non-trivial wave (an architectural change, a multi-commit
