@@ -43,11 +43,23 @@ The two harnesses isolate differently. Getting this wrong wastes a round.
 |---|---|---|
 | Claude Code | `CLAUDE_CONFIG_DIR` | **replaces** the config root. Setting it is enough |
 | OpenCode | `OPENCODE_CONFIG_DIR` | only **adds** a search location — the global config and package cache still load |
-| OpenCode | `USERPROFILE` (Windows) | **relocates everything** — home, data, config, cache, state. `HOME` alone does not |
+| OpenCode | `USERPROFILE` (Windows) | relocates what `opencode debug paths` *reports* — **not** what discovery *reads*. The global config mount follows `XDG_CONFIG_HOME`, falling back to the real profile; set both |
+
+Three OpenCode-specific traps, each of which cost a round:
+
+- **Put the lab outside the real home.** Discovery walks up from the working directory past any
+  git boundary; `%TEMP%` sits under `C:\Users\<you>`, so a lab there silently collects the real
+  `~/.agents` and `~/.claude` trees on the way up.
+- **The package cache cannot be mounted over.** Packages from a real config's `plugin:` list
+  outrank `OPENCODE_CONFIG_DIR` and the global config dir; same-named probes resolve to the
+  package. Isolate by giving the lab home no `opencode.json` at all.
+- **`opencode debug paths` is not an isolation check.** It reports relocated roots that discovery
+  does not use. Trust the listing (`debug skill`), never `paths`.
 
 Claude Code keeps credentials inside its config dir, so a fresh one demands a new login. Copy only
-`.credentials.json` across — nothing else, or the isolation brings the real plugins with it. Never
-track that file.
+`.credentials.json` across — nothing else, or the isolation brings the real plugins with it. For
+an OpenCode TUI session the equivalent is `~/.local/share/opencode/auth.json`, copied into the
+isolated data dir — it alone suffices. Never track either file.
 
 Verify the isolation before trusting a result: an isolated OpenCode lists exactly one skill, the
 built-in `customize-opencode`.

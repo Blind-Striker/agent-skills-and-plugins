@@ -85,17 +85,23 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    and the known hard part, surgical JSONC merge into the user's existing config behind
    validation gates with backup restore ("config concat" concern), (c) a sync command in
    `tools/` (a deliberate ADR-0004 growth decision). wshobson/agents is the third reference:
-   generate harness-native trees, commit only registries.
-6. **Load the emitted `opencode/` tree in OpenCode.** Its *behaviour* has been measured — discovery,
-   mount points, frontmatter tolerance, `@file` resolution, all recorded in
-   `docs/research/skill-invocation-across-harnesses.md` using the method in
-   `docs/agents/harness-probing.md` — but always with purpose-built fixtures, never with our own
-   output. Mount the real tree, confirm skills, commands and agents resolve, and decide which mount
-   points we support: project-local `.opencode/` and global `~/.config/opencode/` both work, and the
-   choice determines how a converted command's asset references must be spelled.
+   generate harness-native trees, commit only registries. The behavioural half is settled: the
+   real tree was mounted three ways and exercised in a TUI on 2026-07-31 — discovery, commands,
+   model-mediated composition, parked-bundle reachability and all three invocation surfaces
+   verified on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
+   install mechanism remains open.
 
 ## Known Gaps
 
+- **Long-body `manual` conversions paste their whole body into the OpenCode chat.** A command is
+  a template, and the TUI renders the entire body as the user's message: seven-line grill-me is
+  clean, 150-line brainstorming is a wall on every invocation. Cosmetic, not correctness — the
+  model follows the pasted body either way. Candidate emitter change: a stub command body that
+  points at the body parked beside the bundle, which needs the parked directory to carry the body
+  under a non-discoverable name. A decision, with the installer conversation the natural place.
+- **Out-of-project bundle reads prompt for folder access** under a config-dir mount — parked
+  files live outside the project tree, so the first read asks permission. Whether to
+  pre-authorize is an installer-decision detail (config `permission` block).
 - **`.agent.md` double-extension addresses.** `addressOf` in `tools/lib/rewrite.ts` strips only
   `.md`, so an upstream agent file named `<name>.agent.md` gets a rewrite-map key ending in
   `.agent` while harness references spell the bare name — such a reference would not be rewritten.

@@ -174,6 +174,37 @@ project-local install, and a prose instruction naming the path for a global one.
 this repo intends to support is therefore a decision the emitter needs before it can write the
 reference.
 
+### Verified on this repo's real output (1.18.7, TUI, model GPT-5.6 Terra)
+
+The fixture rounds above were confirmed against the built `opencode/` tree itself: three mounts
+(`OPENCODE_CONFIG_DIR`, project-local `.opencode/`, global config dir) each resolve the full set —
+every skill with a `SKILL.md`, every command, no parked directory in any listing — and a TUI
+session exercised the artifacts end to end:
+
+- **A typed command pastes its whole body into the chat as the message.** A command is a
+  template, so a seven-line body (grill-me) reads clean while a 150-line one (brainstorming,
+  writing-plans) dumps a wall of text on every invocation. Correctness is unaffected — the model
+  follows the pasted body — but long-body `manual` conversions are noisy; the candidate emitter
+  fix is tracked in `docs/ROADMAP.md`.
+- **Cross-artifact composition is model-mediated, and works.** The TUI does not expand a slash
+  command nested inside a command body; the model reads "Run a `/grilling` session" and invokes
+  the `grilling` skill through its skill tool. Trigger command → knowledge skill survives the
+  crossing, on a non-Claude model.
+- **Parked bundles are reachable.** Asked for the visual-companion guide, the model located and
+  read the parked file by absolute path — behind a folder-access permission prompt, since a
+  config-dir mount puts skill files outside the project tree.
+- **All three invocation surfaces behave on real output.** `manual` commands list in the `/`
+  menu under their curated descriptions; an `auto` skill fired on a free-form bug sentence (the
+  merged systematic-debugging visibly steered the session loop-first); a `both` item served both
+  surfaces in one session — `/writing-plans` paste, then a model-side `Skill "writing-plans"`
+  invocation.
+
+Two mount facts measured on the way. The **package cache outranks every mount**: `plugin:`
+packages > `OPENCODE_CONFIG_DIR` > global config skills, so an installed upstream package shadows
+same-named curated output until removed. And the **global config mount follows
+`XDG_CONFIG_HOME`**, falling back to the real profile — relocating `USERPROFILE` moves what
+`opencode debug paths` *reports* but not what discovery *reads*.
+
 Access control is config-side — `opencode.json` carries allow/deny/ask patterns over skill names,
 and an agent can drop skills entirely with `skill: false`. None of that travels inside a
 distributed artifact, so it cannot substitute for getting the output shape right.
