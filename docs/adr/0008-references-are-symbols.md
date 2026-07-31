@@ -38,13 +38,26 @@ Five parts, decided together.
 **1. One reference model.** A single library extracts every cross-item reference from the final
 neutral bodies — post-overlay, pre-rewrite, the address space overlays are authored in. It is the
 only reference scanner: the rewrite consumes it, `validate` links against it, `sync` diffs it.
-Extracted references come in two tiers:
+Extracted references come in three tiers, and the tier is decided by how much the spelling can be
+trusted rather than by how it looks:
 
 - **Facts** — namespaced spellings, the upstream address of the target's host
-  (e.g. `superpowers:test-driven-development`). Exact, machine-authoritative.
-- **Candidates** — bare-name and path matches against known item names. Heuristic by nature
-  (upstream names are ordinary words; the greps measurably over-report), so candidates are
-  surfaced for human reading and never become build state.
+  (e.g. `superpowers:test-driven-development`). Exact, machine-authoritative, and build state:
+  resolved, kind-checked, declared.
+- **Paths** — relative links between files. Resolving one is deterministic, so a path is build
+  state too — but only where *this build* could have broken it, because upstream bodies carry
+  illustrative paths that never resolved anywhere and never will (measured: a naive link check
+  reports dozens, nearly all prose). Two narrowing questions carry the whole tier, in the output
+  trees rather than the neutral bodies, because a path's meaning depends on where the artifact
+  landed: does a `../<item>/` climb into a sibling item still land, and is a missing
+  same-directory file one upstream still ships? Everything else stays silent.
+- **Candidates** — bare names matched against known item names. Irreducibly heuristic (upstream
+  names are ordinary words; the greps measurably over-report), so candidates are surfaced for
+  human reading and never become build state.
+
+The middle tier is why "is it checkable?" and "is it a fact?" are different questions. A path is
+not an identity — it cannot be kind-checked or declared, and it is invisible to `depends_on` — but
+its resolution is decidable, and declining to decide it left a real class of breakage unseen.
 
 Dependencies are never derived from output trees: the OpenCode tree is namespace-less by design,
 so rendered text cannot be parsed back into identity. Detection runs where the namespace exists —
@@ -68,8 +81,16 @@ convention.
 **3. `validate` becomes a linker.** Per output tree, in that tree's own address space: every fact
 resolves; every model-edge targets something its audience can invoke (`manual` suppression is
 structural — measured); every user-pointer targets something a user can type; referenced parked
-files exist. Named blind spot, accepted: a wrong-kind edge to a `both` target validates — wording
-is caught by review, not by the machine.
+files exist; and every path the tier above admits still lands. Named blind spot, accepted: a
+wrong-kind edge to a `both` target validates — wording is caught by review, not by the machine.
+
+Not every true finding is an error. Where the reference is sound and the *artifact shape* is what
+broke it — a converted command is one file in `commands/`, so nothing written for a skill directory
+reaches from it, and no single spelling serves both copies of a `both` item — the linker says so
+and does not fail: it can tell, because the skill copy resolves the very same link. Fixing those
+needs a spelling that depends on which mount point an install supports, which is a curation
+decision that has not been made. A warning that outlives its conversation is wallpaper, so this
+exemption is bounded: it names an open decision, and closing that decision closes the warning.
 
 **4. `depends_on` declares the model-edges; both directions are errors.** Each item lists the
 output names of its model-edge targets. A declared edge with no matching fact is stale; a fact
@@ -126,6 +147,11 @@ CI's staleness gate already guarantees the file is never behind the trees it des
 - Candidates shrink monotonically: every curation touch promotes prose into the convention; new
   content is born inside it. The heuristic tier exists to *find* upstream's legacy prose, never to
   judge it.
+- The path tier costs a curation decision its silence. An `omit` that drops a file, an `exclude`
+  that removes an item, a rename — each is cheap in the manifest and each can strand a body that
+  names the target by path, and until now nothing said so. The first run found exactly that: a
+  citation left behind by an `omit` made two batches earlier, dead in both trees the whole time.
+  A merge does all three of those things at once, which is when the tier earns its keep.
 - Three standing gaps retire structurally rather than by patch: the doubled per-tree warnings
   (one model, findings grouped at the source), the own-skill collision false negative (one symbol
   table across all emissions), and the `.agent.md` address bug (one address computation).

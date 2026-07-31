@@ -93,6 +93,10 @@ is the **trigger** dial. The table above gives each invocation value its default
   the one thing `manual` exists to guarantee. Their references are *not* rewritten: the spelling
   depends on which mount point is supported, `@file` resolving against the project root, so the
   build names the parked files in its report rather than implying the conversion was lossless.
+  `validate` sharpens that from a list into specifics — which links are actually dead in the
+  converted artifact, including a parked file's link back to the `SKILL.md` this decision
+  withholds (ADR-0008). They are warnings, not errors: the reference is sound and the shape is what
+  broke it, and the spelling that would fix it is the open mount-point decision.
 - Passthrough is honest on the Claude side and lossy on the OpenCode one. Upstream's keys are
   meaningful to Claude Code and meaningless to OpenCode, so an item that states no intent arrives in
   OpenCode as a plain model-only skill whatever upstream wanted. Stating `manual` is the only way to
