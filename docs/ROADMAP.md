@@ -23,12 +23,18 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   (`docs/research/skill-invocation-across-harnesses.md`, "Verified on this repo's real
   output"). The three dotnet modules still hold one pipeline-proof starter each.
 - `npm run validate` on the current build: 0 errors, 0 warnings.
-- `validate` is a linker (ADR-0008, phase 1 landed 2026-07-31): one reference scanner
-  (`tools/lib/refs.ts`) feeds the rewrite and the checks — facts must resolve in each tree's own
-  address space, a model-edge's target must be `auto`/`both`, a pointer's target `manual`/`both`,
-  and `depends_on` is enforced in both directions as errors. The build emits `docs/ledger.json`
-  (resolved invocation, artifacts, edges and drops per item × harness); CI's freshness gate
-  covers it, and its git diff is the notification channel for posture changes.
+- `validate` is a linker (ADR-0008): one reference scanner (`tools/lib/refs.ts`) feeds the
+  rewrite and the checks — facts must resolve in each tree's own address space, a model-edge's
+  target must be `auto`/`both`, a pointer's target `manual`/`both`, and `depends_on` is enforced
+  in both directions as errors. The build emits `docs/ledger.json` (resolved invocation,
+  artifacts, edges and drops per item × harness); CI's freshness gate covers it, and its git
+  diff is the notification channel for posture changes. The curation layer (manifest comments,
+  overlays, own skills) is scanned for curator-name and date stamps — provenance is git's job.
+- Merges are guarded end to end (ADR-0001): `merged_from:` blesses every source under the
+  same-filename rule (`mergeSources` in the lock), drift in any source stops the build naming
+  it, and `--bless` shows the drift it accepts before stamping (`--yes` confirms). `sync`
+  reports meaning on pin moves: posture drift on passthrough items, merge-source hits (across
+  submodules), and candidate-edge diffs against the ledger.
 - Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
   replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. One real
   overlay exists: systematic-debugging's merged SKILL.md — scoped to that one file, so the
@@ -64,23 +70,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    fill them against `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-2. **The reference-model wave, phase 2 — time. Phase 1 (space) landed 2026-07-31; phase 2 lands
-   before the two merge passes.** The contract is [ADR-0008](adr/0008-references-are-symbols.md)
-   plus the `merged_from` section of ADR-0001; the task breakdown is
-   [the plan](superpowers/plans/2026-07-31-reference-model-wave.md), Tasks 6–11 (transient —
-   deleted when the wave merges). RED tests first, all gates per change.
-   `merged_from:` lands per ADR-0001: the lock gains `mergeSources` (same-filename rule, a
-   missing file recorded absent, its appearance is drift), the build fails naming the source
-   that moved, `--bless` stamps every declared source and shows the diff before stamping
-   (retires the "--bless shows nothing" gap below). Retrofit systematic-debugging; retire its
-   "glance at diagnosing-bugs by hand" comment — that debt is the feature's justification.
-   `sync` turns semantic: it reports posture drift on passthrough items (an upstream invocation
-   or description flip is curation-relevant, not file noise), tags merge-source hits, and diffs
-   candidate edges against the ledger on pin moves — the declared map can never go silently
-   stale. Measured pre-flight: pointer wording relays without invoking on OpenCode 1.18.7
-   (grok-4.5); the Claude-side wording check rides the post-wave TUI round
-   ([harness-probing.md](agents/harness-probing.md)).
-3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
+2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
    aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
@@ -89,10 +79,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
    targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
    invisible to `validate`.
-4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-5. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
+4. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
    replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
@@ -100,7 +90,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    `~/.config/opencode/opencode.json`), because measured precedence (package cache >
    `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
    every colliding name — the one global our tree cannot shadow away.
-6. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
+5. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
    model is an installer, symmetric to the Claude marketplace; a permanent `OPENCODE_CONFIG_DIR`
    is rejected (env vars are for throwaway tests, consumption goes through a native mechanism).
    Candidates, in current order: (a) OpenCode's own package mechanism (`opencode.json` `plugin:`
@@ -115,7 +105,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    model-mediated composition, parked-bundle reachability and all three invocation surfaces
    verified on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
    install mechanism remains open.
-7. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+6. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -146,10 +136,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `commands/`/`agents/` directory, so upstream subdirectory grouping is silently missing from the
   inventory; conversely such a directory nested inside a skill is double-counted as a standalone
   component.
-- **`--bless` shows nothing before it stamps.** ADR-0001 calls re-blessing deliberate, but the
-  command re-records whatever is on disk without displaying what changed — and the previous blob
-  SHA is right there in the lock. Print the diff, and require confirmation. Item 2 (phase 2)
-  does exactly this.
 - **File modes are invisible to both overlay guards.** `git hash-object` hashes content, and
   patches are cut with `core.fileMode=false`, so upstream flipping a bundled script's executable
   bit produces no signal. `validate` now reads `git ls-files` to compare built output against
