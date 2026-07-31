@@ -1,8 +1,70 @@
 # Intended sources (2026-07-29 design): superpowers + mattpocock-skills — brainstorming, TDD,
 # debugging, planning, code review, skill writing. No upstream hooks; triggers tuned per item.
+#
+# Batch 1 (2026-07-31, decided with Deniz): the daily-flow spine — brainstorm/grill → plan →
+# execute → review/verify — plus the passive disciplines. Invocation rule that shaped it:
+# `manual` is unreachable even from another skill's body, so every link another taken skill
+# invokes is `both` or `auto`; only true entry points are `manual`.
+#
+# Deferred to later batches, deliberately: matt's production chain (to-spec, to-tickets, triage,
+# wayfinder, code-review, implement — all gated on the issue-tracker/setup decision), the
+# skill-authoring pair (writing-skills, writing-great-skills), using-superpowers (wants its own
+# body-edit conversation), research/prototype/teach/resolving-merge-conflicts/codebase-design/
+# improve-codebase-architecture, diagnosing-bugs (candidate merge into systematic-debugging).
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.1.0
+  version: 0.2.0
 items:
+  # --- superpowers spine: brainstorm → plan → execute → finish ---
+  - source: superpowers/skills/brainstorming
+    invocation: manual # entry ceremony — Deniz opens it; its exit invokes writing-plans (taken)
+    frontmatter:
+      # upstream description is coercive trigger prose ("You MUST use this before any creative
+      # work"); manual makes it unreachable by the model, so the description's only reader is a
+      # human browsing the / menu — one honest line
+      description: "Collaborative design session: turn an idea into an approved design and spec."
+  - source: superpowers/skills/writing-plans
+    invocation: both # Deniz invokes it directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
+  - source: superpowers/skills/subagent-driven-development
+    invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
+  - source: superpowers/skills/executing-plans
+    invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain
+  - source: superpowers/skills/finishing-a-development-branch
+    invocation: both # invoked from SDD/executing-plans bodies at the end of every run
+  - source: superpowers/skills/using-git-worktrees
+    invocation: auto # only ever reached from other skills' bodies or model judgment; asks consent itself before creating anything
+  # --- review pair ---
+  - source: superpowers/skills/requesting-code-review
+    invocation: both # "yok bu böyle olmamış" → model may propose/fire a review; SDD also uses its code-reviewer.md template (cross-skill file dep)
+  - source: superpowers/skills/receiving-code-review
+    invocation: auto # behavioural discipline that should kick in whenever review feedback arrives — never typed
+  # --- passive disciplines ---
+  - source: superpowers/skills/test-driven-development
+    invocation: auto # invoked from systematic-debugging's body (clears 2 of the 4 standing validate warnings)
+  - source: superpowers/skills/verification-before-completion
+    invocation: auto # fires before any "done" claim; clears the other 2 standing warnings
   - source: superpowers/skills/systematic-debugging
+    invocation: auto # debugging discipline should engage when a bug appears, unprompted
+    omit: # author-facing material shipped alongside the skill (see upstream-repo-layouts.md)
+      - CREATION-LOG.md
+      - test-academic.md
+      - "test-pressure-*.md"
+  # --- mattpocock grilling core ---
+  # All matt items omit agents/** — every matt skill bundles an agents/openai.yaml, which is
+  # Codex/OpenAI harness config; dead weight in both of our target harnesses.
+  - source: mattpocock-skills/skills/productivity/grill-me
+    invocation: manual # 7-line trigger whose whole body is "Run a /grilling session" — the composition pattern's cleanest example
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/productivity/grilling
+    invocation: auto # the knowledge grill-me/grill-with-docs invoke; upstream marks it model-invoked for exactly this reason
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/grill-with-docs
+    invocation: manual # stateful grill (CONTEXT.md + ADRs); entry point, drags domain-modeling (taken)
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/domain-modeling
+    invocation: auto # vocabulary layer grill-with-docs drives; other skills reach it by name
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/productivity/handoff
+    invocation: manual # small, dependency-free, immediately useful session bridge
+    omit: ["agents/**"]
