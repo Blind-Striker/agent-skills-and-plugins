@@ -12,6 +12,7 @@ import {
 import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
+import { OPENCODE_SKILL_KEYS, writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
@@ -85,6 +86,7 @@ export function buildAll(root: string): string[] {
   emitOpenCode(root, invocations, report);
   rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components, "claude"));
   rewriteTree(join(root, "opencode"), buildRewriteMap(manifests, components, "opencode"));
+  writeLedger(root, manifests, components);
   return report;
 }
 
@@ -384,9 +386,6 @@ function rewriteTree(dir: string, map: Map<string, string>): void {
     }
   }
 }
-
-/** Skill frontmatter OpenCode recognises; everything else it ignores, so we drop and report it. */
-const OPENCODE_SKILL_KEYS = new Set(["name", "description", "license", "compatibility", "metadata"]);
 
 /** No silent loss (ADR-0002): whatever the target harness cannot represent is named in the report. */
 function reportDropped(label: string, from: Record<string, unknown>, kept: Record<string, unknown>, report: string[]) {

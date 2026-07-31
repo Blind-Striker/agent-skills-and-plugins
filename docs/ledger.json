@@ -1,0 +1,1038 @@
+{
+  "deniz-dotnet-akka/akka-net-best-practices": {
+    "source": "dotnet-skills/skills/akka-best-practices",
+    "description": "Critical Akka.NET best practices including EventStream vs DistributedPubSub, supervision strategies, error handling, Props vs DependencyResolver, work distribution patterns, and cluster/local mode abstractions for testability.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-aspire/aspire": {
+    "source": "aspire-skills/skills/aspire",
+    "description": "**WORKFLOW SKILL** - Top-level router for Aspire 13.4 distributed apps. Detects the AppHost, enforces safety guardrails, and routes to the right sub-skill. USE FOR: Aspire AppHost detected, aspire CLI, distributed app, cloud-native .NET, aspire start, aspire stop, aspire resource, aspire deploy, aspire destroy, aspire publish, aspire init, aspire new, aspire add, aspire integration list/search, aspire wait, aspire describe, aspire ps, aspire dashboard run, aspire doctor, aspire update, aspire logs, aspire otel, --include-hidden, aspireify, WithBrowserLogs, custom dashboard/resource commands, .aspire/modules recovery, Playwright URL discovery. DO NOT USE FOR: non-Aspire .NET projects (use dotnet directly), Azure provisioning without Aspire (use azure-prepare), container-only repos with no AppHost, ordinary build/test tasks. INVOKES: aspire-init, aspireify, aspire-orchestration, aspire-deployment, aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-general/modern-csharp-coding-standards": {
+    "source": "dotnet-skills/skills/csharp-coding-standards",
+    "description": "Write modern, high-performance C# code using records, pattern matching, value objects, async/await, Span<T>/Memory<T>, and best-practice API design patterns. Emphasizes functional-style programming with C# 12+ features.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/brainstorming": {
+    "source": "superpowers/skills/brainstorming",
+    "invocation": "manual",
+    "description": "Collaborative design session: turn an idea into an approved design and spec.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "scripts/frame-template.html",
+        "scripts/helper.js",
+        "scripts/server.cjs",
+        "scripts/start-server.sh",
+        "scripts/stop-server.sh",
+        "spec-document-reviewer-prompt.md",
+        "visual-companion.md"
+      ]
+    }
+  },
+  "deniz-process/codebase-design": {
+    "source": "mattpocock-skills/skills/engineering/codebase-design",
+    "invocation": "auto",
+    "description": "Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/dispatching-parallel-agents": {
+    "source": "superpowers/skills/dispatching-parallel-agents",
+    "invocation": "auto",
+    "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/domain-modeling": {
+    "source": "mattpocock-skills/skills/engineering/domain-modeling",
+    "invocation": "auto",
+    "description": "Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/executing-plans": {
+    "source": "superpowers/skills/executing-plans",
+    "invocation": "both",
+    "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:finishing-a-development-branch",
+          "deniz-process:subagent-driven-development",
+          "deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [
+          "finishing-a-development-branch",
+          "subagent-driven-development",
+          "using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/finishing-a-development-branch": {
+    "source": "superpowers/skills/finishing-a-development-branch",
+    "invocation": "both",
+    "description": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/grill-me": {
+    "source": "mattpocock-skills/skills/productivity/grill-me",
+    "invocation": "manual",
+    "description": "A relentless interview to sharpen a plan or design.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/grill-with-docs": {
+    "source": "mattpocock-skills/skills/engineering/grill-with-docs",
+    "invocation": "manual",
+    "description": "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/grilling": {
+    "source": "mattpocock-skills/skills/productivity/grilling",
+    "invocation": "auto",
+    "description": "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/handoff": {
+    "source": "mattpocock-skills/skills/productivity/handoff",
+    "invocation": "manual",
+    "description": "Compact the current conversation into a handoff document for another agent to pick up.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "argument-hint",
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/implement": {
+    "source": "mattpocock-skills/skills/engineering/implement",
+    "invocation": "manual",
+    "description": "Implement a piece of work based on a spec or set of tickets.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/improve-codebase-architecture": {
+    "source": "mattpocock-skills/skills/engineering/improve-codebase-architecture",
+    "invocation": "manual",
+    "description": "Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "HTML-REPORT.md"
+      ]
+    }
+  },
+  "deniz-process/prototype": {
+    "source": "mattpocock-skills/skills/engineering/prototype",
+    "invocation": "both",
+    "description": "Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/receiving-code-review": {
+    "source": "superpowers/skills/receiving-code-review",
+    "invocation": "auto",
+    "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/requesting-code-review": {
+    "source": "superpowers/skills/requesting-code-review",
+    "invocation": "both",
+    "description": "Use when completing tasks, implementing major features, or before merging to verify work meets requirements",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/research": {
+    "source": "mattpocock-skills/skills/engineering/research",
+    "invocation": "both",
+    "body": "patch",
+    "description": "Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:dispatching-parallel-agents"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [
+          "dispatching-parallel-agents"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/resolving-merge-conflicts": {
+    "source": "mattpocock-skills/skills/engineering/resolving-merge-conflicts",
+    "invocation": "auto",
+    "description": "Use when you need to resolve an in-progress git merge/rebase conflict.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/setup-matt-pocock-skills": {
+    "source": "mattpocock-skills/skills/engineering/setup-matt-pocock-skills",
+    "invocation": "manual",
+    "description": "Configure this repo for the engineering skills — set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "domain.md",
+        "issue-tracker-github.md",
+        "issue-tracker-gitlab.md",
+        "issue-tracker-local.md",
+        "triage-labels.md"
+      ]
+    }
+  },
+  "deniz-process/subagent-driven-development": {
+    "source": "superpowers/skills/subagent-driven-development",
+    "invocation": "both",
+    "description": "Use when executing implementation plans with independent tasks in the current session",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:finishing-a-development-branch",
+          "deniz-process:requesting-code-review",
+          "deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [
+          "finishing-a-development-branch",
+          "requesting-code-review",
+          "using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/systematic-debugging": {
+    "source": "superpowers/skills/systematic-debugging",
+    "invocation": "auto",
+    "body": "overlay",
+    "description": "Use when encountering any bug, test failure, performance regression, or unexpected behavior, before proposing fixes",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:test-driven-development",
+          "deniz-process:verification-before-completion"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "test-driven-development",
+          "verification-before-completion"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/teach": {
+    "source": "mattpocock-skills/skills/productivity/teach",
+    "invocation": "manual",
+    "description": "Teach the user a new skill or concept, within this workspace.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "argument-hint",
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "GLOSSARY-FORMAT.md",
+        "LEARNING-RECORD-FORMAT.md",
+        "MISSION-FORMAT.md",
+        "RESOURCES-FORMAT.md"
+      ]
+    }
+  },
+  "deniz-process/test-driven-development": {
+    "source": "superpowers/skills/test-driven-development",
+    "invocation": "auto",
+    "description": "Use when implementing any feature or bugfix, before writing implementation code",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:writing-skills"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "writing-skills"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/to-spec": {
+    "source": "mattpocock-skills/skills/engineering/to-spec",
+    "invocation": "manual",
+    "description": "Turn the current conversation into a spec and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/to-tickets": {
+    "source": "mattpocock-skills/skills/engineering/to-tickets",
+    "invocation": "manual",
+    "description": "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker — edges as text in one file per ticket locally, or native blocking links on a real tracker.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/triage": {
+    "source": "mattpocock-skills/skills/engineering/triage",
+    "invocation": "manual",
+    "description": "Move issues and external PRs through a state machine of triage roles — categorise, verify, grill if needed, and write agent-ready briefs.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "AGENT-BRIEF.md",
+        "OUT-OF-SCOPE.md"
+      ]
+    }
+  },
+  "deniz-process/using-git-worktrees": {
+    "source": "superpowers/skills/using-git-worktrees",
+    "invocation": "auto",
+    "description": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/using-superpowers": {
+    "source": "superpowers/skills/using-superpowers",
+    "invocation": "manual",
+    "body": "patch",
+    "description": "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:brainstorming",
+          "deniz-process:systematic-debugging"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [
+          "brainstorming",
+          "systematic-debugging"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/verification-before-completion": {
+    "source": "superpowers/skills/verification-before-completion",
+    "invocation": "auto",
+    "description": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/wayfinder": {
+    "source": "mattpocock-skills/skills/engineering/wayfinder",
+    "invocation": "manual",
+    "description": "Plan a huge chunk of work — more than one agent session can hold — as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/writing-great-skills": {
+    "source": "mattpocock-skills/skills/productivity/writing-great-skills",
+    "invocation": "manual",
+    "description": "Reference for writing and editing skills well — the vocabulary and principles that make a skill predictable.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "GLOSSARY.md"
+      ]
+    }
+  },
+  "deniz-process/writing-plans": {
+    "source": "superpowers/skills/writing-plans",
+    "invocation": "both",
+    "description": "Use when you have a spec or requirements for a multi-step task, before touching code",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:executing-plans",
+          "deniz-process:subagent-driven-development",
+          "deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill",
+        "command"
+      ],
+      "edges": {
+        "model": [
+          "executing-plans",
+          "subagent-driven-development",
+          "using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-process/writing-skills": {
+    "source": "superpowers/skills/writing-skills",
+    "invocation": "manual",
+    "description": "Use when creating new skills, editing existing skills, or verifying skills work before deployment",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [
+          "systematic-debugging",
+          "test-driven-development"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "anthropic-best-practices.md",
+        "examples/CLAUDE_MD_TESTING.md",
+        "graphviz-conventions.dot",
+        "persuasion-principles.md",
+        "render-graphs.js",
+        "testing-skills-with-subagents.md"
+      ]
+    }
+  }
+}
