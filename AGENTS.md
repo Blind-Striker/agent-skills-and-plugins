@@ -50,6 +50,7 @@ solved.
 | Commands | `package.json` scripts |
 | What is curated, how, and why | `curation/*.yaml` (why = item comments) |
 | What upstream offers | `docs/inventory.md` (generated — regenerate, don't edit) |
+| Resolved output state (invocation, artifacts, edges) per item × harness | `docs/ledger.json` (generated — regenerate, don't edit) |
 | Architecture decisions and why | `docs/adr/` |
 | Harness research and notes | `docs/research/` |
 | Agent-facing guidance (harness relays, how to measure a harness, handovers) | `docs/agents/` |

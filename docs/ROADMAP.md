@@ -23,6 +23,12 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   (`docs/research/skill-invocation-across-harnesses.md`, "Verified on this repo's real
   output"). The three dotnet modules still hold one pipeline-proof starter each.
 - `npm run validate` on the current build: 0 errors, 0 warnings.
+- `validate` is a linker (ADR-0008, phase 1 landed 2026-07-31): one reference scanner
+  (`tools/lib/refs.ts`) feeds the rewrite and the checks — facts must resolve in each tree's own
+  address space, a model-edge's target must be `auto`/`both`, a pointer's target `manual`/`both`,
+  and `depends_on` is enforced in both directions as errors. The build emits `docs/ledger.json`
+  (resolved invocation, artifacts, edges and drops per item × harness); CI's freshness gate
+  covers it, and its git diff is the notification channel for posture changes.
 - Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
   replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. One real
   overlay exists: systematic-debugging's merged SKILL.md — scoped to that one file, so the
@@ -58,36 +64,22 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    fill them against `docs/inventory.md`, with the user, one plugin per session.
    `docs/research/skill-framework-landscape.md` is the standing input; the why of each decision goes
    beside the item.
-2. **The reference-model wave — machinery, two sessions, designed with the user (2026-07-31);
-   lands before the two merge passes.** The contract is
-   [ADR-0008](adr/0008-references-are-symbols.md) plus the `merged_from` extension of ADR-0001;
-   the task breakdown is
-   [the plan](superpowers/plans/2026-07-31-reference-model-wave.md) (transient — deleted when the
-   wave merges). RED tests first, all gates per change.
-   **Phase 1 — space.** One reference model in `tools/lib/refs.ts`: facts are namespaced
-   spellings in the neutral (post-overlay, pre-rewrite) bodies — `ns:name` a model-edge,
-   `/ns:name` a user-pointer — candidates are heuristic bare-name matches that never become
-   build state. The rewrite consumes the model (gate: byte-identical output), the build emits
-   `docs/ledger.json` (resolved invocation, artifacts, edges and drops per item × harness — git
-   diff of one file becomes the notification channel), and `validate` becomes a linker: every
-   fact resolves per tree, model-edges must target `auto`/`both`, pointers must target
-   `manual`/`both`, and `depends_on` is enforced in both directions as errors. The declared map
-   is transcribed from a ledger-generated draft the user reviews; the shipped
-   using-superpowers → brainstorming line becomes a pointer (user's ruling, 2026-07-31).
-   Retires the doubled-warnings, own-skill-collision and `.agent.md` gaps below.
-   **Phase 2 — time.** `merged_from:` lands per ADR-0001: the lock gains `mergeSources`
-   (same-filename rule, a missing file recorded absent, its appearance is drift), the build
-   fails naming the source that moved, `--bless` stamps every declared source and shows the
-   diff before stamping (retires the "--bless shows nothing" gap). Retrofit
-   systematic-debugging; retire its "glance at diagnosing-bugs by hand" comment — that debt is
-   the feature's justification. `sync` turns semantic: it reports posture drift on passthrough
-   items (an upstream invocation or description flip is curation-relevant, not file noise),
-   tags merge-source hits, and diffs candidate edges against the ledger on pin moves — the
-   declared map can never go silently stale.
-   Pre-flight: the rewriter's handling of the `/ns:name` form is unit-tested (our code, not a
-   probe); the model's reading of pointer wording is TUI-probed per
-   [harness-probing.md](agents/harness-probing.md) — an hour, decides the wording template, not
-   the mechanism.
+2. **The reference-model wave, phase 2 — time. Phase 1 (space) landed 2026-07-31; phase 2 lands
+   before the two merge passes.** The contract is [ADR-0008](adr/0008-references-are-symbols.md)
+   plus the `merged_from` section of ADR-0001; the task breakdown is
+   [the plan](superpowers/plans/2026-07-31-reference-model-wave.md), Tasks 6–11 (transient —
+   deleted when the wave merges). RED tests first, all gates per change.
+   `merged_from:` lands per ADR-0001: the lock gains `mergeSources` (same-filename rule, a
+   missing file recorded absent, its appearance is drift), the build fails naming the source
+   that moved, `--bless` stamps every declared source and shows the diff before stamping
+   (retires the "--bless shows nothing" gap below). Retrofit systematic-debugging; retire its
+   "glance at diagnosing-bugs by hand" comment — that debt is the feature's justification.
+   `sync` turns semantic: it reports posture drift on passthrough items (an upstream invocation
+   or description flip is curation-relevant, not file noise), tags merge-source hits, and diffs
+   candidate edges against the ledger on pin moves — the declared map can never go silently
+   stale. Measured pre-flight: pointer wording relays without invoking on OpenCode 1.18.7
+   (grok-4.5); the Claude-side wording check rides the post-wave TUI round
+   ([harness-probing.md](agents/harness-probing.md)).
 3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
@@ -135,15 +127,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Out-of-project bundle reads prompt for folder access** under a config-dir mount — parked
   files live outside the project tree, so the first read asks permission. Whether to
   pre-authorize is an installer-decision detail (config `permission` block).
-- **`.agent.md` double-extension addresses.** `addressOf` in `tools/lib/rewrite.ts` strips only
-  `.md`, so an upstream agent file named `<name>.agent.md` gets a rewrite-map key ending in
-  `.agent` while harness references spell the bare name — such a reference would not be rewritten.
-  Affected files: `find external -name "*.agent.md"`. No impact on what is built today; item 2
-  (phase 1) retires this (one address computation).
-- **Doubled validate warnings.** `validate` scans both `plugins/` and `opencode/`, so every real
-  unrewritten reference is reported once per tree. Superpowers skills
-  cross-reference heavily; a partial curation batch could produce dozens of lines. Item 2
-  (phase 1) retires this: one reference model, findings grouped at the source.
 - **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
   (avoids prose false positives), so a `Superpowers:Foo` spelling slips through — alongside the
   bare-name and relative-path blindness catalogued in
@@ -153,10 +136,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `commands/`/`agents/` directory, so upstream subdirectory grouping is silently missing from the
   inventory; conversely such a directory nested inside a skill is double-counted as a standalone
   component.
-- **Own-skill collision false negative.** An original skill in `skills/` silently overwrites a
-  curated skill of the same name in the same plugin — own skills are emitted last, and `validate`'s
-  duplicate check only errors across plugins. Item 2 (phase 1) retires this: one symbol table
-  across all emissions.
 - **`--bless` shows nothing before it stamps.** ADR-0001 calls re-blessing deliberate, but the
   command re-records whatever is on disk without displaying what changed — and the previous blob
   SHA is right there in the lock. Print the diff, and require confirmation. Item 2 (phase 2)
