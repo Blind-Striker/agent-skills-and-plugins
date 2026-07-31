@@ -10,7 +10,7 @@
 # wayfinder, code-review, implement — all gated on the issue-tracker/setup decision), the
 # skill-authoring pair (writing-skills, writing-great-skills), using-superpowers (wants its own
 # body-edit conversation), research/prototype/teach/resolving-merge-conflicts/codebase-design/
-# improve-codebase-architecture, diagnosing-bugs (candidate merge into systematic-debugging).
+# improve-codebase-architecture.
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
@@ -46,6 +46,14 @@ items:
     invocation: auto # fires before any "done" claim; clears the other 2 standing warnings
   - source: superpowers/skills/systematic-debugging
     invocation: auto # debugging discipline should engage when a bug appears, unprompted
+    # SKILL.md is a merge (2026-07-31, Deniz's call): superpowers' root-cause armor + mattpocock
+    # diagnosing-bugs' feedback-loop engineering, in seven phases. The overlay covers SKILL.md
+    # only, so the sibling technique files keep flowing from upstream. Known cost: matt-side
+    # upstream improvements no longer flow — glance at diagnosing-bugs on sync bumps.
+    body: overlay
+    frontmatter:
+      # merged skill also covers matt's perf-regression ground, so the trigger names it
+      description: "Use when encountering any bug, test failure, performance regression, or unexpected behavior, before proposing fixes"
     omit: # author-facing material shipped alongside the skill (see upstream-repo-layouts.md)
       - CREATION-LOG.md
       - test-academic.md
@@ -68,3 +76,8 @@ items:
   - source: mattpocock-skills/skills/productivity/handoff
     invocation: manual # small, dependency-free, immediately useful session bridge
     omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/diagnosing-bugs
+    exclude: true # not rejected — merged: its feedback-loop phases live inside the
+    # systematic-debugging overlay; taking it as well would put two auto debugging
+    # skills in trigger competition
+

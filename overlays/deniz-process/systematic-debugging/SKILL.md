@@ -1,7 +1,6 @@
 ---
 name: systematic-debugging
-description: Use when encountering any bug, test failure, performance
-  regression, or unexpected behavior, before proposing fixes
+description: Use when encountering any bug, test failure, performance regression, or unexpected behavior, before proposing fixes
 ---
 
 # Systematic Debugging
@@ -174,14 +173,14 @@ grep. Untagged logs survive; tagged logs die.
 ## Phase 6 — Fix
 
 1. **Regression test first — at a correct seam.** Turn the minimised repro into a failing test
-   using the test-driven-development skill. A correct seam exercises the real bug
+   using the superpowers:test-driven-development skill. A correct seam exercises the real bug
    pattern as it occurs at the call site; a too-shallow seam gives false confidence. **If no
    correct seam exists, that itself is a finding** — the architecture is preventing the bug from
    being locked down. Document it and raise it with your human partner.
 2. **Implement a single fix** at the root cause. ONE change; no "while I'm here" improvements,
    no bundled refactoring.
 3. **Verify.** Test passes, no other tests broken, and the Phase 1 loop goes green against the
-   original (un-minimised) scenario. Use the verification-before-completion skill
+   original (un-minimised) scenario. Use the superpowers:verification-before-completion skill
    before claiming success.
 4. **If the fix doesn't work:** STOP and count. Fewer than 3 attempts → return to Phase 3 with
    the new information. **3 or more → question the architecture:**
