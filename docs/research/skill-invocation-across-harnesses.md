@@ -62,10 +62,15 @@ a subagent, so it does not pollute the primary context) and `template`; the body
 `$ARGUMENTS`, positional `$1`, shell injection and `@file` references.
 
 Discovery walks up from the working directory to the git worktree root, reading
-`.opencode/skills/<name>/SKILL.md` and also `.claude/skills/` and `.agents/skills/`; globally it
-reads `~/.config/opencode/skills/`. Commands and agents live alongside, in `commands/` and
-`agents/`, under either `.opencode/` or `~/.config/opencode/`. All three directory names are plural,
-and this repo's `opencode/` tree uses the same spelling.
+`.opencode/skills/<name>/SKILL.md`; globally it reads `~/.config/opencode/skills/`. Commands and
+agents live alongside, in `commands/` and `agents/`, under either `.opencode/` or
+`~/.config/opencode/`. All three directory names are plural, and this repo's `opencode/` tree uses
+the same spelling.
+
+Measured on 1.18.7, discovery also picks up `.agents/skills/` — but **not** `.claude/skills/`, which
+earlier notes here claimed and which does not hold: a well-formed skill placed there appears in no
+listing. So Claude Code's own tree is not a back door into OpenCode, and the two output trees really
+are independent.
 
 Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
 
@@ -112,6 +117,21 @@ Read that way, discovery resolves as:
 still reports the standard `config` root when it is set. A directory under `skills/` with no
 `SKILL.md` appears in no listing at all — the parking-spot finding, now from a deterministic source
 rather than the absence of a complaint.
+
+Three more behaviours that bear directly on the emitters:
+
+- **The `name:` field wins over the directory name.** A skill in `skills/e5-dirname-differs/` whose
+  frontmatter says `name: e6-name-field-wins` is listed under the frontmatter name. The addressable
+  identity is the field, not the folder — the opposite of Claude Code, which addresses a plugin
+  skill by its directory. So a per-harness renaming can be done in frontmatter alone.
+- **A skill and a command may share a name.** Both resolve, from the same project, with no
+  complaint: the skill appears in `debug skill`, the command in `debug config`. That is
+  `invocation: both` shown to be expressible rather than assumed — the collision class ADR-0005
+  worried about is not a collision here.
+- **Every `.md` under `commands/` becomes a command**, frontmatter or not: a bare file with no
+  frontmatter was registered with an empty description. So bundled files must never be parked beside
+  a command — only under `skills/<name>/`, which is ignored. Parking them in `commands/` would
+  publish each one as a phantom command.
 
 That the global mount works has a consequence for the conversion recipe above. Assets for a globally
 installed item sit under `<home>/.config/opencode/skills/<name>/`, which no project-root-relative
