@@ -1,6 +1,6 @@
 # Skill invocation across harnesses
 
-Date: 2026-07-30
+Date: 2026-07-31
 
 Who decides that a skill runs — the model, or the person at the keyboard — is a per-harness
 mechanism, and the two harnesses this repo targets disagree about it deeply enough that the same
@@ -173,6 +173,30 @@ installed item sit under `<home>/.config/opencode/skills/<name>/`, which no proj
 project-local install, and a prose instruction naming the path for a global one. Which mount points
 this repo intends to support is therefore a decision the emitter needs before it can write the
 reference.
+
+### Does a model read a pointer as the user's move? (1.18.7, model grok-4.5, `opencode run`)
+
+[ADR-0008](../adr/0008-references-are-symbols.md) spells a reference two ways: `ns:name` means the
+model invokes the target, `/ns:name` means the human is told what to open. The linker proves only
+that the target is *reachable* by the audience named; whether a model actually declines to invoke
+what it was told to point at is runtime behaviour, and it was probed rather than assumed.
+
+Fixtures were project-local under `.opencode/`, discovery confirmed with `opencode debug skill` and
+`debug config` before any prompt: an `auto` knowledge skill carrying both reference lines, a plain
+skill as the model-edge target, and a command with no skill of its own as the pointer target.
+
+- **Control (model-edge).** "use the `zx-target` skill now. Do not describe it — invoke it."  → the
+  knowledge skill fired, then the target skill fired. Model-side composition works.
+- **Pointer.** "suggest opening `/zx-ceremony` to the user — do not run it yourself." → the
+  knowledge skill fired and **no invocation of the command was attempted**; the model replied "Open
+  `/zx-ceremony` when you're ready."
+
+So the measured-safe pointer template is the slash form **plus the explicit guard clause**. The
+clause is load-bearing as far as this probe goes: a bare slash on its own was never tried, so
+nothing here says it would behave the same. On Claude Code the question is narrower, because the
+mechanism does not depend on wording at all — a `manual` item is filtered out of the model's skill
+listing entirely (measured above), so the worst a bad pointer sentence can cost there is a confusing
+message, never a wrong invocation.
 
 ### Verified on this repo's real output (1.18.7, TUI, model GPT-5.6 Terra)
 

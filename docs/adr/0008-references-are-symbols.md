@@ -118,7 +118,11 @@ CI's staleness gate already guarantees the file is never behind the trees it des
 - The linker proves **resolvability, not behaviour**. Whether a model actually treats `/ns:name`
   as the user's move is a runtime property, measured the way all runtime properties are here
   ([harness-probing.md](../agents/harness-probing.md)) — event-driven, after body-changing waves
-  and harness upgrades, never in CI.
+  and harness upgrades, never in CI. The first such round is recorded in
+  [skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md): on
+  OpenCode the slash form plus an explicit "do not run it yourself" relayed without any invocation
+  attempt, and the bare slash alone remains unprobed — so the guard clause is part of the template
+  until something says otherwise.
 - Candidates shrink monotonically: every curation touch promotes prose into the convention; new
   content is born inside it. The heuristic tier exists to *find* upstream's legacy prose, never to
   judge it.
