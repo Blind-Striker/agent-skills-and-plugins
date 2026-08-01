@@ -23,7 +23,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   OpenCode one). The built `opencode/` tree is TUI-verified end to end
   (`docs/research/skill-invocation-across-harnesses.md`, "Verified on this repo's real
   output"). The three dotnet modules still hold one pipeline-proof starter each.
-- `npm run validate` on the current build: 0 errors, 0 warnings.
+- `npm run validate` on the current build: no errors. The standing warnings are the converted-command
+  shape, described under Known Gaps; run the command for the current count rather than trusting a
+  number here.
 - `validate` is a linker (ADR-0008): one reference scanner (`tools/lib/refs.ts`) feeds the
   rewrite and the checks — facts must resolve in each tree's own address space, a model-edge's
   target must be `auto`/`both`, a pointer's target `manual`/`both`, and `depends_on` is enforced
@@ -140,7 +142,20 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   words, so a bare-name scan measurably over-reports; ADR-0008 keeps that tier as candidates,
   surfaced by `sync` for human reading and never build state. The three spellings and what each
   earns are tabulated in
-  [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers).
+  [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers). Now measured rather
+  than assumed: the tier is load-bearing. `grill-me` → `grilling` is the one composition watched
+  firing at runtime and it lives entirely there — no declaration, no guard, silent if the target is
+  ever renamed or excluded. Across the module, twenty-seven bodies name a curated item as a bare
+  `/name` and eleven of those targets are `auto`, so the slash claims a user surface they do not
+  have. Whether to promote any of them into the convention is an open curation decision; promoting
+  the eleven as spelled would be linker errors, which is the point.
+- **A declared edge can be inert.** `implement` names `test-driven-development` inside a condition
+  the session never satisfies — "use it where possible, at pre-agreed seams", where agreeing the
+  seam is that skill's own job. The edge resolves, is declared, is kind-correct, and was never
+  traversed in a runtime round; its sibling on the next line, spelled as an unconditional
+  instruction, fired every time. The hedge is upstream's and our patch only changed the reference
+  spelling. One line of body would open it — a curation decision, and the first thing the measured
+  half of ADR-0008 turned up.
 - **A converted command cannot resolve a sibling-item path.** A command is one file in
   `commands/`, so a `../<item>/` path written for a skill directory does not land — and no single
   spelling serves both copies of a `both` item. `validate` names each case (it can tell, because

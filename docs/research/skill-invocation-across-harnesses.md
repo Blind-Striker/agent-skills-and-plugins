@@ -38,6 +38,26 @@ matter what its description says. Stripping coercive trigger prose from an upstr
 therefore a matter of taste, not a safety measure — the description never gets the chance to
 persuade anything.
 
+Both directions were later re-measured against this repo's own closed module rather than fixtures,
+on the isolated lab of [harness-probing.md](../agents/harness-probing.md). The two surfaces are read
+from different places and they agree with the manifest exactly:
+
+| Surface | Read from | Contains | Count |
+|---|---|---|---|
+| user | `init.slash_commands` | `manual` + `both` | 22 |
+| model | a `-p` enumeration, with an unmounted control | `auto` + `both` | 18 |
+
+Their intersection is the eight `both` items and their union is all thirty-two taken ones: no
+`auto` item is slash-addressable, no `manual` item is in the model's listing. `init.skills` tracks
+the *user* surface, not the model's — the two names invite the opposite reading.
+
+The first shipped user-pointer was exercised in the same round. Reaching the spec-discovery branch
+of `requesting-code-review`, the model relayed it verbatim as the human's move — "open
+`/deniz-process:setup-matt-pocock-skills`" — attempted no invocation, and volunteered a refusal to
+guess at a tracker. Notably it did so **without** the explicit guard clause the OpenCode probe below
+found load-bearing; on Claude Code the mechanism does not depend on wording anyway, since a `manual`
+target is filtered out of the model's listing entirely.
+
 Other dials that bear on curation: `when_to_use` (trigger phrases appended to `description`;
 the pair is truncated at 1,536 characters in the skill listing), `paths` (globs that gate automatic
 loading), `context: fork` + `agent` + `background` (run the skill in a subagent), `model` and
@@ -271,6 +291,36 @@ The same curation intent, expressed natively per harness:
 The asymmetry is the whole point: in Claude Code the dial is a frontmatter flag on one artifact, in
 OpenCode it is a choice of artifact.
 
+## Reachability is not propensity
+
+`invocation` decides who *may* pull the trigger. Whether the model actually does is a separate
+property, and the two are measured differently: reachability is mechanical and exact — a flag, a
+listing, an artifact — while propensity is a selection the model makes from names and descriptions,
+and nothing in either harness forces it.
+
+Measured on the closed `deniz-process` module, one-shot `-p` sessions, `Skill` tool-use events as
+the evidence:
+
+| Item | Posture | Prompt shape | Fired |
+|---|---|---|---|
+| `brainstorming` | `both` | open-ended ("help me figure out what it should do first"), EN and TR | yes, both |
+| `grilling` | `auto` | reached from `grill-me`'s body | yes |
+| `test-driven-development` | `auto` | concrete implementation request ×3 | no |
+| `systematic-debugging` | `auto` | an explicit bug report | no |
+
+The mechanism is sound in every row — `grilling` firing from another body proves an `auto` item is
+model-reachable. What separates the rows is the shape of the request: on an open-ended one the model
+reaches for the ceremony, on a fully specified one it simply does the work. That is the community
+finding in [skill-framework-landscape.md](skill-framework-landscape.md) ("the design phases are pure
+overhead when the task is fully specified") arriving as a measurement on our own output.
+
+The cost lands where it is least convenient. Passive disciplines are exactly the items meant to fire
+unprompted, and they attach to concrete work — so they are the least likely to be selected. Upstream
+buys that propensity with a SessionStart bootstrap this repo deliberately does not ship
+([ADR-0007](../adr/0007-control-beats-fidelity.md)); the absence is a decision, and this is its
+first measured bill. A body that *names* a skill is a second, independent path — and it carries its
+own failure mode, below.
+
 ## What the vendored upstreams use
 
 Re-derive per repo with:
@@ -354,6 +404,22 @@ The contrast with superpowers is structural, not cosmetic. Superpowers expresses
 `superpowers:<name>` references and deep links into sibling skill directories, which is what
 produces its dense cross-reference graph — and, for us, the dangling references that every partial
 curation leaves behind.
+
+Two things were measured about the prose form, and together they set the price of leaving it alone.
+It **works**: `grill-me` → `grilling` fired as the first act of the session, a user-only trigger
+reaching model-only knowledge across the boundary, exactly as the architecture intends. And it is
+**invisible** — a bare name is candidate-tier by [ADR-0008](../adr/0008-references-are-symbols.md),
+so that edge is in no `depends_on`, in no ledger, and under no guard. The one composition this repo
+has demonstrated at runtime is the one its linker cannot see.
+
+The spelling also disagrees with ours in a way worth counting before deciding anything. Across the
+module, twenty-seven bodies name another curated item as a bare `/name`; in eleven of them the
+target is `auto`, so the slash claims a user surface that target does not have — a human cannot type
+it at all. Under our grammar a slash means the human is the audience, and the same eleven sentences
+spelled namespaced would be linker errors. Matt's convention reads `/x` as "the model invokes x",
+and models oblige, which is why the incoherence costs nothing today. Re-derive the count before
+acting on it; the promotion rule ("any touch promotes it into the convention") means each of these
+becomes a curation decision the moment its body is edited for any reason.
 
 ## Prior art: wshobson/agents
 

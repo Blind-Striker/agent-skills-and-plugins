@@ -52,7 +52,11 @@ Three OpenCode-specific traps, each of which cost a round:
   `~/.agents` and `~/.claude` trees on the way up.
 - **The package cache cannot be mounted over.** Packages from a real config's `plugin:` list
   outrank `OPENCODE_CONFIG_DIR` and the global config dir; same-named probes resolve to the
-  package. Isolate by giving the lab home no `opencode.json` at all.
+  package. Isolate by keeping every `plugin:` key out of the lab home. Not by withholding the
+  config file: OpenCode writes its own `opencode.jsonc` (schema line only) plus a `.gitignore`
+  into an empty config dir on first run. That file declares no packages, so the isolation holds —
+  but "give it no config" cannot be held literally, and a lab that checks for the file's absence
+  will report a leak that is not there.
 - **`opencode debug paths` is not an isolation check.** It reports relocated roots that discovery
   does not use. Trust the listing (`debug skill`), never `paths`.
 
@@ -61,8 +65,10 @@ Claude Code keeps credentials inside its config dir, so a fresh one demands a ne
 an OpenCode TUI session the equivalent is `~/.local/share/opencode/auth.json`, copied into the
 isolated data dir — it alone suffices. Never track either file.
 
-Verify the isolation before trusting a result: an isolated OpenCode lists exactly one skill, the
-built-in `customize-opencode`.
+Verify the isolation before trusting a result, with the positive control in the same breath: an
+isolated OpenCode lists exactly one skill, the built-in `customize-opencode`; an isolated Claude
+Code with nothing mounted lists only the harness's own bundled skills, and its `init` event reports
+the mounted plugins, `mcp_servers: 0` and an empty `memory_paths`.
 
 ## Probe cheaply
 
@@ -80,8 +86,29 @@ opencode debug paths     resolved home / data / config / cache / state roots
   ForEach-Object { "{0,-24} {1}" -f $_.name, $_.location }
 ```
 
-Claude Code has `/skills` in-session. There is no measured non-interactive equivalent yet — if you
-find one, record it here.
+Claude Code answers the same questions non-interactively, through the event stream:
+
+```
+claude --output-format stream-json --verbose -p "hi"
+```
+
+- The **`system`/`init`** event carries `slash_commands`, `skills`, `plugins`, `agents`,
+  `mcp_servers`, `memory_paths` and `apiKeySource`. That is the user surface and the mount state,
+  printed by the harness itself — one cheap call answers "what is installed" and "did anything
+  leak" at once. `memory_paths: []` is the check that no `CLAUDE.md` reached the session.
+- Every **`tool_use`** block is in the stream, so *did the model invoke this skill* is an observed
+  event (`Skill` with the target's name) rather than a claim to be trusted.
+- The **model** surface is the one thing `init` does not give: `init.skills` lists what is
+  slash-addressable, not what the model can call. Enumerate it with a `-p` prompt asking for the
+  exact names, and pair it with an unmounted run as the control.
+- `claude -p "/ns:name <args>"` **invokes** a skill, arguments included — so a `manual` item's user
+  surface is measurable without a TUI. What stays TUI-only is how the `/` menu *reads*.
+
+Two flags are load-bearing rather than convenient. `--plugin-dir` mounts a plugin for one session
+with no marketplace install, and `--add-dir` on that same path is what makes its bundled files
+readable — without it a body's own template read returns denied and a subagent silently falls back
+to the skill body. `--max-budget-usd` caps a runaway ceremony, but a run it truncates exits 1 and
+emits no `result` event, so a script must treat missing result text as "capped", not as "empty".
 
 ## What cannot be probed this way
 

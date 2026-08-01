@@ -146,7 +146,20 @@ CI's staleness gate already guarantees the file is never behind the trees it des
   until something says otherwise.
 - Candidates shrink monotonically: every curation touch promotes prose into the convention; new
   content is born inside it. The heuristic tier exists to *find* upstream's legacy prose, never to
-  judge it.
+  judge it. What "never build state" does not mean is "never load-bearing": the one composition
+  edge this repo has watched fire at runtime — a user-only trigger reaching model-only knowledge —
+  is spelled as upstream prose and is therefore in no declaration and under no guard
+  ([skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md)).
+  Renaming or excluding such a target breaks a working chain in silence, which is the class this
+  ADR exists to kill, surviving in the tier it deliberately leaves open. The promotion rule is the
+  release valve rather than a fix: the incoherent spellings would fail the linker the day they are
+  promoted, so contact forces the decision instead of a scan finding it.
+- The linker proves that an edge *resolves*, and a declared edge can still be inert. Measured: a
+  body naming its target inside a condition the session never satisfies — "use X where possible, at
+  pre-agreed seams", where agreeing the seam is X's own job — validates green, is declared in
+  `depends_on`, and is never traversed. Wording that gates an edge is invisible here by
+  construction, and belongs to the runtime rounds and the review that reads intent, not to this
+  machine.
 - The path tier costs a curation decision its silence. An `omit` that drops a file, an `exclude`
   that removes an item, a rename — each is cheap in the manifest and each can strand a body that
   names the target by path, and until now nothing said so. The first run found exactly that: a

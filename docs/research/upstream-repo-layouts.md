@@ -104,10 +104,12 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
   writing-plans." Taking it without `writing-plans` ships a skill whose documented exit is a skill
   that is not there, and nothing in the toolchain will say so.
 
-- Three skills bundle executable scripts, so each needs the `git update-index --chmod=+x` treatment
-  on its built copies: `brainstorming` (`scripts/helper.js`, `start-server.sh`, `stop-server.sh` —
-  the browser companion), `systematic-debugging` (`find-polluter.sh`), `writing-skills`
-  (`render-graphs.js`).
+- Four skills bundle executable scripts, so each needs the `git update-index --chmod=+x` treatment
+  on its built copies: `brainstorming` (`scripts/start-server.sh`, `scripts/stop-server.sh` — the
+  browser companion), `subagent-driven-development` (`scripts/review-package`,
+  `scripts/sdd-workspace`, `scripts/task-brief`), `systematic-debugging` (`find-polluter.sh`),
+  `writing-skills` (`render-graphs.js`). Re-derive rather than trust the list:
+  `git -C external/superpowers ls-files -s skills | grep 100755`.
 
 - `systematic-debugging` ships author-facing material alongside the skill — `CREATION-LOG.md` and
   three `test-pressure-*.md` files — which travel into output unless excluded per item.
