@@ -49,6 +49,34 @@ frontmatter dial exists precisely to choose. The real cost of choosing the secon
 descriptions were tuned assuming the bootstrap did the routing — strip the pressure out of one and
 it must be replaced with an honest trigger sentence, or the skill simply never fires.
 
+### The two frameworks disagree about *how* a model-invoked skill gets invoked
+
+This is the difference that survives contact, and it is easy to miss because the frontmatter looks
+the same on both sides. Neither framework marks its disciplines as user-only: mattpocock leaves
+`disable-model-invocation` off exactly the skills that are knowledge rather than ceremony, and
+superpowers sets no invocation frontmatter anywhere. Both therefore say "the model may reach for
+this". They then supply completely different machinery for making that happen.
+
+- **mattpocock composes.** A user-invoked trigger names the knowledge skill in its own body — his
+  `implement` is ten lines and one of them is "Use /tdd where possible, at pre-agreed seams". The
+  knowledge skill's description reads like an index entry, because finding it is the trigger's job.
+- **superpowers amplifies.** Nothing points at its disciplines; the SessionStart bootstrap injects
+  a blanket "check for a skill before ANY response" and the descriptions are written assuming that
+  pressure exists.
+
+A curated set that takes superpowers' bodies and ships no hooks has taken the content of one design
+and the delivery of neither — unless it also takes the composition, which means curating the
+trigger that names the target. The measured reliability of the two paths is not close
+([skill-invocation-across-harnesses.md](skill-invocation-across-harnesses.md)), and the practical
+rule follows: **if a discipline has to fire, something must name it.** An honest description is
+necessary and, on its own, weak.
+
+A second consequence, for reading upstream prose rather than judging it. A hedge like "at
+pre-agreed seams" is not sloppiness; in mattpocock's pipeline the human arrives at `implement`
+having already been through spec and ticket ceremonies, so the precondition is often genuinely met.
+Lifted into a set that does not ship that pipeline, the same clause reads as a gate on nothing —
+which is a fact about the missing context, not about the sentence.
+
 ## Three philosophies
 
 The frameworks this repo draws from differ in what they try to own:

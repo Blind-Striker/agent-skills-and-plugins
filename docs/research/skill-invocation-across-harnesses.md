@@ -345,7 +345,28 @@ an effort its own metadata declares — invoking `implement`, whose body names
 
 **Eleven of twelve**, across eight model/harness combinations. So the hedge does not gate the edge,
 and neither harness nor model explains a miss: traversal is a propensity with a tail, not a
-mechanism with a switch. One panel model declared the seam itself — "**SEAM**: `formatDuration`
+mechanism with a switch.
+
+The same skill was then asked for the other way — a plain implementation request naming no skill —
+and fired in **two runs of eight** (two of five OpenCode legs, none of three Claude Code ones).
+The contrast is the finding, because everything else was held: same item, same task, same models,
+same trees.
+
+| How the skill was reached | Fired |
+|---|---|
+| named in another item's body | **11 / 12** |
+| matched only by its own description | **2 / 8** |
+
+Two more measurements from the same panel, both on the OpenCode command surface. A converted
+command's **parked bundle is reachable**: asked for a template that lives beside the parked body,
+five legs of five read it. And the **sibling-item path that `validate` warns about resolves in
+practice**: asked for the template that lives in another item's directory, five of five returned it,
+each with a single `read` of the correct absolute path and no skill load. The mechanism was caught
+in the tool input — the model resolves `../<item>/…` against the *skill's* directory rather than the
+command file's, and the parked bundle preserves that layout, so the climb lands. The warning is
+still right about the filesystem and still guards a real class: where the target item has no
+`skills/<name>/` directory at all — excluded, or a `manual` item whose bundle was empty so the
+emitter dropped the husk — the same climb lands nowhere. One panel model declared the seam itself — "**SEAM**: `formatDuration`
 … the inverse of `parseDuration`" — and ran red-green-refactor per slice, including for the fixes
 its own review raised, distinguishing out loud between a test that drove code and one that only
 added coverage. That is the merged discipline steering a session, on the cheapest model in the set.

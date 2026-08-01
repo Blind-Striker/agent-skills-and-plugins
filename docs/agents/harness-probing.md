@@ -165,9 +165,23 @@ conclusion in the same step.
   means `git reset --hard <baseline>` plus `clean -fdx`, not checkout-and-clean — the ceremony under
   test may well end with "commit your work", and it obeys.
 - **A behavioural claim needs repeats before it is written down.** The same finding was a sample of
-  one. Repeated later across two harnesses and eight model/harness combinations, the edge was walked
-  eleven times in twelve. Invocation is a propensity with a tail; one observation of a miss
-  establishes nothing, and this class of claim is cheap to disprove and expensive to retract.
+  one, and repeating it across two harnesses and several models reversed it. Invocation is a
+  propensity with a tail; one observation of a miss establishes nothing, and this class of claim is
+  cheap to disprove and expensive to retract.
+- **A provider that refuses does not fail — it hangs.** A connector at its monthly limit left
+  `opencode run` alive and idle; the error never reached the event stream, only
+  `<data>/log/opencode.log` as a `stream error` line. Two runs sat dead for 39 and 17 minutes, and
+  the second one blocked a whole queue. Never invoke a harness unguarded: wrap every call in a
+  timeout that kills the process, mark a killed run as *timed out* rather than letting it read as a
+  refusal, and open the preflight with a one-token liveness call per leg. Flat CPU plus an
+  unchanged fixture is the signature; the log is the confirmation.
+- **Check that the prompt isolates the thing you meant to measure.** One probe asked a one-file
+  question by invoking a 150-line ceremony, so a model that ignored "skip ahead" ran the whole
+  workflow and stalled at a human checkpoint nobody was there to answer. Its replacement asked for
+  "the reviewer template" in a body that links four of them, and every leg read the nearest one —
+  answering a question that had not been asked. Name the target by its role, forbid the work, and
+  read the tool *inputs* rather than the tool names, because the path a model actually opened is
+  the only evidence of how it resolved a reference.
 - **Where an artifact lands is part of the question.** OpenCode reads `~/.claude/skills/`, which
   sounds like it reaches Claude Code plugins. It does not — plugins install under
   `~/.claude/plugins/cache/…`. Probe the real install path, not the one that sounds right.

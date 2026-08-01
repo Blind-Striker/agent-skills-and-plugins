@@ -15,8 +15,8 @@ The holes this leaves are measured, not hypothetical:
 
 - An overlay authored in output spelling (`deniz-process:x`) ships a dead reference into the
   OpenCode tree with no finding — the leftover scan only knows upstream namespaces.
-- The shipped using-superpowers body instructs the model to invoke `deniz-process:brainstorming`,
-  a `manual` item the model structurally cannot see
+- A shipped body instructs the model to invoke an item whose posture makes it structurally
+  invisible to the model
   ([skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md)).
   Build green, validate 0/0; at runtime the session stumbles, softly and nondeterministically.
 - Flipping an item's `invocation` reshapes both trees and can strand every body that names it —
@@ -154,15 +154,16 @@ CI's staleness gate already guarantees the file is never behind the trees it des
   ADR exists to kill, surviving in the tier it deliberately leaves open. The promotion rule is the
   release valve rather than a fix: the incoherent spellings would fail the linker the day they are
   promoted, so contact forces the decision instead of a scan finding it.
-- The linker proves that an edge *resolves*; whether it is *traversed* is the reader's decision and
-  is probabilistic rather than binary. Measured across two harnesses and eight model/harness
-  combinations on one body: the edge was walked in eleven runs of twelve, and the twelfth produced
-  the behaviour the edge exists to cause without invoking the target at all
-  ([skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md)). Two
-  things follow for anyone reading a runtime round against this machine. A green link is not a
-  promise that a session will traverse it. And a single run showing no traversal establishes
-  nothing — neither a defective body nor a harness quirk — because the distribution has a tail and
-  an invocation is not the same event as the discipline it carries.
+- The linker proves that an edge *resolves*; whether it is *traversed* is the reader's decision, and
+  that decision is probabilistic rather than binary. Two things follow for anyone reading a runtime
+  round against this machine. A green link is not a promise that a session will walk it. And a
+  single run showing no traversal establishes nothing — neither a defective body nor a harness
+  quirk — because the distribution has a tail, and because an invocation is not the same event as
+  the discipline it carries: a session can produce what the edge exists to cause without ever
+  naming the target. Rates, panels and the runs behind them belong in
+  [skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md); this
+  ADR records only that the property is a distribution, because that is what the machine's design
+  has to accommodate and it stays true whatever the set contains.
 - The path tier costs a curation decision its silence. An `omit` that drops a file, an `exclude`
   that removes an item, a rename — each is cheap in the manifest and each can strand a body that
   names the target by path, and until now nothing said so. The first run found exactly that: a

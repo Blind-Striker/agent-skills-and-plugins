@@ -125,6 +125,31 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
+7. **Documentation system pass — the next session's first agenda item (requested 2026-08-01).**
+   The categories this repo has (`adr/`, `research/`, `agents/`, ROADMAP) were fixed before there
+   was any measurement practice, and the runtime rounds have produced material none of them fits
+   cleanly: probe harnesses, experiment records, raw run data, and the operating playbook a curator
+   follows. The user's read is that a knowledge base, a research tier, an experiment tier and a
+   playbook tier may all be warranted, that ADRs have drifted toward naming individual items and
+   quoting measurements, and that the ADR rules themselves should be revisited — possibly rewriting
+   the ADRs from scratch, tools- and process-focused only. One test is already agreed as the
+   discriminator: *would this sentence need editing if a curation decision changed?* If yes it is
+   not ADR material. Nothing should be minted under the current rules until this pass lands, which
+   is why the propensity finding below sits in `docs/research/` with only its shape in ADR-0008.
+
+8. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+   mechanisms of different reliability, and curation should treat that as a dial rather than an
+   accident — an item that must fire needs something that names it, not merely a good description.
+   That sentence survives any re-curation and therefore qualifies, but minting an ADR immediately
+   before the rules are rewritten would produce a document written to the wrong contract. The
+   evidence lives in [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md)
+   and [skill-framework-landscape.md](research/skill-framework-landscape.md).
+
+9. **Queued probe: does stating the intent fire the discipline?** The propensity number was
+   measured against requests that named no intent at all ("implement X"). The curator's own usage
+   states intent without naming skills ("let's go test-driven"), which is a fairer test of what an
+   honest description buys, and cheap to run on the existing lab.
+
 ## Known Gaps
 
 - **Long-body `manual` conversions paste their whole body into the OpenCode chat.** A command is
@@ -149,12 +174,17 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `/name` and eleven of those targets are `auto`, so the slash claims a user surface they do not
   have. Whether to promote any of them into the convention is an open curation decision; promoting
   the eleven as spelled would be linker errors, which is the point.
-- **A converted command cannot resolve a sibling-item path.** A command is one file in
-  `commands/`, so a `../<item>/` path written for a skill directory does not land — and no single
-  spelling serves both copies of a `both` item. `validate` names each case (it can tell, because
-  the skill copy resolves the same link), but the fix is a spelling that depends on which mount
-  point an install supports, which is the parked installer decision below. Same family as the
-  parked-bundle references and the long-body `manual` bodies.
+- **A converted command cannot resolve a sibling-item path — on the filesystem, and only there.**
+  A command is one file in `commands/`, so a `../<item>/` path written for a skill directory does
+  not land, and no single spelling serves both copies of a `both` item. `validate` names each case.
+  A runtime round narrowed what it costs: models resolve the climb against the *skill's* directory
+  rather than the command file's, and the parked bundle preserves that layout, so every leg of a
+  five-model panel reached the target with one read and no search
+  ([skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md)). What is
+  left is the case the panel could not exercise — a target with no `skills/<name>/` directory at
+  all (excluded, or a `manual` item whose empty bundle made the emitter drop the husk), where the
+  same climb lands nowhere. The mount-point decision below is therefore less urgent than it looked,
+  and the warning should be read as guarding that narrower case.
 - **Linker's unreachable-cause string assumes a skill target.** A model-edge pointing at a
   command or agent reports "(disable-model-invocation in the Claude tree)" — right verdict,
   wrong cause text. A `kind` on the target state fixes the parenthetical.
