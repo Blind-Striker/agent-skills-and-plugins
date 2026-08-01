@@ -153,11 +153,22 @@ Together those two give the full recipe for a skill→command conversion: park t
 unrelated to where the assets sit, so `@` cannot reach them and the body must name the path in prose
 for the agent's own read tool instead.
 
-`opencode run` expands neither slash commands nor `@file` — both are TUI-level — so command
-behaviour cannot be exercised non-interactively. Discovery, however, can: **`opencode debug skill`
-prints every resolved skill as JSON with its `location`**, and `opencode debug paths` prints the
-resolved home/data/config/cache/state roots. Both are free and deterministic — far better than
-asking a model what it can see, which is how the earlier rounds were run.
+`opencode run` does not expand a slash in the message text: `/name …` reaches the model as literal
+prose, and a name that exists nowhere produces no error at all. What follows from that is *not*
+that commands are TUI-only — **`opencode run --command <name> [args]` invokes one**, and the CLI
+resolves the name before any model call, so an unknown one fails without spending a token. With
+`--format json` the whole event stream is readable, `tool_use` included, which makes "did the model
+invoke this skill" an observation rather than a question put to the model.
+
+The distinction is not academic, because the wrong path *looks* like it works. Sending
+`/grill-me …` as text made the model invoke the `grilling` skill on its first turn — indistinguishable
+from command expansion until a nonexistent name is sent as the control, which passes straight
+through to a model that simply answers. The model had inferred from the word, not read the command.
+
+Discovery stays free and deterministic: **`opencode debug skill` prints every resolved skill as JSON
+with its `location`**, `opencode debug config` prints the resolved commands and agents, and
+`opencode debug paths` prints the home/data/config/cache/state roots — all better than asking a
+model what it can see, which is how the earliest rounds were run.
 
 Read that way, discovery resolves as:
 

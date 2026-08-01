@@ -112,15 +112,22 @@ emits no `result` event, so a script must treat missing result text as "capped",
 
 ## What cannot be probed this way
 
-Some behaviour only exists at runtime, and needs a human at a TUI:
+Less than it first appears. Both harnesses expose their user surface to a script — Claude Code
+through `-p "/ns:name"`, OpenCode through `opencode run --command <name> [args]` with `--format
+json`, `--auto` to pass a permission gate and `-m`/`--variant` to pin the model. What is left for a
+human is how the thing *reads*: whether a `/` menu entry is findable and its description honest,
+whether a long command body pasted as the user's message is a wall of text, whether a folder-access
+prompt lands as an interruption. Those are judgements, and the operator's opinion is the datum.
 
-- **`opencode run` expands neither slash commands nor `@file`.** Both are TUI-level. A command
-  invoked through `run` arrives as literal text and the model goes hunting for it on disk.
-- **Claude Code's `/` menu** — whether a skill is listed, and whether invoking it works.
+The trap on the way there is that the *wrong* invocation looks like the right one. A slash inside
+`opencode run`'s message text is never expanded — it reaches the model as prose — yet a model will
+often infer the intent from the words and invoke something plausible, which reads exactly like a
+command that ran. The control that separates them costs nothing: send a name that exists nowhere.
+`--command zzz-nope` fails before any model call; `/zzz-nope` is answered cheerfully.
 
-For these, write the probe, hand the operator a numbered table of *what to type* and *what it
-decides*, and record what they report verbatim. Do not paraphrase an observation into a conclusion
-in the same step.
+For the genuinely human half, write the probe, hand the operator a numbered table of *what to type*
+and *what it decides*, and record what they report verbatim. Do not paraphrase an observation into a
+conclusion in the same step.
 
 ## Traps
 
