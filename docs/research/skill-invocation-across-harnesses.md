@@ -338,21 +338,29 @@ an effort its own metadata declares — invoking `implement`, whose body names
 `test-driven-development` inside a hedge ("where possible, at pre-agreed seams") and
 `requesting-code-review` four lines later as a plain instruction:
 
-| | Claude Code (Opus 5) | OpenCode panel |
+| Harness | Readers | Hedged edge walked |
 |---|---|---|
-| hedged edge walked | no | **5 of 5** |
-| unconditional edge walked | yes | 5 of 5 |
+| OpenCode | the five panel models, plus Opus 5 through OpenRouter | **6 of 6** |
+| Claude Code | Opus 5 ×3, Fable 5 ×3, all at `xhigh` | **5 of 6** |
 
-One panel model declared the seam itself — "**SEAM**: `formatDuration(seconds)` … the inverse of
-`parseDuration`" — and ran the red-green-refactor loop, including for the fixes its own review
-raised. That is the merged discipline steering a session, on the cheapest model in the set.
+**Eleven of twelve**, across eight model/harness combinations. So the hedge does not gate the edge,
+and neither harness nor model explains a miss: traversal is a propensity with a tail, not a
+mechanism with a switch. One panel model declared the seam itself — "**SEAM**: `formatDuration`
+… the inverse of `parseDuration`" — and ran red-green-refactor per slice, including for the fixes
+its own review raised, distinguishing out loud between a test that drove code and one that only
+added coverage. That is the merged discipline steering a session, on the cheapest model in the set.
 
-Read the disagreement carefully, because three things differ between the two rounds at once:
-harness, model, and the reference spelling the emitters produce (`ns:name` against a bare name).
-What the panel settles is narrower and still worth having: **a hedged reference is not structurally
-inert**, so an unwalked edge is a finding about a particular reader, never on its own a defect in
-the body. Separating the three needs an Anthropic model on OpenCode; until that runs, no curation
-change follows from the disagreement.
+The twelfth run is the one worth reading. It did not invoke the skill and **wrote its tests first
+anyway** — fourteen of them, "written before the implementation", from `implement`'s own prose. So
+an invocation and the discipline it carries are different events, and this file's instrument counts
+only the first. What a missed edge actually costs is not test-first; it is the target's *unique*
+content — here the seam and the one-slice rule, which is exactly what the merge was for.
+
+Two cautions for anyone reading a number like this. It is skill-invocation, measured from
+`tool_use` events, not behaviour. And a single observation of a non-traversal establishes nothing:
+the first run of this edge showed none, and the cause turned out to be a probe harness that never
+reset its fixture, so the task under test had already been completed by an earlier probe and there
+was nothing left to drive.
 
 Two more things the panel measured, both about compliance rather than reachability. The
 user-pointer held everywhere: across five models, **zero attempted to invoke** the `manual` target

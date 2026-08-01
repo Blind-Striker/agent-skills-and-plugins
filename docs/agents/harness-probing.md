@@ -158,6 +158,16 @@ conclusion in the same step.
 - **Quantity claims need counting.** "Upstream bodies are full of Claude tool names" survived into a
   document; the real count across 206 files was four, all of them C#'s `Task`. A rewrite built on
   that claim would have corrupted three skills to fix nothing.
+- **Reset the fixture between runs, or you measure the previous probe's residue.** A round concluded
+  that a skill never invoked the one its body names, and the finding reached an ADR and the roadmap.
+  It was an artifact: an earlier probe had already written the function under test into the working
+  tree, so the task was done before the run began and there was nothing left to drive. Resetting
+  means `git reset --hard <baseline>` plus `clean -fdx`, not checkout-and-clean — the ceremony under
+  test may well end with "commit your work", and it obeys.
+- **A behavioural claim needs repeats before it is written down.** The same finding was a sample of
+  one. Repeated later across two harnesses and eight model/harness combinations, the edge was walked
+  eleven times in twelve. Invocation is a propensity with a tail; one observation of a miss
+  establishes nothing, and this class of claim is cheap to disprove and expensive to retract.
 - **Where an artifact lands is part of the question.** OpenCode reads `~/.claude/skills/`, which
   sounds like it reaches Claude Code plugins. It does not — plugins install under
   `~/.claude/plugins/cache/…`. Probe the real install path, not the one that sounds right.

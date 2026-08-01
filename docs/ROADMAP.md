@@ -149,16 +149,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `/name` and eleven of those targets are `auto`, so the slash claims a user surface they do not
   have. Whether to promote any of them into the convention is an open curation decision; promoting
   the eleven as spelled would be linker errors, which is the point.
-- **Whether a declared edge is traversed depends on who reads it — no curation change is warranted
-  yet.** `implement` names `test-driven-development` inside a hedge, "use it where possible, at
-  pre-agreed seams", where agreeing the seam is that skill's own job; its sibling on the next line
-  is an unconditional instruction. On Claude Code the hedged line was never walked while the
-  unconditional one fired; on OpenCode **five models out of five walked it**, one of them naming
-  the seam itself before starting the loop. So the sentence is not inert, and rewriting it on the
-  Claude evidence alone would have been a curation change made to fit a single measurement.
-  Three things differ between the two rounds at once — harness, model, and reference spelling
-  (namespaced vs bare) — and the leg that separates them (an Anthropic model on OpenCode) is
-  parked pending a connector decision. Until it runs, this stays a finding, not a fix.
 - **A converted command cannot resolve a sibling-item path.** A command is one file in
   `commands/`, so a `../<item>/` path written for a skill directory does not land — and no single
   spelling serves both copies of a `both` item. `validate` names each case (it can tell, because
