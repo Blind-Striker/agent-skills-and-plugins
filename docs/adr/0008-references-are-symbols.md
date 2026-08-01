@@ -154,12 +154,15 @@ CI's staleness gate already guarantees the file is never behind the trees it des
   ADR exists to kill, surviving in the tier it deliberately leaves open. The promotion rule is the
   release valve rather than a fix: the incoherent spellings would fail the linker the day they are
   promoted, so contact forces the decision instead of a scan finding it.
-- The linker proves that an edge *resolves*, and a declared edge can still be inert. Measured: a
-  body naming its target inside a condition the session never satisfies — "use X where possible, at
-  pre-agreed seams", where agreeing the seam is X's own job — validates green, is declared in
-  `depends_on`, and is never traversed. Wording that gates an edge is invisible here by
-  construction, and belongs to the runtime rounds and the review that reads intent, not to this
-  machine.
+- The linker proves that an edge *resolves*; whether it is *traversed* is a property of the reader,
+  and the two come apart by more than this machine can see. Measured on one body carrying two
+  references four lines apart, one hedged and one unconditional: the hedged one went unwalked on one
+  harness and was walked by every model on another. So a green link is not a guarantee of
+  behaviour, and an unwalked edge is not evidence of a defective body — both readings need a runtime
+  round across more than one reader before any curation change follows
+  ([skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md)).
+  Wording that gates an edge is invisible here by construction, and belongs to those rounds and to
+  the review that reads intent, not to the linker.
 - The path tier costs a curation decision its silence. An `omit` that drops a file, an `exclude`
   that removes an item, a rename — each is cheap in the manifest and each can strand a body that
   names the target by path, and until now nothing said so. The first run found exactly that: a

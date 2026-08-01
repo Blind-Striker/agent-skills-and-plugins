@@ -329,8 +329,37 @@ The cost lands where it is least convenient. Passive disciplines are exactly the
 unprompted, and they attach to concrete work — so they are the least likely to be selected. Upstream
 buys that propensity with a SessionStart bootstrap this repo deliberately does not ship
 ([ADR-0007](../adr/0007-control-beats-fidelity.md)); the absence is a decision, and this is its
-first measured bill. A body that *names* a skill is a second, independent path — and it carries its
-own failure mode, below.
+first measured bill.
+
+A body that *names* a skill is a second, independent path, and it does not share that fate. The
+same module was then run on OpenCode across a five-model panel — `gpt-5.6-sol`, `kimi-k3`,
+`grok-4.5`, `glm-5.2` and, as a deliberately non-frontier control, `deepseek-v4-pro`, each pinned to
+an effort its own metadata declares — invoking `implement`, whose body names
+`test-driven-development` inside a hedge ("where possible, at pre-agreed seams") and
+`requesting-code-review` four lines later as a plain instruction:
+
+| | Claude Code (Opus 5) | OpenCode panel |
+|---|---|---|
+| hedged edge walked | no | **5 of 5** |
+| unconditional edge walked | yes | 5 of 5 |
+
+One panel model declared the seam itself — "**SEAM**: `formatDuration(seconds)` … the inverse of
+`parseDuration`" — and ran the red-green-refactor loop, including for the fixes its own review
+raised. That is the merged discipline steering a session, on the cheapest model in the set.
+
+Read the disagreement carefully, because three things differ between the two rounds at once:
+harness, model, and the reference spelling the emitters produce (`ns:name` against a bare name).
+What the panel settles is narrower and still worth having: **a hedged reference is not structurally
+inert**, so an unwalked edge is a finding about a particular reader, never on its own a defect in
+the body. Separating the three needs an Anthropic model on OpenCode; until that runs, no curation
+change follows from the disagreement.
+
+Two more things the panel measured, both about compliance rather than reachability. The
+user-pointer held everywhere: across five models, **zero attempted to invoke** the `manual` target
+the body points at, and those that reached the branch relayed it as the human's move. And the
+ceremony's own steps turned out to be optional in practice — some models pinned the range and
+worked through spec discovery, others jumped straight to dispatch, and the pointer only surfaces
+for the ones that walk the step it lives in. The body is a strong suggestion, not a program.
 
 ## What the vendored upstreams use
 

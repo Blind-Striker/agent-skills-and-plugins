@@ -110,6 +110,27 @@ readable — without it a body's own template read returns denied and a subagent
 to the skill body. `--max-budget-usd` caps a runaway ceremony, but a run it truncates exits 1 and
 emits no `result` event, so a script must treat missing result text as "capped", not as "empty".
 
+On the OpenCode side the equivalents are `--format json` for the event stream, `--auto` to pass
+permission gates, `-m` to pin the model and `--variant` for reasoning effort. Two of those bite:
+
+- **`--variant` is not validated.** An effort a model does not offer is dropped in silence and the
+  run proceeds at the default, so a clean exit proves nothing. What each model offers is in
+  `opencode models <provider> --verbose` under `variants`; check the panel against that list before
+  running it, not after.
+- **`opencode auth list`** prints which providers hold credentials, free and without a model call —
+  the cheapest way to find a route to a model before assuming one needs paying for.
+
+Whatever runs the panel, run its wiring once with nothing attached first. Every measurement error in
+the round that produced these notes came from launching a long job whose code path had never been
+executed: a table overwritten because PowerShell variable names are case-insensitive (`$leg` and
+`$LEG` are one variable, so later legs silently ran on the default model), a smoke test that passed
+on a failure because `-match` is case-insensitive too and `Token refresh failed` contains "ok", a
+scratch repo that drifted because the ceremony under test ends with "commit your work" and
+`checkout`+`clean` does not undo a commit, and a background job diagnosed but never killed, which
+kept writing into the next run's results file for forty minutes. A dry-run mode plus a preflight
+that refuses to start — names resolve, fixture at its baseline commit, no stray process, no results
+file already present, every variant declared — costs minutes and catches all of them.
+
 ## What cannot be probed this way
 
 Less than it first appears. Both harnesses expose their user surface to a script — Claude Code
