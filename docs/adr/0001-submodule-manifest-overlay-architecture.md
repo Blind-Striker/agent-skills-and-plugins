@@ -17,8 +17,8 @@ The architecture has four pieces:
 1. **Upstreams are read-only git submodules** under `external/`. Pins move deliberately; local
    authorship never enters an upstream worktree.
 2. **One curation manifest per plugin** records inclusion, deliberate rejection, metadata, naming,
-   invocation, shape, dependency, omission, and body-ownership intent. The authoring grammar and
-   mechanism ladder live in [`curation/SCHEMA.md`](../../curation/SCHEMA.md), beside the manifests.
+   invocation, shape, dependency, omission, and body-ownership intent. Its authoring guidance lives
+   in [`curation/SCHEMA.md`](../../curation/SCHEMA.md), beside the manifests.
 3. **Body edits live in overlays**, either a surgical `body: patch` or owned replacement files under
    `body: overlay`. Both modes record content hashes in `overlays/overlays.lock.json`; changes to
    stamped primary files stop the build. Patch applicability alone is not a staleness guard because
