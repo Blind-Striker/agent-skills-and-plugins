@@ -40,6 +40,11 @@ overrides. Use `body:` only with an overlay directory created by `npm run eject 
 needs a full-file overlay. For a conversion overlay, keep the upstream body filename (`SKILL.md`
 for a source skill, or the source command/agent filename); the build reads that one file.
 
+Every manifest must have a repository-unique `plugin.name`. Within a manifest, each non-excluded
+item must have a unique artifact-kind/output-name pair: two skills cannot both emit the same name,
+for example. The same output name in different artifact kinds (such as a skill and a command) is
+legal because those artifacts occupy different target-harness namespaces.
+
 Curating the same upstream source into more than one item is legal but ambiguous for references:
 the rewrite map is keyed by upstream address and the last manifest item wins. `validate` warns so
 the duplicate can be confirmed as intentional or removed.

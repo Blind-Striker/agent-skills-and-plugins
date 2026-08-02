@@ -98,10 +98,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `tools/build.ts` checks paths already stamped in `overlays/overlays.lock.json`, while
   `eject --bless` computes and stamps the current target set. Adding a replacement file or patch
   target without re-blessing can therefore leave that path outside drift review.
-- **Cross-plugin uniqueness has same-plugin and duplicate-`plugin.name` holes.** The `outputNames`
-  checks in `validateRepo` (`tools/validate.ts`) reject duplicate kind/name pairs only when they
-  survive under different built plugin directories. Items colliding inside one plugin, or manifests
-  that share `plugin.name`, can overwrite before the check observes both.
 - **Ledger omits full Claude invocation flags.** `LedgerEntry` in `tools/lib/ledger.ts` records the
   declared `invocation` and artifact kinds but not resolved Claude frontmatter such as
   `user-invocable` and `disable-model-invocation`. A ledger review cannot inspect the complete

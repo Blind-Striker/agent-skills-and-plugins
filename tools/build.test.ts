@@ -296,6 +296,70 @@ test("unresolvable items abort the build before any output is deleted, and repor
   assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
 });
 
+test("a duplicate output identity within one plugin aborts the build", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    name: shared",
+      "  - source: sp/skills/delta",
+      "    name: shared",
+    ].join("\n")}\n`,
+  );
+
+  assert.throws(() => buildAll(root), /duplicate output identity skill:shared.*sp\/skills\/beta.*sp\/skills\/delta/);
+});
+
+test("duplicate plugin.name values abort before deleting existing output", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const alpha = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  writeFileSync(
+    join(root, "curation", "other.yaml"),
+    "plugin:\n  name: deniz-process\n  description: Other\n  version: 0.1.0\nitems: []\n",
+  );
+
+  assert.throws(
+    () => buildAll(root),
+    /duplicate plugin\.name deniz-process.*curation\/deniz-process\.yaml.*curation\/other\.yaml/,
+  );
+  assert.ok(existsSync(alpha), "previous build output must survive a duplicate plugin.name");
+});
+
+test("the same output name in different artifact kinds builds both and keeps both ledger entries", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/delta",
+      "    name: shared",
+      "  - source: sp/skills/beta",
+      "    name: shared",
+      "    as: command",
+    ].join("\n")}\n`,
+  );
+
+  buildAll(root);
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "shared", "SKILL.md")));
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "commands", "shared.md")));
+
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  assert.equal(ledger["deniz-process/skill/shared"].source, "sp/skills/delta");
+  assert.equal(ledger["deniz-process/command/shared"].source, "sp/skills/beta");
+  assert.equal("deniz-process/shared" in ledger, false);
+});
+
 test("an overlay directory missing the file the build reads aborts before deleting output", () => {
   const root = makeRepo();
   buildAll(root);
@@ -491,7 +555,7 @@ test("a drifted merge source stops the build, naming the source that moved", () 
   buildAll(root); // clean: primary and merge source both match their stamps
   // the ledger carries the declaration, so an item's resolved state names the bodies it was made of
   const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
-  assert.deepEqual(ledger["deniz-process/alpha"].mergedFrom, ["sp/skills/beta"]);
+  assert.deepEqual(ledger["deniz-process/skill/alpha"].mergedFrom, ["sp/skills/beta"]);
 
   writeFileSync(
     join(root, "external", "sp", "skills", "beta", "SKILL.md"),

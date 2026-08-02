@@ -1,6 +1,7 @@
+import { readdirSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { matchesGlob } from "node:path";
-import type { ComponentType, CurationItem } from "./manifest.ts";
+import type { ComponentType, CurationItem, CurationManifest } from "./manifest.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 /**
@@ -38,6 +39,49 @@ export function resolveItem(
     overlayDir: join(root, "overlays", plugin, outName),
     id: `${plugin}/${outName}`,
   };
+}
+
+/** Manifest identities that would overwrite one another before generated-tree checks can see them. */
+export function collectIdentityProblems(
+  root: string,
+  manifests: CurationManifest[],
+  components: ComponentInfo[],
+): string[] {
+  const manifestPaths = readdirSync(join(root, "curation"))
+    .filter((f) => f.endsWith(".yaml"))
+    .sort()
+    .map((f) => `curation/${f}`);
+  const problems: string[] = [];
+  const pluginPaths = new Map<string, string>();
+
+  for (const [index, manifest] of manifests.entries()) {
+    const manifestPath = manifestPaths[index] ?? `curation/${manifest.plugin.name}.yaml`;
+    const earlierPath = pluginPaths.get(manifest.plugin.name);
+    if (earlierPath) {
+      problems.push(`duplicate plugin.name ${manifest.plugin.name} in ${earlierPath} and ${manifestPath}`);
+    } else {
+      pluginPaths.set(manifest.plugin.name, manifestPath);
+    }
+
+    const sourcesByIdentity = new Map<string, string>();
+    for (const item of manifest.items) {
+      if (item.exclude) {
+        continue;
+      }
+      const { outName, outType } = resolveItem(root, manifest.plugin.name, item, components);
+      const identity = `${outType}:${outName}`;
+      const earlierSource = sourcesByIdentity.get(identity);
+      if (earlierSource) {
+        problems.push(
+          `${manifestPath}: ${manifest.plugin.name}: duplicate output identity ${identity} from ${earlierSource} and ${item.source}`,
+        );
+      } else {
+        sourcesByIdentity.set(identity, item.source);
+      }
+    }
+  }
+
+  return problems;
 }
 
 /**

@@ -1,5 +1,5 @@
 {
-  "deniz-dotnet-akka/akka-net-best-practices": {
+  "deniz-dotnet-akka/skill/akka-net-best-practices": {
     "source": "dotnet-skills/skills/akka-best-practices",
     "description": "Critical Akka.NET best practices including EventStream vs DistributedPubSub, supervision strategies, error handling, Props vs DependencyResolver, work distribution patterns, and cluster/local mode abstractions for testability.",
     "claude": {
@@ -25,7 +25,7 @@
       "parked": []
     }
   },
-  "deniz-dotnet-aspire/aspire": {
+  "deniz-dotnet-aspire/skill/aspire": {
     "source": "aspire-skills/skills/aspire",
     "description": "**WORKFLOW SKILL** - Top-level router for Aspire 13.4 distributed apps. Detects the AppHost, enforces safety guardrails, and routes to the right sub-skill. USE FOR: Aspire AppHost detected, aspire CLI, distributed app, cloud-native .NET, aspire start, aspire stop, aspire resource, aspire deploy, aspire destroy, aspire publish, aspire init, aspire new, aspire add, aspire integration list/search, aspire wait, aspire describe, aspire ps, aspire dashboard run, aspire doctor, aspire update, aspire logs, aspire otel, --include-hidden, aspireify, WithBrowserLogs, custom dashboard/resource commands, .aspire/modules recovery, Playwright URL discovery. DO NOT USE FOR: non-Aspire .NET projects (use dotnet directly), Azure provisioning without Aspire (use azure-prepare), container-only repos with no AppHost, ordinary build/test tasks. INVOKES: aspire-init, aspireify, aspire-orchestration, aspire-deployment, aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.",
     "claude": {
@@ -49,7 +49,7 @@
       "parked": []
     }
   },
-  "deniz-dotnet-general/modern-csharp-coding-standards": {
+  "deniz-dotnet-general/skill/modern-csharp-coding-standards": {
     "source": "dotnet-skills/skills/csharp-coding-standards",
     "description": "Write modern, high-performance C# code using records, pattern matching, value objects, async/await, Span<T>/Memory<T>, and best-practice API design patterns. Emphasizes functional-style programming with C# 12+ features.",
     "claude": {
@@ -75,7 +75,7 @@
       "parked": []
     }
   },
-  "deniz-process/brainstorming": {
+  "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
     "description": "Collaborative design session: turn an idea into an approved design and spec.",
@@ -101,7 +101,7 @@
       "parked": []
     }
   },
-  "deniz-process/codebase-design": {
+  "deniz-process/skill/codebase-design": {
     "source": "mattpocock-skills/skills/engineering/codebase-design",
     "invocation": "auto",
     "description": "Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.",
@@ -128,7 +128,7 @@
       "parked": []
     }
   },
-  "deniz-process/dispatching-parallel-agents": {
+  "deniz-process/skill/dispatching-parallel-agents": {
     "source": "superpowers/skills/dispatching-parallel-agents",
     "invocation": "auto",
     "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
@@ -155,7 +155,7 @@
       "parked": []
     }
   },
-  "deniz-process/domain-modeling": {
+  "deniz-process/skill/domain-modeling": {
     "source": "mattpocock-skills/skills/engineering/domain-modeling",
     "invocation": "auto",
     "description": "Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.",
@@ -182,7 +182,7 @@
       "parked": []
     }
   },
-  "deniz-process/executing-plans": {
+  "deniz-process/skill/executing-plans": {
     "source": "superpowers/skills/executing-plans",
     "invocation": "both",
     "dependsOn": [
@@ -221,7 +221,7 @@
       "parked": []
     }
   },
-  "deniz-process/finishing-a-development-branch": {
+  "deniz-process/skill/finishing-a-development-branch": {
     "source": "superpowers/skills/finishing-a-development-branch",
     "invocation": "both",
     "description": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work",
@@ -247,7 +247,7 @@
       "parked": []
     }
   },
-  "deniz-process/grill-me": {
+  "deniz-process/skill/grill-me": {
     "source": "mattpocock-skills/skills/productivity/grill-me",
     "invocation": "manual",
     "description": "A relentless interview to sharpen a plan or design.",
@@ -275,7 +275,7 @@
       "parked": []
     }
   },
-  "deniz-process/grill-with-docs": {
+  "deniz-process/skill/grill-with-docs": {
     "source": "mattpocock-skills/skills/engineering/grill-with-docs",
     "invocation": "manual",
     "description": "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",
@@ -303,7 +303,7 @@
       "parked": []
     }
   },
-  "deniz-process/grilling": {
+  "deniz-process/skill/grilling": {
     "source": "mattpocock-skills/skills/productivity/grilling",
     "invocation": "auto",
     "description": "Grill the user relentlessly about a plan, decision, or idea. Use when the user wants to stress-test their thinking, or uses any 'grill' trigger phrases.",
@@ -330,7 +330,7 @@
       "parked": []
     }
   },
-  "deniz-process/handoff": {
+  "deniz-process/skill/handoff": {
     "source": "mattpocock-skills/skills/productivity/handoff",
     "invocation": "manual",
     "description": "Compact the current conversation into a handoff document for another agent to pick up.",
@@ -359,7 +359,7 @@
       "parked": []
     }
   },
-  "deniz-process/implement": {
+  "deniz-process/skill/implement": {
     "source": "mattpocock-skills/skills/engineering/implement",
     "invocation": "manual",
     "body": "patch",
@@ -398,7 +398,7 @@
       "parked": []
     }
   },
-  "deniz-process/improve-codebase-architecture": {
+  "deniz-process/skill/improve-codebase-architecture": {
     "source": "mattpocock-skills/skills/engineering/improve-codebase-architecture",
     "invocation": "manual",
     "description": "Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.",
@@ -428,7 +428,7 @@
       ]
     }
   },
-  "deniz-process/prototype": {
+  "deniz-process/skill/prototype": {
     "source": "mattpocock-skills/skills/engineering/prototype",
     "invocation": "both",
     "description": "Build a throwaway prototype to answer a design question. Use when the user wants to sanity-check whether a state model or logic feels right, or explore what a UI should look like.",
@@ -454,7 +454,7 @@
       "parked": []
     }
   },
-  "deniz-process/receiving-code-review": {
+  "deniz-process/skill/receiving-code-review": {
     "source": "superpowers/skills/receiving-code-review",
     "invocation": "auto",
     "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
@@ -481,7 +481,7 @@
       "parked": []
     }
   },
-  "deniz-process/requesting-code-review": {
+  "deniz-process/skill/requesting-code-review": {
     "source": "superpowers/skills/requesting-code-review",
     "invocation": "both",
     "body": "overlay",
@@ -522,7 +522,7 @@
       "parked": []
     }
   },
-  "deniz-process/research": {
+  "deniz-process/skill/research": {
     "source": "mattpocock-skills/skills/engineering/research",
     "invocation": "both",
     "body": "patch",
@@ -556,7 +556,7 @@
       "parked": []
     }
   },
-  "deniz-process/resolving-merge-conflicts": {
+  "deniz-process/skill/resolving-merge-conflicts": {
     "source": "mattpocock-skills/skills/engineering/resolving-merge-conflicts",
     "invocation": "auto",
     "description": "Use when you need to resolve an in-progress git merge/rebase conflict.",
@@ -583,7 +583,7 @@
       "parked": []
     }
   },
-  "deniz-process/setup-matt-pocock-skills": {
+  "deniz-process/skill/setup-matt-pocock-skills": {
     "source": "mattpocock-skills/skills/engineering/setup-matt-pocock-skills",
     "invocation": "manual",
     "description": "Configure this repo for the engineering skills — set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.",
@@ -617,7 +617,7 @@
       ]
     }
   },
-  "deniz-process/subagent-driven-development": {
+  "deniz-process/skill/subagent-driven-development": {
     "source": "superpowers/skills/subagent-driven-development",
     "invocation": "both",
     "dependsOn": [
@@ -656,7 +656,7 @@
       "parked": []
     }
   },
-  "deniz-process/systematic-debugging": {
+  "deniz-process/skill/systematic-debugging": {
     "source": "superpowers/skills/systematic-debugging",
     "invocation": "auto",
     "body": "overlay",
@@ -697,7 +697,7 @@
       "parked": []
     }
   },
-  "deniz-process/teach": {
+  "deniz-process/skill/teach": {
     "source": "mattpocock-skills/skills/productivity/teach",
     "invocation": "manual",
     "description": "Teach the user a new skill or concept, within this workspace.",
@@ -731,7 +731,7 @@
       ]
     }
   },
-  "deniz-process/test-driven-development": {
+  "deniz-process/skill/test-driven-development": {
     "source": "superpowers/skills/test-driven-development",
     "invocation": "auto",
     "body": "overlay",
@@ -772,7 +772,7 @@
       "parked": []
     }
   },
-  "deniz-process/to-spec": {
+  "deniz-process/skill/to-spec": {
     "source": "mattpocock-skills/skills/engineering/to-spec",
     "invocation": "manual",
     "description": "Turn the current conversation into a spec and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.",
@@ -800,7 +800,7 @@
       "parked": []
     }
   },
-  "deniz-process/to-tickets": {
+  "deniz-process/skill/to-tickets": {
     "source": "mattpocock-skills/skills/engineering/to-tickets",
     "invocation": "manual",
     "description": "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker — edges as text in one file per ticket locally, or native blocking links on a real tracker.",
@@ -828,7 +828,7 @@
       "parked": []
     }
   },
-  "deniz-process/triage": {
+  "deniz-process/skill/triage": {
     "source": "mattpocock-skills/skills/engineering/triage",
     "invocation": "manual",
     "description": "Move issues and external PRs through a state machine of triage roles — categorise, verify, grill if needed, and write agent-ready briefs.",
@@ -859,7 +859,7 @@
       ]
     }
   },
-  "deniz-process/using-git-worktrees": {
+  "deniz-process/skill/using-git-worktrees": {
     "source": "superpowers/skills/using-git-worktrees",
     "invocation": "auto",
     "description": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback",
@@ -886,7 +886,7 @@
       "parked": []
     }
   },
-  "deniz-process/using-superpowers": {
+  "deniz-process/skill/using-superpowers": {
     "source": "superpowers/skills/using-superpowers",
     "invocation": "manual",
     "body": "patch",
@@ -925,7 +925,7 @@
       "parked": []
     }
   },
-  "deniz-process/verification-before-completion": {
+  "deniz-process/skill/verification-before-completion": {
     "source": "superpowers/skills/verification-before-completion",
     "invocation": "auto",
     "description": "Use when about to claim work is complete, fixed, or passing, before committing or creating PRs - requires running verification commands and confirming output before making any success claims; evidence before assertions always",
@@ -952,7 +952,7 @@
       "parked": []
     }
   },
-  "deniz-process/wayfinder": {
+  "deniz-process/skill/wayfinder": {
     "source": "mattpocock-skills/skills/engineering/wayfinder",
     "invocation": "manual",
     "description": "Plan a huge chunk of work — more than one agent session can hold — as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.",
@@ -980,7 +980,7 @@
       "parked": []
     }
   },
-  "deniz-process/writing-great-skills": {
+  "deniz-process/skill/writing-great-skills": {
     "source": "mattpocock-skills/skills/productivity/writing-great-skills",
     "invocation": "manual",
     "description": "Reference for writing and editing skills well — the vocabulary and principles that make a skill predictable.",
@@ -1010,7 +1010,7 @@
       ]
     }
   },
-  "deniz-process/writing-plans": {
+  "deniz-process/skill/writing-plans": {
     "source": "superpowers/skills/writing-plans",
     "invocation": "both",
     "dependsOn": [
@@ -1049,7 +1049,7 @@
       "parked": []
     }
   },
-  "deniz-process/writing-skills": {
+  "deniz-process/skill/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "invocation": "manual",
     "body": "patch",

@@ -54,10 +54,10 @@ audience can reach it. When a skill-relative path works from the skill copy but 
 command, the linker warns rather than errors: the reference is sound and artifact shape caused the
 break.
 
-The linker keys target state by output name. `validate` rejects duplicate kind/name pairs it can
-observe across distinct plugin directories and detects an own skill overwriting a curated item. It
-does not yet catch duplicates produced within one plugin or manifests that repeat `plugin.name`;
-those uniqueness holes are a Known Gap.
+The linker keys target state by output name. Before rendering, both build and `validate` reject
+duplicate `plugin.name` values and duplicate kind/name pairs among a manifest's non-excluded items;
+the generated-tree scan retains the cross-plugin kind/name check, and `validate` detects an own skill
+overwriting a curated item. The same output name in different artifact kinds is legal.
 
 The manifest loader enforces the authoring enums before later consumers run: `invocation` accepts
 `auto`, `manual`, or `both`; `as` accepts `skill`, `command`, or `agent`; and `body` accepts
@@ -75,12 +75,13 @@ Overlay and patch ownership has a related boundary: the build compares paths alr
 of overlay files or patch targets against that lock, so a newly targeted path can skip review. That
 target-set reconciliation is a Known Gap.
 
-**5. The build emits a ledger.** `docs/ledger.json` is generated and committed per item and harness.
-It records source, declared invocation, body mode, merge-source addresses, declared dependencies,
-description, emitted artifact kinds, fact edges, OpenCode dropped keys, and parked files in a
-deterministic order. It does not record the complete Claude frontmatter or resolved invocation
-flags; full flag coverage is a Known Gap. The ledger is the review surface for posture, shape, and
-edge changes, and CI's stale-output check keeps it aligned with generated trees.
+**5. The build emits a ledger.** `docs/ledger.json` is generated and committed per item and harness,
+keyed by plugin, artifact kind, and output name. It records source, declared invocation, body mode,
+merge-source addresses, declared dependencies, description, emitted artifact kinds, fact edges,
+OpenCode dropped keys, and parked files in a deterministic order. It does not record the complete
+Claude frontmatter or resolved invocation flags; full flag coverage is a Known Gap. The ledger is
+the review surface for posture, shape, and edge changes, and CI's stale-output check keeps it aligned
+with generated trees.
 
 Declaring edge kinds only in the manifest was rejected because runtime prose could contradict a
 green declaration. Deriving identity from built OpenCode text was rejected because bare words are

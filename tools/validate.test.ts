@@ -61,6 +61,81 @@ test("duplicate output name across plugins is an error", () => {
   );
 });
 
+test("duplicate output identity within one plugin is an error", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    name: shared",
+      "  - source: sp/skills/delta",
+      "    name: shared",
+    ].join("\n")}\n`,
+  );
+
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) =>
+        f.level === "error" &&
+        f.message.includes("duplicate output identity skill:shared") &&
+        f.message.includes("sp/skills/beta") &&
+        f.message.includes("sp/skills/delta"),
+    ),
+    `expected a same-plugin identity error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+test("duplicate plugin.name values are an error that lists both manifest paths", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "other.yaml"),
+    "plugin:\n  name: deniz-process\n  description: Other\n  version: 0.1.0\nitems: []\n",
+  );
+
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) =>
+        f.level === "error" &&
+        f.message.includes("duplicate plugin.name deniz-process") &&
+        f.message.includes("curation/deniz-process.yaml") &&
+        f.message.includes("curation/other.yaml"),
+    ),
+    `expected a duplicate-plugin error, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+test("the same output name is legal for different artifact kinds", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/delta",
+      "    name: shared",
+      "  - source: sp/skills/beta",
+      "    name: shared",
+      "    as: command",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+
+  const identityFindings = validateRepo(root).filter(
+    (f) => f.message.includes("duplicate output identity") || f.message.includes("duplicate plugin.name"),
+  );
+  assert.deepEqual(identityFindings, []);
+});
+
 // marketplace.json is what a harness reads to find the plugins; a build that half-failed, or a
 // hand-deleted plugin dir, leaves it advertising directories that are not there.
 test("marketplace.json listing a plugin that is not built is an error", () => {

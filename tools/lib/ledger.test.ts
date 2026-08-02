@@ -25,7 +25,7 @@ test("the build writes a deterministic ledger describing each item's resolved st
   buildAll(root);
   const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
 
-  const alpha = ledger["deniz-process/alpha"];
+  const alpha = ledger["deniz-process/skill/alpha"];
   assert.equal(alpha.source, "sp/skills/alpha");
   assert.equal(alpha.invocation, "auto");
   assert.deepEqual(alpha.claude.artifacts, ["skill"]);
@@ -33,7 +33,7 @@ test("the build writes a deterministic ledger describing each item's resolved st
   assert.deepEqual(alpha.opencode.edges.model, ["beta"]);
   assert.deepEqual(alpha.dependsOn, ["beta"]); // the manifest's declaration, beside the derived edges
 
-  const beta = ledger["deniz-process/beta"];
+  const beta = ledger["deniz-process/skill/beta"];
   assert.deepEqual(beta.claude.artifacts, ["skill"]); // Claude: manual is still a skill, flagged
   assert.deepEqual(beta.opencode.artifacts, ["command"]); // OpenCode: manual is a command, no skill
   assert.deepEqual(alpha.opencode.dropped, ["user-invocable"]); // auto's Claude flag has no OpenCode home

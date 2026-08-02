@@ -7,7 +7,7 @@ import { loadManifest } from "./lib/manifest.ts";
 import { listFiles, loadLock, LOCK_FILE, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { extractRefs } from "./lib/refs.ts";
-import { isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
+import { collectIdentityProblems, isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -95,6 +95,9 @@ export function validateRepo(root: string): Finding[] {
   const components = readdirSync(join(root, "external"))
     .filter((s) => statSync(join(root, "external", s)).isDirectory())
     .flatMap((s) => scanSubmodule(join(root, "external"), s));
+  findings.push(
+    ...collectIdentityProblems(root, manifests, components).map((message) => ({ level: "error" as const, message })),
+  );
   const firstUse = new Map<string, string>();
 
   // 1. manifest sources exist, plus the two curation footguns the build resolves silently

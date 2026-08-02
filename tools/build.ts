@@ -27,7 +27,7 @@ import {
   PATCH_FILE,
   patchTargets,
 } from "./lib/overlay.ts";
-import { isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
+import { collectIdentityProblems, isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
 import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -225,7 +225,7 @@ function overlayDrift(
 // Mirrors every throw in emitItem, with the identical wording, so the messages a user sees are the
 // same whichever side reports them. The emitItem throws stay as unreachable safety nets.
 function collectProblems(root: string, manifests: CurationManifest[], components: ComponentInfo[]): string[] {
-  const problems: string[] = [];
+  const problems = collectIdentityProblems(root, manifests, components);
   const lock = loadLock(root);
   for (const m of manifests) {
     for (const item of m.items) {

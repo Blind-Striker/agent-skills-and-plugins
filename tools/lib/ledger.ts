@@ -53,7 +53,8 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
       if (item.exclude) {
         continue;
       }
-      const { outName, outType, id } = resolveItem(root, m.plugin.name, item, components);
+      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
+      const ledgerId = `${m.plugin.name}/${outType}/${outName}`;
       const claudeDir = join(
         root,
         "plugins",
@@ -110,7 +111,7 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
           parked,
         },
       };
-      ledger[id] = entry;
+      ledger[ledgerId] = entry;
     }
   }
   const sorted = Object.fromEntries(Object.entries(ledger).sort(([a], [b]) => a.localeCompare(b)));

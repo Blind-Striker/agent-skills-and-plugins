@@ -35,8 +35,10 @@ because a prefix would buy back duplicate names across modules.
   intentionally different output trees.
 - A new harness requires a new emitter that answers the transformation contract, not a redesign of
   the authored source.
-- Flat names make identity global across the build: the ledger, rewrite map, and `depends_on` all
-  use output names. `validate` rejects duplicate kind/name pairs it can observe across distinct
-  plugin directories; same-plugin and duplicate-`plugin.name` overwrite holes remain a Known Gap.
+- Flat names make identity global across the build: the rewrite map and `depends_on` use output
+  names, while ledger entries qualify them with plugin and artifact kind. Manifest preflight rejects
+  duplicate `plugin.name` values and same-plugin duplicate kind/name pairs before either can
+  overwrite output; `validate` retains the generated-tree cross-plugin check. The same name in
+  different artifact kinds remains legal.
 - A reported drop turns an incompatibility into a curation decision instead of a latent runtime
   surprise.
