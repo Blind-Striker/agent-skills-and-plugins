@@ -1,6 +1,6 @@
 # Skill invocation across harnesses
 
-Date: 2026-07-31
+Date: 2026-08-02
 
 Who decides that a skill runs — the model, or the person at the keyboard — is a per-harness
 mechanism, and the two harnesses this repo targets disagree about it deeply enough that the same
@@ -23,7 +23,7 @@ who may pull the trigger:
 | `disable-model-invocation: true` | **User only.** Also stops the skill being preloaded into subagents, and stops it firing when a scheduled task names it |
 | `user-invocable: false` | **Model only.** Hides the skill from the `/` menu |
 
-All three rows were verified on a live install (Claude Code 2.1.220), against skills isolated in
+All three rows were observed on a live install (Claude Code 2.1.220), against skills isolated in
 their own `CLAUDE_CONFIG_DIR` so nothing else was loaded. Two results are worth carrying:
 
 - **`disable-model-invocation: true` does not block the user.** The report below said it does; it
@@ -229,7 +229,7 @@ mechanism does not depend on wording at all — a `manual` item is filtered out 
 listing entirely (measured above), so the worst a bad pointer sentence can cost there is a confusing
 message, never a wrong invocation.
 
-### Verified on this repo's real output (1.18.7, TUI, model GPT-5.6 Terra)
+### Observed on this repo's real output (1.18.7, TUI, model GPT-5.6 Terra)
 
 The fixture rounds above were confirmed against the built `opencode/` tree itself: three mounts
 (`OPENCODE_CONFIG_DIR`, project-local `.opencode/`, global config dir) each resolve the full set —
@@ -309,86 +309,33 @@ property, and the two are measured differently: reachability is mechanical and e
 listing, an artifact — while propensity is a selection the model makes from names and descriptions,
 and nothing in either harness forces it.
 
-Measured on the closed `deniz-process` module, one-shot `-p` sessions, `Skill` tool-use events as
-the evidence:
+Exploratory runs on the closed module produced two qualitative observations. Open-ended requests
+sometimes selected a matching ceremony, while passive disciplines attached to concrete work were
+often not selected from their descriptions alone. A body that explicitly names another skill was
+observed to traverse much more consistently across both harnesses, although it could still miss.
+Traversal is therefore a propensity with a tail, not a mechanism with a switch.
 
-| Item | Posture | Prompt shape | Fired |
-|---|---|---|---|
-| `brainstorming` | `both` | open-ended ("help me figure out what it should do first"), EN and TR | yes, both |
-| `grilling` | `auto` | reached from `grill-me`'s body | yes |
-| `test-driven-development` | `auto` | concrete implementation request ×3 | no |
-| `systematic-debugging` | `auto` | an explicit bug report | no |
+This cost lands where it is least convenient: passive disciplines are intended to fire unprompted
+and usually attach to concrete work. Some upstreams buy more propensity with bootstrap
+amplification that this repo deliberately does not ship
+([ADR-0007](../adr/0007-control-beats-fidelity.md)); the lower pressure is a curation decision.
 
-The mechanism is sound in every row — `grilling` firing from another body proves an `auto` item is
-model-reachable. What separates the rows is the shape of the request: on an open-ended one the model
-reaches for the ceremony, on a fully specified one it simply does the work. That is the community
-finding in [skill-framework-landscape.md](skill-framework-landscape.md) ("the design phases are pure
-overhead when the task is fully specified") arriving as a measurement on our own output.
+The same exploratory work yielded two OpenCode command-surface notes. A converted command could
+reach its parked bundle, and a sibling-item path that `validate` warns about could be read through
+the parked skill layout. Tool input showed the model resolving `../<item>/…` against the skill
+directory rather than the command file. The filesystem warning remains valid where the target has
+no `skills/<name>/` directory — an excluded item, or a `manual` item whose empty bundle caused the
+emitter to drop the husk.
 
-The cost lands where it is least convenient. Passive disciplines are exactly the items meant to fire
-unprompted, and they attach to concrete work — so they are the least likely to be selected. Upstream
-buys that propensity with a SessionStart bootstrap this repo deliberately does not ship
-([ADR-0007](../adr/0007-control-beats-fidelity.md)); the absence is a decision, and this is its
-first measured bill.
+A non-traversal also demonstrated why invocation and discipline are different events: the session
+still followed test-first prose from the calling skill without loading the target. What a missed
+edge costs is the target's unique content, not necessarily the broad behavior it reinforces.
 
-A body that *names* a skill is a second, independent path, and it does not share that fate. The
-same module was then run on OpenCode across a five-model panel — `gpt-5.6-sol`, `kimi-k3`,
-`grok-4.5`, `glm-5.2` and, as a deliberately non-frontier control, `deepseek-v4-pro`, each pinned to
-an effort its own metadata declares — invoking `implement`, whose body names
-`test-driven-development` inside a hedge ("where possible, at pre-agreed seams") and
-`requesting-code-review` four lines later as a plain instruction:
-
-| Harness | Readers | Hedged edge walked |
-|---|---|---|
-| OpenCode | the five panel models, plus Opus 5 through OpenRouter | **6 of 6** |
-| Claude Code | Opus 5 ×3, Fable 5 ×3, all at `xhigh` | **5 of 6** |
-
-**Eleven of twelve**, across eight model/harness combinations. So the hedge does not gate the edge,
-and neither harness nor model explains a miss: traversal is a propensity with a tail, not a
-mechanism with a switch.
-
-The same skill was then asked for the other way — a plain implementation request naming no skill —
-and fired in **two runs of eight** (two of five OpenCode legs, none of three Claude Code ones).
-The contrast is the finding, because everything else was held: same item, same task, same models,
-same trees.
-
-| How the skill was reached | Fired |
-|---|---|
-| named in another item's body | **11 / 12** |
-| matched only by its own description | **2 / 8** |
-
-Two more measurements from the same panel, both on the OpenCode command surface. A converted
-command's **parked bundle is reachable**: asked for a template that lives beside the parked body,
-five legs of five read it. And the **sibling-item path that `validate` warns about resolves in
-practice**: asked for the template that lives in another item's directory, five of five returned it,
-each with a single `read` of the correct absolute path and no skill load. The mechanism was caught
-in the tool input — the model resolves `../<item>/…` against the *skill's* directory rather than the
-command file's, and the parked bundle preserves that layout, so the climb lands. The warning is
-still right about the filesystem and still guards a real class: where the target item has no
-`skills/<name>/` directory at all — excluded, or a `manual` item whose bundle was empty so the
-emitter dropped the husk — the same climb lands nowhere. One panel model declared the seam itself — "**SEAM**: `formatDuration`
-… the inverse of `parseDuration`" — and ran red-green-refactor per slice, including for the fixes
-its own review raised, distinguishing out loud between a test that drove code and one that only
-added coverage. That is the merged discipline steering a session, on the cheapest model in the set.
-
-The twelfth run is the one worth reading. It did not invoke the skill and **wrote its tests first
-anyway** — fourteen of them, "written before the implementation", from `implement`'s own prose. So
-an invocation and the discipline it carries are different events, and this file's instrument counts
-only the first. What a missed edge actually costs is not test-first; it is the target's *unique*
-content — here the seam and the one-slice rule, which is exactly what the merge was for.
-
-Two cautions for anyone reading a number like this. It is skill-invocation, measured from
-`tool_use` events, not behaviour. And a single observation of a non-traversal establishes nothing:
-the first run of this edge showed none, and the cause turned out to be a probe harness that never
-reset its fixture, so the task under test had already been completed by an earlier probe and there
-was nothing left to drive.
-
-Two more things the panel measured, both about compliance rather than reachability. The
-user-pointer held everywhere: across five models, **zero attempted to invoke** the `manual` target
-the body points at, and those that reached the branch relayed it as the human's move. And the
-ceremony's own steps turned out to be optional in practice — some models pinned the range and
-worked through spec discovery, others jumped straight to dispatch, and the pointer only surfaces
-for the ones that walk the step it lives in. The body is a strong suggestion, not a program.
+These historical observations have no retained tier-2 record, so the former rates and result table
+are intentionally omitted. Future quantitative claims belong in
+`experiments/harness-invocation/records/` and must be synthesized here by `record_id`. The durable
+interpretation is narrower: tool events measure invocation rather than behavior, one non-traversal
+establishes nothing, and a skill body is a strong suggestion rather than a program.
 
 ## What the vendored upstreams use
 

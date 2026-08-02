@@ -5,7 +5,7 @@ Date: 2026-07-31
 You are entering after the repo's first real curation day. In one session: the curator's intent
 became canon (ADR-0007), `deniz-process` went from one starter skill to a complete module (two
 batches, 32 items decided with the user), the first overlay (a two-source skill merge) and the
-first two patches landed, and the built `opencode/` tree was verified end to end in a live
+first two patches landed, and the built `opencode/` tree was exercised end to end in a live
 OpenCode TUI. The single most important state observation: **the next wave is machinery, not
 curation — two manifest guardrails designed with the user, which must land BEFORE the two
 pending skill merges so those merges are born protected. Do not reorder this.**
@@ -26,15 +26,15 @@ pending skill merges so those merges are born protected. Do not reorder this.**
 | First merge | systematic-debugging = superpowers' root-cause armor × matt diagnosing-bugs' loop engineering, 7 phases, `body: overlay` scoped to SKILL.md alone (sibling files keep flowing). diagnosing-bugs is `exclude: true — merged` | Live in a TUI probe: fired on a free-form bug sentence and visibly ran loop-first |
 | using-superpowers | `body: patch` (level ii, user's choice): 1% block, Red Flags table, platform section cut; ordering rule, announce habit, subagent guard stay. `manual` + human-facing description | Output greps clean; refs rewrote per tree |
 | Batch 2 (16 items) | Matt's whole production chain incl. the setup wizard (runtime taken as shipped), design/standalone set, superpowers' last two. `research`/`prototype` are `both` (user's call); first cross-framework stitch: research's dispatch → superpowers:dispatching-parallel-agents, spelled upstream so each tree localizes it. ask-matt `exclude` (router lies about our set) | `validate` 0 errors 0 warnings — writing-skills' take retired the last two |
-| OpenCode verified | Real tree mounted three ways + TUI 5/5 (commands listed, model-mediated composition works, parked bundles reachable, auto+both live on a non-Claude model). Measured precedence: **package cache > OPENCODE_CONFIG_DIR > global .config**; global mount follows XDG_CONFIG_HOME; `debug paths` lies about discovery | `docs/research/skill-invocation-across-harnesses.md` + harness-probing traps |
+| OpenCode exercised | Real tree mounted through each supported test mount in a TUI (commands listed, model-mediated composition works, parked bundles reachable, auto+both live on a non-Claude model). Measured precedence: **package cache > OPENCODE_CONFIG_DIR > global .config**; global mount follows XDG_CONFIG_HOME; `debug paths` lies about discovery | `docs/research/skill-invocation-across-harnesses.md` + harness-probing traps |
 | Machine migration | User's end state on the roadmap: uninstall every globally installed skill set (both harnesses) as `deniz-*` replacements land; the OpenCode superpowers package is first (it shadows curated output). Installer decision parked with references | ROADMAP items 5–6 |
 | CI lesson | Two red runs, same cause: `docs/inventory.md` regenerates **in the same commit** as any curation change (the Curated column moves) | Third change caught it pre-commit |
 
-## Current State You Should Assume Until Verified
+## Current State You Should Assume Until Rechecked
 
 - **HEAD** (`master`): the commit carrying this prompt. Pushed; verify CI yourself.
 - **Tests:** 70 passed at session start; `tools/` untouched since. **Validate:** 0 errors, 0 warnings.
-- **Curation state:** `deniz-process` — all 14 superpowers and 20 of 22 matt-promoted candidates
+- **Curation state:** `deniz-process` — all superpowers and all but two matt-promoted candidates
   answered in the manifest (29 taken, incl. 1 merge-overlay + 2 patches; 2 reasoned excludes).
   The 2 unanswered — matt `tdd` and `code-review` — are deliberately absent, awaiting their
   merge passes. Three dotnet manifests still hold one starter each.
@@ -97,7 +97,7 @@ reviewer dispatch?
    compile-time/runtime boundary.
 2. `docs/ROADMAP.md` — item 2 is your work order; items 5–6 are context.
 3. `docs/adr/0001` (overlay/blessing design you will extend), `0005`, `0006`, `0007`.
-4. `docs/research/skill-invocation-across-harnesses.md` — incl. the new "verified on real
+4. `docs/research/skill-invocation-across-harnesses.md` — incl. the new "observed on real
    output" section; `docs/agents/harness-probing.md` for the isolation traps.
 5. `curation/deniz-process.yaml` — the decision record; its header carries the open items.
 

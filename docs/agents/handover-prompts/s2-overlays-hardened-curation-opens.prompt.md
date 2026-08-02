@@ -23,16 +23,16 @@ one pipeline-proof starter item, and `overlays/` does not exist.
 | Invocation model | Researched both harnesses. OpenCode skills are model-only — a user cannot invoke one — so the same intent is a frontmatter flag in Claude Code and a *different artifact* (a command) in OpenCode. Recorded in `docs/research/skill-invocation-across-harnesses.md`; decided in ADR-0005 (`invocation: model \| user \| both`, `as: command` retired) | Doc + ADR written and reviewed with the user; **no code written** |
 | OpenCode output paths | Emitter wrote `opencode/skill\|command\|agent`; OpenCode documents all three plural. Fixed, ADR-0002 corrected | RED test first; build, CI |
 | Overlays | `body: patch` added alongside `body: overlay`; `eject` grew `--patch`, `--bless`, an overwrite guard | See below — the first version was broken |
-| Overlay hardening | Two independent reviews (one vcpkg-informed, one context-free) found three criticals, all reproduced by hand: `eject` crashed on any skill with a subdirectory (51/96 upstream skills); npm swallows `--patch`/`--bless`/`--force` so every printed remediation was inert and `--patch` silently produced a full-file overlay; patch-cutting silently discarded added and deleted files while deleting the working copy | Each fixed with a RED test first; verified end-to-end on real upstream skills |
+| Overlay hardening | Two independent reviews (one vcpkg-informed, one context-free) found three criticals, all reproduced by hand: `eject` crashed on skills with subdirectories; npm swallows `--patch`/`--bless`/`--force` so every printed remediation was inert and `--patch` silently produced a full-file overlay; patch-cutting silently discarded added and deleted files while deleting the working copy | Each fixed with a RED test first and exercised end-to-end on real upstream skills |
 | Guardrail redesign | `git apply` was assumed self-checking. It is not: it matches hunk context at an unbounded offset, so a hunk relocates silently, and where a file repeats a passage it lands on the wrong region while the intended one is gone — both exit 0. **Both overlay kinds are now hash-blessed** through `overlays/overlays.lock.json`; the false claim in ADR-0001 is replaced | Wrong-site application reproduced directly; `--verbose` offset parsing was tried and does **not** cover it |
 | Skill deep-dive | Structural pass over superpowers (cross-reference graph, sizes, bundled scripts, where the coercive language actually lives) and mattpocock (bucket policy, router trap, deprecations). Content comparison done for **one pair only**: `brainstorming` ↔ `grill-me`/`grilling` | Findings folded into `docs/research/`; three pairs unread |
 
-## Current State You Should Assume Until Verified
+## Current State You Should Assume Until Rechecked
 
 - **HEAD** (`master`): `56c8536` — roadmap gaps from the reviews. Pushed.
 - **Tests:** 57 passed. **Validate:** 0 errors, 4 warnings (2 unrewritten `superpowers:*` refs × 2
   output trees — the doubling is a Known Gap).
-- **CI:** green on `56c8536` (run 30577369992), 57/57 on Linux — the first Linux run of the patch
+- **CI:** green on `56c8536` (run 30577369992), including the Linux test suite — the first Linux run of the patch
   machinery. One unrelated annotation: `actions/checkout@v4` and `setup-node@v4` target Node 20 and
   are being forced onto Node 24.
 - **Curation state:** nothing curated. Starter picks only: `systematic-debugging`,

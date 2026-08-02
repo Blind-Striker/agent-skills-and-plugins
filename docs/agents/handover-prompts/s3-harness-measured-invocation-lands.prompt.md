@@ -93,13 +93,13 @@ identical passage, exiting 0 both times.
 | --- | --- | --- |
 | Purpose was invisible | Every agent formed a "pick and copy" model, because `AGENTS.md` opened by calling the manifests a thing that "selects and customizes". **ADR-0006** now states the contract — output is a *transformation* along three axes, each resolved per harness — and `AGENTS.md` leads with it in six lines | Read `AGENTS.md` first; if your model of this repo is subsetting, re-read it |
 | Harness behaviour | Both harnesses measured in a lab: Claude's three frontmatter states, OpenCode's three mount points, precedence, frontmatter tolerance, `@file` resolution, name collisions, tool vocabulary | All in `docs/research/skill-invocation-across-harnesses.md`, with versions |
-| `invocation` | Implemented. `auto \| manual \| both`; absent means passthrough. Claude gets a frontmatter flag, OpenCode a choice of artifact | RED tests first; verified on real upstream — with no field set the output is byte-identical to before |
+| `invocation` | Implemented. `auto \| manual \| both`; absent means passthrough. Claude gets a frontmatter flag, OpenCode a choice of artifact | RED tests first; exercised on real upstream — with no field set the output is byte-identical to before |
 | OpenCode adapter | The skill path adapts instead of mirroring: frontmatter filtered and drops reported, references spelled per harness | Immediately caught `invocable:` leaking into two curated skills |
-| `omit:` and the exec bit | Items can shed upstream files; `validate` errors when a built copy of an upstream-executable file is recorded non-executable | Verified on real upstream, both directions |
+| `omit:` and the exec bit | Items can shed upstream files; `validate` errors when a built copy of an upstream-executable file is recorded non-executable | Exercised on real upstream, both directions |
 | Overlay wiring | `validate` errors on an overlay no item claims or whose item declares no `body:` — the silent bypass that shipped pristine upstream | Reproduced on a real skill: build said "complete", the edit reached nothing |
 | Naming | Decided **no plugin prefix** on OpenCode names, and recorded why in ADR-0002 with the measurement (zero name collisions across the five vendored repos) and what it forfeits | — |
 
-## Current State You Should Assume Until Verified
+## Current State You Should Assume Until Rechecked
 
 - **HEAD** (`master`): the `docs: the mechanism ladder…` commit. Pushed, CI green.
 - **Tests:** 70 passed. **Validate:** 0 errors, 4 warnings (2 unrewritten `superpowers:*` refs × 2

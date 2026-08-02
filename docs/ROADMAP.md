@@ -94,6 +94,26 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Known Gaps
 
+- **Unknown-namespace facts produce no linker error.** `validateRepo` in `tools/validate.ts` links
+  references only when `ownNs` contains the namespace, warns recognized `upstreamNs` leftovers in a
+  separate pass, and ignores everything else. Unknown namespaces need an authoritative disposition
+  instead of silence.
+- **Build does not reconcile live overlay/patch targets against the lock.** `overlayDrift` in
+  `tools/build.ts` checks paths already stamped in `overlays/overlays.lock.json`, while
+  `eject --bless` computes and stamps the current target set. Adding a replacement file or patch
+  target without re-blessing can therefore leave that path outside drift review.
+- **Cross-plugin uniqueness has same-plugin and duplicate-`plugin.name` holes.** The `outputNames`
+  checks in `validateRepo` (`tools/validate.ts`) reject duplicate kind/name pairs only when they
+  survive under different built plugin directories. Items colliding inside one plugin, or manifests
+  that share `plugin.name`, can overwrite before the check observes both.
+- **Ledger omits full Claude invocation flags.** `LedgerEntry` in `tools/lib/ledger.ts` records the
+  declared `invocation` and artifact kinds but not resolved Claude frontmatter such as
+  `user-invocable` and `disable-model-invocation`. A ledger review cannot inspect the complete
+  Claude posture without opening generated output.
+- **`invocation` is not runtime-enum validated during YAML load.** `loadManifest` in
+  `tools/lib/manifest.ts` accepts parsed YAML through a TypeScript assertion, and the
+  `claudeInvocation` switch in `tools/build.ts` has a shared default. Values outside
+  `auto|manual|both` therefore have undefined output semantics instead of failing at load time.
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
   the experiment tree; automate the Hard Rule across the repository with an explicit fixture
   allowlist.
@@ -122,14 +142,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **A converted command cannot resolve a sibling-item path — on the filesystem, and only there.**
   A command is one file in `commands/`, so a `../<item>/` path written for a skill directory does
   not land, and no single spelling serves both copies of a `both` item. `validate` names each case.
-  A runtime round narrowed what it costs: models resolve the climb against the *skill's* directory
-  rather than the command file's, and the parked bundle preserves that layout, so every leg of a
-  five-model panel reached the target with one read and no search
-  ([skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md)). What is
-  left is the case the panel could not exercise — a target with no `skills/<name>/` directory at
-  all (excluded, or a `manual` item whose empty bundle made the emitter drop the husk), where the
-  same climb lands nowhere. The mount-point decision below is therefore less urgent than it looked,
-  and the warning should be read as guarding that narrower case.
+  The implementation narrows the warning when the same link resolves from the skill copy. The
+  correctness case it still guards is a target with no `skills/<name>/` directory at all (excluded,
+  or a `manual` item whose empty bundle made the emitter drop the husk), where the same climb lands
+  nowhere. The mount-point decision below is therefore less urgent than it looked.
 - **Linker's unreachable-cause string assumes a skill target.** A model-edge pointing at a
   command or agent reports "(disable-model-invocation in the Claude tree)" — right verdict,
   wrong cause text. A `kind` on the target state fixes the parenthetical.

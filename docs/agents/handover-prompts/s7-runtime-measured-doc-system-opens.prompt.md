@@ -29,13 +29,13 @@ Four commits, all documentation, all pushed (`5622716..2641039`). No `curation/`
 | **A probing lab exists** | `E:\harness-probe-lab` — isolated homes for both harnesses, scripted matrices, a preflight that refuses to start, raw results. Local-only, never committed. Section below. |
 | **Claude Code has deterministic non-interactive introspection** | `stream-json`'s `init` event carries `slash_commands`, `skills`, `plugins`, `mcp_servers`, `memory_paths`. `harness-probing.md` said none existed; corrected. |
 | **OpenCode commands are scriptable** | `opencode run --command <name>` invokes one and resolves the name before any model call. The research note said command behaviour "cannot be exercised non-interactively"; corrected, with the control that caught the imitation (a slash in message text is *not* expanded, yet a model will often infer the intent and look like it ran). |
-| **The invocation contract is measured in both directions** | Claude Code user surface = `manual` + `both`; model surface = `auto` + `both`; intersection the `both` items, union everything taken. ADR-0005's table, verified on real output rather than fixtures. |
+| **The invocation contract is measured in both directions** | Claude Code user surface = `manual` + `both`; model surface = `auto` + `both`; intersection the `both` items, union everything taken. ADR-0005's table, observed on real output rather than fixtures. |
 | **A committed finding was retracted** | "A declared edge can be inert" — deleted from the roadmap, and the ADR-0008 consequence built on it rewritten. It was a sample of one, and the one was contaminated. |
 | **Propensity has numbers** | Reached by another body's prose vs. reached by its own description: the two are not close. Rates in `docs/research/skill-invocation-across-harnesses.md`; the *shape* only in ADR-0008. |
 | **The two upstreams disagree about delivery** | mattpocock composes (a trigger names the knowledge skill); superpowers amplifies (a SessionStart hook this repo does not ship). Recorded in `skill-framework-landscape.md`. |
 | **`validate`'s sibling-path warning is narrower than it looked** | Models resolve `../<item>/…` against the *skill* directory, and the parked bundle preserves that layout, so the climb lands. Roadmap gap narrowed rather than deleted. |
 
-## Current State You Should Assume Until Verified
+## Current State You Should Assume Until Rechecked
 
 - **HEAD** (`master`): `2641039`, pushed, CI green on it.
 - **Gates:** six green; `validate` 0 errors / 3 warnings — the standing converted-command warnings,
@@ -98,7 +98,7 @@ and two of those reached committed documents.
    labelled with models that never ran. Every result line now echoes the model the harness actually
    used, read back from the run's own init event.
 4. **A flag that is accepted is not a flag that is applied.** `--variant` (OpenCode) and `--effort`
-   (Claude Code) both accept nonsense silently. Two panel legs ran at default effort while claiming
+   (Claude Code) both accept nonsense silently. Two runs used default effort while claiming
    `xhigh`. What a model actually offers is in `opencode models <provider> --verbose` under
    `variants`; the preflight now checks every requested level against that list.
 5. **A background task diagnosed but never killed.** Its bug was found, the script was fixed, and

@@ -1,6 +1,6 @@
 # Skill framework landscape
 
-Date: 2026-07-31
+Date: 2026-08-02
 
 What the wider community concluded about the skill frameworks this repo vendors, and what the
 evidence says about skill quality in general. This is *input* to curation; the why of any individual
@@ -156,10 +156,9 @@ reading both, not by counting features.
 
 ## Skill quality: what the evidence says
 
-An audit of 214 community skills found 73% scoring below 60/100. The dominant failure mode, in 68%
-of them, was a vague description with no trigger phrases — and the failure is silent, because a bad
-`SKILL.md` never throws, it just never gets selected. Adding concrete trigger phrasing moved scores
-by 20–35 points in a single edit.
+Community audits report widespread weak skill descriptions, with vague descriptions and missing
+trigger phrases as a dominant failure mode. The failure is silent: a bad `SKILL.md` does not throw,
+it simply may not be selected. Concrete trigger phrasing materially improves discoverability.
 
 The authoring guidance that follows from this, and which agrees with both Anthropic's official
 best-practices and the academic treatment of skills as software artifacts:

@@ -8,14 +8,14 @@ the repository and real user profile.
 
 | Tier | Contents | What a reviewer can do without the lab |
 |---|---|---|
-| 0 | Prose only | Read a report, but not treat it as verified evidence |
+| 0 | Prose only | Read a report, but not treat it as corroborated evidence |
 | 1 | Structured record using the schema below | Check fields, compare runs, and inspect pass/fail per probe row |
 | 2 | Tier 1 plus sanitized transcript or event excerpts | Challenge the interpretation of model wording and observed events |
 | 3 | Runnable recipe with secrets supplied out of band | Re-run the measurement |
 
 A new routine measurement requires tier 1 or higher. Any quantitative panel, rate, or fraction
 claim, and any claim that changes an ADR Decision or linker behavior, requires tier 2 or higher.
-Using the word “verified” follows the same threshold as the underlying claim.
+Calling a claim corroborated follows the same threshold as the underlying claim.
 
 Tier-2 excerpts must retain enough surrounding event or transcript context to support the
 interpretation while removing credentials, tokens, machine-specific paths, and unrelated personal

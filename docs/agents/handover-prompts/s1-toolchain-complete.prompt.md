@@ -22,7 +22,7 @@ every manifest holds one pipeline-proof starter skill that is NOT a curation dec
 
 | Concern | What landed | Verification |
 | --- | --- | --- |
-| Toolchain | `tools/`: build, inventory, eject, sync, validate + libs (frontmatter, manifest, scan, rewrite, preflight). Node 24 native TS, ESM, single runtime dep `yaml`, TS7 typecheck, Biome | 40/40 tests, all gates green, run |
+| Toolchain | `tools/`: build, inventory, eject, sync, validate + libs (frontmatter, manifest, scan, rewrite, preflight). Node 24 native TS, ESM, single runtime dep `yaml`, TS7 typecheck, Biome | test suite and all gates green |
 | Submodules | 5 upstream repos under `external/`; scanner hardened for symlink mirrors, bare `plugin.json` namespaces, malformed manifests | scanned against real data |
 | First build | 4 `deniz-*` plugins (1 starter skill each) + `opencode/` mirror + `marketplace.json`, committed; deterministic (double-build clean) | run, plus CI rebuild |
 | Safety fixes | fail-fast pre-pass before output deletion; token-boundary rewrites keyed on upstream dir names; symlinks never copied into output; submodule preflight; test-discovery guard | RED-first tests for each |
@@ -30,7 +30,7 @@ every manifest holds one pipeline-proof starter skill that is NOT a curation dec
 | Docs structure | Single-canonical-home + relay principle (ADR-0003 reworked); README a pure front door; no CONTRIBUTING.md by decision; ADR-0004 (minimal toolchain) + `docs/adr/template.md`; third routing table removed | build + validate clean; reviewed with the user |
 | Knowledge rescue | Planning scratch mined before deletion: curation-authoring contracts → ADR-0001/0002 consequences; 8 new ROADMAP Known Gaps; intended module sources → manifest header comments; upstream layout traps → `docs/research/upstream-repo-layouts.md` | user-driven session 2026-07-30 |
 
-## Current State You Should Assume Until Verified
+## Current State You Should Assume Until Rechecked
 
 - **HEAD** (`master`): `b6c9a54` + the docs-canonicalization commit containing this file.
 - **Tests:** 40 passed in the founding wave; not run in the docs session (`tools/` untouched).

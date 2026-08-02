@@ -1,164 +1,48 @@
 # ADR-0001: Submodule + manifest + overlay architecture
 
-Date: 2026-07-31
+Date: 2026-08-02
 Status: Accepted
 
 ## Context
 
-This repo curates skills from external upstream repositories (vendored in `external/`) into a small
-set of personal `deniz-*` plugins. Curation is not just subsetting: it includes frontmatter and trigger edits, body rewrites,
-renames, type conversions (skill → command/agent) and original skills of our own. Upstream keeps
-moving, and we want to track it deliberately — see what changed, decide, and never be surprised by an
-automatic update.
-
-The two forces in tension: local edits must survive upstream updates, and upstream diffs must stay
-readable enough to make a decision on.
+This repo transforms components from moving upstream repositories into locally controlled output.
+Local edits must survive pin changes, while upstream diffs must remain legible enough for the
+curator to decide what flows in. Directly editing vendored content or generated output would erase
+that boundary.
 
 ## Decision
 
-Four pieces:
+The architecture has four pieces:
 
-1. **Upstream as git submodules** in `external/`, read-only. Pinned commits; `npm run sync` moves the
-   pins on request and reports the impact on curated items.
-2. **A curation manifest per plugin** (`curation/<plugin>.yaml`) listing the items to take and their
-   per-item customizations (`exclude`, `omit`, `frontmatter` overrides, `name`, `as: command|agent`,
-   `body: overlay`). Deliberate rejections stay in the file as `exclude: true` so they remain visible.
-   `omit` is the file-level counterpart: glob patterns for upstream files an item leaves behind —
-   creation logs, pressure tests, fixtures — so shedding author-facing material does not require
-   owning the whole item through an overlay.
-3. **Overlays for body edits** (`overlays/<plugin>/<item>/`), in two kinds, both created by
-   `npm run eject`:
-   - `body: patch` stores an `overlay.patch`, cut from an edited working copy and applied to the
-     emitted item. Most edits are surgical, and a diff both expresses that intent and lets an
-     upstream improvement arrive without re-merging a whole file by hand.
-   - `body: overlay` stores full replacement files, for edits too sweeping to read as a diff.
+1. **Upstreams are read-only git submodules** under `external/`. Pins move deliberately; local
+   authorship never enters an upstream worktree.
+2. **One curation manifest per plugin** records inclusion, deliberate rejection, metadata, naming,
+   invocation, shape, dependency, omission, and body-ownership intent. The authoring grammar and
+   mechanism ladder live in [`curation/SCHEMA.md`](../../curation/SCHEMA.md), beside the manifests.
+3. **Body edits live in overlays**, either a surgical `body: patch` or owned replacement files under
+   `body: overlay`. Both modes record content hashes in `overlays/overlays.lock.json`; changes to
+   stamped primary files stop the build. Patch applicability alone is not a staleness guard because
+   a hunk can relocate while still applying; the hash carries the review boundary. A body that
+   incorporates other upstream items declares them with `merged_from`, and their stamped inputs
+   drift under the same hard-failure policy. The guard follows the files the curation actually used,
+   including explicitly named files when a same-filename rule cannot express the merge.
+4. **Generated output is committed** under `plugins/`, `opencode/`, and
+   `.claude-plugin/marketplace.json`. It contains plain, self-contained files rather than symlinks,
+   and CI rejects output that does not match a fresh build.
 
-   Both kinds are blessed against the upstream content they were written from: the hash of every
-   file the overlay replaces, or that its patch touches, is recorded in
-   `overlays/overlays.lock.json`. Any upstream change to one of those files stops the build until
-   `npm run eject -- <plugin> <item> --bless` re-blesses it.
-
-   A body that merges content from further upstream items declares them in `merged_from:`, and each
-   entry is blessed like the primary — stamped into the lock's `mergeSources` map, drift in any of
-   them the same hard build failure, naming the source that moved. Which files get stamped is said
-   two ways, because a merge draws from where it draws from:
-
-   ```yaml
-   merged_from:
-     - upstream/skills/a                         # same-filename rule
-     - source: upstream/skills/b
-       files: [SKILL.md, tests.md, mocking.md]   # named explicitly
-   ```
-
-   A bare address takes the **same-filename rule**: the files the overlay replaces — or the patch
-   touches — are looked up under those same names in that source. It is the cheap spelling and it
-   is right whenever a merge is file-against-file. A file the source does not have is recorded as
-   absent, and its later appearance upstream is drift like any other.
-
-   The rule only sees names the overlay itself owns, so a merge that folded a source's differently
-   named file into our body — its `tests.md` into our `SKILL.md` — would be guarded by nothing at
-   all, silently. A `files:` list is the answer, and it **replaces** the rule for that source: it
-   states where the merge actually drew from. Cutting the merge down to what the filename rule
-   happens to cover is the inversion this repo exists to refuse — the guard follows the curation
-   decision, never the other way round.
-
-   `--bless` re-stamps every declared source in one act, and shows the diff between recorded and
-   current content before it stamps — a re-bless that displays nothing invites rubber-stamping the
-   very look it exists to force.
-4. **Build output committed** (`plugins/`, `opencode/`, `.claude-plugin/marketplace.json`) so a clone
-   of the marketplace works immediately, with CI failing if the committed output is stale.
-
-### Alternatives considered
-
-- **Vendor upstream files directly and 3-way-merge on update.** Rejected: every upstream change turns
-  into a conflict resolution in the file we edited, and the boundary between "ours" and "theirs" is
-  lost after the first merge.
-- **Full-file overlays as the only mechanism.** Rejected: most edits are surgical — deleting a
-  block, rewording a gate, repointing a path — and expressing twenty lines of intent as a
-  hundred-and-fifty-line copy hides what we changed, silently discards every later upstream
-  improvement to that file, and offers no way to notice it went stale.
-- **Patches as the only mechanism.** Rejected: an edit that rewrites most of a file is unreadable as
-  a diff, and the escape hatch of simply owning the file outright is worth keeping.
+Direct vendoring with three-way merges was rejected because it loses the durable boundary between
+upstream and local intent. A single overlay mode was also rejected: full-file ownership obscures
+surgical changes and forgoes later upstream improvements, while patch-only ownership makes broad
+rewrites unreadable. The two modes make that trade explicit per item.
 
 ## Consequences
 
-- Nothing in `plugins/`/`opencode/` is authored — every change goes through `curation/` or `overlays/`
-  and a build. That is one layer of indirection, and it is the price of the property we want.
-- Upstream diffs stay clean: a submodule bump plus a report, with overlay conflicts surfaced for a
-  human decision (`sync` prints the exact diff command) rather than merged silently.
-- `git apply` is not a staleness guard, which is why both kinds are hashed. It searches for a
-  hunk's context with an unbounded line offset and takes the first match, failing only when that
-  context appears nowhere in the file. So a hunk silently relocates when upstream inserts lines
-  above it, and — where a file repeats a passage — lands on a different region that still matches
-  while the region we meant to edit is gone. Both exit 0. The hash is what actually notices.
-- Hashing costs the ability to absorb an unrelated upstream edit without looking at it. That is the
-  intended trade: this repo exists to decide what its plugins contain, and an upstream change
-  arriving unreviewed is the same failure as a stale overlay, only faster.
-- Both failures are hard, not warnings. A stale overlay that still builds is the failure mode this
-  design exists to prevent, and a warning in a green build is one nobody reads.
-- Re-blessing is a deliberate act (`npm run eject -- <plugin> <item> --bless`), which means a submodule
-  bump that touches an overlaid file blocks the build until someone looks. That is friction by
-  choice, and it grows with every overlay — a price ADR-0007 accepts deliberately: a set that
-  reflects its curator is expected to own bodies, so the growth is budgeted, not a signal to
-  curate less.
-- `merged_from` multiplies that friction by the number of sources, deliberately: a merged body is
-  a decision about several upstreams at once, and any of them moving invalidates the look that
-  blessed it. `sync` tags a pin move that touches a merge source exactly as it tags one touching
-  the primary — a report must never say "no curated items affected" about a body whose
-  ingredients moved.
-- A `files:` list is a human claim rather than a derived fact, so it fails in ways the filename rule
-  cannot. Growing the list without re-blessing leaves names declared but unstamped, and the build
-  stops on that as it does on an unblessed source — the source *set* is unchanged, so the coarser
-  check would have passed. A misspelled name stamps null, which guards nothing while the all-null
-  check stays quiet because its siblings stamped fine; `validate` warns on a declared file the
-  source does not have. Under the filename rule the same absence is deliberate and stays silent,
-  because there the list comes from the overlay rather than from someone typing.
-- Patches apply to skill-shaped output only. A `command`/`agent` conversion re-serializes
-  frontmatter around a body, so there is no stable file for a diff to land on; those items take a
-  full-file overlay.
-- The eject workflow is the escape hatch: any item can graduate from passthrough to fully owned
-  without changing the pipeline.
-- Committed output must be machine-independent and self-contained, so symlinks are never copied
-  into it — Node's `cpSync` absolutizes relative symlink targets (an upstream fixture symlink once
-  leaked an absolute local path into a committed blob). The build warns per skipped symlink;
-  `validate` errors on any symlink found in output.
-- For a converted item (`as: command|agent`) the build reads exactly one overlay file, named after
-  the source (`SKILL.md` when the source is a skill, otherwise the source file's own name) —
-  renaming that file inside the overlay breaks it. `eject` copies the whole item directory even
-  though only that one file is ever read.
-- A manifest `frontmatter:` block cannot rename an item: the build forces the output `name` last,
-  so a `frontmatter.name` override is dead weight (`validate` warns). Renaming is the item-level
-  `name:` field.
-- Taking the same source into two items (say, once as a command and once as an agent) is legal, but
-  the cross-reference map keys on the upstream address, so all upstream references resolve to the
-  last such item in manifest order — `validate` warns, naming both outputs.
-- Several mechanisms can express the same curation intent, and they are not equal in cost. Reach for
-  the lowest rung that says what you mean, because every rung above it is a guardrail somebody has
-  to maintain when upstream moves:
-
-  | Intent | Mechanism | Cost when upstream changes |
-  |---|---|---|
-  | Do not take it | `exclude: true` | none |
-  | Take it without some files | `omit:` (globs) | a dead pattern, which `validate` warns about |
-  | Change its metadata | `frontmatter:` override | none — and no staleness guard either (see below) |
-  | Change its name | `name:` | none |
-  | Change who triggers it | `invocation:` (ADR-0005) | none |
-  | Change what artifact it is | `as:` (ADR-0006 axis 2) | none |
-  | Edit part of the body | `body: patch` | the patch stops applying, or its hash stops matching — a hard build failure until re-blessed |
-  | Own the body outright | `body: overlay` | the same hard failure, plus every later upstream improvement to that file is silently forgone |
-
-  The two body rungs are where the cost lives, and they are the reason the ladder is worth walking
-  from the bottom. A file you only want gone is an `omit`, not an overlay. A description you want
-  reworded is a `frontmatter` override, not an overlay — even when the description is the thing
-  steering the model, and especially then, because an overlay of the body cannot reach it.
-- `omit` is applied to the copy of upstream **before** any overlay or patch, so `body:` describes
-  edits to what survives rather than racing a later deletion. The consequence is that a pattern
-  which swallows a file the patch edits is a contradiction; the build refuses it in the fail-fast
-  pass rather than letting `git apply` discover it after the output tree is already deleted.
-- The executable bit does not survive a checkout with `core.filemode=false` — every Windows one —
-  so a curated script is committed non-executable while a Linux rebuild produces `0755`. That is
-  both a stale-output failure in CI and a shipped script nobody can run. git's index is the only
-  place the bit still exists on such a checkout, so `validate` compares index modes on both sides
-  and names the `git update-index --chmod=+x` that fixes it.
-- The build resolves every source before deleting old output (fail-fast), but a crash mid-emission
-  still leaves `plugins/` and `opencode/` partial; rerunning the build repairs it.
+- Generated output gains a layer of indirection: every authored change goes through curation or an
+  overlay and then a build. In return, upstream pin changes stay separate from local intent.
+- Content hashing deliberately blocks even unrelated edits to a stamped file until someone reviews
+  them. Merged bodies multiply that review cost by the number of sources they own.
+- Patches preserve upstream flow outside the edited regions but can become hard to read as they
+  grow. Full overlays make broad ownership clear but permanently forgo automatic improvements to
+  the files they replace.
+- Every overlay adds future review friction. That is an accepted cost of ADR-0007's preference for
+  local control, not a reason to avoid meaningful edits.

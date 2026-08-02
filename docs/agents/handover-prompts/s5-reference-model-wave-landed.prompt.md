@@ -26,12 +26,12 @@ linker during a mix is the system working — fix the data, not the rules.**
 | depends_on | Declared model-edge map, enforced **both directions as errors**; drafts transcribe from the ledger, the user reviews | 7 items declare edges today |
 | merged_from | Lock gains `mergeSources` (same-filename rule; absent recorded `null`; appearance is drift; **all-null source = error** — it guards nothing). Build fails naming the moved source; `--bless` shows the drift it accepts, `--yes` confirms. systematic-debugging retrofitted — its "glance by hand" comment retired | Drift/absent/appeared/all-null each RED-tested; retrofit blessed, lock carries both sources |
 | Semantic sync | Pin moves report meaning: POSTURE drift on passthrough items, MERGE SOURCE tags (across submodules — the real merge's source lives in a different submodule than its primary), CANDIDATE edge diffs vs the ledger | Pure-function tests; wiring smoke-checked against the real submodules read-only |
-| Provenance | **User's ruling: the curation layer stamps no curator names, no dates** — comments scrubbed, `validate` errors on both (yaml comment segments, overlay bodies, patch added-lines, own skills; `description:` values keep deliberate branding). AGENTS.md Hard Rules carries it | Rule tests incl. the patch-context negative; real repo 0/0 |
+| Provenance | **User's ruling: the curation layer stamps no curator names, no dates** — comments scrubbed, `validate` errors on both (yaml comment segments, overlay bodies, patch added-lines, own skills; `description:` values keep deliberate branding). AGENTS.md Hard Rules carries it | Rule tests incl. the patch-context negative; real repo clean |
 | Curation rulings | brainstorming `manual`→`both` (measured first: all jump-pressure lived in the already-overridden description; the body's one "You MUST" is in-ceremony discipline). tdd: writing-good-tests.md's citation of writing-skills **deleted** (upstream authoring culture, no audience in our set) — a one-line `body: patch` | Both trees rebuilt; linker green; ledger shows the flip |
 | Pointer wording | Measured (OpenCode 1.18.7, non-Claude model): "suggest opening /X — do not run it yourself" relays without any invocation attempt; the control model-edge invoked correctly | Lab RESULTS at `E:\opencode-probe-lab` (local-only); Claude-side wording check rides the next TUI round |
-| Final review | Whole-wave adversarial pass: 0 Critical / 3 Important (one-grammar unification, all-null merge guard, one stale research paragraph — all fixed) / 12 Minor (6 recorded as Known Gaps, 2 fine-as-designed) | `npm test` 104/104 after fixes |
+| Final review | Whole-wave adversarial pass: 0 Critical / 3 Important (one-grammar unification, all-null merge guard, one stale research paragraph — all fixed) / 12 Minor (6 recorded as Known Gaps, 2 fine-as-designed) | `npm test` passed after fixes |
 
-## Current State You Should Assume Until Verified
+## Current State You Should Assume Until Rechecked
 
 - **HEAD** (`master`): the commit carrying this prompt. Pushed; CI green through the wave (one
   red mid-wave: Biome style-checked the generated ledger on Linux only — fixed by excluding

@@ -1,178 +1,105 @@
 # ADR-0008: References are symbols — one model, a linker, a ledger
 
-Date: 2026-07-31
+Date: 2026-08-02
 Status: Accepted
 
 ## Context
 
-Cross-item references are strings all the way through the build. Three scanners read them
-independently — the rewrite map, `validate`'s leftover-reference pattern, and the coupling-graph
-greps recorded in the research docs — and none of them answers the question the output actually
-poses: does everything a shipped body names exist, and can its intended audience reach it, in the
-tree it shipped to?
+Cross-item references begin as strings in upstream and owned bodies, then land in harnesses with
+different address spaces and reachability rules. A generated artifact is self-contained only when
+every dependency the build can identify resolves for its intended audience where that artifact
+lands. Bare-name prose and relative paths complicate that promise: not every apparent reference is
+an identity, and not every broken illustrative path was broken by this build.
 
-The holes this leaves are measured, not hypothetical:
-
-- An overlay authored in output spelling (`deniz-process:x`) ships a dead reference into the
-  OpenCode tree with no finding — the leftover scan only knows upstream namespaces.
-- A shipped body instructs the model to invoke an item whose posture makes it structurally
-  invisible to the model
-  ([skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md)).
-  Build green, validate 0/0; at runtime the session stumbles, softly and nondeterministically.
-- Flipping an item's `invocation` reshapes both trees and can strand every body that names it —
-  today that flip is silent.
-- On a pin move, upstream flipping its own frontmatter posture on a passthrough item arrives
-  unannounced; `sync` reports file paths, not meaning.
-
-The batch-1 rule — a `manual` item is unreachable even from another skill's body, so every
-body-invoked target must be `auto`/`both` — lives in manifest comments. The dependency knowledge
-lives in greps that over-report because upstream names are ordinary words. Both are enforced by
-curator vigilance, which is the one mechanism this repo set out not to rely on. The promise is
-that everything an artifact needs at runtime resolves where it lands (AGENTS.md, compile-time
-boundary), and the machine does not currently check it.
+The build therefore needs one neutral reference model before rendering, a linker over each emitted
+tree, an explicit declaration for authoritative model edges, and a durable review surface for the
+resolved result.
 
 ## Decision
 
-Five parts, decided together.
+The reference system has five parts, decided together.
 
-**1. One reference model.** A single library extracts every cross-item reference from the final
-neutral bodies — post-overlay, pre-rewrite, the address space overlays are authored in. It is the
-only reference scanner: the rewrite consumes it, `validate` links against it, `sync` diffs it.
-Extracted references come in three tiers, and the tier is decided by how much the spelling can be
-trusted rather than by how it looks:
+**1. One reference model.** `tools/lib/refs.ts` extracts references from final neutral bodies after
+overlays and before per-harness rewriting. Rewrite, validation, and sync consume that grammar.
+References have three tiers according to the authority their spelling earns:
 
-- **Facts** — namespaced spellings, the upstream address of the target's host
-  (e.g. `superpowers:test-driven-development`). Exact, machine-authoritative, and build state:
-  resolved, kind-checked, declared.
-- **Paths** — relative links between files. Resolving one is deterministic, so a path is build
-  state too — but only where *this build* could have broken it, because upstream bodies carry
-  illustrative paths that never resolved anywhere and never will (measured: a naive link check
-  reports dozens, nearly all prose). Two narrowing questions carry the whole tier, in the output
-  trees rather than the neutral bodies, because a path's meaning depends on where the artifact
-  landed: does a `../<item>/` climb into a sibling item still land, and is a missing
-  same-directory file one upstream still ships? Everything else stays silent.
-- **Candidates** — bare names matched against known item names. Irreducibly heuristic (upstream
-  names are ordinary words; the greps measurably over-report), so candidates are surfaced for
-  human reading and never become build state.
+- **Facts** are namespaced spellings. Own plugin namespaces are linked and a missing target is an
+  error. Recognized upstream namespaces that remain after rewriting produce warnings. Unknown
+  namespaces are currently ignored; treating them as facts is a Known Gap.
+- **Paths** are relative file links. They become build state only where the transformation could
+  have broken them: a sibling-item climb must still land, and a missing same-item file is a finding
+  when upstream still ships it.
+- **Candidates** are bare known item names. They are heuristic ordinary words, surfaced for human
+  review and never promoted to build state without an authored spelling change.
 
-The middle tier is why "is it checkable?" and "is it a fact?" are different questions. A path is
-not an identity — it cannot be kind-checked or declared, and it is invisible to `depends_on` — but
-its resolution is decidable, and declining to decide it left a real class of breakage unseen.
+Detection runs before rendering because OpenCode's bare output names cannot be parsed back into
+unambiguous identities.
 
-Dependencies are never derived from output trees: the OpenCode tree is namespace-less by design,
-so rendered text cannot be parsed back into identity. Detection runs where the namespace exists —
-before rendering — and both trees are produced from what it finds.
+**2. Spelling records edge direction.** Runtime audience determines validity, so owned body text
+carries the edge kind:
 
-**2. A spelling convention gives every fact a direction.** Who traverses an edge at runtime
-decides its validity rule, so the kind must be machine-readable. It lives in the spelling, the
-one place model and human both read:
+| Neutral spelling | Kind | Valid target posture |
+|---|---|---|
+| `ns:name` | model-edge | `auto` or `both` |
+| `/ns:name` | user-pointer | `manual` or `both` |
 
-| Spelling (neutral space) | Kind | Runtime meaning | Valid targets |
-|---|---|---|---|
-| `ns:name` | **model-edge** | the model invokes the target mid-work | `auto`, `both` |
-| `/ns:name` | **user-pointer** | the human is told what to open | `manual`, `both` |
+Each emitter localizes both forms into its own address space. The convention binds overlays,
+patches, and original skills; untouched upstream bare prose remains candidate-tier until curation
+touches it.
 
-The same rewrite localizes both forms per tree — `deniz-process:x` / bare `x` for model-edges,
-`/deniz-process:x` / `/x` for pointers — each the form its harness actually resolves. The
-convention binds text this repo authors (overlays, patches, own skills); upstream passthrough
-prose stays candidate-tier until an edit touches it, and any touch promotes it into the
-convention.
+**3. `validate` links each emitted address space.** For own-plugin facts, every target must exist and
+be reachable by the audience encoded in the spelling. Referenced parked files and admitted relative
+paths must land. A wrong-kind edge to a `both` target remains a review concern because either
+audience can reach it. When a skill-relative path works from the skill copy but not from a converted
+command, the linker warns rather than errors: the reference is sound and artifact shape caused the
+break.
 
-**3. `validate` becomes a linker.** Per output tree, in that tree's own address space: every fact
-resolves; every model-edge targets something its audience can invoke (`manual` suppression is
-structural — measured); every user-pointer targets something a user can type; referenced parked
-files exist; and every path the tier above admits still lands. Named blind spot, accepted: a
-wrong-kind edge to a `both` target validates — wording is caught by review, not by the machine.
+The linker keys target state by output name. `validate` rejects duplicate kind/name pairs it can
+observe across distinct plugin directories and detects an own skill overwriting a curated item. It
+does not yet catch duplicates produced within one plugin or manifests that repeat `plugin.name`;
+those uniqueness holes are a Known Gap.
 
-Not every true finding is an error. Where the reference is sound and the *artifact shape* is what
-broke it — a converted command is one file in `commands/`, so nothing written for a skill directory
-reaches from it, and no single spelling serves both copies of a `both` item — the linker says so
-and does not fail: it can tell, because the skill copy resolves the very same link. Fixing those
-needs a spelling that depends on which mount point an install supports, which is a curation
-decision that has not been made. A warning that outlives its conversation is wallpaper, so this
-exemption is bounded: it names an open decision, and closing that decision closes the warning.
+Reachability assumes `invocation` is one of `auto`, `manual`, or `both`. The TypeScript type states
+that enum, but `loadManifest` does not validate YAML values at runtime and build switch defaults do
+not define invalid-value semantics. Invalid values therefore have undefined behavior until the
+loader enforces the enum.
 
-**4. `depends_on` declares the model-edges; both directions are errors.** Each item lists the
-output names of its model-edge targets. A declared edge with no matching fact is stale; a fact
-with no declaration is undeclared; both stop the build. The manifest speaks output space (our
-set's names), bodies speak input space (upstream addresses) — the linker owns the mapping between
-them. Dependency targets are not content-hashed: they are passthrough items whose upstream
-updates are wanted; guarding merged-in content is `merged_from`'s job
-([ADR-0001](0001-submodule-manifest-overlay-architecture.md)). Transcription drafts are generated
-from the ledger and reviewed by the curator before they land — the machine proposes, the manifest
-records a human decision.
+**4. `depends_on` declares model-edges in both directions.** Each item lists output names targeted by
+its model-edge facts. An undeclared fact and a stale declaration are both errors. User-pointers are
+not dependency declarations. Bodies speak neutral upstream addresses while the manifest speaks
+output names; the linker owns that mapping. Dependency targets are not content-hashed because their
+upstream updates should flow; merged content is guarded through ADR-0001 instead.
 
-**5. The build emits a ledger.** `docs/ledger.json`, generated and committed like every build
-output: per item × harness, the resolved end state — invocation, emitted artifacts and flags,
-description, fact-edges in that tree's spelling, dropped frontmatter keys, parked files, body
-ownership and merge sources. Serialization is diff-optimized (deterministic order, one fact per
-line) because `git diff` on this file is the repo's notification channel: a posture flip — the
-curator's or upstream's — a shape change, or an edge change is one legible line in review, and
-CI's staleness gate already guarantees the file is never behind the trees it describes.
+Overlay and patch ownership has a related boundary: the build compares paths already stamped in
+`overlays/overlays.lock.json`, including declared merge inputs. It does not reconcile the live set
+of overlay files or patch targets against that lock, so a newly targeted path can skip review. That
+target-set reconciliation is a Known Gap.
 
-### Alternatives considered
+**5. The build emits a ledger.** `docs/ledger.json` is generated and committed per item and harness.
+It records source, declared invocation, body mode, merge-source addresses, declared dependencies,
+description, emitted artifact kinds, fact edges, OpenCode dropped keys, and parked files in a
+deterministic order. It does not record the complete Claude frontmatter or resolved invocation
+flags; full flag coverage is a Known Gap. The ledger is the review surface for posture, shape, and
+edge changes, and CI's stale-output check keeps it aligned with generated trees.
 
-- **Declare edge kinds in the manifest** (`depends_on: [{target, kind}]`) instead of the spelling
-  convention. Rejected: the model never reads the manifest. Runtime behaviour is steered by body
-  prose, so a declared `pointer` over an instruct-to-invoke sentence validates green while the
-  session still hits the wall — a declared/actual divergence of exactly the class this ADR exists
-  to kill. The spelling puts the intent in the one place every audience reads.
-- **Derive the dependency graph from built output.** Rejected: bare names in the OpenCode tree are
-  words, not identities; parsing them back is the candidate heuristic pretending to be
-  authoritative.
-- **Warn instead of error on undeclared facts.** Rejected on this repo's own finding: a warning in
-  a green build is one nobody reads (ADR-0001), and the declared map's guarantee — never silently
-  stale — would be false the day it lands.
-- **Hash dependency targets like overlay sources.** Rejected: the ladder (ADR-0001) prices hashing
-  as the cost of *owning* content; a reference wants the target's updates to flow.
+Declaring edge kinds only in the manifest was rejected because runtime prose could contradict a
+green declaration. Deriving identity from built OpenCode text was rejected because bare words are
+not symbols. Warnings for undeclared facts were rejected because they would make the declaration
+contract optional. Hashing dependency targets was rejected because a reference wants target
+updates to flow, unlike content an overlay owns.
 
 ## Consequences
 
-- Every real edge exists twice by construction — body fact and manifest declaration — and cannot
-  diverge silently; the build stops. The cost: a body edit that adds a reference needs a manifest
-  edit in the same change. That is the same-commit culture the inventory gate already enforces,
-  extended to dependencies.
-- Authoring gains one rule: targets are spelled by their upstream address, slashed when the human
-  is the audience. Misspellings do not survive — a wrong namespace dangles, a wrong kind hits the
-  reachability rules, a missing declaration errors — so the linker's messages teach the
-  convention.
-- The linker proves **resolvability, not behaviour**. Whether a model actually treats `/ns:name`
-  as the user's move is a runtime property, measured the way all runtime properties are here
-  ([protocol.md](../../experiments/harness-invocation/protocol.md)) — event-driven, after body-changing waves
-  and harness upgrades, never in CI. The first such round is recorded in
-  [skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md): on
-  OpenCode the slash form plus an explicit "do not run it yourself" relayed without any invocation
-  attempt, and the bare slash alone remains unprobed — so the guard clause is part of the template
-  until something says otherwise.
-- Candidates shrink monotonically: every curation touch promotes prose into the convention; new
-  content is born inside it. The heuristic tier exists to *find* upstream's legacy prose, never to
-  judge it. What "never build state" does not mean is "never load-bearing": the one composition
-  edge this repo has watched fire at runtime — a user-only trigger reaching model-only knowledge —
-  is spelled as upstream prose and is therefore in no declaration and under no guard
-  ([skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md)).
-  Renaming or excluding such a target breaks a working chain in silence, which is the class this
-  ADR exists to kill, surviving in the tier it deliberately leaves open. The promotion rule is the
-  release valve rather than a fix: the incoherent spellings would fail the linker the day they are
-  promoted, so contact forces the decision instead of a scan finding it.
-- The linker proves that an edge *resolves*; whether it is *traversed* is the reader's decision, and
-  that decision is probabilistic rather than binary. Two things follow for anyone reading a runtime
-  round against this machine. A green link is not a promise that a session will walk it. And a
-  single run showing no traversal establishes nothing — neither a defective body nor a harness
-  quirk — because the distribution has a tail, and because an invocation is not the same event as
-  the discipline it carries: a session can produce what the edge exists to cause without ever
-  naming the target. Rates, panels and the runs behind them belong in
-  [skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md); this
-  ADR records only that the property is a distribution, because that is what the machine's design
-  has to accommodate and it stays true whatever the set contains.
-- The path tier costs a curation decision its silence. An `omit` that drops a file, an `exclude`
-  that removes an item, a rename — each is cheap in the manifest and each can strand a body that
-  names the target by path, and until now nothing said so. The first run found exactly that: a
-  citation left behind by an `omit` made two batches earlier, dead in both trees the whole time.
-  A merge does all three of those things at once, which is when the tier earns its keep.
-- Three standing gaps retire structurally rather than by patch: the doubled per-tree warnings
-  (one model, findings grouped at the source), the own-skill collision false negative (one symbol
-  table across all emissions), and the `.agent.md` address bug (one address computation).
-- Own skills have no upstream address. None is referenced today; the refs library defines their
-  neutral spelling the day one is, and until then treats them as emission-only symbols.
-- `sync` gains meaning on top of paths: posture drift on passthrough items, merge-source hits,
-  and candidate-edge diffs against the ledger — the pin-move report speaks in curation terms.
+- A model-edge exists twice — body fact and manifest declaration — so body edits that add or remove
+  one require a same-change manifest edit. The duplication buys a stale-edge error in either
+  direction.
+- The linker proves resolvability and audience reachability, not whether a model will traverse an
+  edge or follow its discipline. Runtime behavior is measured under the
+  [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
+- Candidate prose remains a deliberate blind spot. Curation contact promotes it into the convention
+  and forces incoherent posture or naming decisions at that boundary.
+- The path tier trades silence for narrowly scoped findings. It avoids treating all illustrative
+  upstream paths as dependencies while still catching breakage caused by rename, omission,
+  exclusion, or conversion.
+- Deterministic ledger diffs make semantic changes reviewable, but the ledger remains a selected
+  projection rather than a complete serialization of emitted artifacts.
