@@ -25,6 +25,79 @@ test("loads a valid manifest", () => {
   assert.equal(item.as, "command");
 });
 
+test("loads an item with optional enum fields absent", () => {
+  const m = loadManifest(
+    write(
+      "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n",
+    ),
+  );
+  const item = m.items[0];
+  assert.ok(item);
+  assert.equal(item.invocation, undefined);
+  assert.equal(item.as, undefined);
+  assert.equal(item.body, undefined);
+});
+
+test("rejects an invocation outside the enum at load", () => {
+  const p = write(
+    "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    invocation: manul\n",
+  );
+  assert.throws(
+    () => loadManifest(p),
+    (err: unknown) =>
+      err instanceof Error &&
+      err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got \"manul\")`,
+  );
+});
+
+test("rejects a non-string invocation at load", () => {
+  const p = write(
+    "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    invocation: 1\n",
+  );
+  assert.throws(
+    () => loadManifest(p),
+    (err: unknown) =>
+      err instanceof Error &&
+      err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got 1)`,
+  );
+});
+
+test("rejects a null invocation (bare key) at load", () => {
+  const p = write(
+    "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    invocation:\n",
+  );
+  assert.throws(
+    () => loadManifest(p),
+    (err: unknown) =>
+      err instanceof Error &&
+      err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got null)`,
+  );
+});
+
+test("rejects an as value outside the enum at load", () => {
+  const p = write(
+    "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    as: skil\n",
+  );
+  assert.throws(
+    () => loadManifest(p),
+    (err: unknown) =>
+      err instanceof Error &&
+      err.message === `${p}: sp/skills/a: as must be one of skill|command|agent (got \"skil\")`,
+  );
+});
+
+test("rejects a body value outside the enum at load", () => {
+  const p = write(
+    "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    body: overaly\n",
+  );
+  assert.throws(
+    () => loadManifest(p),
+    (err: unknown) =>
+      err instanceof Error &&
+      err.message === `${p}: sp/skills/a: body must be one of overlay|patch (got \"overaly\")`,
+  );
+});
+
 test("items defaults to empty array", () => {
   const m = loadManifest(write("plugin:\n  name: p\n  description: d\n  version: 0.1.0\n"));
   assert.deepEqual(m.items, []);

@@ -74,8 +74,7 @@ item becomes. One does not derive the other.
 Absent is not a default value: it records no curation intent, so upstream Claude frontmatter passes
 through. Set `invocation` only on skill output; `validate` warns when it is combined with a command
 or agent shape. Use `as: command` or `as: agent` when the artifact itself must change regardless of
-trigger intent. Runtime enum validation of `invocation` is a current Known Gap in
-[`docs/ROADMAP.md`](../docs/ROADMAP.md#known-gaps), so author only `auto`, `manual`, or `both`.
+trigger intent.
 
 ## Body ownership and merge sources
 

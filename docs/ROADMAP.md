@@ -106,10 +106,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   declared `invocation` and artifact kinds but not resolved Claude frontmatter such as
   `user-invocable` and `disable-model-invocation`. A ledger review cannot inspect the complete
   Claude posture without opening generated output.
-- **`invocation` is not runtime-enum validated during YAML load.** `loadManifest` in
-  `tools/lib/manifest.ts` accepts parsed YAML through a TypeScript assertion, and the
-  `claudeInvocation` switch in `tools/build.ts` has a shared default. Values outside
-  `auto|manual|both` therefore have undefined output semantics instead of failing at load time.
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
   the experiment tree; automate the Hard Rule across the repository with an explicit fixture
   allowlist.

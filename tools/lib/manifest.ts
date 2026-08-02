@@ -51,6 +51,21 @@ export interface CurationManifest {
   hooks?: { include: string[] };
 }
 
+function requireEnum(
+  path: string,
+  source: string,
+  field: string,
+  value: unknown,
+  allowed: readonly string[],
+): void {
+  if (value === undefined) return;
+  if (typeof value !== "string" || !allowed.includes(value)) {
+    throw new Error(
+      `${path}: ${source}: ${field} must be one of ${allowed.join("|")} (got ${JSON.stringify(value)})`,
+    );
+  }
+}
+
 export function loadManifest(path: string): CurationManifest {
   const raw = parseYaml(readFileSync(path, "utf8")) as CurationManifest | null;
   if (!raw?.plugin?.name) {
@@ -67,6 +82,9 @@ export function loadManifest(path: string): CurationManifest {
     if (!item.source) {
       throw new Error(`${path}: every item needs a source`);
     }
+    requireEnum(path, item.source, "invocation", item.invocation, ["auto", "manual", "both"]);
+    requireEnum(path, item.source, "as", item.as, ["skill", "command", "agent"]);
+    requireEnum(path, item.source, "body", item.body, ["overlay", "patch"]);
     // Both spellings are normalized here so every consumer reads one shape. A bare address is the
     // common case and stays cheap to write; the object form exists for the merge the filename rule
     // cannot cover, and an empty file list means it was written but says nothing.

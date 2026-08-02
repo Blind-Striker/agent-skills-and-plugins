@@ -59,10 +59,10 @@ observe across distinct plugin directories and detects an own skill overwriting 
 does not yet catch duplicates produced within one plugin or manifests that repeat `plugin.name`;
 those uniqueness holes are a Known Gap.
 
-Reachability assumes `invocation` is one of `auto`, `manual`, or `both`. The TypeScript type states
-that enum, but `loadManifest` does not validate YAML values at runtime and build switch defaults do
-not define invalid-value semantics. Invalid values therefore have undefined behavior until the
-loader enforces the enum.
+The manifest loader enforces the authoring enums before later consumers run: `invocation` accepts
+`auto`, `manual`, or `both`; `as` accepts `skill`, `command`, or `agent`; and `body` accepts
+`overlay` or `patch`. An absent optional field remains valid, while any other YAML value fails at
+load time.
 
 **4. `depends_on` declares model-edges in both directions.** Each item lists output names targeted by
 its model-edge facts. An undeclared fact and a stale declaration are both errors. User-pointers are
