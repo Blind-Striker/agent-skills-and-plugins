@@ -112,6 +112,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -139,6 +142,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -166,6 +172,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -258,6 +267,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -286,6 +298,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -314,6 +329,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -341,6 +359,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -378,6 +399,9 @@
           "deniz-process:test-driven-development"
         ],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -409,6 +433,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -465,6 +492,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -567,6 +597,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -594,6 +627,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -678,6 +714,9 @@
           "deniz-process:verification-before-completion"
         ],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -708,6 +747,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -753,6 +795,9 @@
           "deniz-process:systematic-debugging"
         ],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -783,6 +828,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -811,6 +859,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -839,6 +890,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -870,6 +924,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -905,6 +962,9 @@
           "deniz-process:systematic-debugging"
         ],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -936,6 +996,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -963,6 +1026,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -991,6 +1057,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -1068,6 +1137,9 @@
           "deniz-process:test-driven-development"
         ],
         "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
       }
     },
     "opencode": {

@@ -90,10 +90,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Known Gaps
 
-- **Ledger omits full Claude invocation flags.** `LedgerEntry` in `tools/lib/ledger.ts` records the
-  declared `invocation` and artifact kinds but not resolved Claude frontmatter such as
-  `user-invocable` and `disable-model-invocation`. A ledger review cannot inspect the complete
-  Claude posture without opening generated output.
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
   the experiment tree; automate the Hard Rule across the repository with an explicit fixture
   allowlist.

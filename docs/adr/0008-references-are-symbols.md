@@ -80,10 +80,10 @@ no upstream counterpart and remain outside that set. Declared merge inputs are g
 **5. The build emits a ledger.** `docs/ledger.json` is generated and committed per item and harness,
 keyed by plugin, artifact kind, and output name. It records source, declared invocation, body mode,
 merge-source addresses, declared dependencies, description, emitted artifact kinds, fact edges,
-OpenCode dropped keys, and parked files in a deterministic order. It does not record the complete
-Claude frontmatter or resolved invocation flags; full flag coverage is a Known Gap. The ledger is
-the review surface for posture, shape, and edge changes, and CI's stale-output check keeps it aligned
-with generated trees.
+OpenCode dropped keys, parked files, and the boolean `user-invocable` and
+`disable-model-invocation` values resolved in emitted Claude skill frontmatter, all in a
+deterministic order. The ledger is the review surface for posture, shape, and edge changes, and CI's
+stale-output check keeps it aligned with generated trees.
 
 Declaring edge kinds only in the manifest was rejected because runtime prose could contradict a
 green declaration. Deriving identity from built OpenCode text was rejected because bare words are

@@ -13,6 +13,10 @@ export const OPENCODE_SKILL_KEYS = new Set(["name", "description", "license", "c
 interface HarnessState {
   artifacts: string[];
   edges: Record<RefKind, string[]>;
+  flags?: {
+    "user-invocable"?: boolean;
+    "disable-model-invocation"?: boolean;
+  };
   dropped?: string[];
   parked?: string[];
 }
@@ -29,6 +33,20 @@ interface LedgerEntry {
 
 function sortedUnique(xs: string[]): string[] {
   return [...new Set(xs)].sort();
+}
+
+function emittedClaudeFlags(outType: string, frontmatter: Record<string, unknown>): HarnessState["flags"] {
+  if (outType !== "skill") {
+    return undefined;
+  }
+  const flags: NonNullable<HarnessState["flags"]> = {};
+  for (const key of ["user-invocable", "disable-model-invocation"] as const) {
+    const value = frontmatter[key];
+    if (typeof value === "boolean") {
+      flags[key] = value;
+    }
+  }
+  return Object.keys(flags).length > 0 ? flags : undefined;
 }
 
 /** Facts in one built artifact set, filtered to our own output namespaces, spelled as found. */
@@ -79,6 +97,7 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
       const parkedDir = join(root, "opencode", "skills", outName);
       const parked = !existsSync(ocSkill) && existsSync(parkedDir) ? listFiles(parkedDir) : [];
       const doc = parseDoc(readFileSync(outType === "skill" ? join(claudeDir, "SKILL.md") : claudeDir, "utf8"));
+      const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);
       const claudeEdges = edgesIn(claudeFiles, ownNs);
       // OpenCode text is bare — respell the Claude facts through the known mapping instead of
       // parsing bare words back (ADR-0008: detection never runs on rendered output).
@@ -103,7 +122,7 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
         ...(item.merged_from ? { mergedFrom: item.merged_from.map((ms) => ms.source).sort() } : {}),
         ...(item.depends_on ? { dependsOn: [...item.depends_on].sort() } : {}),
         description: String(doc.frontmatter.description ?? ""),
-        claude: { artifacts: [outType], edges: claudeEdges },
+        claude: { artifacts: [outType], edges: claudeEdges, ...(claudeFlags ? { flags: claudeFlags } : {}) },
         opencode: {
           artifacts: ocArtifacts,
           edges: { model: respell(claudeEdges.model), pointer: respell(claudeEdges.pointer) },
