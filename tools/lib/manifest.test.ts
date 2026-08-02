@@ -27,9 +27,7 @@ test("loads a valid manifest", () => {
 
 test("loads an item with optional enum fields absent", () => {
   const m = loadManifest(
-    write(
-      "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n",
-    ),
+    write("plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n"),
   );
   const item = m.items[0];
   assert.ok(item);
@@ -57,8 +55,7 @@ test("rejects a non-string invocation at load", () => {
   assert.throws(
     () => loadManifest(p),
     (err: unknown) =>
-      err instanceof Error &&
-      err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got 1)`,
+      err instanceof Error && err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got 1)`,
   );
 });
 
@@ -81,8 +78,7 @@ test("rejects an as value outside the enum at load", () => {
   assert.throws(
     () => loadManifest(p),
     (err: unknown) =>
-      err instanceof Error &&
-      err.message === `${p}: sp/skills/a: as must be one of skill|command|agent (got \"skil\")`,
+      err instanceof Error && err.message === `${p}: sp/skills/a: as must be one of skill|command|agent (got \"skil\")`,
   );
 });
 
@@ -93,8 +89,7 @@ test("rejects a body value outside the enum at load", () => {
   assert.throws(
     () => loadManifest(p),
     (err: unknown) =>
-      err instanceof Error &&
-      err.message === `${p}: sp/skills/a: body must be one of overlay|patch (got \"overaly\")`,
+      err instanceof Error && err.message === `${p}: sp/skills/a: body must be one of overlay|patch (got \"overaly\")`,
   );
 });
 

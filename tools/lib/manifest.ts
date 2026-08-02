@@ -51,18 +51,12 @@ export interface CurationManifest {
   hooks?: { include: string[] };
 }
 
-function requireEnum(
-  path: string,
-  source: string,
-  field: string,
-  value: unknown,
-  allowed: readonly string[],
-): void {
-  if (value === undefined) return;
+function requireEnum(path: string, source: string, field: string, value: unknown, allowed: readonly string[]): void {
+  if (value === undefined) {
+    return;
+  }
   if (typeof value !== "string" || !allowed.includes(value)) {
-    throw new Error(
-      `${path}: ${source}: ${field} must be one of ${allowed.join("|")} (got ${JSON.stringify(value)})`,
-    );
+    throw new Error(`${path}: ${source}: ${field} must be one of ${allowed.join("|")} (got ${JSON.stringify(value)})`);
   }
 }
 
