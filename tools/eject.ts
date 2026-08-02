@@ -19,6 +19,7 @@ import {
   driftedFiles,
   driftedMergeSources,
   listFiles,
+  liveStampKeys,
   loadLock,
   lockKey,
   type LockEntry,
@@ -78,7 +79,7 @@ const noSymlinks = { filter: (s: string) => !lstatSync(s).isSymbolicLink() };
 
 function stamp(): void {
   const lock = loadLock(root);
-  const entry: LockEntry = { source: item.source, files: stampFiles(base, stampedNames()) };
+  const entry: LockEntry = { source: item.source, files: stampFiles(base, liveStampKeys(base, dest)) };
   // A merged body has ingredients the primary stamp cannot see, so each declared source is stamped
   // in the same act. The same-filename rule ADR-0001 gives is the default — what the source lacks
   // is recorded absent rather than left unguarded — and a declared `files` list replaces it, for the

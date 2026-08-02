@@ -100,9 +100,10 @@ patch, are looked up under the same names in that source. Use the object form wh
 from differently named files. Its `files:` list replaces the same-filename rule for that source and
 must name the actual inputs; a missing declared file warns because its stamp guards nothing.
 
-Re-blessing stamps the primary and all declared merge sources together. The current build checks
-the paths already present in the lock but does not reconcile a newly changed overlay/patch target
-set against it; that enforcement gap is tracked in `docs/ROADMAP.md`.
+Re-blessing stamps the primary and all declared merge sources together. Before checking content
+hashes, the build requires the primary lock keys to exactly match the upstream-backed overlay files
+or patch targets that `eject --bless` would stamp. Overlay-only additions and pure-add patch targets
+have no upstream counterpart, so they remain outside that set.
 
 ## Dependencies
 

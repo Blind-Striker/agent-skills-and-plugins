@@ -163,6 +163,13 @@ export function stampFiles(upstreamDir: string, files: string[]): Record<string,
   return stamped;
 }
 
+/** The primary lock keys eject would bless for the overlay currently on disk. */
+export function liveStampKeys(upstreamDir: string, overlayDir: string): string[] {
+  const patch = join(overlayDir, PATCH_FILE);
+  const names = existsSync(patch) ? patchTargets(readFileSync(patch, "utf8")) : listFiles(overlayDir);
+  return Object.keys(stampFiles(upstreamDir, names));
+}
+
 /** Upstream files whose content no longer matches what the overlay was blessed against. */
 export function driftedFiles(upstreamDir: string, entry: LockEntry): string[] {
   return Object.entries(entry.files)

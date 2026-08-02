@@ -439,6 +439,88 @@ test("a full-file overlay with no lock entry aborts", () => {
   assert.throws(() => buildAll(root), /not recorded in overlays\/overlays\.lock\.json/);
 });
 
+test("an upstream-backed file added to an overlay requires re-blessing", () => {
+  const root = makeRepo();
+  const overlay = join(root, "overlays", "deniz-process", "deniz-beta");
+  mkdirSync(join(overlay, "references"), { recursive: true });
+  writeFileSync(join(overlay, "references", "notes.md"), "Owned replacement note.\n");
+
+  assert.throws(
+    () => buildAll(root),
+    /deniz-beta.*references\/notes\.md.*bless/s,
+    "an overlay target backed by upstream must not sit outside the lock",
+  );
+});
+
+test("an upstream-backed target added to a patch requires re-blessing", () => {
+  const root = makeRepo();
+  writeFileSync(join(root, "external", "sp", "skills", "gamma", "notes.md"), "Upstream note.\n");
+  const patch = join(root, "overlays", "deniz-process", "gamma", "overlay.patch");
+  writeFileSync(
+    patch,
+    `${readFileSync(patch, "utf8")}diff --git a/notes.md b/notes.md
+--- a/notes.md
++++ b/notes.md
+@@ -1 +1 @@
+-Upstream note.
++Patched note.
+`,
+  );
+
+  assert.throws(
+    () => buildAll(root),
+    /gamma.*notes\.md.*bless/s,
+    "a newly stampable patch target must not sit outside the lock",
+  );
+});
+
+test("a lock path removed from the overlay target set requires re-blessing", () => {
+  const root = makeRepo();
+  const lockPath = join(root, "overlays", "overlays.lock.json");
+  const lock = JSON.parse(readFileSync(lockPath, "utf8"));
+  lock["deniz-process/deniz-beta"].files = stampFiles(join(root, "external", "sp", "skills", "beta"), [
+    "SKILL.md",
+    "references/notes.md",
+  ]);
+  writeFileSync(lockPath, `${JSON.stringify(lock, null, 2)}\n`);
+
+  assert.throws(
+    () => buildAll(root),
+    /deniz-beta.*references\/notes\.md.*bless/s,
+    "a stale lock target must not survive after the overlay stops replacing it",
+  );
+});
+
+test("an overlay-only added file stays outside the lock target set", () => {
+  const root = makeRepo();
+  const overlay = join(root, "overlays", "deniz-process", "deniz-beta");
+  writeFileSync(join(overlay, "curator-notes.md"), "Owned file with no upstream counterpart.\n");
+
+  buildAll(root);
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "commands", "deniz-beta.md")));
+});
+
+test("a pure-add patch target stays outside the lock target set", () => {
+  const root = makeRepo();
+  const patch = join(root, "overlays", "deniz-process", "gamma", "overlay.patch");
+  writeFileSync(
+    patch,
+    `${readFileSync(patch, "utf8")}diff --git a/added.md b/added.md
+new file mode 100644
+--- /dev/null
++++ b/added.md
+@@ -0,0 +1 @@
++Added only by the patch.
+`,
+  );
+
+  buildAll(root);
+  assert.equal(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "gamma", "added.md"), "utf8"),
+    "Added only by the patch.\n",
+  );
+});
+
 // An uninitialised clone has empty external/* dirs, which every tool would read as "no upstream
 // components exist" — a fresh checkout would otherwise fail with a confusing unknown-source list.
 test("an uninitialised submodule aborts with the init command", () => {

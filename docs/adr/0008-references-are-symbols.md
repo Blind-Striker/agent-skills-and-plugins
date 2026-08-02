@@ -70,10 +70,10 @@ not dependency declarations. Bodies speak neutral upstream addresses while the m
 output names; the linker owns that mapping. Dependency targets are not content-hashed because their
 upstream updates should flow; merged content is guarded through ADR-0001 instead.
 
-Overlay and patch ownership has a related boundary: the build compares paths already stamped in
-`overlays/overlays.lock.json`, including declared merge inputs. It does not reconcile the live set
-of overlay files or patch targets against that lock, so a newly targeted path can skip review. That
-target-set reconciliation is a Known Gap.
+Overlay and patch ownership has a related boundary: before checking content hashes, the build
+requires the primary lock keys in `overlays/overlays.lock.json` to equal the live upstream-backed
+target set that `eject --bless` would stamp. Overlay-only additions and pure-add patch targets have
+no upstream counterpart and remain outside that set. Declared merge inputs are guarded separately.
 
 **5. The build emits a ledger.** `docs/ledger.json` is generated and committed per item and harness,
 keyed by plugin, artifact kind, and output name. It records source, declared invocation, body mode,

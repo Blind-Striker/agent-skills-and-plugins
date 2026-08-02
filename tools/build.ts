@@ -21,6 +21,7 @@ import {
   driftedFiles,
   driftedMergeSources,
   listFiles,
+  liveStampKeys,
   loadLock,
   lockKey,
   type OverlayLock,
@@ -157,6 +158,7 @@ function overlayDrift(
   comp: ComponentInfo,
   plugin: string,
   outName: string,
+  overlayDir: string,
   lock: OverlayLock,
 ): string[] {
   const id = `${plugin}/${outName}`;
@@ -168,10 +170,23 @@ function overlayDrift(
   if (entry.source !== item.source) {
     return [`${id}: lock was blessed against ${entry.source}, but the item now curates ${item.source} — run: ${bless}`];
   }
+  const base = upstreamBase(root, item, comp);
+  // liveKeys === eject bless keys: both use overlay.patch existence, patchTargets/listFiles, then stampFiles.
+  const liveKeys = liveStampKeys(base, overlayDir);
+  const lockKeys = Object.keys(entry.files);
+  const liveOnly = liveKeys.filter((key) => !lockKeys.includes(key));
+  const lockOnly = lockKeys.filter((key) => !liveKeys.includes(key));
+  if (liveOnly.length || lockOnly.length) {
+    const changes = [
+      ...(liveOnly.length ? [`not in lock: ${liveOnly.join(", ")}`] : []),
+      ...(lockOnly.length ? [`no longer targeted: ${lockOnly.join(", ")}`] : []),
+    ];
+    return [`${id}: overlay stamp target set changed (${changes.join("; ")}) — run: ${bless}`];
+  }
   if (!Object.keys(entry.files).length) {
     return [`${id}: lock records no upstream file, so nothing guards this overlay — run: ${bless}`];
   }
-  const drifted = driftedFiles(upstreamBase(root, item, comp), entry);
+  const drifted = driftedFiles(base, entry);
   if (drifted.length) {
     return [`${id}: upstream changed under the overlay (${drifted.join(", ")}) — review the diff, then: ${bless}`];
   }
@@ -251,7 +266,7 @@ function collectProblems(root: string, manifests: CurationManifest[], components
             `${id}: body is patch but overlays/${id}/${PATCH_FILE} is missing — run: npm run eject -- ${m.plugin.name} ${outName} --patch`,
           );
         } else {
-          problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, lock));
+          problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock));
           // omit runs first, so a pattern that swallows a file the patch edits leaves the hunk
           // nothing to land on. git apply would say so — but only after the output tree was
           // already deleted, which is precisely what this pass exists to prevent.
@@ -280,7 +295,7 @@ function collectProblems(root: string, manifests: CurationManifest[], components
             );
           }
         }
-        problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, lock));
+        problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock));
       }
       if (outType === "skill" && comp.type !== "skill") {
         problems.push(`${item.source}: ${comp.type} -> skill conversion not supported`);

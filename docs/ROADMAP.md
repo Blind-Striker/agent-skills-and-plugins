@@ -94,10 +94,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   references only when `ownNs` contains the namespace, warns recognized `upstreamNs` leftovers in a
   separate pass, and ignores everything else. Unknown namespaces need an authoritative disposition
   instead of silence.
-- **Build does not reconcile live overlay/patch targets against the lock.** `overlayDrift` in
-  `tools/build.ts` checks paths already stamped in `overlays/overlays.lock.json`, while
-  `eject --bless` computes and stamps the current target set. Adding a replacement file or patch
-  target without re-blessing can therefore leave that path outside drift review.
 - **Ledger omits full Claude invocation flags.** `LedgerEntry` in `tools/lib/ledger.ts` records the
   declared `invocation` and artifact kinds but not resolved Claude frontmatter such as
   `user-invocable` and `disable-model-invocation`. A ledger review cannot inspect the complete
