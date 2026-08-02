@@ -44,7 +44,7 @@ test("rejects an invocation outside the enum at load", () => {
     () => loadManifest(p),
     (err: unknown) =>
       err instanceof Error &&
-      err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got \"manul\")`,
+      err.message === `${p}: sp/skills/a: invocation must be one of auto|manual|both (got "manul")`,
   );
 });
 
@@ -78,7 +78,7 @@ test("rejects an as value outside the enum at load", () => {
   assert.throws(
     () => loadManifest(p),
     (err: unknown) =>
-      err instanceof Error && err.message === `${p}: sp/skills/a: as must be one of skill|command|agent (got \"skil\")`,
+      err instanceof Error && err.message === `${p}: sp/skills/a: as must be one of skill|command|agent (got "skil")`,
   );
 });
 
@@ -89,7 +89,7 @@ test("rejects a body value outside the enum at load", () => {
   assert.throws(
     () => loadManifest(p),
     (err: unknown) =>
-      err instanceof Error && err.message === `${p}: sp/skills/a: body must be one of overlay|patch (got \"overaly\")`,
+      err instanceof Error && err.message === `${p}: sp/skills/a: body must be one of overlay|patch (got "overaly")`,
   );
 });
 
