@@ -3,9 +3,8 @@
 Date: 2026-07-31
 
 How to find out what a harness actually does. The findings live in
-[skill-invocation-across-harnesses.md](../research/skill-invocation-across-harnesses.md); this is the
-method that produces them, and it is here rather than there because only an agent running the
-experiment needs it.
+[skill-invocation-across-harnesses.md](../../docs/research/skill-invocation-across-harnesses.md); this is the
+method that produces them.
 
 ## Why this exists
 
@@ -19,11 +18,11 @@ measured on. A claim that was reasoned rather than run should say so.
 
 ## Build a lab
 
-Any empty directory works; nothing here depends on where it lives. A lab holds three things: fixture
-skills to probe with, the isolated harness homes, and a results file.
+Use an empty directory outside both the repository and the real user profile. A lab holds three
+things: fixture skills to probe with, the isolated harness homes, and a results file.
 
 ```
-<lab>/
+<lab-root>/
   fixtures/          probe skills, tracked
   .claude-home/      CLAUDE_CONFIG_DIR      (gitignore — holds credentials)
   .opencode-home/    OPENCODE_CONFIG_DIR    (gitignore)
@@ -47,9 +46,9 @@ The two harnesses isolate differently. Getting this wrong wastes a round.
 
 Three OpenCode-specific traps, each of which cost a round:
 
-- **Put the lab outside the real home.** Discovery walks up from the working directory past any
-  git boundary; `%TEMP%` sits under `C:\Users\<you>`, so a lab there silently collects the real
-  `~/.agents` and `~/.claude` trees on the way up.
+- **Put the lab outside the repository and real profile.** Discovery walks up from the working
+  directory past any git boundary, so a lab under either location can silently collect real
+  configuration trees on the way up.
 - **The package cache cannot be mounted over.** Packages from a real config's `plugin:` list
   outrank `OPENCODE_CONFIG_DIR` and the global config dir; same-named probes resolve to the
   package. Isolate by keeping every `plugin:` key out of the lab home. Not by withholding the
@@ -190,7 +189,10 @@ conclusion in the same step.
 
 ## Recording
 
-Raw observation goes to the lab's `RESULTS.md`: one line per probe, what was done and what was seen.
-Durable fact graduates to `docs/research/`, with the harness version. If a measurement contradicts
-something already written there, correct it in place and say in the commit message what was wrong
-and why — a corrected claim is worth more than a claim nobody tested.
+Committed tier-1 structured records and tier-2 sanitized excerpts live only in
+[`records/`](records/). Give each record a `record_id`. Research documents synthesize those records
+and link the supporting `record_id`s rather than duplicating evidence.
+
+Full raw transcripts and credentialed event logs remain in the external lab, outside both the
+repository and the real user profile. Never commit them. If a measurement contradicts an existing
+research claim, add a superseding record and correct the research in place.

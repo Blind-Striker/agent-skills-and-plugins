@@ -1,2 +1,6 @@
 node_modules/
 .superpowers/
+
+experiments/**/*.txt.text
+experiments/**/.claude-home/
+experiments/**/.opencode-home/

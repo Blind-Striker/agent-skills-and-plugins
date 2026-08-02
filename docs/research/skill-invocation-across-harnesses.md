@@ -39,7 +39,7 @@ therefore a matter of taste, not a safety measure — the description never gets
 persuade anything.
 
 Both directions were later re-measured against this repo's own closed module rather than fixtures,
-on the isolated lab of [harness-probing.md](../agents/harness-probing.md). The two surfaces are read
+on the isolated lab of [protocol.md](../../experiments/harness-invocation/protocol.md). The two surfaces are read
 from different places and they agree with the manifest exactly:
 
 | Surface | Read from | Contains | Count |

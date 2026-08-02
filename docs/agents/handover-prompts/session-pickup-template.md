@@ -54,7 +54,7 @@ decisions belong to the user — never pre-decide skill selections in a pickup.*
 1. `AGENTS.md` — the contract (hard rules, documentation hygiene).
 2. `docs/ROADMAP.md` — status, next steps, known gaps.
 3. `docs/adr/` — the decision behind whatever you are about to change.
-4. `docs/agents/README.md` — harness adapter guide.
+4. `docs/research/harness-adapters.md` — harness adapter guide.
 5. `docs/inventory.md` — regenerate before any curation talk (`npm run inventory`).
 6. The relevant `curation/*.yaml` and `tools/` files for the scope.
 
