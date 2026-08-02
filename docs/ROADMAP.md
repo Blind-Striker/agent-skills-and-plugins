@@ -75,10 +75,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-7. **Documentation-system pass.** Continue
-   [`2026-08-02-docs-claim-lifecycle.md`](superpowers/plans/2026-08-02-docs-claim-lifecycle.md)
-   while it remains open.
-
 8. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
