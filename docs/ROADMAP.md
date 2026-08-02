@@ -1,74 +1,24 @@
 # Roadmap
 
-Date: 2026-07-31
+Date: 2026-08-02
 
 Operational document: what is done, what is next. It shrinks as work lands. How things work and why
 lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Current State
 
-- Toolchain complete: `build`, `inventory`, `eject`, `sync`, `validate` in `tools/`; all gates green
-  (`npm test`, typecheck, Biome lint + format).
-- Repo lives on GitHub as `Blind-Striker/agent-skills-and-plugins`, private, default branch `master`.
-  CI (`.github/workflows/validate.yml`) runs the gates plus build, inventory and validate, then fails
-  if committed build output is stale.
-- Upstream repos vendored in `external/`; `docs/inventory.md` (regenerate via `npm run inventory`)
-  catalogs what they offer.
-- Four plugins built and committed (`deniz-process`, `deniz-dotnet-general`,
-  `deniz-dotnet-aspire`, `deniz-dotnet-akka`), plus the matching `opencode/` output and
-  `marketplace.json`. `deniz-process` is **closed**: every source item in both upstreams' promoted
-  sets has an answer in the manifest — taken, merged, or excluded with the reason beside it —
-  invocation set per item, exercising
-  the rewrite path on real data (`deniz-process:*` in the Claude tree, bare names in the
-  OpenCode one). The built `opencode/` tree is TUI-verified end to end
-  (`docs/research/skill-invocation-across-harnesses.md`, "Verified on this repo's real
-  output"). The three dotnet modules still hold one pipeline-proof starter each.
-- `npm run validate` on the current build: no errors. The standing warnings are the converted-command
-  shape, described under Known Gaps; run the command for the current count rather than trusting a
-  number here.
-- `validate` is a linker (ADR-0008): one reference scanner (`tools/lib/refs.ts`) feeds the
-  rewrite and the checks — facts must resolve in each tree's own address space, a model-edge's
-  target must be `auto`/`both`, a pointer's target `manual`/`both`, and `depends_on` is enforced
-  in both directions as errors. Relative paths are checked too, but only where the build could
-  have broken them: a `../<item>/` climb into a sibling must still land, and a missing
-  same-directory file is a finding only when upstream still ships it — upstream's illustrative
-  paths stay silent. The build emits `docs/ledger.json` (resolved invocation,
-  artifacts, edges and drops per item × harness); CI's freshness gate covers it, and its git
-  diff is the notification channel for posture changes. The curation layer (manifest comments,
-  overlays, own skills) is scanned for curator-name and date stamps — provenance is git's job.
-- Merges are guarded end to end (ADR-0001): `merged_from:` blesses every source (`mergeSources` in
-  the lock), drift in any source stops the build naming it, and `--bless` shows the drift it
-  accepts before stamping (`--yes` confirms). A bare address is stamped under the same-filename
-  rule; an entry may instead name its `files:` when the merge drew from names the overlay does not
-  own, which is the only way such an ingredient is guarded at all. `sync`
-  reports meaning on pin moves: posture drift on passthrough items, merge-source hits (across
-  submodules), and candidate-edge diffs against the ledger.
-- Body edits come in both kinds (ADR-0001): `body: patch` applies `overlay.patch`, `body: overlay`
-  replaces whole files, and both are hash-blessed through `overlays/overlays.lock.json`. Three
-  full-file overlays exist, all three merges: systematic-debugging owns SKILL.md alone, so its
-  sibling technique files keep flowing from upstream, while test-driven-development and
-  requesting-code-review own both of their files — in the first because upstream's citation of
-  writing-skills is a dangling model-edge in our set, in the second because the merged rubric
-  lives in the reviewer template rather than the skill. The gaps two independent reviews left
-  open are listed below.
-- `validate` covers the overlay wiring the build cannot see: an overlay directory that no item
-  claims, or whose item declares no `body:`, is an error (the build would ship pristine upstream in
-  silence); a lock entry without its directory, and a cut patch still sitting beside a working copy,
-  are warnings. Item resolution lives once, in `tools/lib/resolve.ts`, so a per-item rule can no
-  longer be added to one side of the build only.
-- Items declare who pulls the trigger with `invocation: auto | manual | both` (ADR-0005). Absent
-  states no intent and passes upstream frontmatter through unchanged. Claude Code gets a frontmatter
-  flag; OpenCode gets a choice of artifact, and a `manual` item's bundled files are parked under
-  `opencode/skills/<name>/` without a `SKILL.md` so its command body can still reach them.
-- The OpenCode skill path adapts instead of mirroring (ADR-0006 axis 3): frontmatter is filtered to
-  the keys OpenCode recognises with every drop reported, and each tree is rewritten with its own
-  reference spelling — `<plugin>:<name>` for Claude Code, the bare name for OpenCode. The two trees
-  are no longer byte-identical, which is the point.
-- Items can shed upstream files with `omit:` (glob patterns, ADR-0001) instead of owning the whole
-  file through an overlay. `validate` warns on a pattern that matches nothing and on `omit` under a
-  conversion, and the build refuses a pattern that swallows a file the patch edits. It also errors
-  when a built copy of an upstream-executable file is recorded non-executable — the Windows
-  checkout failure that otherwise surfaces as an opaque CI staleness diff.
+- `tools/` provides `build`, `inventory`, `eject`, `sync`, and `validate`; CI runs the checks,
+  regenerates committed output, and rejects stale output.
+- This private GitHub repository (`Blind-Striker/agent-skills-and-plugins`, default branch
+  `master`) vendors upstreams in `external/`; `docs/inventory.md` catalogs them.
+- Four `deniz-*` plugins, matching `opencode/` output, and `marketplace.json` are generated and
+  committed. `deniz-process` is closed; the three dotnet modules each retain one pipeline-proof
+  starter for future curation.
+- `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
+  build; converted-command-shape warnings remain under Known Gaps.
+- Harness-invocation experiments, their protocol, and committed evidence live in
+  `experiments/harness-invocation/`; the [adapter guide](research/harness-adapters.md) describes
+  harness-native behavior.
 
 ## Next Up
 
@@ -112,7 +62,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    generate harness-native trees, commit only registries. The behavioural half is settled: the
    real tree was mounted three ways and exercised in a TUI on 2026-07-31 — discovery, commands,
    model-mediated composition, parked-bundle reachability and all three invocation surfaces
-   verified on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
+   exercised on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
    install mechanism remains open.
 6. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
@@ -125,17 +75,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-7. **Documentation system pass — the next session's first agenda item (requested 2026-08-01).**
-   The categories this repo has (`adr/`, `research/`, `agents/`, ROADMAP) were fixed before there
-   was any measurement practice, and the runtime rounds have produced material none of them fits
-   cleanly: probe harnesses, experiment records, raw run data, and the operating playbook a curator
-   follows. The user's read is that a knowledge base, a research tier, an experiment tier and a
-   playbook tier may all be warranted, that ADRs have drifted toward naming individual items and
-   quoting measurements, and that the ADR rules themselves should be revisited — possibly rewriting
-   the ADRs from scratch, tools- and process-focused only. One test is already agreed as the
-   discriminator: *would this sentence need editing if a curation decision changed?* If yes it is
-   not ADR material. Nothing should be minted under the current rules until this pass lands, which
-   is why the propensity finding below sits in `docs/research/` with only its shape in ADR-0008.
+7. **Documentation-system pass.** Continue
+   [`2026-08-02-docs-claim-lifecycle.md`](superpowers/plans/2026-08-02-docs-claim-lifecycle.md)
+   while it remains open.
 
 8. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
@@ -152,6 +94,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Known Gaps
 
+- **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
+  the experiment tree; automate the Hard Rule across the repository with an explicit fixture
+  allowlist.
 - **Long-body `manual` conversions paste their whole body into the OpenCode chat.** A command is
   a template, and the TUI renders the entire body as the user's message: seven-line grill-me is
   clean, 150-line brainstorming is a wall on every invocation. Cosmetic, not correctness — the
