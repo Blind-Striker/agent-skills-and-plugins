@@ -4,7 +4,7 @@ import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
-import { listFiles, loadLock, LOCK_FILE, PATCH_FILE } from "./lib/overlay.ts";
+import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { extractRefs } from "./lib/refs.ts";
 import { collectIdentityProblems, isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
@@ -17,6 +17,20 @@ export interface Finding {
 
 /** Markdown link targets, minus anchors and anything with a scheme (http:, mailto:, file:). */
 const MD_LINK = /\[[^\]]*\]\(([^)\s]+)\)/g;
+// Exact-address only: these final-tree spellings are CSS declarations, host/file placeholders,
+// tracker labels, or Akka topic/path examples — not references to agent artifacts. Never suppress
+// their whole namespace: a different address under one of these namespaces must still warn.
+const NON_SYMBOL_REF_ADDRESSES = new Set([
+  "align-items:center",
+  "bug:triage",
+  "display:flex",
+  "file:line",
+  "host:port",
+  "justify-content:center",
+  "system:announcements",
+  "wayfinder:map",
+  "workers:rss-poller",
+]);
 function linkTargets(text: string): string[] {
   const out: string[] = [];
   for (const m of text.matchAll(MD_LINK)) {
@@ -345,6 +359,7 @@ export function validateRepo(root: string): Finding[] {
   }
 
   const outputNames = new Map<string, string>();
+  const ownNs = new Set(manifests.map((m) => m.plugin.name));
   const upstreamNs = new Set(components.map((c) => c.namespace));
   for (const m of manifests) {
     upstreamNs.delete(m.plugin.name);
@@ -414,18 +429,32 @@ export function validateRepo(root: string): Finding[] {
   // by the linker below (L4), where a namespace is a leak rather than a missing rewrite. The scan is
   // the shared one: a leftover is by definition something the rewrite did not take, so the two must
   // agree on what a reference is, or this reports text no rewrite could ever have touched.
+  const unknownRefs = new Map<string, { count: number; files: Set<string> }>();
   for (const file of existsSync(pluginsDir) ? walk(pluginsDir) : []) {
     if (!file.endsWith(".md")) {
       continue;
     }
+    const rel = relative(root, file).replaceAll("\\", "/");
     for (const ref of extractRefs(readFileSync(file, "utf8"))) {
       if (upstreamNs.has(ref.ns)) {
         findings.push({
           level: "warn",
-          message: `${relative(root, file).replaceAll("\\", "/")}: unrewritten upstream reference ${ref.address} — include it in a manifest or eject and edit the reference out`,
+          message: `${rel}: unrewritten upstream reference ${ref.address} — include it in a manifest or eject and edit the reference out`,
         });
+      } else if (!ownNs.has(ref.ns) && !NON_SYMBOL_REF_ADDRESSES.has(ref.address)) {
+        const unknown = unknownRefs.get(ref.ns) ?? { count: 0, files: new Set<string>() };
+        unknown.count += 1;
+        unknown.files.add(rel);
+        unknownRefs.set(ref.ns, unknown);
       }
     }
+  }
+  for (const [ns, { count, files }] of [...unknownRefs].sort(([a], [b]) => a.localeCompare(b))) {
+    const examples = [...files].sort().slice(0, 3);
+    findings.push({
+      level: "warn",
+      message: `unknown reference namespace ${ns}: ${count} occurrence${count === 1 ? "" : "s"}; examples: ${examples.join(", ")} — curate the namespace, edit the reference, or allowlist an exact prose address`,
+    });
   }
 
   // 4b. reference linking (ADR-0008). plugins/ carries the canonical namespaced text; opencode/ is
@@ -462,7 +491,6 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  const ownNs = new Set(manifests.map((m) => m.plugin.name));
   for (const m of manifests) {
     for (const item of m.items) {
       if (item.exclude) {

@@ -30,6 +30,14 @@ test("extractRefs ignores lookalikes: longer tokens, chained colons, URLs", () =
   assert.deepEqual(extractRefs(body), []);
 });
 
+test("extractRefs ignores a match that starts inside a CamelCase token", () => {
+  assert.deepEqual(extractRefs("see ServerName:tool_name here"), []);
+});
+
+test("extractRefs ignores a match that starts inside a snake_case token", () => {
+  assert.deepEqual(extractRefs("see server_name:tool here"), []);
+});
+
 // A chain is rejected because `a:b` addresses nothing there — but a colon is also ordinary
 // punctuation, and the sentence that ends a reference with one still names a real target.
 test("a colon that opens prose ends the reference rather than chaining it", () => {

@@ -43,6 +43,63 @@ test("leftover upstream reference is a warning", () => {
   );
   const findings = validateRepo(root);
   assert.ok(findings.some((f) => f.level === "warn" && f.message.includes("superpowers:some-skill")));
+  assert.ok(!findings.some((f) => f.message.includes("unknown reference namespace superpowers")));
+});
+
+test("unknown reference namespace warns once", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: d\n---\n\nUse unknown-market:tool here.\n",
+  );
+
+  const hits = validateRepo(root).filter(
+    (f) => f.level === "warn" && f.message.includes("unknown reference namespace unknown-market"),
+  );
+  assert.equal(hits.length, 1);
+  assert.match(hits[0]?.message ?? "", /1 occurrence/);
+});
+
+test("unknown namespace warning aggregates occurrences and caps sorted example paths", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const paths = [
+    join(root, "plugins", "deniz-process", "skills", "my-own", "SKILL.md"),
+    join(root, "plugins", "deniz-process", "skills", "gamma", "SKILL.md"),
+    join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md"),
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+  ];
+  for (const path of paths) {
+    writeFileSync(path, `${readFileSync(path, "utf8")}\nUse unknown-market:tool here.\n`);
+  }
+
+  const hits = validateRepo(root).filter(
+    (f) => f.level === "warn" && f.message.includes("unknown reference namespace unknown-market"),
+  );
+  assert.equal(hits.length, 1);
+  const message = hits[0]?.message ?? "";
+  assert.match(message, /4 occurrences/);
+  const alpha = "plugins/deniz-process/skills/alpha/SKILL.md";
+  const delta = "plugins/deniz-process/skills/delta/SKILL.md";
+  const gamma = "plugins/deniz-process/skills/gamma/SKILL.md";
+  assert.ok(message.indexOf(alpha) < message.indexOf(delta));
+  assert.ok(message.indexOf(delta) < message.indexOf(gamma));
+  assert.ok(!message.includes("plugins/deniz-process/skills/my-own/SKILL.md"));
+});
+
+test("known prose address does not produce an unknown namespace warning", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    '---\nname: alpha\ndescription: d\n---\n\nUse `<div style="display:flex">` for this example.\n',
+  );
+
+  const hits = validateRepo(root).filter(
+    (f) => f.level === "warn" && f.message.includes("unknown reference namespace display"),
+  );
+  assert.deepEqual(hits, []);
 });
 
 // Two plugins can each curate the same upstream skill without either manifest looking wrong, but

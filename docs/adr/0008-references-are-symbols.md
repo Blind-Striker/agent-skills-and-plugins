@@ -24,8 +24,10 @@ overlays and before per-harness rewriting. Rewrite, validation, and sync consume
 References have three tiers according to the authority their spelling earns:
 
 - **Facts** are namespaced spellings. Own plugin namespaces are linked and a missing target is an
-  error. Recognized upstream namespaces that remain after rewriting produce warnings. Unknown
-  namespaces are currently ignored; treating them as facts is a Known Gap.
+  error. Recognized upstream namespaces that remain after rewriting produce per-reference warnings.
+  Other namespaces warn once per namespace, with occurrence count and example paths; a small
+  exact-address list suppresses known CSS, label, placeholder, and runtime-address prose that is not
+  an agent-artifact reference.
 - **Paths** are relative file links. They become build state only where the transformation could
   have broken them: a sibling-item climb must still land, and a missing same-item file is a finding
   when upstream still ships it.

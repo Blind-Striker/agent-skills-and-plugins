@@ -37,7 +37,13 @@ export function scanRefs(content: string): ScannedRef[] {
     const before = m.index > 0 ? (content[m.index - 1] as string) : "";
     const end = m.index + m[0].length;
     // The after-side needs only the colon check: REF already consumed every trailing [a-z0-9-].
-    if (TOKEN.test(before) || before === ":" || (content[end] === ":" && TOKEN.test(content[end + 1] ?? ""))) {
+    if (
+      TOKEN.test(before) ||
+      before === ":" ||
+      /^[A-Z]$/.test(before) ||
+      before === "_" ||
+      (content[end] === ":" && TOKEN.test(content[end + 1] ?? ""))
+    ) {
       continue;
     }
     out.push({

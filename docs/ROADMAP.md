@@ -90,10 +90,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Known Gaps
 
-- **Unknown-namespace facts produce no linker error.** `validateRepo` in `tools/validate.ts` links
-  references only when `ownNs` contains the namespace, warns recognized `upstreamNs` leftovers in a
-  separate pass, and ignores everything else. Unknown namespaces need an authoritative disposition
-  instead of silence.
 - **Ledger omits full Claude invocation flags.** `LedgerEntry` in `tools/lib/ledger.ts` records the
   declared `invocation` and artifact kinds but not resolved Claude frontmatter such as
   `user-invocable` and `disable-model-invocation`. A ledger review cannot inspect the complete
