@@ -1,6 +1,6 @@
 # Skill invocation across harnesses
 
-Date: 2026-08-02
+Date: 2026-08-03
 
 Who decides that a skill runs — the model, or the person at the keyboard — is a per-harness
 mechanism, and the two harnesses this repo targets disagree about it deeply enough that the same
@@ -405,8 +405,10 @@ none at all.
   (`filter-syntax`, `platform-detection`, and the two `*-extensions`) set `user-invocable: false`
   **and** `disable-model-invocation: true` together, which in Claude Code leaves nothing able to
   invoke them directly: they are reference material for another skill to read, not entry points.
-  Worth knowing before curating any of them, since our `invocation` field has no value that means
-  "neither".
+  The resolution, first applied in `deniz-dotnet-general`: the "neither" class maps to our
+  `invocation: auto`. The dependents point at these skills by bare name (candidate-tier prose that
+  survives unchanged into both trees), and `auto` keeps them model-reachable in both harnesses
+  while users never see them — no "neither" value is needed.
 
 ## The composition pattern
 

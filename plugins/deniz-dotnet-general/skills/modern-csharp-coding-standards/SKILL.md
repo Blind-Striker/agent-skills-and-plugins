@@ -4,6 +4,7 @@ description: Write modern, high-performance C# code using records, pattern
   matching, value objects, async/await, Span<T>/Memory<T>, and best-practice API
   design patterns. Emphasizes functional-style programming with C# 12+ features.
 invocable: false
+user-invocable: false
 ---
 
 # Modern C# Coding Standards

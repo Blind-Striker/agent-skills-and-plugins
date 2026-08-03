@@ -1,0 +1,50 @@
+diff --git a/SKILL.md b/SKILL.md
+index 4e9d3c1..31b56a3 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -2,19 +2,19 @@
+ name: build-perf-diagnostics
+ description: "Diagnose MSBuild build performance bottlenecks using binary log analysis. USE FOR: identifying why builds are slow by analyzing binlog performance summaries, detecting ResolveAssemblyReference (RAR) taking >5s, Roslyn analyzers consuming >30% of Csc time, single targets dominating >50% of build time, node utilization below 80%, excessive Copy tasks, NuGet restore running every build. Covers timeline analysis, Target/Task Performance Summary interpretation, and 7 common bottleneck categories. Use after build-perf-baseline has established measurements. DO NOT USE FOR: establishing initial baselines (use build-perf-baseline first), fixing incremental build issues (use incremental-build), parallelism tuning (use build-parallelism), non-MSBuild build systems."
+ license: MIT
+ ---
+ 
+ ## Performance Analysis Methodology
+ 
+ 1. **Generate a binlog**: `dotnet build /bl:{} -m`
+-2. Use the **binlog MCP server** (`Microsoft.AITools.BinlogMcp`, exposed under the `binlog` MCP namespace) which is bundled with this plugin
++2. If the **binlog MCP server** (`Microsoft.AITools.BinlogMcp`, exposed under the `binlog` MCP namespace) is configured in your environment, use it to query the binlog directly; otherwise follow the portable replay flow below.
+ 
+-### Alternate flow when MCP is unavailable: binlog replay to text logs
++### Portable flow: binlog replay to text logs
+ 
+ 1. **Generate a binlog**: `dotnet build /bl:{} -m`
+ 2. **Replay to diagnostic log with performance summary**:
+    ```bash
+    dotnet msbuild build.binlog -noconlog -fl -flp:v=diag;logfile=full.log;performancesummary
+    ```
+ 3. **Read the performance summary** (at the end of `full.log`):
+    ```bash
+@@ -92,16 +92,23 @@ license: MIT
+ 
+ ### 7. Large Project Count and Graph Shape
+ 
+ - **Symptoms**: many small projects, each takes minimal time but overhead adds up; deep dependency chains serialize the build
+ - **Consider**: project consolidation, or use `/graph` mode for better scheduling
+ - **Graph shape matters**: a wide dependency graph (few levels, many parallel branches) builds faster than a deep one (many levels, serialized). Refactoring from deep to wide can yield significant improvements in both clean and incremental build times.
+ - **Actions**: look for unnecessary project dependencies, consider splitting a bottleneck project into two, or merging small leaf projects
+ 
++### 8. ResolveProjectReferences Looks Expensive but Is Not the Bottleneck
++
++- **Symptom**: `ResolveProjectReferences` tops the **Target** Performance Summary, sometimes at 50-80% of build time
++- **Why it misleads**: the reported time is wall-clock **wait time for dependent projects** while the MSBuild node is yielded (dotnet/msbuild#3135) — the node may be doing useful work elsewhere; the target itself does very little
++- **Do not** set `ResolveProjectReferences` as the optimization target
++- **Instead**: read the **Task** Performance Summary and optimize task self-time — `Csc` (section 2), `ResolveAssemblyReference` (section 1), `Copy` (section 4); serialization between projects is covered by the `build-parallelism` skill
++
+ ## Using Binlog Replay for Performance Analysis
+ 
+ Step-by-step workflow using text log replay:
+ 
+ 1. **Replay with performance summary**:
+    ```bash
+    dotnet msbuild build.binlog -noconlog -fl -flp:v=diag;logfile=full.log;performancesummary
+    ```

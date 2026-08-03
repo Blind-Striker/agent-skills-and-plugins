@@ -1,8 +1,372 @@
-# Intended sources: dotnet-skills + dotnet-agent-skills — C# standards,
-# EF Core, DI/config, serialization, test/diag skills and agents.
+# Sources: dotnet-skills (Aaronontheweb) + dotnet-agent-skills (dotnet/skills) —
+# language/API design, application architecture, persistence/configuration,
+# project/package/build, testing, diagnostics/performance.
+#
+# Corpus-first curation: every product-facing item in general's scope has an
+# answer below — taken or excluded with the why beside it. Akka and Aspire items of
+# dotnet-skills are NOT listed: they are candidates of their own manifests, not
+# rejects of this one.
+#
+# Invocation rule applied module-wide (curator's call): honour the upstream
+# fire-design. These bodies are description-driven model knowledge (none carries
+# disable-model-invocation), so knowledge and report-only audits are `auto`, and
+# repo/system-mutating ceremonies are `both` — the model may load them when the user
+# asks, and the curator may type them by name. `manual` is unused: nothing here is a
+# coercion that needs taking away. The one agent kept is a genuine specialist.
+#
+# Reference posture: MS bodies point at sibling skills by bare name ("see the
+# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state, and the
+# names survive identically into both trees, so the edges work unpatched. The
+# reference husks (filter-syntax, platform-detection, test-analysis-extensions) are
+# taken `auto`, which is the grammar's answer to upstream's user-invocable:false +
+# disable-model-invocation:true "neither" class: model loads them by name, users
+# never see them.
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.1.0
+  version: 0.2.0
 items:
+  # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
+    invocation: auto # the module's spine; passive C# convention knowledge. Tolerated upstream
+    # content bug: the main body endorses generic Result<T,TError> while its companion file says
+    # don't build generic Results — runtime content, flows as shipped
+  - source: dotnet-skills/skills/csharp-api-design
+    invocation: auto # extend-only public API + wire compatibility; the NuGet/distributed side of design
+  - source: dotnet-skills/skills/csharp-concurrency-patterns
+    invocation: auto # the concurrency chooser; its Akka/R3 handoffs land on r3-reactive-extensions (taken) and the akka module (its own session)
+  - source: dotnet-skills/skills/r3-reactive-extensions
+    invocation: auto # distinctive, current (R3 1.3.1-pinned), well-bounded
+  - source: dotnet-skills/skills/serialization
+    invocation: auto # format selection + wire evolution; some factual soft spots are upstream's runtime content, left flowing
+  - source: dotnet-skills/agents/roslyn-incremental-generator-specialist.md
+    # the one persona worth keeping: deep IIncrementalGenerator pipeline discipline with no skill
+    # equivalent anywhere in the corpus. Stays an agent in both trees.
+  # --- application architecture / persistence / configuration ---
+  - source: dotnet-skills/skills/microsoft-extensions-dependency-injection
+    invocation: auto # feature-registration composition root patterns
+  - source: dotnet-skills/skills/microsoft-extensions-configuration
+    invocation: auto # Options/IValidateOptions/ValidateOnStart — clean, current
+  - source: dotnet-skills/skills/efcore-patterns
+    invocation: auto # EF usage patterns: tracking, migrations, split queries
+  - source: dotnet-skills/skills/database-performance
+    invocation: auto # data-access architecture/perf — a different job from efcore-patterns despite the overlap; merging costs more than it saves
+  - source: dotnet-skills/skills/opentelementry-dotnet-instrumentation
+    invocation: auto # manual instrumentation (Activities/metrics/logs); complements, not duplicates, the MS setup skill below
+  - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/configuring-opentelemetry-dotnet
+    invocation: auto # the SDK-setup half of OTel; Aspire interplay belongs to the aspire session
+  - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi
+    invocation: auto # HTTP semantics/endpoints — complementary to api-design's library/wire focus
+  - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/minimal-api-file-upload
+    invocation: auto # narrow, security-focused; no overlap with anything else taken
+  - source: dotnet-skills/skills/mjml-email-templates
+    invocation: auto # transactional email authoring; pairs with snapshot-testing (Verify) for regression coverage
+  - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/csharp-scripts
+    invocation: auto # file-based C# apps (.NET 10+) — prototype/spike knowledge
+  - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/dotnet-pinvoke
+    invocation: auto # P/Invoke + LibraryImport specialist reference; rare but exactly-when-needed
+  # --- project / package / build ---
+  - source: dotnet-skills/skills/project-structure
+    invocation: auto # the curator's opinionated repo layout (slnx, Directory.Build.props, CPM, SourceLink, global.json)
+  - source: dotnet-skills/skills/package-management
+    invocation: auto # daily CPM/NuGet CLI discipline; its "never edit XML" absolutism is upstream content, tolerated
+  - source: dotnet-skills/skills/local-tools
+    invocation: auto # dotnet-tools.json manifest discipline; pairs with project-structure
+  - source: dotnet-agent-skills/plugins/dotnet-nuget/skills/convert-to-cpm
+    invocation: both # one-shot conversion ceremony — typed or model-reached on "convert to CPM"
+  # The MSBuild estate is taken whole as knowledge (curator's call): Microsoft's own
+  # MSBuild-team content, symptom-triggered descriptions, no same-job rival in either upstream.
+  # Router/review agents are excluded — their value is orchestration glue that neither harness
+  # output preserves. Six bodies claim the plugin bundles the BinlogMcp MCP server; that
+  # registration lives at the source plugin level and does not travel with individual curation,
+  # so those bodies are patched replay-first (axis-3 fit — the claim is false where they land).
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-antipatterns
+    invocation: auto # the review entry point for project/build files
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/directory-build-organization
+    invocation: auto # Directory.Build.* mechanics — deeper on evaluation order than project-structure
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/property-patterns
+    invocation: auto
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/item-management
+    invocation: auto
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/target-authoring
+    invocation: auto
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/extension-points
+    invocation: auto # import hooks/package build assets — package-authoring knowledge
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/including-generated-files
+    invocation: auto
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/copy-to-output-directory
+    invocation: auto
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-generation
+    invocation: auto # capture-side foundation for the binlog diagnostics below
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis
+    invocation: auto
+    body: patch # replay-first: drops the false "bundled with this plugin" MCP claim; replay is the portable path, MCP the optional enhancement
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/incremental-build
+    invocation: auto # "nothing changed but it rebuilds"
+    body: patch # MCP optional / replay portable
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-diagnostics
+    invocation: auto # absorbs resolve-project-references' one corrective rule (merge; that item excluded below)
+    body: patch # MCP optional / replay portable, plus the merged RPR wall-clock section
+    merged_from: [dotnet-agent-skills/plugins/dotnet-msbuild/skills/resolve-project-references]
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-parallelism
+    invocation: auto
+    body: patch # MCP optional / replay portable
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-baseline
+    invocation: auto # measure-first baselining discipline
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash
+    invocation: auto # output-path collision diagnosis — the classic file-lock culprit
+    body: patch # MCP optional / replay portable
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance
+    invocation: auto
+    body: patch # MCP optional / replay portable
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-server
+    invocation: auto # its activation guidance conflicts with build-perf-baseline upstream; noted, left flowing
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-modernization
+    invocation: auto # SDK-style conversion; recommends a nonexistent `dotnet migrate-packages-config` upstream — tolerated content bug, do not follow that one command
+  # --- testing ---
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/run-tests
+    invocation: auto # the operational core: platform/framework detection → exact dotnet test syntax. Reaches the two reference husks below by bare name
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax
+    invocation: auto # reference husk: VSTest/MTP filter syntax incl. TUnit; upstream ships it "neither", we ship it model-reachable
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/platform-detection
+    invocation: auto # reference husk: VSTest-vs-MTP + framework detection
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions
+    invocation: auto # reference husk: per-language lookup tables for the audit family (incl. TUnit at this pin — see the dotnet.md extension)
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload
+    invocation: auto # TUnit is MTP-native, so MTP iteration speed matters here
+  # The audit menu — report-only, so auto is safe: each fires on its own explicit audit request.
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns
+    invocation: auto # the broad audit; subsumes assertion-quality and the smell catalog
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
+    invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/grade-tests
+    invocation: auto # PR-scale per-test grading
+  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-mock-usage-analysis
+    invocation: auto # dead/redundant mock tracing — distinct from the broad audit
+  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-test-maintainability
+    invocation: auto # duplication/structure audit — distinct from anti-patterns
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
+    invocation: auto # the module's single CRAP/coverage home (Cobertura-based); the other two CRAP surfaces are excluded below
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/find-untested-sources
+    invocation: auto # source↔test pairing worklist; its bundled script has an upstream case-sensitivity bug (TestResults pruning), tolerated
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
+    invocation: auto # report-only scan; feeds the two mutating stages below
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
+    invocation: both # writes production abstractions + DI registrations — a deliberate, typable ceremony
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
+    invocation: both # codemod across a bounded scope — deliberate ceremony
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-vstest-to-mtp
+    invocation: both # platform migration ceremony; high value — TUnit is MTP-native and xUnit repos move through here
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-xunit-to-xunit-v3
+    invocation: both # the curator's occasional framework; version-migration ceremony
+  - source: dotnet-skills/skills/snapshot-testing
+    invocation: auto # Verify snapshot knowledge
+  - source: dotnet-skills/skills/testcontainers
+    invocation: auto # real-infra integration testing without Aspire — no substitute in the corpus.
+    # Curator's call: taken despite teaching the pre-3.0 TestcontainersBuilder<T> API;
+    # the patch rewrites every builder example to ContainerBuilder/IContainer and completes
+    # the Respawn fixture, which upstream ships without a constructor (null container at runtime).
+    body: patch
+  - source: dotnet-skills/skills/playwright-blazor
+    invocation: auto # Blazor UI *testing* knowledge; the Blazor authoring estate is deferred, this is not
+  - source: dotnet-skills/skills/slopwatch
+    invocation: both # the curator runs Slopwatch after LLM code changes — the description's
+    # "run after every code modification" pressure matches the curator's actual working style, so it
+    # stays as written (ADR-0007). The Claude hook section is runtime guidance for the user's own
+    # project settings; this repo packages no hooks.
+  # --- diagnostics & performance ---
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/microbenchmarking
+    invocation: auto # BenchmarkDotNet design/run/interpret — won the benchmark job outright
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/analyzing-dotnet-performance
+    invocation: both # the corpus's only code-level perf audit. Curator's call: `both`, not
+    # `manual` — its references carry some unconditional-transformation prescriptions, but it only
+    # fires on an explicit perf-audit request, and forced-manual would hide it from the model
+    # structurally (Claude) and wall-paste its body (OpenCode). `as: agent` was considered and
+    # rejected: a 43KB full-file overlay is the wrong price when posture alone contains the risk.
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect
+    invocation: both # production artifact-collection ceremony — the curator decides when
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dump-collect
+    invocation: both # collection-only counterpart; deliberately does not analyze
+  - source: dotnet-skills/skills/ilspy-decompile
+    invocation: auto # small decompilation knowledge; its allowed-tools key drops in OpenCode (reported, harmless)
+  - source: dotnet-skills/skills/dotnet-devcert-trust
+    invocation: both # Linux/WSL cert repair — system-mutating, so the curator may type it; model may reach it on the exact error
+  # --- modernization (all one-shot ceremonies) ---
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet8-to-dotnet9
+    invocation: both # full breaking-change reference closure flows with it
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet9-to-dotnet10
+    invocation: both
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references
+    invocation: both # NRT adoption ceremony with readiness script
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/thread-abort-migration
+    invocation: both # Thread.Abort → cooperative cancellation
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat
+    invocation: both # trim/AOT warning resolution; its process coercion is in-ceremony discipline, left as shipped
+
+  # ======== exclusions — every one a considered reject, reason beside it ========
+  # --- subsumed / duplicate ---
+  - source: dotnet-skills/skills/csharp-type-design-performance
+    exclude: true # subset of modern-csharp-coding-standards' own material; two same-job autos would trigger-compete
+  - source: dotnet-skills/skills/verify-email-snapshots
+    exclude: true # subset of snapshot-testing + mjml-email-templates, and misstates Verify's received/verified lifecycle upstream
+  - source: dotnet-skills/skills/crap-analysis
+    exclude: true # its CRAP formula is wrong (C(1-cov)^2; correct is C^2(1-cov)^3+C) — verified against the body; coverage-analysis (taken) is the single CRAP home
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/crap-score
+    exclude: true # a second CRAP surface duplicating coverage-analysis; one authoritative capability, not two
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/assertion-quality
+    exclude: true # subsumed by test-anti-patterns' broader audit
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-smell-detection
+    exclude: true # its 19-smell claim is honest (10 core + 9 by reference) but its distinct value over test-anti-patterns is academic citability only
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-tagging
+    exclude: true # description names 9 tags, body defines 15, and it silently edits tests — taxonomy + contract both unstable
+  - source: dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries
+    exclude: true # weaker duplicate of efcore-patterns + database-performance (taken)
+  - source: dotnet-agent-skills/plugins/dotnet-data/skills/create-datadriven-aspnetcore
+    exclude: true # scaffolding sprawl across API+EF+UI; no cleanly bounded job
+  # --- framework fit (curator: TUnit primary, xUnit occasional, NUnit/MSTest never) ---
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/writing-mstest-tests
+    exclude: true # the corpus's only test-writing skill, but MSTest fires in no repo the curator keeps; no TUnit-writing skill exists upstream (own-skill candidate)
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v1v2-to-v3
+    exclude: true # shrinking legacy + MSTest unused
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v3-to-v4
+    exclude: true # MSTest unused
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-xunit-to-mstest
+    exclude: true # converts toward a framework the curator never uses
+  # --- orchestration glue that survives neither harness ---
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent
+    exclude: true # the pipeline's public face; its value is subagent orchestration that both harness outputs drop, and deniz-process already owns how work gets done
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-extensions
+    exclude: true # reference husk for the excluded pipeline only; no taken dependent
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-builder.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-fixer.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-generator.agent.md
+    exclude: true # pipeline coordinator
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-implementer.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-linter.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-planner.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-researcher.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-tester.agent.md
+    exclude: true # pipeline stage
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/test-quality-auditor.agent.md
+    exclude: true # audit router; the taken audit skills are invoked directly
+  - source: dotnet-agent-skills/plugins/dotnet-test/agents/testability-migration.agent.md
+    exclude: true # orchestrator over the taken testability trilogy; the stages are safer invoked directly
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/agents/test-migration.agent.md
+    exclude: true # migration router; high-impact migrations are chosen deliberately, not classified into
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/msbuild.agent.md
+    exclude: true # router shell; the taken skills carry the knowledge
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/msbuild-code-review.agent.md
+    exclude: true # its substantive rules live in msbuild-antipatterns (taken)
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/build-perf.agent.md
+    exclude: true # orchestrates taken skills; harness-specific tool wiring
+  - source: dotnet-agent-skills/plugins/dotnet-diag/agents/optimizing-dotnet-performance.agent.md
+    exclude: true # choreography wrapper over analyzing-dotnet-performance (taken directly)
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/agents/template-engine.agent.md
+    exclude: true # router for the excluded template estate
+  - source: dotnet-skills/agents/dotnet-concurrency-specialist.md
+    exclude: true # persona without procedure; csharp-concurrency-patterns (taken) carries the content
+  - source: dotnet-skills/agents/dotnet-performance-analyst.md
+    exclude: true # persona; microbenchmarking + analyzing-dotnet-performance (taken) carry the work
+  - source: dotnet-skills/agents/dotnet-benchmark-designer.md
+    exclude: true # persona; microbenchmarking (taken) is richer
+  - source: dotnet-skills/agents/docfx-specialist.md
+    exclude: true # tied to upstream Akka.NET docs conventions, not general .NET work
+  # --- deferred estates (not rejects — future modules; recorded so they are not re-litigated) ---
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/author-component
+    exclude: true # Blazor estate — future UI module candidate; coherent only as a cluster
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/collect-user-input
+    exclude: true # Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/configure-auth
+    exclude: true # Blazor estate (its ASP.NET auth contact noted for that session)
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/coordinate-components
+    exclude: true # Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/create-blazor-project
+    exclude: true # Blazor estate; also plants an AGENTS.md in the target repo — not wanted as a side effect
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/fetch-and-send-data
+    exclude: true # Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/plan-ui-change
+    exclude: true # Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/support-prerendering
+    exclude: true # Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-blazor/skills/use-js-interop
+    exclude: true # Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/convert-blazor-server-to-webapp
+    exclude: true # Blazor migration — belongs with the Blazor estate
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/dotnet-maui-doctor
+    exclude: true # MAUI estate — outside a backend-focused curator's loop
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-app-lifecycle
+    exclude: true # MAUI estate
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-collectionview
+    exclude: true # MAUI estate
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-data-binding
+    exclude: true # MAUI estate
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-dependency-injection
+    exclude: true # MAUI estate; generic DI knowledge lives in dependency-injection-patterns (taken)
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-safe-area
+    exclude: true # MAUI estate
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-shell-navigation
+    exclude: true # MAUI estate
+  - source: dotnet-agent-skills/plugins/dotnet-maui/skills/maui-theming
+    exclude: true # MAUI estate
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/android-tombstone-symbolication
+    exclude: true # mobile diagnostics — pairs with the MAUI estate as a future specialist bundle
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/apple-crash-symbolication
+    exclude: true # mobile diagnostics — same bundle
+  - source: dotnet-agent-skills/plugins/dotnet-diag/skills/clr-activation-debugging
+    exclude: true # .NET Framework/Windows-legacy diagnostics — future specialist bundle
+  - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/nuget-trusted-publishing
+    exclude: true # release/security infrastructure — a deliberate release-workflow decision, not a general skill
+  # --- out of scope / unstable ---
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/skills/template-discovery
+    exclude: true # template estate: a twice-a-year job here; new-project opinions already live in dotnet-project-structure
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/skills/template-comparison
+    exclude: true # template estate
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/skills/template-instantiation
+    exclude: true # template estate
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/skills/template-smart-defaults
+    exclude: true # template estate
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/skills/template-authoring
+    exclude: true # template estate
+  - source: dotnet-agent-skills/plugins/dotnet-template-engine/skills/template-validation
+    exclude: true # template estate
+  - source: dotnet-agent-skills/plugins/dotnet/skills/setup-local-sdk
+    exclude: true # local SDK installs are rare; global.json pinning is covered by dotnet-project-structure
+  - source: dotnet-agent-skills/plugins/dotnet11/skills/system-text-json-net11
+    exclude: true # .NET 11 Preview-era content; revisit at GA
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet10-to-dotnet11
+    exclude: true # explicitly Preview-3 facts upstream; revisit at .NET 11 GA
+  - source: dotnet-agent-skills/plugins/dotnet-ai/skills/technology-selection
+    exclude: true # AI/ML library selection: unstable prerelease claims, malformed snippets upstream, and a separate concern from this module
+  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-simd-vectorization
+    exclude: true # mandates `dotnet run` as verification even for test projects; extreme niche
+  - source: dotnet-skills/skills/playwright-ci-caching
+    exclude: true # CI-environment recipes (specific Actions/AzDO + one CPM layout), not application knowledge
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/resolve-project-references
+    exclude: true # not rejected — merged: its one corrective rule lives in build-perf-diagnostics
+  # --- upstream-repository internals, not product-facing ---
+  - source: dotnet-skills/skills/marketplace-publishing
+    exclude: true # maintains the upstream marketplace itself; stale against its own repo layout
+  - source: dotnet-skills/skills/skills-index-snippets
+    exclude: true # upstream router-index maintenance; this repo owns its own indexing
+  - source: dotnet-agent-skills/.github/agents/agentic-workflows.md
+    exclude: true # upstream contributor tooling (gh-aw)
+  - source: dotnet-agent-skills/.github/skills/agentic-workflows
+    exclude: true # upstream contributor tooling
+  - source: dotnet-agent-skills/.agents/skills/authoring-github-workflows
+    exclude: true # upstream contributor tooling; its agentic-workflows path reference is stale upstream
+  - source: dotnet-agent-skills/.agents/skills/create-custom-agent
+    exclude: true # scaffolds VS Code custom agents — upstream authoring, not a .NET product capability
+  - source: dotnet-agent-skills/.agents/skills/create-skill
+    exclude: true # upstream skill-repo scaffolding
+  - source: dotnet-agent-skills/.agents/skills/create-skill-test
+    exclude: true # upstream eval scaffolding
+  - source: dotnet-agent-skills/eng/skill-validator/tests/fixtures/no-eval-skill
+    exclude: true # validator fixture
+  - source: dotnet-agent-skills/eng/skill-validator/tests/fixtures/sample-skill
+    exclude: true # validator fixture

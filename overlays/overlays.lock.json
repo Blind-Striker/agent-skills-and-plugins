@@ -1,4 +1,53 @@
 {
+  "deniz-dotnet-general/binlog-failure-analysis": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis",
+    "files": {
+      "SKILL.md": "a369a296dddd4e896ddb94c228644f18d33146db"
+    }
+  },
+  "deniz-dotnet-general/build-parallelism": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-parallelism",
+    "files": {
+      "SKILL.md": "96fdc2008c6e963bae45de2505a21660ded7ce01"
+    }
+  },
+  "deniz-dotnet-general/build-perf-diagnostics": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-diagnostics",
+    "files": {
+      "SKILL.md": "4e9d3c112d92716654074dcc05c1f269bd801313"
+    },
+    "mergeSources": {
+      "dotnet-agent-skills/plugins/dotnet-msbuild/skills/resolve-project-references": {
+        "SKILL.md": "8bede1448512634e91643eb97191a6a31f78936f"
+      }
+    }
+  },
+  "deniz-dotnet-general/check-bin-obj-clash": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash",
+    "files": {
+      "SKILL.md": "8d1007cfde8104ca1c991fdddd76727892a4ac38"
+    }
+  },
+  "deniz-dotnet-general/eval-performance": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance",
+    "files": {
+      "SKILL.md": "562168369bff01db1566875011a64bcb1b110f2a"
+    }
+  },
+  "deniz-dotnet-general/incremental-build": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/incremental-build",
+    "files": {
+      "SKILL.md": "ed5656a4832ab95ba03296cf672be30c4005c087"
+    }
+  },
+  "deniz-dotnet-general/testcontainers-integration-tests": {
+    "source": "dotnet-skills/skills/testcontainers",
+    "files": {
+      "SKILL.md": "c42428270f15fb23acb0b81ed5f69c53176d27fa",
+      "database-patterns.md": "34cfe9b7f11c34a498044c1673b18b03990ce47a",
+      "infrastructure-patterns.md": "de33ff0f4683961c131a058cea90de54a15619ed"
+    }
+  },
   "deniz-process/implement": {
     "source": "mattpocock-skills/skills/engineering/implement",
     "files": {

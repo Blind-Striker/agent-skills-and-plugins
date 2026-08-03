@@ -1,0 +1,34 @@
+diff --git a/SKILL.md b/SKILL.md
+index ed5656a..30e2a25 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -53,27 +53,27 @@ Use binary logs (binlogs) to understand exactly why targets ran instead of being
+ 
+ 1. **Build twice with binlogs** to capture the incremental build behavior:
+    ```shell
+    dotnet build /bl:first.binlog
+    dotnet build /bl:second.binlog
+    ```
+    The first build establishes the baseline. The second build is the one you want to be incremental. Analyze `second.binlog`.
+ 
+-### Primary: binlog MCP (preferred)
++### Optional: binlog MCP (when configured)
+ 
+ Use the **binlog MCP server** (`Microsoft.AITools.BinlogMcp`, exposed under the `binlog` MCP namespace) to analyze the second binlog:
+ 
+ 1. Use the overview tool to check overall build status and duration
+ 2. Use the search tool to find targets that executed vs were skipped — search for "Building target completely", "Building target incrementally", "Skipping target"
+ 3. Use the search tool to find "is newer than output" messages that reveal which input file triggered a rebuild
+ 4. Use target-related tools (target_reasons, project_targets) to inspect why specific targets ran
+ 5. Use the expensive_targets tool to find targets that consumed the most time in the second build — these are your optimization targets
+ 
+-### Fallback: text-log replay (when MCP is unavailable)
++### Portable: text-log replay
+ 
+ 2. **Replay the second binlog** to a diagnostic text log:
+    ```shell
+    dotnet msbuild second.binlog -noconlog -fl -flp:v=diag;logfile=second-full.log;performancesummary
+    ```
+    Then search for targets that actually executed:
+    ```bash
+    grep 'Building target\|Target.*was not skipped' second-full.log

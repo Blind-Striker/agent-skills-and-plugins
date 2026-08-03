@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-02
+Date: 2026-08-03
 
 Operational document: what is done, what is next. It shrinks as work lands. How things work and why
 lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
@@ -12,8 +12,8 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - This private GitHub repository (`Blind-Striker/agent-skills-and-plugins`, default branch
   `master`) vendors upstreams in `external/`; `docs/inventory.md` catalogs them.
 - Four `deniz-*` plugins, matching `opencode/` output, and `marketplace.json` are generated and
-  committed. `deniz-process` is closed; the three dotnet modules each retain one pipeline-proof
-  starter for future curation.
+  committed. `deniz-process` is closed; `deniz-dotnet-general` is curated (corpus-first pass over
+  the two general-scope upstreams); akka and aspire each retain one pipeline-proof starter.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
   build; converted-command-shape warnings remain under Known Gaps.
 - Harness-invocation experiments, their protocol, and committed evidence live in
@@ -22,13 +22,12 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** `deniz-process` is closed. The three dotnet modules hold one
-   pipeline-proof starter each; fill them against `docs/inventory.md`, with the user, one plugin
-   per session. `docs/research/skill-framework-landscape.md` is the standing input; the why of
-   each decision goes beside the item. These modules differ from `deniz-process` in a way worth
-   planning for: their upstreams are single-vendor and overlapping by *subject* rather than by
-   job (both `aspire-skills` and `dotnet-skills` cover Aspire), so the merge question that shaped
-   `deniz-process` is likely replaced by a naming and scope question.
+1. **Per-module curation sessions.** `deniz-process` and `deniz-dotnet-general` are done. Remaining:
+   `deniz-dotnet-akka` and `deniz-dotnet-aspire`, one plugin per session, with the user; the
+   boundary evidence gathered during the general pass lives in
+   `docs/agents/handover-prompts/s11-dotnet-akka-aspire-curation-next.prompt.md` (including the
+   cross-module `akka-net-aspire-configuration` home question and the aspire router's standing
+   reference warnings from `dotnet-devcert-trust`). The why of each decision goes beside the item.
 2. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
@@ -91,7 +90,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Long-body `manual` conversions paste their whole body into the OpenCode chat.** A command is
   a template, and the TUI renders the entire body as the user's message: seven-line grill-me is
   clean, 150-line brainstorming is a wall on every invocation. Cosmetic, not correctness — the
-  model follows the pasted body either way. Candidate emitter change: a stub command body that
+  model follows the pasted body either way. The general module added several long-body `both`
+  items (the migrate-* ceremonies carry 20–60 KB reference closures), which raises the stakes:
+  typing one of those commands pastes a wall. Candidate emitter change: a stub command body that
   points at the body parked beside the bundle, which needs the parked directory to carry the body
   under a non-discoverable name. A decision, with the installer conversation the natural place.
 - **Out-of-project bundle reads prompt for folder access** under a config-dir mount — parked
@@ -155,8 +156,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
   mid-sentence, so curation sessions must open the upstream file to judge an item.
 - **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),
-  unlike the other four submodules, which sit on releases. Hold or move is an open decision for the
-  next `npm run sync`.
+  unlike the other four submodules, which sit on releases. Measured consequence during the general
+  curation pass: the globally installed `ms-dotnet-test-frameworks` skill does not exist at the
+  pin — its reference data lives inside `test-analysis-extensions` there. Hold or move is an open
+  decision for the next `npm run sync`.
 - **Dead `invocable:` metadata in the Claude tree.** Upstream `dotnet-skills` sets
   `invocable: true|false`, which is a field in neither target harness. The OpenCode adapter now
   drops and reports it; the Claude tree still carries it, because that tree passes upstream
@@ -173,6 +176,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 Out of scope until there is a concrete need: OpenCode agent permission mapping; Codex, Cursor and
 Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manual).
 
+- **Deferred .NET estates, recorded during the general curation pass** (excluded with reasons in
+  `curation/deniz-dotnet-general.yaml`, not rejected forever): the Blazor cluster (9 skills, plus
+  `convert-blazor-server-to-webapp`), the MAUI cluster (8 + `dotnet-maui-doctor`), the specialist
+  diagnostics bundle (`android-tombstone-symbolication`, `apple-crash-symbolication`,
+  `clr-activation-debugging` — pairs naturally with a MAUI module), and
+  `nuget-trusted-publishing` (release/security workflow). Revisit if a UI, mobile, or
+  release-engineering module becomes real.
 - **Docs-structure template skill.** Package this repo's documentation structure (single canonical
   home + relay principle, evergreen/operational split, audience-based placement, ADR and roadmap
   skeletons) as an original skill under `skills/` so any repo can adopt it. The skill form looks
