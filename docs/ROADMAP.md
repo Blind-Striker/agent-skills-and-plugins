@@ -83,11 +83,6 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    evidence lives in [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md)
    and [skill-framework-landscape.md](research/skill-framework-landscape.md).
 
-9. **Queued probe: does stating the intent fire the discipline?** The propensity number was
-   measured against requests that named no intent at all ("implement X"). The curator's own usage
-   states intent without naming skills ("let's go test-driven"), which is a fairer test of what an
-   honest description buys, and cheap to run on the existing lab.
-
 ## Known Gaps
 
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only

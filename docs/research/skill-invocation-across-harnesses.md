@@ -309,33 +309,42 @@ property, and the two are measured differently: reachability is mechanical and e
 listing, an artifact — while propensity is a selection the model makes from names and descriptions,
 and nothing in either harness forces it.
 
-Exploratory runs on the closed module produced two qualitative observations. Open-ended requests
-sometimes selected a matching ceremony, while passive disciplines attached to concrete work were
-often not selected from their descriptions alone. A body that explicitly names another skill was
-observed to traverse much more consistently across both harnesses, although it could still miss.
-Traversal is therefore a propensity with a tail, not a mechanism with a switch.
+The paired tier-2 records
+[`tdd-intent-fire-claude-2026-08-02`](../../experiments/harness-invocation/records/2026-08-02-tdd-intent-fire-claude.md)
+and
+[`tdd-intent-fire-opencode-2026-08-02`](../../experiments/harness-invocation/records/2026-08-02-tdd-intent-fire-opencode.md)
+measure one bounded JavaScript task: the control prompt was `Implement a formatDuration(seconds)
+function in duration.js that turns 5400 into 1h30m.`, and the intent prompt added exactly `Let's go
+test-driven. ` before it; neither prompt named a skill. Claude Code 2.1.220 (`claude-opus-5` and
+`claude-fable-5`) and OpenCode 1.18.7 (`openai/gpt-5.6-sol@xhigh` and `xai/grok-4.5@high`) each ran
+two model configurations three times per condition: six valid attempts in each condition and twelve
+per harness.
 
-This cost lands where it is least convenient: passive disciplines are intended to fire unprompted
-and usually attach to concrete work. Some upstreams buy more propensity with bootstrap
-amplification that this repo deliberately does not ship
-([ADR-0007](../adr/0007-control-beats-fidelity.md)); the lower pressure is a curation decision.
+The [`tdd-intent-fire-claude-2026-08-02`](../../experiments/harness-invocation/records/2026-08-02-tdd-intent-fire-claude.md)
+record observed target-skill invocation in 3/6 control attempts and 6/6 intent attempts. The behavior
+distribution over six classifiable attempts per condition was control: `followed` 0/6, `partial`
+3/6, `not-followed` 3/6; intent: `followed` 0/6, `partial` 6/6, `not-followed` 0/6. Execution policy
+denied every attempted JavaScript test or check, so the `partial` outcomes show incomplete test-first
+activity rather than a completed red-green cycle; the panel observed none.
 
-The same exploratory work yielded two OpenCode command-surface notes. A converted command could
+Independently, the [`tdd-intent-fire-opencode-2026-08-02`](../../experiments/harness-invocation/records/2026-08-02-tdd-intent-fire-opencode.md)
+record observed target-skill invocation in 5/6 control attempts and 6/6 intent attempts. Its behavior
+distribution over six valid attempts per condition was control: `followed` 5/6, `partial` 0/6,
+`not-followed` 1/6; intent: `followed` 6/6, `partial` 0/6, `not-followed` 0/6.
+
+Separate, earlier exploratory work—not this intent-fire panel—yielded two OpenCode command-surface
+notes. A converted command could
 reach its parked bundle, and a sibling-item path that `validate` warns about could be read through
 the parked skill layout. Tool input showed the model resolving `../<item>/…` against the skill
 directory rather than the command file. The filesystem warning remains valid where the target has
 no `skills/<name>/` directory — an excluded item, or a `manual` item whose empty bundle caused the
 emitter to drop the husk.
 
-A non-traversal also demonstrated why invocation and discipline are different events: the session
-still followed test-first prose from the calling skill without loading the target. What a missed
-edge costs is the target's unique content, not necessarily the broad behavior it reinforces.
-
-These historical observations have no retained tier-2 record, so the former rates and result table
-are intentionally omitted. Future quantitative claims belong in
-`experiments/harness-invocation/records/` and must be synthesized here by `record_id`. The durable
-interpretation is narrower: tool events measure invocation rather than behavior, one non-traversal
-establishes nothing, and a skill body is a strong suggestion rather than a program.
+Invocation and TDD discipline remain distinct events: a target `Skill` or `skill` tool input records
+the former, while the latter is a review of the session's ordering, outputs, final diff, and text.
+These sessions are samples from non-deterministic models, not deterministic rates or causal proof
+that the intent phrase caused either outcome. The synthesis does not extend beyond these exact
+models, harness versions, prompt wording, one tiny task, and three repeats per condition.
 
 ## What the vendored upstreams use
 

@@ -257,6 +257,64 @@ Test-That "only common.ps1 defines a leg table" {
     if ($offenders) { "leg-table shape found in: $($offenders -join ', ')" } else { $true }
 }
 
+Test-That "Invoke-HarnessProcess bounds process and redirected-stream cleanup" {
+    $tokens = $null
+    $errors = $null
+    $ast = [System.Management.Automation.Language.Parser]::ParseFile(
+        (Join-Path $PSScriptRoot "intent-matrix.ps1"), [ref] $tokens, [ref] $errors)
+    if ($errors.Count) { return "intent-matrix.ps1 has parse errors" }
+
+    $functions = @($ast.FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
+            $node.Name -ceq "Invoke-HarnessProcess"
+    }, $true))
+    if ($functions.Count -ne 1) { return "found $($functions.Count) Invoke-HarnessProcess definitions" }
+
+    $calls = @($functions[0].FindAll({
+        param($node)
+        $node -is [System.Management.Automation.Language.InvokeMemberExpressionAst]
+    }, $true))
+    $processWaits = @($calls | Where-Object {
+        $_.Expression -is [System.Management.Automation.Language.VariableExpressionAst] -and
+            $_.Expression.VariablePath.UserPath -ceq "process" -and
+            $_.Member.Extent.Text -ceq "WaitForExit"
+    })
+    $unboundedProcessWaits = @($processWaits | Where-Object { $_.Arguments.Count -eq 0 })
+    if ($unboundedProcessWaits.Count) {
+        return "found zero-argument process WaitForExit: $($unboundedProcessWaits[0].Extent.Text)"
+    }
+
+    $cleanupProcessWaits = @($processWaits | Where-Object {
+        $_.Arguments.Count -eq 1 -and
+            @($_.Arguments[0].FindAll({
+                param($node)
+                $node -is [System.Management.Automation.Language.VariableExpressionAst] -and
+                    $node.VariablePath.UserPath -ceq "cleanupTimeoutMilliseconds"
+            }, $true)).Count -eq 1
+    })
+    if ($cleanupProcessWaits.Count -ne 1) { return "no bounded post-timeout process cleanup wait" }
+
+    $streamWaits = @($calls | Where-Object {
+        if ($_.Expression -isnot [System.Management.Automation.Language.TypeExpressionAst] -or
+            $_.Expression.TypeName.FullName -cne "Threading.Tasks.Task" -or
+            $_.Member.Extent.Text -cne "WaitAll" -or
+            $_.Arguments.Count -ne 2) { return $false }
+        $tasks = @($_.Arguments[0].FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.VariableExpressionAst]
+        }, $true) | ForEach-Object { $_.VariablePath.UserPath })
+        $timeout = @($_.Arguments[1].FindAll({
+            param($node)
+            $node -is [System.Management.Automation.Language.VariableExpressionAst]
+        }, $true) | ForEach-Object { $_.VariablePath.UserPath })
+        $tasks -ccontains "stdoutTask" -and $tasks -ccontains "stderrTask" -and
+            $timeout -ccontains "cleanupTimeoutMilliseconds"
+    })
+    if ($streamWaits.Count -ne 1) { return "no bounded completion wait for both redirected streams" }
+    $true
+}
+
 Test-That "every runner still contains the parts that make it a runner" {
     # This check exists because its absence let a botched edit reduce matrix.ps1 from 222 lines to
     # 28 - probe table, preflight, timeout wrapper, liveness check and run loop all gone - while
@@ -268,6 +326,7 @@ Test-That "every runner still contains the parts that make it a runner" {
     $required = @{
         "matrix.ps1"        = @('$probeTable', 'Invoke-OpenCode', 'Test-LegLive', 'Assert-Preflight', 'Reset-Scratch', 'foreach ($p in $Probes)')
         "claude-matrix.ps1" = @('$PROMPT', 'Assert-Preflight', 'Reset-Scratch', 'stream-json', 'foreach ($model in $Models)')
+        "intent-matrix.ps1" = @('$controlPrompt', '$intentPrompt', 'Invoke-HarnessProcess', 'Assert-Preflight', 'Reset-Scratch', 'stream-json', '--format', 'metadata.json', 'trace.json', 'memory_paths', 'persisted project memory', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', 'escaped the isolated Claude home')
         "verify.ps1"        = @('debug skill', 'debug config', 'Check ', 'customize-opencode')
         "variants.ps1"      = @('$targets', 'opencode models', 'variants')
         "probe.ps1"         = @('--plugin-dir', '--add-dir', 'tool_use', 'stream-json')
@@ -375,13 +434,13 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
 Write-Host "`n=== lab ===" -ForegroundColor Cyan
 if ($SkipLab) {
     Skip-That "Get-LabRoot resolves to a real lab" "-SkipLab"
-    Skip-That "both matrices reach the end of a dry run" "-SkipLab"
+    Skip-That "all matrices reach the end of a dry run" "-SkipLab"
 } else {
     Test-That "Get-LabRoot resolves to a real lab" {
         $l = Get-LabRoot
         if (Test-Path (Join-Path $l ".opencode-home")) { $true } else { "resolved '$l', which holds no .opencode-home" }
     }
-    Test-That "both matrices reach the end of a dry run" {
+    Test-That "all matrices reach the end of a dry run" {
         # The only check here that executes a runner rather than reading it. -DryRun walks the whole
         # path - argv, leg lookup, probe lookup, formatting, and every declared variant - and spends
         # no token. Three measurement errors in one round came from launching an hour-long job whose
@@ -394,7 +453,8 @@ if ($SkipLab) {
         $bad = @()
         foreach ($m in @(
             @{ f = "matrix.ps1";        a = @{ DryRun = $true; Legs = @("grok"); Probes = @("P1") } }
-            @{ f = "claude-matrix.ps1"; a = @{ DryRun = $true; Models = @("opus"); Repeats = 1 } })) {
+            @{ f = "claude-matrix.ps1"; a = @{ DryRun = $true; Models = @("opus"); Repeats = 1 } }
+            @{ f = "intent-matrix.ps1"; a = @{ DryRun = $true; Harnesses = @("claude", "opencode"); ClaudeModels = @("opus"); OpenCodeLegs = @("grok"); Repeats = 1 } })) {
             $out = Join-Path ([IO.Path]::GetTempPath()) ("dry-" + [guid]::NewGuid().ToString("N") + ".txt")
             # HASHTABLE splatting. An array splat binds positionally once a switch is in it, so
             # -Probes landed on -TimeoutMin; and passing @(...) as an ordinary expression hands the

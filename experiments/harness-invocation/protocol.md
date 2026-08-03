@@ -59,15 +59,19 @@ Three OpenCode-specific traps, each of which cost a round:
 - **`opencode debug paths` is not an isolation check.** It reports relocated roots that discovery
   does not use. Trust the listing (`debug skill`), never `paths`.
 
-Claude Code keeps credentials inside its config dir, so a fresh one demands a new login. Copy only
-`.credentials.json` across — nothing else, or the isolation brings the real plugins with it. For
-an OpenCode TUI session the equivalent is `~/.local/share/opencode/auth.json`, copied into the
-isolated data dir — it alone suffices. Never track either file.
+Claude Code keeps credentials inside its config dir, so a fresh one demands a new login. A lab may
+be seeded once with `.credentials.json` on Windows or Linux, as the authentication docs describe,
+but do not clone that rotating OAuth file per attempt: concurrent copies are reported to invalidate
+one another (<https://github.com/anthropics/claude-code/issues/76561>). For unattended automation,
+the documented mechanism is `claude setup-token` plus `CLAUDE_CODE_OAUTH_TOKEN`
+(<https://code.claude.com/docs/en/authentication>). For an OpenCode TUI session the equivalent is
+`~/.local/share/opencode/auth.json`, copied into the isolated data dir. Never track either file.
 
 Verify the isolation before trusting a result, with the positive control in the same breath: an
 isolated OpenCode lists exactly one skill, the built-in `customize-opencode`; an isolated Claude
 Code with nothing mounted lists only the harness's own bundled skills, and its `init` event reports
-the mounted plugins, `mcp_servers: 0` and an empty `memory_paths`.
+the mounted plugins and `mcp_servers: 0`. A behavioural panel also disables and checks auto memory as
+described below.
 
 ## Probe cheaply
 
@@ -92,9 +96,14 @@ claude --output-format stream-json --verbose -p "hi"
 ```
 
 - The **`system`/`init`** event carries `slash_commands`, `skills`, `plugins`, `agents`,
-  `mcp_servers`, `memory_paths` and `apiKeySource`. That is the user surface and the mount state,
-  printed by the harness itself — one cheap call answers "what is installed" and "did anything
-  leak" at once. `memory_paths: []` is the check that no `CLAUDE.md` reached the session.
+  `mcp_servers` and `apiKeySource`. That is the user surface and the mount state, printed by the
+  harness itself — one cheap call answers "what is installed" and "did anything leak" at once.
+  Claude Code 2.1.220 also emits an undocumented `memory_paths` object whose `auto` value names the
+  auto-memory directory even when it is empty; path presence is not evidence that memory loaded.
+  For a behavioural panel, set the documented `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, archive any
+  existing `projects/*/memory/*.md`, require advertised paths to remain under the isolated config,
+  and verify no memory markdown appears during the run. Auto-memory behavior and its disable switch
+  are documented at <https://code.claude.com/docs/en/memory>.
 - Every **`tool_use`** block is in the stream, so *did the model invoke this skill* is an observed
   event (`Skill` with the target's name) rather than a claim to be trusted.
 - The **model** surface is the one thing `init` does not give: `init.skills` lists what is
@@ -127,8 +136,9 @@ on a failure because `-match` is case-insensitive too and `Token refresh failed`
 scratch repo that drifted because the ceremony under test ends with "commit your work" and
 `checkout`+`clean` does not undo a commit, and a background job diagnosed but never killed, which
 kept writing into the next run's results file for forty minutes. A dry-run mode plus a preflight
-that refuses to start — names resolve, fixture at its baseline commit, no stray process, no results
-file already present, every variant declared — costs minutes and catches all of them.
+that refuses to start — names resolve, fixture at its baseline commit, the output path can be
+claimed atomically, every variant declared — costs minutes and catches all of them. Do not reject
+processes by harness name: unrelated interactive sessions are ordinary on a shared machine.
 
 ## What cannot be probed this way
 

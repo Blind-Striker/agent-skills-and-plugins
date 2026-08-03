@@ -100,9 +100,6 @@ if (-not (Test-Path "$LAB\project\scratch-repo\.git")) {
     if ($head -ne (Get-FixtureBaseline)) { Fail "scratch-repo HEAD is $head, baseline is (Get-FixtureBaseline) — a probe committed and was never rolled back" }
     else { Pass "scratch-repo at baseline (Get-FixtureBaseline) ($n commits)" }
 }
-if (@(Get-Process opencode -ErrorAction SilentlyContinue).Count -gt 0) {
-    Fail "an opencode process is already running — a stale run would interleave into $Out"
-} else { Pass "no stray opencode process" }
 if (Test-Path $Out) { Fail "$Out already exists — delete it, or results from two runs will mix" } else { Pass "results file is clean" }
 if (-not (Test-Path "$LAB\.opencode-home\.local\share\opencode\auth.json")) { Fail "no auth.json in the lab" } else { Pass "auth.json" }
 
@@ -137,6 +134,12 @@ if (-not $DryRun) {
     }
 } else { Write-Host "  skip liveness check (dry run)" -ForegroundColor DarkGray }
 Assert-Preflight
+if (-not $DryRun) {
+    # Claim the output atomically. Only another matrix targeting this path collides, not unrelated
+    # OpenCode sessions. Keep even an empty or partial claim after failure: the operator must move
+    # it before retry so evidence cannot be silently overwritten.
+    New-Item -ItemType File -Path $Out -ErrorAction Stop | Out-Null
+}
 Write-Host "preflight clean: $($Probes.Count) probe(s) x $($Legs.Count) leg(s) = $($Probes.Count * $Legs.Count) run(s), ${TimeoutMin}min cap each" -ForegroundColor Green
 
 foreach ($p in $Probes) {
