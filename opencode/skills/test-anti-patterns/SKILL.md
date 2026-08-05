@@ -1,20 +1,16 @@
 ---
 name: test-anti-patterns
 description: >
-  Audits an existing test file or suite in any language for anti-patterns and
-  quality issues — produces a severity-ranked report (Critical/Warning/Info).
-  INVOKE whenever asked to audit or review tests, find what's wrong with a
-  suite, judge whether tests are any good, or check for: tests that pass but
-  verify nothing, missing assertions, swallowed exceptions, self-comparing /
-  tautological assertions, coverage-touching tests, broad exceptions, flaky or
-  order-dependent tests (Thread.Sleep, DateTime.Now, shared state), duplicated
-  tests, or magic values — in .NET, Python/pytest, TS/Jest, Java, Go, Ruby or
-  C++. DO NOT USE FOR: writing new tests (use code-testing-agent, or
-  writing-mstest-tests for MSTest); running tests (use run-tests); migration;
-  assertion-diversity metrics (use assertion-quality); coverage/CRAP metrics
-  (use coverage-analysis); the testsmells.org academic catalog (use
-  test-smell-detection); fixing or modernizing MSTest tests, assertions,
-  attributes, or lifecycle (use writing-mstest-tests).
+  Audits an existing test file or suite in any language for pragmatic
+  anti-patterns and quality issues, producing a severity-ranked report. Use when
+  asked to audit or review tests, find false-confidence tests, investigate
+  flakiness or order dependence, identify duplicated tests or magic values, or
+  judge whether assertions are absent, trivial-only, or repeatedly verify only
+  one facet of behavior. Polyglot: .NET, Python, TypeScript/JavaScript, Java,
+  Go, Ruby, Rust, Swift, Kotlin, PowerShell, and C++. DO NOT USE FOR: writing or
+  running tests; coverage/CRAP metrics; full assertion-diversity metrics or an
+  academic smell-catalog audit; fixing or rewriting the tests it audits
+  (report-only).
 license: MIT
 ---
 
@@ -34,14 +30,13 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
 
 ## When Not to Use
 
-- User wants to write new tests from scratch (use `code-testing-agent` for any language, or `writing-mstest-tests` for MSTest specifically)
+- User wants to write new tests from scratch (out of scope — this skill audits existing tests)
 - User wants direct implementation fixes rather than a diagnostic review (use the relevant write/edit skill)
-- User asks to fix swapped `Assert.AreEqual` argument order in MSTest (use `writing-mstest-tests`)
-- User asks to convert MSTest `DynamicData` from `IEnumerable<object[]>` to `ValueTuple` (use `writing-mstest-tests`)
-- User wants to run or execute tests (use `run-tests` for .NET)
+- User asks to fix or modernize test code (this skill reports; it does not edit tests)
+- User wants to run or execute tests (use the `run-tests` skill for .NET)
 - User wants to migrate between test frameworks or versions (use migration skills)
 - User wants to measure code coverage (out of scope)
-- User wants a deep formal test smell audit with academic taxonomy and extended catalog (use `test-smell-detection`)
+- User requires a full academic smell catalog or citable taxonomy (not provided by this pragmatic audit)
 
 ## Inputs
 
@@ -72,6 +67,7 @@ Check each test file against the anti-pattern catalog below. Report findings gro
 | Anti-Pattern | What to Look For |
 |---|---|
 | **No assertions** | Test methods that execute code but never assert anything. A passing test without assertions proves nothing. In .NET look for missing `Assert.*`; in pytest a function with no `assert` and no `pytest.raises`; in Jest no `expect(...)`; in JUnit no `assert*`/`assertThat`; in Go a test that never calls `t.Error*`, `t.Fatal*`, or testify; in RSpec a block with no `expect`; in Pester no `Should`. Mock-call verifications (`verify(mock)`, `expect(mock).toHaveBeenCalled`, `Should -Invoke`) are real assertions. |
+| **Trivial-only assertions** | Tests whose only checks are null/presence/truthiness guards or constants, with no assertion on the value, state, structure, error, or side effect that defines the behavior. A guard followed by a meaningful assertion is not trivial-only. |
 | **Missing await on async assertions (JS/TS, .NET, Python, Kotlin, Swift)** | `expect(promise).resolves.toBe(x)` without `await`/`return`, `pytest-asyncio` test with un-awaited coroutine, `async Task` xUnit test calling `Assert.ThrowsAsync` without `await`, Kotest suspending test without `runTest`, Swift Testing async test without `await`. These tests silently pass even when the underlying assertion would have failed. |
 | **Coverage touching** | Test class that methodically calls every public member on a type — often in alphabetical or declaration order — without asserting meaningful outcomes. Each test typically does `var result = sut.MethodName(...)` (or `result = sut.method_name(...)`, `sut.methodName()`, `sut.MethodName(t)`) with no assertion, or only a trivial null/None/nil check. The intent is to inflate code-coverage metrics rather than verify behavior. Distinct from a single assertion-free test: the pattern is *systematic* coverage of the surface area with no real verification. |
 | **Self-referential assertion** | Asserts that the output of an operation equals its input when the operation is expected to be an identity or no-op, e.g. `Assert.AreEqual(input, Parse(input.ToString()))`, `assert input == parse(str(input))`, `expect(parse(input.toString())).toBe(input)`, `assert.Equal(t, input, parse(input))`. Also flags `Assert.AreEqual(dto.Name, dto.Name)` / `assert dto.name == dto.name` / `expect(dto.name).toBe(dto.name)` (asserting a field against itself). The test is tautological — it can only fail if the round-trip is broken, but never verifies that a *transformation* actually happened. |
@@ -86,7 +82,7 @@ Check each test file against the anti-pattern catalog below. Report findings gro
 |---|---|
 | **Flakiness indicators** | Wall-clock sleeps/waits used for synchronization: `Thread.Sleep` / `Task.Delay` (.NET), `time.sleep` (Python), `setTimeout` / `await new Promise(r => setTimeout(...))` (JS/TS), `Thread.sleep` (Java/Kotlin), `time.Sleep` (Go), `sleep` (Ruby/Bash), `std::thread::sleep` (Rust), `Start-Sleep` (Pester), `std::this_thread::sleep_for` (C++). Wall-clock reads without abstraction: `DateTime.Now`/`UtcNow`, `datetime.now()`/`datetime.utcnow()`, `Date.now()` / `new Date()`, `System.currentTimeMillis()`, `time.Now()`, `Time.now`, `Instant::now()`, `Date()`/`Date.now`, `Get-Date`, `std::chrono::system_clock::now`. Unseeded randomness: `new Random()`, `random.random()`/`random.randint()`, `Math.random()`, `new Random()` (Java/Kotlin), `rand.Int()` without seed, `rand` (Ruby), `rand::random()` (Rust). Environment-dependent paths (hard-coded `C:\...`, `/tmp/...`, network hosts). |
 | **Test ordering dependency** | Static/global mutable state modified across tests; setup that doesn't fully reset state (`[TestInitialize]`, `setUp`, `beforeEach`, `before(:each)`, `BeforeEach`, `t.Cleanup`); tests that fail when run individually but pass in suite (or vice versa). Examples per language: `static` fields (.NET/Java), module-level globals (Python), top-level `let`/`const` in test file (JS/TS), `var` package globals (Go), class variables (Ruby), `static mut`/`lazy_static!`/`OnceCell` (Rust), `$script:` variables (PowerShell). |
-| **Over-mocking** | More mock setup lines than actual test logic. Verifying exact call sequences on mocks rather than outcomes. Mocking types the test owns. Per language: Moq/NSubstitute/FakeItEasy (.NET), `unittest.mock` / `pytest-mock` (Python), Jest auto-mocks / Sinon (JS/TS), Mockito/PowerMock (Java), gomock/testify mock (Go), RSpec mocks/mocha (Ruby), `mockall` (Rust), MockK (Kotlin), `Mock` cmdlet (Pester), gmock (C++). For a deep mock audit in .NET, use `exp-mock-usage-analysis`. |
+| **Over-mocking** | More mock setup lines than actual test logic. Verifying exact call sequences on mocks rather than outcomes. Mocking types the test owns. Per language: Moq/NSubstitute/FakeItEasy (.NET), `unittest.mock` / `pytest-mock` (Python), Jest auto-mocks / Sinon (JS/TS), Mockito/PowerMock (Java), gomock/testify mock (Go), RSpec mocks/mocha (Ruby), `mockall` (Rust), MockK (Kotlin), `Mock` cmdlet (Pester), gmock (C++). |
 | **Implementation coupling** | Testing private methods via reflection (`MethodInfo.Invoke`, `getattr` in Python, `(thing as any)` in TS, `Field.setAccessible(true)` in Java, `Object#send` in Ruby, internal `pub(crate)` access in Rust). Asserting on internal state instead of observable behavior. Verifying exact method call counts on collaborators instead of business outcomes. |
 | **Broad exception assertions** | `Assert.ThrowsException<Exception>(...)` (.NET) / `pytest.raises(Exception)` / `expect(fn).toThrow(Error)` without a message matcher / `assertThrows(Exception.class, ...)` (Java) / `assert.Error(t, err)` without checking the kind / `expect { ... }.to raise_error` without class (RSpec) / `#[should_panic]` without `expected = "..."` / `Should -Throw` without `-ExpectedMessage` / `EXPECT_ANY_THROW` instead of `EXPECT_THROW(stmt, SpecificType)`. |
 
@@ -96,7 +92,8 @@ Check each test file against the anti-pattern catalog below. Report findings gro
 |---|---|
 | **Poor naming** | Test names like `Test1`, `TestMethod`, `test`, names that don't describe the scenario or expected outcome. Good naming differs by language convention — see the loaded language extension file (e.g., `Add_NegativeNumber_ThrowsArgumentException` for .NET, `test_add_negative_number_raises_value_error` for pytest, `addNegativeNumber_throwsArgumentException` for Java, `'adds negative number throws'` for Jest descriptions, `TestAdd_NegativeNumber_ReturnsError` for Go). |
 | **Magic values** | Unexplained numbers or strings in arrange/assert: `Assert.AreEqual(42, result)` / `assert result == 42` / `expect(result).toBe(42)` -- what does 42 mean? |
-| **Duplicate tests** | Three or more test methods with near-identical bodies that differ only in a single input value. Should be parametrized: `[DataRow]`/`[Theory]`/`[TestCase]` (.NET), `@pytest.mark.parametrize` (pytest), `test.each` / `it.each` (Jest/Vitest), `@ParameterizedTest` + `@ValueSource` (JUnit 5), `@DataProvider` (TestNG), Go table-driven tests, `where` / shared examples (RSpec), `#[rstest]` (Rust), `@ParameterizedTest` + `@MethodSource` (Kotlin), `-ForEach` / `-TestCases` (Pester), `INSTANTIATE_TEST_SUITE_P` (GoogleTest), `SECTION` / `GENERATE` (Catch2), `TEST_CASE_TEMPLATE` (doctest). For a detailed duplication analysis in .NET, use `exp-test-maintainability`. Note: Two tests covering distinct boundary conditions (e.g., zero vs. negative) are NOT duplicates -- separate tests for different edge cases provide clearer failure diagnostics and are a valid practice. |
+| **Duplicate tests** | Three or more test methods with near-identical bodies that differ only in a single input value. Should be parametrized: `[DataRow]`/`[Theory]`/`[TestCase]` (.NET), `@pytest.mark.parametrize` (pytest), `test.each` / `it.each` (Jest/Vitest), `@ParameterizedTest` + `@ValueSource` (JUnit 5), `@DataProvider` (TestNG), Go table-driven tests, `where` / shared examples (RSpec), `#[rstest]` (Rust), `@ParameterizedTest` + `@MethodSource` (Kotlin), `-ForEach` / `-TestCases` (Pester), `INSTANTIATE_TEST_SUITE_P` (GoogleTest), `SECTION` / `GENERATE` (Catch2), `TEST_CASE_TEMPLATE` (doctest). Note: Two tests covering distinct boundary conditions (e.g., zero vs. negative) are NOT duplicates -- separate tests for different edge cases provide clearer failure diagnostics and are a valid practice. |
+| **Single-facet assertion pattern** | Across a related test group, every test repeatedly verifies only one facet while relevant state transitions, structure, errors, or side effects remain unchecked. Report qualitatively with concrete missing facets; do not compute an assertion-diversity score. |
 | **Giant tests** | Test methods exceeding ~30 lines or testing multiple behaviors at once. Hard to diagnose when they fail. |
 | **Assertion messages that repeat the assertion** | `Assert.AreEqual(expected, actual, "Expected and actual are not equal")` / `assert x == y, "x is not equal to y"` / `assertEquals(x, y, "values not equal")` add no information. Messages should describe the business meaning. |
 | **Missing AAA / Given-When-Then separation** | Arrange/Act/Assert (or Given/When/Then for BDD frameworks like RSpec, Kotest behavior specs, Pester) phases are interleaved or indistinguishable. |
@@ -129,12 +126,13 @@ IMPORTANT: If the tests are well-written, say so clearly up front. Do not inflat
 
 ### Step 5: Report findings
 
-**Depth bar — a tidy report that is shallower than an unassisted review is a failure.** Before writing, satisfy all four:
+**Depth bar — a tidy report that is shallower than an unassisted review is a failure.** Before writing, satisfy all five:
 
 1. **Account for every test in scope.** Walk the full list of test methods and fields; a finding table that silently skips tests (or fixtures like an unused `static HttpClient` field) is incomplete. State the number of tests reviewed.
-2. **Make every Critical/High fix complete and specific.** Give the replacement assertion with the *exact expected value* (the computed discount, the exact CSV line, the full expected object), not a `// assert something here` placeholder.
-3. **Name the adjacent gaps the tests should also cover** — untested error paths, boundary values, and round-trip/culture-sensitivity risks in the same class. These are part of "what's wrong with my tests", and omitting them is the most common way this review loses to an unassisted one.
-4. **Keep the report internally consistent.** Summary counts must equal the enumerated findings. Publish a settled conclusion: do all reconsidering before you write, and never leave "wait, that's wrong" / "this should fail but doesn't" reasoning in the output.
+2. **Calibrate assertion depth.** Distinguish assertion-free, trivial-only, and meaningful assertions. Name a missing value, state, structure, error, or side-effect facet only when the production behavior makes that facet relevant.
+3. **Make every Critical/High fix complete and specific.** Give the replacement assertion with the *exact expected value* (the computed discount, the exact CSV line, the full expected object), not a `// assert something here` placeholder.
+4. **Name the adjacent gaps the tests should also cover** — untested error paths, boundary values, and round-trip/culture-sensitivity risks in the same class. These are part of "what's wrong with my tests", and omitting them is the most common way this review loses to an unassisted one.
+5. **Keep the report internally consistent.** Summary counts must equal the enumerated findings. Publish a settled conclusion: do all reconsidering before you write, and never leave "wait, that's wrong" / "this should fail but doesn't" reasoning in the output.
 
 Present findings in this structure:
 

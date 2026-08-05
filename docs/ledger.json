@@ -1870,13 +1870,21 @@
   "deniz-dotnet-general/skill/test-anti-patterns": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
     "invocation": "auto",
-    "description": "Audits an existing test file or suite in any language for anti-patterns and quality issues — produces a severity-ranked report (Critical/Warning/Info). INVOKE whenever asked to audit or review tests, find what's wrong with a suite, judge whether tests are any good, or check for: tests that pass but verify nothing, missing assertions, swallowed exceptions, self-comparing / tautological assertions, coverage-touching tests, broad exceptions, flaky or order-dependent tests (Thread.Sleep, DateTime.Now, shared state), duplicated tests, or magic values — in .NET, Python/pytest, TS/Jest, Java, Go, Ruby or C++. DO NOT USE FOR: writing new tests (use code-testing-agent, or writing-mstest-tests for MSTest); running tests (use run-tests); migration; assertion-diversity metrics (use assertion-quality); coverage/CRAP metrics (use coverage-analysis); the testsmells.org academic catalog (use test-smell-detection); fixing or modernizing MSTest tests, assertions, attributes, or lifecycle (use writing-mstest-tests).\n",
+    "body": "patch",
+    "dependsOn": [
+      "run-tests",
+      "test-analysis-extensions"
+    ],
+    "description": "Audits an existing test file or suite in any language for pragmatic anti-patterns and quality issues, producing a severity-ranked report. Use when asked to audit or review tests, find false-confidence tests, investigate flakiness or order dependence, identify duplicated tests or magic values, or judge whether assertions are absent, trivial-only, or repeatedly verify only one facet of behavior. Polyglot: .NET, Python, TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell, and C++. DO NOT USE FOR: writing or running tests; coverage/CRAP metrics; full assertion-diversity metrics or an academic smell-catalog audit; fixing or rewriting the tests it audits (report-only).\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:run-tests",
+          "deniz-dotnet-general:test-analysis-extensions"
+        ],
         "pointer": []
       },
       "flags": {
@@ -1888,7 +1896,10 @@
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "run-tests",
+          "test-analysis-extensions"
+        ],
         "pointer": []
       },
       "dropped": [

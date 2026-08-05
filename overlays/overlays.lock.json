@@ -52,6 +52,12 @@
       "SKILL.md": "f1e32266890dc7b7d8814cbf19bd4725a09bb2e1"
     }
   },
+  "deniz-dotnet-general/test-anti-patterns": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
+    "files": {
+      "SKILL.md": "300cebaf17c2ba099233169fb7ba17731c66ebab"
+    }
+  },
   "deniz-dotnet-general/testcontainers-integration-tests": {
     "source": "dotnet-skills/skills/testcontainers",
     "files": {

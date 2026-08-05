@@ -145,7 +145,10 @@ items:
     depends_on: [filter-syntax, platform-detection]
   # The audit menu — report-only, so auto is safe: each fires on its own explicit audit request.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns
-    invocation: auto # the broad audit; subsumes assertion-quality and the smell catalog
+    invocation: auto # the broad pragmatic audit, including qualitative assertion-depth review
+    body: patch # dead redirects dropped; practical assertion-depth checks added; every live body
+    # edge promoted
+    depends_on: [run-tests, test-analysis-extensions]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
