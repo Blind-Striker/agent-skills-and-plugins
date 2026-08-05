@@ -1,15 +1,11 @@
 ---
 name: test-analysis-extensions
-description: Provides file paths to language-specific reference files for the
-  test ANALYSIS skills (assertion-quality, test-anti-patterns,
-  test-gap-analysis, test-smell-detection, test-tagging). Call this skill to
-  discover available extension files (e.g., dotnet.md for
-  .NET/MSTest/xUnit/NUnit/TUnit, python.md for pytest/unittest, typescript.md
-  for Jest/Vitest/Mocha, java.md for JUnit/TestNG, etc.). Do not use directly —
-  invoked by the test-quality-auditor agent and polyglot analysis skills that
-  need framework-specific lookup tables (test markers, assertion APIs, skip
-  annotations, sleep patterns, mystery guest indicators, integration markers,
-  setup/teardown, tag-support capability).
+description: "Provides file paths to language-specific reference files for the
+  curated pragmatic test-analysis pair: test-anti-patterns and
+  test-gap-analysis. Do not use directly — those skills load the matching
+  extension when they need framework-specific test markers, assertion APIs, skip
+  annotations, sleep patterns, mystery-guest indicators, integration markers,
+  and setup/teardown conventions."
 license: MIT
 user-invocable: false
 ---
@@ -52,7 +48,7 @@ Each extension file declares per-capability support so skills can gate behaviour
 - **Setup / teardown** — fixture and lifecycle hooks.
 - **Mystery guest indicators** — common file/db/network/env coupling patterns.
 - **Integration markers** — conventions that mark a test as integration/E2E.
-- **Tag support** (for `test-tagging` skill) — one of:
+- **Tag and trait syntax** — one of:
   - `auto-edit` — language has a canonical attribute/marker the skill can safely write.
   - `report-only` — no canonical syntax; produce audit reports without edits.
   - `convention-based` — tags exist via name/comment conventions only.

@@ -105,7 +105,7 @@ Flag tests using `try { ... } catch { Write-Error ... }` patterns without subseq
 
 Pester v5 requires `BeforeAll` to initialize variables used in `It` blocks (discovery vs run separation). A common mistake: defining variables at `Describe` scope and using them inside `It` — they will be `$null` at run time.
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Mechanism | Example |
 |-----------|---------|

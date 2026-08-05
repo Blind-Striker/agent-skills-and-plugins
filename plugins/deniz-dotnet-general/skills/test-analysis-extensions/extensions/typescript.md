@@ -105,7 +105,7 @@ Flag `try { ... } catch (e) { /* nothing */ }` and `try { ... } catch { expect(.
 | Jest / Vitest / Mocha / Jasmine | `beforeEach()` / `afterEach()` | `beforeAll()` / `afterAll()` (Mocha: `before` / `after`) |
 | node:test | `beforeEach(fn)` / `afterEach(fn)` from `node:test` | `before(fn)` / `after(fn)` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 **Default mode: report-only.** JS/TS test frameworks generally have no canonical tag attribute. Strategies:
 

@@ -64,6 +64,23 @@
       "SKILL.md": "f1e32266890dc7b7d8814cbf19bd4725a09bb2e1"
     }
   },
+  "deniz-dotnet-general/test-analysis-extensions": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions",
+    "files": {
+      "SKILL.md": "960b086ee510e5011a440bfc07980f48f24f8916",
+      "extensions/cpp.md": "eecd42a32b2a21e437eb625a6cd2ab2e65c5a1e2",
+      "extensions/dotnet.md": "54a6ce332da4c2f5c16bfdf7dd5256c4a056079a",
+      "extensions/go.md": "e8debae9f6e2cb694747e68305c3ae233e54dfcf",
+      "extensions/java.md": "e66dfa812e4c9abde78e7c100f53ba7b38ce8eda",
+      "extensions/kotlin.md": "d57165b29bed77e062f055da42f77f0a68a0e1a3",
+      "extensions/powershell.md": "acb373e9d44c15947058c03fd3803a2fa9bb0ea6",
+      "extensions/python.md": "629676a597ad2e2f061b3c90c9fc1c2bd2cbeca8",
+      "extensions/ruby.md": "f9cfcfed453212ea261fc4539c73c7787b86bd36",
+      "extensions/rust.md": "37b302e1774a0459a8ec9c4b67595e199c2e9118",
+      "extensions/swift.md": "5ff43e83cee6da996d1a94a3a262e0839b3ba3e9",
+      "extensions/typescript.md": "515456217f5bb49818c40b8ea30a24b7001535c1"
+    }
+  },
   "deniz-dotnet-general/test-anti-patterns": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
     "files": {

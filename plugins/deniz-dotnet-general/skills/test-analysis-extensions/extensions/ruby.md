@@ -100,7 +100,7 @@ Flag tests with bare `begin/rescue` that swallow exceptions or `rescue => e` pat
 | Minitest | `teardown` method | `after_all` (via gem) |
 | Rails | `ActiveSupport::TestCase` `setup` / `teardown` blocks | `setup do ... end` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Tag mechanism | Example |
 |-----------|---------------|---------|

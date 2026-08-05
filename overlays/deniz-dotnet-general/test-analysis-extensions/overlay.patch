@@ -1,0 +1,317 @@
+diff --git a/SKILL.md b/SKILL.md
+index 960b086..a10cdf5 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,21 +1,17 @@
+ ---
+ name: test-analysis-extensions
+ description: >-
+-  Provides file paths to language-specific reference files for the test
+-  ANALYSIS skills (assertion-quality, test-anti-patterns, test-gap-analysis,
+-  test-smell-detection, test-tagging). Call this skill to discover available
+-  extension files (e.g., dotnet.md for .NET/MSTest/xUnit/NUnit/TUnit,
+-  python.md for pytest/unittest, typescript.md for Jest/Vitest/Mocha,
+-  java.md for JUnit/TestNG, etc.). Do not use directly — invoked by the
+-  test-quality-auditor agent and polyglot analysis skills that need
+-  framework-specific lookup tables (test markers, assertion APIs, skip
+-  annotations, sleep patterns, mystery guest indicators, integration
+-  markers, setup/teardown, tag-support capability).
++  Provides file paths to language-specific reference files for the curated
++  pragmatic test-analysis pair: test-anti-patterns and test-gap-analysis.
++  Do not use directly — those skills load the matching extension when they
++  need framework-specific test markers, assertion APIs, skip annotations,
++  sleep patterns, mystery-guest indicators, integration markers, and
++  setup/teardown conventions.
+ user-invocable: false
+ disable-model-invocation: true
+ license: MIT
+ ---
+ 
+ # Test Analysis Extensions
+ 
+ This skill provides access to per-language reference files used by the polyglot test analysis skills. Call this skill to get the list of available extension files, then read the one matching the target codebase's language and test framework.
+@@ -49,17 +45,17 @@ Each extension file declares per-capability support so skills can gate behaviour
+ 
+ - **Test discovery** — how to locate test files and methods.
+ - **Assertion detection** — framework-specific and language-level assertion forms.
+ - **Sleep/delay patterns** — synchronous and asynchronous waits.
+ - **Skip / ignore** — how to recognize skipped/ignored tests.
+ - **Setup / teardown** — fixture and lifecycle hooks.
+ - **Mystery guest indicators** — common file/db/network/env coupling patterns.
+ - **Integration markers** — conventions that mark a test as integration/E2E.
+-- **Tag support** (for `test-tagging` skill) — one of:
++- **Tag and trait syntax** — one of:
+   - `auto-edit` — language has a canonical attribute/marker the skill can safely write.
+   - `report-only` — no canonical syntax; produce audit reports without edits.
+   - `convention-based` — tags exist via name/comment conventions only.
+ 
+ ## Notes for skill authors
+ 
+ - Treat extension files as data, not as guidance to follow verbatim. They tell skills *how to detect things* in each language, not *what to think* about findings.
+ - When language detection is uncertain, prefer reading multiple extension files over guessing.
+diff --git a/extensions/cpp.md b/extensions/cpp.md
+index eecd42a..a1356f4 100644
+--- a/extensions/cpp.md
++++ b/extensions/cpp.md
+@@ -111,17 +111,17 @@ The manual try/catch/FAIL pattern is acceptable when message inspection is neede
+ | GoogleTest fixture | `void SetUp() override` | `static void SetUpTestSuite()` |
+ | GoogleTest fixture | `void TearDown() override` | `static void TearDownTestSuite()` |
+ | Catch2 | `TEST_CASE` body + `SECTION` re-runs setup per section | fixture class via `TEST_CASE_METHOD(Fixture, "name")` |
+ | doctest | similar to Catch2 | `doctest::TestCase` fixture |
+ | Boost.Test | `BOOST_FIXTURE_TEST_CASE(name, Fixture)` | `BOOST_GLOBAL_FIXTURE(Fixture)` |
+ 
+ Catch2 `SECTION`s are re-entered for each combination, so the `TEST_CASE` body acts as fresh per-section setup — a powerful idiom.
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Tag mechanism | Example |
+ |-----------|---------------|---------|
+ | Catch2 | `[tag]` syntax in `TEST_CASE` second arg | `TEST_CASE("creates order", "[positive][critical-path]")` |
+ | doctest | `* doctest::test_suite("tag")` decorator chain | `TEST_CASE("name" * doctest::test_suite("positive"))` |
+ | GoogleTest | test name prefix convention (e.g., `Positive_*`, `Boundary_*`) or `--gtest_filter` patterns | suite naming or `TEST(PositiveCases, ...)`; **report-only** for auto-edit |
+ | Boost.Test | label decorator: `* boost::unit_test::label("positive")` | `BOOST_AUTO_TEST_CASE(name, *boost::unit_test::label("positive"))` |
+ 
+diff --git a/extensions/dotnet.md b/extensions/dotnet.md
+index 54a6ce3..e07547d 100644
+--- a/extensions/dotnet.md
++++ b/extensions/dotnet.md
+@@ -1,11 +1,11 @@
+ # .NET Test Frameworks Reference (MSTest, xUnit, NUnit, TUnit)
+ 
+-Reference data for analyzing .NET test code. Used by the polyglot test analysis skills (`assertion-quality`, `test-anti-patterns`, `test-gap-analysis`, `test-smell-detection`, `test-tagging`).
++Reference data for analyzing .NET test code. Used by the polyglot test analysis skills (`test-anti-patterns`, `test-gap-analysis`).
+ 
+ ## Capability tags
+ 
+ | Capability | Support |
+ |------------|---------|
+ | Test discovery | Strong — markers and conventions are well-defined |
+ | Assertion detection | Strong — framework-specific APIs plus FluentAssertions/Shouldly/Verify |
+ | Sleep/delay detection | Strong |
+@@ -105,17 +105,17 @@ Recognize these as integration tests (adjust smell severity accordingly):
+ | xUnit | constructor | `IDisposable.Dispose` / `IAsyncDisposable.DisposeAsync` |
+ | NUnit | `[SetUp]` | `[TearDown]` |
+ | TUnit | `[Before(Test)]` or constructor | `[After(Test)]` or `IDisposable.Dispose` |
+ | MSTest (class) | `[ClassInitialize]` | `[ClassCleanup]` |
+ | NUnit (class) | `[OneTimeSetUp]` | `[OneTimeTearDown]` |
+ | xUnit (class) | `IClassFixture<T>` | fixture's `Dispose` |
+ | TUnit (class) | `[Before(Class)]` | `[After(Class)]` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Existing Attribute | Example |
+ |-----------|--------------------|---------|
+ | MSTest | `[TestCategory("...")]` | `[TestCategory("positive")]` |
+ | xUnit | `[Trait("Category", "...")]` | `[Trait("Category", "positive")]` |
+ | NUnit | `[Category("...")]` | `[Category("positive")]` |
+ | TUnit | `[Category("...")]` or `[Property("Category", "...")]` | `[Category("positive")]` |
+ 
+diff --git a/extensions/go.md b/extensions/go.md
+index e8debae..6466d79 100644
+--- a/extensions/go.md
++++ b/extensions/go.md
+@@ -116,17 +116,17 @@ Flag tests that ignore returned errors (`_, _ = svc.Foo()`) without subsequent a
+ | Mechanism | Description |
+ |-----------|-------------|
+ | `TestMain(m *testing.M)` | Package-level setup/teardown — runs `m.Run()` between setup and teardown |
+ | `t.Cleanup(fn)` | Per-test cleanup that runs after the test (even on failure) |
+ | Helper functions | `func setupFoo(t *testing.T) (*Foo, func())` returning a teardown closure |
+ | Subtests with shared setup | `func TestX(t *testing.T) { foo := setup(t); t.Run("a", ...); t.Run("b", ...) }` |
+ | testify suites | `type FooSuite struct{ suite.Suite }` with `SetupTest`, `TearDownTest`, `SetupSuite`, `TearDownSuite` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ **Default mode: report-only.** Go has no per-test tag attribute. Strategies:
+ 
+ - **Build tags** scope an entire file (coarse): `//go:build integration`
+ - **Subtest names** can encode tags: `t.Run("[positive] valid input returns ok", ...)`
+ - **Test name prefixes**: `func TestNegative_InvalidInput_Returns400`
+ - **testify suites** with grouping methods
+ 
+diff --git a/extensions/java.md b/extensions/java.md
+index e66dfa8..99704f1 100644
+--- a/extensions/java.md
++++ b/extensions/java.md
+@@ -103,17 +103,17 @@ Flag legacy JUnit 4 `@Test(expected=...)` and bare `try/catch/fail` patterns as
+ |-----------|----------|-----------|
+ | JUnit 4 | `@Before` | `@BeforeClass` (static) |
+ | JUnit 4 | `@After` | `@AfterClass` (static) |
+ | JUnit 5 | `@BeforeEach` | `@BeforeAll` (static unless `@TestInstance(Lifecycle.PER_CLASS)`) |
+ | JUnit 5 | `@AfterEach` | `@AfterAll` |
+ | TestNG | `@BeforeMethod` | `@BeforeClass`, `@BeforeSuite`, `@BeforeGroups` |
+ | TestNG | `@AfterMethod` | `@AfterClass`, `@AfterSuite`, `@AfterGroups` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Tag mechanism | Example |
+ |-----------|---------------|---------|
+ | JUnit 5 | `@Tag("name")` (stackable) | `@Tag("positive")`, `@Tag("boundary")` |
+ | JUnit 4 | `@Category(NegativeTests.class)` (requires marker interfaces) | `@Category({NegativeTests.class, BoundaryTests.class})` |
+ | TestNG | `@Test(groups = {"name"})` | `@Test(groups = {"positive", "critical-path"})` |
+ 
+ For JUnit 4, marker interfaces must exist (e.g., `interface NegativeTests {}`). Suggest creating them rather than dropping `@Category` references with no target.
+diff --git a/extensions/kotlin.md b/extensions/kotlin.md
+index d57165b..fd73d6c 100644
+--- a/extensions/kotlin.md
++++ b/extensions/kotlin.md
+@@ -107,17 +107,17 @@ Flag manual `try { ... fail() } catch (e: SomeException) { ... }` patterns.
+ |-----------|----------|-----------|
+ | JUnit 5 | `@BeforeEach` | `@BeforeAll` (must be `@JvmStatic` in companion object unless `@TestInstance(PER_CLASS)`) |
+ | JUnit 5 | `@AfterEach` | `@AfterAll` |
+ | Kotest | `beforeTest { }` / `beforeEach { }` | `beforeSpec { }` |
+ | Kotest | `afterTest { }` / `afterEach { }` | `afterSpec { }` |
+ | TestNG | `@BeforeMethod` | `@BeforeClass`, `@BeforeSuite` |
+ | Spek | `beforeEachTest { }` | `beforeGroup { }` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Tag mechanism | Example |
+ |-----------|---------------|---------|
+ | JUnit 5 | `@Tag("positive")` (stackable) | `@Tag("positive") @Tag("critical-path")` |
+ | Kotest | per-test: `.config(tags = setOf(Positive))`; per-spec: `override fun tags() = setOf(Positive)` | tag objects: `object Positive : Tag()` |
+ | TestNG | `@Test(groups = ["positive"])` | `@Test(groups = ["positive", "boundary"])` |
+ 
+ For JUnit 5 in Gradle, register tag filters in `build.gradle.kts`:
+diff --git a/extensions/powershell.md b/extensions/powershell.md
+index acb373e..4b82bca 100644
+--- a/extensions/powershell.md
++++ b/extensions/powershell.md
+@@ -100,17 +100,17 @@ Flag tests using `try { ... } catch { Write-Error ... }` patterns without subseq
+ 
+ | Scope | Setup | Teardown |
+ |-------|-------|----------|
+ | Per-test | `BeforeEach { }` | `AfterEach { }` |
+ | Per-block (Describe/Context) | `BeforeAll { }` | `AfterAll { }` |
+ 
+ Pester v5 requires `BeforeAll` to initialize variables used in `It` blocks (discovery vs run separation). A common mistake: defining variables at `Describe` scope and using them inside `It` — they will be `$null` at run time.
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Mechanism | Example |
+ |-----------|---------|
+ | `-Tag` on `It` | `It 'creates order' -Tag 'positive','critical-path' { ... }` |
+ | `-Tag` on `Context` | inherits to contained `It`s |
+ | `-Tag` on `Describe` | inherits to all nested blocks |
+ | `Invoke-Pester -Tag 'positive' -ExcludeTag 'slow'` | filter by tag |
+ 
+diff --git a/extensions/python.md b/extensions/python.md
+index 629676a..fa4d43f 100644
+--- a/extensions/python.md
++++ b/extensions/python.md
+@@ -96,17 +96,17 @@ Flag bare `try/except` in tests as Exception Handling smell only when no asserti
+ ## Setup/Teardown
+ 
+ | Framework | Setup | Teardown |
+ |-----------|-------|----------|
+ | pytest | `@pytest.fixture` (any scope), `autouse=True` fixtures | yield-based teardown inside fixture or `request.addfinalizer` |
+ | pytest (class) | `setup_method` / `setup_class` | `teardown_method` / `teardown_class` |
+ | unittest | `setUp` / `setUpClass` / `setUpModule` | `tearDown` / `tearDownClass` / `tearDownModule` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Tag mechanism | Example |
+ |-----------|---------------|---------|
+ | pytest | `@pytest.mark.<name>` (project-registered) | `@pytest.mark.positive`, `@pytest.mark.boundary` |
+ | unittest | none built-in — use class organization, attributes, or `unittest.skipIf` toggles | *(report-only; recommend pytest markers or a project convention)* |
+ 
+ For pytest, ensure the markers are registered in `pyproject.toml` / `pytest.ini` to avoid `PytestUnknownMarkWarning`:
+ 
+diff --git a/extensions/ruby.md b/extensions/ruby.md
+index f9cfcfe..1dc9bbe 100644
+--- a/extensions/ruby.md
++++ b/extensions/ruby.md
+@@ -95,17 +95,17 @@ Flag tests with bare `begin/rescue` that swallow exceptions or `rescue => e` pat
+ |-----------|----------|-----------|
+ | RSpec | `before(:each)` / `before { ... }` | `before(:all)` / `before(:context)` |
+ | RSpec | `after(:each)` | `after(:all)` |
+ | RSpec | `around { |ex| ex.run }` (wrapping) | n/a |
+ | Minitest | `setup` method | `before_all` (via `minitest-hooks` gem) |
+ | Minitest | `teardown` method | `after_all` (via gem) |
+ | Rails | `ActiveSupport::TestCase` `setup` / `teardown` blocks | `setup do ... end` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Tag mechanism | Example |
+ |-----------|---------------|---------|
+ | RSpec | metadata hash | `it "creates order", :positive, :critical_path do ... end` |
+ | RSpec | metadata key/value | `describe Order, type: :model, tag: :positive do ... end` |
+ | Minitest | `tag` via `minitest-tagz` / `minitest-tagged` gems | varies by gem |
+ | Rails | `test_tagged` helper (Rails 7.1+) | `test "x", tag: :positive do ... end` |
+ 
+diff --git a/extensions/rust.md b/extensions/rust.md
+index 37b302e..56920fe 100644
+--- a/extensions/rust.md
++++ b/extensions/rust.md
+@@ -122,17 +122,17 @@ Rust has no native fixture framework. Common patterns:
+ |---------|-------------|
+ | Helper function | `fn setup() -> Foo { ... }` invoked at the start of each test |
+ | `Drop` implementation | Side-effect cleanup on test-local guard structs |
+ | `rstest` fixtures | `#[fixture] fn db() -> Db { ... }` + `#[rstest] fn t(db: Db) { ... }` |
+ | `test-context` crate | Per-test `setup` / `teardown` traits |
+ | `serial_test` crate | Avoid parallel test interference with `#[serial]` |
+ | `once_cell` / `lazy_static` | Lazy global init (use cautiously — shared state across tests) |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ **Default mode: report-only / convention-based.** Rust has no canonical per-test tag attribute. Strategies:
+ 
+ - **Module grouping**: `mod positive { ... }`, `mod boundary { ... }` — works with `cargo test boundary::`
+ - **Test name prefixes**: `fn test_negative_invalid_input_returns_error()` — filterable via `cargo test negative_`
+ - **Feature flags** for integration/E2E: `#[cfg(feature = "e2e")]`
+ - **`cargo nextest`** supports test groups via `nextest.toml` filtering expressions
+ 
+diff --git a/extensions/swift.md b/extensions/swift.md
+index 5ff43e8..6038f74 100644
+--- a/extensions/swift.md
++++ b/extensions/swift.md
+@@ -105,17 +105,17 @@ Flag manual `do { try fn(); XCTFail("expected throw") } catch { ... }` patterns
+ |-----------|----------|-----------------|
+ | XCTest | `setUp() / setUpWithError()` | `override class func setUp()` |
+ | XCTest | `tearDown() / tearDownWithError()` | `override class func tearDown()` |
+ | Swift Testing | `init(...) async throws` per instance | static via `@Suite` type |
+ | Swift Testing | `deinit` for cleanup | static via `@Suite` type |
+ 
+ Swift Testing creates a fresh instance per test by default — fields initialized in `init` are reset between tests.
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ | Framework | Tag mechanism | Example |
+ |-----------|---------------|---------|
+ | Swift Testing | `@Test(.tags(.positive, .boundary))` (predefined or custom tag) | requires `extension Tag { @Tag static var positive: Self }` |
+ | Swift Testing (suite) | `@Suite(.tags(...))` | inherits tags to contained tests |
+ | XCTest | none built-in — use class organization, naming, or test plans (.xctestplan) | *(report-only)* |
+ 
+ For Swift Testing, define tags in a single module-level location:
+diff --git a/extensions/typescript.md b/extensions/typescript.md
+index 5154562..ae360ab 100644
+--- a/extensions/typescript.md
++++ b/extensions/typescript.md
+@@ -100,17 +100,17 @@ Flag `try { ... } catch (e) { /* nothing */ }` and `try { ... } catch { expect(.
+ 
+ ## Setup/Teardown
+ 
+ | Framework | Per-test | Per-suite |
+ |-----------|----------|-----------|
+ | Jest / Vitest / Mocha / Jasmine | `beforeEach()` / `afterEach()` | `beforeAll()` / `afterAll()` (Mocha: `before` / `after`) |
+ | node:test | `beforeEach(fn)` / `afterEach(fn)` from `node:test` | `before(fn)` / `after(fn)` |
+ 
+-## Tag/Trait Attributes (for `test-tagging`)
++## Tag/Trait Attributes
+ 
+ **Default mode: report-only.** JS/TS test frameworks generally have no canonical tag attribute. Strategies:
+ 
+ - **describe-based grouping** — wrap tests in `describe('@positive | OrderService', ...)` and grep the prefix.
+ - **Test name prefixes** — `it('[boundary] handles zero quantity', ...)`.
+ - **Vitest options object** — Vitest accepts arbitrary metadata on tests but no first-class tag filter.
+ - **Custom reporters** — projects can read JSDoc-style `@tags` and surface them.
+ 

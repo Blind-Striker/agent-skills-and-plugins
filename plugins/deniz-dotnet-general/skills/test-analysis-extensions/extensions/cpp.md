@@ -116,7 +116,7 @@ The manual try/catch/FAIL pattern is acceptable when message inspection is neede
 
 Catch2 `SECTION`s are re-entered for each combination, so the `TEST_CASE` body acts as fresh per-section setup — a powerful idiom.
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Tag mechanism | Example |
 |-----------|---------------|---------|

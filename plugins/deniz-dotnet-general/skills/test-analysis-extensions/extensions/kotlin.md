@@ -112,7 +112,7 @@ Flag manual `try { ... fail() } catch (e: SomeException) { ... }` patterns.
 | TestNG | `@BeforeMethod` | `@BeforeClass`, `@BeforeSuite` |
 | Spek | `beforeEachTest { }` | `beforeGroup { }` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Tag mechanism | Example |
 |-----------|---------------|---------|

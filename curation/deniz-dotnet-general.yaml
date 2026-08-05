@@ -140,7 +140,8 @@ items:
       # same reason as filter-syntax
       description: "Reference data for detecting the test platform (VSTest vs Microsoft.Testing.Platform) and test framework (MSTest, xUnit, NUnit, TUnit) from project files. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need detection logic."
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions
-    invocation: auto # reference husk: per-language lookup tables for the audit family (incl. TUnit at this pin — see the dotnet.md extension)
+    invocation: auto # reference husk: per-language lookup tables for the audit pair (incl. TUnit at this pin)
+    body: patch # its consumer lists named five skills and an agent; only two consumers survive here
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload
     invocation: auto # TUnit is MTP-native, so MTP iteration speed matters here
     body: patch # drops the migrate-vstest-to-mtp handoff; retained sibling references stay bare

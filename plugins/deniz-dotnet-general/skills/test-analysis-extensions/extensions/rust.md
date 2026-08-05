@@ -127,7 +127,7 @@ Rust has no native fixture framework. Common patterns:
 | `serial_test` crate | Avoid parallel test interference with `#[serial]` |
 | `once_cell` / `lazy_static` | Lazy global init (use cautiously — shared state across tests) |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 **Default mode: report-only / convention-based.** Rust has no canonical per-test tag attribute. Strategies:
 

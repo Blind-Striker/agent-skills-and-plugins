@@ -121,7 +121,7 @@ Flag tests that ignore returned errors (`_, _ = svc.Foo()`) without subsequent a
 | Subtests with shared setup | `func TestX(t *testing.T) { foo := setup(t); t.Run("a", ...); t.Run("b", ...) }` |
 | testify suites | `type FooSuite struct{ suite.Suite }` with `SetupTest`, `TearDownTest`, `SetupSuite`, `TearDownSuite` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 **Default mode: report-only.** Go has no per-test tag attribute. Strategies:
 

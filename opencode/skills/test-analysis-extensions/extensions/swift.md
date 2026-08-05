@@ -110,7 +110,7 @@ Flag manual `do { try fn(); XCTFail("expected throw") } catch { ... }` patterns 
 
 Swift Testing creates a fresh instance per test by default — fields initialized in `init` are reset between tests.
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Tag mechanism | Example |
 |-----------|---------------|---------|

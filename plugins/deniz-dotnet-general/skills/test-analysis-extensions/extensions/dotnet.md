@@ -1,6 +1,6 @@
 # .NET Test Frameworks Reference (MSTest, xUnit, NUnit, TUnit)
 
-Reference data for analyzing .NET test code. Used by the polyglot test analysis skills (`assertion-quality`, `test-anti-patterns`, `test-gap-analysis`, `test-smell-detection`, `test-tagging`).
+Reference data for analyzing .NET test code. Used by the polyglot test analysis skills (`test-anti-patterns`, `test-gap-analysis`).
 
 ## Capability tags
 
@@ -110,7 +110,7 @@ Recognize these as integration tests (adjust smell severity accordingly):
 | xUnit (class) | `IClassFixture<T>` | fixture's `Dispose` |
 | TUnit (class) | `[Before(Class)]` | `[After(Class)]` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Existing Attribute | Example |
 |-----------|--------------------|---------|

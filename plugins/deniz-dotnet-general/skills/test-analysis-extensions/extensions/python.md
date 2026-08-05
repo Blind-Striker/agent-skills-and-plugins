@@ -101,7 +101,7 @@ Flag bare `try/except` in tests as Exception Handling smell only when no asserti
 | pytest (class) | `setup_method` / `setup_class` | `teardown_method` / `teardown_class` |
 | unittest | `setUp` / `setUpClass` / `setUpModule` | `tearDown` / `tearDownClass` / `tearDownModule` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Tag mechanism | Example |
 |-----------|---------------|---------|

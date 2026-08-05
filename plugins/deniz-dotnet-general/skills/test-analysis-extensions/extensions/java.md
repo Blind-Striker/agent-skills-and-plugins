@@ -108,7 +108,7 @@ Flag legacy JUnit 4 `@Test(expected=...)` and bare `try/catch/fail` patterns as 
 | TestNG | `@BeforeMethod` | `@BeforeClass`, `@BeforeSuite`, `@BeforeGroups` |
 | TestNG | `@AfterMethod` | `@AfterClass`, `@AfterSuite`, `@AfterGroups` |
 
-## Tag/Trait Attributes (for `test-tagging`)
+## Tag/Trait Attributes
 
 | Framework | Tag mechanism | Example |
 |-----------|---------------|---------|
