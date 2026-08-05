@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-03
+Date: 2026-08-05
 
 Operational document: what is done, what is next. It shrinks as work lands. How things work and why
 lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
@@ -22,18 +22,25 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Per-module curation sessions.** `deniz-process` and `deniz-dotnet-general` are done. Remaining:
+1. **Close the corrected s13 plan review, then execute only on the user's word.** The first xAI and
+   GLM/OpenCode-Go reviews found blocking holes in the general-curation and OpenCode-stub plans.
+   Their reports, the approved correction design, and the rewritten spec/plans live under
+   `docs/superpowers/`. The curator then amended the email/snapshot and version-migration boundary;
+   the final amended set requires two fresh independent Grok reviews. The pickup, checklist, and gates are in
+   `docs/agents/handover-prompts/s13-plan-review-and-wave-execution.prompt.md`. No wave has executed.
+   This item leaves with the waves.
+2. **Per-module curation sessions.** `deniz-process` and `deniz-dotnet-general` are done. Remaining:
    `deniz-dotnet-akka` and `deniz-dotnet-aspire`, one plugin per session, with the user; the
    boundary evidence gathered during the general pass lives in
-   `docs/agents/handover-prompts/s12-opencode-per-module-output-next.prompt.md` (items P2/P3). The
-   why of each decision goes beside the item.
-2. **OpenCode per-module output split.** `opencode/` is one flat tree today; module identity exists
+   `docs/agents/handover-prompts/s13-plan-review-and-wave-execution.prompt.md` (Reference backlog,
+   P2/P3). The why of each decision goes beside the item.
+3. **OpenCode per-module output split.** `opencode/` is one flat tree today; module identity exists
    only in `plugins/` and the ledger. Emit it per module, symmetric to the Claude plugins, so the
    installer can install per category. The design tension — a split tree is not mountable as one
    config dir, so consumption becomes installer-bound — and the full touchpoint list are item P1 in
-   `docs/agents/handover-prompts/s12-opencode-per-module-output-next.prompt.md`, along with a review
-   assignment over the general curation. Amends ADR-0002's output-layout text.
-3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
+   `docs/agents/handover-prompts/s13-plan-review-and-wave-execution.prompt.md` (Reference backlog).
+   Amends ADR-0002's output-layout text.
+4. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
    five targets are not curated. The misdirection sits in two different places, and they are worth
    separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
    aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
@@ -42,10 +49,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
    targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
    invisible to `validate`.
-4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+5. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
    email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-5. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
+6. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
    replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
@@ -53,7 +60,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    `~/.config/opencode/opencode.json`), because measured precedence (package cache >
    `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
    every colliding name — the one global our tree cannot shadow away.
-6. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
+7. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
    model is an installer, symmetric to the Claude marketplace; a permanent `OPENCODE_CONFIG_DIR`
    is rejected (env vars are for throwaway tests, consumption goes through a native mechanism).
    Candidates, in current order: (a) OpenCode's own package mechanism (`opencode.json` `plugin:`
@@ -68,7 +75,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    model-mediated composition, parked-bundle reachability and all three invocation surfaces
    exercised on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
    install mechanism remains open.
-7. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+8. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -79,7 +86,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-8. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+9. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    That sentence survives any re-curation and therefore qualifies, but minting an ADR immediately
