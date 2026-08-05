@@ -34,6 +34,12 @@
       "SKILL.md": "58ec55788b80b450b2ab5255c2516a07b8ade2ab"
     }
   },
+  "deniz-dotnet-general/dotnet-webapi": {
+    "source": "dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi",
+    "files": {
+      "SKILL.md": "c22ba5ca10cb48dd69c53dd87cebc165d6b21a58"
+    }
+  },
   "deniz-dotnet-general/eval-performance": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance",
     "files": {

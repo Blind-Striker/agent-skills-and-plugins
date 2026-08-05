@@ -58,6 +58,8 @@ items:
     invocation: auto # the SDK-setup half of OTel; Aspire interplay belongs to the aspire session
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi
     invocation: auto # HTTP semantics/endpoints — complementary to api-design's library/wire focus
+    body: patch # EF handoff pointed at the excluded optimizing-ef-core-queries; rewired to the two
+    # kept homes with bare references
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/minimal-api-file-upload
     invocation: auto # narrow, security-focused; no overlap with anything else taken
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/csharp-scripts

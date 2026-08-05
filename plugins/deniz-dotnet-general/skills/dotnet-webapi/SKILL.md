@@ -3,11 +3,10 @@ name: dotnet-webapi
 description: >
   Guides creation and modification of ASP.NET Core Web API endpoints with
   correct HTTP semantics, OpenAPI metadata, and error handling. USE FOR: adding
-  new API endpoints (controllers or minimal APIs), wiring up OpenAPI/Swagger,
-  creating .http test files, setting up global error handling middleware. DO NOT
-  USE FOR: general C# coding style, EF Core data access or query optimization
-  (use optimizing-ef-core-queries), frontend/Blazor work, gRPC services, or
-  SignalR hubs.
+  controller or minimal-API endpoints, wiring OpenAPI, creating .http test
+  files, and setting up global API error handling. DO NOT USE FOR: general C#
+  style, EF Core data access or query optimization (use efcore-patterns or
+  database-performance), frontend/Blazor work, gRPC, or SignalR.
 license: MIT
 user-invocable: false
 ---
@@ -32,7 +31,7 @@ Use this skill when working on ASP.NET Core HTTP APIs, including:
 Do not use this skill for:
 
 - general C# coding style or non-API refactoring;
-- EF Core data modeling or query optimization work; use `optimizing-ef-core-queries`;
+- EF Core data modeling or query optimization work; use `efcore-patterns` and `database-performance`;
 - frontend, Razor, or Blazor UI changes;
 - gRPC services;
 - SignalR hubs or real-time messaging flows.
@@ -417,7 +416,7 @@ builder.Services.AddScoped<IProductService, ProductService>();
 ```
 
 For EF Core data access patterns (migrations, Fluent API configuration,
-`AsNoTracking`, seed data), see the `optimizing-ef-core-queries` skill.
+`AsNoTracking`, seed data), see the `efcore-patterns` skill.
 
 ### Step 7: Create a .http test file
 

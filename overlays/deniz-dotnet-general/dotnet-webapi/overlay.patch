@@ -1,0 +1,68 @@
+diff --git a/SKILL.md b/SKILL.md
+index c22ba5c..0dd1402 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,19 +1,18 @@
+ ---
+ name: dotnet-webapi
+ description: >
+   Guides creation and modification of ASP.NET Core Web API endpoints with
+-  correct HTTP semantics, OpenAPI metadata, and error handling.
+-  USE FOR: adding new API endpoints (controllers or minimal APIs), wiring up
+-  OpenAPI/Swagger, creating .http test files, setting up global error handling
+-  middleware.
+-  DO NOT USE FOR: general C# coding style, EF Core data access or query
+-  optimization (use optimizing-ef-core-queries), frontend/Blazor work, gRPC
+-  services, or SignalR hubs.
++  correct HTTP semantics, OpenAPI metadata, and error handling. USE FOR:
++  adding controller or minimal-API endpoints, wiring OpenAPI, creating .http
++  test files, and setting up global API error handling. DO NOT USE FOR:
++  general C# style, EF Core data access or query optimization (use
++  efcore-patterns or database-performance), frontend/Blazor work, gRPC, or
++  SignalR.
+ license: MIT
+ ---
+ 
+ # ASP.NET Core Web API
+ 
+ Produce well-structured ASP.NET Core Web API endpoints with proper HTTP
+ semantics, OpenAPI documentation, and error handling.
+ 
+@@ -27,17 +26,17 @@ Use this skill when working on ASP.NET Core HTTP APIs, including:
+ - adding `.http` files or similar request-based API testing artifacts;
+ - configuring centralized API error handling middleware or exception mapping.
+ 
+ ## When Not to Use
+ 
+ Do not use this skill for:
+ 
+ - general C# coding style or non-API refactoring;
+-- EF Core data modeling or query optimization work; use `optimizing-ef-core-queries`;
++- EF Core data modeling or query optimization work; use `efcore-patterns` and `database-performance`;
+ - frontend, Razor, or Blazor UI changes;
+ - gRPC services;
+ - SignalR hubs or real-time messaging flows.
+ 
+ ## Inputs / prerequisites
+ 
+ Before applying this skill, gather the project context needed to match the
+ existing API style and wiring:
+@@ -412,17 +411,17 @@ public sealed class ProductService(...) : IProductService
+ Register with the interface, not the concrete type:
+ 
+ ```csharp
+ // In Program.cs
+ builder.Services.AddScoped<IProductService, ProductService>();
+ ```
+ 
+ For EF Core data access patterns (migrations, Fluent API configuration,
+-`AsNoTracking`, seed data), see the `optimizing-ef-core-queries` skill.
++`AsNoTracking`, seed data), see the `efcore-patterns` skill.
+ 
+ ### Step 7: Create a .http test file
+ 
+ After implementing endpoints, create a `.http` file in the project root that
+ demonstrates how to call every new endpoint. This serves as living
+ documentation and a quick manual test harness.
+ 
+ ```http
