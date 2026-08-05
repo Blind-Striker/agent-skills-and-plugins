@@ -1,0 +1,45 @@
+diff --git a/SKILL.md b/SKILL.md
+index 5f3eea0..5df3cf5 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -41,19 +41,19 @@ Set up and use Microsoft Testing Platform hot reload to rapidly iterate fixes on
+ | Failing test name or filter | No | Specific test(s) to iterate on |
+ 
+ ## Workflow
+ 
+ ### Step 1: Verify the project uses Microsoft Testing Platform
+ 
+ Hot reload requires MTP. It does **not** work with VSTest.
+ 
+-Follow the detection procedure in the `platform-detection` skill to determine the test platform.
++Follow the detection procedure in the `dotnet-test:platform-detection` skill to determine the test platform.
+ 
+-If the project uses VSTest, inform the user that MTP hot reload is not available and suggest migrating to MTP first (see `migrate-vstest-to-mtp`), or using Visual Studio's built-in Test Explorer hot reload feature instead.
++If the project uses VSTest, inform the user that MTP hot reload is not available there and suggest Visual Studio's built-in Test Explorer hot reload feature instead.
+ 
+ ### Step 2: Add the hot reload NuGet package
+ 
+ Install the `Microsoft.Testing.Extensions.HotReload` package:
+ 
+ ```shell
+ dotnet add <project-path> package Microsoft.Testing.Extensions.HotReload
+ ```
+@@ -94,17 +94,17 @@ Create or update `Properties/launchSettings.json` in the test project:
+ ### Step 4: Run the tests with hot reload
+ 
+ Run the test project directly (not through `dotnet test`) to use hot reload in console mode:
+ 
+ ```shell
+ dotnet run --project <project-path>
+ ```
+ 
+-To filter to specific failing tests, pass the filter after `--`. The syntax depends on the test framework -- see the `filter-syntax` skill for full details. Quick examples:
++To filter to specific failing tests, pass the filter after `--`. The syntax depends on the test framework -- see the `dotnet-test:filter-syntax` skill for full details. Quick examples:
+ 
+ | Framework | Filter syntax |
+ |-----------|--------------|
+ | MSTest | `dotnet run --project <path> -- --filter "FullyQualifiedName~TestMethodName"` |
+ | NUnit | `dotnet run --project <path> -- --filter "FullyQualifiedName~TestMethodName"` |
+ | xUnit v3 | `dotnet run --project <path> -- --filter-method "*TestMethodName"` |
+ | TUnit | `dotnet run --project <path> -- --treenode-filter "/*/*/ClassName/TestMethodName"` |
+ 

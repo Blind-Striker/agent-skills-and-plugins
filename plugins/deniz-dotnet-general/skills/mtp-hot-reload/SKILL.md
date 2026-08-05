@@ -47,9 +47,9 @@ Set up and use Microsoft Testing Platform hot reload to rapidly iterate fixes on
 
 Hot reload requires MTP. It does **not** work with VSTest.
 
-Follow the detection procedure in the `platform-detection` skill to determine the test platform.
+Follow the detection procedure in the `deniz-dotnet-general:platform-detection` skill to determine the test platform.
 
-If the project uses VSTest, inform the user that MTP hot reload is not available and suggest migrating to MTP first (see `migrate-vstest-to-mtp`), or using Visual Studio's built-in Test Explorer hot reload feature instead.
+If the project uses VSTest, inform the user that MTP hot reload is not available there and suggest Visual Studio's built-in Test Explorer hot reload feature instead.
 
 ### Step 2: Add the hot reload NuGet package
 
@@ -100,7 +100,7 @@ Run the test project directly (not through `dotnet test`) to use hot reload in c
 dotnet run --project <project-path>
 ```
 
-To filter to specific failing tests, pass the filter after `--`. The syntax depends on the test framework -- see the `filter-syntax` skill for full details. Quick examples:
+To filter to specific failing tests, pass the filter after `--`. The syntax depends on the test framework -- see the `deniz-dotnet-general:filter-syntax` skill for full details. Quick examples:
 
 | Framework | Filter syntax |
 |-----------|--------------|

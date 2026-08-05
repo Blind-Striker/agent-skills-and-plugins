@@ -141,6 +141,8 @@ items:
     invocation: auto # reference husk: per-language lookup tables for the audit family (incl. TUnit at this pin — see the dotnet.md extension)
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload
     invocation: auto # TUnit is MTP-native, so MTP iteration speed matters here
+    body: patch # drops the migrate-vstest-to-mtp handoff (excluded) and declares the husk edges
+    depends_on: [filter-syntax, platform-detection]
   # The audit menu — report-only, so auto is safe: each fires on its own explicit audit request.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns
     invocation: auto # the broad audit; subsumes assertion-quality and the smell catalog
