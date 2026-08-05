@@ -1,17 +1,13 @@
 ---
 name: coverage-analysis
 description: >
-  Project-wide code coverage and CRAP (Change Risk Anti-Patterns) score analysis
-  for .NET projects. Calculates CRAP scores per method and surfaces risk
-  hotspots — complex code with low coverage that is dangerous to modify. Use to
-  diagnose why coverage is stuck or plateaued, identify what methods block
-  improvement, or get project-wide coverage analysis with risk ranking. USE FOR:
-  coverage stuck, coverage plateau, can't increase coverage, what's blocking
-  coverage, coverage gap, CRAP scores, risk hotspots, where to add tests,
-  coverage analysis, coverage report. DO NOT USE FOR: targeted single-method
-  CRAP analysis (use crap-score); auditing test code for coverage-touching or
-  other anti-patterns (use test-anti-patterns); writing tests; running tests
-  (use run-tests). Requires or produces coverage (Cobertura) and CRAP metrics.
+  Analyzes .NET Cobertura coverage with per-method CRAP scores. Use for
+  project-wide coverage plateaus, risk hotspots, and where-to-test-next
+  prioritization, or for a targeted CRAP calculation on an exact method, class,
+  or source file. Project-wide requests rank complex, under-covered members;
+  targeted requests filter existing coverage rows and report only the requested
+  scope. DO NOT USE FOR: auditing test-code anti-patterns, writing tests, or
+  running tests without coverage/CRAP context.
 license: MIT
 ---
 
@@ -34,7 +30,6 @@ Use this skill when the user mentions test coverage, coverage gaps, code risk, C
 
 ## When Not to Use
 
-- **Targeted single-method CRAP analysis** — use the `crap-score` skill instead
 - **Writing or generating tests** — this skill identifies where tests are needed, not write them
 - **General test execution** unrelated to coverage or CRAP analysis
 - **Coverage reporting without CRAP context** — use `dotnet test` with coverage collection directly
@@ -43,6 +38,7 @@ Use this skill when the user mentions test coverage, coverage gaps, code risk, C
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
+| Target scope | No | None | Exact method name, class name, or source-file path; selects the targeted workflow |
 | Project/solution path | No | Current directory | Path to the .NET solution or project |
 | Line coverage threshold | No | 80% | Minimum acceptable line coverage |
 | Branch coverage threshold | No | 70% | Minimum acceptable branch coverage |
@@ -64,9 +60,58 @@ The skill auto-detects coverage provider state per test project and selects the 
 
 No pre-existing runsettings files or manually installed tools required.
 
-## Workflow
+## Targeted Method, Class, or File Workflow
 
-> **MANDATORY: deliver the final assistant response with the CRAP/risk-hotspot summary BEFORE any optional work.** As soon as `Compute-CrapScores.ps1` and `Extract-MethodCoverage.ps1` return data, your **next** assistant response must contain the user-facing analysis (CRAP table, blocking methods, recommendations). Do not run ReportGenerator (Phase 5), do not install global tools, and do not start any heavy parallel work before that response is delivered. The user is judged on the final assistant message, not on side-effect files.
+Use this branch when the user names an exact method, class, or source file. Locate or collect
+Cobertura XML using the setup and provider rules below, then stop before the project-wide analysis
+and report phases.
+
+Run the bundled method extractor over all methods:
+
+```powershell
+$allMethods = @(
+    & "<skill-directory>/scripts/Extract-MethodCoverage.ps1" `
+        -CoberturaPath @(<all COBERTURA file paths as array>) `
+        -Filter all |
+        ConvertFrom-Json
+)
+
+$targetKind = "<method|class|file>"
+$target = "<exact user-provided target>"
+$normalizedTarget = $target.Replace('\', '/')
+$targetRows = switch ($targetKind) {
+    "method" { @($allMethods | Where-Object Method -eq $target) }
+    "class"  { @($allMethods | Where-Object Class -eq $target) }
+    "file"   { @($allMethods | Where-Object { $_.File.Replace('\', '/') -eq $normalizedTarget }) }
+}
+
+$result = @($targetRows | ForEach-Object {
+    $coverage = [double]$_.LineCoverage / 100.0
+    $complexity = [double]$_.Complexity
+    $crap = [Math]::Round(
+        ($complexity * $complexity * [Math]::Pow(1.0 - $coverage, 3)) + $complexity,
+        2)
+    [PSCustomObject]@{
+        Class = $_.Class
+        Method = $_.Method
+        File = $_.File
+        Complexity = $_.Complexity
+        LineCoverage = $_.LineCoverage
+        CrapScore = $crap
+    }
+})
+$result | ConvertTo-Json
+```
+
+If no row matches, report that the exact target is absent from the supplied Cobertura data and do
+not invent a score. Otherwise report only the selected rows, the formula inputs, risk interpretation,
+and one concrete coverage or complexity recommendation. Do not emit the project-wide dashboard,
+all-below-threshold inventory, or optional ReportGenerator phase for a targeted request unless the
+user separately asks for them.
+
+## Project-wide Workflow
+
+> For a project-wide request, **MANDATORY: deliver the final assistant response with the CRAP/risk-hotspot summary BEFORE any optional work.** As soon as `Compute-CrapScores.ps1` and `Extract-MethodCoverage.ps1` return data, your **next** assistant response must contain the user-facing analysis (CRAP table, blocking methods, recommendations). Do not run ReportGenerator (Phase 5), do not install global tools, and do not start any heavy parallel work before that response is delivered. The user is judged on the final assistant message, not on side-effect files.
 >
 > If a phase fails, times out, or budget is running low, skip remaining optional work and immediately return a partial summary containing: (1) what was found in the Cobertura XML, (2) any CRAP/risk-hotspot data already extracted, (3) which methods are blocking coverage, and (4) failures encountered.
 

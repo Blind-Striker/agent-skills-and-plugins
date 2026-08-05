@@ -420,7 +420,8 @@
   "deniz-dotnet-general/skill/coverage-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "invocation": "auto",
-    "description": "Project-wide code coverage and CRAP (Change Risk Anti-Patterns) score analysis for .NET projects. Calculates CRAP scores per method and surfaces risk hotspots — complex code with low coverage that is dangerous to modify. Use to diagnose why coverage is stuck or plateaued, identify what methods block improvement, or get project-wide coverage analysis with risk ranking. USE FOR: coverage stuck, coverage plateau, can't increase coverage, what's blocking coverage, coverage gap, CRAP scores, risk hotspots, where to add tests, coverage analysis, coverage report. DO NOT USE FOR: targeted single-method CRAP analysis (use crap-score); auditing test code for coverage-touching or other anti-patterns (use test-anti-patterns); writing tests; running tests (use run-tests). Requires or produces coverage (Cobertura) and CRAP metrics.\n",
+    "body": "patch",
+    "description": "Analyzes .NET Cobertura coverage with per-method CRAP scores. Use for project-wide coverage plateaus, risk hotspots, and where-to-test-next prioritization, or for a targeted CRAP calculation on an exact method, class, or source file. Project-wide requests rank complex, under-covered members; targeted requests filter existing coverage rows and report only the requested scope. DO NOT USE FOR: auditing test-code anti-patterns, writing tests, or running tests without coverage/CRAP context.\n",
     "claude": {
       "artifacts": [
         "skill"

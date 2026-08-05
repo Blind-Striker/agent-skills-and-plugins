@@ -28,6 +28,12 @@
       "SKILL.md": "8d1007cfde8104ca1c991fdddd76727892a4ac38"
     }
   },
+  "deniz-dotnet-general/coverage-analysis": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
+    "files": {
+      "SKILL.md": "58ec55788b80b450b2ab5255c2516a07b8ade2ab"
+    }
+  },
   "deniz-dotnet-general/eval-performance": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance",
     "files": {

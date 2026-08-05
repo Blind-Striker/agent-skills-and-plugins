@@ -151,7 +151,9 @@ items:
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
     body: patch # dead redirects dropped; qualitative audit handoff and extension lookup stay bare
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
-    invocation: auto # the module's single CRAP/coverage home (Cobertura-based); the other two CRAP surfaces are excluded below
+    invocation: auto # the module's single CRAP/coverage home (Cobertura-based) — including the
+    # targeted method/class/file job it absorbed from the excluded crap-score
+    body: patch # adds a bounded targeted branch using the existing all-method coverage extractor
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
     invocation: auto # report-only scan; feeds the two mutating stages below
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
