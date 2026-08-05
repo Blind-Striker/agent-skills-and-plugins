@@ -126,8 +126,14 @@ items:
     invocation: auto # the operational core: platform/framework detection → exact dotnet test syntax. Reaches the two reference husks below by bare name
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax
     invocation: auto # reference husk: VSTest/MTP filter syntax incl. TUnit; upstream ships it "neither", we ship it model-reachable
+    frontmatter:
+      # upstream's loader list names migrate-vstest-to-mtp (excluded); this is the surviving truth
+      description: "Reference data for test filter syntax across all platform and framework combinations: VSTest --filter expressions, MTP filters for MSTest/NUnit/xUnit v3/TUnit, and VSTest-to-MTP filter translation. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need filter syntax."
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/platform-detection
     invocation: auto # reference husk: VSTest-vs-MTP + framework detection
+    frontmatter:
+      # same reason as filter-syntax
+      description: "Reference data for detecting the test platform (VSTest vs Microsoft.Testing.Platform) and test framework (MSTest, xUnit, NUnit, TUnit) from project files. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need detection logic."
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions
     invocation: auto # reference husk: per-language lookup tables for the audit family (incl. TUnit at this pin — see the dotnet.md extension)
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload

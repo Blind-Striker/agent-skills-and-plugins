@@ -1012,7 +1012,7 @@
   "deniz-dotnet-general/skill/filter-syntax": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax",
     "invocation": "auto",
-    "description": "Reference data for test filter syntax across all platform and framework combinations: VSTest --filter expressions, MTP filters for MSTest/NUnit/xUnit v3/TUnit, and VSTest-to-MTP filter translation. DO NOT USE directly — loaded by run-tests, mtp-hot-reload, and migrate-vstest-to-mtp when they need filter syntax.",
+    "description": "Reference data for test filter syntax across all platform and framework combinations: VSTest --filter expressions, MTP filters for MSTest/NUnit/xUnit v3/TUnit, and VSTest-to-MTP filter translation. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need filter syntax.",
     "claude": {
       "artifacts": [
         "skill"
@@ -1571,7 +1571,7 @@
   "deniz-dotnet-general/skill/platform-detection": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/platform-detection",
     "invocation": "auto",
-    "description": "Reference data for detecting the test platform (VSTest vs Microsoft.Testing.Platform) and test framework (MSTest, xUnit, NUnit, TUnit) from project files. DO NOT USE directly — loaded by run-tests, mtp-hot-reload, and migrate-vstest-to-mtp when they need detection logic.",
+    "description": "Reference data for detecting the test platform (VSTest vs Microsoft.Testing.Platform) and test framework (MSTest, xUnit, NUnit, TUnit) from project files. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need detection logic.",
     "claude": {
       "artifacts": [
         "skill"

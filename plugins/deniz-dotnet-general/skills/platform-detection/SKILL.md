@@ -2,8 +2,8 @@
 name: platform-detection
 description: Reference data for detecting the test platform (VSTest vs
   Microsoft.Testing.Platform) and test framework (MSTest, xUnit, NUnit, TUnit)
-  from project files. DO NOT USE directly — loaded by run-tests, mtp-hot-reload,
-  and migrate-vstest-to-mtp when they need detection logic.
+  from project files. DO NOT USE directly — loaded by run-tests and
+  mtp-hot-reload when they need detection logic.
 license: MIT
 user-invocable: false
 ---
