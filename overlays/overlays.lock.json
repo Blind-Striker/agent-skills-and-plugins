@@ -58,6 +58,12 @@
       "SKILL.md": "300cebaf17c2ba099233169fb7ba17731c66ebab"
     }
   },
+  "deniz-dotnet-general/test-gap-analysis": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
+    "files": {
+      "SKILL.md": "973a20dd33acb74a45ad6e8ab3d3009f93717f4d"
+    }
+  },
   "deniz-dotnet-general/testcontainers-integration-tests": {
     "source": "dotnet-skills/skills/testcontainers",
     "files": {

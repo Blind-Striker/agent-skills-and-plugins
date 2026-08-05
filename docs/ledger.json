@@ -1911,13 +1911,21 @@
   "deniz-dotnet-general/skill/test-gap-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "invocation": "auto",
-    "description": "Performs pseudo-mutation analysis on production code in any language to find gaps in existing tests. Use when the user asks to find weak or shallow tests, discover untested edge cases, or check whether tests would catch a bug — e.g. \"would my tests catch it if someone changed the code\", \"would a subtle logic or boundary change slip past the current tests\", \"are my tests strong enough to catch a subtle bug\". Evaluates test effectiveness through mutation-style reasoning: analyzes mutation points (boundaries, boolean flips, null returns, exception removal, arithmetic changes) and checks whether tests would detect each. Polyglot: .NET, Python, TS/JS, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell, C++. DO NOT USE FOR: writing new tests (use code-testing-agent, or writing-mstest-tests for MSTest), detecting anti-patterns (use test-anti-patterns), measuring assertion diversity (use assertion-quality), or running actual mutation testing tools (Stryker, mutmut, PIT, cargo-mutants).",
+    "body": "patch",
+    "dependsOn": [
+      "test-analysis-extensions",
+      "test-anti-patterns"
+    ],
+    "description": "Performs pseudo-mutation analysis on production code in any language to find gaps in existing tests. Use when the user asks to find weak or shallow tests, discover untested edge cases, or check whether tests would catch a bug — for example, whether a boundary, boolean, null, exception, or arithmetic change would slip through. Confirms candidate survivors by applying them and running the covering tests when execution is available. Polyglot: .NET, Python, TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell, and C++. DO NOT USE FOR: writing new tests; pragmatic anti-pattern or qualitative assertion-depth audits; quantitative assertion-diversity metrics; or running an actual mutation-testing framework.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:test-analysis-extensions",
+          "deniz-dotnet-general:test-anti-patterns"
+        ],
         "pointer": []
       },
       "flags": {
@@ -1929,7 +1937,10 @@
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "test-analysis-extensions",
+          "test-anti-patterns"
+        ],
         "pointer": []
       },
       "dropped": [

@@ -151,6 +151,8 @@ items:
     depends_on: [run-tests, test-analysis-extensions]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
+    body: patch # dead redirects dropped; qualitative audit handoff and extension-table edges declared
+    depends_on: [test-analysis-extensions, test-anti-patterns]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
     invocation: auto # the module's single CRAP/coverage home (Cobertura-based); the other two CRAP surfaces are excluded below
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies

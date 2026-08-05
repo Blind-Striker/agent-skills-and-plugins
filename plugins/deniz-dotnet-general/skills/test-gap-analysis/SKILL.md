@@ -1,19 +1,15 @@
 ---
 name: test-gap-analysis
-description: 'Performs pseudo-mutation analysis on production code in any
+description: "Performs pseudo-mutation analysis on production code in any
   language to find gaps in existing tests. Use when the user asks to find weak
   or shallow tests, discover untested edge cases, or check whether tests would
-  catch a bug — e.g. "would my tests catch it if someone changed the code",
-  "would a subtle logic or boundary change slip past the current tests", "are my
-  tests strong enough to catch a subtle bug". Evaluates test effectiveness
-  through mutation-style reasoning: analyzes mutation points (boundaries,
-  boolean flips, null returns, exception removal, arithmetic changes) and checks
-  whether tests would detect each. Polyglot: .NET, Python, TS/JS, Java, Go,
-  Ruby, Rust, Swift, Kotlin, PowerShell, C++. DO NOT USE FOR: writing new tests
-  (use code-testing-agent, or writing-mstest-tests for MSTest), detecting
-  anti-patterns (use test-anti-patterns), measuring assertion diversity (use
-  assertion-quality), or running actual mutation testing tools (Stryker, mutmut,
-  PIT, cargo-mutants).'
+  catch a bug — for example, whether a boundary, boolean, null, exception, or
+  arithmetic change would slip through. Confirms candidate survivors by applying
+  them and running the covering tests when execution is available. Polyglot:
+  .NET, Python, TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin,
+  PowerShell, and C++. DO NOT USE FOR: writing new tests; pragmatic anti-pattern
+  or qualitative assertion-depth audits; quantitative assertion-diversity
+  metrics; or running an actual mutation-testing framework."
 license: MIT
 user-invocable: false
 ---
@@ -22,7 +18,7 @@ user-invocable: false
 
 Analyze production code in any supported language by reasoning about hypothetical mutations, then confirming them against the real test suite. This reveals blind spots where tests pass but would continue to pass even if the code were broken.
 
-> **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`). The extension file helps you find test files, recognize framework-specific assertion APIs, and identify language-specific null/None/nil patterns and error-handling idioms that map to the mutation catalog below.
+> **Language-specific guidance**: Call the `deniz-dotnet-general:test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`). The extension file helps you find test files, recognize framework-specific assertion APIs, and identify language-specific null/None/nil patterns and error-handling idioms that map to the mutation catalog below.
 
 ## Why Pseudo-Mutation Matters
 
@@ -46,13 +42,13 @@ This skill uses **static pseudo-mutation** to find mutation candidates at the sp
 - User asks for mutation testing or mutation analysis
 - User asks "where are my tests blind?"
 - User wants to prioritize which tests to strengthen
-- The `code-testing-generator` agent (or any test-generation workflow) calls this skill as a pre-completion self-review step on freshly generated tests, before declaring the run finished
+- Any test-generation workflow can call this skill as a pre-completion self-review step on freshly generated tests
 
 ## When Not to Use
 
-- User wants to write new tests from scratch (use `code-testing-agent` for any language, or `writing-mstest-tests` for MSTest specifically)
-- User wants to detect test anti-patterns like flakiness or poor naming (use `test-anti-patterns`)
-- User wants to measure assertion variety (use `assertion-quality`)
+- User wants to write new tests from scratch (out of scope)
+- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `deniz-dotnet-general:test-anti-patterns` skill)
+- User wants quantitative assertion-diversity metrics (not provided by the curated set)
 - User wants to run an actual mutation testing framework (Stryker for .NET/JS/TS, mutmut for Python, PIT for Java, go-mutesting for Go, cargo-mutants for Rust, mutant for Ruby) — help them directly with the tool
 - User only wants code coverage numbers (out of scope)
 
@@ -249,6 +245,6 @@ Present the analysis in this structure:
 | Recommending a new test for every survived mutation | Multiple survived mutations in the same method often share a single missing test — recommend one test that kills several |
 | Ignoring production context | A survived mutation in `ToString()` / `__repr__` / `toString()` formatting is less important than one in `CalculateTotal()` — prioritize by business risk |
 | Claiming 100% kill rate is required | Some mutations in low-risk code are acceptable to leave — acknowledge this in the report |
-| Not considering integration with other skills | If gaps are found, mention that `code-testing-agent` (any language) or `writing-mstest-tests` (MSTest-specific) can help write the missing tests, and `test-anti-patterns` can audit existing test quality |
+| Not considering integration with other skills | If gaps are found, mention that `test-anti-patterns` can audit existing test quality |
 | Forgetting Go's error idiom | Removing `if err != nil { return err }` is a valid mutation target only when the function actually does something else with `err` (e.g., wrap, log, branch). Bare passthroughs in idiomatic Go are not meaningful gaps. |
 | Forgetting Rust's `?` operator | `?` propagates `Err`/`None` short-circuits. Mutating `expr?` → `expr.unwrap()` panics instead of returning — flag as Exception/Panic mutation when tests should observe the propagated error. |
