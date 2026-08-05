@@ -11,6 +11,7 @@ description: >
   without fixing them, C# 7.3 or earlier projects. INVOKES:
   Get-NullableReadiness.ps1 scanner script.
 license: MIT
+disable-model-invocation: true
 ---
 
 # Nullable Reference Migration

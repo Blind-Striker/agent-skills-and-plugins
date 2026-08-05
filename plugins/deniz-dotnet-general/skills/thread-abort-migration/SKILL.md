@@ -13,6 +13,7 @@ description: >
   need no migration. Also not for projects staying on .NET Framework, or
   Thread.Abort usage inside third-party libraries you do not control.
 license: MIT
+disable-model-invocation: true
 ---
 
 # Thread.Abort Migration

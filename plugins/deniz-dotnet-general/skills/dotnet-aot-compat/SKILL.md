@@ -9,6 +9,7 @@ description: >
   binaries, optimizing binary size, replacing reflection-heavy libraries with
   alternatives. INVOKES: no tools — pure knowledge skill.
 license: MIT
+disable-model-invocation: true
 ---
 
 # dotnet-aot-compat

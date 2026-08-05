@@ -7,20 +7,20 @@
 # dotnet-skills are NOT listed: they are candidates of their own manifests, not
 # rejects of this one.
 #
-# Invocation rule applied module-wide (curator's call): honour the upstream
-# fire-design. These bodies are description-driven model knowledge (none carries
-# disable-model-invocation), so knowledge and report-only audits are `auto`, and
-# repo/system-mutating ceremonies are `both` — the model may load them when the user
-# asks, and the curator may type them by name. `manual` is unused: nothing here is a
-# coercion that needs taking away. The one agent kept is a genuine specialist.
+# Invocation rule applied module-wide (curator's call): knowledge and report-only
+# audits are `auto` — their descriptions honestly name the work, so model selection
+# is permitted. Repo/system-mutating ceremonies are `manual`:
+# the curator starts them by name, the model never does. `both` is reserved for
+# report-only items the curator also types by habit (slopwatch, the perf audit) and
+# the one repair flow the model should reach on its exact error (dotnet-devcert-trust).
+# The one agent kept is a genuine specialist.
 #
-# Reference posture: MS bodies point at sibling skills by bare name ("see the
-# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state, and the
-# names survive identically into both trees, so the edges work unpatched. The
-# reference husks (filter-syntax, platform-detection, test-analysis-extensions) are
-# taken `auto`, which is the grammar's answer to upstream's user-invocable:false +
-# disable-model-invocation:true "neither" class: model loads them by name, users
-# never see them.
+# Reference posture: untouched MS bodies point at sibling skills by bare name ("see the
+# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state. Load-bearing
+# edges from patched bodies are namespaced and declared (depends_on). The reference husks
+# (filter-syntax, platform-detection, test-analysis-extensions) are taken `auto`, which is
+# the grammar's answer to upstream's user-invocable:false + disable-model-invocation:true
+# "neither" class: model loads them by name, users never see them.
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
@@ -71,7 +71,7 @@ items:
   - source: dotnet-skills/skills/local-tools
     invocation: auto # dotnet-tools.json manifest discipline; pairs with project-structure
   - source: dotnet-agent-skills/plugins/dotnet-nuget/skills/convert-to-cpm
-    invocation: both # one-shot conversion ceremony — typed or model-reached on "convert to CPM"
+    invocation: manual # one-shot repo-mutating conversion ceremony — the curator types it
   # The MSBuild estate is taken whole as knowledge (curator's call): Microsoft's own
   # MSBuild-team content, symptom-triggered descriptions, no same-job rival in either upstream.
   # Router/review agents are excluded — their value is orchestration glue that neither harness
@@ -142,9 +142,9 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
     invocation: auto # report-only scan; feeds the two mutating stages below
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
-    invocation: both # writes production abstractions + DI registrations — a deliberate, typable ceremony
+    invocation: manual # writes production abstractions + DI registrations — typed deliberately, never model-fired
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
-    invocation: both # codemod across a bounded scope — deliberate ceremony
+    invocation: manual # codemod across a bounded scope — typed deliberately
   - source: dotnet-skills/skills/snapshot-testing
     invocation: auto # Verify snapshot knowledge
   - source: dotnet-skills/skills/testcontainers
@@ -170,20 +170,20 @@ items:
     # structurally (Claude) and wall-paste its body (OpenCode). `as: agent` was considered and
     # rejected: a 43KB full-file overlay is the wrong price when posture alone contains the risk.
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect
-    invocation: both # production artifact-collection ceremony — the curator decides when
+    invocation: manual # production artifact-collection ceremony — the curator decides when
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dump-collect
-    invocation: both # collection-only counterpart; deliberately does not analyze
+    invocation: manual # collection-only counterpart; the curator decides when
   - source: dotnet-skills/skills/ilspy-decompile
     invocation: auto # small decompilation knowledge; its allowed-tools key drops in OpenCode (reported, harmless)
   - source: dotnet-skills/skills/dotnet-devcert-trust
     invocation: both # Linux/WSL cert repair — system-mutating, so the curator may type it; model may reach it on the exact error
   # --- modernization (all one-shot ceremonies) ---
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references
-    invocation: both # NRT adoption ceremony with readiness script
+    invocation: manual # NRT adoption ceremony with readiness script — typed
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/thread-abort-migration
-    invocation: both # Thread.Abort → cooperative cancellation
+    invocation: manual # Thread.Abort → cooperative cancellation — typed
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat
-    invocation: both # trim/AOT warning resolution; its process coercion is in-ceremony discipline, left as shipped
+    invocation: manual # trim/AOT ceremony — typed; its in-ceremony process discipline left as shipped
 
   # ======== exclusions — every one a considered reject, reason beside it ========
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/grade-tests

@@ -6,6 +6,7 @@ description: Guide developers through capturing diagnostic artifacts to diagnose
   trade-offs across different environments (Windows/Linux, .NET Framework/modern
   .NET, container/non-container).
 license: MIT
+disable-model-invocation: true
 ---
 
 # .NET Trace Collect

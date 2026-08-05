@@ -14,6 +14,7 @@ description: >
   projects (must migrate to PackageReference first) or repositories that already
   have CPM fully enabled.
 license: MIT
+disable-model-invocation: true
 ---
 
 # Convert to Central Package Management

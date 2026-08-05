@@ -7,6 +7,7 @@ description: "Configure and collect crash dumps for modern .NET applications.
   or debugging dumps, post-mortem investigation with lldb/windbg/dotnet-dump
   analyze, profiling or tracing, or for .NET Framework processes."
 license: MIT
+disable-model-invocation: true
 ---
 
 # .NET Crash Dump Collection

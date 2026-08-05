@@ -16,6 +16,7 @@ description: >
   created or already registered in DI (use migrate-static-to-wrapper), general
   interface design.
 license: MIT
+disable-model-invocation: true
 ---
 
 # Generate Testability Wrappers

@@ -14,6 +14,7 @@ description: >
   brand-new wrapper interface that does not exist yet (use
   generate-testability-wrappers), migrating between test frameworks.
 license: MIT
+disable-model-invocation: true
 ---
 
 # Migrate Static to Wrapper
