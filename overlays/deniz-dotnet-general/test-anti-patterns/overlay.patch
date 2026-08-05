@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 300ceba..d114fd1 100644
+index 300ceba..53a2273 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,53 +1,47 @@
+@@ -1,26 +1,21 @@
  ---
  name: test-anti-patterns
  description: >
@@ -38,11 +38,8 @@ index 300ceba..d114fd1 100644
  
  Quick, pragmatic analysis of test code in any supported language for anti-patterns and quality issues that undermine test reliability, maintainability, and diagnostic value.
  
--> **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
-+> **Language-specific guidance**: Call the `dotnet-test:test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
- 
- ## When to Use
- 
+ > **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
+@@ -30,24 +25,23 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
  - User asks to review test quality or find test smells
  - User wants to know why tests are flaky or unreliable
  - User asks "are my tests good?" or "what's wrong with my tests?"
@@ -58,7 +55,7 @@ index 300ceba..d114fd1 100644
 -- User asks to convert MSTest `DynamicData` from `IEnumerable<object[]>` to `ValueTuple` (use `writing-mstest-tests`)
 -- User wants to run or execute tests (use `run-tests` for .NET)
 +- User asks to fix or modernize test code (this skill reports; it does not edit tests)
-+- User wants to run or execute tests (use the `dotnet-test:run-tests` skill for .NET)
++- User wants to run or execute tests (use the `run-tests` skill for .NET)
  - User wants to migrate between test frameworks or versions (use migration skills)
  - User wants to measure code coverage (out of scope)
 -- User wants a deep formal test smell audit with academic taxonomy and extended catalog (use `test-smell-detection`)

@@ -18,7 +18,7 @@ user-invocable: false
 
 Analyze production code in any supported language by reasoning about hypothetical mutations, then confirming them against the real test suite. This reveals blind spots where tests pass but would continue to pass even if the code were broken.
 
-> **Language-specific guidance**: Call the `deniz-dotnet-general:test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`). The extension file helps you find test files, recognize framework-specific assertion APIs, and identify language-specific null/None/nil patterns and error-handling idioms that map to the mutation catalog below.
+> **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`). The extension file helps you find test files, recognize framework-specific assertion APIs, and identify language-specific null/None/nil patterns and error-handling idioms that map to the mutation catalog below.
 
 ## Why Pseudo-Mutation Matters
 
@@ -47,7 +47,7 @@ This skill uses **static pseudo-mutation** to find mutation candidates at the sp
 ## When Not to Use
 
 - User wants to write new tests from scratch (out of scope)
-- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `deniz-dotnet-general:test-anti-patterns` skill)
+- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `test-anti-patterns` skill)
 - User wants quantitative assertion-diversity metrics (not provided by the curated set)
 - User wants to run an actual mutation testing framework (Stryker for .NET/JS/TS, mutmut for Python, PIT for Java, go-mutesting for Go, cargo-mutants for Rust, mutant for Ruby) — help them directly with the tool
 - User only wants code coverage numbers (out of scope)

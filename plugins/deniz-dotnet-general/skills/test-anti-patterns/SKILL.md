@@ -19,7 +19,7 @@ user-invocable: false
 
 Quick, pragmatic analysis of test code in any supported language for anti-patterns and quality issues that undermine test reliability, maintainability, and diagnostic value.
 
-> **Language-specific guidance**: Call the `deniz-dotnet-general:test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
+> **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
 
 ## When to Use
 
@@ -34,7 +34,7 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
 - User wants to write new tests from scratch (out of scope — this skill audits existing tests)
 - User wants direct implementation fixes rather than a diagnostic review (use the relevant write/edit skill)
 - User asks to fix or modernize test code (this skill reports; it does not edit tests)
-- User wants to run or execute tests (use the `deniz-dotnet-general:run-tests` skill for .NET)
+- User wants to run or execute tests (use the `run-tests` skill for .NET)
 - User wants to migrate between test frameworks or versions (use migration skills)
 - User wants to measure code coverage (out of scope)
 - User requires a full academic smell catalog or citable taxonomy (not provided by this pragmatic audit)

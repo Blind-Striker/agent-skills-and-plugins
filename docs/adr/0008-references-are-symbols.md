@@ -46,8 +46,8 @@ carries the edge kind:
 | `/ns:name` | user-pointer | `manual` or `both` |
 
 Each emitter localizes both forms into its own address space. The convention binds overlays,
-patches, and original skills; untouched upstream bare prose remains candidate-tier until curation
-touches it.
+patches, and original skills; bare prose remains candidate-tier unless an author deliberately
+changes it to a namespaced fact. Patching a body for another repair is not itself a promotion.
 
 **3. `validate` links each emitted address space.** For own-plugin facts, every target must exist and
 be reachable by the audience encoded in the spelling. Referenced parked files and admitted relative
@@ -99,8 +99,9 @@ updates to flow, unlike content an overlay owns.
 - The linker proves resolvability and audience reachability, not whether a model will traverse an
   edge or follow its discipline. Runtime behavior is measured under the
   [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
-- Candidate prose remains a deliberate blind spot. Curation contact promotes it into the convention
-  and forces incoherent posture or naming decisions at that boundary.
+- Candidate prose remains a deliberate blind spot. A body patch does not promote it merely by
+  contact: its corpus convention persists until an author deliberately changes the spelling into a
+  model-edge fact and declares it.
 - The path tier trades silence for narrowly scoped findings. It avoids treating all illustrative
   upstream paths as dependencies while still catching breakage caused by rename, omission,
   exclusion, or conversion.

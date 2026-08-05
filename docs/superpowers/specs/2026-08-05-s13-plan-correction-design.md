@@ -134,20 +134,11 @@ found by the independent reviews:
 - Keep the already planned removals and rewrites in `run-tests`, `mtp-hot-reload`,
   `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, and the extension skill.
 
-Every touched body promotes the first live reference to each taken target. The corrected manifest
-shapes are therefore at least:
-
-| Source item | `depends_on` after correction |
-|---|---|
-| `run-tests` | `filter-syntax`, `mtp-hot-reload`, `platform-detection` |
-| `mtp-hot-reload` | `filter-syntax`, `platform-detection` |
-| `test-anti-patterns` | `run-tests`, `test-analysis-extensions` |
-| `test-gap-analysis` | `test-analysis-extensions`, `test-anti-patterns` |
-| `dotnet-webapi` | `database-performance`, `efcore-patterns` |
-
-`snapshot-testing` gains no `depends_on`: its patch removes a dead handoff and adds no live artifact
-reference. The plan must re-derive this table from the final planned text before execution; it is
-not authority for edges introduced by later wording changes.
+Patches preserve each corpus's reference convention. Touching a body to repair other content does
+not promote bare sibling names to formal facts or add `depends_on`. The planned .NET patches for
+`run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, and `dotnet-webapi` keep
+their surviving sibling references bare and have no dependencies. `snapshot-testing` likewise gains
+no `depends_on`: its patch removes a dead handoff and adds no live artifact reference.
 
 ### Header and author wording
 
@@ -178,7 +169,7 @@ and invocation counts from the final manifest and compares the ledger structural
 start.
 
 The expected semantic delta is expressed as item identities rather than totals: the final cut list,
-the retained ceremony-flip list, the new patch-mode item names, the exact fact/dependency edges, and
+the retained ceremony-flip list, the new patch-mode item names, the planned reference spelling, and
 the description-bearing item names. The gate rejects every unrelated ledger entry change.
 
 ## Wave B Corrections
@@ -241,7 +232,7 @@ The corrected documents are ready for a new reviewer pass when all of these hold
    block edit.
 2. A current-tree reference sweep demonstrates that the corrected Wave A task list covers every
    true excluded-artifact hit and records false positives separately.
-3. Invocation, exclusion, bundle, warning, patch-mode, edge, and ledger expectations reconcile.
+3. Invocation, exclusion, bundle, warning, patch-mode, reference-posture, and ledger expectations reconcile.
 4. Wave B tests cover every behavior branch and link spelling claimed by the implementation sketch.
 5. No document claims full assertion metrics, the full academic smell catalog, coercion-free auto
    descriptions, or a compiling-snippet guarantee that the plans do not implement.

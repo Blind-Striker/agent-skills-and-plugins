@@ -1479,20 +1479,13 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload",
     "invocation": "auto",
     "body": "patch",
-    "dependsOn": [
-      "filter-syntax",
-      "platform-detection"
-    ],
     "description": "Suggests using Microsoft Testing Platform (MTP) hot reload to iterate fixes on failing tests without rebuilding. Use when user says \"hot reload tests\", \"iterate on test fix\", \"run tests without rebuilding\", \"speed up test loop\", \"fix test faster\", or needs to set up MTP hot reload to rapidly iterate on test failures. Covers setup (NuGet package, environment variable, launchSettings.json) and the iterative workflow for fixing tests. DO NOT USE FOR: writing test code, diagnosing test failures, running tests normally with dotnet test (use run-tests), applying test filters, producing TRX reports, CI/CD pipeline configuration, or Visual Studio Test Explorer hot reload (which is a different feature).\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [
-          "deniz-dotnet-general:filter-syntax",
-          "deniz-dotnet-general:platform-detection"
-        ],
+        "model": [],
         "pointer": []
       },
       "flags": {
@@ -1504,10 +1497,7 @@
         "skill"
       ],
       "edges": {
-        "model": [
-          "filter-syntax",
-          "platform-detection"
-        ],
+        "model": [],
         "pointer": []
       },
       "dropped": [
@@ -1705,22 +1695,13 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
     "invocation": "auto",
     "body": "patch",
-    "dependsOn": [
-      "filter-syntax",
-      "mtp-hot-reload",
-      "platform-detection"
-    ],
     "description": "Recommend or run the exact `dotnet test` command. ALWAYS use when the user asks to run, filter, or troubleshoot .NET tests or wants the precise command, flags, or argument order — the right syntax depends on the test platform (VSTest vs Microsoft.Testing.Platform) and SDK version and is easy to get wrong from memory. USE FOR: running all tests or a subset (a specific class, category, or trait) via filters; a single framework in a multi-TFM project (`--framework`); TRX reports; crash or hang dumps; whether MTP args need the `--` separator (SDK 8/9) or pass directly (SDK 10+); diagnosing why `dotnet test` fails or uses wrong argument syntax. Detects the platform (VSTest vs MTP) and framework (MSTest/xUnit/NUnit/TUnit), then picks the matching command and filter flag (--filter, --filter-class, --filter-trait, --filter-query, --treenode-filter). DO NOT USE FOR: writing test code; iterating on failing tests without rebuilding (use mtp-hot-reload), CI/CD config, or debugging test logic.\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [
-          "deniz-dotnet-general:filter-syntax",
-          "deniz-dotnet-general:mtp-hot-reload",
-          "deniz-dotnet-general:platform-detection"
-        ],
+        "model": [],
         "pointer": []
       },
       "flags": {
@@ -1732,11 +1713,7 @@
         "skill"
       ],
       "edges": {
-        "model": [
-          "filter-syntax",
-          "mtp-hot-reload",
-          "platform-detection"
-        ],
+        "model": [],
         "pointer": []
       },
       "dropped": [
@@ -1871,20 +1848,13 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
     "invocation": "auto",
     "body": "patch",
-    "dependsOn": [
-      "run-tests",
-      "test-analysis-extensions"
-    ],
     "description": "Audits an existing test file or suite in any language for pragmatic anti-patterns and quality issues, producing a severity-ranked report. Use when asked to audit or review tests, find false-confidence tests, investigate flakiness or order dependence, identify duplicated tests or magic values, or judge whether assertions are absent, trivial-only, or repeatedly verify only one facet of behavior. Polyglot: .NET, Python, TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell, and C++. DO NOT USE FOR: writing or running tests; coverage/CRAP metrics; full assertion-diversity metrics or an academic smell-catalog audit; fixing or rewriting the tests it audits (report-only).\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [
-          "deniz-dotnet-general:run-tests",
-          "deniz-dotnet-general:test-analysis-extensions"
-        ],
+        "model": [],
         "pointer": []
       },
       "flags": {
@@ -1896,10 +1866,7 @@
         "skill"
       ],
       "edges": {
-        "model": [
-          "run-tests",
-          "test-analysis-extensions"
-        ],
+        "model": [],
         "pointer": []
       },
       "dropped": [
@@ -1912,20 +1879,13 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "invocation": "auto",
     "body": "patch",
-    "dependsOn": [
-      "test-analysis-extensions",
-      "test-anti-patterns"
-    ],
     "description": "Performs pseudo-mutation analysis on production code in any language to find gaps in existing tests. Use when the user asks to find weak or shallow tests, discover untested edge cases, or check whether tests would catch a bug — for example, whether a boundary, boolean, null, exception, or arithmetic change would slip through. Confirms candidate survivors by applying them and running the covering tests when execution is available. Polyglot: .NET, Python, TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell, and C++. DO NOT USE FOR: writing new tests; pragmatic anti-pattern or qualitative assertion-depth audits; quantitative assertion-diversity metrics; or running an actual mutation-testing framework.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [
-          "deniz-dotnet-general:test-analysis-extensions",
-          "deniz-dotnet-general:test-anti-patterns"
-        ],
+        "model": [],
         "pointer": []
       },
       "flags": {
@@ -1937,10 +1897,7 @@
         "skill"
       ],
       "edges": {
-        "model": [
-          "test-analysis-extensions",
-          "test-anti-patterns"
-        ],
+        "model": [],
         "pointer": []
       },
       "dropped": [

@@ -4,7 +4,7 @@ Date: 2026-08-05
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Land the Wave-A rulings from `docs/superpowers/specs/2026-08-04-t-items.md`: the approved cuts, the completed testcontainers patch, redirect repair with edge promotion, ceremony flips, the corrected header, and the ROADMAP additions.
+**Goal:** Land the Wave-A rulings from `docs/superpowers/specs/2026-08-04-t-items.md`: the approved cuts, the completed testcontainers patch, redirect repair while preserving bare references, ceremony flips, the corrected header, and the ROADMAP additions.
 
 **Architecture:** Everything is curation-layer work: `curation/deniz-dotnet-general.yaml`, overlay patches under `overlays/deniz-dotnet-general/`, and `docs/ROADMAP.md`. `plugins/` and `opencode/` are build output — never hand-edited; every task that changes curation or overlays regenerates them with `npm run build`.
 
@@ -14,9 +14,9 @@ Date: 2026-08-05
 
 - Record `git rev-parse HEAD` as `<wave-start>` before Task 1; all close-out diffs are relative to that commit.
 - Hard rules (AGENTS.md): no curator names, no dates in manifest comments/overlays; deliberate rejections stay in the manifest as `exclude: true` + reason.
-- A patch and its manifest edit (`body: patch`, `depends_on`) must land in the same commit — `validate` errors on a one-sided model edge.
+- A patch and its manifest `body: patch` edit must land in the same commit. Add `depends_on` only for a separately chosen namespaced model edge; patching a body does not create one.
 - Patch ceremony (extend/create): `npm run eject -- deniz-dotnet-general <name> --patch [--force]` lays a working copy in `overlays/deniz-dotnet-general/<name>/`; edit; re-run `npm run eject -- deniz-dotnet-general <name> --patch` to cut+stamp `overlay.patch`.
-- Neutral reference spelling in bodies: `dotnet-test:<name>` / `dotnet-skills:<name>` (nearest upstream plugin namespace). The build localizes per tree. Namespace the FIRST live mention of every taken target in each touched body and declare it in `depends_on`; later bare mentions are legal candidate-tier.
+- .NET upstream bodies preserve bare sibling skill names. Patching a body for another repair leaves those candidates bare and adds no `depends_on`; use a namespaced fact only when a separate curation decision requires it.
 - Anchor edits by exact physical strings, not line numbers. For folded YAML descriptions, replace the complete `description: >` block shown by the task; do not search for a whitespace-normalized sentence that is not contiguous upstream.
 - Gates after every task: `npm run build` then `npm run validate` → expect `0 error(s)`; warning set unchanged from the previous task unless the task says otherwise.
 - Commit output trees (`plugins/`, `opencode/`, `docs/ledger.json`, `.claude-plugin/marketplace.json`) together with the source edit that caused them — CI rejects stale output.
@@ -118,12 +118,13 @@ Replace the paragraph starting `# Invocation rule applied module-wide (curator's
 - [ ] **Step 3: Replace the reference-posture header paragraph** (starts `# Reference posture:`) with:
 
 ```yaml
-# Reference posture: untouched MS bodies point at sibling skills by bare name ("see the
-# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state. Load-bearing
-# edges from patched bodies are namespaced and declared (depends_on). The reference husks
-# (filter-syntax, platform-detection, test-analysis-extensions) are taken `auto`, which is
-# the grammar's answer to upstream's user-invocable:false + disable-model-invocation:true
-# "neither" class: model loads them by name, users never see them.
+# Reference posture: .NET upstream bodies point at sibling skills by bare name ("see the
+# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state. .NET's upstream
+# bare-reference style is preserved when a body is patched: touching a body does not create a
+# formal fact or `depends_on`. The reference husks (filter-syntax, platform-detection,
+# test-analysis-extensions) are taken `auto`, which is the grammar's answer to upstream's
+# user-invocable:false + disable-model-invocation:true "neither" class: model loads them by name,
+# users never see them.
 ```
 
 - [ ] **Step 4: Build, validate, inspect**
@@ -217,9 +218,9 @@ Apply these body replacements:
 |---|---|
 | `- User needs to write or generate test code (use ` `` `writing-mstest-tests` `` ` for MSTest, or general coding assistance for other frameworks)` | `- User needs to write or generate test code (out of scope — this skill runs tests)` |
 | `- User needs to migrate from VSTest to MTP (use ` `` `migrate-vstest-to-mtp` `` `)` | *(delete the whole line)* |
-| `- User wants to iterate on failing tests without rebuilding (use ` `` `mtp-hot-reload` `` `)` | ``- User wants to iterate on failing tests without rebuilding (use the `dotnet-test:mtp-hot-reload` skill)`` |
-| `see the ` `` `platform-detection` `` ` skill.` (the "For full detection logic" bullet) | ``see the `dotnet-test:platform-detection` skill.`` |
-| `See the ` `` `filter-syntax` `` ` skill for the complete filter syntax` (first mention only) | ``See the `dotnet-test:filter-syntax` skill for the complete filter syntax`` |
+| `- User wants to iterate on failing tests without rebuilding (use ` `` `mtp-hot-reload` `` `)` | ``- User wants to iterate on failing tests without rebuilding (use the `mtp-hot-reload` skill)`` |
+| `see the ` `` `platform-detection` `` ` skill.` (the "For full detection logic" bullet) | ``see the `platform-detection` skill.`` |
+| `See the ` `` `filter-syntax` `` ` skill for the complete filter syntax` (first mention only) | ``See the `filter-syntax` skill for the complete filter syntax`` |
 
 Leave every later bare `filter-syntax`/`platform-detection` mention untouched.
 
@@ -234,20 +235,19 @@ Expected: `Cut N patch lines -> overlays/deniz-dotnet-general/run-tests/overlay.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/run-tests
     invocation: auto # the operational core: platform/framework detection → exact dotnet test syntax
     body: patch # drops redirects to excluded items (code-testing-agent, writing-mstest-tests,
-    # migrate-vstest-to-mtp) and promotes every live target in the touched body
-    depends_on: [filter-syntax, mtp-hot-reload, platform-detection]
+    # migrate-vstest-to-mtp); retained sibling references preserve the upstream bare style
 ```
 
 - [ ] **Step 5: Build, validate, inspect**
 
 Run: `npm run build && npm run validate` → require `0 error(s)` and the same warning identities as the previous task.
-Check: `plugins/.../run-tests/SKILL.md` contains `deniz-dotnet-general:filter-syntax`, `deniz-dotnet-general:mtp-hot-reload`, and `deniz-dotnet-general:platform-detection`; `opencode/skills/run-tests/SKILL.md` contains the three bare output names and no `deniz-dotnet-general:` spelling; the ledger entry gains all three fact edges.
+Check: the emitted Claude and OpenCode `run-tests` skills retain bare `filter-syntax`, `mtp-hot-reload`, and `platform-detection` references, with no `deniz-dotnet-general:` spelling.
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add curation/deniz-dotnet-general.yaml overlays plugins opencode docs/ledger.json
-git commit -m "feat: run-tests drops dead redirects and declares its reference-table edges"
+git commit -m "feat: run-tests drops dead redirects and preserves bare sibling references"
 ```
 
 ---
@@ -264,9 +264,9 @@ git commit -m "feat: run-tests drops dead redirects and declares its reference-t
 
 | Old | New |
 |---|---|
-| `Follow the detection procedure in the ` `` `platform-detection` `` ` skill` | ``Follow the detection procedure in the `dotnet-test:platform-detection` skill`` |
+| `Follow the detection procedure in the ` `` `platform-detection` `` ` skill` | ``Follow the detection procedure in the `platform-detection` skill`` |
 | `If the project uses VSTest, inform the user that MTP hot reload is not available and suggest migrating to MTP first (see ` `` `migrate-vstest-to-mtp` `` `), or using Visual Studio's built-in Test Explorer hot reload feature instead.` | `If the project uses VSTest, inform the user that MTP hot reload is not available there and suggest Visual Studio's built-in Test Explorer hot reload feature instead.` |
-| `see the ` `` `filter-syntax` `` ` skill for full details.` | ``see the `dotnet-test:filter-syntax` skill for full details.`` |
+| `see the ` `` `filter-syntax` `` ` skill for full details.` | ``see the `filter-syntax` skill for full details.`` |
 
 - [ ] **Step 3:** `npm run eject -- deniz-dotnet-general mtp-hot-reload --patch`
 
@@ -275,8 +275,7 @@ git commit -m "feat: run-tests drops dead redirects and declares its reference-t
 ```yaml
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload
     invocation: auto # TUnit is MTP-native, so MTP iteration speed matters here
-    body: patch # drops the migrate-vstest-to-mtp handoff (excluded) and declares the husk edges
-    depends_on: [filter-syntax, platform-detection]
+    body: patch # drops the migrate-vstest-to-mtp handoff; retained sibling references stay bare
 ```
 
 - [ ] **Step 5:** Run `npm run build && npm run validate`; require `0 error(s)`, no new warning identity, and no `migrate-vstest` match under `plugins/deniz-dotnet-general/skills/mtp-hot-reload/`.
@@ -285,7 +284,7 @@ git commit -m "feat: run-tests drops dead redirects and declares its reference-t
 
 ```bash
 git add curation/deniz-dotnet-general.yaml overlays plugins opencode docs/ledger.json
-git commit -m "feat: mtp-hot-reload rewires its VSTest handoff and declares husk edges"
+git commit -m "feat: mtp-hot-reload rewires its VSTest handoff"
 ```
 
 ---
@@ -318,10 +317,10 @@ Body edits:
 
 | Old | New |
 |---|---|
-| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `dotnet-test:test-analysis-extensions` skill`` |
+| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `test-analysis-extensions` skill`` |
 | `- User wants to write new tests from scratch (use ` `` `code-testing-agent` `` ` for any language, or ` `` `writing-mstest-tests` `` ` for MSTest specifically)` | `- User wants to write new tests from scratch (out of scope — this skill audits existing tests)` |
 | `- User asks to fix swapped ` `` `Assert.AreEqual` `` ` argument order in MSTest (use ` `` `writing-mstest-tests` `` `)` and the following `DynamicData` line | Replace both lines with one: `- User asks to fix or modernize test code (this skill reports; it does not edit tests)` |
-| `- User wants to run or execute tests (use ` `` `run-tests` `` ` for .NET)` | ``- User wants to run or execute tests (use the `dotnet-test:run-tests` skill for .NET)`` |
+| `- User wants to run or execute tests (use ` `` `run-tests` `` ` for .NET)` | ``- User wants to run or execute tests (use the `run-tests` skill for .NET)`` |
 | `- User wants a deep formal test smell audit with academic taxonomy and extended catalog (use ` `` `test-smell-detection` `` `)` | `- User requires a full academic smell catalog or citable taxonomy (not provided by this pragmatic audit)` |
 | `For a deep mock audit in .NET, use ` `` `exp-mock-usage-analysis` `` `.` | *(delete this final sentence; keep the practical over-mocking detector)* |
 | `For a detailed duplication analysis in .NET, use ` `` `exp-test-maintainability` `` `.` | *(delete this sentence; keep the practical duplicate-test detector and its calibration note)* |
@@ -359,12 +358,11 @@ Leave the second bare `test-analysis-extensions` mention untouched.
 ```yaml
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns
     invocation: auto # the broad pragmatic audit, including qualitative assertion-depth review
-    body: patch # dead redirects dropped; practical assertion-depth checks added; every live body
-    # edge promoted
-    depends_on: [run-tests, test-analysis-extensions]
+    body: patch # dead redirects dropped; practical assertion-depth checks added; sibling references
+    # preserve the upstream bare style
 ```
 
-- [ ] **Step 5:** Run `npm run build && npm run validate`; require `0 error(s)` and no new warning identity. Confirm no `exp-mock-usage-analysis|exp-test-maintainability|assertion-quality|test-smell-detection|writing-mstest-tests|code-testing-agent` artifact reference remains under the emitted skill, and confirm the ledger records model edges to `run-tests` and `test-analysis-extensions`.
+- [ ] **Step 5:** Run `npm run build && npm run validate`; require `0 error(s)` and no new warning identity. Confirm no `exp-mock-usage-analysis|exp-test-maintainability|assertion-quality|test-smell-detection|writing-mstest-tests|code-testing-agent` artifact reference remains under the emitted skill.
 
 - [ ] **Step 6: Commit**
 
@@ -393,10 +391,10 @@ Body:
 
 | Old | New |
 |---|---|
-| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `dotnet-test:test-analysis-extensions` skill`` |
+| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `test-analysis-extensions` skill`` |
 | `- The ` `` `code-testing-generator` `` ` agent (or any test-generation workflow) calls this skill as a pre-completion self-review step on freshly generated tests, before declaring the run finished` | `- Any test-generation workflow can call this skill as a pre-completion self-review step on freshly generated tests` |
 | `- User wants to write new tests from scratch (use ` `` `code-testing-agent` `` ` for any language, or ` `` `writing-mstest-tests` `` ` for MSTest specifically)` | `- User wants to write new tests from scratch (out of scope)` |
-| `- User wants to detect test anti-patterns like flakiness or poor naming (use ` `` `test-anti-patterns` `` `)` | ``- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `dotnet-test:test-anti-patterns` skill)`` |
+| `- User wants to detect test anti-patterns like flakiness or poor naming (use ` `` `test-anti-patterns` `` `)` | ``- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `test-anti-patterns` skill)`` |
 | `- User wants to measure assertion variety (use ` `` `assertion-quality` `` `)` | `- User wants quantitative assertion-diversity metrics (not provided by the curated set)` |
 | `mention that ` `` `code-testing-agent` `` ` (any language) or ` `` `writing-mstest-tests` `` ` (MSTest-specific) can help write the missing tests, and ` `` `test-anti-patterns` `` ` can audit existing test quality` | `mention that ` `` `test-anti-patterns` `` ` can audit existing test quality` |
 
@@ -407,11 +405,10 @@ Body:
 ```yaml
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
-    body: patch # dead redirects dropped; qualitative audit handoff and extension-table edges declared
-    depends_on: [test-analysis-extensions, test-anti-patterns]
+    body: patch # dead redirects dropped; qualitative audit handoff and extension lookup stay bare
 ```
 
-- [ ] **Step 5:** Run `npm run build && npm run validate`; require `0 error(s)` and no new warning identity. Confirm the ledger records model edges to `test-analysis-extensions` and `test-anti-patterns`, and no excluded test-writing or assertion-metrics destination remains.
+- [ ] **Step 5:** Run `npm run build && npm run validate`; require `0 error(s)` and no new warning identity. Confirm no excluded test-writing or assertion-metrics destination remains.
 
 - [ ] **Step 6: Commit**
 
@@ -548,10 +545,10 @@ Body:
 
 | Old | New |
 |---|---|
-| `- EF Core data modeling or query optimization work; use ` `` `optimizing-ef-core-queries` `` `;` | `- EF Core data modeling or query optimization work; use ` `` `dotnet-skills:efcore-patterns` `` ` and ` `` `dotnet-skills:database-performance` `` `;` |
+| `- EF Core data modeling or query optimization work; use ` `` `optimizing-ef-core-queries` `` `;` | `- EF Core data modeling or query optimization work; use ` `` `efcore-patterns` `` ` and ` `` `database-performance` `` `;` |
 | `see the ` `` `optimizing-ef-core-queries` `` ` skill.` (the `AsNoTracking`/seed-data sentence) | `see the ` `` `efcore-patterns` `` ` skill.` |
 
-(The second body mention stays bare deliberately — one namespaced mention per target is enough, and it is the first.)
+(Both kept target references stay bare under the corpus convention.)
 
 - [ ] **Step 3:** `npm run eject -- deniz-dotnet-general dotnet-webapi --patch`
 
@@ -561,8 +558,7 @@ Body:
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi
     invocation: auto # HTTP semantics/endpoints — complementary to api-design's library/wire focus
     body: patch # EF handoff pointed at the excluded optimizing-ef-core-queries; rewired to the two
-    # kept homes and declared
-    depends_on: [efcore-patterns, database-performance]
+    # kept homes with bare references
 ```
 
 - [ ] **Step 5:** Run `npm run build && npm run validate`; require `0 error(s)` and no new warning identity.
@@ -867,7 +863,6 @@ Expected: tests pass (no `tools/` change was made — this confirms it), validat
 - Invocation changes to `manual`: `convert-to-cpm`, `generate-testability-wrappers`, `migrate-static-to-wrapper`, `dotnet-trace-collect`, `dump-collect`, `migrate-nullable-references`, `thread-abort-migration`, `dotnet-aot-compat`.
 - New `body: patch`: `run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, `snapshot-testing`.
 - Description changes: `filter-syntax`, `platform-detection`, `run-tests`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, `snapshot-testing`.
-- Model facts and matching `depends_on`: `run-tests` → `filter-syntax`, `mtp-hot-reload`, `platform-detection`; `mtp-hot-reload` → `filter-syntax`, `platform-detection`; `test-anti-patterns` → `run-tests`, `test-analysis-extensions`; `test-gap-analysis` → `test-analysis-extensions`, `test-anti-patterns`; `dotnet-webapi` → `database-performance`, `efcore-patterns`.
 
 Anything else is a finding — stop and report.
 
@@ -912,9 +907,9 @@ Record the emitted census in the execution report, not in hand-written planning 
 
 `git diff <wave-start>..HEAD --name-status -- overlays/deniz-dotnet-general` may add patch artifacts only for `run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, and `snapshot-testing`; the existing `testcontainers-integration-tests` patch is the only modified overlay. No other overlay may change.
 
-- [ ] **Step 5: Excluded-reference and edge sweep**
+- [ ] **Step 5: Excluded-reference sweep**
 
-Derive the current taken, excluded, and never-curated sets mechanically with the playbook; do not substitute a copied alternation from this plan. Run Scans 1, 2, and 3 over the derived module paths. Expected: no retained Scan-1 artifact-reference finding and no audience mismatch introduced by the wave; every namespaced reference introduced by this wave resolves and has the declared edge recorded in the ledger. Record and drop framework APIs, ordinary product words, and other false positives using the playbook's classification rules.
+Derive the current taken, excluded, and never-curated sets mechanically with the playbook; do not substitute a copied alternation from this plan. Run Scans 1, 2, and 3 over the derived module paths. Expected: no retained Scan-1 artifact-reference finding and no audience mismatch introduced by the wave; bare candidates remain candidates unless a separate curator decision makes them formal facts. Record and drop framework APIs, ordinary product words, and other false positives using the playbook's classification rules.
 
 - [ ] **Step 6: Worktree scope**
 

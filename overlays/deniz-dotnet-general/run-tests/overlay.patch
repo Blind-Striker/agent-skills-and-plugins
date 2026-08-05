@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index f1e3226..f6e3328 100644
+index f1e3226..afdfaa4 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -8,38 +8,37 @@ description: >
@@ -37,7 +37,7 @@ index f1e3226..f6e3328 100644
 -- User needs to migrate from VSTest to MTP (use `migrate-vstest-to-mtp`)
 -- User wants to iterate on failing tests without rebuilding (use `mtp-hot-reload`)
 +- User needs to write or generate test code (out of scope — this skill runs tests)
-+- User wants to iterate on failing tests without rebuilding (use the `dotnet-test:mtp-hot-reload` skill)
++- User wants to iterate on failing tests without rebuilding (use the `mtp-hot-reload` skill)
  - User needs CI/CD pipeline configuration (use CI-specific skills)
  - User needs to debug a test (use debugging skills)
  
@@ -46,41 +46,3 @@ index f1e3226..f6e3328 100644
  | Input | Required | Description |
  |-------|----------|-------------|
  | Project or solution path | No | Path to the test project (.csproj) or solution (.sln, .slnf, .slnx). Defaults to current directory. |
-@@ -75,17 +74,17 @@ These are the most common agent mistakes. Internalize before proceeding:
- 
- **If the prompt names a subset of tests** (e.g., "integration tests", "smoke tests", a specific class, a specific TFM), plan to apply the matching filter / `--framework` in [Step 3](#step-3-run-filtered-tests) — do not run the whole suite.
- 
- ### Step 1: Detect the test platform and framework
- 
- 1. Run `dotnet --version` in the project directory to determine the SDK version. This accounts for `global.json` SDK pinning.
- 2. Read `global.json` — on .NET SDK 10+, `"test": { "runner": "Microsoft.Testing.Platform" }` is the **authoritative MTP signal**. If present, the project uses MTP and SDK 10+ syntax (no `--` separator).
- 3. Read `.csproj`, `Directory.Build.props`, **and** `Directory.Packages.props` for framework packages and MTP properties. **Always check all three files** — MTP properties are frequently set in `Directory.Build.props` rather than individual `.csproj` files.
--4. For full detection logic (SDK 8/9 signals, framework identification), see the `platform-detection` skill.
-+4. For full detection logic (SDK 8/9 signals, framework identification), see the `dotnet-test:platform-detection` skill.
- 
- **What to look for in each file:**
- 
- | File | Look for | Indicates |
- |------|----------|-----------|
- | `global.json` | `"test": { "runner": "Microsoft.Testing.Platform" }` | MTP on SDK 10+ |
- | `global.json` | `"sdk": { "version": "..." }` | SDK version (determines `--` separator behavior) |
- | `.csproj` | `<TestingPlatformDotnetTestSupport>true` | MTP on SDK 8/9 |
-@@ -209,17 +208,17 @@ dotnet exec <PATH_TO_DLL>
- # Run the executable directly (Windows)
- <PATH_TO_EXE>
- ```
- 
- These alternative invocations accept MTP command line arguments directly (no `--` separator needed).
- 
- ### Step 3: Run filtered tests
- 
--See the `filter-syntax` skill for the complete filter syntax for each platform and framework combination. Key points:
-+See the `dotnet-test:filter-syntax` skill for the complete filter syntax for each platform and framework combination. Key points:
- 
- - **VSTest** (MSTest, xUnit v2, NUnit): `dotnet test --filter <EXPRESSION>` with `=`, `!=`, `~`, `!~` operators
- - **MTP -- MSTest and NUnit**: Same `--filter` syntax as VSTest; pass after `--` on SDK 8/9, directly on SDK 10+
- - **MTP -- xUnit v3**: Uses `--filter-class`, `--filter-method`, `--filter-trait` (not VSTest expression syntax). For a **single combined expression** (e.g., a class-name pattern AND a trait), use `--filter-query` with the xUnit v3 query filter language: path segments `/<assembly>/<namespace>/<class>/<method>` with `*` wildcards and a `[Trait=Value]` qualifier — for example `dotnet test -- --filter-query "/*/*/*IntegrationTests*/*[Category=Smoke]"`. See the `filter-syntax` skill for the full query language.
- - **MTP -- TUnit**: Uses `--treenode-filter` with path-based syntax
- 
- #### When the user names a test category, trait, or group
- 
