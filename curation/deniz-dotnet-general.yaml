@@ -123,7 +123,10 @@ items:
     invocation: auto # SDK-style conversion; recommends a nonexistent `dotnet migrate-packages-config` upstream — tolerated content bug, do not follow that one command
   # --- testing ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/run-tests
-    invocation: auto # the operational core: platform/framework detection → exact dotnet test syntax. Reaches the two reference husks below by bare name
+    invocation: auto # the operational core: platform/framework detection → exact dotnet test syntax
+    body: patch # drops redirects to excluded items (code-testing-agent, writing-mstest-tests,
+    # migrate-vstest-to-mtp) and promotes every live target in the touched body
+    depends_on: [filter-syntax, mtp-hot-reload, platform-detection]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax
     invocation: auto # reference husk: VSTest/MTP filter syntax incl. TUnit; upstream ships it "neither", we ship it model-reachable
     frontmatter:

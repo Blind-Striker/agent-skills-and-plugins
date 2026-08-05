@@ -40,6 +40,12 @@
       "SKILL.md": "ed5656a4832ab95ba03296cf672be30c4005c087"
     }
   },
+  "deniz-dotnet-general/run-tests": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
+    "files": {
+      "SKILL.md": "f1e32266890dc7b7d8814cbf19bd4725a09bb2e1"
+    }
+  },
   "deniz-dotnet-general/testcontainers-integration-tests": {
     "source": "dotnet-skills/skills/testcontainers",
     "files": {

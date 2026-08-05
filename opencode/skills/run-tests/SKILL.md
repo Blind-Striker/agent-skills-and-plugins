@@ -12,9 +12,9 @@ description: >
   test` fails or uses wrong argument syntax. Detects the platform (VSTest vs
   MTP) and framework (MSTest/xUnit/NUnit/TUnit), then picks the matching command
   and filter flag (--filter, --filter-class, --filter-trait, --filter-query,
-  --treenode-filter). DO NOT USE FOR: writing test code (use
-  code-testing-agent), iterating on failing tests without rebuilding (use
-  mtp-hot-reload), CI/CD config, or debugging test logic.
+  --treenode-filter). DO NOT USE FOR: writing test code; iterating on failing
+  tests without rebuilding (use mtp-hot-reload), CI/CD config, or debugging test
+  logic.
 license: MIT
 ---
 
@@ -31,9 +31,8 @@ Detect the test platform and framework, run tests, and apply filters using `dotn
 
 ## When Not to Use
 
-- User needs to write or generate test code (use `writing-mstest-tests` for MSTest, or general coding assistance for other frameworks)
-- User needs to migrate from VSTest to MTP (use `migrate-vstest-to-mtp`)
-- User wants to iterate on failing tests without rebuilding (use `mtp-hot-reload`)
+- User needs to write or generate test code (out of scope — this skill runs tests)
+- User wants to iterate on failing tests without rebuilding (use the `mtp-hot-reload` skill)
 - User needs CI/CD pipeline configuration (use CI-specific skills)
 - User needs to debug a test (use debugging skills)
 

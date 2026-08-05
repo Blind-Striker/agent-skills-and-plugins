@@ -12,9 +12,9 @@ description: >
   test` fails or uses wrong argument syntax. Detects the platform (VSTest vs
   MTP) and framework (MSTest/xUnit/NUnit/TUnit), then picks the matching command
   and filter flag (--filter, --filter-class, --filter-trait, --filter-query,
-  --treenode-filter). DO NOT USE FOR: writing test code (use
-  code-testing-agent), iterating on failing tests without rebuilding (use
-  mtp-hot-reload), CI/CD config, or debugging test logic.
+  --treenode-filter). DO NOT USE FOR: writing test code; iterating on failing
+  tests without rebuilding (use mtp-hot-reload), CI/CD config, or debugging test
+  logic.
 license: MIT
 user-invocable: false
 ---
@@ -32,9 +32,8 @@ Detect the test platform and framework, run tests, and apply filters using `dotn
 
 ## When Not to Use
 
-- User needs to write or generate test code (use `writing-mstest-tests` for MSTest, or general coding assistance for other frameworks)
-- User needs to migrate from VSTest to MTP (use `migrate-vstest-to-mtp`)
-- User wants to iterate on failing tests without rebuilding (use `mtp-hot-reload`)
+- User needs to write or generate test code (out of scope — this skill runs tests)
+- User wants to iterate on failing tests without rebuilding (use the `deniz-dotnet-general:mtp-hot-reload` skill)
 - User needs CI/CD pipeline configuration (use CI-specific skills)
 - User needs to debug a test (use debugging skills)
 
@@ -80,7 +79,7 @@ These are the most common agent mistakes. Internalize before proceeding:
 1. Run `dotnet --version` in the project directory to determine the SDK version. This accounts for `global.json` SDK pinning.
 2. Read `global.json` — on .NET SDK 10+, `"test": { "runner": "Microsoft.Testing.Platform" }` is the **authoritative MTP signal**. If present, the project uses MTP and SDK 10+ syntax (no `--` separator).
 3. Read `.csproj`, `Directory.Build.props`, **and** `Directory.Packages.props` for framework packages and MTP properties. **Always check all three files** — MTP properties are frequently set in `Directory.Build.props` rather than individual `.csproj` files.
-4. For full detection logic (SDK 8/9 signals, framework identification), see the `platform-detection` skill.
+4. For full detection logic (SDK 8/9 signals, framework identification), see the `deniz-dotnet-general:platform-detection` skill.
 
 **What to look for in each file:**
 
@@ -214,7 +213,7 @@ These alternative invocations accept MTP command line arguments directly (no `--
 
 ### Step 3: Run filtered tests
 
-See the `filter-syntax` skill for the complete filter syntax for each platform and framework combination. Key points:
+See the `deniz-dotnet-general:filter-syntax` skill for the complete filter syntax for each platform and framework combination. Key points:
 
 - **VSTest** (MSTest, xUnit v2, NUnit): `dotnet test --filter <EXPRESSION>` with `=`, `!=`, `~`, `!~` operators
 - **MTP -- MSTest and NUnit**: Same `--filter` syntax as VSTest; pass after `--` on SDK 8/9, directly on SDK 10+
