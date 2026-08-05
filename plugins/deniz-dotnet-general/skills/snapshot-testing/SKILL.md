@@ -1,8 +1,8 @@
 ---
 name: snapshot-testing
 description: Use Verify for snapshot testing in .NET. Approve API surfaces, HTTP
-  responses, rendered emails, and serialized outputs. Detect unintended changes
-  through human-reviewed baseline files.
+  responses, rendered and generated outputs, and serialized outputs. Detect
+  unintended changes through human-reviewed baseline files.
 invocable: false
 user-invocable: false
 ---
@@ -12,7 +12,7 @@ user-invocable: false
 ## When to Use This Skill
 
 Use snapshot testing when:
-- Verifying rendered output (HTML emails, reports, generated code)
+- Verifying rendered output (HTML reports, generated code, documents)
 - Approving public API surfaces for breaking change detection
 - Testing HTTP response bodies and headers
 - Validating serialization output
@@ -99,51 +99,17 @@ Creates `VerifyUserDto.verified.txt`:
 
 ```csharp
 [Fact]
-public async Task VerifyRenderedEmail()
+public async Task VerifyRenderedReport()
 {
-    var html = await _emailRenderer.RenderAsync("Welcome", new { Name = "John" });
-
-    // Use extension parameter for proper file naming
-    await Verify(html, extension: "html");
-}
-```
-
-Creates `VerifyRenderedEmail.verified.html` - viewable in browser.
-
----
-
-## Email Template Testing
-
-Use Verify to catch unintended changes in rendered email templates:
-
-```csharp
-[Fact]
-public async Task UserSignupInvitation_RendersCorrectly()
-{
-    var renderer = _services.GetRequiredService<IMjmlTemplateRenderer>();
-
-    var variables = new Dictionary<string, string>
-    {
-        { "OrganizationName", "Acme Corporation" },
-        { "InviteeName", "John Doe" },
-        { "InviterName", "Jane Admin" },
-        { "InvitationLink", "https://example.com/invite/abc123" },
-        { "ExpirationDate", "December 31, 2025" }
-    };
-
-    var html = await renderer.RenderTemplateAsync(
-        "UserInvitations/UserSignupInvitation",
-        variables);
+    var html = await _reportRenderer.RenderAsync(
+        "QuarterlyReport",
+        new { Quarter = "Q1" });
 
     await Verify(html, extension: "html");
 }
 ```
 
-**Benefits for email testing:**
-- Catches CSS/layout regressions
-- Detects broken template variables
-- Visual review in diff tool
-- Version control tracks email changes
+Creates `VerifyRenderedReport.verified.html` — viewable in a browser.
 
 ---
 
@@ -274,12 +240,11 @@ public static void Init()
 tests/
   MyApp.Tests/
     Snapshots/           # All verified files
-      EmailTests/
-        WelcomeEmail.verified.html
-        PasswordReset.verified.html
+      RenderedOutput/
+        QuarterlyReport.verified.html
       ApiTests/
         GetUser.verified.txt
-    EmailTests.cs
+    RenderedReportTests.cs
     ApiTests.cs
     ModuleInitializer.cs
 ```
@@ -343,7 +308,7 @@ public static void Init()
 
 | Scenario | Use Snapshot Testing? | Why |
 |----------|----------------------|-----|
-| Rendered HTML/emails | Yes | Catches visual regressions |
+| Rendered HTML and generated documents | Yes | Catches visual regressions |
 | API surfaces | Yes | Prevents accidental breaks |
 | Serialization output | Yes | Validates wire format |
 | Complex object graphs | Yes | Easier than manual assertions |
@@ -385,23 +350,6 @@ git add *.received.*  // Wrong!
 // Don't use for simple assertions
 await Verify(result.Count);  // Just use Assert.Equal(5, result.Count)
 ```
-
----
-
-## Integration with MJML Email Testing
-
-See the `aspnetcore/transactional-emails` skill for the complete pattern:
-
-1. MJML templates with `{{variable}}` placeholders
-2. Render to HTML with test data
-3. Snapshot test the rendered output
-4. Review changes in diff tool before approving
-
-This catches:
-- Broken variable substitution
-- CSS/layout regressions
-- Email client compatibility issues
-- Unintended content changes
 
 ---
 

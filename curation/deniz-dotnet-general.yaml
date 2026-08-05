@@ -164,7 +164,8 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
     invocation: manual # codemod across a bounded scope — typed deliberately
   - source: dotnet-skills/skills/snapshot-testing
-    invocation: auto # Verify snapshot knowledge
+    invocation: auto # general Verify knowledge: API, HTTP, serialization, objects, rendered output
+    body: patch # email-authoring branches and their dead handoff are outside the curator's flow
   - source: dotnet-skills/skills/testcontainers
     invocation: auto # real-infra integration testing without Aspire — no substitute in the corpus.
     # Curator's call: taken despite teaching the pre-3.0 TestcontainersBuilder<T> API;

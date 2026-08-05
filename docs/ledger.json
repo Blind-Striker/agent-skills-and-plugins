@@ -1758,7 +1758,8 @@
   "deniz-dotnet-general/skill/snapshot-testing": {
     "source": "dotnet-skills/skills/snapshot-testing",
     "invocation": "auto",
-    "description": "Use Verify for snapshot testing in .NET. Approve API surfaces, HTTP responses, rendered emails, and serialized outputs. Detect unintended changes through human-reviewed baseline files.",
+    "body": "patch",
+    "description": "Use Verify for snapshot testing in .NET. Approve API surfaces, HTTP responses, rendered and generated outputs, and serialized outputs. Detect unintended changes through human-reviewed baseline files.",
     "claude": {
       "artifacts": [
         "skill"
