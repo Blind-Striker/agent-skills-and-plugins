@@ -937,66 +937,6 @@
       "parked": []
     }
   },
-  "deniz-dotnet-general/skill/exp-mock-usage-analysis": {
-    "source": "dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-mock-usage-analysis",
-    "invocation": "auto",
-    "description": "Audits .NET test mock usage by tracing each mock setup through the production code's execution path to find dead, unreachable, redundant, or replaceable mocks. Use when the user asks to audit mock usage, find unused or unnecessary mock setups, check if mocks are needed, reduce mock duplication or over-mocking, simplify test setup, or review whether mock configurations like ILogger/IOptions should use real implementations instead. Supports Moq, NSubstitute, and FakeItEasy.",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "flags": {
-        "user-invocable": false
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
-    }
-  },
-  "deniz-dotnet-general/skill/exp-test-maintainability": {
-    "source": "dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-test-maintainability",
-    "invocation": "auto",
-    "description": "Detects duplicate boilerplate, copy-paste tests, and structural maintainability issues across .NET test suites. Use when the user asks to reduce repetition, consolidate similar test methods, convert copy-paste tests to data-driven parameterized tests, suggest a better test structure, or identify refactoring opportunities. Identifies repeated construction, assertion patterns, copy-paste methods convertible to DataRow/Theory/TestCase, redundant setup/teardown, and shared infrastructure. Produces an analysis report with concrete before/after suggestions. Works with MSTest, xUnit, NUnit, and TUnit. DO NOT USE FOR: writing new tests (use writing-mstest-tests), reviewing test quality or anti-patterns (use test-anti-patterns), or deep mock auditing (use exp-mock-usage-analysis).",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "flags": {
-        "user-invocable": false
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
-    }
-  },
   "deniz-dotnet-general/skill/extension-points": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/extension-points",
     "invocation": "auto",
@@ -1057,36 +997,6 @@
       "parked": []
     }
   },
-  "deniz-dotnet-general/skill/find-untested-sources": {
-    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/find-untested-sources",
-    "invocation": "auto",
-    "description": "MANDATORY for static requests to find, identify, or list untested source files or modules, sources without tests, source-to-test pairing, test-gap worklists, or suggested test locations. Invoke even for a tiny package; do not substitute manual globbing. Uses Roslyn for C#/.NET and tree-sitter for Python, TS/JS, Go, Java, Rust, and Ruby. DO NOT USE FOR: line/branch coverage, CRAP risk, or grading existing tests.\n",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "flags": {
-        "user-invocable": false
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
-    }
-  },
   "deniz-dotnet-general/skill/generate-testability-wrappers": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers",
     "invocation": "both",
@@ -1110,36 +1020,6 @@
         "pointer": []
       },
       "dropped": [],
-      "parked": []
-    }
-  },
-  "deniz-dotnet-general/skill/grade-tests": {
-    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/grade-tests",
-    "invocation": "auto",
-    "description": "Grades a specified set of test methods individually and produces a concise table mapping each test (fully-qualified name) to a letter grade (A–F), a score band, and a one-line note — designed to be posted as a PR comment. Use when the caller wants per-test feedback on a curated list of methods (for example, the new or modified tests in a pull request), not a suite-wide audit. Polyglot: .NET, Python, TS/JS, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell, C++. Input is a list of test methods (or method bodies / file+line spans); output is a compact markdown table plus a short summary. DO NOT USE FOR: full suite audits (use test-quality-auditor agent or test-anti-patterns), writing new tests (use code-testing-generator agent or writing-mstest-tests), fixing failures, or measuring code coverage.\n",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "flags": {
-        "user-invocable": false
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [
-        "user-invocable"
-      ],
       "parked": []
     }
   },
@@ -1326,58 +1206,6 @@
       "parked": []
     }
   },
-  "deniz-dotnet-general/skill/migrate-dotnet8-to-dotnet9": {
-    "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet8-to-dotnet9",
-    "invocation": "both",
-    "description": "Migrate a .NET 8 project to .NET 9 and resolve all breaking changes. USE FOR: upgrading TargetFramework from net8.0 to net9.0, fixing build errors after updating the .NET 9 SDK, resolving behavioral changes in .NET 9 / C# 13 / ASP.NET Core 9 / EF Core 9, replacing BinaryFormatter (now always throws), resolving SYSLIB0054-SYSLIB0057, adapting to params span overload resolution, fixing C# 13 compiler changes, updating HttpClientFactory for SocketsHttpHandler, and resolving EF Core 9 migration/Cosmos DB changes. DO NOT USE FOR: .NET Framework migrations, upgrading from .NET 7 or earlier, greenfield .NET 9 projects, or cosmetic modernization unrelated to the upgrade.\n",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill",
-        "command"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [],
-      "parked": []
-    }
-  },
-  "deniz-dotnet-general/skill/migrate-dotnet9-to-dotnet10": {
-    "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet9-to-dotnet10",
-    "invocation": "both",
-    "description": "Migrate a .NET 9 project or solution to .NET 10 and resolve all breaking changes. USE FOR: upgrading TargetFramework from net9.0 to net10.0, fixing build errors after updating the .NET 10 SDK, resolving source and behavioral changes in .NET 10 / C# 14 / ASP.NET Core 10 / EF Core 10, updating Dockerfiles for Debian-to-Ubuntu base images, resolving obsoletion warnings (SYSLIB0058-SYSLIB0062), adapting to SDK/NuGet changes (NU1510, PrunePackageReference), migrating System.Linq.Async to built-in AsyncEnumerable, fixing OpenApi v2 API changes, cryptography renames, and C# 14 compiler changes (field keyword, extension keyword, span overloads). DO NOT USE FOR: .NET Framework migrations, upgrading from .NET 8 or earlier (use migrate-dotnet8-to-dotnet9 first), greenfield .NET 10 projects, or cosmetic modernization. LOADS REFERENCES: csharp-compiler, core-libraries, sdk-msbuild (always); aspnet-core, efcore, cryptography, extensions-hosting, serialization-networking, winforms-wpf, containers-interop (selective).\n",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill",
-        "command"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [],
-      "parked": []
-    }
-  },
   "deniz-dotnet-general/skill/migrate-nullable-references": {
     "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references",
     "invocation": "both",
@@ -1430,58 +1258,6 @@
       "parked": []
     }
   },
-  "deniz-dotnet-general/skill/migrate-vstest-to-mtp": {
-    "source": "dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-vstest-to-mtp",
-    "invocation": "both",
-    "description": "Migrates .NET test projects from VSTest to Microsoft.Testing.Platform (MTP). Use when user asks to \"migrate to MTP\", \"switch from VSTest\", \"enable Microsoft.Testing.Platform\", \"use MTP runner\", set OutputType=Exe only for test projects in Directory.Build.props, or mentions EnableMSTestRunner, EnableNUnitRunner, or UseMicrosoftTestingPlatformRunner. USE FOR: MTP behavioral differences vs VSTest (exit code 8, zero tests discovered, --ignore-exit-code, TESTINGPLATFORM_EXITCODE_IGNORE); centralizing MTP properties and OutputType=Exe on test projects via MSBuildProjectName, not IsTestProject. Supports MSTest, NUnit, xUnit.net v2 (via YTest.MTP.XUnit2), and xUnit.net v3. Covers runner enablement, CLI argument and filter translation (--filter-class/--filter-trait/--filter-query), global.json config, CI/CD updates, and extension packages. DO NOT USE FOR: migrating between test frameworks (MSTest/xUnit/NUnit), xUnit.net v2 to v3 API migration, MSTest version upgrades, TFM upgrades, or UWP/WinUI test projects.\n",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill",
-        "command"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [],
-      "parked": []
-    }
-  },
-  "deniz-dotnet-general/skill/migrate-xunit-to-xunit-v3": {
-    "source": "dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-xunit-to-xunit-v3",
-    "invocation": "both",
-    "description": "Migrates .NET test projects from xUnit.net v2 to xUnit.net v3. USE FOR: upgrading xunit to xunit.v3. DO NOT USE FOR: migrating between test frameworks (MSTest/NUnit to xUnit.net), migrating from VSTest to Microsoft.Testing.Platform (use migrate-vstest-to-mtp). For xUnit v3 MTP filter syntax (--filter-class, --filter-trait, --filter-query), also load migrate-vstest-to-mtp.\n",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill",
-        "command"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [],
-      "parked": []
-    }
-  },
   "deniz-dotnet-general/skill/minimal-api-file-upload": {
     "source": "dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/minimal-api-file-upload",
     "invocation": "auto",
@@ -1507,37 +1283,6 @@
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
-    }
-  },
-  "deniz-dotnet-general/skill/mjml-email-templates": {
-    "source": "dotnet-skills/skills/mjml-email-templates",
-    "invocation": "auto",
-    "description": "Build responsive email templates using MJML markup language. Compiles to cross-client HTML that works in Outlook, Gmail, and Apple Mail. Includes template renderer, layout patterns, and variable substitution.",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "flags": {
-        "user-invocable": false
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [
-        "invocable",
         "user-invocable"
       ],
       "parked": []

@@ -59,8 +59,6 @@ items:
     invocation: auto # HTTP semantics/endpoints — complementary to api-design's library/wire focus
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/minimal-api-file-upload
     invocation: auto # narrow, security-focused; no overlap with anything else taken
-  - source: dotnet-skills/skills/mjml-email-templates
-    invocation: auto # transactional email authoring; pairs with snapshot-testing (Verify) for regression coverage
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/csharp-scripts
     invocation: auto # file-based C# apps (.NET 10+) — prototype/spike knowledge
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/dotnet-pinvoke
@@ -139,26 +137,14 @@ items:
     invocation: auto # the broad audit; subsumes assertion-quality and the smell catalog
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
-  - source: dotnet-agent-skills/plugins/dotnet-test/skills/grade-tests
-    invocation: auto # PR-scale per-test grading
-  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-mock-usage-analysis
-    invocation: auto # dead/redundant mock tracing — distinct from the broad audit
-  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-test-maintainability
-    invocation: auto # duplication/structure audit — distinct from anti-patterns
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
     invocation: auto # the module's single CRAP/coverage home (Cobertura-based); the other two CRAP surfaces are excluded below
-  - source: dotnet-agent-skills/plugins/dotnet-test/skills/find-untested-sources
-    invocation: auto # source↔test pairing worklist; its bundled script has an upstream case-sensitivity bug (TestResults pruning), tolerated
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
     invocation: auto # report-only scan; feeds the two mutating stages below
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
     invocation: both # writes production abstractions + DI registrations — a deliberate, typable ceremony
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
     invocation: both # codemod across a bounded scope — deliberate ceremony
-  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-vstest-to-mtp
-    invocation: both # platform migration ceremony; high value — TUnit is MTP-native and xUnit repos move through here
-  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-xunit-to-xunit-v3
-    invocation: both # the curator's occasional framework; version-migration ceremony
   - source: dotnet-skills/skills/snapshot-testing
     invocation: auto # Verify snapshot knowledge
   - source: dotnet-skills/skills/testcontainers
@@ -192,10 +178,6 @@ items:
   - source: dotnet-skills/skills/dotnet-devcert-trust
     invocation: both # Linux/WSL cert repair — system-mutating, so the curator may type it; model may reach it on the exact error
   # --- modernization (all one-shot ceremonies) ---
-  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet8-to-dotnet9
-    invocation: both # full breaking-change reference closure flows with it
-  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet9-to-dotnet10
-    invocation: both
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references
     invocation: both # NRT adoption ceremony with readiness script
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/thread-abort-migration
@@ -204,6 +186,24 @@ items:
     invocation: both # trim/AOT warning resolution; its process coercion is in-ceremony discipline, left as shipped
 
   # ======== exclusions — every one a considered reject, reason beside it ========
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/grade-tests
+    exclude: true # per-test PR grading is not in the curator's flow
+  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-mock-usage-analysis
+    exclude: true # experimental shelf; the broad audit keeps the practical over-mocking checks
+  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-test-maintainability
+    exclude: true # experimental shelf; the broad audit keeps the practical duplication checks
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/find-untested-sources
+    exclude: true # a second where-to-test surface; coverage-analysis is the single prioritization home
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-vstest-to-mtp
+    exclude: true # test-platform migration is not in the flow: old repos are rewritten TUnit-first, not migrated
+  - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-xunit-to-xunit-v3
+    exclude: true # same call — no framework-version migrations in the flow
+  - source: dotnet-skills/skills/mjml-email-templates
+    exclude: true # email-template authoring is not in the curator's flow; general Verify guidance stays
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet8-to-dotnet9
+    exclude: true # version-to-version upgrade guide is not in the flow; general .NET knowledge stays
+  - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet9-to-dotnet10
+    exclude: true # same call; its version-specific reference closure leaves with the parent skill
   # --- subsumed / duplicate ---
   - source: dotnet-skills/skills/csharp-type-design-performance
     exclude: true # subset of modern-csharp-coding-standards' own material; two same-job autos would trigger-compete
@@ -225,7 +225,7 @@ items:
     exclude: true # scaffolding sprawl across API+EF+UI; no cleanly bounded job
   # --- framework fit (curator: TUnit primary, xUnit occasional, NUnit/MSTest never) ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/writing-mstest-tests
-    exclude: true # the corpus's only test-writing skill, but MSTest fires in no repo the curator keeps; no TUnit-writing skill exists upstream (own-skill candidate)
+    exclude: true # the corpus's only test-writing skill, but MSTest fires in no repo the curator keeps; no TUnit-writing skill exists upstream (own-skill candidate); the TUnit-first replacement is a deferred own skill (docs/ROADMAP.md)
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v1v2-to-v3
     exclude: true # shrinking legacy + MSTest unused
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v3-to-v4
