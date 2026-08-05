@@ -16,7 +16,7 @@ Date: 2026-08-05
 - Hard rules (AGENTS.md): no curator names, no dates in manifest comments/overlays; deliberate rejections stay in the manifest as `exclude: true` + reason.
 - A patch and its manifest edit (`body: patch`, `depends_on`) must land in the same commit — `validate` errors on a one-sided model edge.
 - Patch ceremony (extend/create): `npm run eject -- deniz-dotnet-general <name> --patch [--force]` lays a working copy in `overlays/deniz-dotnet-general/<name>/`; edit; re-run `npm run eject -- deniz-dotnet-general <name> --patch` to cut+stamp `overlay.patch`.
-- Neutral reference spelling in bodies: `dotnet-agent-skills:<name>` / `dotnet-skills:<name>` (submodule namespace). The build localizes per tree. Namespace the FIRST live mention of every taken target in each touched body and declare it in `depends_on`; later bare mentions are legal candidate-tier.
+- Neutral reference spelling in bodies: `dotnet-test:<name>` / `dotnet-skills:<name>` (nearest upstream plugin namespace). The build localizes per tree. Namespace the FIRST live mention of every taken target in each touched body and declare it in `depends_on`; later bare mentions are legal candidate-tier.
 - Anchor edits by exact physical strings, not line numbers. For folded YAML descriptions, replace the complete `description: >` block shown by the task; do not search for a whitespace-normalized sentence that is not contiguous upstream.
 - Gates after every task: `npm run build` then `npm run validate` → expect `0 error(s)`; warning set unchanged from the previous task unless the task says otherwise.
 - Commit output trees (`plugins/`, `opencode/`, `docs/ledger.json`, `.claude-plugin/marketplace.json`) together with the source edit that caused them — CI rejects stale output.
@@ -217,9 +217,9 @@ Apply these body replacements:
 |---|---|
 | `- User needs to write or generate test code (use ` `` `writing-mstest-tests` `` ` for MSTest, or general coding assistance for other frameworks)` | `- User needs to write or generate test code (out of scope — this skill runs tests)` |
 | `- User needs to migrate from VSTest to MTP (use ` `` `migrate-vstest-to-mtp` `` `)` | *(delete the whole line)* |
-| `- User wants to iterate on failing tests without rebuilding (use ` `` `mtp-hot-reload` `` `)` | ``- User wants to iterate on failing tests without rebuilding (use the `dotnet-agent-skills:mtp-hot-reload` skill)`` |
-| `see the ` `` `platform-detection` `` ` skill.` (the "For full detection logic" bullet) | ``see the `dotnet-agent-skills:platform-detection` skill.`` |
-| `See the ` `` `filter-syntax` `` ` skill for the complete filter syntax` (first mention only) | ``See the `dotnet-agent-skills:filter-syntax` skill for the complete filter syntax`` |
+| `- User wants to iterate on failing tests without rebuilding (use ` `` `mtp-hot-reload` `` `)` | ``- User wants to iterate on failing tests without rebuilding (use the `dotnet-test:mtp-hot-reload` skill)`` |
+| `see the ` `` `platform-detection` `` ` skill.` (the "For full detection logic" bullet) | ``see the `dotnet-test:platform-detection` skill.`` |
+| `See the ` `` `filter-syntax` `` ` skill for the complete filter syntax` (first mention only) | ``See the `dotnet-test:filter-syntax` skill for the complete filter syntax`` |
 
 Leave every later bare `filter-syntax`/`platform-detection` mention untouched.
 
@@ -264,9 +264,9 @@ git commit -m "feat: run-tests drops dead redirects and declares its reference-t
 
 | Old | New |
 |---|---|
-| `Follow the detection procedure in the ` `` `platform-detection` `` ` skill` | ``Follow the detection procedure in the `dotnet-agent-skills:platform-detection` skill`` |
+| `Follow the detection procedure in the ` `` `platform-detection` `` ` skill` | ``Follow the detection procedure in the `dotnet-test:platform-detection` skill`` |
 | `If the project uses VSTest, inform the user that MTP hot reload is not available and suggest migrating to MTP first (see ` `` `migrate-vstest-to-mtp` `` `), or using Visual Studio's built-in Test Explorer hot reload feature instead.` | `If the project uses VSTest, inform the user that MTP hot reload is not available there and suggest Visual Studio's built-in Test Explorer hot reload feature instead.` |
-| `see the ` `` `filter-syntax` `` ` skill for full details.` | ``see the `dotnet-agent-skills:filter-syntax` skill for full details.`` |
+| `see the ` `` `filter-syntax` `` ` skill for full details.` | ``see the `dotnet-test:filter-syntax` skill for full details.`` |
 
 - [ ] **Step 3:** `npm run eject -- deniz-dotnet-general mtp-hot-reload --patch`
 
@@ -318,10 +318,10 @@ Body edits:
 
 | Old | New |
 |---|---|
-| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `dotnet-agent-skills:test-analysis-extensions` skill`` |
+| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `dotnet-test:test-analysis-extensions` skill`` |
 | `- User wants to write new tests from scratch (use ` `` `code-testing-agent` `` ` for any language, or ` `` `writing-mstest-tests` `` ` for MSTest specifically)` | `- User wants to write new tests from scratch (out of scope — this skill audits existing tests)` |
 | `- User asks to fix swapped ` `` `Assert.AreEqual` `` ` argument order in MSTest (use ` `` `writing-mstest-tests` `` `)` and the following `DynamicData` line | Replace both lines with one: `- User asks to fix or modernize test code (this skill reports; it does not edit tests)` |
-| `- User wants to run or execute tests (use ` `` `run-tests` `` ` for .NET)` | ``- User wants to run or execute tests (use the `dotnet-agent-skills:run-tests` skill for .NET)`` |
+| `- User wants to run or execute tests (use ` `` `run-tests` `` ` for .NET)` | ``- User wants to run or execute tests (use the `dotnet-test:run-tests` skill for .NET)`` |
 | `- User wants a deep formal test smell audit with academic taxonomy and extended catalog (use ` `` `test-smell-detection` `` `)` | `- User requires a full academic smell catalog or citable taxonomy (not provided by this pragmatic audit)` |
 | `For a deep mock audit in .NET, use ` `` `exp-mock-usage-analysis` `` `.` | *(delete this final sentence; keep the practical over-mocking detector)* |
 | `For a detailed duplication analysis in .NET, use ` `` `exp-test-maintainability` `` `.` | *(delete this sentence; keep the practical duplicate-test detector and its calibration note)* |
@@ -393,10 +393,10 @@ Body:
 
 | Old | New |
 |---|---|
-| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `dotnet-agent-skills:test-analysis-extensions` skill`` |
+| `Call the ` `` `test-analysis-extensions` `` ` skill` (first mention, the blockquote) | ``Call the `dotnet-test:test-analysis-extensions` skill`` |
 | `- The ` `` `code-testing-generator` `` ` agent (or any test-generation workflow) calls this skill as a pre-completion self-review step on freshly generated tests, before declaring the run finished` | `- Any test-generation workflow can call this skill as a pre-completion self-review step on freshly generated tests` |
 | `- User wants to write new tests from scratch (use ` `` `code-testing-agent` `` ` for any language, or ` `` `writing-mstest-tests` `` ` for MSTest specifically)` | `- User wants to write new tests from scratch (out of scope)` |
-| `- User wants to detect test anti-patterns like flakiness or poor naming (use ` `` `test-anti-patterns` `` `)` | ``- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `dotnet-agent-skills:test-anti-patterns` skill)`` |
+| `- User wants to detect test anti-patterns like flakiness or poor naming (use ` `` `test-anti-patterns` `` `)` | ``- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `dotnet-test:test-anti-patterns` skill)`` |
 | `- User wants to measure assertion variety (use ` `` `assertion-quality` `` `)` | `- User wants quantitative assertion-diversity metrics (not provided by the curated set)` |
 | `mention that ` `` `code-testing-agent` `` ` (any language) or ` `` `writing-mstest-tests` `` ` (MSTest-specific) can help write the missing tests, and ` `` `test-anti-patterns` `` ` can audit existing test quality` | `mention that ` `` `test-anti-patterns` `` ` can audit existing test quality` |
 
