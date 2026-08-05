@@ -208,7 +208,7 @@ items:
   - source: dotnet-skills/skills/csharp-type-design-performance
     exclude: true # subset of modern-csharp-coding-standards' own material; two same-job autos would trigger-compete
   - source: dotnet-skills/skills/verify-email-snapshots
-    exclude: true # subset of snapshot-testing + mjml-email-templates, and misstates Verify's received/verified lifecycle upstream
+    exclude: true # email-specific subset of snapshot-testing, and misstates Verify's received/verified lifecycle upstream
   - source: dotnet-skills/skills/crap-analysis
     exclude: true # its CRAP formula is wrong (C(1-cov)^2; correct is C^2(1-cov)^3+C) — verified against the body; coverage-analysis (taken) is the single CRAP home
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/crap-score
