@@ -169,8 +169,8 @@ items:
   - source: dotnet-skills/skills/testcontainers
     invocation: auto # real-infra integration testing without Aspire — no substitute in the corpus.
     # Curator's call: taken despite teaching the pre-3.0 TestcontainersBuilder<T> API;
-    # the patch rewrites every builder example to ContainerBuilder/IContainer and completes
-    # the Respawn fixture, which upstream ships without a constructor (null container at runtime).
+    # the patch rewrites every builder example (containers AND networks) to the post-3.0 API, fixes the
+    # non-compiling MigrationTests/Respawn fixtures, and fronts the typed module packages
     body: patch
   - source: dotnet-skills/skills/playwright-blazor
     invocation: auto # Blazor UI *testing* knowledge; the Blazor authoring estate is deferred, this is not

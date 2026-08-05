@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index c424282..4d41851 100644
+index c424282..123adc2 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -59,22 +59,22 @@ public class OrderRepositoryTests
@@ -27,10 +27,34 @@ index c424282..4d41851 100644
      }
  
      public async Task InitializeAsync()
-@@ -145,17 +145,17 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
+@@ -140,22 +140,41 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
+ 4. **Clean Data Between Tests** - Either use fresh containers or truncate tables
+ 5. **Reuse Containers When Possible** - Faster than creating new ones for each test
+ 6. **Test Real Queries** - Don't just test mocks; verify actual SQL behavior
+ 7. **Verify Constraints** - Test foreign keys, unique constraints, indexes
+ 8. **Test Transactions** - Verify rollback and commit behavior
  9. **Use Realistic Data** - Test with production-like data volumes
  10. **Handle Cleanup** - Always dispose containers in `DisposeAsync`
  
++## Prefer Module Packages for Known Images
++
++Testcontainers ships typed module packages for common infrastructure —
++`Testcontainers.PostgreSql`, `Testcontainers.MsSql`, `Testcontainers.Redis`,
++`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they pin a
++sensible image, expose `GetConnectionString()`, and remove the port/wait-strategy
++boilerplate shown in this skill's generic examples.
++
++```csharp
++// Testcontainers.PostgreSql
++using Testcontainers.PostgreSql;
++
++var postgres = new PostgreSqlBuilder().Build();
++await postgres.StartAsync();
++var connectionString = postgres.GetConnectionString();
++```
++
++The generic `ContainerBuilder` examples remain the right tool for custom or unlisted images.
++
  ## Common Issues and Solutions
  
  ### Container Startup Timeout
@@ -47,14 +71,21 @@ index c424282..4d41851 100644
  
  ### Port Already in Use
 diff --git a/database-patterns.md b/database-patterns.md
-index 34cfe9b..4400b22 100644
+index 34cfe9b..6d873e7 100644
 --- a/database-patterns.md
 +++ b/database-patterns.md
-@@ -11,22 +11,22 @@ Full code examples for testing with SQL Server, PostgreSQL, and database migrati
+@@ -6,27 +6,28 @@ Full code examples for testing with SQL Server, PostgreSQL, and database migrati
+ 
+ - [SQL Server Integration Tests](#sql-server-integration-tests)
+ - [PostgreSQL Integration Tests](#postgresql-integration-tests)
+ - [Testing Migrations with Real Databases](#testing-migrations-with-real-databases)
+ 
  ## SQL Server Integration Tests
  
  ```csharp
- using Testcontainers;
+-using Testcontainers;
++using DotNet.Testcontainers.Builders;
++using DotNet.Testcontainers.Containers;
  using Xunit;
  
  public class SqlServerTests : IAsyncLifetime
@@ -75,7 +106,7 @@ index 34cfe9b..4400b22 100644
              .Build();
      }
  
-@@ -81,22 +81,22 @@ public class SqlServerTests : IAsyncLifetime
+@@ -81,22 +82,22 @@ public class SqlServerTests : IAsyncLifetime
  }
  ```
  
@@ -100,7 +131,7 @@ index 34cfe9b..4400b22 100644
              .Build();
      }
  
-@@ -146,22 +146,22 @@ public class PostgreSqlTests : IAsyncLifetime
+@@ -146,22 +147,22 @@ public class PostgreSqlTests : IAsyncLifetime
  }
  ```
  
@@ -110,7 +141,7 @@ index 34cfe9b..4400b22 100644
  public class MigrationTests : IAsyncLifetime
  {
 -    private readonly TestcontainersContainer _container;
-+    private readonly IContainer _container;
++    private IContainer _container = null!;
      private string _connectionString;
  
      public async Task InitializeAsync()
@@ -126,7 +157,7 @@ index 34cfe9b..4400b22 100644
          await _container.StartAsync();
  
 diff --git a/infrastructure-patterns.md b/infrastructure-patterns.md
-index de33ff0..ab30b2d 100644
+index de33ff0..50826f7 100644
 --- a/infrastructure-patterns.md
 +++ b/infrastructure-patterns.md
 @@ -10,22 +10,22 @@ Patterns for testing Redis, RabbitMQ, multi-container networks, container reuse,
@@ -195,7 +226,8 @@ index de33ff0..ab30b2d 100644
  
      public MultiContainerTests()
      {
-         _network = new TestcontainersNetworkBuilder()
+-        _network = new TestcontainersNetworkBuilder()
++        _network = new NetworkBuilder()
              .Build();
  
 -        _dbContainer = new TestcontainersBuilder<TestcontainersContainer>()

@@ -148,6 +148,25 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
 9. **Use Realistic Data** - Test with production-like data volumes
 10. **Handle Cleanup** - Always dispose containers in `DisposeAsync`
 
+## Prefer Module Packages for Known Images
+
+Testcontainers ships typed module packages for common infrastructure —
+`Testcontainers.PostgreSql`, `Testcontainers.MsSql`, `Testcontainers.Redis`,
+`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they pin a
+sensible image, expose `GetConnectionString()`, and remove the port/wait-strategy
+boilerplate shown in this skill's generic examples.
+
+```csharp
+// Testcontainers.PostgreSql
+using Testcontainers.PostgreSql;
+
+var postgres = new PostgreSqlBuilder().Build();
+await postgres.StartAsync();
+var connectionString = postgres.GetConnectionString();
+```
+
+The generic `ContainerBuilder` examples remain the right tool for custom or unlisted images.
+
 ## Common Issues and Solutions
 
 ### Container Startup Timeout

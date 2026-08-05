@@ -11,7 +11,8 @@ Full code examples for testing with SQL Server, PostgreSQL, and database migrati
 ## SQL Server Integration Tests
 
 ```csharp
-using Testcontainers;
+using DotNet.Testcontainers.Builders;
+using DotNet.Testcontainers.Containers;
 using Xunit;
 
 public class SqlServerTests : IAsyncLifetime
@@ -151,7 +152,7 @@ public class PostgreSqlTests : IAsyncLifetime
 ```csharp
 public class MigrationTests : IAsyncLifetime
 {
-    private readonly IContainer _container;
+    private IContainer _container = null!;
     private string _connectionString;
 
     public async Task InitializeAsync()

@@ -156,7 +156,7 @@ public class MultiContainerTests : IAsyncLifetime
 
     public MultiContainerTests()
     {
-        _network = new TestcontainersNetworkBuilder()
+        _network = new NetworkBuilder()
             .Build();
 
         _dbContainer = new ContainerBuilder()
