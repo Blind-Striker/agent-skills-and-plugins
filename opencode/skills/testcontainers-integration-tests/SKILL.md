@@ -150,15 +150,16 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
 
 Testcontainers ships typed module packages for common infrastructure —
 `Testcontainers.PostgreSql`, `Testcontainers.MsSql`, `Testcontainers.Redis`,
-`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they pin a
-sensible image, expose `GetConnectionString()`, and remove the port/wait-strategy
-boilerplate shown in this skill's generic examples.
+`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they provide
+typed configuration and `GetConnectionString()`, and remove the port/wait-strategy
+boilerplate shown in this skill's generic examples. The caller supplies a project-approved
+image.
 
 ```csharp
 // Testcontainers.PostgreSql
 using Testcontainers.PostgreSql;
 
-var postgres = new PostgreSqlBuilder().Build();
+var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
 await postgres.StartAsync();
 var connectionString = postgres.GetConnectionString();
 ```

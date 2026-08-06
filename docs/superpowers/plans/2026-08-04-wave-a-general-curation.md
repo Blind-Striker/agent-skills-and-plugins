@@ -767,15 +767,16 @@ Expected: both `git apply --check` and `git apply` succeed silently, the working
 
 Testcontainers ships typed module packages for common infrastructure —
 `Testcontainers.PostgreSql`, `Testcontainers.MsSql`, `Testcontainers.Redis`,
-`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they pin a
-sensible image, expose `GetConnectionString()`, and remove the port/wait-strategy
-boilerplate shown in this skill's generic examples.
+`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they provide
+typed configuration and `GetConnectionString()`, and remove the port/wait-strategy
+boilerplate shown in this skill's generic examples. The caller supplies a project-approved
+image.
 
 ```csharp
 // Testcontainers.PostgreSql
 using Testcontainers.PostgreSql;
 
-var postgres = new PostgreSqlBuilder().Build();
+var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
 await postgres.StartAsync();
 var connectionString = postgres.GetConnectionString();
 ```
@@ -803,10 +804,10 @@ using Testcontainers.PostgreSql;
 
 _ = new NetworkBuilder().Build();
 IContainer container = null!;
-_ = new PostgreSqlBuilder().Build();
+_ = new PostgreSqlBuilder("postgres:16-alpine").Build();
 ```
 
-Run `dotnet build` and require success. This is an API compile check, not a textual scan. Delete the disposable project in a `finally` block; if compilation fails, fix the overlay rather than weakening the check.
+Run `dotnet build -p:WarningsAsErrors=CS0618` and require success with no `CS0618` warning. This is an API compile check, not a textual scan. Delete the disposable project in a `finally` block; if compilation fails, fix the overlay rather than weakening the check.
 
 - [ ] **Step 6: Update the manifest comment** — extend the testcontainers item's comment to read: `# ... the patch rewrites every builder example (containers AND networks) to the post-3.0 API, fixes the` `# non-compiling MigrationTests/Respawn fixtures, and fronts the typed module packages`.
 

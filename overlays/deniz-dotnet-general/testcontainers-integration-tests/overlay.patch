@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index c424282..123adc2 100644
+index c424282..d99e1e8 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -59,22 +59,22 @@ public class OrderRepositoryTests
@@ -27,7 +27,7 @@ index c424282..123adc2 100644
      }
  
      public async Task InitializeAsync()
-@@ -140,22 +140,41 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
+@@ -140,22 +140,42 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
  4. **Clean Data Between Tests** - Either use fresh containers or truncate tables
  5. **Reuse Containers When Possible** - Faster than creating new ones for each test
  6. **Test Real Queries** - Don't just test mocks; verify actual SQL behavior
@@ -40,15 +40,16 @@ index c424282..123adc2 100644
 +
 +Testcontainers ships typed module packages for common infrastructure —
 +`Testcontainers.PostgreSql`, `Testcontainers.MsSql`, `Testcontainers.Redis`,
-+`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they pin a
-+sensible image, expose `GetConnectionString()`, and remove the port/wait-strategy
-+boilerplate shown in this skill's generic examples.
++`Testcontainers.RabbitMq`. Prefer them over the generic `ContainerBuilder`: they provide
++typed configuration and `GetConnectionString()`, and remove the port/wait-strategy
++boilerplate shown in this skill's generic examples. The caller supplies a project-approved
++image.
 +
 +```csharp
 +// Testcontainers.PostgreSql
 +using Testcontainers.PostgreSql;
 +
-+var postgres = new PostgreSqlBuilder().Build();
++var postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
 +await postgres.StartAsync();
 +var connectionString = postgres.GetConnectionString();
 +```
