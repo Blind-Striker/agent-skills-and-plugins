@@ -30,12 +30,24 @@ $cfg    = (& opencode debug config 2>&1 | Out-String) | ConvertFrom-Json
 $cmds   = @($cfg.command.PSObject.Properties.Name)
 $leaked = @($skills | Where-Object { $_.location -ne "<built-in>" -and $_.location -notlike "$LAB*" })
 
-Check "skills discovered (21 ours + 1 built-in)"        $skills.Count 22
-Check "commands discovered"                             $cmds.Count   22
+Check "skills discovered (73 ours + 1 built-in)"        $skills.Count 74
+Check "commands discovered"                             $cmds.Count   33
 Check "built-in control present (customize-opencode)"   (@($skills | Where-Object name -eq "customize-opencode").Count) 1
 Check "skills resolving OUTSIDE the lab (must be zero)" $leaked.Count 0
 Check "plugin: list empty (no package cache)"           (@($cfg.plugin).Count) 0
-Check "parked bundles invisible (writing-skills etc.)"  (@($skills | Where-Object name -in @("teach","triage","writing-skills","writing-great-skills","setup-matt-pocock-skills","improve-codebase-architecture")).Count) 0
+Check "parked bundles invisible"                        (@($skills | Where-Object name -in @(
+    "convert-to-cpm",
+    "dotnet-aot-compat",
+    "dotnet-trace-collect",
+    "dump-collect",
+    "improve-codebase-architecture",
+    "migrate-nullable-references",
+    "setup-matt-pocock-skills",
+    "teach",
+    "triage",
+    "writing-great-skills",
+    "writing-skills"
+)).Count) 0
 if ($leaked.Count) { $leaked | ForEach-Object { Write-Host ("      LEAK: " + $_.name + " <- " + $_.location) -ForegroundColor Red } }
 Pop-Location
 

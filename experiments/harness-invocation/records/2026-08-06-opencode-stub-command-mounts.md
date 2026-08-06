@@ -1,6 +1,6 @@
 ---
-record_id: opencode-stub-command-mounts-2026-08-05
-date: 2026-08-05
+record_id: opencode-stub-command-mounts-2026-08-06
+date: 2026-08-06
 repo_head: 99475078cb08b7edccdf51e8e136772bf24f0387
 kind: runtime-smoke
 summary: The generated bundled manual beta command resolved and read its parked body from both project-local and isolated XDG-global mounts without exposing beta as a skill.

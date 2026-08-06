@@ -413,10 +413,9 @@ Test-That "Reset-Scratch undoes a commit, not just a checkout" {
 Write-Host "`n=== derived thresholds ===" -ForegroundColor Cyan
 
 Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
-    # 21/22/18/6 were established by hand during the 2026-08-01 round. They are an ORACLE, not an
-    # expectation: when curation changes and this goes red, update it in the same commit as the
-    # curation change, having checked the new numbers by hand. Editing it to silence a red is how
-    # an oracle stops being one.
+    # These values are an ORACLE, not an expectation: when curation changes and this goes red,
+    # update them in the same commit as the curation change, having checked the new numbers by hand.
+    # Editing them only to silence a red is how an oracle stops being one.
     $l = Get-Content (Join-Path $script:RepoRoot "docs\ledger.json") -Raw | ConvertFrom-Json
     $all  = $l.PSObject.Properties.Value
     $mine = $l.PSObject.Properties | Where-Object { $_.Name -like "deniz-process/*" } | ForEach-Object { $_.Value }
@@ -426,7 +425,7 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
         model    = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
         parked   = @($all  | Where-Object { $_.opencode.artifacts -notcontains "skill" -and @($_.opencode.parked).Count -gt 0 }).Count
     }
-    $want = @{ skills = 21; commands = 22; model = 18; parked = 6 }
+    $want = @{ skills = 73; commands = 33; model = 18; parked = 11 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }

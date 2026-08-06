@@ -65,9 +65,12 @@ function Sync-Lab {
     Remove-Item "$dest\skills","$dest\commands" -Recurse -Force -ErrorAction SilentlyContinue
     Copy-Item "$REPO\opencode\skills"   -Destination $dest -Recurse -Force
     Copy-Item "$REPO\opencode\commands" -Destination $dest -Recurse -Force
-    $s = (Get-ChildItem "$dest\skills" -Directory).Count
+    $skillDirs = @(Get-ChildItem "$dest\skills" -Directory)
+    $s = $skillDirs.Count
+    $discoverable = @($skillDirs | Where-Object { Test-Path (Join-Path $_.FullName "SKILL.md") }).Count
+    $parked = @($skillDirs | Where-Object { Test-Path (Join-Path $_.FullName "BODY.md") }).Count
     $c = (Get-ChildItem "$dest\commands" -File).Count
-    Write-Host "synced: $s skill dirs (21 with SKILL.md + 6 parked), $c commands" -ForegroundColor Green
+    Write-Host "synced: $s skill dirs ($discoverable with SKILL.md + $parked parked), $c commands" -ForegroundColor Green
 }
 
 Write-Host ""
