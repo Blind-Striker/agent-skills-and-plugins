@@ -1,6 +1,6 @@
 # Skill invocation across harnesses
 
-Date: 2026-08-03
+Date: 2026-08-06
 
 Who decides that a skill runs — the model, or the person at the keyboard — is a per-harness
 mechanism, and the two harnesses this repo targets disagree about it deeply enough that the same
@@ -229,18 +229,20 @@ mechanism does not depend on wording at all — a `manual` item is filtered out 
 listing entirely (measured above), so the worst a bad pointer sentence can cost there is a confusing
 message, never a wrong invocation.
 
-### Observed on this repo's real output (1.18.7, TUI, model GPT-5.6 Terra)
+### Observed on this repo's real output
 
-The fixture rounds above were confirmed against the built `opencode/` tree itself: three mounts
-(`OPENCODE_CONFIG_DIR`, project-local `.opencode/`, global config dir) each resolve the full set —
-every skill with a `SKILL.md`, every command, no parked directory in any listing — and a TUI
-session exercised the artifacts end to end:
+The initial real-output round used OpenCode 1.18.7 in the TUI with GPT-5.6 Terra. The fixture rounds
+above were confirmed against the built `opencode/` tree itself: three mounts (`OPENCODE_CONFIG_DIR`,
+project-local `.opencode/`, global config dir) each resolve the full set — every skill with a
+`SKILL.md`, every command, no parked directory in any listing — and the session exercised the
+artifacts end to end:
 
-- **A typed command pastes its whole body into the chat as the message.** A command is a
-  template, so a seven-line body (grill-me) reads clean while a 150-line one (brainstorming,
-  writing-plans) dumps a wall of text on every invocation. Correctness is unaffected — the model
-  follows the pasted body — but long-body `manual` conversions are noisy; the candidate emitter
-  fix is tracked in `docs/ROADMAP.md`.
+- **A typed command pastes its command body into the chat as the message.** A command is a template,
+  so inline `both` and bundle-less `manual` commands still behave this way. Bundled `manual`
+  conversions now emit a short stub: on the OpenCode version named in the linked record, isolated
+  project-local and global runs both read the parked `BODY.md` and followed it, while the parked
+  directory remained absent from skill discovery. The measured stub result is recorded in
+  [the OpenCode stub-command mount record](../../experiments/harness-invocation/records/2026-08-06-opencode-stub-command-mounts.md).
 - **Cross-artifact composition is model-mediated, and works.** The TUI does not expand a slash
   command nested inside a command body; the model reads "Run a `/grilling` session" and invokes
   the `grilling` skill through its skill tool. Trigger command → knowledge skill survives the
