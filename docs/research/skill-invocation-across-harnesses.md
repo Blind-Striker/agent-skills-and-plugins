@@ -242,7 +242,7 @@ artifacts end to end:
   conversions now emit a short stub: on the OpenCode version named in the linked record, isolated
   project-local and global runs both read the parked `BODY.md` and followed it, while the parked
   directory remained absent from skill discovery. The measured stub result is recorded in
-  [the OpenCode stub-command mount record](../../experiments/harness-invocation/records/2026-08-06-opencode-stub-command-mounts.md).
+  [the OpenCode stub-command argument record](../../experiments/harness-invocation/records/2026-08-06-opencode-stub-command-arguments.md).
 - **Cross-artifact composition is model-mediated, and works.** The TUI does not expand a slash
   command nested inside a command body; the model reads "Run a `/grilling` session" and invokes
   the `grilling` skill through its skill tool. Trigger command → knowledge skill survives the

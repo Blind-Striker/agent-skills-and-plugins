@@ -13,6 +13,7 @@ $script:ProjectMountCreated = $false
 $script:GlobalCommandMounted = $false
 $script:GlobalSkillMounted = $false
 $script:LegResults = [Collections.Generic.List[object]]::new()
+$script:ArgumentMarker = "ZX-STUB-CLI-ARG"
 
 function Invoke-HarnessProcess {
     param(
@@ -363,7 +364,7 @@ const originalSourceSkill = [
   "Baseline body.",
   "",
 ].join("\n");
-const replacementBody = "Read this BODY.md before doing anything else. Do not inspect any other file or perform any other work. Reply exactly ZX-STUB-BODY-RAN ZX-STUB-ARG.\n";
+const replacementBody = "Read this BODY.md before doing anything else. Do not inspect any other file or perform any other work. Reply with ZX-STUB-BODY-RAN followed by a space and the exact value after Arguments: in the command message.\n";
 writeFileSync(
   join(root, "external", "sp", "skills", "beta", "SKILL.md"),
   originalSourceSkill.replace("Baseline body.\n", replacementBody),
@@ -405,8 +406,11 @@ console.log(JSON.stringify({ report }));
     if ($commandText -cnotmatch "skills/beta/BODY\.md" -or $commandText.Contains("ZX-STUB-BODY-RAN")) {
         throw "generated beta command is not the buildAll parked-body stub"
     }
-    if ($bodyText -cnotmatch "ZX-STUB-BODY-RAN" -or $bodyText -cnotmatch "ZX-STUB-ARG") {
+    if ($bodyText -cnotmatch "ZX-STUB-BODY-RAN" -or $bodyText -cnotmatch "exact value after Arguments:") {
         throw "generated beta BODY.md lost the replacement source body"
+    }
+    if ($bodyText.Contains($script:ArgumentMarker)) {
+        throw "generated beta BODY.md contains the runtime argument marker; the smoke cannot prove argument substitution"
     }
     if (@($adapterResult.report | Where-Object { $_ -cmatch "body parked at skills/beta/BODY\.md" }).Count -ne 1) {
         throw "buildAll fixture adapter did not report beta body parking"
@@ -501,7 +505,7 @@ function Invoke-SmokeLeg {
     $discovery = Get-ResolvedState -Name "$Mount-before-run"
     Assert-IsolationDiscovery $discovery
     Assert-BetaDiscovery -State $discovery -Stage $Mount
-    $arguments = Get-OpenCodeArguments -Spec $script:Spec -Prompt "ZX-STUB-ARG"
+    $arguments = Get-OpenCodeArguments -Spec $script:Spec -Prompt $script:ArgumentMarker
 
     if ($DryRun) {
         Write-Host ("  {0} opencode {1}" -f $Mount, ($arguments -join " ")) -ForegroundColor DarkGray
@@ -526,7 +530,7 @@ function Invoke-SmokeLeg {
         ""
     }
     $bodyMarker = $finalText -cmatch "ZX-STUB-BODY-RAN"
-    $argumentMarker = $finalText -cmatch "ZX-STUB-ARG"
+    $argumentMarker = $finalText -cmatch ([regex]::Escape($script:ArgumentMarker))
     $failures = @()
     if ($run.TimedOut) { $failures += "timed out after $TimeoutSeconds seconds" }
     elseif ($run.ExitCode -ne 0) { $failures += "process exited $($run.ExitCode)" }
@@ -534,7 +538,7 @@ function Invoke-SmokeLeg {
     if ($observation.Errors.Count) { $failures += "OpenCode error event" }
     if (-not $readSuffix) { $failures += "no completed read-tool input ending in $ExpectedReadSuffix" }
     if (-not $bodyMarker) { $failures += "final text missing ZX-STUB-BODY-RAN" }
-    if (-not $argumentMarker) { $failures += "final text missing ZX-STUB-ARG" }
+    if (-not $argumentMarker) { $failures += "final text missing $script:ArgumentMarker" }
     $result = [ordered]@{
         mount = $Mount
         status = if ($failures.Count) { "fail" } else { "pass" }
@@ -542,7 +546,7 @@ function Invoke-SmokeLeg {
         skill_discovered = $false
         expected_read_suffix = $ExpectedReadSuffix
         observed_read_suffix = $readSuffix
-        markers = @("ZX-STUB-BODY-RAN", "ZX-STUB-ARG")
+        markers = @("ZX-STUB-BODY-RAN", $script:ArgumentMarker)
         marker_text_observed = ($bodyMarker -and $argumentMarker)
         terminal_event = [bool] $observation.TerminalEvent
         duration_seconds = $run.DurationSeconds
