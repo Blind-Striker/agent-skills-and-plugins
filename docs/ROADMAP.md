@@ -203,7 +203,7 @@ Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manua
   excluded; the general module deliberately ships no test-writing knowledge, and its audit bodies
   no longer name a test-writing destination. A TUnit-first original skill under `skills/` needs a
   separate authoring session; that session decides its scope rather than this curation wave.
-- **`expects` — manifest-side guard for bare-name edges in untouched bodies.** Design only if
-  load-bearing bare-name edges accumulate in bodies there is no other reason to patch; today's
-  single case (`grill-me` → `grilling`) stays deliberately unguarded. Decide the guard's shape only
-  after that trigger is met.
+- **`expects` — optional manifest-side guard for bare-name edges.** Design only if load-bearing
+  bare-name edges accumulate enough that review-only candidate status becomes unsafe; today's single
+  case (`grill-me` → `grilling`) stays deliberately unguarded. Decide the guard's shape only after
+  that trigger is met.
