@@ -101,6 +101,10 @@ git commit -m "feat: cut unused general-dotnet workflows"
 
 Do not touch `slopwatch`, `analyzing-dotnet-performance`, `dotnet-devcert-trust` — they stay `both`, comments already say why.
 
+When a retained body redirects to one of these manual ceremonies, keep its bare ceremony name and
+say that the user invokes it separately; the model never chains into it. This is audience wording
+only, not a namespaced fact or `depends_on`.
+
 - [ ] **Step 2: Rewrite the header invocation paragraph**
 
 Replace the paragraph starting `# Invocation rule applied module-wide (curator's call): honour the upstream` (through `# ...The one agent kept is a genuine specialist.`) with:
@@ -862,7 +866,7 @@ Expected: tests pass (no `tools/` change was made — this confirms it), validat
 
 - Removed entries: `grade-tests`, `exp-mock-usage-analysis`, `exp-test-maintainability`, `find-untested-sources`, `migrate-vstest-to-mtp`, `migrate-xunit-to-xunit-v3`, `mjml-email-templates`, `migrate-dotnet8-to-dotnet9`, `migrate-dotnet9-to-dotnet10`.
 - Invocation changes to `manual`: `convert-to-cpm`, `generate-testability-wrappers`, `migrate-static-to-wrapper`, `dotnet-trace-collect`, `dump-collect`, `migrate-nullable-references`, `thread-abort-migration`, `dotnet-aot-compat`.
-- New `body: patch`: `run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, `snapshot-testing`.
+- New `body: patch`: `run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, `snapshot-testing`, `detect-static-dependencies`, `dotnet-trace-collect`, `generate-testability-wrappers`, `migrate-static-to-wrapper`.
 - Description changes: `filter-syntax`, `platform-detection`, `run-tests`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, `snapshot-testing`.
 
 Anything else is a finding — stop and report.
@@ -906,7 +910,7 @@ Record the emitted census in the execution report, not in hand-written planning 
 
 - [ ] **Step 4: Patch inventory**
 
-`git diff <wave-start>..HEAD --name-status -- overlays/deniz-dotnet-general` may add patch artifacts only for `run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, and `snapshot-testing`; the existing `testcontainers-integration-tests` patch is the only modified overlay. No other overlay may change.
+`git diff <wave-start>..HEAD --name-status -- overlays/deniz-dotnet-general` may add patch artifacts only for `run-tests`, `mtp-hot-reload`, `test-anti-patterns`, `test-gap-analysis`, `coverage-analysis`, `dotnet-webapi`, `test-analysis-extensions`, `snapshot-testing`, `detect-static-dependencies`, `dotnet-trace-collect`, `generate-testability-wrappers`, and `migrate-static-to-wrapper`; the existing `testcontainers-integration-tests` patch is the only modified overlay. No other overlay may change.
 
 - [ ] **Step 5: Excluded-reference sweep**
 

@@ -575,7 +575,8 @@
   "deniz-dotnet-general/skill/detect-static-dependencies": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies",
     "invocation": "auto",
-    "description": "Scan C# source files for hard-to-test static dependencies — DateTime.Now/UtcNow, File.*, Directory.*, Environment.*, HttpClient, Console.*, Process.*, and other untestable statics. Produces a ranked report of static call sites by frequency. USE FOR: find untestable statics, scan for static dependencies, testability audit, identify hard-to-mock code, find DateTime.Now usage, detect static coupling, testability report, static analysis for testability. DO NOT USE FOR: generating wrappers (use generate-testability-wrappers), migrating code (use migrate-static-to-wrapper), general code review, or finding statics that are already behind abstractions.\n",
+    "body": "patch",
+    "description": "Scan C# source files for hard-to-test static dependencies — DateTime.Now/UtcNow, File.*, Directory.*, Environment.*, HttpClient, Console.*, Process.*, and other untestable statics. Produces a ranked report of static call sites by frequency. USE FOR: find untestable statics, scan for static dependencies, testability audit, identify hard-to-mock code, find DateTime.Now usage, detect static coupling, testability report, static analysis for testability. DO NOT USE FOR: generating wrappers (report `generate-testability-wrappers` as the matching manual ceremony; the user may invoke it separately), migrating code (report `migrate-static-to-wrapper` as the matching manual ceremony; the user may invoke it separately), general code review, or finding statics that are already behind abstractions.\n",
     "claude": {
       "artifacts": [
         "skill"
@@ -817,6 +818,7 @@
   "deniz-dotnet-general/skill/dotnet-trace-collect": {
     "source": "dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect",
     "invocation": "manual",
+    "body": "patch",
     "description": "Guide developers through capturing diagnostic artifacts to diagnose production .NET performance issues. Use when the user needs help choosing diagnostic tools, collecting performance data, or understanding tool trade-offs across different environments (Windows/Linux, .NET Framework/modern .NET, container/non-container).",
     "claude": {
       "artifacts": [
@@ -1044,7 +1046,8 @@
   "deniz-dotnet-general/skill/generate-testability-wrappers": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers",
     "invocation": "manual",
-    "description": "Generate wrapper interfaces and DI registration for hard-to-test static dependencies in C#, when the abstraction does NOT exist yet. Produces IFileSystem, IEnvironmentProvider, IConsole, IProcessRunner wrappers, or guides first-time adoption of TimeProvider and IHttpClientFactory and registering them in DI. USE FOR: generate wrapper for static, create IFileSystem wrapper, wrap DateTime.Now, make static testable, make class testable, create abstraction for File.*, generate DI registration, set up/adopt TimeProvider when it is not registered yet, IHttpClientFactory setup, testability wrapper, create the right abstraction to mock, what abstraction for Environment, how to make statics injectable, adopt System.IO.Abstractions. DO NOT USE FOR: detecting statics (use detect-static-dependencies), migrating call sites or replacing existing DateTime.*/File.* usages once the wrapper is created or already registered in DI (use migrate-static-to-wrapper), general interface design.\n",
+    "body": "patch",
+    "description": "Generate wrapper interfaces and DI registration for hard-to-test static dependencies in C#, when the abstraction does NOT exist yet. Produces IFileSystem, IEnvironmentProvider, IConsole, IProcessRunner wrappers, or guides first-time adoption of TimeProvider and IHttpClientFactory and registering them in DI. USE FOR: generate wrapper for static, create IFileSystem wrapper, wrap DateTime.Now, make static testable, make class testable, create abstraction for File.*, generate DI registration, set up/adopt TimeProvider when it is not registered yet, IHttpClientFactory setup, testability wrapper, create the right abstraction to mock, what abstraction for Environment, how to make statics injectable, adopt System.IO.Abstractions. DO NOT USE FOR: detecting statics (use detect-static-dependencies), migrating call sites or replacing existing DateTime.*/File.* usages once the wrapper is created or already registered in DI (after wrapper creation, the user invokes `migrate-static-to-wrapper` separately), general interface design.\n",
     "claude": {
       "artifacts": [
         "skill"
@@ -1297,7 +1300,8 @@
   "deniz-dotnet-general/skill/migrate-static-to-wrapper": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper",
     "invocation": "manual",
-    "description": "Replace existing static dependency call sites with a wrapper or built-in abstraction that already exists or is registered in DI, across a bounded scope (file, project, namespace). USE FOR: replace DateTime.UtcNow/DateTime.Now with TimeProvider and add the constructor parameter, migrate static call sites to a wrapper already in DI, bulk replace File.* with IFileSystem, scoped migration of statics in only certain files, update unit tests to a fake time source, make an existing static or utility class testable by adding an ambient TimeProvider/IFileSystem seam while every current call site keeps compiling, behavior-preserving time refactors that must keep the same DateTimeKind. DO NOT USE FOR: detecting statics (use detect-static-dependencies), designing a brand-new wrapper interface that does not exist yet (use generate-testability-wrappers), migrating between test frameworks.\n",
+    "body": "patch",
+    "description": "Replace existing static dependency call sites with a wrapper or built-in abstraction that already exists or is registered in DI, across a bounded scope (file, project, namespace). USE FOR: replace DateTime.UtcNow/DateTime.Now with TimeProvider and add the constructor parameter, migrate static call sites to a wrapper already in DI, bulk replace File.* with IFileSystem, scoped migration of statics in only certain files, update unit tests to a fake time source, make an existing static or utility class testable by adding an ambient TimeProvider/IFileSystem seam while every current call site keeps compiling, behavior-preserving time refactors that must keep the same DateTimeKind. DO NOT USE FOR: detecting statics (use detect-static-dependencies), designing a brand-new wrapper interface that does not exist yet (the user invokes `generate-testability-wrappers` separately first), migrating between test frameworks.\n",
     "claude": {
       "artifacts": [
         "skill"

@@ -10,8 +10,9 @@ description: >
   TimeProvider/IFileSystem seam while every current call site keeps compiling,
   behavior-preserving time refactors that must keep the same DateTimeKind. DO
   NOT USE FOR: detecting statics (use detect-static-dependencies), designing a
-  brand-new wrapper interface that does not exist yet (use
-  generate-testability-wrappers), migrating between test frameworks.
+  brand-new wrapper interface that does not exist yet (the user invokes
+  `generate-testability-wrappers` separately first), migrating between test
+  frameworks.
 ---
 
 # Migrate Static to Wrapper
@@ -30,7 +31,7 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
 
 ## When Not to Use
 
-- No wrapper or abstraction exists yet and one must be designed from scratch (use `generate-testability-wrappers` first).
+- No wrapper or abstraction exists yet and one must be designed from scratch (the user invokes `generate-testability-wrappers` separately first).
   A built-in abstraction such as `TimeProvider` or `IFileSystem` always counts as existing.
 - The user wants to detect statics, not migrate them (use `detect-static-dependencies`)
 - Migrating between test frameworks (use the appropriate migration skill)

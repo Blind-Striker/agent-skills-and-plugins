@@ -7,10 +7,11 @@ description: >
   of static call sites by frequency. USE FOR: find untestable statics, scan for
   static dependencies, testability audit, identify hard-to-mock code, find
   DateTime.Now usage, detect static coupling, testability report, static
-  analysis for testability. DO NOT USE FOR: generating wrappers (use
-  generate-testability-wrappers), migrating code (use
-  migrate-static-to-wrapper), general code review, or finding statics that are
-  already behind abstractions.
+  analysis for testability. DO NOT USE FOR: generating wrappers (report
+  `generate-testability-wrappers` as the matching manual ceremony; the user may
+  invoke it separately), migrating code (report `migrate-static-to-wrapper` as
+  the matching manual ceremony; the user may invoke it separately), general code
+  review, or finding statics that are already behind abstractions.
 license: MIT
 user-invocable: false
 ---
@@ -34,8 +35,8 @@ Scan a C# codebase for calls to hard-to-test static APIs and produce a ranked re
 
 ## When Not to Use
 
-- The user wants wrappers generated (hand off to `generate-testability-wrappers`)
-- The user wants mechanical migration done (hand off to `migrate-static-to-wrapper`)
+- The user wants wrappers generated (report `generate-testability-wrappers` as the matching manual ceremony; the user may invoke it separately)
+- The user wants mechanical migration done (report `migrate-static-to-wrapper` as the matching manual ceremony; the user may invoke it separately)
 - The statics are already behind interfaces or `TimeProvider`
 - The code is not C# / .NET
 
@@ -142,7 +143,7 @@ Format the output as a structured report:
 
 Based on the report, recommend which category to tackle first (highest count, best built-in support). Keep this to a few lines.
 
-Mention `generate-testability-wrappers` or `migrate-static-to-wrapper` only when the user's next action clearly needs them — a hand-off note, not a sales pitch. Never end an audit with promotional next-steps that dilute the findings.
+Mention `generate-testability-wrappers` or `migrate-static-to-wrapper` only when the user's next action clearly needs them — report the matching manual ceremony name, which the user may invoke separately, not a sales pitch. Never end an audit with promotional next-steps that dilute the findings.
 
 ## Validation
 

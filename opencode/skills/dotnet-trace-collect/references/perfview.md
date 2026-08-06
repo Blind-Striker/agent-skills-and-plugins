@@ -128,4 +128,4 @@ PerfView collect /MaxCollectSec:30 /BufferSizeMB:1024 /CircularMB:2048
 - ✅ Works with Windows containers (Hyper-V and process-isolation)
 - ❌ Windows only
 - ❌ Requires admin privileges
-- ⚠️ **For .NET Framework without admin**: PerfView is the only trace tool for .NET Framework, and it requires admin. Without admin, there is **no way to investigate high CPU, slow requests, or excessive GC** on .NET Framework. Dumps can help with hangs and memory leaks (delegate to the `dump-collect` skill), but trace-based investigation requires admin access.
+- ⚠️ **For .NET Framework without admin**: PerfView is the only trace tool for .NET Framework, and it requires admin. Without admin, there is **no way to investigate high CPU, slow requests, or excessive GC** on .NET Framework. Dumps can help with hangs and memory leaks (tell the user to invoke the `dump-collect` ceremony separately), but trace-based investigation requires admin access.

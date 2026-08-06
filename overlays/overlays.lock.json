@@ -34,6 +34,19 @@
       "SKILL.md": "58ec55788b80b450b2ab5255c2516a07b8ade2ab"
     }
   },
+  "deniz-dotnet-general/detect-static-dependencies": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies",
+    "files": {
+      "SKILL.md": "dca80e40a3b0ba003da0cf2fa741a9691e137e92"
+    }
+  },
+  "deniz-dotnet-general/dotnet-trace-collect": {
+    "source": "dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect",
+    "files": {
+      "SKILL.md": "d2ad26b2039cbd901ca0c6311f4a3304dd555174",
+      "references/perfview.md": "6760f9d4e58ef8be6f24faefe208d5561134d9d8"
+    }
+  },
   "deniz-dotnet-general/dotnet-webapi": {
     "source": "dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi",
     "files": {
@@ -46,10 +59,22 @@
       "SKILL.md": "562168369bff01db1566875011a64bcb1b110f2a"
     }
   },
+  "deniz-dotnet-general/generate-testability-wrappers": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers",
+    "files": {
+      "SKILL.md": "6fab470304ee1adcd431545c46f6c65c3674db95"
+    }
+  },
   "deniz-dotnet-general/incremental-build": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/incremental-build",
     "files": {
       "SKILL.md": "ed5656a4832ab95ba03296cf672be30c4005c087"
+    }
+  },
+  "deniz-dotnet-general/migrate-static-to-wrapper": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper",
+    "files": {
+      "SKILL.md": "e91d47583baf373540e3b6338d48e3bcba1a8ee8"
     }
   },
   "deniz-dotnet-general/mtp-hot-reload": {

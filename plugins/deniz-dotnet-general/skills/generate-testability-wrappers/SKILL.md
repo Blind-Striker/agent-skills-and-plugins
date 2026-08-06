@@ -13,8 +13,8 @@ description: >
   for Environment, how to make statics injectable, adopt System.IO.Abstractions.
   DO NOT USE FOR: detecting statics (use detect-static-dependencies), migrating
   call sites or replacing existing DateTime.*/File.* usages once the wrapper is
-  created or already registered in DI (use migrate-static-to-wrapper), general
-  interface design.
+  created or already registered in DI (after wrapper creation, the user invokes
+  `migrate-static-to-wrapper` separately), general interface design.
 license: MIT
 disable-model-invocation: true
 ---
@@ -33,7 +33,7 @@ Generate wrapper interfaces, default implementations, and DI service registratio
 ## When Not to Use
 
 - The user wants to find statics first (use `detect-static-dependencies`)
-- The user wants to bulk-replace call sites (use `migrate-static-to-wrapper`)
+- The user wants to bulk-replace call sites (after wrapper creation, the user invokes `migrate-static-to-wrapper` separately)
 - The static is already behind an interface
 - The project does not use dependency injection and the user does not want to add it
 

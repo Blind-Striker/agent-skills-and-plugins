@@ -159,10 +159,13 @@ items:
     body: patch # adds a bounded targeted branch using the existing all-method coverage extractor
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
     invocation: auto # report-only scan; feeds the two mutating stages below
+    body: patch # reports the two manual ceremonies for the user to invoke separately
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
     invocation: manual # writes production abstractions + DI registrations — typed deliberately, never model-fired
+    body: patch # user invokes the migration ceremony separately after wrapper creation
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
     invocation: manual # codemod across a bounded scope — typed deliberately
+    body: patch # user invokes the wrapper-creation ceremony separately first
   - source: dotnet-skills/skills/snapshot-testing
     invocation: auto # general Verify knowledge: API, HTTP, serialization, objects, rendered output
     body: patch # email-authoring branches and their dead handoff are outside the curator's flow
@@ -190,6 +193,7 @@ items:
     # rejected: a 43KB full-file overlay is the wrong price when posture alone contains the risk.
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect
     invocation: manual # production artifact-collection ceremony — the curator decides when
+    body: patch # user invokes the dump-collection ceremony separately where applicable
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dump-collect
     invocation: manual # collection-only counterpart; the curator decides when
   - source: dotnet-skills/skills/ilspy-decompile
