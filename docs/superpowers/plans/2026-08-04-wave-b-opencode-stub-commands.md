@@ -144,7 +144,7 @@ Expected: all tests pass and typecheck is clean. If a ledger test observes `BODY
 
 **Files:**
 - Modify: `plugins/`, `opencode/`, `docs/ledger.json` (generated)
-- Modify only if a retired warning is asserted: `tools/validate.test.ts`
+- Modify: `tools/validate.ts`, `tools/validate.test.ts` (L6 must scan a parked `BODY.md` as well as its command and report the actual source path)
 
 - [ ] **Step 1:** Run `npm run build && npm run validate`.
 
@@ -158,7 +158,7 @@ Expected: `0 error(s)`. The `teach` and `writing-great-skills` dead self-link wa
 
 Expected: green, `0 error(s)`, the two dead-self-link identities absent, and no new warning identity.
 
-- [ ] **Step 5: Check scope.** `git diff <wave-b-start> --name-only` may contain only `tools/build.ts`, its directly affected tests, generated `opencode/` files, and `docs/ledger.json`. The Claude `plugins/` tree should regenerate byte-identically and therefore have no diff.
+- [ ] **Step 5: Check scope.** `git diff <wave-b-start> --name-only` may contain only `tools/build.ts`, its directly affected tests, the L6 `tools/validate.ts` and `tools/validate.test.ts` follow-through, generated `opencode/` files, and `docs/ledger.json`. The Claude `plugins/` tree should regenerate byte-identically and therefore have no diff.
 
 - [ ] **Step 6: Commit**
 

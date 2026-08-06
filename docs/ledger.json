@@ -379,6 +379,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "references/audit-complexities.md",
         "references/baseline-comparison.md",
         "references/directory-packages-props.md",
@@ -663,6 +664,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "references/polyfills.md"
       ]
     }
@@ -846,6 +848,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "references/dotnet-monitor.md",
         "references/dotnet-trace-collect-linux.md",
         "references/dotnet-trace-collect.md",
@@ -915,6 +918,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "references/container-dumps.md",
         "references/coreclr-dumps.md",
         "references/nativeaot-dumps.md"
@@ -1289,6 +1293,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "references/aspnet-core.md",
         "references/breaking-changes.md",
         "references/ef-core.md",
@@ -2354,6 +2359,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "HTML-REPORT.md"
       ]
     }
@@ -2548,6 +2554,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "domain.md",
         "issue-tracker-github.md",
         "issue-tracker-gitlab.md",
@@ -2669,6 +2676,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "GLOSSARY-FORMAT.md",
         "LEARNING-RECORD-FORMAT.md",
         "MISSION-FORMAT.md",
@@ -2812,6 +2820,7 @@
       ],
       "parked": [
         "AGENT-BRIEF.md",
+        "BODY.md",
         "OUT-OF-SCOPE.md"
       ]
     }
@@ -2978,6 +2987,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "GLOSSARY.md"
       ]
     }
@@ -3061,6 +3071,7 @@
         "name"
       ],
       "parked": [
+        "BODY.md",
         "anthropic-best-practices.md",
         "examples/CLAUDE_MD_TESTING.md",
         "graphviz-conventions.dot",

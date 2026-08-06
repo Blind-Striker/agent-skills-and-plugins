@@ -460,10 +460,10 @@ function reportDropped(label: string, from: Record<string, unknown>, kept: Recor
  * by construction and a command is its only user-invocable surface.
  *
  * `manual` therefore emits a command and no skill — but a command is a single file, and the bundled
- * files a skill directory carries would have nowhere to live. They are parked under `skills/<name>/`
- * without a `SKILL.md`, which OpenCode's discovery ignores (measured; see the research note), so the
- * command body can still reach them. Their references are not rewritten yet: the spelling depends on
- * which mount point is supported, which is an open curation decision, so the drop is reported.
+ * files a skill directory carries would have nowhere to live. Bundled manual items park their parsed
+ * body as non-discoverable `BODY.md` under `skills/<name>/`, which OpenCode's discovery ignores
+ * (measured; see the research note). Commands point at the supported project-local and global
+ * locations, and Markdown self-links in the parked bundle are repointed to `BODY.md`.
  */
 function emitOpenCodeSkill(
   root: string,
@@ -494,26 +494,41 @@ function emitOpenCodeSkill(
     rmSync(destSkill, { recursive: true, force: true }); // nothing was bundled; leave no husk
   }
 
+  const bundledManual = !wantsSkill && existsSync(destSkill);
+  if (bundledManual) {
+    writeFileSync(join(destSkill, "BODY.md"), doc.body);
+    for (const file of listFiles(destSkill).filter((f) => f.endsWith(".md"))) {
+      const path = join(destSkill, file);
+      const body = readFileSync(path, "utf8").replaceAll(
+        /(\]\((?:(?:\.\.\/)+|\.\/)?)SKILL\.md(?=[)#?\s])/g,
+        "$1BODY.md",
+      );
+      writeFileSync(path, body);
+    }
+  }
+
   if (invocation !== "manual" && invocation !== "both") {
     return;
   }
   const command = { description: doc.frontmatter.description };
   reportDropped(`opencode command ${name}`, doc.frontmatter, command, report);
+  const commandBody = bundledManual
+    ? [
+        `Read \`skills/${name}/BODY.md\` from the active OpenCode configuration root before doing anything else.`,
+        `For a project-local install, use \`.opencode/skills/${name}/BODY.md\`; for a global install, use \`~/.config/opencode/skills/${name}/BODY.md\`.`,
+        `Follow that file as this command's full instructions.`,
+        "",
+        `Arguments: $ARGUMENTS`,
+      ].join("\n")
+    : doc.body;
   mkdirSync(join(root, "opencode", "commands"), { recursive: true });
   writeFileSync(
     join(root, "opencode", "commands", `${name}.md`),
-    serializeDoc({ frontmatter: command, body: doc.body }),
+    serializeDoc({ frontmatter: command, body: commandBody }),
   );
-  // Parking is what `manual` costs, so only `manual` reports it. A `both` item's directory is a
-  // live discoverable skill carrying its own SKILL.md — calling that "parked" made most of this
-  // warning class false, and a report more than half wrong is one nobody reads. The command copy's
-  // bundle references are unrewritten there too, but the same body is reachable through the skill,
-  // where OpenCode resolves them natively; what is left is the out-of-project read (ROADMAP).
-  const parked = !wantsSkill && existsSync(destSkill) ? listFiles(destSkill) : [];
-  if (parked.length) {
-    report.push(
-      `WARN opencode command ${name}: bundled files parked at skills/${name}/ (${parked.join(", ")}) — body references to them are not rewritten`,
-    );
+  const parked = bundledManual ? listFiles(destSkill).filter((f) => f !== "BODY.md") : [];
+  if (bundledManual) {
+    report.push(`opencode command ${name}: body parked at skills/${name}/BODY.md (bundle: ${parked.join(", ")})`);
   }
 }
 

@@ -599,7 +599,7 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // L6: a command body naming a parked file that is not there (omitted, renamed) ships a dead path.
+  // L6: a command or parked body naming a parked file that is not there (omitted, renamed) ships a dead path.
   const cmdsDir = join(root, "opencode", "commands");
   for (const f of existsSync(cmdsDir) ? readdirSync(cmdsDir) : []) {
     const name = basename(f, ".md");
@@ -608,13 +608,19 @@ export function validateRepo(root: string): Finding[] {
       continue;
     }
     const parkedFiles = new Set(listFiles(parkedDir));
-    const body = readFileSync(join(cmdsDir, f), "utf8");
-    for (const hit of body.matchAll(new RegExp(`skills/${name}/([A-Za-z0-9._/-]+)`, "g"))) {
+    const sources = [join(cmdsDir, f), join(parkedDir, "BODY.md")].filter(existsSync);
+    const hits = sources.flatMap((source) =>
+      [...readFileSync(source, "utf8").matchAll(new RegExp(`skills/${name}/([A-Za-z0-9._/-]+)`, "g"))].map((hit) => ({
+        source,
+        hit,
+      })),
+    );
+    for (const { source, hit } of hits) {
       const target = (hit[1] as string).replace(/[).,:;'"]+$/, "");
       if (!parkedFiles.has(target)) {
         findings.push({
           level: "error",
-          message: `opencode/commands/${f}: references skills/${name}/${target}, which is not among the parked files`,
+          message: `${relative(root, source).replaceAll("\\", "/")}: references skills/${name}/${target}, which is not among the parked files`,
         });
       }
     }

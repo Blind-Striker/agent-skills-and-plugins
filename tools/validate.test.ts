@@ -517,7 +517,7 @@ test("linker: a dangling namespaced reference is an error", () => {
   );
 });
 
-test("linker: a command body naming a missing parked file is an error", () => {
+test("linker: a parked manual BODY naming a missing parked file is an error", () => {
   const root = makeRepo();
   writeFileSync(join(root, "external", "sp", "skills", "beta", "notes.md"), "bundled\n");
   writeFileSync(
@@ -538,8 +538,15 @@ test("linker: a command body naming a missing parked file is an error", () => {
   );
   buildAll(root);
   const findings = validateRepo(root);
+  const parkedPathFindings = findings.filter((f) => f.message.includes("which is not among the parked files"));
+  assert.equal(parkedPathFindings.length, 1, JSON.stringify(findings, null, 2));
   assert.ok(
-    findings.some((f) => f.level === "error" && f.message.includes("skills/beta/other.md")),
+    parkedPathFindings.some(
+      (f) =>
+        f.level === "error" &&
+        f.message.includes("opencode/skills/beta/BODY.md") &&
+        f.message.includes("skills/beta/other.md"),
+    ),
     JSON.stringify(findings, null, 2),
   );
 });

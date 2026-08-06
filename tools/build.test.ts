@@ -4,7 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, wr
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
-import { parseDoc } from "./lib/frontmatter.ts";
+import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 
@@ -165,9 +165,161 @@ test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
     existsSync(join(root, "opencode", "skills", "beta", "references", "notes.md")),
     "bundled files are parked where the command can reach them",
   );
+  assert.ok(
+    existsSync(join(root, "opencode", "skills", "beta", "BODY.md")),
+    "bundled manual beta parks its body beside the bundle",
+  );
 
   assert.ok(existsSync(join(root, "opencode", "skills", "delta", "SKILL.md")), "both emits a skill");
   assert.ok(existsSync(join(root, "opencode", "commands", "delta.md")), "both emits a command too");
+  assert.ok(!existsSync(join(root, "opencode", "skills", "delta", "BODY.md")), "both does not park a body");
+});
+
+test("a bundled manual command parks its body and points at the parked bundle", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+    ].join("\n")}\n`,
+  );
+  const report = buildAll(root);
+
+  const bodyPath = join(root, "opencode", "skills", "beta", "BODY.md");
+  assert.ok(existsSync(bodyPath), "the full body is parked beside its bundle");
+  assert.ok(!existsSync(join(root, "opencode", "skills", "beta", "SKILL.md")), "manual stays undiscoverable");
+
+  const upstream = parseDoc(readFileSync(join(root, "external", "sp", "skills", "beta", "SKILL.md"), "utf8"));
+  assert.equal(readFileSync(bodyPath, "utf8"), upstream.body, "BODY.md is the complete parsed skill body");
+
+  const command = parseDoc(readFileSync(join(root, "opencode", "commands", "beta.md"), "utf8"));
+  const expectedStub = [
+    "Read `skills/beta/BODY.md` from the active OpenCode configuration root before doing anything else.",
+    "For a project-local install, use `.opencode/skills/beta/BODY.md`; for a global install, use `~/.config/opencode/skills/beta/BODY.md`.",
+    "Follow that file as this command's full instructions.",
+    "",
+    "Arguments: $ARGUMENTS",
+  ].join("\n");
+  assert.equal(command.body.trim(), expectedStub);
+  assert.doesNotMatch(
+    command.body,
+    /@(?:\.opencode|~\/\.config)/,
+    "the path is prose, not a project-root-only @ reference",
+  );
+  assert.ok(!command.body.includes(upstream.body.trim()), "the command does not paste the full ceremony");
+
+  const parking = report.filter((line) => line.includes("beta") && line.includes("parked"));
+  assert.equal(parking.length, 1, `expected one beta parking report, got ${JSON.stringify(report)}`);
+  const parkingLine = parking[0] as string;
+  assert.match(parkingLine, /body parked at skills\/beta\/BODY\.md/);
+  assert.match(parkingLine, /\([^)]*references\/notes\.md[^)]*\)/);
+  assert.doesNotMatch(parkingLine, /^WARN/);
+  assert.doesNotMatch(parkingLine, /not rewritten/);
+  assert.doesNotMatch(parkingLine, /\([^)]*BODY\.md[^)]*\)/);
+});
+
+test("a bundle-less manual conversion preserves the pre-wave command and leaves no parking husk", () => {
+  const root = makeRepo();
+  const upstream = parseDoc(readFileSync(join(root, "external", "sp", "skills", "beta", "SKILL.md"), "utf8"));
+  rmSync(join(root, "external", "sp", "skills", "beta", "references"), { recursive: true, force: true });
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+    ].join("\n")}\n`,
+  );
+  const expectedCommand = serializeDoc({
+    frontmatter: { description: upstream.frontmatter.description },
+    body: upstream.body,
+  });
+  const report = buildAll(root);
+
+  assert.equal(readFileSync(join(root, "opencode", "commands", "beta.md"), "utf8"), expectedCommand);
+  assert.ok(!existsSync(join(root, "opencode", "skills", "beta")), "bundle-less manual leaves no skill directory");
+  assert.equal(
+    report.some((line) => line.includes("beta") && line.includes("parked")),
+    false,
+    "no parking report is emitted",
+  );
+});
+
+test("both preserves the pre-wave skill and command documents without a parked body", () => {
+  const root = makeRepo();
+  const upstream = parseDoc(readFileSync(join(root, "external", "sp", "skills", "delta", "SKILL.md"), "utf8"));
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/delta",
+      "    invocation: both",
+    ].join("\n")}\n`,
+  );
+  const expectedSkill = serializeDoc(upstream);
+  const expectedCommand = serializeDoc({
+    frontmatter: { description: upstream.frontmatter.description },
+    body: upstream.body,
+  });
+  const report = buildAll(root);
+
+  assert.equal(readFileSync(join(root, "opencode", "skills", "delta", "SKILL.md"), "utf8"), expectedSkill);
+  assert.equal(readFileSync(join(root, "opencode", "commands", "delta.md"), "utf8"), expectedCommand);
+  assert.ok(!existsSync(join(root, "opencode", "skills", "delta", "BODY.md")), "both does not emit BODY.md");
+  assert.equal(
+    report.some((line) => line.includes("delta") && line.includes("parked")),
+    false,
+    "no parking report is emitted",
+  );
+});
+
+test("manual bundle links repoint to BODY.md at every relative depth", () => {
+  const root = makeRepo();
+  const betaDir = join(root, "external", "sp", "skills", "beta");
+  writeFileSync(join(betaDir, "SKILL.md"), `${readFileSync(join(betaDir, "SKILL.md"), "utf8")}[body-self](SKILL.md)\n`);
+  writeFileSync(join(betaDir, "README.md"), "[dot](./SKILL.md)\n");
+  writeFileSync(join(betaDir, "references", "notes.md"), "[parent](../SKILL.md)\n");
+  mkdirSync(join(betaDir, "references", "nested"), { recursive: true });
+  writeFileSync(join(betaDir, "references", "nested", "deep.md"), "[deep](../../SKILL.md)\n");
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+
+  const body = readFileSync(join(root, "opencode", "skills", "beta", "BODY.md"), "utf8");
+  const readme = readFileSync(join(root, "opencode", "skills", "beta", "README.md"), "utf8");
+  const notes = readFileSync(join(root, "opencode", "skills", "beta", "references", "notes.md"), "utf8");
+  const deep = readFileSync(join(root, "opencode", "skills", "beta", "references", "nested", "deep.md"), "utf8");
+  assert.match(body, /BODY\.md/);
+  assert.match(readme, /\.\/BODY\.md/);
+  assert.match(notes, /\.\.\/BODY\.md/);
+  assert.match(deep, /\.\.\/\.\.\/BODY\.md/);
+  for (const content of [body, readme, notes, deep]) {
+    assert.doesNotMatch(content, /SKILL\.md/);
+  }
 });
 
 // Parking is the price of `manual`, and only `manual` pays it. Reporting it for `both` — whose
@@ -192,7 +344,7 @@ test("only a manual conversion reports parked files", () => {
   const report = buildAll(root);
   const parked = (name: string) => report.filter((l) => l.includes("parked") && l.includes(name));
   assert.equal(parked("beta").length, 1, `manual loses its skill shape and must say so — ${JSON.stringify(report)}`);
-  assert.match(parked("beta")[0] as string, /references\/notes\.md/);
+  assert.match(parked("beta")[0] as string, /body parked at skills\/beta\/BODY\.md/);
   assert.deepEqual(parked("delta"), [], "both keeps a discoverable skill — nothing is parked");
 });
 
