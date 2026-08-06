@@ -199,3 +199,11 @@ Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manua
   home + relay principle, evergreen/operational split, audience-based placement, ADR and roadmap
   skeletons) as an original skill under `skills/` so any repo can adopt it. The skill form looks
   right, but the idea needs its own brainstorming session before any work starts.
+- **Own TUnit test-writing skill.** The corpus's only test-writing skill was MSTest-bound and is
+  excluded; the general module deliberately ships no test-writing knowledge, and its audit bodies
+  no longer name a test-writing destination. A TUnit-first original skill under `skills/` needs a
+  separate authoring session; that session decides its scope rather than this curation wave.
+- **`expects` — manifest-side guard for bare-name edges in untouched bodies.** Design only if
+  load-bearing bare-name edges accumulate in bodies there is no other reason to patch; today's
+  single case (`grill-me` → `grilling`) stays deliberately unguarded. Decide the guard's shape only
+  after that trigger is met.
