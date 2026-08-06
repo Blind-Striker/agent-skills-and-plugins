@@ -914,4 +914,4 @@ Derive the current taken, excluded, and never-curated sets mechanically with the
 
 - [ ] **Step 6: Worktree scope**
 
-`git status --short` and `git diff <wave-start>..HEAD --name-only` may contain only the planned curation manifest, the overlay names listed in Step 4, generated output, `docs/inventory.md`, ledger/marketplace output, and `docs/ROADMAP.md`. Stop and report any unrelated path; do not absorb it into a wave commit.
+`git status --short` and `git diff <wave-start>..HEAD --name-only` may contain only the planned curation manifest, the overlay names listed in Step 4, generated output, `docs/inventory.md`, ledger/marketplace output, `docs/ROADMAP.md`, and the active plan/spec plus ADR-0008/reference-playbook corrections made when the curator rejected importing Superpowers' namespace convention into the .NET corpus. Stop and report any unrelated path; do not absorb it into a wave commit.
