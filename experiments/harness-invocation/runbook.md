@@ -1,6 +1,6 @@
 # Harness invocation runbook
 
-Date: 2026-08-05
+Date: 2026-08-06
 
 The lab must be outside both the repository and the real user profile. If the drive-root default is
 not the prepared lab, point the runners at it for the current shell:
@@ -26,7 +26,7 @@ pwsh -NoProfile -File experiments/harness-invocation/stub-command-smoke.ps1 -Leg
 
 Do not write a committed measurement record unless both mount legs pass: command discovery must
 find `beta`, skill discovery must not, and the event stream must show the parked `BODY.md` read
-before the two response markers.
+before the body marker and a separate CLI-only argument marker that is absent from `BODY.md`.
 
 With an isolated lab prepared, walk the OpenCode matrix wiring without spending tokens:
 

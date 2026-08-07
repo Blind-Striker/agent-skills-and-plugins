@@ -60,5 +60,8 @@ Claude Code: `/plugin marketplace add <this repo>` then install `deniz-*`
 plugins. Once a `deniz-*` plugin covers an upstream source, uninstall the
 upstream plugin (avoid duplicate similar skills).
 
-OpenCode: point OpenCode at the `opencode/` tree (skills are the open
-SKILL.md standard; commands/agents are OpenCode markdown).
+OpenCode: no durable installer ships yet. The committed flat `opencode/` tree can be staged under a
+project's `.opencode/` or the global `~/.config/opencode/` root; `OPENCODE_CONFIG_DIR` is an
+experiment mount, not the distribution mechanism. See the
+[measured invocation behavior](docs/research/skill-invocation-across-harnesses.md) and the selected
+per-module output and installer work in [the roadmap](docs/ROADMAP.md).

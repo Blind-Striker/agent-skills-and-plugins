@@ -126,11 +126,11 @@ they arrive there — which is what ADR-0002 assumes. The Claude-tree reading on
 someone hand-copies skills into `.claude/skills/`, and it can be switched off outright with
 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`.
 
-Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
+Five behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
 
 - **`OPENCODE_CONFIG_DIR` is searched for skills**, though the documentation lists only agents,
-  commands, modes and plugins for it. So the built `opencode/` tree has two viable mount points, not
-  one: that variable, or a project-local `.opencode/`.
+  commands, modes and plugins for it. It is an additional discovery location beside project-local
+  `.opencode/` and the global config root.
 - **It adds a location rather than replacing the default.** Setting it does not hide
   `~/.config/opencode/` or the package cache — unlike Claude Code's `CLAUDE_CONFIG_DIR`, which does
   replace. Relevant to anyone trying to get a clean listing.
@@ -146,12 +146,10 @@ Three behaviours were measured on OpenCode 1.18.7, and each corrects or extends 
   three bases at once: `@h5-root.md` and `@.opencode/skills/…` substituted, a sibling of the command
   file and a `.opencode/`-relative spelling did not.
 
-Together those two give the full recipe for a skill→command conversion: park the bundled files at
-`skills/<name>/`, and spell the body's references from the project root as
-`@.opencode/skills/<name>/…`. The catch is that project-root resolution ties the recipe to a
-**project-local mount**; for a global install under `~/.config/opencode/` the project root is
-unrelated to where the assets sit, so `@` cannot reach them and the body must name the path in prose
-for the agent's own read tool instead.
+Together those two rule out `@` as a portable skill→command recipe: project-root resolution can
+reach a project-local park but not the same assets under a global install. Bundled `manual`
+conversions therefore park their body and assets under non-discoverable `skills/<name>/` and emit a
+short prose stub naming both supported locations for the model's own read tool.
 
 `opencode run` does not expand a slash in the message text: `/name …` reaches the model as literal
 prose, and a name that exists nowhere produces no error at all. What follows from that is *not*
@@ -198,13 +196,6 @@ Three more behaviours that bear directly on the emitters:
   a command — only under `skills/<name>/`, which is ignored. Parking them in `commands/` would
   publish each one as a phantom command.
 
-That the global mount works has a consequence for the conversion recipe above. Assets for a globally
-installed item sit under `<home>/.config/opencode/skills/<name>/`, which no project-root-relative
-`@` reference can reach. So the recipe splits by mount point: `@.opencode/skills/<name>/…` for a
-project-local install, and a prose instruction naming the path for a global one. Which mount points
-this repo intends to support is therefore a decision the emitter needs before it can write the
-reference.
-
 ### Does a model read a pointer as the user's move? (1.18.7, model grok-4.5, `opencode run`)
 
 [ADR-0008](../adr/0008-references-are-symbols.md) spells a reference two ways: `ns:name` means the
@@ -240,8 +231,9 @@ artifacts end to end:
 - **A typed command pastes its command body into the chat as the message.** A command is a template,
   so inline `both` and bundle-less `manual` commands still behave this way. Bundled `manual`
   conversions now emit a short stub: on the OpenCode version named in the linked record, isolated
-  project-local and global runs both read the parked `BODY.md` and followed it, while the parked
-  directory remained absent from skill discovery. The measured stub result is recorded in
+  project-local and global runs both read the parked `BODY.md`, followed it, and returned a CLI-only
+  argument marker absent from that body, while the parked directory remained absent from skill
+  discovery. The measured stub result is recorded in
   [the OpenCode stub-command argument record](../../experiments/harness-invocation/records/2026-08-06-opencode-stub-command-arguments.md).
 - **Cross-artifact composition is model-mediated, and works.** The TUI does not expand a slash
   command nested inside a command body; the model reads "Run a `/grilling` session" and invokes
@@ -447,8 +439,8 @@ target is `auto`, so the slash claims a user surface that target does not have �
 it at all. Under our grammar a slash means the human is the audience, and the same eleven sentences
 spelled namespaced would be linker errors. Matt's convention reads `/x` as "the model invokes x",
 and models oblige, which is why the incoherence costs nothing today. Re-derive the count before
-acting on it; the promotion rule ("any touch promotes it into the convention") means each of these
-becomes a curation decision the moment its body is edited for any reason.
+acting on it. Editing a body for another reason does not promote candidate prose; each spelling
+becomes a declared edge only when the author deliberately changes it to a namespaced fact.
 
 ## Prior art: wshobson/agents
 

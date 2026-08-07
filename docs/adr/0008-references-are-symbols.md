@@ -1,6 +1,6 @@
 # ADR-0008: References are symbols — one model, a linker, a ledger
 
-Date: 2026-08-02
+Date: 2026-08-06
 Status: Accepted
 
 ## Context

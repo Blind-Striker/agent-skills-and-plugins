@@ -1,6 +1,6 @@
 # ADR-0005: The manifest states invocation intent; each emitter picks the mechanism
 
-Date: 2026-08-02
+Date: 2026-08-06
 Status: Accepted
 
 ## Context
@@ -46,6 +46,7 @@ fails to carry the same intent to OpenCode.
 - Absent must remain passthrough so intent can be adopted item by item. The cost is asymmetry:
   upstream Claude posture has no OpenCode equivalent and an unstated item is model-only there.
 - `both` produces two OpenCode artifacts with one identity, while Claude Code needs only one skill.
-- Converting a directory-shaped skill into a user-facing OpenCode command can strand bundled-file
-  references. That is a shape cost tracked by `validate` and the ROADMAP, not a reason to blur
-  `manual` and `command` into one manifest concept.
+- A bundled `manual` conversion preserves its parsed body and assets under a non-discoverable
+  `skills/<name>/BODY.md` park and emits a short command stub that names the supported project and
+  global paths. Inline command copies can still strand skill-relative sibling-item paths; `validate`
+  keeps that remaining shape cost visible without blurring `manual` and `command` into one concept.

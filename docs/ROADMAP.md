@@ -15,37 +15,28 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   committed. `deniz-process` is closed; `deniz-dotnet-general` is curated (corpus-first pass over
   the two general-scope upstreams); akka and aspire each retain one pipeline-proof starter.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
-  build; converted-command-shape warnings remain under Known Gaps.
+  build; expected warning identities remain under Known Gaps or the future module work below.
 - Harness-invocation experiments, their protocol, and committed evidence live in
   `experiments/harness-invocation/`; the [adapter guide](research/harness-adapters.md) describes
   harness-native behavior.
 
 ## Next Up
 
-1. **Per-module curation sessions.** `deniz-process` and `deniz-dotnet-general` are done. Remaining:
-   `deniz-dotnet-akka` and `deniz-dotnet-aspire`, one plugin per session, with the user; the
-   boundary evidence gathered during the general pass lives in
-   `docs/agents/handover-prompts/s13-plan-review-and-wave-execution.prompt.md` (Reference backlog,
-   P2/P3). The why of each decision goes beside the item.
-2. **OpenCode per-module output split.** `opencode/` is one flat tree today; module identity exists
-   only in `plugins/` and the ledger. Emit it per module, symmetric to the Claude plugins, so the
-   installer can install per category. The design tension — a split tree is not mountable as one
-   config dir, so consumption becomes installer-bound — and the full touchpoint list are item P1 in
-   `docs/agents/handover-prompts/s13-plan-review-and-wave-execution.prompt.md` (Reference backlog).
-   Amends ADR-0002's output-layout text.
-3. **Aspire router repair.** `deniz-dotnet-aspire` ships the upstream `aspire` skill, a router whose
-   five targets are not curated. The misdirection sits in two different places, and they are worth
-   separating: the frontmatter `description` ends `INVOKES: aspire-init, aspireify,
-   aspire-orchestration, aspire-deployment, aspire-monitoring`, which is the part injected into the
-   system prompt and therefore the part that actually misleads a model; the body's routing table
-   points at upstream GitHub URLs, which resolve for a human reader, but labels three rows
-   "(in-plugin)" when they are not. So the options are wider than eject-and-rewrite: curate the
-   targets, or override `frontmatter.description` alone, or own the body. Bare-name references are
-   invisible to `validate`.
-4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
-   fix or pull the aspire router, and decide whether `marketplace.json`'s embedded owner name and
-   email (format-required) may go public. Until then, do not install `deniz-dotnet-aspire`.
-5. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
+1. **OpenCode per-module output and installer design.** This is the selected next design task.
+   `opencode/` is one flat tree today; module identity exists only in `plugins/` and the ledger. The
+   target is per-module output symmetric to the Claude plugins and an installer that composes chosen
+   modules into one native OpenCode config root. A split tree is not itself mountable because
+   OpenCode expects `skills/`, `commands/`, and `agents/` at one root, so consumption becomes
+   installer-bound. Names stay flat and globally unique; this work revisits ADR-0002's output layout,
+   not its namespace decision. A permanent `OPENCODE_CONFIG_DIR` remains rejected. The design must
+   choose the emitted layout, whether an aggregate view is generated only on demand, and installation
+   semantics among OpenCode packages, hash-compared sync modeled on `opencode-switchboard`, or a new
+   repo command. Package installation from a git subdirectory remains unmeasured. A sync design must
+   choose copy versus symlink semantics, prune only manifest-owned files, and make JSONC merge safe
+   through validation plus backup restoration; adding a repo command is deliberate ADR-0004 growth.
+   Touchpoints include the emitter, generated-tree validation and linker scans, ledger paths,
+   experiment mounts, and both harness research documents.
+2. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
    replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
@@ -53,21 +44,28 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    `~/.config/opencode/opencode.json`), because measured precedence (package cache >
    `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
    every colliding name — the one global our tree cannot shadow away.
-6. **OpenCode installer — parked (2026-07-31), deliberately not a side quest yet.** The user's
-   model is an installer, symmetric to the Claude marketplace; a permanent `OPENCODE_CONFIG_DIR`
-   is rejected (env vars are for throwaway tests, consumption goes through a native mechanism).
-   Candidates, in current order: (a) OpenCode's own package mechanism (`opencode.json` `plugin:`
-   list — measured today: package cache tops discovery precedence; feasibility of a git-subdir
-   ref for `opencode/` unmeasured), (b) a switchboard-style installer — prior art in the user's
-   `opencode-switchboard` repo (`tools/install.py`): hash-compared sync, manifest-owned prune,
-   and the known hard part, surgical JSONC merge into the user's existing config behind
-   validation gates with backup restore ("config concat" concern), (c) a sync command in
-   `tools/` (a deliberate ADR-0004 growth decision). wshobson/agents is the third reference:
-   generate harness-native trees, commit only registries. The behavioural half is settled: the
-   real tree was mounted three ways and exercised in a TUI on 2026-07-31 — discovery, commands,
-   model-mediated composition, parked-bundle reachability and all three invocation surfaces
-   exercised on real output (`docs/research/skill-invocation-across-harnesses.md`). Only the
-   install mechanism remains open.
+3. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
+   repetitive. The local-vs-cluster abstraction repeats across best-practices, hosting, and testing;
+   management and Aspire configuration present competing option models; the best-practices
+   EventStream companion actually uses its own subscription dictionary; the specialist agent
+   overlaps the skill set; and hosting still names the pre-flattening
+   `microsoft-extensions/dependency-injection` address. Choose canonical homes deliberately and
+   record each take, merge, or exclusion beside the item.
+4. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
+   uncurated targets in model-facing frontmatter and labels upstream-URL routes as in-plugin. Taking
+   the coherent six-skill closure requires harness-reachable handoffs. Resolve the contradiction
+   between `aspire-configuration` rejecting application-level service discovery and
+   `aspire-service-defaults` installing it. Also assess version drift, deployment's missing
+   `--non-interactive`, integration testing's `Task.Delay`, and Mailpit's non-compiling samples. The
+   two standing `dotnet-devcert-trust` references to `aspire-configuration` and
+   `aspire-service-defaults` should rewrite automatically if those sources are curated. Do not
+   install this module until the router is repaired or removed.
+5. **Cross-module Akka/Aspire placement.** `akka-net-aspire-configuration` is a long cookbook naming
+   skills from both modules and has no natural home. Decide its owning module and edge direction with
+   both manifests open rather than allowing either session to claim it implicitly.
+6. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+   repair or pull the Aspire router, and decide whether `marketplace.json`'s format-required owner
+   name and email may go public.
 7. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
@@ -92,6 +90,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
   the experiment tree; automate the Hard Rule across the repository with an explicit fixture
   allowlist.
+- **Optional writing-style reference remains external.** The curated `brainstorming` body says to
+  use `elements-of-style:writing-clearly-and-concisely` when available, but that namespace is not
+  curated here. `validate` keeps the reference visible until the style skill is either taken or the
+  optional handoff is removed.
 - **Some command copies still paste their whole body into the OpenCode chat.** A command is a
   template, and the TUI renders its body as the user's message. Bundled `manual` conversions emit a
   short stub whose project-local and global paths are runtime-probed; the remaining full-paste cases
@@ -106,20 +108,19 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   words, so a bare-name scan measurably over-reports; ADR-0008 keeps that tier as candidates,
   surfaced by `sync` for human reading and never build state. The three spellings and what each
   earns are tabulated in
-  [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers). Now measured rather
-  than assumed: the tier is load-bearing. `grill-me` → `grilling` is the one composition watched
-  firing at runtime and it lives entirely there — no declaration, no guard, silent if the target is
-  ever renamed or excluded. Across the module, twenty-seven bodies name a curated item as a bare
-  `/name` and eleven of those targets are `auto`, so the slash claims a user surface they do not
-  have. Whether to promote any of them into the convention is an open curation decision; promoting
-  the eleven as spelled would be linker errors, which is the point.
+   [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers). Now measured rather
+   than assumed: the tier is load-bearing. `grill-me` → `grilling` is the one composition watched
+   firing at runtime and it lives entirely there — no declaration, no guard, silent if the target is
+   ever renamed or excluded. The [invocation research](research/skill-invocation-across-harnesses.md#the-composition-pattern)
+   inventories the broader spelling mismatch and its re-derivation command. Whether to promote any
+   candidate into the convention remains an item-level curation decision.
 - **A converted command cannot resolve a sibling-item path — on the filesystem, and only there.**
   A command is one file in `commands/`, so a `../<item>/` path written for a skill directory does
   not land, and no single spelling serves both copies of a `both` item. `validate` names each case.
   The implementation narrows the warning when the same link resolves from the skill copy. The
   correctness case it still guards is a target with no `skills/<name>/` directory at all (excluded,
-  or a `manual` item whose empty bundle made the emitter drop the husk), where the same climb lands
-  nowhere. The mount-point decision below is therefore less urgent than it looked.
+   or a `manual` item whose empty bundle made the emitter drop the husk), where the same climb lands
+   nowhere. This filesystem gap remains distinct from the installer and mount decisions above.
 - **Linker's unreachable-cause string assumes a skill target.** A model-edge pointing at a
   command or agent reports "(disable-model-invocation in the Claude tree)" — right verdict,
   wrong cause text. A `kind` on the target state fixes the parenthetical.
@@ -191,8 +192,8 @@ Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manua
   right, but the idea needs its own brainstorming session before any work starts.
 - **Own TUnit test-writing skill.** The corpus's only test-writing skill was MSTest-bound and is
   excluded; the general module deliberately ships no test-writing knowledge, and its audit bodies
-  no longer name a test-writing destination. A TUnit-first original skill under `skills/` needs a
-  separate authoring session; that session decides its scope rather than this curation wave.
+   no longer name a test-writing destination. A TUnit-first original skill under `skills/` needs a
+   separate authoring session, and that session decides its scope.
 - **`expects` — optional manifest-side guard for bare-name edges.** Design only if load-bearing
   bare-name edges accumulate enough that review-only candidate status becomes unsafe; today's single
   case (`grill-me` → `grilling`) stays deliberately unguarded. Decide the guard's shape only after
