@@ -28,14 +28,16 @@ where OpenCode discovers `skills/`, `commands/`, and `agents/` through its built
 
 There is deliberately no runtime OpenCode package adapter: the package exports a CLI, not a plugin
 entrypoint; installation does not add a `plugin` row or synthesize config objects at startup. The
-same npm-format tarball is run from a checkout or downloaded as an immutable private GitHub Release
-asset through `gh`. Selection, Ownership, Update, Remove, and Recovery belong to the installer;
-OpenCode sees only ordinary native files. The output trees remain independent: installing a Claude
-Code marketplace Plugin does not install its same-named OpenCode Module.
+same npm-format tarball is run from a checkout or downloaded as a pinned private GitHub Release
+asset through `gh`; the tag/target pin and recorded SHA-256 identify the intended bytes, and the
+Release is not immutable. Selection, Ownership, Update, Remove, and Recovery belong to the
+installer; OpenCode sees only ordinary native files. The output trees remain independent: installing
+a Claude Code marketplace Plugin does not install its same-named OpenCode Module.
 
 For measured discovery and invocation behavior, see
 [Skill invocation across harnesses](skill-invocation-across-harnesses.md). Before adding or changing
 a harness claim, follow the [harness invocation protocol](../../experiments/harness-invocation/protocol.md).
-The local packed installer and Native-tree discovery measurement is record
+The local packed installer, private Release download equivalence, and Native-tree discovery
+measurement is record
 [`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md);
-its Release and permission observations are intentionally still open.
+its human permission observation is intentionally still open.

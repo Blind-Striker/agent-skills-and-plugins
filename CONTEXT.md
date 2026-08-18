@@ -21,7 +21,8 @@ _Avoid_: module, package, output
 
 **Package**:
 The npm-format tarball that contains the emitted installer and every Module Bundle. Remote delivery
-uses that exact tarball as an immutable private GitHub Release asset; it is not an npm publication.
+uses that exact tarball as a pinned private GitHub Release asset (tag plus target commit, SHA-256
+verified); it is not an npm publication.
 _Avoid_: module, plugin, bundle
 
 ### Installation

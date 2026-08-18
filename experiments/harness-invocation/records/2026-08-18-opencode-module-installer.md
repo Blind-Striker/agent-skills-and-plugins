@@ -21,9 +21,11 @@ release_target: 5ab41171a894ed24931c704bdfbe7608c7d224de
 
 This record covers two free, isolated panels: the local packed package and, after explicit
 authorization, the downloaded private GitHub Release asset. Both ran installer Plan/Apply/status and
-OpenCode `debug skill`, `debug config`, and `debug paths` with no credential, model call, TUI
-permission decision, or real-profile Apply. The Release itself was created in a separate, explicitly
-authorized mutation; it is not re-created or re-uploaded by this record.
+OpenCode `debug skill`, `debug config`, and `debug paths` with no model call, TUI permission
+decision, or real-profile Apply. The private Release download used authenticated `gh`; no credential
+material was committed to this repository or supplied to OpenCode or to a model. The Release itself
+was created in a separate, explicitly authorized mutation; it is not re-created or re-uploaded by
+this record.
 
 `repo_head` is the committed implementation base at measurement time. The measurement worktree also
 contained the final review fixes, regression tests, experiment updates, documentation, and freshly
@@ -118,7 +120,10 @@ was created pinned to commit `5ab4117`. The `deniz-agent-skills-0.1.0.tgz` asset
 through authenticated `gh` into a fresh `<external-lab>/installer-release` tree and run through the
 same protocol as the local pack: `install --all --yes`, status, OpenCode introspection, then status
 again. `OPENCODE_CONFIG_DIR` was absent; `HOME`, `USERPROFILE`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`,
-`TEMP`, `TMP`, and `npm_config_cache` all resolved below the isolated profile.
+`TEMP`, `TMP`, and `npm_config_cache` all resolved below the isolated profile. GitHub reports the
+Release as non-immutable (`immutable: false`): the tag/target pin and the recorded SHA-256 identify
+the intended bytes and detect replacement or corruption, but they do not prevent an authorized
+re-upload of the asset.
 
 ```powershell
 gh release download installer-v0.1.0 --repo Blind-Striker/agent-skills-and-plugins `
@@ -134,17 +139,18 @@ npm exec --yes --package <downloaded.tgz> -- deniz-skills status
 
 Equivalence with the local packed run recorded above:
 
-| measurement | local pack | downloaded Release | match |
-|---|---|---|---|
-| package bytes | 688,609 | 688,609 | yes |
-| package SHA-256 | `69532caf…c9460` | `69532caf…c9460` | yes |
-| install-state SHA-256 | `85d5992c…5e9d` | `85d5992c…5e9d` | yes |
-| Module digests (4) | table above | identical, every Module `current` | yes |
-| owned Native-tree files | 238 | 238 (1 agents + 33 commands + 204 skills) | yes |
-| installed-file bytes | — | all 238 files hash-identical to the repo Bundle files and to the install-state records | yes |
-| Native-tree shape | 84 dirs (73 + 11 parked), 33 commands, 1 agent | identical | yes |
-| link-like descendants | 0 | 0 | yes |
-| Lock / Recovery | none / none | none / none | yes |
+| measurement | value | measured in |
+|---|---|---|
+| package bytes | 688,609 | both panels |
+| package SHA-256 | `69532caf…c9460` | both panels |
+| install-state SHA-256 | `85d5992c…5e9d` | both panels |
+| Module digests (4) | identical, every Module `current` | both panels |
+| owned Native-tree files | 238 (1 agents + 33 commands + 204 skills) | both panels |
+| Native-tree shape | 84 dirs (73 + 11 parked), 33 commands, 1 agent | both panels |
+| link-like descendants | 0 | both panels |
+| Lock / Recovery | none / none | both panels |
+| repeat-Apply idempotence | second packed Apply rendered `No changes`; Install-state bytes unchanged | local pack |
+| installed-file bytes | all 238 files hash-identical to the repo Bundle files and to the install-state records | downloaded Release |
 
 OpenCode 1.18.18 discovery against the downloaded Release tree:
 
@@ -168,6 +174,8 @@ OpenCode 1.18.18 discovery against the downloaded Release tree:
   command stub and read the intended parked body.
 - **Post-initialization lifecycle:** status after OpenCode initialization was measured; Update and
   Remove after initialization were not run in this external package panel.
-- **Real profile:** neither Plan nor Apply was run against the real profile in this task.
+- **Real profile:** the zero-write Plan (`install --all` without `--yes`) was run against the real
+  profile and listed 238 `unowned_collision` Findings (1 `agents/`, 33 `commands/`, 204 `skills/`);
+  manual collision cleanup and the `--yes` Apply remain unperformed and unmeasured.
 
 Raw package output and unsanitized paths remain only in the external lab.

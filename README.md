@@ -98,8 +98,10 @@ retrying.
 
 ### OpenCode from the private Release package
 
-After the immutable Release has been authorized and published, authenticated `gh` downloads the
-exact npm-format tarball; the repository itself is not installed as a Git package:
+The Release is versioned, not immutable: tag `installer-v0.1.0` pins a target commit, and the asset's
+recorded SHA-256 verifies each download and detects replacement — it does not prevent an authorized
+re-upload. Authenticated `gh` downloads the exact npm-format tarball; the repository itself is not
+installed as a Git package:
 
 ```powershell
 $download = Join-Path $env:TEMP "deniz-skills-installer-v0.1.0"

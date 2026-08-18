@@ -276,9 +276,11 @@ This repository now has a private root package with a `deniz-skills` bin pointin
 generated `opencode/<module>/` Bundle per Module. It still has no OpenCode `main` or
 `exports["./server"]`: it is an installer package, not a runtime plugin adapter. The package runs
 locally from a checkout. The selected remote transport is authenticated `gh` download of the exact
-immutable `deniz-agent-skills-0.1.0.tgz` asset from the private `installer-v0.1.0` GitHub Release,
+versioned `deniz-agent-skills-0.1.0.tgz` asset from the private `installer-v0.1.0` GitHub Release,
 pinned to commit `5ab4117`. The Release was created with explicit authorization and its download is
-now measured as equivalent to the local pack (section 7).
+now measured as equivalent to the local pack (section 7). GitHub reports Releases as non-immutable,
+so the tag/target pin and the recorded asset SHA-256 identify the intended bytes and detect
+replacement, but do not prevent an authorized re-upload.
 [`package.json`](../../package.json) [`README.md`](../../README.md) [LOCAL-CONTRACT]
 
 | Design | Per-module selection | Skills | Commands/agents | Update and uninstall | Fit |
@@ -341,7 +343,7 @@ prompt, post-initialization Update/Remove, and any real-profile Apply unmeasured
 | Are support files relocatable? | command, agent, and skill references cross module and use relative files | every link resolves and runtime invocation reads the intended file | build linker and installed-tree introspection measured; model-driven support-file reads remain unmeasured |
 | Do parked bundles need permission configuration? | invoke a global Native-tree command that reads its parked body | literal prompt or no-prompt observation recorded by a human | unmeasured for installer composition; do not infer from the old config-dir mount |
 | Does Install state coexist with OpenCode config maintenance? | initialize OpenCode after install, then update and remove | OpenCode-owned support files survive; installer prunes only paths in its Ownership | isolated debug introspection measured; post-initialization Update/Remove interaction remains unmeasured |
-| Does the immutable private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | measured 2026-08-18: `installer-v0.1.0` asset downloaded; SHA-256 `69532caf…c9460` (688,609 bytes), all four Module digests, Install-state digest, and 238 file hashes equal the local pack |
+| Does the pinned private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | measured 2026-08-18: `installer-v0.1.0` asset downloaded; SHA-256 `69532caf…c9460` (688,609 bytes), all four Module digests, Install-state digest, and 238 file hashes equal the local pack |
 
 A passing package-adapter fixture proves that option is technically available. It does not by itself
 choose it over the managed installer; ownership, module selection, and recovery are separate design
@@ -437,7 +439,7 @@ For an all-in-one product, a root package adapter is small and supported. For th
 per-module product, the implemented boundary is a root installer that composes already transformed,
 owned Module Bundles into OpenCode's Native tree and can update or remove exactly what it installed.
 The shipped unit is emitted JavaScript plus Bundles in an npm-format tarball, transported remotely as
-an immutable private GitHub Release asset rather than a Git package. OpenCode's `plugin` command
+a versioned private GitHub Release asset rather than a Git package. OpenCode's `plugin` command
 improves package configuration, but it does not supply this ownership design. The private Release
 exists (`installer-v0.1.0`, pinned to `5ab4117`) and its downloaded asset measured equivalent to the
 local pack (section 7).

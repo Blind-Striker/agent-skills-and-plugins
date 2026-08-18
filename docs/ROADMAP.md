@@ -20,9 +20,11 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   exact Ownership, zero-write Plan, under-lock recomputation and transactional Apply/Recovery. It
   supports Install, status, Update, and Remove; it has no force/reset/legacy migration,
   project-local target, runtime package adapter, or JSON-config mutation. The local npm-format
-  tarball and the downloaded private GitHub Release asset are both verified: the immutable
-  `installer-v0.1.0` Release exists (pinned to commit `5ab4117`) and its
-  `deniz-agent-skills-0.1.0.tgz` asset measured identical to the local pack in an isolated profile.
+  tarball and the downloaded private GitHub Release asset are both verified: the versioned
+  `installer-v0.1.0` Release exists (tag pinned to commit `5ab4117`; GitHub reports Releases as
+  non-immutable, so the recorded asset SHA-256 is the replacement detection, not a prevention) and
+  its `deniz-agent-skills-0.1.0.tgz` asset measured identical to the local pack in an isolated
+  profile.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
   build; expected warning identities remain under Known Gaps or the future module work below.
 - Harness-invocation experiments, their protocol, and committed evidence live in
@@ -34,8 +36,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Staged machine migration to one source of truth.** The immutable private `installer-v0.1.0`
-   Release exists and its downloaded asset measured equal to the verified local package; the
+1. **Staged machine migration to one source of truth.** The private `installer-v0.1.0` Release
+   exists (tag pinned to commit `5ab4117`) and its downloaded asset measured equal to the verified
+   local package; the
    real-profile Plan (presented without Apply) lists 238 named Unowned Collisions. Only after
    separate approval, manually remove those named collisions and Apply the recomputed Plan. The end
    state (user, 2026-07-31): every

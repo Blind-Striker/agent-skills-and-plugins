@@ -139,11 +139,13 @@ Record the OpenCode version, selected Modules, package SHA-256, Native-tree coun
 path, and each assertion. A package-cache path proves only npm materialization; discovery must resolve
 from the installed Native tree.
 
-### Immutable private GitHub Release
+### Pinned private GitHub Release
 
-The remote transport is a private immutable Release asset, not a Git package spec. Only after the
-tag and asset exist with explicit authorization, download them through authenticated `gh` into a new
-external-lab directory; never overwrite an existing asset:
+The remote transport is a private Release asset pinned to a tag and target commit and verified by
+SHA-256, not a Git package spec. GitHub reports Releases as non-immutable, so the recorded hash
+detects but does not prevent an authorized replacement; treat the download-hash comparison as the
+identity check. Only after the tag and asset exist with explicit authorization, download them
+through authenticated `gh` into a new external-lab directory; never overwrite an existing asset:
 
 ```powershell
 $profile = Join-Path $LAB "installer-release"
