@@ -46,11 +46,14 @@ test("README Release recipe verifies the downloaded digest before npm exec", () 
   assert.ok(computeAt >= 0, "recipe lost the hash computation");
   assert.ok(compareAt >= 0, "recipe lost the mismatch comparison/failure");
   assert.ok(execAt >= 0, "recipe lost the packed npm exec");
-  assert.ok(downloadAt < assetAt, "recipe must name the asset with the download");
-  assert.ok(expectedAt < digestAt, "recipe must put the digest inside the expected assignment");
   assert.ok(
-    downloadAt < expectedAt && expectedAt < computeAt && computeAt < compareAt && compareAt < execAt,
-    "recipe must download, set the expected digest, compute, compare, and fail before the first npm exec",
+    downloadAt < assetAt &&
+      assetAt < expectedAt &&
+      expectedAt < digestAt &&
+      digestAt < computeAt &&
+      computeAt < compareAt &&
+      compareAt < execAt,
+    "recipe order must be: gh release download < asset name < expected-hash assignment < digest < hash computation < mismatch comparison/throw < first npm exec",
   );
   assert.ok(
     recipe.indexOf("npm exec") === execAt,
