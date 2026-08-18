@@ -1,4 +1,4 @@
-import { lstatSync, readFileSync, realpathSync, type Stats } from "node:fs";
+import { lstatSync, readFileSync, type Stats } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { hashBytes, type FileIdentity, type FileMode, type Sha256 } from "./opencode-bundle.ts";
 
@@ -206,6 +206,208 @@ function normalizeState(state: InstallState): InstallState {
   return { schemaVersion: 1, modules, files };
 }
 
+function isHex(char: string): boolean {
+  return (char >= "0" && char <= "9") || (char >= "a" && char <= "f") || (char >= "A" && char <= "F");
+}
+
+function parseJsonString(raw: string, start: number): { value: string; next: number } {
+  if (raw[start] !== '"') {
+    throw new SyntaxError("JSON string must start with a quote");
+  }
+  let index = start + 1;
+  let value = "";
+  while (index < raw.length) {
+    const char = raw[index];
+    if (char === '"') {
+      return { value, next: index + 1 };
+    }
+    if (char === "\\") {
+      const marker = raw[index + 1];
+      if (marker === undefined) {
+        throw new SyntaxError("unterminated JSON string escape");
+      }
+      if (marker === "u") {
+        const hex = raw.slice(index + 2, index + 6);
+        if (hex.length < 4 || ![...hex].every(isHex)) {
+          throw new SyntaxError("invalid JSON unicode escape");
+        }
+        value += String.fromCharCode(Number.parseInt(hex, 16));
+        index += 6;
+        continue;
+      }
+      const escaped =
+        marker === '"' || marker === "\\" || marker === "/"
+          ? marker
+          : marker === "b"
+            ? "\b"
+            : marker === "f"
+              ? "\f"
+              : marker === "n"
+                ? "\n"
+                : marker === "r"
+                  ? "\r"
+                  : marker === "t"
+                    ? "\t"
+                    : null;
+      if (escaped === null) {
+        throw new SyntaxError("invalid JSON string escape");
+      }
+      value += escaped;
+      index += 2;
+      continue;
+    }
+    if (char === undefined || char.charCodeAt(0) < 0x20) {
+      throw new SyntaxError("unescaped control character in JSON string");
+    }
+    value += char;
+    index += 1;
+  }
+  throw new SyntaxError("unterminated JSON string");
+}
+
+function skipJsonWhitespace(raw: string, index: number): number {
+  while (index < raw.length) {
+    const char = raw[index];
+    if (char !== " " && char !== "\t" && char !== "\n" && char !== "\r") {
+      break;
+    }
+    index += 1;
+  }
+  return index;
+}
+
+function isJsonDigit(char: string | undefined): char is string {
+  return char !== undefined && char >= "0" && char <= "9";
+}
+
+function skipJsonNumber(raw: string, start: number): number {
+  let index = start;
+  if (raw[index] === "-") {
+    index += 1;
+  }
+  const first = raw[index];
+  if (first === "0") {
+    index += 1;
+  } else if (first !== undefined && first >= "1" && first <= "9") {
+    index += 1;
+    while (isJsonDigit(raw[index])) {
+      index += 1;
+    }
+  } else {
+    throw new SyntaxError("invalid JSON number");
+  }
+  if (raw[index] === ".") {
+    index += 1;
+    if (!isJsonDigit(raw[index])) {
+      throw new SyntaxError("invalid JSON number");
+    }
+    index += 1;
+    while (isJsonDigit(raw[index])) {
+      index += 1;
+    }
+  }
+  if (raw[index] === "e" || raw[index] === "E") {
+    index += 1;
+    if (raw[index] === "+" || raw[index] === "-") {
+      index += 1;
+    }
+    if (!isJsonDigit(raw[index])) {
+      throw new SyntaxError("invalid JSON number");
+    }
+    index += 1;
+    while (isJsonDigit(raw[index])) {
+      index += 1;
+    }
+  }
+  return index;
+}
+
+function skipJsonLiteral(raw: string, start: number, literal: string): number {
+  if (raw.slice(start, start + literal.length) !== literal) {
+    throw new SyntaxError("invalid JSON literal");
+  }
+  return start + literal.length;
+}
+
+function rejectDuplicateJsonMembers(raw: string, index: number): number {
+  let cursor = skipJsonWhitespace(raw, index);
+  const char = raw[cursor];
+  if (char === '"') {
+    return parseJsonString(raw, cursor).next;
+  }
+  if (char === "-" || (char !== undefined && char >= "0" && char <= "9")) {
+    return skipJsonNumber(raw, cursor);
+  }
+  if (char === "t") {
+    return skipJsonLiteral(raw, cursor, "true");
+  }
+  if (char === "f") {
+    return skipJsonLiteral(raw, cursor, "false");
+  }
+  if (char === "n") {
+    return skipJsonLiteral(raw, cursor, "null");
+  }
+  if (char === "[") {
+    cursor = skipJsonWhitespace(raw, cursor + 1);
+    if (raw[cursor] === "]") {
+      return cursor + 1;
+    }
+    while (true) {
+      cursor = rejectDuplicateJsonMembers(raw, cursor);
+      cursor = skipJsonWhitespace(raw, cursor);
+      if (raw[cursor] === ",") {
+        cursor += 1;
+        continue;
+      }
+      if (raw[cursor] === "]") {
+        return cursor + 1;
+      }
+      throw new SyntaxError("invalid JSON array");
+    }
+  }
+  if (char === "{") {
+    cursor = skipJsonWhitespace(raw, cursor + 1);
+    if (raw[cursor] === "}") {
+      return cursor + 1;
+    }
+    const keys = new Set<string>();
+    while (true) {
+      cursor = skipJsonWhitespace(raw, cursor);
+      if (raw[cursor] !== '"') {
+        throw new SyntaxError("JSON object member must start with a string key");
+      }
+      const parsed = parseJsonString(raw, cursor);
+      if (keys.has(parsed.value)) {
+        throw new Error(`duplicate object member ${JSON.stringify(parsed.value)}`);
+      }
+      keys.add(parsed.value);
+      cursor = skipJsonWhitespace(raw, parsed.next);
+      if (raw[cursor] !== ":") {
+        throw new SyntaxError("JSON object member must have a colon");
+      }
+      cursor = rejectDuplicateJsonMembers(raw, cursor + 1);
+      cursor = skipJsonWhitespace(raw, cursor);
+      if (raw[cursor] === ",") {
+        cursor += 1;
+        continue;
+      }
+      if (raw[cursor] === "}") {
+        return cursor + 1;
+      }
+      throw new SyntaxError("invalid JSON object");
+    }
+  }
+  throw new SyntaxError("invalid JSON value");
+}
+
+function parseJsonUniqueMembers(raw: string): unknown {
+  const next = rejectDuplicateJsonMembers(raw, 0);
+  if (skipJsonWhitespace(raw, next) !== raw.length) {
+    throw new SyntaxError("unexpected trailing JSON");
+  }
+  return JSON.parse(raw) as unknown;
+}
+
 function requireValidState(value: unknown, caseInsensitive: boolean, source?: string): InstallState {
   const error = validateInstallState(value, caseInsensitive);
   if (error) {
@@ -218,7 +420,7 @@ function requireValidState(value: unknown, caseInsensitive: boolean, source?: st
 export function parseInstallState(raw: string, options: ParseInstallStateOptions = {}): InstallState {
   let value: unknown;
   try {
-    value = JSON.parse(raw) as unknown;
+    value = parseJsonUniqueMembers(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`invalid Install state: ${message}`);
@@ -255,14 +457,12 @@ export function loadInstallState(destination: string, options: ParseInstallState
     throw new Error(`${path}: unreadable Install state: ${message}`);
   }
 
-  let value: unknown;
   try {
-    value = JSON.parse(raw) as unknown;
+    return parseInstallState(raw, options);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`${path}: invalid Install state: ${message}`);
+    throw new Error(`${path}: ${message}`);
   }
-  return requireValidState(value, options.caseInsensitive ?? process.platform === "win32", path);
 }
 
 export function resolveDestination(env: Record<string, string | undefined>, home?: string): string {
@@ -295,23 +495,24 @@ function requireContained(root: string, candidate: string): string {
   return candidate;
 }
 
-export function canonicalDestination(destination: string): string {
+export function validateDestinationRoot(destination: string): string {
   const absolute = resolve(destination);
+  let stat: Stats;
   try {
-    const stat = lstatSync(absolute);
-    if (stat.isSymbolicLink()) {
-      return realpathSync(absolute);
-    }
-    if (!stat.isDirectory()) {
-      throw new Error(`Destination must be a directory: ${absolute}`);
-    }
-    return realpathSync(absolute);
+    stat = lstatSync(absolute);
   } catch (error) {
     if (isENOENT(error)) {
       return absolute;
     }
     throw error;
   }
+  if (isLinkLike(stat)) {
+    throw new Error(`Destination root must not be a symlink or junction: ${absolute}`);
+  }
+  if (!stat.isDirectory()) {
+    throw new Error(`Destination must be an ordinary directory: ${absolute}`);
+  }
+  return absolute;
 }
 
 export function validateManagedPath(destination: string, path: string): string {
@@ -319,7 +520,7 @@ export function validateManagedPath(destination: string, path: string): string {
   if (pathError) {
     throw new Error(pathError);
   }
-  const root = canonicalDestination(destination);
+  const root = validateDestinationRoot(destination);
   let current = root;
   const parts = path.split("/");
   for (const [index, part] of parts.entries()) {
@@ -328,7 +529,7 @@ export function validateManagedPath(destination: string, path: string): string {
     try {
       const stat = lstatSync(next);
       if (isLinkLike(stat)) {
-        throw new Error(`${path}: managed path must not be a symlink, junction, or reparse point`);
+        throw new Error(`${path}: managed path must not be a symlink or junction`);
       }
       if (index < parts.length - 1 && !stat.isDirectory()) {
         throw new Error(`${path}: ${next} is not a directory`);
@@ -350,7 +551,7 @@ export function observePath(destination: string, path: string): ObservedPath {
   if (pathError) {
     throw new Error(pathError);
   }
-  const root = canonicalDestination(destination);
+  const root = validateDestinationRoot(destination);
   let current = root;
   const parts = path.split("/");
   for (const [index, part] of parts.entries()) {

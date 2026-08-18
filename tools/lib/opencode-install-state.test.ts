@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { hashBytes } from "./opencode-bundle.ts";
 import {
   EMPTY_INSTALL_STATE,
-  canonicalDestination,
   loadInstallState,
   observePath,
   parseInstallState,
   resolveDestination,
   serializeInstallState,
   stateDigest,
+  validateDestinationRoot,
   validateManagedPath,
 } from "./opencode-install-state.ts";
 
@@ -177,6 +177,33 @@ test("install state rejects a file whose Module is not selected", () => {
   );
 });
 
+test("install state rejects duplicate schemaVersion members", () => {
+  assert.throws(
+    () => parseInstallState(`{"schemaVersion":1,"schemaVersion":1,"modules":{},"files":{}}`),
+    /duplicate/,
+  );
+});
+
+test("install state rejects duplicate Module keys", () => {
+  assert.throws(
+    () =>
+      parseInstallState(
+        `{"schemaVersion":1,"modules":{"deniz-process":{"version":"0.2.0","digest":"${HASH_A}"},"deniz-process":{"version":"0.3.0","digest":"${HASH_B}"}},"files":{}}`,
+      ),
+    /duplicate/,
+  );
+});
+
+test("install state rejects duplicate file path keys", () => {
+  assert.throws(
+    () =>
+      parseInstallState(
+        `{"schemaVersion":1,"modules":{"deniz-process":{"version":"0.2.0","digest":"${HASH_A}"}},"files":{"commands/a.md":{"module":"deniz-process","sha256":"${HASH_A}","mode":"100644"},"commands/a.md":{"module":"deniz-process","sha256":"${HASH_B}","mode":"100644"}}}`,
+      ),
+    /duplicate/,
+  );
+});
+
 test("install state rejects a path outside the native tree", () => {
   assert.throws(
     () =>
@@ -204,15 +231,41 @@ function tryLink(target: string, path: string, type: "file" | "dir" | "junction"
   }
 }
 
-test("canonicalDestination resolves an existing root symlink once", (t) => {
-  const real = fixtureRoot("dest-real");
-  const parent = fixtureRoot("dest-link-parent");
+test("validateDestinationRoot accepts an ordinary directory", () => {
+  const destination = fixtureRoot("dest-dir-ok");
+  assert.equal(validateDestinationRoot(destination), resolve(destination));
+});
+
+test("validateDestinationRoot rejects a root symlink", (t) => {
+  const real = fixtureRoot("dest-root-real");
+  const parent = fixtureRoot("dest-root-link-parent");
   const link = join(parent, "opencode");
   if (!tryLink(real, link, "dir") && !tryLink(real, link, "junction")) {
     t.skip("creating a Destination root symlink or junction is not permitted");
     return;
   }
-  assert.equal(canonicalDestination(link), realpathSync(real));
+  assert.throws(() => validateDestinationRoot(link), /symlink|junction|link/);
+});
+
+test("validateDestinationRoot rejects a dangling root symlink rather than treating it absent", (t) => {
+  const parent = fixtureRoot("dest-dangling-parent");
+  const link = join(parent, "opencode");
+  if (
+    !tryLink(join(parent, "missing-target"), link, "dir") &&
+    !tryLink(join(parent, "missing-target"), link, "file") &&
+    !tryLink(join(parent, "missing-target"), link, "junction")
+  ) {
+    t.skip("creating a Destination root symlink or junction is not permitted");
+    return;
+  }
+  assert.throws(() => validateDestinationRoot(link), /symlink|junction|link/);
+  assert.throws(() => observePath(link, "commands/a.md"), /symlink|junction|link/);
+});
+
+test("validateDestinationRoot rejects a root file", () => {
+  const destination = join(fixtureRoot("dest-file-parent"), "opencode");
+  writeFileSync(destination, "not a directory\n");
+  assert.throws(() => validateDestinationRoot(destination), /directory/);
 });
 
 test("validateManagedPath rejects a descendant symlink", (t) => {
