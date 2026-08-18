@@ -1,6 +1,6 @@
 # ADR-0003: Documentation claims have single-purpose homes
 
-Date: 2026-08-02
+Date: 2026-08-18
 Status: Accepted
 
 ## Context
@@ -18,6 +18,8 @@ planning scratch permanent sources of truth.
 - A documentation claim has one canonical home. Other documents may relay it by linking to that
   home, but do not restate it. When a claim becomes false, correct it in place or delete it.
 - `AGENTS.md` is the evergreen, harness-neutral working contract.
+- Root `CONTEXT.md` is the shared domain vocabulary. It defines terms but does not carry operating
+  rules, architecture, or status.
 - `docs/adr/` records durable architectural decisions and their rationale.
 - `docs/research/` holds durable research and synthesis shared by human and agent readers.
 - `experiments/` holds repeatable measurement methods and committed evidence.
@@ -26,6 +28,9 @@ planning scratch permanent sources of truth.
   against live Git and the canonical documents, then deleted when its follow-up ships.
 - `docs/superpowers/` holds planning scratch. Its durable conclusions belong in their canonical
   homes; the scratch is deleted when the work merges.
+- `docs/cheatsheet.md` is a convenience relay for human and agent skill routing. Item posture and
+  descriptions remain canonical in `curation/*.yaml` and the generated ledger; the cheatsheet links
+  those homes rather than becoming another inventory.
 
 Copying rules or operating status into every entry document is rejected because the copies drift.
 Keeping handovers and plans as durable status records is rejected because their value expires with

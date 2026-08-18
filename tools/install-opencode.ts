@@ -173,20 +173,12 @@ function appendSection(lines: string[], title: string, entries: string[]): void 
 }
 
 function selectionLines(plan: Plan): string[] {
-  if (plan.request.kind === "install") {
-    const names = plan.request.all ? Object.keys(plan.nextState.modules) : plan.request.modules;
-    return uniqueSorted(names).map((name) => {
-      const moduleState = plan.nextState.modules[name];
-      return moduleState === undefined ? `  + ${name}` : `  + ${name} ${moduleState.version}`;
-    });
-  }
-  if (plan.request.kind === "remove") {
-    if (plan.request.all) {
-      return ["  - (all)"];
-    }
-    return uniqueSorted(plan.request.modules).map((name) => `  - ${name}`);
-  }
-  return [];
+  const added = uniqueSorted(plan.selectionChanges.added).map((name) => {
+    const moduleState = plan.nextState.modules[name];
+    return moduleState === undefined ? `  + ${name}` : `  + ${name} ${moduleState.version}`;
+  });
+  const removed = uniqueSorted(plan.selectionChanges.removed).map((name) => `  - ${name}`);
+  return [...added, ...removed];
 }
 
 export function renderPlan(plan: Plan, destination: string): string {

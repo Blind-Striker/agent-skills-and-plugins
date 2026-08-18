@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "module": "deniz-dotnet-akka",
+  "version": "0.1.0",
+  "digest": "sha256:62a23e77e1db501cd833791f44c1e901715a8f92b127646be2946c29ec2b9f2a",
+  "files": {
+    "skills/akka-net-best-practices/async-cancellation-patterns.md": {
+      "sha256": "sha256:3d9f06a3b69b8ba7fb686701364f077ac9467c2ca65c38f7606fac843203845e",
+      "mode": "100644"
+    },
+    "skills/akka-net-best-practices/cluster-local-abstractions.md": {
+      "sha256": "sha256:a11fba03010b33c1abceb05f376e21bde7c48cb6bb6f03190f55e836b3eba66c",
+      "mode": "100644"
+    },
+    "skills/akka-net-best-practices/SKILL.md": {
+      "sha256": "sha256:6e40861ef1dd791cf679a4fe11488abd7a96384255a1d7b20f21cc3fa7eea94e",
+      "mode": "100644"
+    },
+    "skills/akka-net-best-practices/work-distribution-patterns.md": {
+      "sha256": "sha256:e44826e9d255c0073f8d033ec09e90b360024ebb53d0de66995cc1c4e4d5438d",
+      "mode": "100644"
+    }
+  }
+}

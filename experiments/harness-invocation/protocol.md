@@ -1,6 +1,6 @@
 # Harness probing
 
-Date: 2026-07-31
+Date: 2026-08-18
 
 How to find out what a harness actually does. The findings live in
 [skill-invocation-across-harnesses.md](../../docs/research/skill-invocation-across-harnesses.md); this is the
@@ -25,8 +25,9 @@ things: fixture skills to probe with, the isolated harness homes, and a results 
 <lab-root>/
   fixtures/          probe skills, tracked
   .claude-home/      CLAUDE_CONFIG_DIR      (gitignore — holds credentials)
-  .opencode-home/    OPENCODE_CONFIG_DIR    (gitignore)
-  isolated-home/     USERPROFILE            (gitignore)
+  .opencode-home/    relocated HOME and XDG roots (gitignore)
+  installer-local/   fresh packed-package profile and npm cache (gitignore)
+  installer-release/ fresh Release-package profile and npm cache (gitignore)
   RESULTS.md
 ```
 
@@ -72,6 +73,121 @@ isolated OpenCode lists exactly one skill, the built-in `customize-opencode`; an
 Code with nothing mounted lists only the harness's own bundled skills, and its `init` event reports
 the mounted plugins and `mcp_servers: 0`. A behavioural panel also disables and checks auto memory as
 described below.
+
+## Prove installer composition
+
+The repository checkout and the shipped package are separate seams. `Sync-Lab` uses the checkout
+entrypoint against the relocated XDG root. A release claim uses the packed `deniz-skills` bin, never
+the TypeScript source. Run the free subsystem checks first:
+
+```powershell
+pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1
+```
+
+That suite creates fresh temporary XDG roots and requires Plan to leave the Destination absent,
+Apply to create only `skills/`, `commands/`, `agents/`, and `.deniz-skills/`, and an
+`OPENCODE_CONFIG_DIR` refusal to leave no files. Its separate lab checks still prove the experiment
+runners reach the end of their dry-run paths.
+
+### Local packed package
+
+Run from a dedicated PowerShell after dot-sourcing `lab.ps1`. The profile, OpenCode data, and npm
+cache all stay under the external lab. Keep `OPENCODE_CONFIG_DIR` absent.
+
+```powershell
+. .\experiments\harness-invocation\lab.ps1
+$profile = Join-Path $LAB "installer-local"
+$packDir = Join-Path $profile "package"
+Remove-Item $profile -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $packDir -Force | Out-Null
+
+npm run build
+$packed = npm pack --json --pack-destination $packDir | ConvertFrom-Json
+$package = Join-Path $packDir $packed.filename
+$digest = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
+
+$env:USERPROFILE = $profile
+$env:HOME = $profile
+$env:XDG_CONFIG_HOME = Join-Path $profile ".config"
+$env:XDG_DATA_HOME = Join-Path $profile ".local\share"
+$env:TEMP = Join-Path $profile ".tmp"
+$env:TMP = $env:TEMP
+$env:npm_config_cache = Join-Path $profile ".npm-cache"
+$env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
+New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
+Remove-Item Env:OPENCODE_CONFIG_DIR -ErrorAction SilentlyContinue
+Set-Location (Join-Path $LAB "project")
+
+npm exec --yes --package $package -- deniz-skills install --all
+if (Test-Path (Join-Path $env:XDG_CONFIG_HOME "opencode")) { throw "Plan wrote the Destination" }
+npm exec --yes --package $package -- deniz-skills install --all --yes
+npm exec --yes --package $package -- deniz-skills status
+```
+
+The first packed invocation may populate the isolated npm cache; it must not create the Destination.
+After Apply, derive the expected skill, command, and agent names from the installed Native tree and
+assert:
+
+- `opencode debug skill` contains every installed `skills/*/SKILL.md`, plus the built-in
+  `customize-opencode`, and no installed `BODY.md`-only directory;
+- every non-built-in skill location is below `$XDG_CONFIG_HOME/opencode/skills`;
+- `opencode debug config` contains exactly the installed command and custom-agent names, and its
+  `plugin` list is empty; and
+- `opencode debug paths` reports config, data, cache, and state roots below the relocated profile.
+
+Record the OpenCode version, selected Modules, package SHA-256, Native-tree counts, Install-state
+path, and each assertion. A package-cache path proves only npm materialization; discovery must resolve
+from the installed Native tree.
+
+### Immutable private GitHub Release
+
+The remote transport is a private immutable Release asset, not a Git package spec. Only after the
+tag and asset exist with explicit authorization, download them through authenticated `gh` into a new
+external-lab directory; never overwrite an existing asset:
+
+```powershell
+$profile = Join-Path $LAB "installer-release"
+Remove-Item $profile -Recurse -Force -ErrorAction SilentlyContinue
+New-Item -ItemType Directory -Path $profile -Force | Out-Null
+gh release download installer-v0.1.0 --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "deniz-agent-skills-0.1.0.tgz" --dir $profile
+$package = Join-Path $profile "deniz-agent-skills-0.1.0.tgz"
+$releaseDigest = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
+
+$env:USERPROFILE = $profile
+$env:HOME = $profile
+$env:XDG_CONFIG_HOME = Join-Path $profile ".config"
+$env:XDG_DATA_HOME = Join-Path $profile ".local\share"
+$env:TEMP = Join-Path $profile ".tmp"
+$env:TMP = $env:TEMP
+$env:npm_config_cache = Join-Path $profile ".npm-cache"
+$env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
+New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
+Remove-Item Env:OPENCODE_CONFIG_DIR -ErrorAction SilentlyContinue
+Set-Location (Join-Path $LAB "project")
+
+npm exec --yes --package $package -- deniz-skills install --all --yes
+npm exec --yes --package $package -- deniz-skills status
+```
+
+Require `$releaseDigest -eq $digest`, then repeat the local package's `debug skill`, `debug config`,
+and Windows path assertions. The selected Modules, Module digests, Native-tree hashes, and Install
+state must match the local packed run. A download or upload was not measured unless that exact
+command ran; source review is not Release evidence.
+
+### Human permission observation
+
+Automated introspection does not answer whether a global command's first read of its parked
+`BODY.md` interrupts the operator. In the isolated project, open the TUI, invoke one installed
+BODY-backed command with an instruction to stop after identifying the body it read, and record the
+literal prompt or “no prompt observed.” Also record whether approval is one-shot, session-scoped, or
+persistent. Do not infer this from `debug config`, do not run against the real profile, and do not
+write a positive or negative permission claim when no human performed the observation.
+
+On Windows, additionally record that the package and npm cache remained below the external lab,
+`OPENCODE_CONFIG_DIR` was absent, every resolved non-built-in skill was below the relocated XDG
+config root, and `debug paths` named only relocated roots. Sanitize absolute paths in the committed
+record; retain raw logs only in the external lab.
 
 ## Probe cheaply
 

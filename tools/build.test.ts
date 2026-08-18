@@ -1,15 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import {
-  chmodSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -373,8 +364,14 @@ test("both preserves the pre-wave skill and command documents without a parked b
   });
   const report = buildAll(root);
 
-  assert.equal(readFileSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "SKILL.md"), "utf8"), expectedSkill);
-  assert.equal(readFileSync(opencodeModulePath(root, "deniz-process", "commands", "delta.md"), "utf8"), expectedCommand);
+  assert.equal(
+    readFileSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "SKILL.md"), "utf8"),
+    expectedSkill,
+  );
+  assert.equal(
+    readFileSync(opencodeModulePath(root, "deniz-process", "commands", "delta.md"), "utf8"),
+    expectedCommand,
+  );
   assert.ok(
     !existsSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "BODY.md")),
     "both does not emit BODY.md",
@@ -410,7 +407,10 @@ test("manual bundle links repoint to BODY.md at every relative depth", () => {
 
   const body = readFileSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "BODY.md"), "utf8");
   const readme = readFileSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "README.md"), "utf8");
-  const notes = readFileSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "references", "notes.md"), "utf8");
+  const notes = readFileSync(
+    opencodeModulePath(root, "deniz-process", "skills", "beta", "references", "notes.md"),
+    "utf8",
+  );
   const deep = readFileSync(
     opencodeModulePath(root, "deniz-process", "skills", "beta", "references", "nested", "deep.md"),
     "utf8",

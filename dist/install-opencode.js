@@ -117,20 +117,12 @@ function appendSection(lines, title, entries) {
   lines.push("", title, ...entries);
 }
 function selectionLines(plan) {
-  if (plan.request.kind === "install") {
-    const names = plan.request.all ? Object.keys(plan.nextState.modules) : plan.request.modules;
-    return uniqueSorted(names).map((name) => {
-      const moduleState = plan.nextState.modules[name];
-      return moduleState === undefined ? `  + ${name}` : `  + ${name} ${moduleState.version}`;
-    });
-  }
-  if (plan.request.kind === "remove") {
-    if (plan.request.all) {
-      return ["  - (all)"];
-    }
-    return uniqueSorted(plan.request.modules).map((name) => `  - ${name}`);
-  }
-  return [];
+  const added = uniqueSorted(plan.selectionChanges.added).map((name) => {
+    const moduleState = plan.nextState.modules[name];
+    return moduleState === undefined ? `  + ${name}` : `  + ${name} ${moduleState.version}`;
+  });
+  const removed = uniqueSorted(plan.selectionChanges.removed).map((name) => `  - ${name}`);
+  return [...added, ...removed];
 }
 export function renderPlan(plan, destination) {
   const lines = [`Plan: ${plan.request.kind}`, `Destination: ${destination}`];

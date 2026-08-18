@@ -2,10 +2,11 @@
 #   .\selftest.ps1            everything
 #   .\selftest.ps1 -SkipLab   omit the checks that need an isolated lab on this machine
 #
-# Every check here was written against a defect that actually happened while this subsystem was
-# being planned: a machine-path guard that matched nothing, a lab resolver that named a directory
+# The original checks here were written against defects that actually happened while this subsystem
+# was being planned: a machine-path guard that matched nothing, a lab resolver that named a directory
 # which does not exist, a fixture generator that could not reproduce its own baseline, and a cost
-# column that a Turkish locale made unparseable. All four were written down without being run.
+# column that a Turkish locale made unparseable. The suite now also holds deterministic regression
+# checks for later experiment and installer failures.
 #
 # What this does NOT cover, stated so nobody reads green as more than it is: the runners' own
 # behaviour. Argv construction, leg lookup, timeout handling, the liveness call and event-stream
@@ -46,6 +47,41 @@ function Exit-Selftest {
 function Get-UnusedDriveQualifier {
     foreach ($l in [char[]]("ZYXWV")) { if (-not (Test-Path "${l}:\")) { return "${l}:" } }
     return $null
+}
+
+function Invoke-InstallerProcess {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string[]] $InstallerArgs,
+        [string] $OpenCodeConfigDir
+    )
+    $psi = [Diagnostics.ProcessStartInfo]::new()
+    $psi.FileName = (Get-Command node -ErrorAction Stop).Source
+    $psi.WorkingDirectory = $script:RepoRoot
+    $psi.UseShellExecute = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError = $true
+    $psi.ArgumentList.Add((Join-Path $script:RepoRoot "tools\install-opencode.ts"))
+    foreach ($arg in $InstallerArgs) { $psi.ArgumentList.Add($arg) }
+    $psi.Environment["HOME"] = $Root
+    $psi.Environment["USERPROFILE"] = $Root
+    $psi.Environment["XDG_CONFIG_HOME"] = Join-Path $Root "xdg"
+    $psi.Environment.Remove("OPENCODE_CONFIG_DIR") | Out-Null
+    if ($OpenCodeConfigDir) { $psi.Environment["OPENCODE_CONFIG_DIR"] = $OpenCodeConfigDir }
+
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $psi
+    if (-not $process.Start()) { throw "failed to start installer process" }
+    $stdout = $process.StandardOutput.ReadToEndAsync()
+    $stderr = $process.StandardError.ReadToEndAsync()
+    $process.WaitForExit()
+    $result = [pscustomobject]@{
+        ExitCode = $process.ExitCode
+        StdOut = $stdout.GetAwaiter().GetResult()
+        StdErr = $stderr.GetAwaiter().GetResult()
+    }
+    $process.Dispose()
+    return $result
 }
 
 Write-Host "`n=== common.ps1 ===" -ForegroundColor Cyan
@@ -178,6 +214,58 @@ Test-That "common.ps1 has no side effect at load" {
         if ((& $isTopLevel $n) -and $n.Left.Extent.Text -like '$env:*') { $bad += $n.Left.Extent.Text }
     }
     if ($bad) { "top-level side effects: $($bad -join ', ')" } else { $true }
+}
+
+Write-Host "`n=== OpenCode installer isolation ===" -ForegroundColor Cyan
+
+Test-That "installer Plan is zero-write in a throwaway XDG root" {
+    $root = Join-Path ([IO.Path]::GetTempPath()) ("installer-plan-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $root | Out-Null
+    try {
+        $result = Invoke-InstallerProcess -Root $root -InstallerArgs @("install", "--all")
+        if ($result.ExitCode -ne 0) { return "Plan exited $($result.ExitCode): $($result.StdErr.Trim())" }
+        if ($result.StdOut -notmatch "Plan: install") { return "Plan output was missing" }
+        $writes = @(Get-ChildItem $root -Force -Recurse)
+        if ($writes) { "Plan wrote: $(@($writes | ForEach-Object Name) -join ', ')" } else { $true }
+    } finally {
+        Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Test-That "installer Apply creates only the Native tree and .deniz-skills" {
+    $root = Join-Path ([IO.Path]::GetTempPath()) ("installer-apply-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $root | Out-Null
+    try {
+        $result = Invoke-InstallerProcess -Root $root -InstallerArgs @("install", "--all", "--yes")
+        if ($result.ExitCode -ne 0) { return "Apply exited $($result.ExitCode): $($result.StdErr.Trim())" }
+        $destination = Join-Path $root "xdg\opencode"
+        if (-not (Test-Path (Join-Path $destination ".deniz-skills\install.json"))) {
+            return "Apply did not write Install state"
+        }
+        $allowed = @(".deniz-skills", "agents", "commands", "skills")
+        $unexpected = @(Get-ChildItem $destination -Force -Recurse | Where-Object {
+            $relative = [IO.Path]::GetRelativePath($destination, $_.FullName).Replace("\", "/")
+            $allowed -cnotcontains $relative.Split("/")[0]
+        } | ForEach-Object { [IO.Path]::GetRelativePath($destination, $_.FullName).Replace("\", "/") })
+        if ($unexpected) { "Apply wrote outside the Native tree/state: $($unexpected -join ', ')" } else { $true }
+    } finally {
+        Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Test-That "installer refuses OPENCODE_CONFIG_DIR without mutation" {
+    $root = Join-Path ([IO.Path]::GetTempPath()) ("installer-refusal-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $root | Out-Null
+    try {
+        $result = Invoke-InstallerProcess -Root $root -InstallerArgs @("status") `
+            -OpenCodeConfigDir (Join-Path $root "alternate")
+        if ($result.ExitCode -eq 0) { return "refusal exited zero" }
+        if ($result.StdErr -notmatch "OPENCODE_CONFIG_DIR") { return "refusal did not name OPENCODE_CONFIG_DIR" }
+        $writes = @(Get-ChildItem $root -Force -Recurse)
+        if ($writes) { "refusal wrote: $(@($writes | ForEach-Object Name) -join ', ')" } else { $true }
+    } finally {
+        Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
+    }
 }
 
 Write-Host "`n=== machine-path guard ===" -ForegroundColor Cyan

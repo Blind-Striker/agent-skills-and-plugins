@@ -38,6 +38,7 @@ export interface PlanFinding {
 
 export interface Plan {
   request: InstallRequest;
+  selectionChanges: { added: string[]; removed: string[] };
   operations: PlanOperation[];
   transfers: OwnershipTransfer[];
   nextState: InstallState;
@@ -190,6 +191,15 @@ function nextSelection(current: InstallState, request: InstallRequest, requested
     }
   }
   return [...selected].sort(compareStrings);
+}
+
+function selectionChanges(current: InstallState, selection: string[]): Plan["selectionChanges"] {
+  const before = new Set(Object.keys(current.modules));
+  const after = new Set(selection);
+  return {
+    added: selection.filter((name) => !before.has(name)),
+    removed: uniqueSorted([...before].filter((name) => !after.has(name))),
+  };
 }
 
 function claim(
@@ -410,6 +420,7 @@ export function planReconcile(
   const requested = resolveRequested(current, manifests, request, findings);
   const affected = new Set(requested);
   const selection = nextSelection(current, request, requested);
+  const changes = selectionChanges(current, selection);
   const { final, transfers } = buildFinalOwnership(current, manifests, request, affected, selection, findings);
 
   const operations: PlanOperation[] = [];
@@ -441,11 +452,12 @@ export function planReconcile(
   transfers.sort(compareTransfers);
 
   if (findings.length > 0) {
-    return { request, operations: [], transfers: [], nextState: current, findings };
+    return { request, selectionChanges: changes, operations: [], transfers: [], nextState: current, findings };
   }
 
   return {
     request,
+    selectionChanges: changes,
     operations,
     transfers,
     nextState: buildNextState(current, manifests, request, selection, affected, final),

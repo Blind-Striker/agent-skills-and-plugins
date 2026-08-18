@@ -116,6 +116,14 @@ function nextSelection(current, request, requested) {
   }
   return [...selected].sort(compareStrings);
 }
+function selectionChanges(current, selection) {
+  const before = new Set(Object.keys(current.modules));
+  const after = new Set(selection);
+  return {
+    added: selection.filter((name) => !before.has(name)),
+    removed: uniqueSorted([...before].filter((name) => !after.has(name))),
+  };
+}
 function claim(final, findings, path, module, identity) {
   const existing = final.get(path);
   if (existing && existing.module !== module) {
@@ -284,6 +292,7 @@ export function planReconcile(current, manifests, observed, request) {
   const requested = resolveRequested(current, manifests, request, findings);
   const affected = new Set(requested);
   const selection = nextSelection(current, request, requested);
+  const changes = selectionChanges(current, selection);
   const { final, transfers } = buildFinalOwnership(current, manifests, request, affected, selection, findings);
   const operations = [];
   for (const path of uniqueSorted([...Object.keys(current.files), ...final.keys()])) {
@@ -312,10 +321,11 @@ export function planReconcile(current, manifests, observed, request) {
   operations.sort(compareOperations);
   transfers.sort(compareTransfers);
   if (findings.length > 0) {
-    return { request, operations: [], transfers: [], nextState: current, findings };
+    return { request, selectionChanges: changes, operations: [], transfers: [], nextState: current, findings };
   }
   return {
     request,
+    selectionChanges: changes,
     operations,
     transfers,
     nextState: buildNextState(current, manifests, request, selection, affected, final),

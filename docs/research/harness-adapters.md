@@ -1,6 +1,6 @@
 # Harness adapters
 
-Date: 2026-08-02
+Date: 2026-08-18
 
 `AGENTS.md` is the canonical always-on repository contract. Each harness reaches that contract and
 the curated output through its own native mechanism; install instructions remain in the root
@@ -20,10 +20,22 @@ The built-in Explore and Plan subagents skip `CLAUDE.md`; the relay does not rea
 
 ## OpenCode
 
-OpenCode reads `AGENTS.md` natively and consumes the `opencode/` tree. Its `SKILL.md` files use the
-open agent-skills standard. The output trees remain independent: installing a Claude Code
-marketplace plugin does not install the corresponding OpenCode artifacts.
+OpenCode reads `AGENTS.md` natively. The build emits one `opencode/<module>/` Bundle per curation
+manifest; a Bundle is distribution output, not a directory OpenCode discovers. The `deniz-skills`
+installer composes an explicit Selection into the normal global Native tree at the XDG config root,
+where OpenCode discovers `skills/`, `commands/`, and `agents/` through its built-in scanners. Its
+`SKILL.md` files use the open agent-skills standard.
+
+There is deliberately no runtime OpenCode package adapter: the package exports a CLI, not a plugin
+entrypoint; installation does not add a `plugin` row or synthesize config objects at startup. The
+same npm-format tarball is run from a checkout or downloaded as an immutable private GitHub Release
+asset through `gh`. Selection, Ownership, Update, Remove, and Recovery belong to the installer;
+OpenCode sees only ordinary native files. The output trees remain independent: installing a Claude
+Code marketplace Plugin does not install its same-named OpenCode Module.
 
 For measured discovery and invocation behavior, see
 [Skill invocation across harnesses](skill-invocation-across-harnesses.md). Before adding or changing
 a harness claim, follow the [harness invocation protocol](../../experiments/harness-invocation/protocol.md).
+The local packed installer and Native-tree discovery measurement is record
+[`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md);
+its Release and permission observations are intentionally still open.

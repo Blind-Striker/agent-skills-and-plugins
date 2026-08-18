@@ -14,7 +14,13 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { createModuleManifest, digestFileMap, hashBytes, type ModuleBundle, type ModuleManifest } from "./opencode-bundle.ts";
+import {
+  createModuleManifest,
+  digestFileMap,
+  hashBytes,
+  type ModuleBundle,
+  type ModuleManifest,
+} from "./opencode-bundle.ts";
 import {
   applyPlan,
   applyRecovery,
@@ -247,12 +253,7 @@ function withLock(destination: string, fn: (lock: InstallerLock) => void): void 
   }
 }
 
-function apply(
-  destination: string,
-  plan: Plan,
-  bundles: Map<string, ModuleBundle>,
-  options?: ApplyOptions,
-): void {
+function apply(destination: string, plan: Plan, bundles: Map<string, ModuleBundle>, options?: ApplyOptions): void {
   withLock(destination, (lock) => {
     applyPlan(lock, destination, plan, bundles, options);
   });
@@ -562,7 +563,10 @@ test("Windows add refuses a case-alias destination file", (t) => {
   const fixture = makeAddFixture();
   mkdirSync(dirname(fixture.target), { recursive: true });
   writeFileSync(join(fixture.destination, "commands", "Alpha.md"), "alias\n");
-  assert.throws(() => apply(fixture.destination, fixture.plan, fixture.bundles), /exist|collision|absent|precondition/i);
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles),
+    /exist|collision|absent|precondition/i,
+  );
   assert.equal(readFileSync(join(fixture.destination, "commands", "Alpha.md"), "utf8"), "alias\n");
 });
 
@@ -765,7 +769,10 @@ test("abandoned lock with leftover recovery is reclaimed without deleting the tr
 
 test("applyPlan refuses a plan that still has findings", () => {
   const fixture = makeInstallFixture();
-  const blocked: Plan = { ...fixture.plan, findings: [{ code: "local_modification", message: "blocked", path: "commands/alpha.md" }] };
+  const blocked: Plan = {
+    ...fixture.plan,
+    findings: [{ code: "local_modification", message: "blocked", path: "commands/alpha.md" }],
+  };
   assert.throws(() => apply(fixture.destination, blocked, fixture.bundles), /finding/i);
   assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
 });
@@ -1077,7 +1084,15 @@ test("malformed journal operations block recovery", () => {
       transactionId: "bad-op",
       oldStateDigest: stateDigest(fixture.oldState),
       newStateDigest: stateDigest(fixture.plan.nextState),
-      operations: [{ kind: "replace", path: "../escape", module: "deniz-process", source: "x", identity: { sha256: hashBytes("x"), mode: "100644" } }],
+      operations: [
+        {
+          kind: "replace",
+          path: "../escape",
+          module: "deniz-process",
+          source: "x",
+          identity: { sha256: hashBytes("x"), mode: "100644" },
+        },
+      ],
       phase: "prepared",
       applied: [],
       createdDirectories: [],
@@ -1103,7 +1118,10 @@ test("rollback of an add removes directories created by this transaction", () =>
     ),
   );
   assert.throws(
-    () => apply(destination, plan, new Map([["deniz-process", { root: bundleRoot, manifest }]]), { failAfter: "after-place" }),
+    () =>
+      apply(destination, plan, new Map([["deniz-process", { root: bundleRoot, manifest }]]), {
+        failAfter: "after-place",
+      }),
     /injected after-place failure/,
   );
   assert.equal(existsLstatSafe(join(destination, "skills", "alpha", "SKILL.md")), false);
@@ -1162,6 +1180,7 @@ function makeDropMissingFixture(): {
   };
   const plan: Plan = {
     request: { kind: "update", modules: [], all: false, platform: "posix" },
+    selectionChanges: { added: [], removed: [] },
     operations: [
       { kind: "drop-missing-claim", path: "commands/alpha.md", module: "deniz-process" },
       {
@@ -2098,7 +2117,10 @@ test("finalize refuses chmod content mismatch even when the requested mode is pr
   }
   writeFileSync(fixture.target, "tampered-content\n");
   chmodSync(fixture.target, operation.to === "100755" ? 0o755 : 0o644);
-  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), serializeInstallState(fixture.plan.nextState));
+  writeFileSync(
+    join(fixture.destination, ".deniz-skills", "install.json"),
+    serializeInstallState(fixture.plan.nextState),
+  );
   const transactionDir = writeLeftoverTransaction(
     fixture.destination,
     {
@@ -2129,7 +2151,10 @@ test("finalize refuses chmod content mismatch even when the requested mode is pr
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "finalize");
   withLock(fixture.destination, (lock) => {
-    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /finalize|chmod|content|match/i);
+    assert.throws(
+      () => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan),
+      /finalize|chmod|content|match/i,
+    );
   });
   assert.equal(readFileSync(fixture.target, "utf8"), "tampered-content\n");
   assert.ok(lstatSync(transactionDir).isDirectory());
@@ -2180,7 +2205,10 @@ test("rollback refuses ambiguous remove destination evidence before overwriting 
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "rollback");
   withLock(fixture.destination, (lock) => {
-    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked|differs/i);
+    assert.throws(
+      () => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan),
+      /ambiguous|unexpected|blocked|differs/i,
+    );
   });
   assert.equal(readFileSync(fixture.skillFile, "utf8"), "unexpected-remove-destination\n");
   assert.ok(lstatSync(transactionDir).isDirectory());
@@ -2249,7 +2277,10 @@ test("rollback refuses ambiguous add destination evidence and keeps the transact
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "rollback");
   withLock(fixture.destination, (lock) => {
-    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked/i);
+    assert.throws(
+      () => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan),
+      /ambiguous|unexpected|blocked/i,
+    );
   });
   assert.ok(lstatSync(fixture.target).isDirectory());
   assert.ok(lstatSync(transactionDir).isDirectory());
@@ -2277,7 +2308,10 @@ test("rollback refuses ambiguous replace destination evidence before restoring b
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "rollback");
   withLock(fixture.destination, (lock) => {
-    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked/i);
+    assert.throws(
+      () => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan),
+      /ambiguous|unexpected|blocked/i,
+    );
   });
   assert.equal(readFileSync(fixture.target, "utf8"), "unexpected-replace-destination\n");
   assert.ok(lstatSync(transactionDir).isDirectory());
@@ -2322,7 +2356,10 @@ test("rollback refuses ambiguous chmod destination content before changing mode"
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "rollback");
   withLock(fixture.destination, (lock) => {
-    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked/i);
+    assert.throws(
+      () => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan),
+      /ambiguous|unexpected|blocked/i,
+    );
   });
   assert.equal(readFileSync(fixture.target, "utf8"), "unexpected-chmod-content\n");
   assert.ok(lstatSync(transactionDir).isDirectory());
@@ -2397,7 +2434,10 @@ test("staged tamper is refused immediately before place", () => {
 test("finalize refuses when placed content does not match the Plan", () => {
   const fixture = makeInstallFixture();
   writeFileSync(fixture.target, "wrong-final\n");
-  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), serializeInstallState(fixture.plan.nextState));
+  writeFileSync(
+    join(fixture.destination, ".deniz-skills", "install.json"),
+    serializeInstallState(fixture.plan.nextState),
+  );
   writeLeftoverTransaction(
     fixture.destination,
     {
@@ -2417,7 +2457,10 @@ test("finalize refuses when placed content does not match the Plan", () => {
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "finalize");
   withLock(fixture.destination, (lock) => {
-    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /finalize|match|Plan|content/i);
+    assert.throws(
+      () => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan),
+      /finalize|match|Plan|content/i,
+    );
   });
   assert.equal(readFileSync(fixture.target, "utf8"), "wrong-final\n");
 });

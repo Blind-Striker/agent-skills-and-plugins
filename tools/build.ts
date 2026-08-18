@@ -530,10 +530,7 @@ function emitOpenCodeSkill(
       ].join("\n")
     : doc.body;
   mkdirSync(join(moduleRoot, "commands"), { recursive: true });
-  writeFileSync(
-    join(moduleRoot, "commands", `${name}.md`),
-    serializeDoc({ frontmatter: command, body: commandBody }),
-  );
+  writeFileSync(join(moduleRoot, "commands", `${name}.md`), serializeDoc({ frontmatter: command, body: commandBody }));
   const parked = bundledManual ? listFiles(destSkill).filter((f) => f !== "BODY.md") : [];
   if (bundledManual) {
     report.push(`opencode command ${name}: body parked at skills/${name}/BODY.md (bundle: ${parked.join(", ")})`);

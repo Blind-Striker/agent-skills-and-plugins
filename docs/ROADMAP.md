@@ -1,42 +1,43 @@
 # Roadmap
 
-Date: 2026-08-06
+Date: 2026-08-18
 
 Operational document: what is done, what is next. It shrinks as work lands. How things work and why
 lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Current State
 
-- `tools/` provides `build`, `inventory`, `eject`, `sync`, and `validate`; CI runs the checks,
-  regenerates committed output, and rejects stale output.
+- `tools/` provides `build`, `inventory`, `eject`, `sync`, `validate`, and `install:opencode`; CI runs
+  the checks, regenerates committed harness output and installer JavaScript, and rejects stale
+  `plugins/`, `opencode/`, `dist/`, marketplace, inventory, or ledger output.
 - This private GitHub repository (`Blind-Striker/agent-skills-and-plugins`, default branch
   `master`) vendors upstreams in `external/`; `docs/inventory.md` catalogs them.
-- Four `deniz-*` plugins, matching `opencode/` output, and `marketplace.json` are generated and
-  committed. `deniz-process` is closed; `deniz-dotnet-general` is curated (corpus-first pass over
+- Four `deniz-*` Claude Code Plugins, matching per-Module OpenCode Bundles with deterministic
+  manifests, the emitted `deniz-skills` installer under `dist/`, and `marketplace.json` are generated
+  and committed. `deniz-process` is closed; `deniz-dotnet-general` is curated (corpus-first pass over
   the two general-scope upstreams); akka and aspire each retain one pipeline-proof starter.
+- The OpenCode installer composes an explicit Selection into the normal global Native tree with
+  exact Ownership, zero-write Plan, under-lock recomputation and transactional Apply/Recovery. It
+  supports Install, status, Update, and Remove; it has no force/reset/legacy migration,
+  project-local target, runtime package adapter, or JSON-config mutation. The local npm-format
+  tarball is verified; private GitHub Release creation/download remains behind a separate remote
+  mutation gate.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
   build; expected warning identities remain under Known Gaps or the future module work below.
 - Harness-invocation experiments, their protocol, and committed evidence live in
   `experiments/harness-invocation/`; the [adapter guide](research/harness-adapters.md) describes
-  harness-native behavior.
+  harness-native behavior. The
+  [local packed-installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md)
+  proves isolated Plan/Apply and OpenCode discovery while leaving Release and human permission
+  observations explicitly unmeasured.
 
 ## Next Up
 
-1. **OpenCode per-module output and installer design.** This is the selected next design task.
-   `opencode/` is one flat tree today; module identity exists only in `plugins/` and the ledger. The
-   target is per-module output symmetric to the Claude plugins and an installer that composes chosen
-   modules into one native OpenCode config root. A split tree is not itself mountable because
-   OpenCode expects `skills/`, `commands/`, and `agents/` at one root, so consumption becomes
-   installer-bound. Names stay flat and globally unique; this work revisits ADR-0002's output layout,
-   not its namespace decision. A permanent `OPENCODE_CONFIG_DIR` remains rejected. The design must
-   choose the emitted layout, whether an aggregate view is generated only on demand, and installation
-   semantics among OpenCode packages, hash-compared sync modeled on `opencode-switchboard`, or a new
-   repo command. Package installation from a git subdirectory remains unmeasured. A sync design must
-   choose copy versus symlink semantics, prune only manifest-owned files, and make JSONC merge safe
-   through validation plus backup restoration; adding a repo command is deliberate ADR-0004 growth.
-   Touchpoints include the emitter, generated-tree validation and linker scans, ledger paths,
-   experiment mounts, and both harness research documents.
-2. **Machine migration to single source of truth.** The end state (user, 2026-07-31): every
+1. **Staged machine migration to one source of truth.** First authorize and create the immutable
+   private `installer-v0.1.0` Release asset, download it with `gh`, and prove it equals the verified
+   local package in an isolated profile. Then present the real-profile Plan without Apply. Only after
+   separate approval, manually remove named Unowned Collisions and Apply the recomputed Plan. The end
+   state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
    replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
@@ -44,14 +45,14 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    `~/.config/opencode/opencode.json`), because measured precedence (package cache >
    `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
    every colliding name — the one global our tree cannot shadow away.
-3. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
+2. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
    repetitive. The local-vs-cluster abstraction repeats across best-practices, hosting, and testing;
    management and Aspire configuration present competing option models; the best-practices
    EventStream companion actually uses its own subscription dictionary; the specialist agent
    overlaps the skill set; and hosting still names the pre-flattening
    `microsoft-extensions/dependency-injection` address. Choose canonical homes deliberately and
    record each take, merge, or exclusion beside the item.
-4. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
+3. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
    uncurated targets in model-facing frontmatter and labels upstream-URL routes as in-plugin. Taking
    the coherent six-skill closure requires harness-reachable handoffs. Resolve the contradiction
    between `aspire-configuration` rejecting application-level service discovery and
@@ -60,13 +61,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    two standing `dotnet-devcert-trust` references to `aspire-configuration` and
    `aspire-service-defaults` should rewrite automatically if those sources are curated. Do not
    install this module until the router is repaired or removed.
-5. **Cross-module Akka/Aspire placement.** `akka-net-aspire-configuration` is a long cookbook naming
+4. **Cross-module Akka/Aspire placement.** `akka-net-aspire-configuration` is a long cookbook naming
    skills from both modules and has no natural home. Decide its owning module and edge direction with
    both manifests open rather than allowing either session to claim it implicitly.
-6. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+5. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    repair or pull the Aspire router, and decide whether `marketplace.json`'s format-required owner
    name and email may go public.
-7. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+6. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -77,7 +78,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-8. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+7. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    That sentence survives any re-curation and therefore qualifies, but minting an ADR immediately
@@ -99,9 +100,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   short stub whose project-local and global paths are runtime-probed; the remaining full-paste cases
   are `both` items and bundle-less `manual` items. Correctness is unaffected. Revisit only if those
   remaining command bodies become noisy in practice.
-- **Out-of-project bundle reads prompt for folder access** under a config-dir mount — parked
-  files live outside the project tree, so the first read asks permission. Whether to
-  pre-authorize is an installer-decision detail (config `permission` block).
+- **Native-tree parked-body permission observation is unmeasured.** The prior config-dir mount asked
+  for folder access because parked files were outside the project. Installer composition puts them
+  under the normal global config root; only an isolated human TUI observation can establish whether
+  that shape prompts, so no permission configuration is inferred yet.
 - **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
   (avoids prose false positives), so a `Superpowers:Foo` spelling slips through.
 - **Bare names stay invisible, by decision rather than by omission.** Upstream names are ordinary

@@ -1,603 +1,438 @@
-# OpenCode plugin packages and cached artifacts
+# OpenCode plugin packages, cached artifacts, and per-module distribution
 
-Date: 2026-08-07
+Date: 2026-08-18
 
 ## Question and scope
 
-Why does a configured Git package such as
-`superpowers@git+https://github.com/obra/superpowers.git#v6.1.0` expose skills from
-OpenCode's package cache, while this repository's generated `opencode/` tree is staged into an
-OpenCode configuration directory? Can one Git repository URL expose a complete `skills/`,
-`commands/`, and `agents/` tree without an adapter?
+Why can a Git-backed package such as Superpowers expose skills from OpenCode's package cache while
+this repository stages its generated `opencode/` tree into an OpenCode configuration directory? Can
+one repository URL expose skills, commands, and agents, and can a monorepo install those artifacts a
+module at a time?
 
-The behavior below was checked against the pinned OpenCode v1.18.7 checkout and the official
-v1.18.14 source at commit
-[`65cf14d`](https://github.com/anomalyco/opencode/tree/65cf14df16c191f3e9684f0d9a8bae69103ced6d).
-The relevant install, entrypoint, config-hook, skill, command, and agent paths have the same behavior
-in those two versions. Superpowers was checked at v6.1.0 commit
-[`f268f7c`](https://github.com/obra/superpowers/tree/f268f7c953744036f0fa7e9d4b73535c04e57cb8);
-the vendored later version changes only the version field in the files relevant here.
+The package, plugin, discovery, and installer paths below were rechecked against OpenCode v1.18.18,
+commit [`31406cc`](https://github.com/anomalyco/opencode/tree/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d),
+and the 2026-08-17 development head, commit
+[`2cba7e2`](https://github.com/anomalyco/opencode/tree/2cba7e227d68a7e7e4a2aa9c85b808e8ecb14daf).
+Critical behavior was unchanged between those pins. Ecosystem examples are pinned separately so this
+document does not infer a convention from whichever branch happens to be current.
+
+This is source research, not a live installation report. No global config or package cache was
+mutated. Claims that still need runtime evidence are isolated in the experiment matrix.
 
 ## Direct answer
 
-- The Git spec is first an **npm-style package spec**. OpenCode materializes that package in its
-  package cache, finds the package's JavaScript entrypoint, and imports it. Cache placement by
-  itself discovers no skills, commands, or agents. [OC-PACKAGE] [NPM-SPEC]
-- Superpowers works because its `package.json` points `main` at an OpenCode plugin, and that plugin's
-  `config` hook adds the package-relative `skills/` directory to `config.skills.paths`.
-  OpenCode then performs ordinary skill discovery on that explicit path. [SP-PACKAGE] [SP-PLUGIN]
-- OpenCode does **not** automatically scan arbitrary plugin package roots for `skills/`, `commands/`,
-  or `agents/`. Package resolution searches for a module entrypoint; artifact scanners search
-  configuration directories and explicitly configured skill paths. [OC-ENTRY] [OC-CONFIG]
-- `skills.urls` is not a general Git clone or repository URL feature. It is a skill-only HTTP index
-  protocol: OpenCode requests `index.json`, downloads enumerated skill files, and scans only the
-  resulting skill directories. It cannot deliver command or agent definitions. [OC-REMOTE-SKILLS]
-- A Git package can carry all three trees as **package files**, but commands and agents in that cache
-  remain inert unless a plugin adapter registers them in `config.command` and `config.agent` (or
-  installs them into a configuration directory). Skills likewise need `skills.paths` or the separate
-  remote-skill protocol. [OC-HOOK-API] [OC-COMMAND] [OC-AGENT]
-- For this repository, the appropriate one-spec design is a small generated OpenCode adapter at the
-  package root. It should expose already transformed build output, not transform upstream content at
-  runtime. Keep the current staging workflow until package loading, collision precedence, relocation,
-  updates, and Windows Git installation are measured. [LOCAL-CONTRACT] [LOCAL-OUTPUT]
+- A non-path `plugin` value is an **npm package specifier**. OpenCode passes registry, Git, GitHub
+  shorthand, and alias-style specs through `npm-package-arg`, materializes the resulting package,
+  resolves a server entrypoint, imports it, and runs its hooks. Cache placement is only storage; it
+  does not register artifacts. [OC-SPEC] [OC-NPM] [NPM-SPEC]
+- OpenCode does **not** scan an arbitrary installed package root for `skills/`, `commands/`, or
+  `agents/`. Skills can be registered through `config.skills.paths`; commands and agents have no
+  corresponding path setting and must be merged into `config.command` and `config.agent` or placed
+  under a normal config directory. [OC-SKILL] [OC-COMMAND] [OC-AGENT]
+- Superpowers works because its root package has an importable `main`, and that plugin explicitly
+  appends its package-relative `skills/` directory to `config.skills.paths`. It also injects its
+  bootstrap message. The Git URL and cache directory do neither job. [SP-PACKAGE] [SP-PLUGIN]
+- OpenCode v1.18.18 now ships `opencode plugin <module>` (alias `plug`). It installs the package,
+  inspects its server and TUI entrypoints, and safely adds the same package spec to JSON/JSONC config.
+  It is a config installer for a **plugin package**, not a package-root artifact scanner or a
+  per-module artifact installer. It has no external-plugin list, update, or uninstall command.
+  [OC-CLI] [OC-INSTALL]
+- A package adapter can expose all three artifact kinds; `opencode-froggy` proves that shape. The
+  adapter still has to load and register each kind explicitly. [FROGGY]
+- npm Git syntax selects a repository and optional Git ref. It does not select a package directory
+  inside that repository. npm workspaces make subpackages manageable inside a checkout but do not
+  turn a workspace path into part of a Git package spec. A monorepo therefore needs a root adapter,
+  separately published module packages, or its own installer. [NPM-SPEC] [NPM-WORKSPACES]
+- For this repository's selected **per-module composition** goal, the implemented design is a
+  managed installer that composes generated Module Bundles into one Native OpenCode config tree. A
+  root package adapter remains viable for an all-in-one distribution, but it is not the chosen
+  ownership or update boundary for selecting Modules independently. [LOCAL-CONTRACT] [WSHOBSON]
 
-## 1. From a `plugin` Git/npm spec to cache and module load
+## 1. What OpenCode installs and loads
 
-### 1.1 Configuration and spec classification
+### 1.1 Spec classification
 
-The schema accepts each `plugin` item as either a string or a `[string, options]` tuple; it does not
-define a separate Git-plugin type. OpenCode treats only `file://`, relative, and absolute path-like
-specs as local. Every other string, including the named Git form above, follows the npm-package path.
-OpenCode parses that string with `npm-package-arg`, whose supported package specs include Git URLs
-and a `#ref`; npm's official package-spec documentation likewise defines a Git URL as a package
-source. [OC-PLUGIN-SCHEMA] [OC-ENTRY] [NPM-SPEC]
+OpenCode treats `file://`, dot-relative, and absolute values as local path plugins. Every other
+string follows the npm-package path. `parsePluginSpecifier` and `resolvePluginTarget` use
+`npm-package-arg`; a bare package becomes `@latest`, while explicit registry versions, Git URLs,
+GitHub shorthand, and named aliases retain their package-spec meaning. [OC-SPEC]
 
-For the example, the leading `superpowers@` supplies the expected installed package name and the
-remainder supplies the Git source plus tag. OpenCode passes the original spec through to its package
-installer rather than cloning a repository as an OpenCode artifact tree. [OC-PACKAGE]
+For example, Superpowers documents:
 
-### 1.2 Package cache materialization
+```json
+{
+  "plugin": ["superpowers@git+https://github.com/obra/superpowers.git"]
+}
+```
 
-In v1.18.7 and v1.18.14, `Npm.add(spec)` chooses
-`<OpenCode cache>/packages/<sanitized-spec>/`, uses Arborist to reify the spec with install scripts
-disabled, and obtains the installed package directory from the resulting dependency tree. If the
-expected package already exists below that cache's `node_modules`, it is reused without another
-reify. The package bytes and cache location are distribution/storage concerns, not artifact
-registration. [OC-PACKAGE]
+Here `superpowers` supplies the installed package identity and the right-hand side supplies the Git
+source. Adding `#v6.3.0` selects a Git ref; it does not select a directory inside the repository.
+[SP-INSTALL] [NPM-SPEC]
 
-The official v1.18.14 plugin documentation summarizes this more broadly as automatic Bun installation
-into `~/.cache/opencode/node_modules/`. That prose does not match the v1.18.14 implementation's
-per-spec `packages/.../node_modules` layout or its use of Arborist. For exact 1.18.14 behavior, the
-versioned source is the stronger authority; callers should not depend on the prose cache path.
-[OC-PLUGIN-DOC] [OC-PACKAGE]
+### 1.2 Materialization and cache reuse
 
-### 1.3 Entrypoint resolution and import
+At the pinned OpenCode revisions, `Npm.add(spec)`:
 
-After installation, OpenCode reads the installed package's root `package.json`. For a server plugin
-it first checks `exports["./server"]`, then falls back to `main`. It resolves that file inside the
-package boundary, checks any `engines.opencode` range, dynamically imports the module, and invokes
-the exported plugin function(s). A package directory without a usable server entrypoint is not
-converted into an artifact search root. [OC-ENTRY] [OC-LOADER]
+1. chooses `<OpenCode cache>/packages/<sanitized-spec>/`;
+2. uses `@npmcli/arborist` to reify the package with lifecycle scripts disabled;
+3. finds the installed dependency node and returns its package directory; and
+4. reuses an existing `<cache>/packages/.../node_modules/<package>` without reifying it again.
 
-The plugin function receives OpenCode context and returns hooks. During bootstrap OpenCode loads the
-cached config, initializes plugins before other services, and invokes each returned `config` hook
-against that cached config object. This ordering is what lets a plugin add discovery or config state
-before skills, commands, and agents materialize their own state. [OC-BOOTSTRAP] [OC-PLUGIN-RUNTIME]
+The official plugin page still describes automatic Bun installation into
+`~/.cache/opencode/node_modules/`. That prose and the pinned implementation disagree on both the
+installer and exact layout. Code that runs inside a package should resolve from `import.meta.url`,
+not derive a cache pathname, and tests should assert behavior through OpenCode rather than a cache
+layout. [OC-NPM] [OC-DOC]
 
-The complete chain is therefore:
+The early reuse check also matters for updates: when the spec string is unchanged and its installed
+package directory exists, a restart returns that directory without reifying the package again. A
+moving branch therefore does not refresh merely because OpenCode restarts. `opencode plugin <module>
+--force` replaces a matching config row; it does not clear the package cache. Immutable
+version/tag/commit specs remain the predictable choice; the experiment matrix still covers moved
+tags and changed spec strings. [OC-NPM] [OC-INSTALL]
 
-1. parse `plugin` config;
-2. classify the non-path string as an npm-style package spec;
-3. materialize/reuse the package in the package cache;
-4. read its package manifest and resolve `exports["./server"]` or `main`;
-5. dynamically import the module;
-6. invoke its plugin export and collect hooks;
-7. invoke its `config` hook on the live config;
-8. let later services discover whatever the hook explicitly registered. [OC-PACKAGE] [OC-ENTRY]
-   [OC-LOADER] [OC-PLUGIN-RUNTIME]
+### 1.3 Package entrypoint and hook execution
 
-## 2. OpenCode does not scan arbitrary package roots
+For a server plugin package, OpenCode resolves `exports["./server"]` first and falls back to
+`package.json.main`. The resolved path must remain inside the package. npm packages may declare an
+`engines.opencode` semver range. Once compatibility passes, OpenCode imports the module and supports
+the current default-export module shape as well as its legacy function-export fallback. A package
+directory with no server entrypoint is skipped; it is not reinterpreted as an artifact root.
+[OC-SPEC] [OC-LOADER] [OC-PLUGIN]
 
-OpenCode's configuration loader scans commands and agents only under the known configuration
-directories. `ConfigCommand.load(dir)` scans `{command,commands}/**/*.md`,
-`ConfigAgent.load(dir)` scans `{agent,agents}/**/*.md`, and local plugin discovery scans
-`{plugin,plugins}/*.{ts,js}` in those same directories. The installed package target returned by the
-plugin loader is not appended to that directory list. [OC-CONFIG] [OC-COMMAND] [OC-AGENT]
+OpenCode loads config, initializes plugins, and runs each plugin's `config` hook before initializing
+later services. The hook receives the live config object. This is the supported seam used by package
+adapters to append `skills.paths` and to merge `command` or `agent` definitions. [OC-BOOTSTRAP]
+[OC-PLUGIN] [OC-API]
 
-Skill discovery has one additional explicit mechanism: after scanning standard config/compatibility
-locations, it scans every configured `skills.paths` entry with `**/SKILL.md`, then scans directories
-returned by `skills.urls`. It does not infer either path from a loaded plugin's package root.
-[OC-SKILL]
+The complete server-plugin chain is:
 
-One nuance should not be confused with package-root scanning: after skills are discovered, the
-v1.18.7/v1.18.14 command service creates an internal command entry with `source: "skill"` for each
-skill name not already occupied by an explicit command. That entry is synthesized from loaded skill
-content; it is not a scan of a cached `commands/` directory and cannot represent this repository's
-distinct curated command files. [OC-SKILL-COMMAND]
+1. read and merge plugin specs from config;
+2. classify each spec as a local path or npm-style package spec;
+3. materialize or reuse the package;
+4. resolve `exports["./server"]` or `main`;
+5. check compatibility and import the module;
+6. invoke the plugin function and collect hooks; and
+7. invoke `config` hooks before later artifact services discover their state.
 
-## 3. What Superpowers v6.1.0 actually does
+At no step does the package directory become a generic config directory. [OC-CONFIG] [OC-PLUGIN]
 
-### Package distribution
+### 1.4 What `opencode plugin` adds
 
-Superpowers' root `package.json` declares `type: "module"` and
-`main: ".opencode/plugins/superpowers.js"`. It has no install/postinstall script. OpenCode performs
-the Git package installation; Superpowers supplies the importable runtime adapter and the bundled
-files beside it. [SP-PACKAGE]
+OpenCode v1.18.18's CLI command is:
 
-Because the entrypoint lives two levels below the package root, it computes
-`path.resolve(__dirname, "../../skills")`. In a cached install that resolves to the `skills/`
-directory inside the same installed package; no copy or symlink into the OpenCode config directory
-is required. [SP-PLUGIN]
+```text
+opencode plugin <module> [--global] [--force]
+opencode plug <module> [--global] [--force]
+```
 
-### Skill registration
+It uses the same resolver as runtime loading, reads `package.json`, detects a server target from
+`exports["./server"]` or `main`, and also recognizes TUI targets from `exports["./tui"]` or packaged
+themes. It patches the corresponding project-local or global config. The patcher uses
+`jsonc-parser`, preserves comments, serializes writes under a lock, and compares npm entries by
+package identity. Without `--force`, an already configured package is a no-op; with it, the command
+can replace the spec while preserving options from an existing tuple. [OC-CLI] [OC-INSTALL]
 
-The returned `config` hook creates `config.skills.paths` when necessary and appends that absolute,
-package-relative skills path once. OpenCode's later skill service reads the mutated config and scans
-that directory for `SKILL.md`. This adapter code—not the Git URL and not cache placement—is the
-reason the skills become visible. [SP-PLUGIN] [OC-SKILL] [OC-BOOTSTRAP]
+That removes the need for users to edit config by hand, but it does not add:
 
-### Bootstrap/message behavior
+- Git-subdirectory or workspace-package selection;
+- package-root artifact discovery;
+- per-module selection within one package, except behavior a plugin itself implements through its
+  options;
+- external-plugin update or uninstall; or
+- ownership of files copied into `skills/`, `commands/`, or `agents/`.
 
-The same plugin reads `skills/using-superpowers/SKILL.md`, strips its frontmatter, caches the body,
-adds an OpenCode tool mapping, and uses `experimental.chat.messages.transform` to prepend that
-bootstrap to the first user message. It guards against reinserting text containing its marker.
-Superpowers does not register a cached `commands/` tree, an `agents/` tree, or a command execution
-hook. Its OpenCode behavior is the skills-path registration plus this message transform.
-[SP-PLUGIN]
+Those are distribution-design responsibilities, not consequences of the new CLI.
 
-Superpowers' own OpenCode guide describes the same two responsibilities: register the skills path
-and inject bootstrap context. Its installation guide's phrase "plugin manager ... registers all
-skills" is therefore shorthand for package install followed by adapter runtime behavior, not a
-general package-artifact convention. [SP-DOC]
+## 2. Artifact discovery remains explicit
 
-## 4. `skills.urls` is a skill-only remote protocol
-
-The schema describes `skills.urls` as URLs from which to fetch skills and gives a
-`/.well-known/skills/`-style base URL as its example. For each configured base, OpenCode appends
-`index.json` and expects JSON shaped as an array of skill entries containing `name`, `files`, and an
-optional `version`. Entries without literal `SKILL.md` in `files` are rejected. [OC-SKILLS-SCHEMA]
-[OC-REMOTE-SKILLS]
-
-For each accepted entry, OpenCode downloads only the enumerated files from
-`<base>/<skill-name>/<file>` into `<OpenCode cache>/skills/<skill-name>/` and returns that skill
-directory to the skill scanner. It neither runs Git nor interprets a repository tree. A GitHub
-repository page or `git+https` package spec is therefore not a valid `skills.urls` endpoint unless
-some HTTP host separately serves the required `index.json` and files at this protocol's layout.
-[OC-REMOTE-SKILLS]
-
-Only the skill service consumes the downloaded directories. There is no corresponding remote URL
-field for commands or agents in the official schema, and the remote discovery implementation
-returns only skill roots. Thus this mechanism can distribute skills and their enumerated supporting
-files, but not commands, agents, or plugin hooks. [SCHEMA] [OC-REMOTE-SKILLS]
-
-## 5. What this repository lacks and the minimum one-spec adapter
-
-This repository currently has a root tooling package and a generated flat OpenCode output containing
-`opencode/skills/`, `opencode/commands/`, and `opencode/agents/`. The root `package.json` has no
-`main` or `exports["./server"]`, and the generated output has no JavaScript/TypeScript plugin
-entrypoint. The consumption documentation accordingly says there is no durable OpenCode installer
-and instructs users to stage the generated tree under a project or global OpenCode config root.
-[`package.json:1-28`](../../package.json) [`README.md:57-67`](../../README.md) [LOCAL-OUTPUT]
-
-The minimum robust package shape for one root Git spec is:
-
-1. **A package server entrypoint.** Add a root `main` (the widest-compatible choice for these two
-   OpenCode versions) or `exports["./server"]` pointing to a shipped ESM plugin module. A registry
-   publication would also require changing the current private-publication posture, but `private`
-   is not what supplies artifact discovery for a Git install. [OC-ENTRY]
-2. **A small plugin function returning a `config` hook.** The hook adds the package's generated
-   `opencode/skills` directory to `config.skills.paths`. [OC-HOOK-API] [OC-SKILL]
-3. **Generated command config.** Because there is no `commands.paths`, the build should emit the
-   command Markdown as ready-to-register `{template, description, agent, model, variant, subtask}`
-   data, and the hook should merge that data into `config.command` with an explicit collision rule.
-   Runtime parsing of arbitrary upstream Markdown would move transformation work out of the build
-   and is not recommended. [OC-COMMAND-SCHEMA] [OC-COMMAND-RUNTIME] [LOCAL-CONTRACT]
-4. **Generated agent config.** Likewise, emit ready-to-register agent objects and merge them into
-   `config.agent`; there is no `agents.paths`. [OC-AGENT-SCHEMA] [OC-AGENT-RUNTIME]
-5. **Package-aware reference linking and validation.** Some generated manual commands currently tell
-   the runtime to read `skills/<name>/BODY.md` from the active project/global config root. That is
-   correct for staging but wrong when the body remains in a package cache. The build must emit a
-   relocatable package form (or a generated registry whose templates contain adapter-resolved package
-   paths) and validate those references before claiming package installability. [`tools/build.ts:458-532`](../../tools/build.ts)
-   [LOCAL-CONTRACT]
-6. **An included package payload.** The adapter, generated config data, `opencode/` artifacts, and all
-   linked supporting files must be included by the Git/npm package materialization. A `files` allowlist
-   is advisable if the repository later publishes the same package to a registry. [NPM-SPEC]
-
-The adapter should be boring runtime glue: locate its own package root and register build-produced
-artifacts. Invocation posture, artifact shape, frontmatter filtering, body edits, cross-reference
-rewriting, and dependency closure remain compile-time responsibilities, as required by this
-repository's transformation and reference contracts. [`AGENTS.md:12-34`](../../AGENTS.md)
-[`docs/adr/0006-output-is-a-transformation.md:13-59`](../adr/0006-output-is-a-transformation.md)
-
-## 6. Viable options
-
-### A. Continue staging/copying the generated tree
-
-This is the current consumption model, not a durable managed installer. It uses OpenCode's native
-config-directory scanners for all three artifact kinds, needs no runtime plugin, and matches the
-paths currently emitted into manual command stubs. Its costs are manual synchronization, no
-one-line package update, and the risk of stale or partial copies. [`README.md:57-67`](../../README.md)
-[`experiments/harness-invocation/lab.ps1:61-73`](../../experiments/harness-invocation/lab.ps1)
-
-### B. Add an OpenCode package adapter
-
-This gives the desired one-spec installation and lets the transformed output remain in the managed
-package cache. It requires a real package entrypoint, generated command/agent registration data,
-package-aware references, collision/precedence policy, and compatibility tests. It also introduces
-a small amount of runtime behavior, but that behavior can remain registration-only; the build still
-owns transformation and linking. [OC-HOOK-API] [LOCAL-CONTRACT]
-
-### C. Publish through `skills.urls`
-
-This avoids a plugin only for skills and can serve supporting skill files from static HTTP storage.
-It cannot expose this repository's curated commands or agents, cannot inject hooks, is not a Git URL
-installer, and would require generating and hosting the remote skill index. It is therefore useful
-only for a deliberately skill-only distribution channel. [OC-REMOTE-SKILLS] [SCHEMA]
-
-### Recommendation
-
-Keep staging as the supported path until an adapter experiment passes, then prefer a **root package
-adapter generated from the existing `opencode/` output** if one-spec installation is worth the added
-surface. Do not point runtime code back at `external/` or reinterpret upstream trees. The package
-must expose the already curated, per-harness output and preserve the compile-time linker promise.
-[LOCAL-CONTRACT] [LOCAL-OUTPUT]
-
-## 7. Distribution, runtime behavior, and storage are different layers
-
-| Layer | Responsibility | Superpowers | This repository today |
+| Artifact | Native discovery | Package adapter route | Missing primitive |
 |---|---|---|---|
-| Package distribution | Turn an npm/Git spec into package files on disk | Named Git package with a root manifest | Root tooling package can carry files but declares no OpenCode entrypoint |
-| Cache storage | Retain the installed package for reuse | Package and `skills/` live below OpenCode's package cache | Not used for OpenCode consumption |
-| Plugin runtime | Import an entrypoint and run hooks | Adds `skills.paths`; injects bootstrap | No plugin module |
-| Artifact discovery | Scan configured roots/protocol outputs | Skill service scans the path added by the plugin | Native scanners see files only after staging under a config root |
+| Skills | compatibility locations, OpenCode config directories, `skills.paths`, and `skills.urls` | append a package-relative directory to `config.skills.paths` | package roots are not inferred |
+| Commands | `{command,commands}/**/*.md` below each config directory | merge generated objects into `config.command` | no `commands.paths` |
+| Agents | `{agent,agents}/**/*.md` below each config directory | merge generated objects into `config.agent` | no `agents.paths` |
+| Local plugins | `{plugin,plugins}/*.{ts,js}` below each config directory | list an npm/Git/path spec in `plugin` | no scan below another package root |
 
-[OC-PACKAGE] [OC-ENTRY] [SP-PACKAGE] [SP-PLUGIN] [LOCAL-OUTPUT]
+[OC-CONFIG] [OC-SKILL] [OC-COMMAND] [OC-AGENT]
 
-The fact that package files are visible in a cache proves only distribution and storage. The fact
-that a module imports proves only plugin loading. Artifacts become usable only when native discovery
-already knows their location or adapter code registers them. [OC-CONFIG] [OC-SKILL]
+Skill discovery scans global `.claude/skills` and `.agents/skills`, project compatibility locations,
+known OpenCode config directories, configured `skills.paths`, and directories downloaded from
+`skills.urls`. Duplicate skill names produce a warning and one definition overwrites another; the
+loader performs parsing concurrently, so an installer must not treat duplicate resolution as a
+stable ownership policy. Avoid the collision instead. [OC-SKILL]
 
-## Concerns and measurements still required
+`skills.urls` is a separate, skill-only HTTP protocol. OpenCode requests `<base>/index.json` shaped
+like:
 
-- **Git subdirectory packages:** neither OpenCode's loader nor npm's documented Git package syntax
-  adds a repository-subdirectory selector; the documented fragment is a Git ref. A package located
-  below the repository root is therefore not an established one-spec route here. Treat it as
-  unsupported unless an isolated v1.18.7/v1.18.14 measurement proves a specific package-manager
-  syntax. Prefer a root entrypoint or a separately published package. [OC-ENTRY] [NPM-SPEC]
-- **Windows Git-backed install:** Superpowers documents past Windows failures involving Git lookup
-  and Git-spec cache paths. No live install or global cache mutation was performed for this report,
-  so a clean isolated Windows test remains necessary. [SP-DOC]
-- **Cache refresh:** `Npm.add` reuses an existing package directory for the same spec. Immutable tag
-  pins are predictable; moving branches or unpinned refs need an explicit update/cache experiment.
-  [OC-PACKAGE]
-- **Precedence and collisions:** the adapter must define whether an existing user/project command or
-  agent wins over package data. Skill duplicate ordering and the synthesized `source: "skill"`
-  command entries also need an end-to-end invocation measurement rather than an assumption.
-  [OC-SKILL] [OC-SKILL-COMMAND]
-- **Documentation/source mismatch:** official plugin prose and 1.18.14 implementation disagree on
-  the exact package installer/cache layout. Tests should assert behavior through OpenCode, not a
-  hard-coded cache pathname. [OC-PLUGIN-DOC] [OC-PACKAGE]
+```json
+{
+  "skills": [
+    {
+      "name": "example",
+      "files": ["SKILL.md", "references/details.md"],
+      "version": "1"
+    }
+  ]
+}
+```
 
-## 8. Ecosystem evidence: supported adapter, not an automatic package convention
+It downloads only the enumerated files and returns resulting skill directories to the skill
+scanner. It neither runs Git nor exposes commands, agents, plugin hooks, or arbitrary repository
+contents. A GitHub page or `git+https` spec is not a `skills.urls` endpoint. [OC-REMOTE]
 
-### 8.1 The three claims are different
+## 3. Why Superpowers works
 
-1. **Officially supported plugin API pattern — yes.** Official documentation supports loading npm
-   packages as plugins, and the typed plugin API includes a `config` hook that OpenCode invokes on
-   the live configuration. Using a package entrypoint plus that hook to set schema-backed fields such
-   as `skills.paths`, `command`, and `agent` is therefore supported API usage. The official docs do
-   not, however, prescribe an “artifact adapter” recipe or recommend combining all three fields in
-   one package. [OC-PLUGIN-DOC] [OC-ENTRY] [OC-HOOK-API] [OC-PLUGIN-RUNTIME]
-2. **Automatic package-layout convention — no.** None of the verified packages below relies on
-   OpenCode noticing a cached `skill(s)/`, `command(s)/`, or `agent(s)/` folder by name. Every working
-   package either adds a skill path, constructs command/agent config objects, or runs its own loader.
-   The counterexamples likewise show that merely publishing or checking in those folders does not
-   turn an npm package into an OpenCode artifact package. [OC-CONFIG] [OC-SKILL] [OC-COMMAND]
-   [OC-AGENT]
-3. **Ecosystem prevalence — established but heterogeneous, not a standard layout.** A bounded source
-   audit of seven package-installed repositories found five exposing bundled skills in some form
-   (four through native package-relative `skills.paths`, one through a custom loader), five mutating
-   `config.command`, and four mutating `config.agent`. One of the seven, `opencode-froggy`, performs
-   all three schema-backed registrations in one hook. `oh-my-openagent` also exposes all three
-   user-facing kinds, but its bundled skills are converted into command/tool data rather than
-   registered through `skills.paths`. These are verified examples, not an ecosystem census;
-   repository search cannot establish a denominator or usage share.
+Superpowers v6.3.0, commit
+[`b36e082`](https://github.com/obra/superpowers/tree/b36e0829c6d0140e93cfef2ca599b1b07d4a7797),
+has a root package manifest with:
 
-The defensible classification is therefore **supported-but-custom composition**. Package plugins and
-`config` hooks are the standard extension mechanism; package-root artifact discovery is not a
-standard; and a single skills-plus-commands-plus-agents adapter is a real ecosystem design, but not
-an OpenCode-documented recommendation or a dominant convention in this sample.
+```json
+{
+  "name": "superpowers",
+  "type": "module",
+  "main": ".opencode/plugins/superpowers.js"
+}
+```
 
-### 8.2 Verified package-installed repositories
+The imported module resolves `../../skills` relative to itself and appends that absolute directory
+to `config.skills.paths`. The same module reads `using-superpowers/SKILL.md`, constructs tool-mapping
+text, caches it, and injects it through `experimental.chat.messages.transform`. It does not register
+an OpenCode command tree or agent tree. [SP-PACKAGE] [SP-PLUGIN]
 
-#### Superpowers
+Its behavior demonstrates four separate layers:
 
-At v6.1.0 commit [`f268f7c`](https://github.com/obra/superpowers/tree/f268f7c953744036f0fa7e9d4b73535c04e57cb8),
-the root `main` is `.opencode/plugins/superpowers.js`. Its `config` hook explicitly adds the
-package-relative `skills/` directory to `config.skills.paths`; it does not register commands or
-agents. The documented OpenCode installation uses the named Git package spec
-`superpowers@git+https://github.com/obra/superpowers.git#v6.1.0`. The detailed trace remains in
-section 3. [SP-PACKAGE] [SP-PLUGIN] [SP-DOC]
+| Layer | Superpowers responsibility |
+|---|---|
+| Distribution | Git package spec materializes repository-root package files |
+| Storage | OpenCode retains those files in its package cache |
+| Plugin runtime | `main` imports a JavaScript adapter and runs its hooks |
+| Artifact discovery | the adapter adds the package-relative skill path |
 
-#### Mem0 OpenCode plugin
+The package would still install without the config hook, but its skills would remain undiscovered.
+The files being visible in cache therefore proves distribution, not registration.
 
-At tag `opencode-v0.2.2`, commit
-[`5e7adc4`](https://github.com/mem0ai/mem0/tree/5e7adc4d1264bb49ab20cf8c70e4807295d77ae2),
-`@mem0/opencode-plugin` publishes `main: "dist/index.js"` and includes `opencode-skills` in its
-package files. The `config` hook resolves that directory relative to the imported module, appends it
-to `config.skills.paths`, then reads each `SKILL.md` and writes a corresponding entry to
-`config.command`. It does not register an agent. The project documents
-`opencode plugin @mem0/opencode-plugin`. The folder is bundled, but both native skill discovery and
-slash-command exposure are explicit adapter behavior. [MEM0-PACKAGE] [MEM0-PLUGIN] [MEM0-DOC]
+## 4. Git repositories, workspaces, and module boundaries
 
-#### You.com agent skills
+npm's documented Git package forms accept a repository and an optional `#ref`. OpenCode does not add
+a path selector before passing the spec to `Npm.add`. A local path can point directly at a package
+directory, but there is no corresponding remote syntax for “this directory inside that Git repo.”
+[OC-SPEC] [NPM-SPEC]
 
-At commit
-[`2ed8355`](https://github.com/youdotcom-oss/agent-skills/tree/2ed83558991da7d09e5880fe2d119002bbcf060b),
-`@youdotcom-oss/opencode` declares `main: "./plugin.ts"`. Its build script copies the repository's
-shared skills into the package's `skills/` directory, and its `config` hook explicitly pushes that
-package-relative directory into `config.skills.paths`. It also configures MCP servers, but does not
-mutate `config.command` or `config.agent`. Installation is documented as
-`opencode plugin @youdotcom-oss/opencode` or the equivalent package name in the `plugin` array. This
-is generated package content plus explicit registration, not cache-layout discovery. [YOU-PACKAGE]
-[YOU-BUILD] [YOU-PLUGIN] [YOU-DOC]
+Workspaces do not change this. A workspace is a package linked and managed from a root checkout by
+workspace-aware npm commands. It can be published as its own registry package, but
+`github:owner/repo#ref` still identifies the repository package root. A root `package.json` can
+forward to one adapter which exposes multiple generated modules; it cannot make those workspace
+directories separately selectable by OpenCode's package syntax. [NPM-WORKSPACES]
 
-#### oh-my-openagent / oh-my-opencode
+The viable module boundaries are therefore:
 
-At tag `v4.19.4`, commit
-[`b072d27`](https://github.com/code-yeongyu/oh-my-openagent/tree/b072d279110bdda2c6ac2525d0d24dc54d16148a),
-the published root package retains the name `oh-my-opencode`; both `main` and
-`exports["./server"]` resolve to `dist/index.js`, with the server export taking precedence in
-OpenCode's loader. Its `config` handler calls separate agent and command assemblers. The agent path
-builds package-owned TypeScript definitions and assigns `config.agent`; the command path assigns
-`config.command` from built-in commands, built-in skills, discovered compatibility content, and
-plugin components. [OMO-PACKAGE] [OMO-CONFIG]
+1. **One root package, one adapter.** The adapter exposes all modules and may implement its own
+   selection options. OpenCode owns one plugin config entry and one cache unit.
+2. **One published package per module.** A registry package gives each module its own package root,
+   version, config entry, and update unit. A Git monorepo alone does not.
+3. **One root installer package/CLI.** The installer understands repository subdirectories because
+   it owns that grammar, then composes selected modules into native OpenCode directories. This is an
+   installer convention, not OpenCode or npm Git-subdirectory support.
+4. **Separate repositories.** Each module becomes a Git package root at the cost of repository and
+   release fragmentation.
 
-Its bundled skills are an important qualification: the package includes skill directories, but the
-OpenCode adapter does not expose the ordinary bundle by appending a package path to
-`config.skills.paths`. Instead, its own loader reads the shared-skills package, merges the resulting
-definitions for its custom skill tool, and converts built-in/loaded skills into command definitions.
-An optional runtime-security feature separately uses `skills.urls`; that does not make the package
-folders automatic. The documented installer is `bunx oh-my-openagent install`, which registers the
-package in OpenCode configuration. This is a proven all-kinds plugin suite, but a custom composition,
-not evidence for package-root scanning. [OMO-SKILLS] [OMO-COMMANDS] [OMO-DOC]
+## 5. Ecosystem evidence
 
-#### micode
+The examples establish viable mechanisms, not prevalence. None relies on automatic package-root
+artifact scanning.
 
-At commit
-[`1cf531b`](https://github.com/vtemian/micode/tree/1cf531b7f0e5470a720d39997c6703d3af19de24),
-`micode` declares `main: "dist/index.js"`. The plugin imports TypeScript agent definitions, merges
-user overrides, assigns the resulting objects to `config.agent`, and merges a built-in command map
-into `config.command`. It has no bundled skill-path registration. The README installs it with
-`{"plugin":["micode"]}`. Agents and commands are data constructed by the imported package module;
-no cached Markdown folder is auto-scanned. [MICODE-PACKAGE] [MICODE-PLUGIN] [MICODE-DOC]
+| Project and pin | Shape | Mechanism | Lesson |
+|---|---|---|---|
+| Superpowers `v6.3.0` (`b36e082`) | skills | package `main`; `config.skills.paths` | smallest package-relative skill adapter |
+| `opencode-froggy` `v0.12.0` (`ca3e228`) | skills, commands, agents | explicitly loads all three directories; mutates all three config fields | exact proof that one adapter can expose all kinds |
+| `micode` `v0.10.0` (`d735ecf`) | commands, agents | programmatic registries assigned in a config hook | Markdown directories are optional when generated data is ready |
+| `opencode-beads` `v0.7.0` (`896f66e`) | commands, agent | explicitly parses package-relative vendored Markdown | package files are inert until adapter code reads them |
+| `wshobson/agents` (`d6837ae`) | generated skills, commands, agents | per-harness generator plus clone/generate/symlink installer | useful per-module source boundary and adapter architecture; not package-subdirectory support |
+| `vercel-labs/skills` (`c6f69c6`) | skills | custom source parser, deterministic hash lock, add/update/remove | useful ownership and Git-subpath grammar implemented by the installer itself |
+| Homerun marketplace (`54c5a4a`) | skills and config | root `npx` installer with an ownership manifest | package-root CLI can copy owned output without being an OpenCode plugin |
 
-#### opencode-beads
+[SP-PACKAGE] [SP-PLUGIN] [FROGGY] [MICODE] [BEADS] [WSHOBSON] [VERCEL]
+[HOMERUN]
 
-At commit
-[`1622668`](https://github.com/joshuadavidthomas/opencode-beads/tree/1622668e80fceba01cff30755b787e198f53f7e0),
-`opencode-beads` declares `main: "src/plugin.ts"` and publishes `src/` plus `vendor/`. Its loader
-explicitly reads vendored Markdown under `vendor/commands/` and `vendor/agents/task-agent.md`, parses
-the frontmatter and bodies into config objects, and the `config` hook merges those objects into
-`config.command` and `config.agent`. It registers no skills path. The documented spec is
-`opencode-beads`, optionally pinned as `opencode-beads@0.7.0`. This is the clearest generated/indirect
-case in the sample: runtime parsing is traced through to the actual two config assignments.
-[BEADS-PACKAGE] [BEADS-VENDOR] [BEADS-PLUGIN] [BEADS-DOC]
+`wshobson/agents` is especially relevant but easy to overread. Its first-party modules live under
+`plugins/<module>/`; `tools/generate.py --harness opencode --plugin <module>` transforms one module,
+and its OpenCode adapter writes one flat generated `.opencode/` tree. Its installer then symlinks
+generated entries into the global config and refuses to overwrite non-symlinks. The generated
+OpenCode tree is gitignored, and the documented flow is clone, generate, install. This supports the
+per-harness transformation and module-boundary decisions already made here. It does **not** prove
+that OpenCode can install `plugins/<module>` from a Git package spec. [WSHOBSON]
 
-#### opencode-froggy
+The Homerun precedent has a different ownership boundary from the design below. It writes an owned
+tree outside the shared config root and selects that tree through a persistent `OPENCODE_CONFIG_DIR`.
+This repository has rejected that environment-variable end state, so composing into a shared native
+config root needs the stronger path manifest, collision, rollback, and local-edit protections in
+section 6. Homerun proves an ownership manifest can work; it does not remove those additional
+requirements here. [HOMERUN] [LOCAL-CONTRACT]
 
-At tag `v0.12.0`, commit
-[`ca3e228`](https://github.com/smartfrog/opencode-froggy/tree/ca3e228d53b62be2cd882c91a0eb091d94909371),
-`opencode-froggy` declares `main: "dist/index.js"` and publishes package-relative `agent/`,
-`command/`, and `skill/` directories. Its module explicitly loads all three directories. In the
-`config` hook it merges parsed agents into `config.agent`, parsed commands into `config.command`, and
-adds `skill/` to `config.skills.paths`. The project documents `{"plugin":["opencode-froggy"]}`.
-This is a verified single-adapter implementation of the proposed three-kind shape—and also direct
-evidence that folder names alone are insufficient, because the plugin contains explicit loading and
-registration code for every kind. [FROGGY-PACKAGE] [FROGGY-PLUGIN] [FROGGY-DOC]
+## 6. Implemented distribution for this repository
 
-### 8.3 Counterexamples and non-examples
+This repository now has a private root package with a `deniz-skills` bin pointing at committed
+`dist/install-opencode.js`. The package contains only that emitted runtime, package metadata, and one
+generated `opencode/<module>/` Bundle per Module. It still has no OpenCode `main` or
+`exports["./server"]`: it is an installer package, not a runtime plugin adapter. The package runs
+locally from a checkout. The selected remote transport, once its separate mutation gate is
+authorized, is authenticated `gh` download of the exact immutable `deniz-agent-skills-0.1.0.tgz`
+asset from the private `installer-v0.1.0` GitHub Release.
+[`package.json`](../../package.json) [`README.md`](../../README.md) [LOCAL-CONTRACT]
 
-- **Alibaba OpenCodeReview** at commit
-  [`adbd4fd`](https://github.com/alibaba/open-code-review/tree/adbd4fd65ce4f9e976a158504333df1ff41ff717)
-  has an OpenCode TypeScript plugin that mutates `config.command`, but its nearby package manifest is
-  private development metadata with no `main` or `exports["./server"]`. Its installation guide uses
-  `curl` to copy the TypeScript file into a global or project OpenCode plugin directory. The sibling
-  `skills/` tree is not registered by that OpenCode plugin. It proves local-plugin config mutation,
-  not package-cache artifact discovery. [OCR-PACKAGE] [OCR-PLUGIN] [OCR-DOC]
-- **`@wbern/agent-instructions`** at commit
-  [`0743a53`](https://github.com/wbern/agent-instructions/tree/0743a5330a66fb3e73fe72b9bc37e0b8dbfde84f)
-  publishes a CLI `bin` and no plugin `main` or server export. Although its repository contains
-  generated `.opencode/commands` and `.opencode/skills`, its documented OpenCode path runs the CLI to
-  write project- or user-scope artifacts. An npm package is involved, but the package is an installer,
-  not an OpenCode package adapter. [WBERN-PACKAGE] [WBERN-DOC]
-- **`wildwasser/opencode-agents`** at commit
-  [`c850b15`](https://github.com/wildwasser/opencode-agents/tree/c850b153fe02c8f30b863dd515960012f5e145fe)
-  checks in `.opencode/agent` and `.opencode/skills`, but documents cloning the repository and running
-  `install.sh`. That script copies agent Markdown into the global OpenCode config; the example config
-  is copied separately, and the skills are project-local to a checkout unless separately staged.
-  There is no package entrypoint or `config` hook. [OC-AGENTS-INSTALL] [OC-AGENTS-DOC]
+| Design | Per-module selection | Skills | Commands/agents | Update and uninstall | Fit |
+|---|---:|---:|---:|---:|---|
+| Continue manual staging | manual file selection | native | native | manual; stale copies possible | rejected; no ownership boundary |
+| Root OpenCode package adapter | only if adapter options implement it | `skills.paths` | generated config objects | OpenCode cache; no native uninstall command | good all-in-one package, weak module ownership |
+| Registry package per module | yes | adapter path | adapter config objects | package versions; still no OpenCode uninstall command | clean package boundary, high publication overhead |
+| Managed config-tree installer | yes | native files | native files | exact Plan/Apply, Recovery, Update, Remove | implemented selection |
+| `skills.urls` | skill-by-skill | remote protocol | unsupported | version field refreshes files | deliberately skill-only channel |
 
-The search also found many project repositories with `.opencode/*` content and many plugin modules
-that mutate unrelated config fields. They are intentionally excluded from the prevalence count when
-the first-party manifest, installation path, or runtime mutation could not prove package-cache
-registration. Consequently, the counts above answer “does the pattern exist, and in what verified
-forms?” rather than “what percentage of all OpenCode plugins use it?”
+### Why the managed installer is the implementation
 
-### 8.4 Compact result
+The product is the compile-time transformation, not a runtime reinterpretation of upstream. A
+managed installer can preserve that boundary: the build emits harness-native module bundles, and the
+installer only composes those ready artifacts into the one flat address space OpenCode scans. It
+does not need to parse upstream Markdown, infer invocation posture, or rewrite references at install
+time. [LOCAL-CONTRACT]
 
-| Repo (pin) | Skills | Commands | Agents | Mechanism | Verdict |
-|---|---|---|---|---|---|
-| `obra/superpowers` (`v6.1.0`) | `skills.paths` | No | No | `main` + config hook | Package adapter, skill-only |
-| `mem0ai/mem0` (`opencode-v0.2.2`) | `skills.paths` | `config.command` from skills | No | `main` + package-relative loader | Package adapter, skills + commands |
-| `youdotcom-oss/agent-skills` (`2ed8355`) | `skills.paths` | No | No | build-copy + `main` + config hook | Package adapter, skill-only |
-| `code-yeongyu/oh-my-openagent` (`v4.19.4`) | Custom loader/tool | `config.command` | `config.agent` | `exports["./server"]` + assemblers | All kinds, custom skill composition |
-| `vtemian/micode` (`1cf531b`) | No | `config.command` | `config.agent` | `main` + TypeScript registries | Package adapter, commands + agents |
-| `joshuadavidthomas/opencode-beads` (`1622668`) | No | `config.command` | `config.agent` | `main` + vendored Markdown parser | Package adapter, commands + agent |
-| `smartfrog/opencode-froggy` (`v0.12.0`) | `skills.paths` | `config.command` | `config.agent` | `main` + three explicit loaders | Exact all-three package adapter |
-| `alibaba/open-code-review` (`adbd4fd`) | Not registered | Local plugin mutation | No | Copy `.ts` into config | Non-example: no package entrypoint |
-| `wbern/agent-instructions` (`0743a53`) | Generated/copied | Generated/copied | No | CLI installer | Non-example: npm package, not plugin |
-| `wildwasser/opencode-agents` (`c850b15`) | Project-local | No | Copied | Clone + shell installer | Non-example: config-tree staging |
+The build now writes deterministic Module manifests, while the installer owns persisted Selection
+and per-path Ownership in the global config root. Mutating actions print a Plan and require `--yes`;
+Apply recomputes under a Destination lock, rejects Unowned Collisions, Local modifications, and
+filesystem-visible links or junctions, commits Install state last, and has explicit rollback/finalize
+Recovery. There is no force/reset path, legacy migration, project-local target, config JSON mutation,
+or consumer compilation. The exact operating contract lives in [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md),
+[ADR-0002](../adr/0002-multi-harness-output.md), [ADR-0004](../adr/0004-minimal-toolchain.md), and
+the root [README](../../README.md); this document remains the evidence and alternatives record.
+
+The root package-adapter design remains a valid alternative if the desired product changes to “one
+spec always installs the whole curated set.” In that case the minimum adapter should register the
+generated skills path, merge pre-generated command and agent objects with an explicit collision
+policy, resolve all package paths from its own module URL, and expose only build-produced data. The
+adapter must not transform `external/` content at runtime. [FROGGY] [LOCAL-CONTRACT]
+
+## 7. Implementation evidence and remaining measurements
+
+Run these against pinned OpenCode builds in isolated temporary home, config, and cache directories.
+Do not use a developer's real global config. Commit the runner, protocol, and records under the
+existing harness-invocation experiment area.
+
+The selected local-package path is recorded in
+[`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md):
+on Windows with OpenCode 1.18.18, packed Plan left the Destination absent, Apply selected all four
+Modules, Native discovery matched the installed names and paths, and OpenCode's own support files
+coexisted with Install state. The same record explicitly leaves the private Release download,
+model-driven parked-body read, and human permission prompt unmeasured.
+
+| Question | Fixture and action | Required assertion | Current status |
+|---|---|---|---|
+| Does a root Git package load? | tagged package with `exports["./server"]` and a diagnostic hook | exact tag, package root, hook invocation | source-established; runtime record needed |
+| Is a package root auto-scanned? | same package contains unregistered `skills/`, `commands/`, `agents/` | none appear before explicit registration | source-established; runtime control useful |
+| Can a Git spec select a workspace subdirectory? | root plus two workspace packages; try npm/Git/GitHub spellings | either documented success or recorded rejection for each spelling | unmeasured; documentation says no selector |
+| Does the all-three adapter work end to end? | generated skill path plus command and agent config objects | skill tool, slash command, and subagent each invoke the intended artifact | ecosystem-established; local fixture needed |
+| What wins on collisions? | global, project, native config-tree, and adapter definitions share names | observed winner and warning for each artifact kind | unmeasured; do not encode policy from load order |
+| How does cache refresh behave? | immutable tag, moved tag, branch, commit; restart, changed spec, and `--force` | exact installed commit after each action | unchanged-spec restart is source-established; edge cases unmeasured |
+| Is CLI patching safe? | JSONC with comments, tuples, duplicate package versions, local/global scope | comments preserved; expected add/no-op/replace; no partial write | source-tested upstream; local compatibility record useful |
+| Does Git installation work on Windows? | named Git alias and GitHub shorthand with Git on `PATH` | installation, sanitized cache path, module import | unmeasured; Superpowers reports historical failures |
+| Can the managed installer recover? | interrupted install, unowned collision, locally edited owned file | rollback succeeds; unowned and edited files survive | implementation integration tests pass; isolated package interruption was not injected |
+| Are support files relocatable? | command, agent, and skill references cross module and use relative files | every link resolves and runtime invocation reads the intended file | build linker and installed-tree introspection measured; model-driven support-file reads remain unmeasured |
+| Do parked bundles need permission configuration? | invoke a global Native-tree command that reads its parked body | literal prompt or no-prompt observation recorded by a human | unmeasured for installer composition; do not infer from the old config-dir mount |
+| Does Install state coexist with OpenCode config maintenance? | initialize OpenCode after install, then update and remove | OpenCode-owned support files survive; installer prunes only paths in its Ownership | isolated debug introspection measured; post-initialization Update/Remove interaction remains unmeasured |
+| Does the immutable private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | unmeasured until the Release is explicitly authorized and created |
+
+A passing package-adapter fixture proves that option is technically available. It does not by itself
+choose it over the managed installer; ownership, module selection, and recovery are separate design
+criteria.
 
 ## Primary sources
 
-- **[OC-PACKAGE]** Pinned OpenCode v1.18.7,
-  `packages/core/src/npm.ts:43-60,72-137`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/core/src/npm.ts#L43-L137).
-- **[OC-ENTRY]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/plugin/shared.ts:22-34,54-59,81-114,136-169,171-235`;
-  official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/plugin/shared.ts#L22-L235).
-- **[OC-LOADER]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/plugin/loader.ts:76-145,203-236`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/plugin/loader.ts#L76-L236).
-- **[OC-PLUGIN-RUNTIME]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/plugin/index.ts:95-121,177-249`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/plugin/index.ts#L97-L251).
-- **[OC-BOOTSTRAP]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/project/bootstrap.ts:32-45`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/project/bootstrap.ts#L32-L45).
-- **[OC-CONFIG]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/config/config.ts:416-466`, plus
-  `packages/opencode/src/config/plugin.ts:18-30`; official v1.18.14
-  [config permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/config/config.ts#L416-L466)
-  and [plugin-directory permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/config/plugin.ts#L18-L30).
-- **[OC-SKILL]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/skill/index.ts:21-25,173-233`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/skill/index.ts#L21-L233).
-- **[OC-REMOTE-SKILLS]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/skill/discovery.ts:13-21,35-131`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/skill/discovery.ts#L13-L131).
-- **[OC-COMMAND]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/config/command.ts:13-39`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/config/command.ts#L13-L39).
-- **[OC-AGENT]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/config/agent.ts:11-31`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/config/agent.ts#L11-L31).
-- **[OC-SKILL-COMMAND]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/command/index.ts:88-152`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/command/index.ts#L88-L152).
-- **[OC-HOOK-API]** Pinned OpenCode v1.18.7,
-  `packages/plugin/src/index.ts:222-228,282-296`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/plugin/src/index.ts#L222-L296).
-- **[OC-PLUGIN-SCHEMA]** Pinned OpenCode v1.18.7,
-  `packages/core/src/v1/config/plugin.ts:5-9`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/core/src/v1/config/plugin.ts#L5-L9).
-- **[OC-SKILLS-SCHEMA]** Pinned OpenCode v1.18.7,
-  `packages/core/src/v1/config/skills.ts:5-12`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/core/src/v1/config/skills.ts#L5-L12).
-- **[OC-COMMAND-SCHEMA]** Pinned OpenCode v1.18.7,
-  `packages/core/src/v1/config/command.ts:5-13`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/core/src/v1/config/command.ts#L5-L13).
-- **[OC-AGENT-SCHEMA]** Pinned OpenCode v1.18.7,
-  `packages/core/src/v1/config/agent.ts:12-40,83-89`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/core/src/v1/config/agent.ts#L12-L89).
-- **[OC-COMMAND-RUNTIME]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/command/index.ts:55-103`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/command/index.ts#L55-L103).
-- **[OC-AGENT-RUNTIME]** Pinned OpenCode v1.18.7,
-  `packages/opencode/src/agent/agent.ts:267-294`; official v1.18.14
-  [permalink](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/opencode/src/agent/agent.ts#L269-L296).
-- **[OC-PLUGIN-DOC]** Official v1.18.14 plugin docs source,
-  [`packages/web/src/content/docs/plugins.mdx:29-70`](https://github.com/anomalyco/opencode/blob/65cf14df16c191f3e9684f0d9a8bae69103ced6d/packages/web/src/content/docs/plugins.mdx#L29-L70),
+- **[OC-SPEC]** OpenCode v1.18.18
+  [`plugin/shared.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/plugin/shared.ts):
+  spec parsing and classification, package/path resolution, package entrypoints, and compatibility.
+- **[OC-NPM]** OpenCode v1.18.18
+  [`core/npm.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/core/src/npm.ts):
+  Arborist reification, ignored scripts, cache layout, sanitization, and early reuse.
+- **[OC-LOADER]** OpenCode v1.18.18
+  [`plugin/loader.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/plugin/loader.ts):
+  target resolution, entrypoint checks, compatibility, and dynamic import.
+- **[OC-INSTALL]** OpenCode v1.18.18
+  [`plugin/install.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/plugin/install.ts):
+  manifest target detection and JSONC-safe config patching.
+- **[OC-CLI]** OpenCode v1.18.18
+  [`cli/cmd/plug.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/cli/cmd/plug.ts)
+  and [CLI documentation](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/web/src/content/docs/cli.mdx):
+  `plugin`/`plug`, `--global`, and `--force`.
+- **[OC-PLUGIN]** OpenCode v1.18.18
+  [`plugin/index.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/plugin/index.ts):
+  current and legacy module loading and sequential config hooks.
+- **[OC-BOOTSTRAP]** OpenCode v1.18.18
+  [`project/bootstrap.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/project/bootstrap.ts):
+  plugin initialization before other services.
+- **[OC-CONFIG]** OpenCode v1.18.18
+  [`config/config.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/config/config.ts):
+  config directories, command/agent scans, and plugin origins.
+- **[OC-SKILL]** OpenCode v1.18.18
+  [`skill/index.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/skill/index.ts):
+  compatibility roots, config roots, `skills.paths`, URLs, and duplicates.
+- **[OC-REMOTE]** OpenCode v1.18.18
+  [`skill/discovery.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/skill/discovery.ts):
+  `index.json`, enumerated downloads, cache, and version refresh.
+- **[OC-COMMAND]** OpenCode v1.18.18
+  [`config/command.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/config/command.ts).
+- **[OC-AGENT]** OpenCode v1.18.18
+  [`config/agent.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/config/agent.ts).
+- **[OC-API]** OpenCode v1.18.18
+  [`@opencode-ai/plugin` hooks](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/plugin/src/index.ts).
+- **[OC-DOC]** Pinned official
+  [plugin documentation source](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/web/src/content/docs/plugins.mdx),
   rendered at <https://opencode.ai/docs/plugins/>.
-- **[SCHEMA]** Official current schema: <https://opencode.ai/config.json> (inspected
-  2026-08-07; `plugin`, `skills.paths`, `skills.urls`, `command`, and `agent`).
-- **[SP-PACKAGE]** Vendored `external/superpowers/package.json:1-22`; official v6.1.0
-  [permalink](https://github.com/obra/superpowers/blob/f268f7c953744036f0fa7e9d4b73535c04e57cb8/package.json#L1-L22).
-- **[SP-PLUGIN]** Vendored
-  `external/superpowers/.opencode/plugins/superpowers.js:13-15,49-57,61-113,115-138`;
-  official v6.1.0
-  [permalink](https://github.com/obra/superpowers/blob/f268f7c953744036f0fa7e9d4b73535c04e57cb8/.opencode/plugins/superpowers.js#L13-L138).
-- **[SP-DOC]** Vendored `external/superpowers/docs/README.opencode.md:5-21,83-103,120-157`;
-  official v6.1.0
-  [installation guide](https://github.com/obra/superpowers/blob/f268f7c953744036f0fa7e9d4b73535c04e57cb8/.opencode/INSTALL.md)
-  and [OpenCode guide](https://github.com/obra/superpowers/blob/f268f7c953744036f0fa7e9d4b73535c04e57cb8/docs/README.opencode.md).
-- **[MEM0-PACKAGE]** Mem0 `opencode-v0.2.2`,
-  [OpenCode package manifest](https://github.com/mem0ai/mem0/blob/5e7adc4d1264bb49ab20cf8c70e4807295d77ae2/integrations/mem0-plugin/.opencode-plugin/package.json).
-- **[MEM0-PLUGIN]** Mem0 `opencode-v0.2.2`,
-  [plugin source](https://github.com/mem0ai/mem0/blob/5e7adc4d1264bb49ab20cf8c70e4807295d77ae2/integrations/mem0-plugin/.opencode-plugin/opencode-mem0.ts)
-  (`registerCommands` and the returned `config` hook).
-- **[MEM0-DOC]** Mem0 `opencode-v0.2.2`,
-  [OpenCode install and hook guide](https://github.com/mem0ai/mem0/blob/5e7adc4d1264bb49ab20cf8c70e4807295d77ae2/integrations/mem0-plugin/.opencode-plugin/README.md).
-- **[YOU-PACKAGE]** You.com agent skills commit `2ed8355`,
-  [OpenCode package manifest](https://github.com/youdotcom-oss/agent-skills/blob/2ed83558991da7d09e5880fe2d119002bbcf060b/packages/opencode/package.json).
-- **[YOU-BUILD]** You.com agent skills commit `2ed8355`,
-  [skill-copy build script](https://github.com/youdotcom-oss/agent-skills/blob/2ed83558991da7d09e5880fe2d119002bbcf060b/packages/opencode/scripts/build.ts).
-- **[YOU-PLUGIN]** You.com agent skills commit `2ed8355`,
-  [OpenCode plugin](https://github.com/youdotcom-oss/agent-skills/blob/2ed83558991da7d09e5880fe2d119002bbcf060b/packages/opencode/plugin.ts).
-- **[YOU-DOC]** You.com agent skills commit `2ed8355`,
-  [OpenCode package guide](https://github.com/youdotcom-oss/agent-skills/blob/2ed83558991da7d09e5880fe2d119002bbcf060b/packages/opencode/README.md).
-- **[OMO-PACKAGE]** oh-my-openagent v4.19.4,
-  [root package manifest](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/package.json).
-- **[OMO-CONFIG]** oh-my-openagent v4.19.4,
-  [plugin module](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/testing/create-plugin-module.ts),
-  [config handler](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/plugin-handlers/config-handler.ts),
-  and [agent assembly](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/plugin-handlers/agent-config-assembly.ts).
-- **[OMO-COMMANDS]** oh-my-openagent v4.19.4,
-  [command config handler](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/plugin-handlers/command-config-handler.ts)
-  and [skill-to-command conversion](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/skills-loader-core/src/features/opencode-skill-loader/skill-definition-record.ts).
-- **[OMO-SKILLS]** oh-my-openagent v4.19.4,
-  [skill context](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/omo-opencode/src/plugin/skill-context.ts)
-  and [custom shared-skill loader](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/packages/skills-loader-core/src/features/opencode-skill-loader/loader.ts).
-- **[OMO-DOC]** oh-my-openagent v4.19.4,
-  [installation guide](https://github.com/code-yeongyu/oh-my-openagent/blob/b072d279110bdda2c6ac2525d0d24dc54d16148a/docs/guide/installation.md).
-- **[MICODE-PACKAGE]** micode commit `1cf531b`,
-  [package manifest](https://github.com/vtemian/micode/blob/1cf531b7f0e5470a720d39997c6703d3af19de24/package.json).
-- **[MICODE-PLUGIN]** micode commit `1cf531b`,
-  [plugin config hook](https://github.com/vtemian/micode/blob/1cf531b7f0e5470a720d39997c6703d3af19de24/src/index.ts)
-  and [agent registry](https://github.com/vtemian/micode/blob/1cf531b7f0e5470a720d39997c6703d3af19de24/src/agents/index.ts).
-- **[MICODE-DOC]** micode commit `1cf531b`,
-  [installation and artifact guide](https://github.com/vtemian/micode/blob/1cf531b7f0e5470a720d39997c6703d3af19de24/README.md).
-- **[BEADS-PACKAGE]** opencode-beads commit `1622668`,
-  [package manifest](https://github.com/joshuadavidthomas/opencode-beads/blob/1622668e80fceba01cff30755b787e198f53f7e0/package.json).
-- **[BEADS-VENDOR]** opencode-beads commit `1622668`,
-  [vendored Markdown loaders](https://github.com/joshuadavidthomas/opencode-beads/blob/1622668e80fceba01cff30755b787e198f53f7e0/src/vendor.ts).
-- **[BEADS-PLUGIN]** opencode-beads commit `1622668`,
-  [plugin config hook](https://github.com/joshuadavidthomas/opencode-beads/blob/1622668e80fceba01cff30755b787e198f53f7e0/src/plugin.ts).
-- **[BEADS-DOC]** opencode-beads commit `1622668`,
-  [installation guide](https://github.com/joshuadavidthomas/opencode-beads/blob/1622668e80fceba01cff30755b787e198f53f7e0/README.md).
-- **[FROGGY-PACKAGE]** opencode-froggy v0.12.0,
-  [package manifest](https://github.com/smartfrog/opencode-froggy/blob/ca3e228d53b62be2cd882c91a0eb091d94909371/package.json).
-- **[FROGGY-PLUGIN]** opencode-froggy v0.12.0,
-  [three-kind loader and config hook](https://github.com/smartfrog/opencode-froggy/blob/ca3e228d53b62be2cd882c91a0eb091d94909371/src/index.ts).
-- **[FROGGY-DOC]** opencode-froggy v0.12.0,
-  [installation and artifact guide](https://github.com/smartfrog/opencode-froggy/blob/ca3e228d53b62be2cd882c91a0eb091d94909371/README.md).
-- **[OCR-PACKAGE]** Alibaba OpenCodeReview commit `adbd4fd`,
-  [private development manifest](https://github.com/alibaba/open-code-review/blob/adbd4fd65ce4f9e976a158504333df1ff41ff717/plugins/open-code-review/opencode/package.json).
-- **[OCR-PLUGIN]** Alibaba OpenCodeReview commit `adbd4fd`,
-  [local OpenCode plugin](https://github.com/alibaba/open-code-review/blob/adbd4fd65ce4f9e976a158504333df1ff41ff717/plugins/open-code-review/opencode/open-code-review.ts).
-- **[OCR-DOC]** Alibaba OpenCodeReview commit `adbd4fd`,
-  [copy-based OpenCode installation](https://github.com/alibaba/open-code-review/blob/adbd4fd65ce4f9e976a158504333df1ff41ff717/plugins/open-code-review/opencode/README.md).
-- **[WBERN-PACKAGE]** agent-instructions commit `0743a53`,
-  [CLI-only package manifest](https://github.com/wbern/agent-instructions/blob/0743a5330a66fb3e73fe72b9bc37e0b8dbfde84f/package.json).
-- **[WBERN-DOC]** agent-instructions commit `0743a53`,
-  [copy/generation installation guide](https://github.com/wbern/agent-instructions/blob/0743a5330a66fb3e73fe72b9bc37e0b8dbfde84f/README.md).
-- **[OC-AGENTS-INSTALL]** opencode-agents commit `c850b15`,
-  [copy installer](https://github.com/wildwasser/opencode-agents/blob/c850b153fe02c8f30b863dd515960012f5e145fe/install.sh).
-- **[OC-AGENTS-DOC]** opencode-agents commit `c850b15`,
-  [clone-and-copy guide](https://github.com/wildwasser/opencode-agents/blob/c850b153fe02c8f30b863dd515960012f5e145fe/README.md).
-- **[NPM-SPEC]** Official npm package-spec documentation,
-  <https://docs.npmjs.com/cli/v11/using-npm/package-spec#git-urls>, and the first-party
-  [`npm-package-arg` contract](https://github.com/npm/npm-package-arg#using).
-- **[LOCAL-CONTRACT]** `AGENTS.md:12-34,36-50`; `docs/adr/0006-output-is-a-transformation.md:13-59`.
-- **[LOCAL-OUTPUT]** `README.md:3-17,57-67`; `package.json:1-28`;
-  `docs/adr/0002-multi-harness-output.md:13-20`; generated examples
-  `opencode/commands/brainstorming.md:1-9` and
-  `opencode/agents/roslyn-incremental-generator-specialist.md:1-10`.
+- **[NPM-SPEC]** npm CLI v11
+  [package-spec documentation](https://docs.npmjs.com/cli/v11/using-npm/package-spec), including
+  Git URLs and `#ref`.
+- **[NPM-WORKSPACES]** npm CLI v11
+  [workspace documentation](https://docs.npmjs.com/cli/v11/using-npm/workspaces).
+- **[SP-PACKAGE]** Superpowers v6.3.0
+  [`package.json`](https://github.com/obra/superpowers/blob/b36e0829c6d0140e93cfef2ca599b1b07d4a7797/package.json).
+- **[SP-PLUGIN]** Superpowers v6.3.0
+  [OpenCode plugin](https://github.com/obra/superpowers/blob/b36e0829c6d0140e93cfef2ca599b1b07d4a7797/.opencode/plugins/superpowers.js).
+- **[SP-INSTALL]** Superpowers v6.3.0
+  [OpenCode installation guide](https://github.com/obra/superpowers/blob/b36e0829c6d0140e93cfef2ca599b1b07d4a7797/.opencode/INSTALL.md).
+- **[FROGGY]** `opencode-froggy` v0.12.0
+  [manifest](https://github.com/smartfrog/opencode-froggy/blob/ca3e228d53b62be2cd882c91a0eb091d94909371/package.json)
+  and [three-kind adapter](https://github.com/smartfrog/opencode-froggy/blob/ca3e228d53b62be2cd882c91a0eb091d94909371/src/index.ts).
+- **[MICODE]** micode v0.10.0
+  [manifest](https://github.com/vtemian/micode/blob/d735ecff7c2588eb719b5942b8ed2b2d4c4dee03/package.json)
+  and [config hook](https://github.com/vtemian/micode/blob/d735ecff7c2588eb719b5942b8ed2b2d4c4dee03/src/index.ts).
+- **[BEADS]** opencode-beads v0.7.0
+  [manifest](https://github.com/joshuadavidthomas/opencode-beads/blob/896f66ea32e77902f87eea77d286669178af920e/package.json),
+  [vendored loaders](https://github.com/joshuadavidthomas/opencode-beads/blob/896f66ea32e77902f87eea77d286669178af920e/src/vendor.ts),
+  and [config hook](https://github.com/joshuadavidthomas/opencode-beads/blob/896f66ea32e77902f87eea77d286669178af920e/src/plugin.ts).
+- **[WSHOBSON]** wshobson/agents commit `d6837ae`:
+  [generator](https://github.com/wshobson/agents/blob/d6837ae274c2cd817acad3fb98f193a4390a4c3e/tools/generate.py),
+  [OpenCode adapter](https://github.com/wshobson/agents/blob/d6837ae274c2cd817acad3fb98f193a4390a4c3e/tools/adapters/opencode.py),
+  [installer](https://github.com/wshobson/agents/blob/d6837ae274c2cd817acad3fb98f193a4390a4c3e/tools/install_opencode.py),
+  and [harness guide](https://github.com/wshobson/agents/blob/d6837ae274c2cd817acad3fb98f193a4390a4c3e/docs/harnesses.md).
+- **[VERCEL]** vercel-labs/skills commit `c6f69c6`:
+  [source/subpath parser](https://github.com/vercel-labs/skills/blob/c6f69c631292444cc541ac6d91e2226b0ff247da/src/source-parser.ts)
+  and [deterministic local lock](https://github.com/vercel-labs/skills/blob/c6f69c631292444cc541ac6d91e2226b0ff247da/src/local-lock.ts).
+- **[HOMERUN]** Homerun marketplace commit `54c5a4a`:
+  [root installer entrypoint](https://github.com/homeruntech/claude-plugin-marketplace/blob/54c5a4a046000026a9e0b359232c8d741723912b/tools/install.mjs)
+  and [owned install-tree design](https://github.com/homeruntech/claude-plugin-marketplace/blob/54c5a4a046000026a9e0b359232c8d741723912b/docs/ARCHITECTURE.md).
+- **[LOCAL-CONTRACT]** [`AGENTS.md`](../../AGENTS.md),
+  [ADR-0006](../adr/0006-output-is-a-transformation.md),
+  [ADR-0008](../adr/0008-references-are-symbols.md), and
+  [the current roadmap](../ROADMAP.md).
 
-## Concise conclusion
+## Conclusion
 
-The Git URL can deliver a package containing arbitrary files into OpenCode's package cache, but it
-cannot natively turn an arbitrary package-root `skills/`, `commands/`, and `agents/` tree into
-OpenCode artifacts. Superpowers succeeds because its imported plugin explicitly registers its
-package-relative skills path and injects its bootstrap. A complete cached distribution for this
-repository needs a package adapter that exposes the already transformed skills and registers
-generated command/agent config; `skills.urls` is only a separate skill-file protocol.
+An OpenCode Git plugin spec installs a repository-root package and imports its plugin entrypoint. It
+does not make arbitrary package folders discoverable and does not select a workspace subdirectory.
+Superpowers succeeds because its adapter registers a package-relative skill path; an all-three
+adapter is likewise possible only through explicit registration.
 
-| Option | Skills | Commands | Agents | One Git package spec | Recommendation |
-|---|---:|---:|---:|---:|---|
-| Stage `opencode/` into config | Yes | Yes | Yes | No | Keep until adapter is proven |
-| Root OpenCode adapter package | Yes | Yes, via config registration | Yes, via config registration | Yes | Preferred target |
-| `skills.urls` protocol | Yes | No | No | No | Skill-only channels only |
+For an all-in-one product, a root package adapter is small and supported. For this repository's
+per-module product, the implemented boundary is a root installer that composes already transformed,
+owned Module Bundles into OpenCode's Native tree and can update or remove exactly what it installed.
+The shipped unit is emitted JavaScript plus Bundles in an npm-format tarball, transported remotely as
+an immutable private GitHub Release asset rather than a Git package. OpenCode's `plugin` command
+improves package configuration, but it does not supply this ownership design.

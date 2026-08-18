@@ -1942,7 +1942,10 @@ export function applyPlan(lock, destination, plan, bundles, options) {
       const destPath = destAbs(destination, operation.path);
       requireManagedDevice(root, operation.path, options?.io);
       const recorded = recordedIdentity(current, operation.path);
-      const identity = { sha256: recorded?.sha256 ?? hashBytes(readFileSync(destPath)), mode: operation.to };
+      const identity = {
+        sha256: recorded?.sha256 ?? hashBytes(readFileSync(destPath)),
+        mode: operation.to,
+      };
       const operationIndex = plan.operations.indexOf(operation);
       journal.intent = { syscall: "chmod", operationIndex, path: operation.path, identity };
       writeSnapshot(transactionDir, journal, seq);

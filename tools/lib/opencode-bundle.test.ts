@@ -32,7 +32,9 @@ test("manifest hashes raw bytes and verification reports tamper and extras", () 
   writeFileSync(join(root, "skills", "alpha", "SKILL.md"), "changed\n");
   writeFileSync(join(root, "extra.txt"), "extra\n");
   assert.deepEqual(
-    verifyModuleManifest(root, manifest).map((x) => x.code).sort(),
+    verifyModuleManifest(root, manifest)
+      .map((x) => x.code)
+      .sort(),
     ["extra_file", "hash_mismatch"],
   );
   assert.doesNotMatch(readFileSync(join(root, "skills", "alpha", "SKILL.md"), "utf8"), /\r/);
@@ -47,10 +49,13 @@ test("Git index modes are root-relative POSIX executable identities", () => {
   execFileSync("git", ["-C", root, "add", "plain.txt", "nested/run.sh"]);
   execFileSync("git", ["-C", root, "update-index", "--chmod=+x", "nested/run.sh"]);
 
-  assert.deepEqual([...indexModes(root)], [
-    ["nested/run.sh", "100755"],
-    ["plain.txt", "100644"],
-  ]);
+  assert.deepEqual(
+    [...indexModes(root)],
+    [
+      ["nested/run.sh", "100755"],
+      ["plain.txt", "100644"],
+    ],
+  );
   assert.deepEqual([...indexModes(mkdtempSync(join(tmpdir(), "not-a-repo-")))], []);
 });
 
@@ -62,7 +67,10 @@ test("manifest verification reports a listed file that is missing", () => {
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644");
   rmSync(file);
 
-  assert.deepEqual(verifyModuleManifest(root, manifest).map((finding) => finding.code), ["missing_file"]);
+  assert.deepEqual(
+    verifyModuleManifest(root, manifest).map((finding) => finding.code),
+    ["missing_file"],
+  );
 });
 
 test("module digest changes when only the executable mode changes", () => {
@@ -107,7 +115,10 @@ test("manifest verification treats inherited object names as unlisted extras", (
     files,
   };
 
-  assert.deepEqual(verifyModuleManifest(root, manifest).map((finding) => finding.code), ["extra_file"]);
+  assert.deepEqual(
+    verifyModuleManifest(root, manifest).map((finding) => finding.code),
+    ["extra_file"],
+  );
 });
 
 test("loaded manifests serialize deterministically regardless of file-map order", () => {
@@ -170,9 +181,10 @@ test("case-insensitive verification reports a differently cased file as an alias
   const files = { "skills/alpha/SKILL.md": identity };
   const manifest = { ...actual, files, digest: digestFileMap(files) };
 
-  assert.deepEqual(verifyModuleManifest(root, manifest, { caseInsensitive: true }).map((finding) => finding.code), [
-    "case_alias",
-  ]);
+  assert.deepEqual(
+    verifyModuleManifest(root, manifest, { caseInsensitive: true }).map((finding) => finding.code),
+    ["case_alias"],
+  );
 });
 
 test("loader returns direct Module directories by their manifest name", () => {

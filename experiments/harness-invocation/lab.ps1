@@ -42,12 +42,16 @@ function Use-OpenCodeLab {
     $env:HOME                               = "$LAB\.opencode-home"
     $env:XDG_CONFIG_HOME                    = "$LAB\.opencode-home\.config"
     $env:XDG_DATA_HOME                      = "$LAB\.opencode-home\.local\share"
+    $env:TEMP                               = "$LAB\.opencode-home\.tmp"
+    $env:TMP                                = $env:TEMP
     $env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"   # explicit: the machine profile sets it too
+    New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
     Remove-Item Env:OPENCODE_CONFIG_DIR -ErrorAction SilentlyContinue
     Set-Location "$LAB\project"
     Write-Host "USERPROFILE / HOME = $env:USERPROFILE"      -ForegroundColor DarkGray
     Write-Host "XDG_CONFIG_HOME    = $env:XDG_CONFIG_HOME"  -ForegroundColor DarkGray
     Write-Host "XDG_DATA_HOME      = $env:XDG_DATA_HOME"    -ForegroundColor DarkGray
+    Write-Host "TEMP / TMP         = $env:TEMP"             -ForegroundColor DarkGray
     Write-Host "cwd                = $(Get-Location)"       -ForegroundColor DarkGray
 }
 
@@ -59,18 +63,21 @@ function Start-OpenCodeLab {
 }
 
 function Sync-Lab {
-    <#  Re-mount the built OpenCode tree after `npm run build`. The Claude side needs
-        no sync: --plugin-dir points straight at the repo.  #>
-    $dest = "$LAB\.opencode-home\.config\opencode"
-    Remove-Item "$dest\skills","$dest\commands" -Recurse -Force -ErrorAction SilentlyContinue
-    Copy-Item "$REPO\opencode\skills"   -Destination $dest -Recurse -Force
-    Copy-Item "$REPO\opencode\commands" -Destination $dest -Recurse -Force
-    $skillDirs = @(Get-ChildItem "$dest\skills" -Directory)
+    <#  Reconcile every built Module into the isolated global Native tree after
+        `npm run build`. The Claude side needs no sync: --plugin-dir points straight
+        at the repo.  #>
+    Use-OpenCodeLab
+    & node "$REPO\tools\install-opencode.ts" install --all --yes
+    if ($LASTEXITCODE -ne 0) { throw "OpenCode installer failed: $LASTEXITCODE" }
+
+    $dest = "$env:XDG_CONFIG_HOME\opencode"
+    $skillDirs = if (Test-Path "$dest\skills") { @(Get-ChildItem "$dest\skills" -Directory) } else { @() }
     $s = $skillDirs.Count
     $discoverable = @($skillDirs | Where-Object { Test-Path (Join-Path $_.FullName "SKILL.md") }).Count
     $parked = @($skillDirs | Where-Object { Test-Path (Join-Path $_.FullName "BODY.md") }).Count
-    $c = (Get-ChildItem "$dest\commands" -File).Count
-    Write-Host "synced: $s skill dirs ($discoverable with SKILL.md + $parked parked), $c commands" -ForegroundColor Green
+    $c = if (Test-Path "$dest\commands") { @(Get-ChildItem "$dest\commands" -File).Count } else { 0 }
+    $a = if (Test-Path "$dest\agents") { @(Get-ChildItem "$dest\agents" -File).Count } else { 0 }
+    Write-Host "synced: $s skill dirs ($discoverable with SKILL.md + $parked parked), $c commands, $a agents" -ForegroundColor Green
 }
 
 Write-Host ""

@@ -24,7 +24,14 @@ export interface ModuleBundle {
 }
 
 export interface BundleFinding {
-  code: "invalid_manifest" | "missing_file" | "extra_file" | "hash_mismatch" | "mode_mismatch" | "case_alias" | "symlink";
+  code:
+    | "invalid_manifest"
+    | "missing_file"
+    | "extra_file"
+    | "hash_mismatch"
+    | "mode_mismatch"
+    | "case_alias"
+    | "symlink";
   path: string;
   message: string;
 }
@@ -88,9 +95,7 @@ function relativePathError(path: unknown): string | null {
   }
   const parts = path.split("/");
   if (
-    parts.some(
-      (part) => part.length === 0 || part === "." || part === ".." || (part.length === 2 && part[1] === ":"),
-    )
+    parts.some((part) => part.length === 0 || part === "." || part === ".." || (part.length === 2 && part[1] === ":"))
   ) {
     return "path must not contain traversal or normalization segments";
   }
@@ -98,7 +103,10 @@ function relativePathError(path: unknown): string | null {
 }
 
 function sortedFileMap(files: Record<string, FileIdentity>): Record<string, FileIdentity> {
-  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) as Record<string, FileIdentity>;
+  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) as Record<
+    string,
+    FileIdentity
+  >;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

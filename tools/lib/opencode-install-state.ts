@@ -72,9 +72,7 @@ function relativePathError(path: unknown): string | null {
   }
   const parts = path.split("/");
   if (
-    parts.some(
-      (part) => part.length === 0 || part === "." || part === ".." || (part.length === 2 && part[1] === ":"),
-    )
+    parts.some((part) => part.length === 0 || part === "." || part === ".." || (part.length === 2 && part[1] === ":"))
   ) {
     return "path must not contain traversal or normalization segments";
   }

@@ -133,6 +133,22 @@ test("mutations print a plan and require --yes", async () => {
   assert.doesNotMatch(`${applied.stdout}${applied.stderr}`, new RegExp(escapeRegExp(fixture.io.packageRoot)));
 });
 
+test("repeated --yes install is idempotent and omits a no-op Selection section", async () => {
+  const fixture = makeCliFixture();
+  const first = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+  assert.equal(first.exitCode, 0);
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  const before = readFileSync(statePath);
+
+  const repeated = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+
+  assert.equal(repeated.exitCode, 0);
+  assert.match(repeated.stdout, /Plan: install/);
+  assert.doesNotMatch(repeated.stdout, /Selection:/);
+  assert.match(repeated.stdout, /No changes\./);
+  assert.equal(readFileSync(statePath).equals(before), true);
+});
+
 test("repeated --module installs each requested Module", async () => {
   const fixture = makeCliFixture({
     "deniz-dotnet-general": { "skills/other/SKILL.md": "other skill\n" },
@@ -153,6 +169,55 @@ test("repeated --module installs each requested Module", async () => {
   assert.equal(applied.exitCode, 0);
   assert.ok(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")));
   assert.ok(existsSync(join(fixture.destination, "skills", "other", "SKILL.md")));
+});
+
+test("update reconciles the whole Selection successfully", async () => {
+  const fixture = makeCliFixture();
+  const installed = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+  assert.equal(installed.exitCode, 0);
+  const skill = join(fixture.destination, "skills", "alpha", "SKILL.md");
+  writeBundle(fixture.io.packageRoot, "deniz-process", { "skills/alpha/SKILL.md": "updated skill\n" }, "0.3.0");
+
+  const preview = await runInstallCli(["update"], fixture.io);
+
+  assert.equal(preview.exitCode, 0);
+  assert.match(preview.stdout, /Plan: update/);
+  assert.match(preview.stdout, /Replace:/);
+  assert.doesNotMatch(preview.stdout, /Selection:/);
+  assert.equal(readFileSync(skill, "utf8"), "alpha skill\n");
+
+  const applied = await runInstallCli(["update", "--yes"], fixture.io);
+  assert.equal(applied.exitCode, 0);
+  assert.equal(readFileSync(skill, "utf8"), "updated skill\n");
+  assert.equal(loadInstallState(fixture.destination).modules["deniz-process"]?.version, "0.3.0");
+});
+
+test("--all installs and removes every Module", async () => {
+  const fixture = makeCliFixture({
+    "deniz-dotnet-general": { "skills/other/SKILL.md": "other skill\n" },
+  });
+
+  const installed = await runInstallCli(["install", "--all", "--yes"], fixture.io);
+
+  assert.equal(installed.exitCode, 0);
+  assert.deepEqual(Object.keys(loadInstallState(fixture.destination).modules).sort(), [
+    "deniz-dotnet-general",
+    "deniz-process",
+  ]);
+  assert.ok(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")));
+  assert.ok(existsSync(join(fixture.destination, "skills", "other", "SKILL.md")));
+
+  const preview = await runInstallCli(["remove", "--all"], fixture.io);
+  assert.equal(preview.exitCode, 0);
+  assert.match(preview.stdout, / {2}- deniz-dotnet-general/);
+  assert.match(preview.stdout, / {2}- deniz-process/);
+  assert.ok(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")));
+
+  const removed = await runInstallCli(["remove", "--all", "--yes"], fixture.io);
+  assert.equal(removed.exitCode, 0);
+  assert.deepEqual(Object.keys(loadInstallState(fixture.destination).modules), []);
+  assert.equal(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")), false);
+  assert.equal(existsSync(join(fixture.destination, "skills", "other", "SKILL.md")), false);
 });
 
 test("--all exclusivity is a usage error and does not create the Destination", async () => {
@@ -224,6 +289,26 @@ test("remove refuses a Local modification", async () => {
   assert.match(`${result.stdout}${result.stderr}`, /local_modification/);
   assert.equal(readFileSync(join(fixture.destination, "skills", "alpha", "SKILL.md"), "utf8"), "edited locally\n");
   assert.ok(loadInstallState(fixture.destination).modules["deniz-process"]);
+});
+
+test("remove succeeds when an unrelated selected Module has State drift", async () => {
+  const fixture = makeCliFixture({
+    "deniz-dotnet-general": { "skills/other/SKILL.md": "other skill\n" },
+  });
+  const installed = await runInstallCli(["install", "--all", "--yes"], fixture.io);
+  assert.equal(installed.exitCode, 0);
+  const unrelated = join(fixture.destination, "skills", "other", "SKILL.md");
+  rmSync(unrelated);
+
+  const removed = await runInstallCli(["remove", "--module", "deniz-process", "--yes"], fixture.io);
+
+  assert.equal(removed.exitCode, 0, `${removed.stdout}${removed.stderr}`);
+  const state = loadInstallState(fixture.destination);
+  assert.equal(state.modules["deniz-process"], undefined);
+  assert.ok(state.modules["deniz-dotnet-general"]);
+  assert.ok(state.files["skills/other/SKILL.md"]);
+  assert.equal(existsSync(unrelated), false);
+  assert.equal(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")), false);
 });
 
 test("status reports drift without mutation", async () => {
@@ -325,6 +410,7 @@ test("renderPlan prints stable sections and omits package cache paths", () => {
   const identity = { sha256: hashBytes("new\n"), mode: "100644" as const };
   const plan: Plan = {
     request: { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
+    selectionChanges: { added: ["deniz-process"], removed: [] },
     operations: [
       {
         kind: "add",
@@ -401,6 +487,7 @@ test("blocked Recovery on --yes is decided under the lock and does not Apply", a
 test("findings are rendered and block Apply", () => {
   const plan: Plan = {
     request: { kind: "remove", modules: ["deniz-process"], all: false, platform: "posix" },
+    selectionChanges: { added: [], removed: ["deniz-process"] },
     operations: [],
     transfers: [],
     nextState: stateWithOwnedCommand("deniz-process", "skills/alpha/SKILL.md", "alpha skill\n"),

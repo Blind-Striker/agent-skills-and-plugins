@@ -178,10 +178,7 @@ test("install state rejects a file whose Module is not selected", () => {
 });
 
 test("install state rejects duplicate schemaVersion members", () => {
-  assert.throws(
-    () => parseInstallState(`{"schemaVersion":1,"schemaVersion":1,"modules":{},"files":{}}`),
-    /duplicate/,
-  );
+  assert.throws(() => parseInstallState(`{"schemaVersion":1,"schemaVersion":1,"modules":{},"files":{}}`), /duplicate/);
 });
 
 test("install state rejects duplicate Module keys", () => {
@@ -366,5 +363,3 @@ test("observePath records POSIX executable mode on POSIX hosts", () => {
     assert.equal(observed.identity.mode, "100755");
   }
 });
-
-

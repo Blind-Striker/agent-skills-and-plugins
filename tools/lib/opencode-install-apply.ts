@@ -208,7 +208,9 @@ function relativePathError(path: string): string | null {
     return "path must be POSIX root-relative";
   }
   const parts = path.split("/");
-  if (parts.some((part) => part.length === 0 || part === "." || part === ".." || (part.length === 2 && part[1] === ":"))) {
+  if (
+    parts.some((part) => part.length === 0 || part === "." || part === ".." || (part.length === 2 && part[1] === ":"))
+  ) {
     return "path must not contain traversal or normalization segments";
   }
   const root = parts[0];
@@ -393,7 +395,9 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
         throw new Error("installer lock is ownerless or malformed; refuse to reclaim");
       }
       if (processExists(owner.pid)) {
-        throw new Error(`Active installer lock held by process ${owner.pid}; wait for that process to finish, then retry`);
+        throw new Error(
+          `Active installer lock held by process ${owner.pid}; wait for that process to finish, then retry`,
+        );
       }
       const recovery = inspectRecovery(destination);
       if (recovery && options.recover !== true) {
@@ -405,7 +409,9 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
         throw new Error("installer lock is ownerless or malformed; refuse to reclaim");
       }
       if (processExists(reread.pid)) {
-        throw new Error(`Active installer lock held by process ${reread.pid}; wait for that process to finish, then retry`);
+        throw new Error(
+          `Active installer lock held by process ${reread.pid}; wait for that process to finish, then retry`,
+        );
       }
       if (reread.token !== owner.token) {
         throw new Error("installer lock token changed during reclaim");
@@ -795,7 +801,9 @@ function validateSnapshotTransition(previous: TransactionJournal, current: Trans
   }
   if (
     previous.intent &&
-    (previous.intent.syscall === "backup" || previous.intent.syscall === "place" || previous.intent.syscall === "chmod") &&
+    (previous.intent.syscall === "backup" ||
+      previous.intent.syscall === "place" ||
+      previous.intent.syscall === "chmod") &&
     current.applied.length === previous.applied.length
   ) {
     return "contiguous journal snapshots cleared operation intent without applied evidence";
@@ -857,11 +865,7 @@ function ownedIdentity(state: InstallState, path: string): FileIdentity | null {
   return owned ? { sha256: owned.sha256, mode: owned.mode } : null;
 }
 
-function operationStateError(
-  operation: PlanOperation,
-  oldState: InstallState,
-  newState: InstallState,
-): string | null {
+function operationStateError(operation: PlanOperation, oldState: InstallState, newState: InstallState): string | null {
   const oldOwned = oldState.files[operation.path];
   const newOwned = newState.files[operation.path];
   if (operation.kind === "add") {
@@ -1145,11 +1149,7 @@ function loadLatestSnapshot(transactionDir: string): { journal: TransactionJourn
     return oldStateEvidence;
   }
   const newStatePath = join(transactionDir, "new-state.json");
-  const newStateEvidence = readStateEvidenceFile(
-    newStatePath,
-    latest.newStateDigest,
-    "immutable new Install state",
-  );
+  const newStateEvidence = readStateEvidenceFile(newStatePath, latest.newStateDigest, "immutable new Install state");
   if ("blocked" in newStateEvidence) {
     return newStateEvidence;
   }
@@ -1167,11 +1167,7 @@ function loadLatestSnapshot(transactionDir: string): { journal: TransactionJourn
       return { blocked: stateSemantic };
     }
   }
-  const backupSemantic = validatePersistedBackupEvidence(
-    transactionDir,
-    latest,
-    oldStateEvidence.evidence.state,
-  );
+  const backupSemantic = validatePersistedBackupEvidence(transactionDir, latest, oldStateEvidence.evidence.state);
   if (backupSemantic) {
     return { blocked: backupSemantic };
   }
@@ -1192,7 +1188,9 @@ function inferredMutation(
   }
   const operationIndex =
     intent.operationIndex ??
-    journal.operations.findIndex((operation) => operation.path === intent.path && allowedAction(operation.kind, action));
+    journal.operations.findIndex(
+      (operation) => operation.path === intent.path && allowedAction(operation.kind, action),
+    );
   const operation = journal.operations[operationIndex];
   if (!operation || operation.path !== intent.path) {
     return { blocked: "journal intent does not match an operation" };
@@ -1206,7 +1204,11 @@ function inferredMutation(
   };
 }
 
-function inferIntent(destination: string, transactionDir: string, journal: TransactionJournal): TransactionJournal | { blocked: string } {
+function inferIntent(
+  destination: string,
+  transactionDir: string,
+  journal: TransactionJournal,
+): TransactionJournal | { blocked: string } {
   const intent = journal.intent;
   if (!intent) {
     return journal;
@@ -1257,7 +1259,10 @@ function inferIntent(destination: string, transactionDir: string, journal: Trans
       return { blocked: "chmod syscall window is ambiguous; recovery is blocked" };
     }
     const observed = observedFileIdentity(dest);
-    if (observed.sha256 === intent.identity.sha256 && (hostPlatform() === "windows" || observed.mode === intent.identity.mode)) {
+    if (
+      observed.sha256 === intent.identity.sha256 &&
+      (hostPlatform() === "windows" || observed.mode === intent.identity.mode)
+    ) {
       const mutation = inferredMutation(journal, intent, "chmodded");
       if ("blocked" in mutation) {
         return mutation;
@@ -1655,9 +1660,7 @@ function requireTransactionStateEvidence(
 
 function mutationActions(journal: TransactionJournal, operationIndex: number): Set<AppliedAction> {
   return new Set(
-    journal.applied
-      .filter((mutation) => mutation.operationIndex === operationIndex)
-      .map((mutation) => mutation.action),
+    journal.applied.filter((mutation) => mutation.operationIndex === operationIndex).map((mutation) => mutation.action),
   );
 }
 
@@ -1708,7 +1711,9 @@ function preflightRollbackEvidence(
     const newIdentity = ownedIdentity(newState, operation.path);
     let allowed = false;
     if (operation.kind === "add") {
-      allowed = observed.kind === "absent" || (actions.has("placed") && !!newIdentity && observedMatchesIdentity(observed, newIdentity));
+      allowed =
+        observed.kind === "absent" ||
+        (actions.has("placed") && !!newIdentity && observedMatchesIdentity(observed, newIdentity));
     } else if (operation.kind === "replace") {
       allowed =
         (!!oldIdentity && observedMatchesIdentity(observed, oldIdentity)) ||
@@ -1729,12 +1734,7 @@ function preflightRollbackEvidence(
   }
 }
 
-function rollbackApplied(
-  destination: string,
-  transactionDir: string,
-  journal: TransactionJournal,
-  io?: ApplyIo,
-): void {
+function rollbackApplied(destination: string, transactionDir: string, journal: TransactionJournal, io?: ApplyIo): void {
   const evidence = requireTransactionStateEvidence(transactionDir, journal);
   for (const mutation of [...journal.applied].reverse()) {
     validateManagedPath(destination, mutation.path);
@@ -2195,7 +2195,10 @@ export function applyPlan(
       const destPath = destAbs(destination, operation.path);
       requireManagedDevice(root, operation.path, options?.io);
       const recorded = recordedIdentity(current, operation.path);
-      const identity: FileIdentity = { sha256: recorded?.sha256 ?? hashBytes(readFileSync(destPath)), mode: operation.to };
+      const identity: FileIdentity = {
+        sha256: recorded?.sha256 ?? hashBytes(readFileSync(destPath)),
+        mode: operation.to,
+      };
       const operationIndex = plan.operations.indexOf(operation);
       journal.intent = { syscall: "chmod", operationIndex, path: operation.path, identity };
       writeSnapshot(transactionDir, journal, seq);
