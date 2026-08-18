@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
@@ -187,6 +187,36 @@ test("loader returns direct Module directories by their manifest name", () => {
   assert.ok(bundle);
   assert.equal(bundle.root, moduleRoot);
   assert.deepEqual(bundle.manifest, manifest);
+});
+
+test("manifest creation refuses a bundle tree that contains a symlink", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "bundle-symlink-create-"));
+  writeFileSync(join(root, "plain.txt"), "plain\n");
+  try {
+    symlinkSync(join(root, "plain.txt"), join(root, "linked.txt"), "file");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+
+  assert.throws(() => createModuleManifest(root, "deniz-process", "0.2.0", () => "100644"), /symlink/);
+});
+
+test("manifest verification reports an unlisted symlink", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "bundle-symlink-verify-"));
+  writeFileSync(join(root, "plain.txt"), "plain\n");
+  const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644");
+  try {
+    symlinkSync(join(root, "plain.txt"), join(root, "linked.txt"), "file");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+
+  assert.deepEqual(
+    verifyModuleManifest(root, manifest).map((finding) => ({ code: finding.code, path: finding.path })),
+    [{ code: "symlink", path: "linked.txt" }],
+  );
 });
 
 test("loader rejects a Module directory whose manifest has another name", () => {

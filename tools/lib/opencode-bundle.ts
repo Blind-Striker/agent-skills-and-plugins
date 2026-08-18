@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 
 export type FileMode = "100644" | "100755";
@@ -24,7 +24,7 @@ export interface ModuleBundle {
 }
 
 export interface BundleFinding {
-  code: "invalid_manifest" | "missing_file" | "extra_file" | "hash_mismatch" | "mode_mismatch" | "case_alias";
+  code: "invalid_manifest" | "missing_file" | "extra_file" | "hash_mismatch" | "mode_mismatch" | "case_alias" | "symlink";
   path: string;
   message: string;
 }
@@ -50,14 +50,22 @@ export function digestFileMap(files: Record<string, FileIdentity>): Sha256 {
   return hashBytes(payload);
 }
 
-function* walkFiles(root: string, dir = root): Generator<string> {
-  const entries = readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
-  for (const entry of entries) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      yield* walkFiles(root, path);
-    } else if (entry.isFile() && relativePath(root, path) !== "manifest.json") {
-      yield path;
+interface WalkedPath {
+  path: string;
+  symlink: boolean;
+}
+
+function* walkTree(root: string, dir = root): Generator<WalkedPath> {
+  const names = readdirSync(dir).sort((a, b) => a.localeCompare(b));
+  for (const name of names) {
+    const path = join(dir, name);
+    const stat = lstatSync(path);
+    if (stat.isSymbolicLink()) {
+      yield { path, symlink: true };
+    } else if (stat.isDirectory()) {
+      yield* walkTree(root, path);
+    } else if (stat.isFile() && relativePath(root, path) !== "manifest.json") {
+      yield { path, symlink: false };
     }
   }
 }
@@ -190,8 +198,12 @@ export function createModuleManifest(
   }
 
   const files = Object.create(null) as Record<string, FileIdentity>;
-  for (const file of walkFiles(root)) {
-    const path = relativePath(root, file);
+  for (const entry of walkTree(root)) {
+    const path = relativePath(root, entry.path);
+    if (entry.symlink) {
+      throw new Error(`${path}: bundle must not contain a symlink`);
+    }
+    const file = entry.path;
     const mode = resolveMode(path);
     if (!isFileMode(mode)) {
       throw new Error(`${path}: mode resolver must return 100644 or 100755`);
@@ -266,7 +278,18 @@ export function verifyModuleManifest(
 
   const expected = normalizedManifest(manifest);
   const expectedPaths = Object.keys(expected.files);
-  const actualPaths = existsSync(root) ? [...walkFiles(root)].map((path) => relativePath(root, path)) : [];
+  const actualPaths: string[] = [];
+  const symlinkPaths: string[] = [];
+  if (existsSync(root)) {
+    for (const entry of walkTree(root)) {
+      const path = relativePath(root, entry.path);
+      if (entry.symlink) {
+        symlinkPaths.push(path);
+      } else {
+        actualPaths.push(path);
+      }
+    }
+  }
   const findings: BundleFinding[] = [];
   const caseInsensitive = options.caseInsensitive ?? process.platform === "win32";
 
@@ -305,31 +328,34 @@ export function verifyModuleManifest(
         findings.push(finding("extra_file", path, `${path} is not listed by the manifest`));
       }
     }
-    return findings;
+  } else {
+    const actual = new Set(actualPaths);
+    for (const path of expectedPaths) {
+      if (!actual.has(path)) {
+        findings.push(finding("missing_file", path, `${path} is listed by the manifest but is missing`));
+        continue;
+      }
+      const identity = expected.files[path];
+      if (!identity) {
+        continue;
+      }
+      const file = join(root, path);
+      if (hashBytes(readFileSync(file)) !== identity.sha256) {
+        findings.push(finding("hash_mismatch", path, `${path} does not match its recorded sha256`));
+      }
+      if (process.platform !== "win32" && observedMode(file) !== identity.mode) {
+        findings.push(finding("mode_mismatch", path, `${path} does not match its recorded mode`));
+      }
+    }
+    for (const path of actualPaths) {
+      if (!Object.hasOwn(expected.files, path)) {
+        findings.push(finding("extra_file", path, `${path} is not listed by the manifest`));
+      }
+    }
   }
 
-  const actual = new Set(actualPaths);
-  for (const path of expectedPaths) {
-    if (!actual.has(path)) {
-      findings.push(finding("missing_file", path, `${path} is listed by the manifest but is missing`));
-      continue;
-    }
-    const identity = expected.files[path];
-    if (!identity) {
-      continue;
-    }
-    const file = join(root, path);
-    if (hashBytes(readFileSync(file)) !== identity.sha256) {
-      findings.push(finding("hash_mismatch", path, `${path} does not match its recorded sha256`));
-    }
-    if (process.platform !== "win32" && observedMode(file) !== identity.mode) {
-      findings.push(finding("mode_mismatch", path, `${path} does not match its recorded mode`));
-    }
-  }
-  for (const path of actualPaths) {
-    if (!Object.hasOwn(expected.files, path)) {
-      findings.push(finding("extra_file", path, `${path} is not listed by the manifest`));
-    }
+  for (const path of symlinkPaths) {
+    findings.push(finding("symlink", path, `${path} is a symlink`));
   }
   return findings;
 }
