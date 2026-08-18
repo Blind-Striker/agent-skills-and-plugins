@@ -29,7 +29,8 @@ export interface PlanFinding {
     | "local_modification"
     | "state_drift"
     | "type_mismatch"
-    | "ownership_collision";
+    | "ownership_collision"
+    | "missing_observation";
   module?: string;
   path?: string;
   message: string;
@@ -87,8 +88,8 @@ function identityMatches(left: FileIdentity, right: FileIdentity, platform: Inst
   return bytesMatch(left, right) && (platform === "windows" || left.mode === right.mode);
 }
 
-function observedAt(observed: Record<string, ObservedPath>, path: string): ObservedPath {
-  return observed[path] ?? { kind: "absent" };
+function observedAt(observed: Record<string, ObservedPath>, path: string): ObservedPath | undefined {
+  return Object.hasOwn(observed, path) ? observed[path] : undefined;
 }
 
 function compareFindings(left: PlanFinding, right: PlanFinding): number {
@@ -420,7 +421,19 @@ export function planReconcile(
     if (!oldAffected && !nextAffected) {
       continue;
     }
-    planPath(path, old, next, observedAt(observed, path), request, affected, operations, findings);
+    const snapshot = observedAt(observed, path);
+    if (snapshot === undefined) {
+      const owner = next?.module ?? old?.module;
+      findings.push(
+        finding(
+          "missing_observation",
+          `${path} has no Destination observation; observe it explicitly, including absent`,
+          owner === undefined ? { path } : { module: owner, path },
+        ),
+      );
+      continue;
+    }
+    planPath(path, old, next, snapshot, request, affected, operations, findings);
   }
 
   findings.sort(compareFindings);
