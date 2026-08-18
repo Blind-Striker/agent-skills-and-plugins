@@ -1698,6 +1698,9 @@ function preflightRollbackEvidence(
   newState: InstallState,
 ): void {
   for (const [operationIndex, operation] of journal.operations.entries()) {
+    if (operation.kind === "drop-missing-claim") {
+      continue;
+    }
     validateManagedPath(destination, operation.path);
     const observed = observePath(destination, operation.path);
     const actions = mutationActions(journal, operationIndex);
@@ -1719,8 +1722,6 @@ function preflightRollbackEvidence(
       allowed =
         (!!oldIdentity && observedMatchesIdentity(observed, oldIdentity)) ||
         (actions.has("chmodded") && !!newIdentity && observedMatchesIdentity(observed, newIdentity));
-    } else {
-      allowed = observed.kind === "absent";
     }
     if (!allowed) {
       throw new Error(`${operation.path} has ambiguous or unexpected destination evidence; recovery is blocked`);
@@ -1813,8 +1814,11 @@ function verifyRollbackComplete(destination: string, transactionDir: string, jou
     throw new Error("rollback did not restore the old Install state");
   }
   for (const operation of journal.operations) {
+    if (operation.kind === "drop-missing-claim") {
+      continue;
+    }
     const observed = observePath(destination, operation.path);
-    if (operation.kind === "add" || operation.kind === "drop-missing-claim") {
+    if (operation.kind === "add") {
       if (observed.kind !== "absent") {
         throw new Error(`rollback did not restore absence of ${operation.path}`);
       }
@@ -2293,7 +2297,9 @@ export function applyRecovery(
     root,
     deniz,
     options?.io,
-    current.journal.operations.map((operation) => operation.path),
+    current.journal.operations
+      .filter((operation) => operation.kind !== "drop-missing-claim")
+      .map((operation) => operation.path),
   );
   requireSameDevice(root, current.transactionDir, options?.io);
   if (current.kind === "finalize") {

@@ -1121,26 +1121,70 @@ function existsLstatSafe(path: string): boolean {
 
 function makeDropMissingFixture(): {
   destination: string;
+  bundles: Map<string, ModuleBundle>;
   plan: Plan;
   target: string;
+  replacedTarget: string;
+  replacedOldBytes: string;
   oldState: InstallState;
 } {
   const root = mkdtempSync(join(tmpdir(), "apply-drop-"));
   const destination = join(root, "config", "opencode");
+  const bundleRoot = join(root, "package", "opencode", "deniz-process");
   const target = join(destination, "commands", "alpha.md");
+  const replacedTarget = join(destination, "commands", "beta.md");
+  const replacedOldBytes = "old-beta\n";
   mkdirSync(join(destination, "commands"), { recursive: true });
   mkdirSync(join(destination, ".deniz-skills"), { recursive: true });
-  const oldState = stateWithOwnedCommand("deniz-process", "commands/alpha.md", "old\n");
+  mkdirSync(join(bundleRoot, "commands"), { recursive: true });
+  writeFileSync(replacedTarget, replacedOldBytes);
+  writeFileSync(join(bundleRoot, "commands", "beta.md"), "new-beta\n");
+  const oldFiles = {
+    "commands/alpha.md": fileIdentityOf("old-alpha\n"),
+    "commands/beta.md": fileIdentityOf(replacedOldBytes),
+  };
+  const oldState: InstallState = {
+    schemaVersion: 1,
+    modules: { "deniz-process": { version: "0.1.0", digest: digestFileMap(oldFiles) } },
+    files: {
+      "commands/alpha.md": { module: "deniz-process", ...oldFiles["commands/alpha.md"] },
+      "commands/beta.md": { module: "deniz-process", ...oldFiles["commands/beta.md"] },
+    },
+  };
   writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
-  const plan = requireFindingFree(
-    planReconcile(
-      oldState,
-      {},
-      { "commands/alpha.md": { kind: "absent" } },
-      { kind: "remove", modules: ["deniz-process"], all: false, platform: "posix" },
-    ),
-  );
-  return { destination, plan, target, oldState };
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const replacement = manifest.files["commands/beta.md"];
+  assert.ok(replacement);
+  const nextState: InstallState = {
+    schemaVersion: 1,
+    modules: { "deniz-process": { version: manifest.version, digest: manifest.digest } },
+    files: { "commands/beta.md": { module: "deniz-process", ...replacement } },
+  };
+  const plan: Plan = {
+    request: { kind: "update", modules: [], all: false, platform: "posix" },
+    operations: [
+      { kind: "drop-missing-claim", path: "commands/alpha.md", module: "deniz-process" },
+      {
+        kind: "replace",
+        path: "commands/beta.md",
+        module: "deniz-process",
+        source: "commands/beta.md",
+        identity: replacement,
+      },
+    ],
+    transfers: [],
+    nextState,
+    findings: [],
+  };
+  return {
+    destination,
+    bundles: new Map([["deniz-process", { root: bundleRoot, manifest }]]),
+    plan,
+    target,
+    replacedTarget,
+    replacedOldBytes,
+    oldState,
+  };
 }
 
 test("reclaim-in-progress blocks a second stale acquire", () => {
@@ -1222,7 +1266,7 @@ test("a reappeared drop-missing-claim file blocks commit and rolls back", () => 
   const fixture = makeDropMissingFixture();
   assert.throws(
     () =>
-      apply(fixture.destination, fixture.plan, new Map(), {
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
         beforeOperation: (operation) => {
           if (operation.kind === "drop-missing-claim") {
             writeFileSync(fixture.target, "reappeared\n");
@@ -1232,7 +1276,34 @@ test("a reappeared drop-missing-claim file blocks commit and rolls back", () => 
     /absent|reappeared|modified/i,
   );
   assert.equal(readFileSync(fixture.target, "utf8"), "reappeared\n");
+  assert.equal(readFileSync(fixture.replacedTarget, "utf8"), fixture.replacedOldBytes);
   assertSameState(fixture.destination, fixture.oldState);
+  assert.equal(inspectRecovery(fixture.destination), null);
+});
+
+test("Recovery ignores reappeared drop-missing evidence while undoing recorded mutations", () => {
+  const fixture = makeDropMissingFixture();
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfter: "after-place" }),
+    /injected crash after-place/,
+  );
+  writeFileSync(fixture.target, "reappeared-during-recovery\n");
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  const destinationDevice = lstatSync(fixture.destination).dev;
+  withLock(fixture.destination, (lock) => {
+    applyRecovery(lock, fixture.destination, recovery as RecoveryPlan, {
+      io: {
+        deviceId(path: string): number {
+          return path === fixture.target ? destinationDevice + 1 : lstatSync(path).dev;
+        },
+      },
+    });
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "reappeared-during-recovery\n");
+  assert.equal(readFileSync(fixture.replacedTarget, "utf8"), fixture.replacedOldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+  assert.equal(inspectRecovery(fixture.destination), null);
 });
 
 test("malformed journal snapshot debris is blocked", () => {
