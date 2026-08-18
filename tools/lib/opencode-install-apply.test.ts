@@ -359,6 +359,55 @@ function writeLeftoverTransaction(
   return transactionDir;
 }
 
+function readJournalSnapshot(transactionDir: string, sequence = 1): TransactionJournal {
+  return JSON.parse(
+    readFileSync(join(transactionDir, "snapshots", `${String(sequence).padStart(6, "0")}.json`), "utf8"),
+  ) as TransactionJournal;
+}
+
+function writeJournalSnapshot(transactionDir: string, sequence: number, journal: TransactionJournal): void {
+  writeFileSync(
+    join(transactionDir, "snapshots", `${String(sequence).padStart(6, "0")}.json`),
+    `${JSON.stringify(journal, null, 2)}\n`,
+  );
+}
+
+function tamperWhenIntentIsPersisted(
+  destination: string,
+  syscall: "place" | "state-commit",
+  tamper: (transactionDir: string) => void,
+): NonNullable<ApplyOptions["io"]> {
+  let tampered = false;
+  return {
+    deviceId(path: string): number {
+      if (!tampered) {
+        const deniz = join(destination, ".deniz-skills");
+        const transaction = existsLstatSafe(deniz)
+          ? readdirSync(deniz).find((name) => name.startsWith("txn-"))
+          : undefined;
+        if (transaction) {
+          const transactionDir = join(deniz, transaction);
+          const snapshots = join(transactionDir, "snapshots");
+          if (existsLstatSafe(snapshots)) {
+            const latest = readdirSync(snapshots)
+              .filter((name) => name.endsWith(".json"))
+              .sort()
+              .at(-1);
+            if (latest) {
+              const journal = JSON.parse(readFileSync(join(snapshots, latest), "utf8")) as TransactionJournal;
+              if (journal.intent?.syscall === syscall) {
+                tamper(transactionDir);
+                tampered = true;
+              }
+            }
+          }
+        }
+      }
+      return lstatSync(path).dev;
+    },
+  };
+}
+
 test("failure after placing files restores bytes and old state", () => {
   const fixture = makeInstallFixture();
   assert.throws(
@@ -854,7 +903,7 @@ test("normal acquire does not reclaim a dead lock when recovery is pending", () 
   assert.equal(inspectRecovery(fixture.destination)?.kind, "rollback");
 });
 
-test("recheck happens immediately before each backup, not as a batch", () => {
+test("recheck happens immediately before each backup and rollback preserves unexpected evidence", () => {
   const fixture = makeTwoFileFixture();
   assert.throws(
     () =>
@@ -862,14 +911,15 @@ test("recheck happens immediately before each backup, not as a batch", () => {
         failAfter: "after-backup",
         beforeOperation: (operation) => {
           if (operation.path === "commands/beta.md") {
-            writeFileSync(fixture.alpha, "edited-after-first-recheck\n");
+            writeFileSync(fixture.beta, "edited-before-beta-recheck\n");
           }
         },
       }),
-    /injected after-backup failure/,
+    /modified locally|rollback also failed|ambiguous|unexpected/i,
   );
-  assert.equal(readFileSync(fixture.alpha, "utf8"), fixture.oldAlpha);
-  assert.equal(readFileSync(fixture.beta, "utf8"), fixture.oldBeta);
+  assert.equal(existsLstatSafe(fixture.alpha), false);
+  assert.equal(readFileSync(fixture.beta, "utf8"), "edited-before-beta-recheck\n");
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "rollback");
 });
 
 test("acquire refuses to create lock data through a .deniz-skills link", (t) => {
@@ -951,7 +1001,7 @@ test("crash after moving old Install state aside is precommit rollback", () => {
   assertSameState(fixture.destination, fixture.oldState);
 });
 
-test("rollback undoes only mutations recorded as applied", () => {
+test("rollback blocks reordered partial applied evidence before mutating", () => {
   const fixture = makeTwoFileFixture();
   writeFileSync(fixture.alpha, "new-alpha\n");
   writeFileSync(fixture.beta, "new-beta\n");
@@ -977,11 +1027,9 @@ test("rollback undoes only mutations recorded as applied", () => {
     },
   );
   const recovery = inspectRecovery(fixture.destination);
-  assert.equal(recovery?.kind, "rollback");
-  withLock(fixture.destination, (lock) => {
-    applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
-  });
-  assert.equal(readFileSync(fixture.alpha, "utf8"), fixture.oldAlpha);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /applied|evidence|operation/i);
+  assert.equal(readFileSync(fixture.alpha, "utf8"), "new-alpha\n");
   assert.equal(readFileSync(fixture.beta, "utf8"), "new-beta\n");
 });
 
@@ -1005,10 +1053,11 @@ test("recovery refuses a journal whose backup evidence is missing", () => {
     {
       oldStateBytes: serializeInstallState(fixture.oldState),
       newStateBytes: serializeInstallState(fixture.plan.nextState),
+      expectedOldBytes: fixture.oldBytes,
     },
   );
   const recovery = inspectRecovery(fixture.destination);
-  assert.equal(recovery?.kind, "rollback");
+  assert.equal(recovery?.kind, "blocked");
   withLock(fixture.destination, (lock) => {
     assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /backup/i);
   });
@@ -1257,10 +1306,42 @@ test("backup digest mismatch blocks recovery and keeps the transaction", () => {
     },
   );
   const recovery = inspectRecovery(fixture.destination);
-  assert.equal(recovery?.kind, "rollback");
+  assert.equal(recovery?.kind, "blocked");
   withLock(fixture.destination, (lock) => {
     assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /digest|backup|identity/i);
   });
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("backup mode mismatch blocks recovery and keeps the transaction", (t) => {
+  if (process.platform === "win32") {
+    t.skip("Windows does not preserve POSIX executable mode bits");
+    return;
+  }
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "bad-backup-mode",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  chmodSync(join(transactionDir, "backup", "commands", "alpha.md"), 0o755);
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /backup|mode|bytes/i);
   assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
   assert.ok(lstatSync(transactionDir).isDirectory());
 });
@@ -1388,15 +1469,27 @@ test("release retry deletes only its tombstone after a replacement lock exists",
   replacement.release();
 });
 
-test("rollback restores backup bytes and the expected old mode", () => {
+test("rollback restores backup bytes and the expected old mode", (t) => {
+  if (process.platform === "win32") {
+    t.skip("Windows does not preserve POSIX executable mode bits");
+    return;
+  }
   const fixture = makeInstallFixture();
+  const expectedOldState = stateWithOwnedCommand(
+    "deniz-process",
+    "commands/alpha.md",
+    fixture.oldBytes,
+    "0.1.0",
+    "100755",
+  );
+  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), serializeInstallState(expectedOldState));
   writeFileSync(fixture.target, "new\n");
   const transactionDir = writeLeftoverTransaction(
     fixture.destination,
     {
       schemaVersion: 1,
       transactionId: "mode-restore",
-      oldStateDigest: stateDigest(fixture.oldState),
+      oldStateDigest: stateDigest(expectedOldState),
       newStateDigest: stateDigest(fixture.plan.nextState),
       operations: fixture.plan.operations,
       phase: "files-placed",
@@ -1414,7 +1507,7 @@ test("rollback restores backup bytes and the expected old mode", () => {
       ],
     },
     {
-      oldStateBytes: serializeInstallState(fixture.oldState),
+      oldStateBytes: serializeInstallState(expectedOldState),
       newStateBytes: serializeInstallState(fixture.plan.nextState),
       backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
     },
@@ -1426,9 +1519,7 @@ test("rollback restores backup bytes and the expected old mode", () => {
     applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
   });
   assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
-  if (process.platform !== "win32") {
-    assert.equal(posixMode(fixture.target), "100755");
-  }
+  assert.equal(posixMode(fixture.target), "100755");
 });
 
 test("unrelated applied entries are rejected", () => {
@@ -1480,6 +1571,739 @@ test("snapshot sequence gaps are rejected", () => {
   );
   renameSync(join(transactionDir, "snapshots", "000001.json"), join(transactionDir, "snapshots", "000003.json"));
   assert.equal(inspectRecovery(fixture.destination)?.kind, "blocked");
+});
+
+test("contiguous snapshots cannot change transaction identity", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-identity",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const latest = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 1, { ...latest, transactionId: "rewritten-identity" });
+  writeJournalSnapshot(transactionDir, 2, latest);
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|transaction|identity/i);
+});
+
+test("contiguous snapshots cannot change state digests", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-state-digest",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const latest = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 1, { ...latest, oldStateDigest: latest.newStateDigest });
+  writeJournalSnapshot(transactionDir, 2, latest);
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|state|digest/i);
+});
+
+test("contiguous snapshots cannot rewrite operations", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-operations",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const latest = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 1, {
+    ...latest,
+    operations: latest.operations.map((operation) => ({ ...operation, module: "rewritten-module" })),
+  });
+  writeJournalSnapshot(transactionDir, 2, latest);
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|operation/i);
+});
+
+test("contiguous snapshots cannot regress phase", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-phase",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const first = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 2, { ...first, phase: "prepared" });
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|phase|regress/i);
+});
+
+test("contiguous snapshots cannot omit prior applied evidence", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-applied",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const first = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 2, { ...first, applied: first.applied.slice(0, 1) });
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|applied|evidence/i);
+});
+
+test("contiguous snapshots cannot omit prior created-directory evidence", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-created-directories",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      createdDirectories: ["commands"],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const first = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 2, { ...first, createdDirectories: [] });
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|created|director|evidence/i);
+});
+
+test("recovery rejects tampered immutable old-state bytes", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "tampered-old-state",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  writeFileSync(join(transactionDir, "old-state.json"), serializeInstallState(fixture.plan.nextState));
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /old.state|state|digest|tamper/i);
+});
+
+test("recovery rejects tampered immutable new-state bytes", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "tampered-new-state",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  writeFileSync(join(transactionDir, "new-state.json"), serializeInstallState(fixture.oldState));
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /new.state|state|digest|tamper/i);
+});
+
+test("applied backup identity must match the operation's old state", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  const forgedOld = "forged-old\n";
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "forged-applied-old",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        {
+          path: "commands/alpha.md",
+          action: "backed-up",
+          identity: fileIdentityOf(forgedOld),
+        },
+        {
+          path: "commands/alpha.md",
+          action: "placed",
+          identity: fileIdentityOf("new\n"),
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: forgedOld },
+    },
+  );
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /applied|identity|old.state/i);
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+});
+
+test("applied place identity must match the indexed operation's new state", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "forged-applied-new",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        {
+          path: "commands/alpha.md",
+          action: "backed-up",
+          identity: fileIdentityOf(fixture.oldBytes),
+        },
+        {
+          path: "commands/alpha.md",
+          action: "placed",
+          identity: fileIdentityOf("forged-new\n"),
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /applied|identity|new.state/i);
+});
+
+test("applied chmod identity must match the indexed operation's new state", (t) => {
+  const fixture = makeChmodFixture();
+  const operationIndex = fixture.plan.operations.findIndex((operation) => operation.kind === "chmod");
+  const operation = fixture.plan.operations[operationIndex];
+  if (operation?.kind !== "chmod") {
+    t.skip("planner did not emit chmod on this host");
+    return;
+  }
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "forged-applied-chmod",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        {
+          operationIndex,
+          path: operation.path,
+          kind: "chmod",
+          action: "chmodded",
+          identity: { sha256: hashBytes("forged-chmod\n"), mode: operation.to },
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+    },
+  );
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /applied|identity|new.state/i);
+});
+
+test("contiguous snapshots cannot append applied evidence without matching write-ahead intent", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-unintended-applied",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "prepared",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const completed = readJournalSnapshot(transactionDir);
+  const backedUp = completed.applied[0];
+  assert.ok(backedUp);
+  writeJournalSnapshot(transactionDir, 1, { ...completed, applied: [backedUp], phase: "prepared" });
+  writeJournalSnapshot(transactionDir, 2, completed);
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|intent|applied|transition/i);
+});
+
+test("contiguous snapshots cannot append created directories outside a place intent", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "snapshot-unintended-directory",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "prepared",
+      applied: [],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+    },
+  );
+  const first = readJournalSnapshot(transactionDir);
+  writeJournalSnapshot(transactionDir, 2, { ...first, createdDirectories: ["commands"] });
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /snapshot|place|created|director/i);
+});
+
+test("recovery rejects a backup file omitted from applied and intent evidence", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "omitted-backup-evidence",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "prepared",
+      applied: [],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /backup|evidence|omitted/i);
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("staged Install state tampering after write-ahead intent is refused before rename", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
+        io: tamperWhenIntentIsPersisted(fixture.destination, "state-commit", (transactionDir) => {
+          const staged = join(transactionDir, "staged-install.json");
+          writeFileSync(existsLstatSafe(staged) ? staged : join(transactionDir, "new-state.json"), "{}\n");
+        }),
+      }),
+    /staged|state|digest|tamper/i,
+  );
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+});
+
+test("staged file mode tampering after write-ahead intent is refused before rename", (t) => {
+  if (process.platform === "win32") {
+    t.skip("Windows does not preserve POSIX executable mode bits");
+    return;
+  }
+  const fixture = makeAddFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
+        io: tamperWhenIntentIsPersisted(fixture.destination, "place", (transactionDir) => {
+          chmodSync(join(transactionDir, "files", "commands", "alpha.md"), 0o755);
+        }),
+      }),
+    /staged|mode|identity|Plan/i,
+  );
+  assert.equal(existsLstatSafe(fixture.target), false);
+});
+
+test("finalize refuses chmod content mismatch even when the requested mode is present", (t) => {
+  const fixture = makeChmodFixture();
+  const operationIndex = fixture.plan.operations.findIndex((operation) => operation.kind === "chmod");
+  const operation = fixture.plan.operations[operationIndex];
+  if (operation?.kind !== "chmod") {
+    t.skip("planner did not emit chmod on this host");
+    return;
+  }
+  writeFileSync(fixture.target, "tampered-content\n");
+  chmodSync(fixture.target, operation.to === "100755" ? 0o755 : 0o644);
+  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), serializeInstallState(fixture.plan.nextState));
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "finalize-chmod-content",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "state-committed",
+      applied: [
+        {
+          operationIndex,
+          path: operation.path,
+          kind: "chmod",
+          action: "chmodded",
+          identity: {
+            sha256: fixture.plan.nextState.files[operation.path]?.sha256 ?? hashBytes("#!/bin/sh\n"),
+            mode: operation.to,
+          },
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "finalize");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /finalize|chmod|content|match/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "tampered-content\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("finalize refuses semantically equal but non-exact new Install-state bytes", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfter: "after-state-commit" }),
+    /injected crash after-state-commit/,
+  );
+  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), JSON.stringify(fixture.plan.nextState));
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "finalize");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /finalize|state|digest/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "finalize");
+});
+
+test("rollback refuses ambiguous remove destination evidence before overwriting it", () => {
+  const fixture = makeRemoveFixture();
+  writeFileSync(fixture.skillFile, "unexpected-remove-destination\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "rollback-ambiguous-remove",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        {
+          path: "skills/alpha/SKILL.md",
+          action: "backed-up",
+          identity: fileIdentityOf("skill\n"),
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "skills/alpha/SKILL.md", bytes: "skill\n" },
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked|differs/i);
+  });
+  assert.equal(readFileSync(fixture.skillFile, "utf8"), "unexpected-remove-destination\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("rollback refuses semantically equal but non-exact old Install-state bytes before mutating files", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "rollback-non-exact-old-state",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), JSON.stringify(fixture.oldState));
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /state|ambiguous|exact/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("rollback refuses ambiguous add destination evidence and keeps the transaction", () => {
+  const fixture = makeAddFixture();
+  mkdirSync(fixture.target, { recursive: true });
+  const oldState: InstallState = { schemaVersion: 1, modules: {}, files: {} };
+  const operationIndex = fixture.plan.operations.findIndex((operation) => operation.kind === "add");
+  const operation = fixture.plan.operations[operationIndex];
+  assert.ok(operation && operation.kind === "add");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "rollback-ambiguous-add",
+      oldStateDigest: stateDigest(oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        {
+          operationIndex,
+          path: operation.path,
+          kind: "add",
+          action: "placed",
+          identity: operation.identity,
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked/i);
+  });
+  assert.ok(lstatSync(fixture.target).isDirectory());
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("rollback refuses ambiguous replace destination evidence before restoring backup", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "unexpected-replace-destination\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "rollback-ambiguous-replace",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "unexpected-replace-destination\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("rollback refuses ambiguous chmod destination content before changing mode", (t) => {
+  const fixture = makeChmodFixture();
+  const operationIndex = fixture.plan.operations.findIndex((operation) => operation.kind === "chmod");
+  const operation = fixture.plan.operations[operationIndex];
+  if (operation?.kind !== "chmod") {
+    t.skip("planner did not emit chmod on this host");
+    return;
+  }
+  writeFileSync(fixture.target, "unexpected-chmod-content\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "rollback-ambiguous-chmod",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        {
+          operationIndex,
+          path: operation.path,
+          kind: "chmod",
+          action: "chmodded",
+          identity: {
+            sha256: fixture.plan.nextState.files[operation.path]?.sha256 ?? hashBytes("#!/bin/sh\n"),
+            mode: operation.to,
+          },
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /ambiguous|unexpected|blocked/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "unexpected-chmod-content\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("in-process rollback verifies exact old tree before deleting the transaction", () => {
+  const fixture = makeAddFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
+        failAfter: "after-place",
+        io: {
+          rmSync(path: string): void {
+            if (path === fixture.target) {
+              return;
+            }
+            rmSync(path, { recursive: true, force: true });
+          },
+        },
+      }),
+    /rollback also failed|restore absence|exact old/i,
+  );
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  const transaction = readdirSync(join(fixture.destination, ".deniz-skills")).find((name) => name.startsWith("txn-"));
+  assert.ok(transaction);
+  assert.ok(lstatSync(join(fixture.destination, ".deniz-skills", transaction)).isDirectory());
+});
+
+test("stale reclaim never renames an exact-token replacement owner", () => {
+  const fixture = makeInstallFixture();
+  const lockDir = join(fixture.destination, ".deniz-skills", "lock");
+  mkdirSync(lockDir, { recursive: true });
+  writeFileSync(
+    join(lockDir, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z", token: "stale-token" })}\n`,
+  );
+  assert.throws(
+    () =>
+      acquireInstallerLock(fixture.destination, {
+        io: {
+          beforeReclaimRename(): void {
+            writeFileSync(
+              join(lockDir, "owner.json"),
+              `${JSON.stringify({ pid: deadPid(), startedAt: "2026-08-18T00:00:00.000Z", token: "replacement-token" })}\n`,
+            );
+          },
+        },
+      }),
+    /token changed|lock token/i,
+  );
+  assert.ok(lstatSync(lockDir).isDirectory());
+  assert.match(readFileSync(join(lockDir, "owner.json"), "utf8"), /replacement-token/);
 });
 
 test("staged tamper is refused immediately before place", () => {

@@ -141,10 +141,6 @@ function isEPERM(error: unknown): boolean {
   return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "EPERM";
 }
 
-function isWindowsReplaceError(error: unknown): boolean {
-  return isEPERM(error) || isEEXIST(error);
-}
-
 function isEXDEV(error: unknown): boolean {
   return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "EXDEV";
 }
@@ -735,6 +731,342 @@ function validateJournalSemantics(journal: TransactionJournal): string | null {
   return null;
 }
 
+function validateSnapshotTransition(previous: TransactionJournal, current: TransactionJournal): string | null {
+  if (current.transactionId !== previous.transactionId) {
+    return "contiguous journal snapshots changed transaction identity";
+  }
+  if (current.oldStateDigest !== previous.oldStateDigest || current.newStateDigest !== previous.newStateDigest) {
+    return "contiguous journal snapshots changed state digests";
+  }
+  if (JSON.stringify(current.operations) !== JSON.stringify(previous.operations)) {
+    return "contiguous journal snapshots rewrote operations";
+  }
+  const phaseOrder = { prepared: 0, "files-placed": 1, "state-committed": 2 } as const;
+  if (phaseOrder[current.phase] < phaseOrder[previous.phase]) {
+    return "contiguous journal snapshots regressed phase";
+  }
+  if (
+    current.applied.length < previous.applied.length ||
+    previous.applied.some((mutation, index) => JSON.stringify(current.applied[index]) !== JSON.stringify(mutation))
+  ) {
+    return "contiguous journal snapshots omitted or rewrote applied evidence";
+  }
+  if (
+    current.createdDirectories.length < previous.createdDirectories.length ||
+    previous.createdDirectories.some((dir, index) => current.createdDirectories[index] !== dir)
+  ) {
+    return "contiguous journal snapshots omitted or rewrote created-directory evidence";
+  }
+  if (current.applied.length > previous.applied.length) {
+    const appended = current.applied.slice(previous.applied.length);
+    const intent = previous.intent;
+    const action =
+      intent?.syscall === "backup"
+        ? "backed-up"
+        : intent?.syscall === "place"
+          ? "placed"
+          : intent?.syscall === "chmod"
+            ? "chmodded"
+            : undefined;
+    const mutation = appended[0];
+    if (
+      appended.length !== 1 ||
+      !intent ||
+      !action ||
+      !mutation ||
+      current.intent !== undefined ||
+      mutation.action !== action ||
+      mutation.operationIndex !== intent.operationIndex ||
+      mutation.path !== intent.path ||
+      !intent.identity ||
+      !exactIdentityMatches(mutation.identity, intent.identity)
+    ) {
+      return "contiguous journal snapshots appended applied evidence without its write-ahead intent";
+    }
+  }
+  if (
+    current.createdDirectories.length > previous.createdDirectories.length &&
+    (previous.intent !== undefined ||
+      current.intent?.syscall !== "place" ||
+      current.applied.length !== previous.applied.length ||
+      current.phase !== previous.phase)
+  ) {
+    return "contiguous journal snapshots appended created-directory evidence outside a place intent";
+  }
+  if (
+    previous.intent &&
+    (previous.intent.syscall === "backup" || previous.intent.syscall === "place" || previous.intent.syscall === "chmod") &&
+    current.applied.length === previous.applied.length
+  ) {
+    return "contiguous journal snapshots cleared operation intent without applied evidence";
+  }
+  if (previous.intent?.syscall === "state-aside") {
+    if (
+      current.intent !== undefined ||
+      !current.stateAside ||
+      current.phase !== previous.phase ||
+      current.applied.length !== previous.applied.length
+    ) {
+      return "contiguous journal snapshots did not complete state-aside intent through its allowed transition";
+    }
+  }
+  if (previous.intent?.syscall === "state-commit") {
+    if (current.intent !== undefined || current.phase !== "state-committed" || current.stateAside) {
+      return "contiguous journal snapshots did not complete state-commit intent through its allowed transition";
+    }
+  }
+  if (!previous.stateAside && current.stateAside && previous.intent?.syscall !== "state-aside") {
+    return "contiguous journal snapshots added stateAside evidence without state-aside intent";
+  }
+  if (previous.stateAside && !current.stateAside && current.phase !== "state-committed") {
+    return "contiguous journal snapshots removed stateAside evidence before state commit";
+  }
+  return null;
+}
+
+interface StateEvidence {
+  bytes: Buffer;
+  state: InstallState;
+}
+
+function readStateEvidenceFile(
+  path: string,
+  expectedDigest: Sha256,
+  label: string,
+): { evidence: StateEvidence } | { blocked: string } {
+  try {
+    requireOrdinaryFile(path, label);
+    const bytes = readFileSync(path);
+    const parsed = parseInstallState(bytes.toString("utf8"));
+    if (hashBytes(bytes) !== expectedDigest || stateDigest(parsed) !== expectedDigest) {
+      return { blocked: `${label} bytes do not match the journal digest` };
+    }
+    return { evidence: { bytes, state: parsed } };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return { blocked: `${label} is invalid: ${message}` };
+  }
+}
+
+function exactIdentityMatches(left: FileIdentity, right: FileIdentity): boolean {
+  return left.sha256 === right.sha256 && left.mode === right.mode;
+}
+
+function ownedIdentity(state: InstallState, path: string): FileIdentity | null {
+  const owned = state.files[path];
+  return owned ? { sha256: owned.sha256, mode: owned.mode } : null;
+}
+
+function operationStateError(
+  operation: PlanOperation,
+  oldState: InstallState,
+  newState: InstallState,
+): string | null {
+  const oldOwned = oldState.files[operation.path];
+  const newOwned = newState.files[operation.path];
+  if (operation.kind === "add") {
+    if (
+      oldOwned ||
+      !newOwned ||
+      newOwned.module !== operation.module ||
+      !exactIdentityMatches(newOwned, operation.identity)
+    ) {
+      return `${operation.path}: add operation does not match old/new Install state`;
+    }
+    return null;
+  }
+  if (operation.kind === "replace") {
+    if (
+      !oldOwned ||
+      !newOwned ||
+      newOwned.module !== operation.module ||
+      !exactIdentityMatches(newOwned, operation.identity)
+    ) {
+      return `${operation.path}: replace operation does not match old/new Install state`;
+    }
+    return null;
+  }
+  if (operation.kind === "remove") {
+    if (
+      !oldOwned ||
+      oldOwned.module !== operation.module ||
+      !exactIdentityMatches(oldOwned, operation.identity) ||
+      newOwned
+    ) {
+      return `${operation.path}: remove operation does not match old/new Install state`;
+    }
+    return null;
+  }
+  if (operation.kind === "chmod") {
+    if (
+      !oldOwned ||
+      !newOwned ||
+      oldOwned.sha256 !== newOwned.sha256 ||
+      oldOwned.mode !== operation.from ||
+      newOwned.mode !== operation.to ||
+      newOwned.module !== operation.module
+    ) {
+      return `${operation.path}: chmod operation does not match old/new Install state`;
+    }
+    return null;
+  }
+  if (!oldOwned || oldOwned.module !== operation.module || newOwned) {
+    return `${operation.path}: drop-missing-claim operation does not match old/new Install state`;
+  }
+  return null;
+}
+
+function expectedAppliedMutations(
+  journal: TransactionJournal,
+  oldState: InstallState,
+  newState: InstallState,
+): AppliedMutation[] | { blocked: string } {
+  const paths = new Set<string>();
+  for (const operation of journal.operations) {
+    if (paths.has(operation.path)) {
+      return { blocked: `${operation.path}: operation list contains duplicate managed paths` };
+    }
+    paths.add(operation.path);
+    const stateError = operationStateError(operation, oldState, newState);
+    if (stateError) {
+      return { blocked: stateError };
+    }
+  }
+  const expected: AppliedMutation[] = [];
+  for (const [operationIndex, operation] of journal.operations.entries()) {
+    if (operation.kind !== "replace" && operation.kind !== "remove") {
+      continue;
+    }
+    const identity = ownedIdentity(oldState, operation.path);
+    if (!identity) {
+      return { blocked: `${operation.path}: old Install state identity is missing` };
+    }
+    expected.push({ operationIndex, path: operation.path, kind: operation.kind, action: "backed-up", identity });
+  }
+  for (const [operationIndex, operation] of journal.operations.entries()) {
+    if (operation.kind !== "add" && operation.kind !== "replace") {
+      continue;
+    }
+    expected.push({
+      operationIndex,
+      path: operation.path,
+      kind: operation.kind,
+      action: "placed",
+      identity: operation.identity,
+    });
+  }
+  for (const [operationIndex, operation] of journal.operations.entries()) {
+    if (operation.kind !== "chmod") {
+      continue;
+    }
+    const identity = ownedIdentity(newState, operation.path);
+    if (!identity) {
+      return { blocked: `${operation.path}: new Install state identity is missing` };
+    }
+    expected.push({ operationIndex, path: operation.path, kind: operation.kind, action: "chmodded", identity });
+  }
+  return expected;
+}
+
+function validateJournalAgainstStates(
+  journal: TransactionJournal,
+  oldState: InstallState,
+  newState: InstallState,
+): string | null {
+  const expected = expectedAppliedMutations(journal, oldState, newState);
+  if ("blocked" in expected) {
+    return expected.blocked;
+  }
+  if (journal.applied.length > expected.length) {
+    return "applied evidence exceeds the operation list";
+  }
+  for (const [index, mutation] of journal.applied.entries()) {
+    const wanted = expected[index];
+    if (!wanted || JSON.stringify(mutation) !== JSON.stringify(wanted)) {
+      return "applied evidence does not match the operation's expected old/new identity";
+    }
+  }
+  if (journal.phase !== "prepared" && journal.applied.length !== expected.length) {
+    return `${journal.phase} snapshot omits applied operation evidence`;
+  }
+  const intent = journal.intent;
+  if (intent?.syscall === "backup" || intent?.syscall === "place" || intent?.syscall === "chmod") {
+    const action = intent.syscall === "backup" ? "backed-up" : intent.syscall === "place" ? "placed" : "chmodded";
+    const wanted = expected[journal.applied.length];
+    if (
+      !wanted ||
+      wanted.action !== action ||
+      intent.operationIndex !== wanted.operationIndex ||
+      intent.path !== wanted.path ||
+      !intent.identity ||
+      !exactIdentityMatches(intent.identity, wanted.identity)
+    ) {
+      return "write-ahead intent does not match the next expected operation action and identity";
+    }
+  }
+  if (intent?.syscall === "state-aside" || intent?.syscall === "state-commit") {
+    if (
+      journal.phase !== "files-placed" ||
+      journal.applied.length !== expected.length ||
+      intent.operationIndex !== undefined ||
+      intent.path !== undefined ||
+      intent.identity !== undefined
+    ) {
+      return "Install-state write-ahead intent is not valid for this transaction phase";
+    }
+  }
+  if (journal.phase === "prepared" && (intent?.syscall === "state-aside" || intent?.syscall === "state-commit")) {
+    return "prepared snapshot cannot carry Install-state intent";
+  }
+  if (journal.stateAside && (journal.phase !== "files-placed" || intent?.syscall === "state-aside")) {
+    return "stateAside evidence is not valid for this transaction phase";
+  }
+  if (journal.phase === "state-committed" && (journal.stateAside || intent !== undefined)) {
+    return "state-committed snapshot contains regressed transaction evidence";
+  }
+  return null;
+}
+
+function validatePersistedBackupEvidence(
+  transactionDir: string,
+  journal: TransactionJournal,
+  oldState: InstallState,
+): string | null {
+  for (const [operationIndex, operation] of journal.operations.entries()) {
+    if (operation.kind !== "replace" && operation.kind !== "remove") {
+      continue;
+    }
+    const backup = backupFilePath(transactionDir, operation.path);
+    const backedUp = journal.applied.some(
+      (mutation) => mutation.operationIndex === operationIndex && mutation.action === "backed-up",
+    );
+    const pendingBackup =
+      journal.intent?.syscall === "backup" &&
+      journal.intent.operationIndex === operationIndex &&
+      journal.intent.path === operation.path;
+    if (!existsLstat(backup)) {
+      if (backedUp) {
+        return `backup of ${operation.path} is missing despite applied evidence`;
+      }
+      continue;
+    }
+    if (!backedUp && !pendingBackup) {
+      return `backup of ${operation.path} was omitted from applied and intent evidence`;
+    }
+    try {
+      requireOrdinaryFile(backup, `backup of ${operation.path}`);
+      const expected = ownedIdentity(oldState, operation.path);
+      if (!expected || !identityMatches(observedFileIdentity(backup), expected, hostPlatform())) {
+        return `backup of ${operation.path} does not match expected old bytes and mode`;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return `backup of ${operation.path} is invalid: ${message}`;
+    }
+  }
+  return null;
+}
+
 function loadLatestSnapshot(transactionDir: string): { journal: TransactionJournal } | { blocked: string } {
   const dir = snapshotsDir(transactionDir);
   if (!existsLstat(dir)) {
@@ -786,6 +1118,15 @@ function loadLatestSnapshot(transactionDir: string): { journal: TransactionJourn
     if (previous === undefined || current === undefined || current !== previous + 1) {
       return { blocked: "journal snapshots are not a valid prefix" };
     }
+    const previousJournal = bySeq.get(previous);
+    const currentJournal = bySeq.get(current);
+    if (!previousJournal || !currentJournal) {
+      return { blocked: "transaction journal is missing" };
+    }
+    const transition = validateSnapshotTransition(previousJournal, currentJournal);
+    if (transition) {
+      return { blocked: transition };
+    }
   }
   const latestSeq = seqs[seqs.length - 1];
   if (latestSeq === undefined) {
@@ -794,6 +1135,45 @@ function loadLatestSnapshot(transactionDir: string): { journal: TransactionJourn
   const latest = bySeq.get(latestSeq);
   if (!latest) {
     return { blocked: "transaction journal is missing" };
+  }
+  const oldStateEvidence = readStateEvidenceFile(
+    join(transactionDir, "old-state.json"),
+    latest.oldStateDigest,
+    "immutable old Install state",
+  );
+  if ("blocked" in oldStateEvidence) {
+    return oldStateEvidence;
+  }
+  const newStatePath = join(transactionDir, "new-state.json");
+  const newStateEvidence = readStateEvidenceFile(
+    newStatePath,
+    latest.newStateDigest,
+    "immutable new Install state",
+  );
+  if ("blocked" in newStateEvidence) {
+    return newStateEvidence;
+  }
+  for (const seq of seqs) {
+    const journal = bySeq.get(seq);
+    if (!journal) {
+      return { blocked: "transaction journal is missing" };
+    }
+    const stateSemantic = validateJournalAgainstStates(
+      journal,
+      oldStateEvidence.evidence.state,
+      newStateEvidence.evidence.state,
+    );
+    if (stateSemantic) {
+      return { blocked: stateSemantic };
+    }
+  }
+  const backupSemantic = validatePersistedBackupEvidence(
+    transactionDir,
+    latest,
+    oldStateEvidence.evidence.state,
+  );
+  if (backupSemantic) {
+    return { blocked: backupSemantic };
   }
   return { journal: latest };
 }
@@ -902,6 +1282,7 @@ function inferIntent(destination: string, transactionDir: string, journal: Trans
     const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
     if (existsLstat(installPath) && digestOfStateFile(installPath) === journal.newStateDigest) {
       next.phase = "state-committed";
+      next.stateAside = false;
       return next;
     }
     if (!existsLstat(installPath)) {
@@ -1009,6 +1390,21 @@ export function inspectRecovery(destination: string): RecoveryPlan | null {
   const semantic = validateJournalSemantics(inferred);
   if (semantic) {
     return blocked(transactionDir, semantic);
+  }
+  let evidence: { oldState: StateEvidence; newState: StateEvidence };
+  try {
+    evidence = requireTransactionStateEvidence(transactionDir, inferred);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return blocked(transactionDir, message);
+  }
+  const stateSemantic = validateJournalAgainstStates(inferred, evidence.oldState.state, evidence.newState.state);
+  if (stateSemantic) {
+    return blocked(transactionDir, stateSemantic);
+  }
+  const backupSemantic = validatePersistedBackupEvidence(transactionDir, inferred, evidence.oldState.state);
+  if (backupSemantic) {
+    return blocked(transactionDir, backupSemantic);
   }
   return classifyRecovery(destination, transactionDir, inferred);
 }
@@ -1165,7 +1561,7 @@ function backupFilePath(transactionDir: string, path: string): string {
   return join(transactionDir, "backup", ...path.split("/"));
 }
 
-function unlinkManagedFile(destination: string, path: string): void {
+function unlinkManagedFile(destination: string, path: string, io?: ApplyIo): void {
   const destPath = destAbs(destination, path);
   try {
     const stat = lstatSync(destPath);
@@ -1173,7 +1569,11 @@ function unlinkManagedFile(destination: string, path: string): void {
       throw new Error(`${path}: managed path must not be a symlink or junction`);
     }
     if (stat.isFile()) {
-      rmSync(destPath);
+      if (io?.rmSync) {
+        io.rmSync(destPath);
+      } else {
+        rmSync(destPath);
+      }
     }
   } catch (error) {
     if (!isENOENT(error)) {
@@ -1187,15 +1587,24 @@ function restoreBackup(
   transactionDir: string,
   path: string,
   created: string[],
-  mode: FileMode,
+  expected: FileIdentity,
 ): void {
   const backup = backupFilePath(transactionDir, path);
   requireOrdinaryFile(backup, `backup of ${path}`);
+  if (!identityMatches(observedFileIdentity(backup), expected, hostPlatform())) {
+    throw new Error(`backup of ${path} does not match expected old bytes and mode`);
+  }
   validateManagedPath(destination, path);
-  unlinkManagedFile(destination, path);
+  const observed = observePath(destination, path);
+  if (observed.kind === "file" && identityMatches(observed.identity, expected, hostPlatform())) {
+    return;
+  }
+  if (observed.kind !== "absent") {
+    throw new Error(`${path} has ambiguous or unexpected destination evidence; recovery is blocked`);
+  }
   const destPath = ensureParents(destination, path, created);
   writeFlushed(destPath, readFileSync(backup));
-  applyMode(destPath, mode);
+  applyMode(destPath, expected.mode);
 }
 
 function pruneCreatedDirectories(destination: string, created: string[]): void {
@@ -1221,79 +1630,219 @@ function pruneCreatedDirectories(destination: string, created: string[]): void {
   }
 }
 
-function operationFor(journal: TransactionJournal, path: string, kinds: PlanOperation["kind"][]): PlanOperation | undefined {
-  return journal.operations.find((operation) => operation.path === path && kinds.includes(operation.kind));
+function requireTransactionStateEvidence(
+  transactionDir: string,
+  journal: TransactionJournal,
+): { oldState: StateEvidence; newState: StateEvidence } {
+  const oldState = readStateEvidenceFile(
+    join(transactionDir, "old-state.json"),
+    journal.oldStateDigest,
+    "immutable old Install state",
+  );
+  if ("blocked" in oldState) {
+    throw new Error(oldState.blocked);
+  }
+  const newState = readStateEvidenceFile(
+    join(transactionDir, "new-state.json"),
+    journal.newStateDigest,
+    "immutable new Install state",
+  );
+  if ("blocked" in newState) {
+    throw new Error(newState.blocked);
+  }
+  return { oldState: oldState.evidence, newState: newState.evidence };
 }
 
-function rollbackApplied(destination: string, transactionDir: string, journal: TransactionJournal): void {
+function mutationActions(journal: TransactionJournal, operationIndex: number): Set<AppliedAction> {
+  return new Set(
+    journal.applied
+      .filter((mutation) => mutation.operationIndex === operationIndex)
+      .map((mutation) => mutation.action),
+  );
+}
+
+function observedMatchesIdentity(observed: ReturnType<typeof observePath>, expected: FileIdentity): boolean {
+  return observed.kind === "file" && identityMatches(observed.identity, expected, hostPlatform());
+}
+
+function preflightRollbackStateEvidence(
+  destination: string,
+  transactionDir: string,
+  journal: TransactionJournal,
+  oldState: StateEvidence,
+): void {
+  const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
+  const backedState = join(transactionDir, "backup-install.json");
+  if (existsLstat(backedState)) {
+    requireOrdinaryFile(backedState, "backed-up Install state");
+    if (!readFileSync(backedState).equals(oldState.bytes)) {
+      throw new Error("backed-up Install state does not match exact old state bytes");
+    }
+  }
+  if (existsLstat(installPath)) {
+    requireOrdinaryFile(installPath, "Install state");
+    if (!readFileSync(installPath).equals(oldState.bytes)) {
+      throw new Error("Install state has ambiguous or unexpected rollback evidence");
+    }
+    return;
+  }
+  if (!existsLstat(backedState) && journal.oldStateDigest !== stateDigest(EMPTY_INSTALL_STATE)) {
+    throw new Error("exact old Install state evidence is missing; recovery is blocked");
+  }
+}
+
+function preflightRollbackEvidence(
+  destination: string,
+  journal: TransactionJournal,
+  oldState: InstallState,
+  newState: InstallState,
+): void {
+  for (const [operationIndex, operation] of journal.operations.entries()) {
+    validateManagedPath(destination, operation.path);
+    const observed = observePath(destination, operation.path);
+    const actions = mutationActions(journal, operationIndex);
+    const oldIdentity = ownedIdentity(oldState, operation.path);
+    const newIdentity = ownedIdentity(newState, operation.path);
+    let allowed = false;
+    if (operation.kind === "add") {
+      allowed = observed.kind === "absent" || (actions.has("placed") && !!newIdentity && observedMatchesIdentity(observed, newIdentity));
+    } else if (operation.kind === "replace") {
+      allowed =
+        (!!oldIdentity && observedMatchesIdentity(observed, oldIdentity)) ||
+        (actions.has("backed-up") && observed.kind === "absent") ||
+        (actions.has("placed") && !!newIdentity && observedMatchesIdentity(observed, newIdentity));
+    } else if (operation.kind === "remove") {
+      allowed =
+        (!!oldIdentity && observedMatchesIdentity(observed, oldIdentity)) ||
+        (actions.has("backed-up") && observed.kind === "absent");
+    } else if (operation.kind === "chmod") {
+      allowed =
+        (!!oldIdentity && observedMatchesIdentity(observed, oldIdentity)) ||
+        (actions.has("chmodded") && !!newIdentity && observedMatchesIdentity(observed, newIdentity));
+    } else {
+      allowed = observed.kind === "absent";
+    }
+    if (!allowed) {
+      throw new Error(`${operation.path} has ambiguous or unexpected destination evidence; recovery is blocked`);
+    }
+  }
+}
+
+function rollbackApplied(
+  destination: string,
+  transactionDir: string,
+  journal: TransactionJournal,
+  io?: ApplyIo,
+): void {
+  const evidence = requireTransactionStateEvidence(transactionDir, journal);
   for (const mutation of [...journal.applied].reverse()) {
     validateManagedPath(destination, mutation.path);
+    const operation = journal.operations[mutation.operationIndex];
+    if (!operation || operation.path !== mutation.path || operation.kind !== mutation.kind) {
+      throw new Error(`${mutation.path}: applied evidence does not match its operation`);
+    }
     if (mutation.action === "placed") {
-      const operation = operationFor(journal, mutation.path, ["add", "replace"]);
-      if (operation && (operation.kind === "add" || operation.kind === "replace")) {
-        const observed = observePath(destination, mutation.path);
-        if (observed.kind === "file" && observed.identity.sha256 === operation.identity.sha256) {
-          unlinkManagedFile(destination, mutation.path);
-        } else if (observed.kind === "file") {
-          const backup = backupFilePath(transactionDir, mutation.path);
-          const backupIdentity = existsLstat(backup) ? observedFileIdentity(backup) : undefined;
-          if (!backupIdentity || observed.identity.sha256 !== backupIdentity.sha256) {
-            throw new Error(
-              `${mutation.path} differs from what this transaction could have produced; recovery is blocked`,
-            );
-          }
-        }
+      const observed = observePath(destination, mutation.path);
+      const expectedNew = ownedIdentity(evidence.newState.state, mutation.path);
+      const expectedOld = ownedIdentity(evidence.oldState.state, mutation.path);
+      if (expectedNew && observedMatchesIdentity(observed, expectedNew)) {
+        unlinkManagedFile(destination, mutation.path, io);
+      } else if (
+        observed.kind !== "absent" &&
+        !(operation.kind === "replace" && expectedOld && observedMatchesIdentity(observed, expectedOld))
+      ) {
+        throw new Error(`${mutation.path} has ambiguous or unexpected destination evidence; recovery is blocked`);
       }
       continue;
     }
     if (mutation.action === "backed-up") {
-      restoreBackup(destination, transactionDir, mutation.path, [], mutation.identity.mode);
+      const expectedOld = ownedIdentity(evidence.oldState.state, mutation.path);
+      if (!expectedOld) {
+        throw new Error(`${mutation.path}: old Install state identity is missing`);
+      }
+      restoreBackup(destination, transactionDir, mutation.path, [], expectedOld);
       continue;
     }
-    const operation = operationFor(journal, mutation.path, ["chmod"]);
-    if (operation && operation.kind === "chmod") {
+    if (operation.kind === "chmod") {
       const destPath = destAbs(destination, mutation.path);
-      if (existsLstat(destPath)) {
-        applyMode(destPath, operation.from);
+      const observed = observePath(destination, mutation.path);
+      const expectedOld = ownedIdentity(evidence.oldState.state, mutation.path);
+      const expectedNew = ownedIdentity(evidence.newState.state, mutation.path);
+      if (expectedOld && observedMatchesIdentity(observed, expectedOld)) {
+        continue;
       }
+      if (expectedNew && observedMatchesIdentity(observed, expectedNew)) {
+        applyMode(destPath, operation.from);
+        continue;
+      }
+      throw new Error(`${mutation.path} has ambiguous or unexpected destination evidence; recovery is blocked`);
     }
   }
   const backedState = join(transactionDir, "backup-install.json");
   const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
   if (existsLstat(backedState)) {
     requireOrdinaryFile(backedState, "backed-up Install state");
-    writeFlushed(installPath, readFileSync(backedState));
+    const backedBytes = readFileSync(backedState);
+    if (!backedBytes.equals(evidence.oldState.bytes)) {
+      throw new Error("backed-up Install state does not match exact old state bytes");
+    }
+    if (existsLstat(installPath)) {
+      requireOrdinaryFile(installPath, "Install state");
+      if (!readFileSync(installPath).equals(evidence.oldState.bytes)) {
+        throw new Error("Install state has ambiguous or unexpected rollback evidence");
+      }
+    } else {
+      writeFlushed(installPath, backedBytes);
+    }
   }
   pruneCreatedDirectories(destination, journal.createdDirectories);
 }
 
-function verifyRollbackComplete(destination: string, journal: TransactionJournal): void {
+function verifyRollbackComplete(destination: string, transactionDir: string, journal: TransactionJournal): void {
+  const evidence = requireTransactionStateEvidence(transactionDir, journal);
   const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
   if (existsLstat(installPath)) {
-    if (digestOfStateFile(installPath) !== journal.oldStateDigest) {
+    requireOrdinaryFile(installPath, "Install state");
+    if (
+      !readFileSync(installPath).equals(evidence.oldState.bytes) ||
+      digestOfStateFile(installPath) !== journal.oldStateDigest
+    ) {
       throw new Error("rollback did not restore the old Install state");
     }
   } else if (journal.oldStateDigest !== stateDigest(EMPTY_INSTALL_STATE)) {
     throw new Error("rollback did not restore the old Install state");
   }
-  const platform = hostPlatform();
-  for (const mutation of journal.applied) {
-    if (mutation.action !== "backed-up") {
+  for (const operation of journal.operations) {
+    const observed = observePath(destination, operation.path);
+    if (operation.kind === "add" || operation.kind === "drop-missing-claim") {
+      if (observed.kind !== "absent") {
+        throw new Error(`rollback did not restore absence of ${operation.path}`);
+      }
       continue;
     }
-    const dest = destAbs(destination, mutation.path);
-    if (!existsLstat(dest)) {
-      throw new Error(`rollback did not restore ${mutation.path}`);
-    }
-    if (!identityMatches(observedFileIdentity(dest), mutation.identity, platform)) {
-      throw new Error(`rollback did not restore ${mutation.path}`);
+    const expected = ownedIdentity(evidence.oldState.state, operation.path);
+    if (!expected || !observedMatchesIdentity(observed, expected)) {
+      throw new Error(`rollback did not restore exact old bytes and mode for ${operation.path}`);
     }
   }
 }
 
-function verifyFinalizeComplete(destination: string, journal: TransactionJournal): void {
-  const digest = digestOfStateFile(join(validateDestinationRoot(destination), ".deniz-skills", "install.json"));
-  if (digest !== journal.newStateDigest) {
+function verifyFinalizeComplete(destination: string, transactionDir: string, journal: TransactionJournal): void {
+  const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
+  const newStateEvidence = readStateEvidenceFile(
+    join(transactionDir, "new-state.json"),
+    journal.newStateDigest,
+    "immutable new Install state",
+  );
+  if ("blocked" in newStateEvidence) {
+    throw new Error(`finalize refused: ${newStateEvidence.blocked}`);
+  }
+  requireOrdinaryFile(installPath, "committed Install state");
+  const installBytes = readFileSync(installPath);
+  if (
+    !installBytes.equals(newStateEvidence.evidence.bytes) ||
+    digestOfStateFile(installPath) !== journal.newStateDigest
+  ) {
     throw new Error("finalize refused: Install state is not the committed journal digest");
   }
   const platform = hostPlatform();
@@ -1314,11 +1863,9 @@ function verifyFinalizeComplete(destination: string, journal: TransactionJournal
     if (operation.kind !== "chmod") {
       continue;
     }
-    if (observed.kind !== "file") {
-      throw new Error(`finalize refused: ${operation.path} is missing after chmod`);
-    }
-    if (platform !== "windows" && observed.identity.mode !== operation.to) {
-      throw new Error(`finalize refused: ${operation.path} mode is not the committed mode`);
+    const expected = ownedIdentity(newStateEvidence.evidence.state, operation.path);
+    if (observed.kind !== "file" || !expected || !identityMatches(observed.identity, expected, platform)) {
+      throw new Error(`finalize refused: ${operation.path} content or mode does not match the committed chmod`);
     }
   }
 }
@@ -1362,6 +1909,12 @@ function stageBundleFile(
   mkdirSync(dirname(staged), { recursive: true });
   writeFlushed(staged, bytes);
   applyMode(staged, operation.identity.mode);
+}
+
+function verifyStagedFile(path: string, expected: FileIdentity, managedPath: string): void {
+  if (!identityMatches(observedFileIdentity(path), expected, hostPlatform())) {
+    throw new Error(`${managedPath}: staged file bytes or mode do not match the Plan`);
+  }
 }
 
 function deviceIdOf(path: string, io: ApplyIo | undefined): number {
@@ -1423,6 +1976,27 @@ function renameOrThrow(from: string, to: string): void {
   }
 }
 
+function stagedInstallStatePath(transactionDir: string): string {
+  return join(transactionDir, "staged-install.json");
+}
+
+function verifyStagedInstallState(transactionDir: string, journal: TransactionJournal): void {
+  const immutable = join(transactionDir, "new-state.json");
+  const staged = stagedInstallStatePath(transactionDir);
+  requireOrdinaryFile(immutable, "immutable new Install state");
+  requireOrdinaryFile(staged, "staged Install state");
+  const expectedBytes = readFileSync(immutable);
+  const stagedBytes = readFileSync(staged);
+  if (
+    hashBytes(expectedBytes) !== journal.newStateDigest ||
+    hashBytes(stagedBytes) !== journal.newStateDigest ||
+    !expectedBytes.equals(stagedBytes) ||
+    stateDigest(parseInstallState(stagedBytes.toString("utf8"))) !== journal.newStateDigest
+  ) {
+    throw new Error("staged Install state bytes and digest do not match the Plan");
+  }
+}
+
 function commitInstallState(
   destination: string,
   transactionDir: string,
@@ -1431,25 +2005,19 @@ function commitInstallState(
   options: ApplyOptions | undefined,
 ): void {
   const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
-  const staged = join(transactionDir, "new-state.json");
+  const staged = stagedInstallStatePath(transactionDir);
   const backed = join(transactionDir, "backup-install.json");
-  requireOrdinaryFile(staged, "staged Install state");
-  if (stateDigest(parseInstallState(readFileSync(staged, "utf8"))) !== journal.newStateDigest) {
-    throw new Error("staged Install state digest does not match the Plan");
-  }
-  if (options?.forceWindowsStateReplace !== true) {
-    try {
-      journal.intent = { syscall: "state-commit" };
-      writeSnapshot(transactionDir, journal, seq);
-      renameOrThrow(staged, installPath);
-      throwIfSyscallCrash(options, "state-commit");
-      delete journal.intent;
-      return;
-    } catch (error) {
-      if (!isWindowsReplaceError(error) || isInjectedCrash(error)) {
-        throw error;
-      }
-    }
+  verifyStagedInstallState(transactionDir, journal);
+  if (process.platform !== "win32" && options?.forceWindowsStateReplace !== true) {
+    journal.intent = { syscall: "state-commit" };
+    writeSnapshot(transactionDir, journal, seq);
+    verifyStagedInstallState(transactionDir, journal);
+    requireSameDevice(destination, transactionDir, options?.io);
+    verifyStagedInstallState(transactionDir, journal);
+    renameOrThrow(staged, installPath);
+    throwIfSyscallCrash(options, "state-commit");
+    delete journal.intent;
+    return;
   }
   journal.intent = { syscall: "state-aside" };
   writeSnapshot(transactionDir, journal, seq);
@@ -1464,6 +2032,9 @@ function commitInstallState(
   throwIfCrash(options, "after-state-aside");
   journal.intent = { syscall: "state-commit" };
   writeSnapshot(transactionDir, journal, seq);
+  verifyStagedInstallState(transactionDir, journal);
+  requireSameDevice(destination, transactionDir, options?.io);
+  verifyStagedInstallState(transactionDir, journal);
   renameOrThrow(staged, installPath);
   throwIfSyscallCrash(options, "state-commit");
   delete journal.intent;
@@ -1491,6 +2062,17 @@ export function applyPlan(
     return;
   }
 
+  const installPath = join(deniz, "install.json");
+  if (existsLstat(installPath)) {
+    requireOrdinaryFile(installPath, "Install state");
+  }
+  const oldBytes = existsLstat(installPath)
+    ? readFileSync(installPath)
+    : Buffer.from(serializeInstallState(EMPTY_INSTALL_STATE));
+  if (hashBytes(oldBytes) !== stateDigest(current)) {
+    throw new Error("Install state bytes are not in canonical serialized form");
+  }
+
   requireDestinationTopology(root, deniz, options?.io);
   const transactionId = randomUUID();
   const transactionDir = join(deniz, `txn-${transactionId}`);
@@ -1513,15 +2095,10 @@ export function applyPlan(
   };
 
   try {
-    const installPath = join(deniz, "install.json");
-    const oldBytes = existsLstat(installPath)
-      ? readFileSync(installPath)
-      : Buffer.from(serializeInstallState(EMPTY_INSTALL_STATE));
-    if (existsLstat(installPath)) {
-      requireOrdinaryFile(installPath, "Install state");
-    }
+    const newStateBytes = serializeInstallState(plan.nextState);
     writeFlushed(join(transactionDir, "old-state.json"), oldBytes);
-    writeFlushed(join(transactionDir, "new-state.json"), serializeInstallState(plan.nextState));
+    writeFlushed(join(transactionDir, "new-state.json"), newStateBytes);
+    writeFlushed(stagedInstallStatePath(transactionDir), newStateBytes);
     for (const operation of plan.operations) {
       if (operation.kind === "add" || operation.kind === "replace") {
         stageBundleFile(transactionDir, bundles, operation);
@@ -1544,7 +2121,15 @@ export function applyPlan(
       writeSnapshot(transactionDir, journal, seq);
       const backup = backupFilePath(transactionDir, operation.path);
       mkdirSync(dirname(backup), { recursive: true });
+      recheckOperation(destination, current, operation, plan.request.platform);
+      requireManagedDevice(root, operation.path, options?.io);
+      if (!identityMatches(observedFileIdentity(destPath), oldIdentity, hostPlatform())) {
+        throw new Error(`${operation.path}: backup source does not match expected old bytes and mode`);
+      }
       renameOrThrow(destPath, backup);
+      if (!identityMatches(observedFileIdentity(backup), oldIdentity, hostPlatform())) {
+        throw new Error(`backup of ${operation.path} does not match expected old bytes and mode`);
+      }
       throwIfSyscallCrash(options, "backup");
       delete journal.intent;
       journal.applied.push({
@@ -1572,13 +2157,19 @@ export function applyPlan(
       const destPath = ensureParents(destination, operation.path, journal.createdDirectories);
       requireManagedDevice(root, operation.path, options?.io);
       const staged = stagedFilePath(transactionDir, operation.path);
-      if (!identityMatches(observedFileIdentity(staged), operation.identity, plan.request.platform)) {
-        throw new Error(`${operation.path}: staged file does not match the Plan`);
-      }
+      verifyStagedFile(staged, operation.identity, operation.path);
       const operationIndex = plan.operations.indexOf(operation);
       journal.intent = { syscall: "place", operationIndex, path: operation.path, identity: operation.identity };
       writeSnapshot(transactionDir, journal, seq);
+      verifyStagedFile(staged, operation.identity, operation.path);
+      requireSameDevice(root, transactionDir, options?.io);
+      requireManagedDevice(root, operation.path, options?.io);
+      recheckOperation(destination, current, operation, plan.request.platform, true);
+      verifyStagedFile(staged, operation.identity, operation.path);
       renameOrThrow(staged, destPath);
+      if (!identityMatches(observedFileIdentity(destPath), operation.identity, hostPlatform())) {
+        throw new Error(`${operation.path}: placed file bytes or mode do not match the Plan`);
+      }
       throwIfSyscallCrash(options, "place");
       delete journal.intent;
       journal.applied.push({
@@ -1604,7 +2195,13 @@ export function applyPlan(
       const operationIndex = plan.operations.indexOf(operation);
       journal.intent = { syscall: "chmod", operationIndex, path: operation.path, identity };
       writeSnapshot(transactionDir, journal, seq);
+      recheckOperation(destination, current, operation, plan.request.platform);
+      requireManagedDevice(root, operation.path, options?.io);
+      recheckOperation(destination, current, operation, plan.request.platform);
       applyMode(destPath, operation.to);
+      if (!identityMatches(observedFileIdentity(destPath), identity, hostPlatform())) {
+        throw new Error(`${operation.path}: chmod result does not match expected content and mode`);
+      }
       throwIfSyscallCrash(options, "chmod");
       delete journal.intent;
       journal.applied.push({
@@ -1628,7 +2225,13 @@ export function applyPlan(
         recheckOperation(destination, current, operation, plan.request.platform);
       }
     }
-    if (stateDigest(loadInstallState(destination)) !== journal.oldStateDigest) {
+    const currentInstallExists = existsLstat(installPath);
+    const exactOldState = readFileSync(join(transactionDir, "old-state.json"));
+    if (
+      stateDigest(loadInstallState(destination)) !== journal.oldStateDigest ||
+      (currentInstallExists && !readFileSync(installPath).equals(exactOldState)) ||
+      (!currentInstallExists && journal.oldStateDigest !== stateDigest(EMPTY_INSTALL_STATE))
+    ) {
       throw new Error("Install-state digest changed before commit");
     }
     commitInstallState(destination, transactionDir, journal, seq, options);
@@ -1640,13 +2243,23 @@ export function applyPlan(
     throwIfFail(options, "after-state-commit");
     throwIfCrash(options, "after-state-commit");
 
+    verifyFinalizeComplete(destination, transactionDir, journal);
     pruneCreatedDirectories(root, journal.createdDirectories);
     removeTransactionDir(transactionDir);
   } catch (error) {
     if (!committed && !isInjectedCrash(error)) {
       try {
-        rollbackApplied(destination, transactionDir, journal);
+        const evidence = requireTransactionStateEvidence(transactionDir, journal);
+        const journalSemantic = validateJournalAgainstStates(journal, evidence.oldState.state, evidence.newState.state);
+        if (journalSemantic) {
+          throw new Error(journalSemantic);
+        }
+        requireBackupEvidence(transactionDir, journal);
+        preflightRollbackStateEvidence(destination, transactionDir, journal, evidence.oldState);
+        preflightRollbackEvidence(destination, journal, evidence.oldState.state, evidence.newState.state);
+        rollbackApplied(destination, transactionDir, journal, options?.io);
         pruneCreatedDirectories(destination, journal.createdDirectories);
+        verifyRollbackComplete(destination, transactionDir, journal);
         removeTransactionDir(transactionDir);
       } catch (rollbackError) {
         const first = error instanceof Error ? error.message : String(error);
@@ -1684,12 +2297,15 @@ export function applyRecovery(
   );
   requireSameDevice(root, current.transactionDir, options?.io);
   if (current.kind === "finalize") {
-    verifyFinalizeComplete(destination, current.journal);
+    verifyFinalizeComplete(destination, current.transactionDir, current.journal);
     removeTransactionDir(current.transactionDir);
     return;
   }
   requireBackupEvidence(current.transactionDir, current.journal);
-  rollbackApplied(destination, current.transactionDir, current.journal);
-  verifyRollbackComplete(destination, current.journal);
+  const evidence = requireTransactionStateEvidence(current.transactionDir, current.journal);
+  preflightRollbackStateEvidence(destination, current.transactionDir, current.journal, evidence.oldState);
+  preflightRollbackEvidence(destination, current.journal, evidence.oldState.state, evidence.newState.state);
+  rollbackApplied(destination, current.transactionDir, current.journal, options?.io);
+  verifyRollbackComplete(destination, current.transactionDir, current.journal);
   removeTransactionDir(current.transactionDir);
 }
