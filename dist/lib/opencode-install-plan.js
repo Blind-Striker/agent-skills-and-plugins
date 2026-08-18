@@ -1,5 +1,6 @@
+import { ordinalCompare } from "./order.js";
 function compareStrings(left, right) {
-  return left.localeCompare(right);
+  return ordinalCompare(left, right);
 }
 function sortedKeys(record) {
   return Object.keys(record).sort(compareStrings);
@@ -191,6 +192,17 @@ function planPath(path, old, next, observed, request, affected, operations, find
     );
     return;
   }
+  if (observed.kind === "blocked") {
+    const owner = next?.module ?? old?.module;
+    findings.push(
+      finding(
+        "type_mismatch",
+        `${path} is blocked by ${observed.path}, which is a ${observed.actual}; replace it with an ordinary directory by hand, then retry`,
+        owner === undefined ? { path: observed.path } : { module: owner, path: observed.path },
+      ),
+    );
+    return;
+  }
   if (old && observed.kind === "file" && !identityMatches(observed.identity, old, request.platform)) {
     findings.push(
       finding("local_modification", `${path} was modified locally; restore, move, or delete it by hand, then retry`, {
@@ -321,10 +333,21 @@ export function planReconcile(current, manifests, observed, request) {
   operations.sort(compareOperations);
   transfers.sort(compareTransfers);
   if (findings.length > 0) {
-    return { request, selectionChanges: changes, operations: [], transfers: [], nextState: current, findings };
+    return {
+      request,
+      affectedModules: uniqueSorted(requested),
+      currentState: current,
+      selectionChanges: changes,
+      operations: [],
+      transfers: [],
+      nextState: current,
+      findings,
+    };
   }
   return {
     request,
+    affectedModules: uniqueSorted(requested),
+    currentState: current,
     selectionChanges: changes,
     operations,
     transfers,

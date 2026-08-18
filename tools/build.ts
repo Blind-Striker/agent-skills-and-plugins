@@ -467,8 +467,9 @@ function reportDropped(label: string, from: Record<string, unknown>, kept: Recor
  * `manual` therefore emits a command and no skill — but a command is a single file, and the bundled
  * files a skill directory carries would have nowhere to live. Bundled manual items park their parsed
  * body as non-discoverable `BODY.md` under `skills/<name>/`, which OpenCode's discovery ignores
- * (measured; see the research note). Commands point at the supported project-local and global
- * locations, and Markdown self-links in the parked bundle are repointed to `BODY.md`.
+ * (measured; see the research note). The installer is global-only, so commands resolve the global
+ * root through XDG_CONFIG_HOME with the documented HOME fallback, and Markdown self-links in the
+ * parked bundle are repointed to `BODY.md`.
  */
 function emitOpenCodeSkill(
   root: string,
@@ -522,8 +523,8 @@ function emitOpenCodeSkill(
     ? [
         // The Module directory is distribution layout only; after installation the body resolves
         // from the OpenCode configuration root, so the stub keeps the installed spelling.
-        `Read \`skills/${name}/BODY.md\` from the active OpenCode configuration root before doing anything else.`,
-        `For a project-local install, use \`.opencode/skills/${name}/BODY.md\`; for a global install, use \`~/.config/opencode/skills/${name}/BODY.md\`.`,
+        "Resolve the global OpenCode configuration root as `$XDG_CONFIG_HOME/opencode` when `$XDG_CONFIG_HOME` is set; otherwise use `~/.config/opencode`.",
+        `Read \`skills/${name}/BODY.md\` under that global root before doing anything else.`,
         `Follow that file as this command's full instructions.`,
         "",
         `Arguments: $ARGUMENTS`,

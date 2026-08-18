@@ -231,6 +231,14 @@ const cases: Case[] = [
     findingCodes: ["type_mismatch"],
   },
   {
+    name: "regular file in an intermediate directory position is a type mismatch",
+    current: EMPTY_INSTALL_STATE,
+    manifests: { "deniz-process": manifest("deniz-process", COMMAND) },
+    observed: { "commands/alpha.md": { kind: "blocked", path: "commands", actual: "file" } },
+    request: request("install", { modules: ["deniz-process"] }),
+    findingCodes: ["type_mismatch"],
+  },
+  {
     name: "install reconciles requested modules only",
     current: installed({ "deniz-process": { files: COMMAND } }),
     manifests: { "deniz-dotnet-general": manifest("deniz-dotnet-general", OTHER) },

@@ -263,7 +263,7 @@ function fileIdentityOf(bytes: string, mode: "100644" | "100755" = "100644"): Ap
   return { sha256: hashBytes(bytes), mode };
 }
 
-type LeftoverJournal = Omit<TransactionJournal, "applied" | "createdDirectories" | "stateAside"> & {
+type LeftoverJournal = Omit<TransactionJournal, "applied" | "createdDirectories" | "pruneCandidates" | "stateAside"> & {
   applied?: Array<
     Omit<AppliedMutation, "identity" | "operationIndex" | "kind"> & {
       identity?: AppliedMutation["identity"];
@@ -272,6 +272,7 @@ type LeftoverJournal = Omit<TransactionJournal, "applied" | "createdDirectories"
     }
   >;
   createdDirectories?: string[];
+  pruneCandidates?: string[];
   stateAside?: boolean;
 };
 
@@ -327,10 +328,31 @@ function completeJournal(
           withIndex({ path: backupPath, action: "placed" }, placedIdentity),
         ]
       : []);
+  const pruneCandidates = [
+    ...new Set(
+      journal.operations.flatMap((operation) => {
+        if (operation.kind !== "remove" && operation.kind !== "drop-missing-claim") {
+          return [];
+        }
+        const parts = operation.path.split("/");
+        parts.pop();
+        const candidates: string[] = [];
+        while (parts.length > 1) {
+          candidates.push(parts.join("/"));
+          parts.pop();
+        }
+        return candidates;
+      }),
+    ),
+  ].sort((left, right) => {
+    const depth = right.split("/").length - left.split("/").length;
+    return depth === 0 ? (left < right ? -1 : left > right ? 1 : 0) : depth;
+  });
   return {
     ...journal,
     applied,
     createdDirectories: journal.createdDirectories ?? [],
+    pruneCandidates: journal.pruneCandidates ?? pruneCandidates,
     stateAside: journal.stateAside ?? false,
   };
 }
@@ -615,8 +637,37 @@ test("removing the last owned nested file prunes empty parents but not the nativ
     ),
   );
   apply(destination, plan, new Map());
-  assert.ok(readdirSync(join(destination, "skills")).includes("alpha"));
-  assert.deepEqual(readdirSync(join(destination, "skills", "alpha")), []);
+  assert.equal(existsLstatSafe(join(destination, "skills", "alpha")), false);
+  assert.ok(lstatSync(join(destination, "skills")).isDirectory());
+});
+
+test("finalize Recovery prunes parents emptied by the committed removal", () => {
+  const root = mkdtempSync(join(tmpdir(), "apply-prune-recovery-"));
+  const destination = join(root, "config", "opencode");
+  const skillFile = join(destination, "skills", "alpha", "nested", "SKILL.md");
+  mkdirSync(dirname(skillFile), { recursive: true });
+  mkdirSync(join(destination, ".deniz-skills"), { recursive: true });
+  writeFileSync(skillFile, "skill\n");
+  const oldState = stateWithOwnedCommand("deniz-process", "skills/alpha/nested/SKILL.md", "skill\n");
+  writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
+  const plan = requireFindingFree(
+    planReconcile(
+      oldState,
+      {},
+      { "skills/alpha/nested/SKILL.md": observePath(destination, "skills/alpha/nested/SKILL.md") },
+      { kind: "remove", modules: ["deniz-process"], all: false, platform: "posix" },
+    ),
+  );
+  assert.throws(() => apply(destination, plan, new Map(), { crashAfter: "after-state-commit" }), /injected crash/);
+  assert.ok(lstatSync(join(destination, "skills", "alpha", "nested")).isDirectory());
+  const recovery = inspectRecovery(destination);
+  assert.equal(recovery?.kind, "finalize");
+
+  withLock(destination, (lock) => {
+    applyRecovery(lock, destination, recovery as RecoveryPlan);
+  });
+
+  assert.equal(existsLstatSafe(join(destination, "skills", "alpha")), false);
   assert.ok(lstatSync(join(destination, "skills")).isDirectory());
 });
 
@@ -865,6 +916,43 @@ test("a transaction directory without a journal is blocked debris", () => {
   const recovery = inspectRecovery(fixture.destination);
   assert.equal(recovery?.kind, "blocked");
   assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /debris|journal|transaction/i);
+});
+
+test("an abrupt crash during transaction candidate initialization leaves reclaimable candidate debris", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfter: "during-transaction-candidate" }),
+    /injected crash during-transaction-candidate/,
+  );
+  const deniz = join(fixture.destination, ".deniz-skills");
+  assert.ok(readdirSync(deniz).some((name) => name.startsWith("txn.candidate-")));
+  assert.equal(inspectRecovery(fixture.destination), null);
+
+  apply(fixture.destination, fixture.plan, fixture.bundles);
+
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assert.equal(
+    readdirSync(deniz).some((name) => name.startsWith("txn.candidate-")),
+    false,
+  );
+});
+
+test("crashes before and during initial file staging leave rollback Recovery", () => {
+  for (const crashAfter of ["before-initial-staging", "during-initial-staging"] as const) {
+    const fixture = makeInstallFixture();
+    assert.throws(
+      () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfter }),
+      new RegExp(`injected crash ${crashAfter}`),
+    );
+    const recovery = inspectRecovery(fixture.destination);
+    assert.equal(recovery?.kind, "rollback", crashAfter);
+    withLock(fixture.destination, (lock) => {
+      applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
+    });
+    assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+    assertSameState(fixture.destination, fixture.oldState);
+    assert.equal(inspectRecovery(fixture.destination), null);
+  }
 });
 
 test("a journal that is a symlink is blocked and not followed", (t) => {
@@ -1180,6 +1268,8 @@ function makeDropMissingFixture(): {
   };
   const plan: Plan = {
     request: { kind: "update", modules: [], all: false, platform: "posix" },
+    affectedModules: ["deniz-process"],
+    currentState: oldState,
     selectionChanges: { added: [], removed: [] },
     operations: [
       { kind: "drop-missing-claim", path: "commands/alpha.md", module: "deniz-process" },
@@ -1217,6 +1307,63 @@ test("reclaim-in-progress blocks a second stale acquire", () => {
   mkdirSync(join(fixture.destination, ".deniz-skills", "lock.reclaim"));
   assert.throws(() => acquireInstallerLock(fixture.destination), /reclaim/i);
   assert.match(readFileSync(join(lockDir, "owner.json"), "utf8"), /dead-token/);
+});
+
+test("fresh reclaim guard has owner evidence before it becomes visible", () => {
+  const fixture = makeInstallFixture();
+  let inspected = false;
+  const lock = acquireInstallerLock(fixture.destination, {
+    io: {
+      beforeAcquireGuardRename(candidate: string, guardPath: string): void {
+        inspected = true;
+        assert.ok(lstatSync(join(candidate, "owner.json")).isFile());
+        const owner = JSON.parse(readFileSync(join(candidate, "owner.json"), "utf8")) as {
+          pid: number;
+          token: string;
+        };
+        assert.equal(owner.pid, process.pid);
+        assert.ok(owner.token.length > 0);
+        assert.equal(existsLstatSafe(guardPath), false);
+      },
+    },
+  });
+  try {
+    assert.ok(inspected);
+  } finally {
+    lock.release();
+  }
+});
+
+test("dead reclaim guard owner is safely reclaimed", () => {
+  const fixture = makeInstallFixture();
+  const guard = join(fixture.destination, ".deniz-skills", "lock.reclaim");
+  mkdirSync(guard);
+  writeFileSync(
+    join(guard, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z", token: "dead-guard" })}\n`,
+  );
+
+  const lock = acquireInstallerLock(fixture.destination);
+  try {
+    assert.equal(existsLstatSafe(guard), false);
+    assert.ok(lstatSync(join(lock.path, "owner.json")).isFile());
+  } finally {
+    lock.release();
+  }
+});
+
+test("crash debris from stale reclaim guard cleanup does not wedge Recovery", () => {
+  const fixture = makeInstallFixture();
+  const tombstone = join(fixture.destination, ".deniz-skills", "lock.reclaim.reclaimed-dead-guard-crash");
+  mkdirSync(tombstone);
+  writeFileSync(
+    join(tombstone, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z", token: "dead-guard" })}\n`,
+  );
+
+  assert.equal(inspectRecovery(fixture.destination), null);
+  const lock = acquireInstallerLock(fixture.destination);
+  lock.release();
 });
 
 test("stale reclaim rereads liveness before renaming the lock", () => {

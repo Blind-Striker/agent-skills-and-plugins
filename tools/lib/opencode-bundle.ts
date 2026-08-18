@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { ordinalCompare } from "./order.ts";
 
 export type FileMode = "100644" | "100755";
 export type Sha256 = `sha256:${string}`;
@@ -51,7 +52,7 @@ export function hashBytes(bytes: Uint8Array | string): Sha256 {
 
 export function digestFileMap(files: Record<string, FileIdentity>): Sha256 {
   const payload = Object.entries(files)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => ordinalCompare(a, b))
     .map(([path, identity]) => `${path}\0${identity.sha256}\0${identity.mode}\n`)
     .join("");
   return hashBytes(payload);
@@ -63,7 +64,7 @@ interface WalkedPath {
 }
 
 function* walkTree(root: string, dir = root): Generator<WalkedPath> {
-  const names = readdirSync(dir).sort((a, b) => a.localeCompare(b));
+  const names = readdirSync(dir).sort(ordinalCompare);
   for (const name of names) {
     const path = join(dir, name);
     const stat = lstatSync(path);
@@ -103,7 +104,7 @@ function relativePathError(path: unknown): string | null {
 }
 
 function sortedFileMap(files: Record<string, FileIdentity>): Record<string, FileIdentity> {
-  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))) as Record<
+  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => ordinalCompare(a, b))) as Record<
     string,
     FileIdentity
   >;
@@ -259,7 +260,7 @@ function aliases(paths: string[]): Map<string, string[]> {
 
 function appendAliasFindings(findings: BundleFinding[], paths: Map<string, string[]>): void {
   for (const group of [...paths.values()].filter((value) => value.length > 1)) {
-    const sorted = [...group].sort((a, b) => a.localeCompare(b));
+    const sorted = [...group].sort(ordinalCompare);
     const first = sorted[0];
     if (!first) {
       continue;
@@ -370,7 +371,7 @@ export function verifyModuleManifest(
 
 export function loadModuleBundles(opencodeRoot: string): Map<string, ModuleBundle> {
   const bundles = new Map<string, ModuleBundle>();
-  const entries = readdirSync(opencodeRoot, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  const entries = readdirSync(opencodeRoot, { withFileTypes: true }).sort((a, b) => ordinalCompare(a.name, b.name));
   for (const entry of entries) {
     if (!entry.isDirectory()) {
       continue;

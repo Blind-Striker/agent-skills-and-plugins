@@ -1,5 +1,6 @@
 import type { FileIdentity, FileMode, ModuleManifest } from "./opencode-bundle.ts";
 import type { InstallState, ObservedPath, OwnedFile } from "./opencode-install-state.ts";
+import { ordinalCompare } from "./order.ts";
 
 export type RequestKind = "install" | "update" | "remove";
 
@@ -38,6 +39,8 @@ export interface PlanFinding {
 
 export interface Plan {
   request: InstallRequest;
+  affectedModules: string[];
+  currentState: InstallState;
   selectionChanges: { added: string[]; removed: string[] };
   operations: PlanOperation[];
   transfers: OwnershipTransfer[];
@@ -51,7 +54,7 @@ interface FinalFile {
 }
 
 function compareStrings(left: string, right: string): number {
-  return left.localeCompare(right);
+  return ordinalCompare(left, right);
 }
 
 function sortedKeys(record: object): string[] {
@@ -297,6 +300,18 @@ function planPath(
     return;
   }
 
+  if (observed.kind === "blocked") {
+    const owner = next?.module ?? old?.module;
+    findings.push(
+      finding(
+        "type_mismatch",
+        `${path} is blocked by ${observed.path}, which is a ${observed.actual}; replace it with an ordinary directory by hand, then retry`,
+        owner === undefined ? { path: observed.path } : { module: owner, path: observed.path },
+      ),
+    );
+    return;
+  }
+
   if (old && observed.kind === "file" && !identityMatches(observed.identity, old, request.platform)) {
     findings.push(
       finding("local_modification", `${path} was modified locally; restore, move, or delete it by hand, then retry`, {
@@ -452,11 +467,22 @@ export function planReconcile(
   transfers.sort(compareTransfers);
 
   if (findings.length > 0) {
-    return { request, selectionChanges: changes, operations: [], transfers: [], nextState: current, findings };
+    return {
+      request,
+      affectedModules: uniqueSorted(requested),
+      currentState: current,
+      selectionChanges: changes,
+      operations: [],
+      transfers: [],
+      nextState: current,
+      findings,
+    };
   }
 
   return {
     request,
+    affectedModules: uniqueSorted(requested),
+    currentState: current,
     selectionChanges: changes,
     operations,
     transfers,

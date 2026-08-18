@@ -2,18 +2,18 @@
   "schemaVersion": 1,
   "module": "deniz-dotnet-aspire",
   "version": "0.1.0",
-  "digest": "sha256:a0fc21f9f0465c4f4526d98cffc88f8641c4a03b06e8993bcc8ecdbbce49db2e",
+  "digest": "sha256:f69cc07a04a4627e84d384dea1b2477ed3ecd0c828169b65b4b3d59421877fed",
   "files": {
+    "skills/aspire/SKILL.md": {
+      "sha256": "sha256:479bab9a2bc04cfaa1be097e1311ea7122e1b20e4af485930987b87b72a7f105",
+      "mode": "100644"
+    },
     "skills/aspire/evals/eval.yaml": {
       "sha256": "sha256:56bd34f440138b3ef472a49f4fb24a304059f8f501882f3499f678038c678ca5",
       "mode": "100644"
     },
     "skills/aspire/references/aspire-13-3-breaking-changes.md": {
       "sha256": "sha256:a8000f1f07a32d234fe2b4e7ee2899985975933277e49c3d24faef4a395ac667",
-      "mode": "100644"
-    },
-    "skills/aspire/SKILL.md": {
-      "sha256": "sha256:479bab9a2bc04cfaa1be097e1311ea7122e1b20e4af485930987b87b72a7f105",
       "mode": "100644"
     }
   }

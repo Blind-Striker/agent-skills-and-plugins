@@ -284,13 +284,14 @@ test("a bundled manual command parks its body and points at the parked bundle", 
   const command = parseDoc(readFileSync(opencodeModulePath(root, "deniz-process", "commands", "beta.md"), "utf8"));
   // the stub keeps the installed spelling: Module directories are package layout only
   const expectedStub = [
-    "Read `skills/beta/BODY.md` from the active OpenCode configuration root before doing anything else.",
-    "For a project-local install, use `.opencode/skills/beta/BODY.md`; for a global install, use `~/.config/opencode/skills/beta/BODY.md`.",
+    "Resolve the global OpenCode configuration root as `$XDG_CONFIG_HOME/opencode` when `$XDG_CONFIG_HOME` is set; otherwise use `~/.config/opencode`.",
+    "Read `skills/beta/BODY.md` under that global root before doing anything else.",
     "Follow that file as this command's full instructions.",
     "",
     "Arguments: $ARGUMENTS",
   ].join("\n");
   assert.equal(command.body.trim(), expectedStub);
+  assert.doesNotMatch(command.body, /project-local|\.opencode\//);
   assert.doesNotMatch(
     command.body,
     /@(?:\.opencode|~\/\.config)/,
@@ -584,6 +585,61 @@ test("duplicate plugin.name values abort before deleting existing output", () =>
     /duplicate plugin\.name deniz-process.*curation\/deniz-process\.yaml.*curation\/other\.yaml/,
   );
   assert.ok(existsSync(alpha), "previous build output must survive a duplicate plugin.name");
+});
+
+test("cross-Module OpenCode destination collisions abort before deleting existing output", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const existing = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  const before = readFileSync(existing);
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n",
+  );
+
+  assert.throws(
+    () => buildAll(root),
+    /OpenCode destination skill:alpha.*deniz-(?:other.*deniz-process|process.*deniz-other)/i,
+  );
+  assert.equal(readFileSync(existing).equals(before), true, "previous generated output must survive rejected build");
+});
+
+test("own skills participate in cross-Module OpenCode destination preflight", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const existing = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  mkdirSync(join(root, "skills", "deniz-other", "alpha"), { recursive: true });
+  writeFileSync(join(root, "skills", "deniz-other", "alpha", "SKILL.md"), "---\nname: alpha\n---\nOther.\n");
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems: []\n",
+  );
+
+  assert.throws(() => buildAll(root), /OpenCode destination skill:alpha.*skills\/deniz-other\/alpha/i);
+  assert.ok(existsSync(existing), "previous generated output must survive rejected own-skill collision");
+});
+
+test("same OpenCode name in different artifact kinds remains legal across Modules", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-other",
+      "  description: Other",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/beta",
+      "    as: command",
+      "    name: alpha",
+      "",
+    ].join("\n"),
+  );
+
+  buildAll(root);
+
+  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md")));
+  assert.ok(existsSync(opencodeModulePath(root, "deniz-other", "commands", "alpha.md")));
 });
 
 test("the same output name in different artifact kinds builds both and keeps both ledger entries", () => {

@@ -216,6 +216,37 @@ Test-That "common.ps1 has no side effect at load" {
     if ($bad) { "top-level side effects: $($bad -join ', ')" } else { $true }
 }
 
+if ($SkipLab) {
+    Skip-That "Use-OpenCodeIsolation relocates TEMP and TMP" "-SkipLab"
+} else {
+    Test-That "Use-OpenCodeIsolation relocates TEMP and TMP" {
+        $saved = @{
+            USERPROFILE = $env:USERPROFILE
+            HOME = $env:HOME
+            XDG_CONFIG_HOME = $env:XDG_CONFIG_HOME
+            XDG_DATA_HOME = $env:XDG_DATA_HOME
+            TEMP = $env:TEMP
+            TMP = $env:TMP
+            OPENCODE_CONFIG_DIR = $env:OPENCODE_CONFIG_DIR
+        }
+        try {
+            $lab = Get-LabRoot
+            Use-OpenCodeIsolation
+            $expected = Join-Path $lab ".opencode-home\.tmp"
+            if ($env:TEMP -ne $expected) { return "TEMP was '$env:TEMP', expected '$expected'" }
+            if ($env:TMP -ne $expected) { return "TMP was '$env:TMP', expected '$expected'" }
+            if (-not (Test-Path $expected -PathType Container)) { return "temporary root was not created: $expected" }
+            $true
+        } finally {
+            foreach ($name in $saved.Keys) {
+                $value = $saved[$name]
+                if ($null -eq $value) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
+                else { Set-Item "Env:$name" $value }
+            }
+        }
+    }
+}
+
 Write-Host "`n=== OpenCode installer isolation ===" -ForegroundColor Cyan
 
 Test-That "installer Plan is zero-write in a throwaway XDG root" {

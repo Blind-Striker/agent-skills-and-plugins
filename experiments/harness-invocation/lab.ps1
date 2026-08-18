@@ -36,8 +36,8 @@ function Start-ClaudeLab {
 function Use-OpenCodeLab {
     <#  Isolated OpenCode. Harder than Claude: OPENCODE_CONFIG_DIR only ADDS a search
         location, so the real global config and package cache would still load. The
-        isolation is a relocated HOME + XDG roots, with the built tree mounted as the
-        global config. No `plugin:` key anywhere -> no package cache to outrank us.  #>
+        isolation is a relocated HOME + XDG roots; Sync-Lab uses installer composition
+        in that global config. No `plugin:` key anywhere -> no package cache to outrank us.  #>
     $env:USERPROFILE                        = "$LAB\.opencode-home"
     $env:HOME                               = "$LAB\.opencode-home"
     $env:XDG_CONFIG_HOME                    = "$LAB\.opencode-home\.config"

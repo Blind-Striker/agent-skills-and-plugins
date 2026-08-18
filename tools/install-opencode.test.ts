@@ -133,7 +133,7 @@ test("mutations print a plan and require --yes", async () => {
   assert.doesNotMatch(`${applied.stdout}${applied.stderr}`, new RegExp(escapeRegExp(fixture.io.packageRoot)));
 });
 
-test("repeated --yes install is idempotent and omits a no-op Selection section", async () => {
+test("repeated --yes install is idempotent and names the no-op Module", async () => {
   const fixture = makeCliFixture();
   const first = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
   assert.equal(first.exitCode, 0);
@@ -144,7 +144,8 @@ test("repeated --yes install is idempotent and omits a no-op Selection section",
 
   assert.equal(repeated.exitCode, 0);
   assert.match(repeated.stdout, /Plan: install/);
-  assert.doesNotMatch(repeated.stdout, /Selection:/);
+  assert.match(repeated.stdout, /Module: deniz-process/);
+  assert.match(repeated.stdout, /Selection: unchanged/);
   assert.match(repeated.stdout, /No changes\./);
   assert.equal(readFileSync(statePath).equals(before), true);
 });
@@ -183,7 +184,7 @@ test("update reconciles the whole Selection successfully", async () => {
   assert.equal(preview.exitCode, 0);
   assert.match(preview.stdout, /Plan: update/);
   assert.match(preview.stdout, /Replace:/);
-  assert.doesNotMatch(preview.stdout, /Selection:/);
+  assert.match(preview.stdout, /Selection: unchanged/);
   assert.equal(readFileSync(skill, "utf8"), "alpha skill\n");
 
   const applied = await runInstallCli(["update", "--yes"], fixture.io);
@@ -209,8 +210,8 @@ test("--all installs and removes every Module", async () => {
 
   const preview = await runInstallCli(["remove", "--all"], fixture.io);
   assert.equal(preview.exitCode, 0);
-  assert.match(preview.stdout, / {2}- deniz-dotnet-general/);
-  assert.match(preview.stdout, / {2}- deniz-process/);
+  assert.match(preview.stdout, /Module: deniz-dotnet-general[\s\S]*Selection: remove/);
+  assert.match(preview.stdout, /Module: deniz-process[\s\S]*Selection: remove/);
   assert.ok(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")));
 
   const removed = await runInstallCli(["remove", "--all", "--yes"], fixture.io);
@@ -234,6 +235,20 @@ test("unknown flags exit nonzero without mutation", async () => {
   assert.notEqual(result.exitCode, 0);
   assert.match(result.stderr, /unknown flag/);
   assert.equal(existsSync(fixture.destination), false);
+});
+
+test("an intermediate regular file is a preflight type mismatch and Apply never starts", async () => {
+  const fixture = makeCliFixture();
+  mkdirSync(fixture.destination, { recursive: true });
+  const blocker = join(fixture.destination, "skills");
+  writeFileSync(blocker, "blocking file\n");
+
+  const result = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+
+  assert.notEqual(result.exitCode, 0);
+  assert.match(result.stdout, /type_mismatch.*skills.*file/is);
+  assert.equal(readFileSync(blocker, "utf8"), "blocking file\n");
+  assert.equal(existsSync(join(fixture.destination, ".deniz-skills")), false);
 });
 
 test("update with no Selection is a finding and stays read-only", async () => {
@@ -406,10 +421,102 @@ test("status reports Selection, lock, and Recovery without creating a Destinatio
   assert.equal(existsSync(fixture.destination), false);
 });
 
+test("status refuses an install.json symlink without following its valid target", async (t) => {
+  const fixture = makeCliFixture();
+  const deniz = join(fixture.destination, ".deniz-skills");
+  mkdirSync(deniz, { recursive: true });
+  const target = join(dirname(fixture.destination), "outside-install.json");
+  writeFileSync(target, JSON.stringify({ schemaVersion: 1, modules: {}, files: {} }));
+  try {
+    symlinkSync(target, join(deniz, "install.json"), "file");
+  } catch (error) {
+    t.skip(`creating a file symlink is not permitted: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  const result = await runInstallCli(["status"], fixture.io);
+
+  assert.notEqual(result.exitCode, 0);
+  assert.match(`${result.stdout}${result.stderr}`, /install\.json.*ordinary file|symlink|junction/i);
+});
+
+test("status refuses a linked .deniz-skills metadata directory", async (t) => {
+  const fixture = makeCliFixture();
+  mkdirSync(fixture.destination, { recursive: true });
+  const target = join(dirname(fixture.destination), "outside-deniz");
+  mkdirSync(target, { recursive: true });
+  writeFileSync(join(target, "install.json"), JSON.stringify({ schemaVersion: 1, modules: {}, files: {} }));
+  const link = join(fixture.destination, ".deniz-skills");
+  try {
+    symlinkSync(target, link, process.platform === "win32" ? "junction" : "dir");
+  } catch (error) {
+    t.skip(`creating a directory link is not permitted: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  const result = await runInstallCli(["status"], fixture.io);
+
+  assert.notEqual(result.exitCode, 0);
+  assert.match(`${result.stdout}${result.stderr}`, /\.deniz-skills.*ordinary directory|symlink|junction/i);
+});
+
+test("status does not follow linked or non-file lock owner metadata", async (t) => {
+  const cases = ["link", "directory"] as const;
+  for (const kind of cases) {
+    const fixture = makeCliFixture();
+    const lock = join(fixture.destination, ".deniz-skills", "lock");
+    mkdirSync(lock, { recursive: true });
+    const owner = join(lock, "owner.json");
+    if (kind === "link") {
+      const target = join(dirname(fixture.destination), "outside-owner.json");
+      writeFileSync(
+        target,
+        JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString(), token: "outside" }),
+      );
+      try {
+        symlinkSync(target, owner, "file");
+      } catch (error) {
+        t.diagnostic(`linked-owner case skipped: ${error instanceof Error ? error.message : String(error)}`);
+        continue;
+      }
+    } else {
+      mkdirSync(owner);
+    }
+
+    const result = await runInstallCli(["status"], fixture.io);
+
+    assert.equal(result.exitCode, 0, `${kind}: ${result.stdout}${result.stderr}`);
+    assert.match(result.stdout, /Lock: abandoned/);
+    assert.doesNotMatch(result.stdout, /Lock: held/);
+  }
+});
+
+test("status reports active and stale lock acquire guards", async () => {
+  for (const [pid, expected] of [
+    [process.pid, "guard-active"],
+    [deadPid(), "guard-stale"],
+  ] as const) {
+    const fixture = makeCliFixture();
+    const guard = join(fixture.destination, ".deniz-skills", "lock.reclaim");
+    mkdirSync(guard, { recursive: true });
+    writeFileSync(
+      join(guard, "owner.json"),
+      `${JSON.stringify({ pid, startedAt: "2026-08-18T00:00:00.000Z", token: expected })}\n`,
+    );
+
+    const result = await runInstallCli(["status"], fixture.io);
+
+    assert.equal(result.exitCode, 0, `${expected}: ${result.stdout}${result.stderr}`);
+    assert.match(result.stdout, new RegExp(`Lock: ${expected}`));
+  }
+});
+
 test("renderPlan prints stable sections and omits package cache paths", () => {
   const identity = { sha256: hashBytes("new\n"), mode: "100644" as const };
   const plan: Plan = {
     request: { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
+    affectedModules: ["deniz-process", "deniz-dotnet-general"],
+    currentState: { schemaVersion: 1, modules: {}, files: {} },
     selectionChanges: { added: ["deniz-process"], removed: [] },
     operations: [
       {
@@ -430,13 +537,15 @@ test("renderPlan prints stable sections and omits package cache paths", () => {
   };
   const rendered = renderPlan(plan, join("/tmp", "opencode"));
   assert.match(rendered, /Plan: install/);
-  assert.match(rendered, /Selection:/);
-  assert.match(rendered, /Add:/);
-  assert.match(rendered, /Replace:/);
-  assert.match(rendered, /Mode:/);
-  assert.match(rendered, /Remove:/);
-  assert.match(rendered, /Drop missing claims:/);
-  assert.match(rendered, /Ownership transfers:/);
+  assert.match(rendered, /Module: deniz-process/);
+  assert.match(rendered, / {2}Selection: add/);
+  assert.match(rendered, / {2}State: unselected -> 0\.2\.0/);
+  assert.match(rendered, / {2}Add:/);
+  assert.match(rendered, / {2}Replace:/);
+  assert.match(rendered, / {2}Mode:/);
+  assert.match(rendered, / {2}Remove:/);
+  assert.match(rendered, / {2}Drop missing claims:/);
+  assert.match(rendered, / {2}Ownership transfers:/);
   assert.doesNotMatch(rendered, /[A-Za-z]:\\/);
   assert.doesNotMatch(rendered, /source-package|node_modules/);
 });
@@ -487,6 +596,8 @@ test("blocked Recovery on --yes is decided under the lock and does not Apply", a
 test("findings are rendered and block Apply", () => {
   const plan: Plan = {
     request: { kind: "remove", modules: ["deniz-process"], all: false, platform: "posix" },
+    affectedModules: ["deniz-process"],
+    currentState: stateWithOwnedCommand("deniz-process", "skills/alpha/SKILL.md", "alpha skill\n"),
     selectionChanges: { added: [], removed: ["deniz-process"] },
     operations: [],
     transfers: [],
@@ -503,6 +614,95 @@ test("findings are rendered and block Apply", () => {
   const rendered = renderPlan(plan, join("/tmp", "opencode"));
   assert.match(rendered, /Findings:/);
   assert.match(rendered, /local_modification/);
+});
+
+test("renderPlan shows state-only Windows changes instead of No changes", () => {
+  const path = "skills/alpha/run.sh";
+  const current = stateWithOwnedCommand("deniz-process", path, "script\n", "0.1.0", "100644");
+  const next = stateWithOwnedCommand("deniz-process", path, "script\n", "0.2.0", "100755");
+  const plan: Plan = {
+    request: { kind: "update", modules: [], all: false, platform: "windows" },
+    affectedModules: ["deniz-process"],
+    currentState: current,
+    selectionChanges: { added: [], removed: [] },
+    operations: [],
+    transfers: [],
+    nextState: next,
+    findings: [],
+  };
+
+  const rendered = renderPlan(plan, join("/tmp", "opencode"));
+
+  assert.match(rendered, /Module: deniz-process/);
+  assert.match(rendered, /State: 0\.1\.0 .* -> 0\.2\.0 /);
+  assert.doesNotMatch(rendered, /No changes\./);
+});
+
+test("renderPlan groups deterministic paths by Module and names current no-op Modules", () => {
+  const alpha = stateWithOwnedCommand("deniz-alpha", "commands/z.md", "z\n");
+  const zeta = stateWithOwnedCommand("deniz-zeta", "commands/a.md", "a\n");
+  const current: InstallState = {
+    schemaVersion: 1,
+    modules: { ...zeta.modules, ...alpha.modules },
+    files: { ...zeta.files, ...alpha.files },
+  };
+  const identity = { sha256: hashBytes("next\n"), mode: "100644" as const };
+  const next: InstallState = {
+    schemaVersion: 1,
+    modules: current.modules,
+    files: current.files,
+  };
+  const plan: Plan = {
+    request: { kind: "update", modules: [], all: false, platform: "posix" },
+    affectedModules: ["deniz-alpha", "deniz-zeta"],
+    currentState: current,
+    selectionChanges: { added: [], removed: [] },
+    operations: [
+      { kind: "replace", path: "commands/z.md", module: "deniz-alpha", source: "commands/z.md", identity },
+      { kind: "replace", path: "commands/a.md", module: "deniz-alpha", source: "commands/a.md", identity },
+    ],
+    transfers: [],
+    nextState: next,
+    findings: [],
+  };
+
+  const rendered = renderPlan(plan, join("/tmp", "opencode"));
+  const alphaIndex = rendered.indexOf("Module: deniz-alpha");
+  const zetaIndex = rendered.indexOf("Module: deniz-zeta");
+  const aIndex = rendered.indexOf("commands/a.md");
+  const zIndex = rendered.indexOf("commands/z.md");
+
+  assert.ok(alphaIndex >= 0 && alphaIndex < zetaIndex, "Modules use ordinal order");
+  assert.ok(
+    aIndex > alphaIndex && aIndex < zIndex && zIndex < zetaIndex,
+    "paths stay inside their Module in ordinal order",
+  );
+  assert.match(rendered.slice(zetaIndex), /No changes\./);
+});
+
+test("renderPlan omits selected Modules unaffected by a targeted install", () => {
+  const unrelated = stateWithOwnedCommand("deniz-unrelated", "commands/u.md", "u\n");
+  const installed = stateWithOwnedCommand("deniz-process", "commands/p.md", "p\n", "0.2.0");
+  const next: InstallState = {
+    schemaVersion: 1,
+    modules: { ...unrelated.modules, ...installed.modules },
+    files: { ...unrelated.files, ...installed.files },
+  };
+  const plan: Plan = {
+    request: { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
+    affectedModules: ["deniz-process"],
+    currentState: unrelated,
+    selectionChanges: { added: ["deniz-process"], removed: [] },
+    operations: [],
+    transfers: [],
+    nextState: next,
+    findings: [],
+  };
+
+  const rendered = renderPlan(plan, join("/tmp", "opencode"));
+
+  assert.match(rendered, /Module: deniz-process/);
+  assert.doesNotMatch(rendered, /Module: deniz-unrelated/);
 });
 
 function deadPid(): number {
@@ -580,6 +780,7 @@ const DIST_FILES = [
   "dist/lib/opencode-install-state.js",
   "dist/lib/opencode-install-plan.js",
   "dist/lib/opencode-install-apply.js",
+  "dist/lib/order.js",
 ];
 
 function repoRoot(): string {

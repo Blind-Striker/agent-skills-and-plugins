@@ -39,7 +39,7 @@ each one refuses to run while a submodule directory is still empty.
 
 | Command | Purpose |
 |---|---|
-| `npm run build` | Compile manifests + overlays + own skills into `plugins/` and `opencode/` |
+| `npm run build` | Compile manifests + overlays + own skills into committed `plugins/`, `opencode/`, and installer `dist/` output |
 | `npm run inventory` | Regenerate `docs/inventory.md` catalog |
 | `npm run eject -- <plugin> <name>` | Copy an item to `overlays/` for body editing |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |

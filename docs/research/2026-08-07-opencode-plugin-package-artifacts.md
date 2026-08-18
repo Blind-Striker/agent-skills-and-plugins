@@ -5,8 +5,8 @@ Date: 2026-08-18
 ## Question and scope
 
 Why can a Git-backed package such as Superpowers expose skills from OpenCode's package cache while
-this repository stages its generated `opencode/` tree into an OpenCode configuration directory? Can
-one repository URL expose skills, commands, and agents, and can a monorepo install those artifacts a
+this repository ships per-Module Bundles and composes selected Modules through its installer? Can one
+repository URL expose skills, commands, and agents, and can a monorepo install those artifacts a
 module at a time?
 
 The package, plugin, discovery, and installer paths below were rechecked against OpenCode v1.18.18,

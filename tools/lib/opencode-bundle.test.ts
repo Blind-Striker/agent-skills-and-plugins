@@ -8,6 +8,7 @@ import { indexModes } from "./git.ts";
 import {
   createModuleManifest,
   digestFileMap,
+  hashBytes,
   loadModuleBundles,
   loadModuleManifest,
   verifyModuleManifest,
@@ -21,6 +22,21 @@ test("module digest is stable over sorted path, hash, and mode", () => {
   };
   const reversed = Object.fromEntries(Object.entries(files).reverse());
   assert.equal(digestFileMap(files), digestFileMap(reversed));
+});
+
+test("module digest uses ordinal path ordering instead of the host locale", () => {
+  const upper = { sha256: `sha256:${"a".repeat(64)}` as const, mode: "100644" as const };
+  const lower = { sha256: `sha256:${"b".repeat(64)}` as const, mode: "100755" as const };
+  const files = {
+    "commands/a.md": lower,
+    "commands/Z.md": upper,
+  };
+  const expectedPayload = [
+    `commands/Z.md\0${upper.sha256}\0${upper.mode}\n`,
+    `commands/a.md\0${lower.sha256}\0${lower.mode}\n`,
+  ].join("");
+
+  assert.equal(digestFileMap(files), hashBytes(expectedPayload));
 });
 
 test("manifest hashes raw bytes and verification reports tamper and extras", () => {

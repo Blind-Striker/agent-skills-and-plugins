@@ -1,6 +1,7 @@
 import { lstatSync, readFileSync, type Stats } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { hashBytes, type FileIdentity, type FileMode, type Sha256 } from "./opencode-bundle.ts";
+import { ordinalCompare } from "./order.ts";
 
 export interface ModuleState {
   version: string;
@@ -27,7 +28,8 @@ export type ObservedPath =
   | { kind: "absent" }
   | { kind: "file"; identity: FileIdentity }
   | { kind: "directory" }
-  | { kind: "link" };
+  | { kind: "link" }
+  | { kind: "blocked"; path: string; actual: "file" | "special" };
 
 export interface ParseInstallStateOptions {
   caseInsensitive?: boolean;
@@ -186,7 +188,7 @@ function validateInstallState(value: unknown, caseInsensitive: boolean): string 
 }
 
 function sortedRecord<T>(record: Record<string, T>): Record<string, T> {
-  return Object.fromEntries(Object.entries(record).sort(([left], [right]) => left.localeCompare(right))) as Record<
+  return Object.fromEntries(Object.entries(record).sort(([left], [right]) => ordinalCompare(left, right))) as Record<
     string,
     T
   >;
@@ -436,9 +438,26 @@ export function stateDigest(state: InstallState): Sha256 {
 }
 
 export function loadInstallState(destination: string, options: ParseInstallStateOptions = {}): InstallState {
-  const path = join(destination, ".deniz-skills", "install.json");
+  const root = validateDestinationRoot(destination);
+  const metadata = join(root, ".deniz-skills");
   try {
-    lstatSync(path);
+    const stat = lstatSync(metadata);
+    if (isLinkLike(stat) || !stat.isDirectory()) {
+      throw new Error(`${metadata}: .deniz-skills must be an ordinary directory without links`);
+    }
+  } catch (error) {
+    if (isENOENT(error)) {
+      return EMPTY_INSTALL_STATE;
+    }
+    throw error;
+  }
+
+  const path = join(metadata, "install.json");
+  try {
+    const stat = lstatSync(path);
+    if (isLinkLike(stat) || !stat.isFile()) {
+      throw new Error(`${path}: Install state must be an ordinary file without links`);
+    }
   } catch (error) {
     if (isENOENT(error)) {
       return EMPTY_INSTALL_STATE;
@@ -568,7 +587,11 @@ export function observePath(destination: string, path: string): ObservedPath {
     }
     if (index < parts.length - 1) {
       if (!stat.isDirectory()) {
-        return { kind: "absent" };
+        return {
+          kind: "blocked",
+          path: parts.slice(0, index + 1).join("/"),
+          actual: stat.isFile() ? "file" : "special",
+        };
       }
       continue;
     }

@@ -7,9 +7,10 @@ import { loadModuleBundles, verifyModuleManifest } from "./lib/opencode-bundle.j
 import { acquireInstallerLock, applyPlan, applyRecovery, inspectRecovery } from "./lib/opencode-install-apply.js";
 import { planReconcile } from "./lib/opencode-install-plan.js";
 import { loadInstallState, observePath, resolveDestination } from "./lib/opencode-install-state.js";
+import { ordinalCompare } from "./lib/order.js";
 const ACTIONS = new Set(["install", "update", "remove", "status"]);
 function uniqueSorted(names) {
-  return [...new Set(names)].sort((left, right) => left.localeCompare(right));
+  return [...new Set(names)].sort(ordinalCompare);
 }
 function defaultIo() {
   return {
@@ -116,65 +117,87 @@ function appendSection(lines, title, entries) {
   }
   lines.push("", title, ...entries);
 }
-function selectionLines(plan) {
-  const added = uniqueSorted(plan.selectionChanges.added).map((name) => {
-    const moduleState = plan.nextState.modules[name];
-    return moduleState === undefined ? `  + ${name}` : `  + ${name} ${moduleState.version}`;
-  });
-  const removed = uniqueSorted(plan.selectionChanges.removed).map((name) => `  - ${name}`);
-  return [...added, ...removed];
+function moduleStateLabel(state, name) {
+  const moduleState = state.modules[name];
+  return moduleState ? `${moduleState.version} ${moduleState.digest}` : "unselected";
+}
+function moduleSnapshot(state, name) {
+  const moduleState = state.modules[name] ?? null;
+  const files = Object.entries(state.files)
+    .filter(([, owned]) => owned.module === name)
+    .sort(([left], [right]) => ordinalCompare(left, right));
+  return JSON.stringify({ moduleState, files });
+}
+function moduleNamesForPlan(plan) {
+  const names = new Set(plan.affectedModules);
+  for (const operation of plan.operations) {
+    names.add(operation.module);
+  }
+  for (const transfer of plan.transfers) {
+    names.add(transfer.fromModule);
+    names.add(transfer.toModule);
+  }
+  for (const finding of plan.findings) {
+    if (finding.module) {
+      names.add(finding.module);
+    }
+  }
+  return [...names].sort(ordinalCompare);
+}
+function appendModuleSection(lines, title, entries) {
+  if (entries.length > 0) {
+    lines.push(`  ${title}:`, ...entries.map((entry) => `    ${entry}`));
+  }
 }
 export function renderPlan(plan, destination) {
   const lines = [`Plan: ${plan.request.kind}`, `Destination: ${destination}`];
-  appendSection(lines, "Selection:", selectionLines(plan));
-  appendSection(
-    lines,
-    "Add:",
-    plan.operations
-      .filter((operation) => operation.kind === "add")
-      .map((operation) => `  ${operation.path} (${operation.module})`),
-  );
-  appendSection(
-    lines,
-    "Replace:",
-    plan.operations
-      .filter((operation) => operation.kind === "replace")
-      .map((operation) => `  ${operation.path} (${operation.module})`),
-  );
-  appendSection(
-    lines,
-    "Mode:",
-    plan.operations
-      .filter((operation) => operation.kind === "chmod")
-      .map((operation) => `  ${operation.path} ${operation.from} -> ${operation.to} (${operation.module})`),
-  );
-  appendSection(
-    lines,
-    "Remove:",
-    plan.operations
-      .filter((operation) => operation.kind === "remove")
-      .map((operation) => `  ${operation.path} (${operation.module})`),
-  );
-  appendSection(
-    lines,
-    "Drop missing claims:",
-    plan.operations
-      .filter((operation) => operation.kind === "drop-missing-claim")
-      .map((operation) => `  ${operation.path} (${operation.module})`),
-  );
-  appendSection(
-    lines,
-    "Ownership transfers:",
-    plan.transfers.map((transfer) => `  ${transfer.path} ${transfer.fromModule} -> ${transfer.toModule}`),
-  );
-  if (plan.findings.length > 0) {
+  const moduleNames = moduleNamesForPlan(plan);
+  for (const name of moduleNames) {
+    lines.push("", `Module: ${name}`);
+    const wasSelected = Object.hasOwn(plan.currentState.modules, name);
+    const willBeSelected = Object.hasOwn(plan.nextState.modules, name);
+    const selection = !wasSelected && willBeSelected ? "add" : wasSelected && !willBeSelected ? "remove" : "unchanged";
+    lines.push(`  Selection: ${selection}`);
+    const oldState = moduleStateLabel(plan.currentState, name);
+    const newState = moduleStateLabel(plan.nextState, name);
+    lines.push(`  State: ${oldState === newState ? oldState : `${oldState} -> ${newState}`}`);
+    const operations = plan.operations.filter((operation) => operation.module === name);
+    const operationPaths = (kind) =>
+      operations
+        .filter((operation) => operation.kind === kind)
+        .sort((left, right) => ordinalCompare(left.path, right.path))
+        .map((operation) => operation.path);
+    appendModuleSection(lines, "Add", operationPaths("add"));
+    appendModuleSection(lines, "Replace", operationPaths("replace"));
+    appendModuleSection(
+      lines,
+      "Mode",
+      operations
+        .filter((operation) => operation.kind === "chmod")
+        .sort((left, right) => ordinalCompare(left.path, right.path))
+        .map((operation) => `${operation.path} ${operation.from} -> ${operation.to}`),
+    );
+    appendModuleSection(lines, "Remove", operationPaths("remove"));
+    appendModuleSection(lines, "Drop missing claims", operationPaths("drop-missing-claim"));
+    const transfers = plan.transfers
+      .filter((transfer) => transfer.fromModule === name || transfer.toModule === name)
+      .sort((left, right) => ordinalCompare(left.path, right.path))
+      .map((transfer) => `${transfer.path} ${transfer.fromModule} -> ${transfer.toModule}`);
+    appendModuleSection(lines, "Ownership transfers", transfers);
+    const findings = plan.findings.filter((finding) => finding.module === name).map(formatFinding);
+    appendModuleSection(lines, "Findings", findings);
+    const stateChanged = moduleSnapshot(plan.currentState, name) !== moduleSnapshot(plan.nextState, name);
+    if (!stateChanged && operations.length === 0 && transfers.length === 0 && findings.length === 0) {
+      lines.push("  No changes.");
+    }
+  }
+  const globalFindings = plan.findings.filter((finding) => finding.module === undefined);
+  if (globalFindings.length > 0) {
     appendSection(
       lines,
       "Findings:",
-      plan.findings.map((finding) => `  ${formatFinding(finding)}`),
+      globalFindings.map((finding) => `  ${formatFinding(finding)}`),
     );
-  } else if (plan.operations.length === 0 && plan.transfers.length === 0) {
-    lines.push("", "No changes.");
   }
   return `${lines.join("\n")}\n`;
 }
@@ -227,7 +250,7 @@ function observeRequiredPaths(destination, current, manifests) {
     }
   }
   const observed = Object.create(null);
-  for (const path of [...paths].sort((left, right) => left.localeCompare(right))) {
+  for (const path of [...paths].sort(ordinalCompare)) {
     observed[path] = observePath(destination, path);
   }
   return observed;
@@ -236,7 +259,7 @@ function loadVerifiedBundles(packageRoot, platform) {
   const bundles = loadModuleBundles(join(packageRoot, "opencode"));
   const manifests = Object.create(null);
   const findings = [];
-  for (const name of [...bundles.keys()].sort((left, right) => left.localeCompare(right))) {
+  for (const name of [...bundles.keys()].sort(ordinalCompare)) {
     const bundle = bundles.get(name);
     if (bundle === undefined) {
       continue;
@@ -258,7 +281,39 @@ function requestFrom(args, platform) {
     platform,
   };
 }
+function ownerDirectoryStatus(path) {
+  try {
+    const stat = lstatSync(path);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      return "stale";
+    }
+    const ownerPath = join(path, "owner.json");
+    const ownerStat = lstatSync(ownerPath);
+    if (ownerStat.isSymbolicLink() || !ownerStat.isFile()) {
+      return "stale";
+    }
+    const raw = JSON.parse(readFileSync(ownerPath, "utf8"));
+    if (typeof raw !== "object" || raw === null || !("pid" in raw) || typeof raw.pid !== "number") {
+      return "stale";
+    }
+    try {
+      process.kill(raw.pid, 0);
+      return "active";
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "EPERM") {
+        return "active";
+      }
+      return "stale";
+    }
+  } catch {
+    return "stale";
+  }
+}
 function lockStatus(destination) {
+  const guardPath = join(destination, ".deniz-skills", "lock.reclaim");
+  if (pathExists(guardPath)) {
+    return ownerDirectoryStatus(guardPath) === "active" ? "guard-active" : "guard-stale";
+  }
   const lockPath = join(destination, ".deniz-skills", "lock");
   try {
     const stat = lstatSync(lockPath);
@@ -268,23 +323,7 @@ function lockStatus(destination) {
   } catch {
     return "none";
   }
-  try {
-    const raw = JSON.parse(readFileSync(join(lockPath, "owner.json"), "utf8"));
-    if (typeof raw !== "object" || raw === null || !("pid" in raw) || typeof raw.pid !== "number") {
-      return "abandoned";
-    }
-    try {
-      process.kill(raw.pid, 0);
-      return "held";
-    } catch (error) {
-      if (error instanceof Error && "code" in error && error.code === "EPERM") {
-        return "held";
-      }
-      return "abandoned";
-    }
-  } catch {
-    return "abandoned";
-  }
+  return ownerDirectoryStatus(lockPath) === "active" ? "held" : "abandoned";
 }
 function runStatus(destination, loaded, platform) {
   const recovery = inspectRecovery(destination);

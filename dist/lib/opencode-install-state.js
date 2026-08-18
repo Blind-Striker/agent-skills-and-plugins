@@ -1,6 +1,7 @@
 import { lstatSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
 import { hashBytes } from "./opencode-bundle.js";
+import { ordinalCompare } from "./order.js";
 export const EMPTY_INSTALL_STATE = Object.freeze({
   schemaVersion: 1,
   modules: Object.freeze({}),
@@ -144,7 +145,7 @@ function validateInstallState(value, caseInsensitive) {
   return null;
 }
 function sortedRecord(record) {
-  return Object.fromEntries(Object.entries(record).sort(([left], [right]) => left.localeCompare(right)));
+  return Object.fromEntries(Object.entries(record).sort(([left], [right]) => ordinalCompare(left, right)));
 }
 function normalizeState(state) {
   const modules = Object.create(null);
@@ -377,9 +378,25 @@ export function stateDigest(state) {
   return hashBytes(serializeInstallState(state));
 }
 export function loadInstallState(destination, options = {}) {
-  const path = join(destination, ".deniz-skills", "install.json");
+  const root = validateDestinationRoot(destination);
+  const metadata = join(root, ".deniz-skills");
   try {
-    lstatSync(path);
+    const stat = lstatSync(metadata);
+    if (isLinkLike(stat) || !stat.isDirectory()) {
+      throw new Error(`${metadata}: .deniz-skills must be an ordinary directory without links`);
+    }
+  } catch (error) {
+    if (isENOENT(error)) {
+      return EMPTY_INSTALL_STATE;
+    }
+    throw error;
+  }
+  const path = join(metadata, "install.json");
+  try {
+    const stat = lstatSync(path);
+    if (isLinkLike(stat) || !stat.isFile()) {
+      throw new Error(`${path}: Install state must be an ordinary file without links`);
+    }
   } catch (error) {
     if (isENOENT(error)) {
       return EMPTY_INSTALL_STATE;
@@ -500,7 +517,11 @@ export function observePath(destination, path) {
     }
     if (index < parts.length - 1) {
       if (!stat.isDirectory()) {
-        return { kind: "absent" };
+        return {
+          kind: "blocked",
+          path: parts.slice(0, index + 1).join("/"),
+          actual: stat.isFile() ? "file" : "special",
+        };
       }
       continue;
     }

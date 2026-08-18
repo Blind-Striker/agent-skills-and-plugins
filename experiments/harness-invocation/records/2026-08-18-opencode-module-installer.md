@@ -1,14 +1,14 @@
 ---
 record_id: opencode-module-installer-local-pack-2026-08-18
 date: 2026-08-18
-repo_head: f1277ed615b739d954003047a492e2dfc839fdd7
+repo_head: fa600b9b6b9df0f24e6dd800a8070639d8b6e722
 kind: runtime-smoke
-summary: The local packed installer planned without Destination writes, installed all four Modules into an isolated Windows XDG Native tree, and matched OpenCode discovery; Release and human permission observations remain unmeasured.
+summary: The final local packed installer planned without Destination writes, installed all four Modules into an isolated Windows XDG Native tree, remained idempotent, and matched OpenCode discovery; Release and human permission observations remain unmeasured.
 isolation_ok: true
 harness_name: OpenCode
 harness_version: 1.18.18
 package_name: deniz-agent-skills-0.1.0.tgz
-package_sha256: 3eca19418b5f516500008219a4b7eb71230456a8b1d567911002d62fc9fd1eb0
+package_sha256: 69532caf101f5626ea652cdb7e1046783b3d64fe79613e4d59f21e95eccb9460
 transport: local-pack
 ---
 
@@ -22,30 +22,29 @@ This record covers only free, local measurements: the PowerShell subsystem selft
 real-profile Apply, GitHub Release creation/upload, or Release download was used.
 
 `repo_head` is the committed implementation base at measurement time. The measurement worktree also
-contained the Task 9 integration tests, Plan-rendering correction, experiment updates, documentation,
-and freshly rebuilt generated output that this record accompanies. The package SHA-256 above pins the
-exact measured tarball bytes.
+contained the final review fixes, regression tests, experiment updates, documentation, and freshly
+rebuilt generated output that this record accompanies. The package SHA-256 above pins the exact
+measured tarball bytes.
 
 ## Isolation
 
-The package, profile, npm cache, OpenCode config/data/cache/state, and temporary directory lived
-under one fresh `<external-lab>/installer-local` tree outside the repository and real user profile.
-The run set `HOME`, `USERPROFILE`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `TEMP`, `TMP`, and
-`npm_config_cache` below that tree, disabled compatibility discovery from Claude Code, and removed
+The measured package copy, profile, npm cache, OpenCode config/data/cache/state, and temporary
+directory lived under one fresh `<external-lab>/installer-local` tree outside the repository and real
+user profile. The exact final artifact was first packed into the approved temporary release directory,
+then copied byte-for-byte into `<isolated-profile>/package` for the run. The run set `HOME`,
+`USERPROFILE`, `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `TEMP`, `TMP`, and `npm_config_cache` below the
+isolated profile, disabled compatibility discovery from Claude Code, and removed
 `OPENCODE_CONFIG_DIR` from the environment. The working directory was the lab's empty project.
-
-An initial path diagnostic, before `TEMP` and `TMP` were relocated, correctly found OpenCode's
-reported temporary root outside the lab. No isolation claim was taken from that attempt. The protocol
-was corrected, the diagnostic was rerun, and all nine reported roots then resolved below
-`<isolated-profile>`.
 
 ## Commands run
 
 ```text
 pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1
 npm run build
-npm pack <repo> --json --pack-destination <isolated-profile>/package
+npm pack --json --pack-destination <approved-temporary-release-directory>
+Copy-Item <final-package.tgz> <isolated-profile>/package/deniz-agent-skills-0.1.0.tgz
 npm exec --yes --package <package.tgz> -- deniz-skills install --all
+npm exec --yes --package <package.tgz> -- deniz-skills install --all --yes
 npm exec --yes --package <package.tgz> -- deniz-skills install --all --yes
 npm exec --yes --package <package.tgz> -- deniz-skills status
 opencode --version
@@ -60,17 +59,17 @@ global config root.
 
 ## Package and Selection
 
-- Package size: 686,587 bytes.
-- Package SHA-256: `3eca19418b5f516500008219a4b7eb71230456a8b1d567911002d62fc9fd1eb0`.
-- Install-state SHA-256: `9a54498476e078ab00684217c41fc448fbc20431de8e6a3adf0123cc8ae1d8a8`.
+- Package size: 688,609 bytes.
+- Package SHA-256: `69532caf101f5626ea652cdb7e1046783b3d64fe79613e4d59f21e95eccb9460`.
+- Install-state SHA-256: `85d5992c94a1ad6388edcc74f9beb1476cbc5cf012545dbbfe7ed64fd6bd5e9d`.
 - Owned Native-tree files: 238.
 
 | Module | version | Module digest | status |
 |---|---|---|---|
-| `deniz-dotnet-akka` | `0.1.0` | `sha256:62a23e77e1db501cd833791f44c1e901715a8f92b127646be2946c29ec2b9f2a` | current |
-| `deniz-dotnet-aspire` | `0.1.0` | `sha256:a0fc21f9f0465c4f4526d98cffc88f8641c4a03b06e8993bcc8ecdbbce49db2e` | current |
-| `deniz-dotnet-general` | `0.2.0` | `sha256:41509daee39199248aefefcb711ddd6317a971ff6d7f9b512b85750a8bc2cf53` | current |
-| `deniz-process` | `0.2.0` | `sha256:0c986fcab085a876f80541382198764aa7858298612d8490ecf6ed6e90267593` | current |
+| `deniz-dotnet-akka` | `0.1.0` | `sha256:0fa6792f82d306f57883b6b84c17eea41097c2f2729c7da329c619923bb34feb` | current |
+| `deniz-dotnet-aspire` | `0.1.0` | `sha256:f69cc07a04a4627e84d384dea1b2477ed3ecd0c828169b65b4b3d59421877fed` | current |
+| `deniz-dotnet-general` | `0.2.0` | `sha256:607d4b4652f94552446f830f2823e7e0aca188b51da0c85e90893c65e84dd258` | current |
+| `deniz-process` | `0.2.0` | `sha256:dcd6528402adff11326be2c535b7874a6b3bbd0bae6a7328222b9714a5fc642f` | current |
 
 Status also reported `Lock: none` and `Recovery: none` before and after OpenCode introspection.
 
@@ -81,6 +80,7 @@ Status also reported `Lock: none` and `Recovery: none` before and after OpenCode
 | Full isolated subsystem selftest | Plan zero-write, Apply allowlist, config-dir refusal, lab resolution, and all matrix dry runs completed | pass |
 | Packed Plan is zero-write at the Destination | exit 0; npm populated only its isolated cache; Destination remained absent | pass |
 | Packed Apply installs all Modules | exit 0; four selected Modules and 238 Ownership claims | pass |
+| Repeated packed Apply is idempotent | exit 0; every Module rendered `No changes`; Install-state bytes remained unchanged | pass |
 | Checkout `Sync-Lab` uses installer composition | 84 skill directories, 33 commands, 1 agent | pass |
 | Native-tree shape | 84 skill directories: 73 with `SKILL.md`, 11 BODY-only parked; 33 command files; 1 agent file | pass |
 | Native tree contains no filesystem-visible link or junction | zero link-like descendants observed | pass |
@@ -90,7 +90,7 @@ Status also reported `Lock: none` and `Recovery: none` before and after OpenCode
 | `debug config` matches installed commands | 33 expected, 33 resolved, zero name diff | pass |
 | `debug config` matches installed custom agent | exactly `roslyn-incremental-generator-specialist` | pass |
 | Runtime package adapter remains absent | resolved `plugin` count 0 | pass |
-| Windows roots are isolated | all nine `debug paths` roots below `<isolated-profile>` after `TEMP`/`TMP` correction | pass |
+| Windows roots are isolated | all nine `debug paths` roots below `<isolated-profile>` | pass |
 | npm materialization is isolated | `npm config get cache` equaled `<isolated-profile>/.npm-cache` | pass |
 | OpenCode support files coexist with Install state | OpenCode added `.gitignore` and `opencode.jsonc`; subsequent installer status remained current | pass |
 

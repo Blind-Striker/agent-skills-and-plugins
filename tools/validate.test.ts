@@ -104,18 +104,13 @@ test("known prose address does not produce an unknown namespace warning", () => 
 
 // Two plugins can each curate the same upstream skill without either manifest looking wrong, but
 // Claude Code addresses a skill by name alone, so only one of the two would ever be reachable.
-test("duplicate output name across plugins is an error", () => {
+test("duplicate output name across plugins is rejected by build preflight", () => {
   const root = makeRepo();
   writeFileSync(
     join(root, "curation", "deniz-other.yaml"),
     "plugin:\n  name: deniz-other\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n",
   );
-  buildAll(root);
-  const findings = validateRepo(root);
-  assert.ok(
-    findings.some((f) => f.level === "error" && f.message.includes("duplicate skill name across plugins: alpha")),
-    `expected a duplicate-name error, got ${JSON.stringify(findings, null, 2)}`,
-  );
+  assert.throws(() => buildAll(root), /duplicate OpenCode destination skill:alpha/);
 });
 
 test("duplicate output identity within one plugin is an error", () => {
@@ -551,19 +546,14 @@ test("linker: a parked manual BODY naming a missing parked file is an error", ()
   );
 });
 
-test("linker: an own skill colliding with a curated item in the same plugin is an error", () => {
+test("an own skill colliding with a curated item is rejected by build preflight", () => {
   const root = makeRepo();
   mkdirSync(join(root, "skills", "deniz-process", "alpha"), { recursive: true });
   writeFileSync(
     join(root, "skills", "deniz-process", "alpha", "SKILL.md"),
     "---\nname: alpha\ndescription: own\n---\nOwn.\n",
   );
-  buildAll(root);
-  const findings = validateRepo(root);
-  assert.ok(
-    findings.some((f) => f.level === "error" && f.message.includes("own skill") && f.message.includes("alpha")),
-    JSON.stringify(findings, null, 2),
-  );
+  assert.throws(() => buildAll(root), /duplicate OpenCode destination skill:alpha.*skills\/deniz-process\/alpha/);
 });
 
 test("provenance: a name or a date in a manifest comment is an error; a description keeps its branding", () => {

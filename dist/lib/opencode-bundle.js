@@ -1,19 +1,20 @@
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
+import { ordinalCompare } from "./order.js";
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 export function hashBytes(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 export function digestFileMap(files) {
   const payload = Object.entries(files)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => ordinalCompare(a, b))
     .map(([path, identity]) => `${path}\0${identity.sha256}\0${identity.mode}\n`)
     .join("");
   return hashBytes(payload);
 }
 function* walkTree(root, dir = root) {
-  const names = readdirSync(dir).sort((a, b) => a.localeCompare(b));
+  const names = readdirSync(dir).sort(ordinalCompare);
   for (const name of names) {
     const path = join(dir, name);
     const stat = lstatSync(path);
@@ -50,7 +51,7 @@ function relativePathError(path) {
   return null;
 }
 function sortedFileMap(files) {
-  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => a.localeCompare(b)));
+  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => ordinalCompare(a, b)));
 }
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -184,7 +185,7 @@ function aliases(paths) {
 }
 function appendAliasFindings(findings, paths) {
   for (const group of [...paths.values()].filter((value) => value.length > 1)) {
-    const sorted = [...group].sort((a, b) => a.localeCompare(b));
+    const sorted = [...group].sort(ordinalCompare);
     const first = sorted[0];
     if (!first) {
       continue;
@@ -284,7 +285,7 @@ export function verifyModuleManifest(root, manifest, options = {}) {
 }
 export function loadModuleBundles(opencodeRoot) {
   const bundles = new Map();
-  const entries = readdirSync(opencodeRoot, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+  const entries = readdirSync(opencodeRoot, { withFileTypes: true }).sort((a, b) => ordinalCompare(a.name, b.name));
   for (const entry of entries) {
     if (!entry.isDirectory()) {
       continue;

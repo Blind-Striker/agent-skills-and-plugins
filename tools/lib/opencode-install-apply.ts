@@ -28,6 +28,7 @@ import {
   validateManagedPath,
   type InstallState,
 } from "./opencode-install-state.ts";
+import { ordinalCompare } from "./order.ts";
 
 export interface InstallerLock {
   path: string;
@@ -36,7 +37,12 @@ export interface InstallerLock {
 }
 
 export type ApplyPhase = "after-backup" | "after-place" | "after-state-commit";
-export type CrashPoint = ApplyPhase | "after-state-aside";
+export type CrashPoint =
+  | ApplyPhase
+  | "after-state-aside"
+  | "during-transaction-candidate"
+  | "before-initial-staging"
+  | "during-initial-staging";
 export type SyscallName = "backup" | "place" | "chmod" | "state-aside" | "state-commit";
 
 export interface ApplyIo {
@@ -44,6 +50,7 @@ export interface ApplyIo {
   rmSync?(path: string): void;
   beforeReclaimRename?: () => void;
   beforeAcquireRename?: (candidate: string, lockPath: string) => void;
+  beforeAcquireGuardRename?: (candidate: string, guardPath: string) => void;
 }
 
 export interface ApplyOptions {
@@ -86,6 +93,7 @@ export interface TransactionJournal {
   phase: "prepared" | "files-placed" | "state-committed";
   applied: AppliedMutation[];
   createdDirectories: string[];
+  pruneCandidates: string[];
   stateAside: boolean;
   intent?: JournalIntent;
 }
@@ -112,6 +120,7 @@ const JOURNAL_KEYS = new Set([
   "oldStateDigest",
   "operations",
   "phase",
+  "pruneCandidates",
   "schemaVersion",
   "stateAside",
   "transactionId",
@@ -131,10 +140,6 @@ function isFileMode(value: unknown): value is FileMode {
 
 function isENOENT(error: unknown): boolean {
   return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
-}
-
-function isEEXIST(error: unknown): boolean {
-  return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "EEXIST";
 }
 
 function isEPERM(error: unknown): boolean {
@@ -307,10 +312,6 @@ function lockDirectory(destination: string): string {
   return join(validateDestinationRoot(destination), ".deniz-skills", "lock");
 }
 
-function reclaimGuardPath(destination: string): string {
-  return join(validateDestinationRoot(destination), ".deniz-skills", "lock.reclaim");
-}
-
 function removeTree(path: string, io?: ApplyIo): void {
   if (io?.rmSync) {
     io.rmSync(path);
@@ -368,8 +369,107 @@ function createHeldLock(lockPath: string, token: string, io?: ApplyIo): Installe
 
 function cleanCandidateDebris(deniz: string): void {
   for (const name of readdirSync(deniz)) {
-    if (name.startsWith("lock.candidate-")) {
-      rmSync(join(deniz, name), { recursive: true, force: true });
+    const transactionCandidate = name.startsWith("txn.candidate-");
+    if (!transactionCandidate && !name.startsWith("lock.candidate-") && !name.startsWith("lock.reclaim.candidate-")) {
+      continue;
+    }
+    const candidate = join(deniz, name);
+    requireOrdinaryDir(candidate, "installer lock candidate");
+    const owner = readOwner(candidate);
+    if (!transactionCandidate && owner && processExists(owner.pid)) {
+      throw new Error(`installer lock candidate is active in process ${owner.pid}`);
+    }
+    rmSync(candidate, { recursive: true, force: true });
+  }
+}
+
+function releaseOwnedDirectory(path: string, token: string, label: string): void {
+  if (!existsLstat(path)) {
+    return;
+  }
+  requireOrdinaryDir(path, label);
+  const owner = readOwner(path);
+  if (!owner || owner.token !== token) {
+    return;
+  }
+  const tombstone = `${path}.released-${token}`;
+  renameSync(path, tombstone);
+  const movedOwner = readOwner(tombstone);
+  if (!movedOwner || movedOwner.token !== token) {
+    throw new Error(`${label} token changed during release`);
+  }
+  rmSync(tombstone, { recursive: true, force: true });
+  fsyncDirectory(dirname(path));
+}
+
+function acquireReclaimGuard(deniz: string, io?: ApplyIo): InstallerLock {
+  const guardPath = join(deniz, "lock.reclaim");
+  while (true) {
+    if (existsLstat(guardPath)) {
+      requireOrdinaryDir(guardPath, "installer lock acquire/reclaim guard");
+      const owner = readOwner(guardPath);
+      if (!owner) {
+        throw new Error("installer lock acquire/reclaim guard is ownerless or malformed");
+      }
+      if (processExists(owner.pid)) {
+        throw new Error(`installer lock acquire/reclaim is active in process ${owner.pid}`);
+      }
+      const reread = readOwner(guardPath);
+      if (!reread || reread.token !== owner.token || processExists(reread.pid)) {
+        throw new Error("installer lock acquire/reclaim guard changed while checking staleness");
+      }
+      const tombstone = `${guardPath}.reclaimed-${owner.token}-${randomUUID()}`;
+      try {
+        renameSync(guardPath, tombstone);
+      } catch (error) {
+        if (isENOENT(error)) {
+          continue;
+        }
+        throw error;
+      }
+      const movedOwner = readOwner(tombstone);
+      if (!movedOwner || movedOwner.token !== owner.token) {
+        throw new Error("installer lock acquire/reclaim guard token changed during reclaim");
+      }
+      rmSync(tombstone, { recursive: true, force: true });
+      fsyncDirectory(deniz);
+      continue;
+    }
+
+    const token = randomUUID();
+    const candidate = join(deniz, `lock.reclaim.candidate-${token}`);
+    mkdirSync(candidate);
+    try {
+      writeOwner(candidate, { pid: process.pid, startedAt: new Date().toISOString(), token });
+      fsyncDirectory(candidate);
+      io?.beforeAcquireGuardRename?.(candidate, guardPath);
+      try {
+        renameSync(candidate, guardPath);
+      } catch (error) {
+        if (existsLstat(guardPath)) {
+          rmSync(candidate, { recursive: true, force: true });
+          continue;
+        }
+        throw error;
+      }
+      fsyncDirectory(deniz);
+      requireOrdinaryDir(guardPath, "installer lock acquire/reclaim guard");
+      const guardOwner = readOwner(guardPath);
+      if (!guardOwner || guardOwner.token !== token) {
+        throw new Error("installer lock acquire/reclaim guard token changed during acquire");
+      }
+      return {
+        path: guardPath,
+        token,
+        release(): void {
+          releaseOwnedDirectory(guardPath, token, "installer lock acquire/reclaim guard");
+        },
+      };
+    } catch (error) {
+      if (existsLstat(candidate)) {
+        rmSync(candidate, { recursive: true, force: true });
+      }
+      throw error;
     }
   }
 }
@@ -377,17 +477,8 @@ function cleanCandidateDebris(deniz: string): void {
 export function acquireInstallerLock(destination: string, options: AcquireLockOptions = {}): InstallerLock {
   const { deniz } = ensureDestinationTree(destination);
   const lockPath = join(deniz, "lock");
-  const guard = reclaimGuardPath(destination);
+  const guard = acquireReclaimGuard(deniz, options.io);
   try {
-    mkdirSync(guard);
-  } catch (error) {
-    if (isEEXIST(error)) {
-      throw new Error("installer lock acquire/reclaim is already in progress");
-    }
-    throw error;
-  }
-  try {
-    cleanCandidateDebris(deniz);
     if (existsLstat(lockPath)) {
       requireOrdinaryDir(lockPath, "installer lock");
       const owner = readOwner(lockPath);
@@ -420,6 +511,7 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
       renameSync(lockPath, moved);
       rmSync(moved, { recursive: true, force: true });
     }
+    cleanCandidateDebris(deniz);
     const token = randomUUID();
     const candidate = join(deniz, `lock.candidate-${token}`);
     mkdirSync(candidate);
@@ -429,11 +521,7 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
     requireOrdinaryDir(lockPath, "installer lock");
     return createHeldLock(lockPath, token, options.io);
   } finally {
-    try {
-      rmdirSync(guard);
-    } catch {
-      rmSync(guard, { recursive: true, force: true });
-    }
+    guard.release();
   }
 }
 
@@ -600,7 +688,7 @@ function parseJournal(raw: string): TransactionJournal | null {
   if (typeof value.stateAside !== "boolean" || !Array.isArray(value.operations) || !Array.isArray(value.applied)) {
     return null;
   }
-  if (!Array.isArray(value.createdDirectories)) {
+  if (!Array.isArray(value.createdDirectories) || !Array.isArray(value.pruneCandidates)) {
     return null;
   }
   const operations: PlanOperation[] = [];
@@ -626,6 +714,13 @@ function parseJournal(raw: string): TransactionJournal | null {
     }
     createdDirectories.push(item);
   }
+  const pruneCandidates: string[] = [];
+  for (const item of value.pruneCandidates) {
+    if (!isCreatedDirectoryPath(item) || item.split("/").length <= 1) {
+      return null;
+    }
+    pruneCandidates.push(item);
+  }
   const intent = parseIntent(value.intent);
   if (value.intent !== undefined && intent === undefined) {
     return null;
@@ -639,6 +734,7 @@ function parseJournal(raw: string): TransactionJournal | null {
     phase: value.phase,
     applied,
     createdDirectories,
+    pruneCandidates,
     stateAside: value.stateAside,
   };
   if (intent) {
@@ -705,6 +801,25 @@ function createdDirAllowed(dir: string, operations: PlanOperation[]): boolean {
   });
 }
 
+function postCommitPruneCandidates(operations: PlanOperation[]): string[] {
+  const candidates = new Set<string>();
+  for (const operation of operations) {
+    if (operation.kind !== "remove" && operation.kind !== "drop-missing-claim") {
+      continue;
+    }
+    const parts = operation.path.split("/");
+    parts.pop();
+    while (parts.length > 1) {
+      candidates.add(parts.join("/"));
+      parts.pop();
+    }
+  }
+  return [...candidates].sort((left, right) => {
+    const depth = right.split("/").length - left.split("/").length;
+    return depth === 0 ? ordinalCompare(left, right) : depth;
+  });
+}
+
 function validateJournalSemantics(journal: TransactionJournal): string | null {
   const seen = new Map<number, AppliedAction[]>();
   for (const mutation of journal.applied) {
@@ -734,6 +849,9 @@ function validateJournalSemantics(journal: TransactionJournal): string | null {
       return "createdDirectories contains an unrelated path";
     }
   }
+  if (JSON.stringify(journal.pruneCandidates) !== JSON.stringify(postCommitPruneCandidates(journal.operations))) {
+    return "pruneCandidates does not match removed managed paths";
+  }
   return null;
 }
 
@@ -762,6 +880,9 @@ function validateSnapshotTransition(previous: TransactionJournal, current: Trans
     previous.createdDirectories.some((dir, index) => current.createdDirectories[index] !== dir)
   ) {
     return "contiguous journal snapshots omitted or rewrote created-directory evidence";
+  }
+  if (JSON.stringify(current.pruneCandidates) !== JSON.stringify(previous.pruneCandidates)) {
+    return "contiguous journal snapshots changed post-commit prune candidates";
   }
   if (current.applied.length > previous.applied.length) {
     const appended = current.applied.slice(previous.applied.length);
@@ -1337,6 +1458,9 @@ function isLockArtifact(name: string): boolean {
     name === "lock" ||
     name === "lock.reclaim" ||
     name.startsWith("lock.candidate-") ||
+    name.startsWith("lock.reclaim.candidate-") ||
+    name.startsWith("lock.reclaim.reclaimed-") ||
+    name.startsWith("lock.reclaim.released-") ||
     name.startsWith("lock.released-") ||
     name.startsWith("lock.reclaimed-")
   );
@@ -1370,6 +1494,12 @@ export function inspectRecovery(destination: string): RecoveryPlan | null {
         return blocked(entry, "transaction debris is not an ordinary directory");
       }
       txns.push(entry);
+      continue;
+    }
+    if (name.startsWith("txn.candidate-")) {
+      if (stat.isSymbolicLink() || !stat.isDirectory()) {
+        return blocked(entry, "transaction staging candidate is not an ordinary directory");
+      }
       continue;
     }
     return blocked(entry, `unresolved transaction debris ${JSON.stringify(name)}`);
@@ -1431,7 +1561,7 @@ function recheckOperation(
 ): void {
   validateManagedPath(destination, operation.path);
   const observed = observePath(destination, operation.path);
-  if (observed.kind === "link" || observed.kind === "directory") {
+  if (observed.kind === "link" || observed.kind === "directory" || observed.kind === "blocked") {
     throw new Error(`${operation.path}: managed path must not be a ${observed.kind}`);
   }
   if (expectAbsent || operation.kind === "add" || operation.kind === "drop-missing-claim") {
@@ -1619,6 +1749,29 @@ function pruneCreatedDirectories(destination: string, created: string[]): void {
       continue;
     }
     const abs = join(destination, ...parts);
+    try {
+      const stat = lstatSync(abs);
+      if (stat.isSymbolicLink() || !stat.isDirectory()) {
+        continue;
+      }
+      if (readdirSync(abs).length === 0) {
+        rmdirSync(abs);
+      }
+    } catch (error) {
+      if (!isENOENT(error)) {
+        throw error;
+      }
+    }
+  }
+}
+
+function pruneRemovedDirectories(destination: string, candidates: string[]): void {
+  for (const dir of candidates) {
+    const parts = dir.split("/");
+    if (parts.length <= 1 || !NATIVE_ROOTS.has(parts[0] ?? "")) {
+      throw new Error(`${dir}: invalid post-commit prune candidate`);
+    }
+    const abs = requireContained(destination, join(destination, ...parts));
     try {
       const stat = lstatSync(abs);
       if (stat.isSymbolicLink() || !stat.isDirectory()) {
@@ -2080,9 +2233,7 @@ export function applyPlan(
   requireDestinationTopology(root, deniz, options?.io);
   const transactionId = randomUUID();
   const transactionDir = join(deniz, `txn-${transactionId}`);
-  mkdirSync(transactionDir);
-  requireOrdinaryDir(transactionDir, "transaction");
-  requireSameDevice(root, transactionDir, options?.io);
+  const transactionCandidate = join(deniz, `txn.candidate-${transactionId}`);
 
   let committed = false;
   const seq = { value: 0 };
@@ -2095,20 +2246,43 @@ export function applyPlan(
     phase: "prepared",
     applied: [],
     createdDirectories: [],
+    pruneCandidates: postCommitPruneCandidates(plan.operations),
     stateAside: false,
   };
+  let transactionVisible = false;
 
   try {
+    mkdirSync(transactionCandidate);
+    requireOrdinaryDir(transactionCandidate, "transaction staging candidate");
+    writeOwner(transactionCandidate, {
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      token: lock.token,
+    });
+    requireSameDevice(root, transactionCandidate, options?.io);
+    throwIfCrash(options, "during-transaction-candidate");
     const newStateBytes = serializeInstallState(plan.nextState);
-    writeFlushed(join(transactionDir, "old-state.json"), oldBytes);
-    writeFlushed(join(transactionDir, "new-state.json"), newStateBytes);
-    writeFlushed(stagedInstallStatePath(transactionDir), newStateBytes);
+    writeFlushed(join(transactionCandidate, "old-state.json"), oldBytes);
+    writeFlushed(join(transactionCandidate, "new-state.json"), newStateBytes);
+    writeFlushed(stagedInstallStatePath(transactionCandidate), newStateBytes);
+    writeSnapshot(transactionCandidate, journal, seq);
+    fsyncDirectory(transactionCandidate);
+    renameOrThrow(transactionCandidate, transactionDir);
+    fsyncDirectory(deniz);
+    transactionVisible = true;
+    requireOrdinaryDir(transactionDir, "transaction");
+    requireSameDevice(root, transactionDir, options?.io);
+    throwIfCrash(options, "before-initial-staging");
+    let stagedFiles = 0;
     for (const operation of plan.operations) {
       if (operation.kind === "add" || operation.kind === "replace") {
         stageBundleFile(transactionDir, bundles, operation);
+        stagedFiles += 1;
+        if (stagedFiles === 1) {
+          throwIfCrash(options, "during-initial-staging");
+        }
       }
     }
-    writeSnapshot(transactionDir, journal, seq);
 
     for (const operation of plan.operations) {
       if (operation.kind !== "replace" && operation.kind !== "remove") {
@@ -2251,9 +2425,16 @@ export function applyPlan(
     throwIfCrash(options, "after-state-commit");
 
     verifyFinalizeComplete(destination, transactionDir, journal);
+    pruneRemovedDirectories(root, journal.pruneCandidates);
     pruneCreatedDirectories(root, journal.createdDirectories);
     removeTransactionDir(transactionDir);
   } catch (error) {
+    if (!transactionVisible) {
+      if (!isInjectedCrash(error) && existsLstat(transactionCandidate)) {
+        removeTree(transactionCandidate, options?.io);
+      }
+      throw error;
+    }
     if (!committed && !isInjectedCrash(error)) {
       try {
         const evidence = requireTransactionStateEvidence(transactionDir, journal);
@@ -2307,6 +2488,7 @@ export function applyRecovery(
   requireSameDevice(root, current.transactionDir, options?.io);
   if (current.kind === "finalize") {
     verifyFinalizeComplete(destination, current.transactionDir, current.journal);
+    pruneRemovedDirectories(root, current.journal.pruneCandidates);
     removeTransactionDir(current.transactionDir);
     return;
   }

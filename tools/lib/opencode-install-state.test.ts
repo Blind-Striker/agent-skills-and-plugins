@@ -112,6 +112,27 @@ test("state digest is stable over sorted Modules and files", () => {
   assert.equal(stateDigest(first), stateDigest(second));
 });
 
+test("Install-state serialization uses ordinal Module and path ordering", () => {
+  const state = parseInstallState(
+    JSON.stringify({
+      schemaVersion: 1,
+      modules: {
+        "deniz-a": { version: "1.0.0", digest: HASH_A },
+        "deniz-Z": { version: "1.0.0", digest: HASH_B },
+      },
+      files: {
+        "commands/a.md": owned("deniz-a"),
+        "commands/Z.md": { ...owned("deniz-Z"), sha256: HASH_B },
+      },
+    }),
+    { caseInsensitive: false },
+  );
+  const serialized = serializeInstallState(state);
+
+  assert.ok(serialized.indexOf('"deniz-Z"') < serialized.indexOf('"deniz-a"'));
+  assert.ok(serialized.indexOf('"commands/Z.md"') < serialized.indexOf('"commands/a.md"'));
+});
+
 test("loadInstallState returns empty state only when install.json is absent", () => {
   const destination = mkdtempSync(join(tmpdir(), "install-state-missing-"));
   assert.equal(loadInstallState(destination), EMPTY_INSTALL_STATE);
@@ -125,6 +146,22 @@ test("loadInstallState refuses an unreadable existing install.json instead of re
   const destination = fixtureRoot("install-dir");
   mkdirSync(join(destination, ".deniz-skills", "install.json"), { recursive: true });
   assert.throws(() => loadInstallState(destination), /unreadable Install state/);
+});
+
+test("loadInstallState requires a link-free metadata path and ordinary install.json", (t) => {
+  const destination = fixtureRoot("install-state-link-free");
+  const deniz = join(destination, ".deniz-skills");
+  mkdirSync(deniz);
+  const target = join(destination, "outside-install.json");
+  writeFileSync(target, JSON.stringify({ schemaVersion: 1, modules: {}, files: {} }));
+  try {
+    symlinkSync(target, join(deniz, "install.json"), "file");
+  } catch (error) {
+    t.skip(`creating a file symlink is not permitted: ${error instanceof Error ? error.message : String(error)}`);
+    return;
+  }
+
+  assert.throws(() => loadInstallState(destination), /ordinary file|symlink|junction/i);
 });
 
 test("XDG_CONFIG_HOME takes precedence over HOME", () => {
@@ -307,6 +344,17 @@ test("observePath reports a directory where a file path is observed", () => {
 test("observePath reports absent for a missing native-tree path", () => {
   const destination = fixtureRoot("dest-absent");
   assert.deepEqual(observePath(destination, "commands/missing.md"), { kind: "absent" });
+});
+
+test("observePath reports the regular file that blocks an intermediate directory", () => {
+  const destination = fixtureRoot("dest-intermediate-file");
+  writeFileSync(join(destination, "commands"), "not a directory\n");
+
+  assert.deepEqual(observePath(destination, "commands/alpha.md"), {
+    kind: "blocked",
+    path: "commands",
+    actual: "file",
+  });
 });
 
 test("observePath never follows a link", (t) => {

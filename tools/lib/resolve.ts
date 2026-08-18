@@ -1,8 +1,9 @@
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { matchesGlob } from "node:path";
 import type { ComponentType, CurationItem, CurationManifest } from "./manifest.ts";
 import type { ComponentInfo } from "./scan.ts";
+import { ordinalCompare } from "./order.ts";
 
 /**
  * What a manifest item becomes: its upstream component, its output name and type, and where its
@@ -53,6 +54,19 @@ export function collectIdentityProblems(
     .map((f) => `curation/${f}`);
   const problems: string[] = [];
   const pluginPaths = new Map<string, string>();
+  const openCodeDestinations = new Map<string, { module: string; source: string }>();
+
+  const claimOpenCodeDestination = (kind: ComponentType, name: string, module: string, source: string): void => {
+    const identity = `${kind}:${name}`;
+    const earlier = openCodeDestinations.get(identity);
+    if (earlier) {
+      problems.push(
+        `duplicate OpenCode destination ${identity} from ${earlier.module} (${earlier.source}) and ${module} (${source})`,
+      );
+      return;
+    }
+    openCodeDestinations.set(identity, { module, source });
+  };
 
   for (const [index, manifest] of manifests.entries()) {
     const manifestPath = manifestPaths[index] ?? `curation/${manifest.plugin.name}.yaml`;
@@ -77,6 +91,26 @@ export function collectIdentityProblems(
         );
       } else {
         sourcesByIdentity.set(identity, item.source);
+      }
+
+      if (outType !== "skill") {
+        claimOpenCodeDestination(outType, outName, manifest.plugin.name, item.source);
+      } else if (item.invocation === "manual") {
+        claimOpenCodeDestination("command", outName, manifest.plugin.name, item.source);
+      } else if (item.invocation === "both") {
+        claimOpenCodeDestination("skill", outName, manifest.plugin.name, item.source);
+        claimOpenCodeDestination("command", outName, manifest.plugin.name, item.source);
+      } else {
+        claimOpenCodeDestination("skill", outName, manifest.plugin.name, item.source);
+      }
+    }
+
+    const ownRoot = join(root, "skills", manifest.plugin.name);
+    if (existsSync(ownRoot)) {
+      for (const name of readdirSync(ownRoot).sort(ordinalCompare)) {
+        if (statSync(join(ownRoot, name)).isDirectory()) {
+          claimOpenCodeDestination("skill", name, manifest.plugin.name, `skills/${manifest.plugin.name}/${name}`);
+        }
       }
     }
   }

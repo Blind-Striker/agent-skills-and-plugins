@@ -87,14 +87,18 @@ function Use-ClaudeIsolation {
 
 function Use-OpenCodeIsolation {
     <#  Harder than Claude. OPENCODE_CONFIG_DIR only ADDS a search location, so the real global
-        config and the package cache would still load. Isolation is a relocated HOME plus both XDG
-        roots, with no `plugin:` key anywhere — the package cache outranks every mount and cannot
-        be shadowed. Environment only; see Use-ClaudeIsolation on why there is no Set-Location.  #>
+        config and the package cache would still load. Isolation is a relocated HOME, both XDG
+        roots, and TEMP/TMP, with no `plugin:` key anywhere — the package cache outranks every mount
+        and cannot be shadowed. Environment only; see Use-ClaudeIsolation on why there is no
+        Set-Location.  #>
     $lab = Get-LabRoot
     $env:USERPROFILE     = Join-Path $lab ".opencode-home"
     $env:HOME            = $env:USERPROFILE
     $env:XDG_CONFIG_HOME = Join-Path $env:USERPROFILE ".config"
     $env:XDG_DATA_HOME   = Join-Path $env:USERPROFILE ".local\share"
+    $env:TEMP            = Join-Path $env:USERPROFILE ".tmp"
+    $env:TMP             = $env:TEMP
+    New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
     $env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"   # explicit: the machine profile sets it too
     Remove-Item Env:OPENCODE_CONFIG_DIR -ErrorAction SilentlyContinue
 }
