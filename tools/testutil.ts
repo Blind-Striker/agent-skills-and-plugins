@@ -3,6 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 
+/** A file or directory inside one OpenCode Module bundle: opencode/<module>/<parts...>. */
+export function opencodeModulePath(root: string, module: string, ...parts: string[]): string {
+  return join(root, "opencode", module, ...parts);
+}
+
 export function makeRepo(): string {
   const root = mkdtempSync(join(tmpdir(), "build-"));
   // upstream submodule 'sp' with namespace 'superpowers'

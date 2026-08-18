@@ -12,8 +12,10 @@ import {
 import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
+import { indexModes } from "./lib/git.ts";
 import { OPENCODE_SKILL_KEYS, writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { createModuleManifest } from "./lib/opencode-bundle.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
   applyPatch,
@@ -88,6 +90,9 @@ export function buildAll(root: string): string[] {
   emitOpenCode(root, invocations, report);
   rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components, "claude"));
   rewriteTree(join(root, "opencode"), buildRewriteMap(manifests, components, "opencode"));
+  // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
+  // excluded from the walk.
+  writeOpenCodeManifests(root, manifests);
   writeLedger(root, manifests, components);
   return report;
 }
@@ -467,13 +472,14 @@ function reportDropped(label: string, from: Record<string, unknown>, kept: Recor
  */
 function emitOpenCodeSkill(
   root: string,
+  moduleRoot: string,
   srcDir: string,
   name: string,
   invocation: NonNullable<CurationItem["invocation"]> | undefined,
   report: string[],
 ): void {
   const filter = skipSymlinks(root, `opencode/${name}`, report);
-  const destSkill = join(root, "opencode", "skills", name);
+  const destSkill = join(moduleRoot, "skills", name);
   const wantsSkill = invocation !== "manual";
   const doc = parseDoc(readFileSync(join(srcDir, "SKILL.md"), "utf8"));
 
@@ -514,6 +520,8 @@ function emitOpenCodeSkill(
   reportDropped(`opencode command ${name}`, doc.frontmatter, command, report);
   const commandBody = bundledManual
     ? [
+        // The Module directory is distribution layout only; after installation the body resolves
+        // from the OpenCode configuration root, so the stub keeps the installed spelling.
         `Read \`skills/${name}/BODY.md\` from the active OpenCode configuration root before doing anything else.`,
         `For a project-local install, use \`.opencode/skills/${name}/BODY.md\`; for a global install, use \`~/.config/opencode/skills/${name}/BODY.md\`.`,
         `Follow that file as this command's full instructions.`,
@@ -521,9 +529,9 @@ function emitOpenCodeSkill(
         `Arguments: $ARGUMENTS`,
       ].join("\n")
     : doc.body;
-  mkdirSync(join(root, "opencode", "commands"), { recursive: true });
+  mkdirSync(join(moduleRoot, "commands"), { recursive: true });
   writeFileSync(
-    join(root, "opencode", "commands", `${name}.md`),
+    join(moduleRoot, "commands", `${name}.md`),
     serializeDoc({ frontmatter: command, body: commandBody }),
   );
   const parked = bundledManual ? listFiles(destSkill).filter((f) => f !== "BODY.md") : [];
@@ -534,6 +542,7 @@ function emitOpenCodeSkill(
 
 // OpenCode reads SKILL.md natively, so skills copy verbatim; commands/agents keep only
 // the frontmatter OpenCode understands and every dropped key is reported (no silent loss).
+// Each plugin becomes one Module bundle: opencode/<plugin>/{skills,commands,agents,manifest.json}.
 function emitOpenCode(
   root: string,
   invocations: Map<string, NonNullable<CurationItem["invocation"]>>,
@@ -544,10 +553,11 @@ function emitOpenCode(
     return;
   }
   for (const plugin of readdirSync(pluginsDir)) {
+    const moduleRoot = join(root, "opencode", plugin);
     const skillsDir = join(pluginsDir, plugin, "skills");
     if (existsSync(skillsDir)) {
       for (const name of readdirSync(skillsDir)) {
-        emitOpenCodeSkill(root, join(skillsDir, name), name, invocations.get(name), report);
+        emitOpenCodeSkill(root, moduleRoot, join(skillsDir, name), name, invocations.get(name), report);
       }
     }
     for (const kind of ["commands", "agents"] as const) {
@@ -557,7 +567,7 @@ function emitOpenCode(
       }
       // `kind` is the output directory (OpenCode documents plural); `outKind` is the singular label
       const outKind = kind === "commands" ? "command" : "agent";
-      mkdirSync(join(root, "opencode", kind), { recursive: true });
+      mkdirSync(join(moduleRoot, kind), { recursive: true });
       for (const f of readdirSync(dir)) {
         const doc = parseDoc(readFileSync(join(dir, f), "utf8"));
         const kept: Record<string, unknown> = { description: doc.frontmatter.description };
@@ -568,9 +578,28 @@ function emitOpenCode(
         if (dropped.length) {
           report.push(`opencode ${outKind} ${f}: dropped frontmatter keys: ${dropped.join(", ")}`);
         }
-        writeFileSync(join(root, "opencode", kind, f), serializeDoc({ frontmatter: kept, body: doc.body }));
+        writeFileSync(join(moduleRoot, kind, f), serializeDoc({ frontmatter: kept, body: doc.body }));
       }
     }
+  }
+}
+
+/**
+ * One manifest per Module, written only after `rewriteTree` so every hash covers the final bytes.
+ * A file that corresponds to a committed plugins/MODULE path keeps its Git index mode — that is
+ * where an upstream 100755 lands in the repo — and anything generated here defaults to 100644.
+ */
+function writeOpenCodeManifests(root: string, manifests: CurationManifest[]): void {
+  for (const m of manifests) {
+    const moduleRoot = join(root, "opencode", m.plugin.name);
+    if (!existsSync(moduleRoot)) {
+      continue;
+    }
+    const pluginModes = indexModes(root, [`plugins/${m.plugin.name}/`]);
+    const manifest = createModuleManifest(moduleRoot, m.plugin.name, m.plugin.version, (path) => {
+      return pluginModes.get(`plugins/${m.plugin.name}/${path}`) ?? "100644";
+    });
+    writeFileSync(join(moduleRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   }
 }
 
