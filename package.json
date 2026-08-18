@@ -1,37 +1,25 @@
 {
   "name": "deniz-agent-skills",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "bin": {
     "deniz-skills": "dist/install-opencode.js"
   },
   "files": [
-    "tools/install-opencode.ts",
-    "tools/lib/opencode-bundle.ts",
-    "tools/lib/opencode-install-state.ts",
-    "tools/lib/opencode-install-plan.ts",
-    "tools/lib/opencode-install-apply.ts",
-    "dist/install-opencode.js",
-    "dist/lib/opencode-bundle.js",
-    "dist/lib/opencode-install-state.js",
-    "dist/lib/opencode-install-plan.js",
-    "dist/lib/opencode-install-apply.js",
+    "dist",
     "opencode"
   ],
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "build": "node tools/build.ts",
+    "build": "node tools/build.ts && tsc -p tsconfig.installer.json && biome format --write dist",
     "inventory": "node tools/inventory.ts",
     "eject": "node tools/eject.ts",
     "sync": "node tools/sync.ts",
     "validate": "node tools/validate.ts",
     "install:opencode": "node tools/install-opencode.ts",
-    "emit:installer": "tsc tools/install-opencode.ts tools/lib/opencode-bundle.ts tools/lib/opencode-install-state.ts tools/lib/opencode-install-plan.ts tools/lib/opencode-install-apply.ts --ignoreConfig --outDir dist --rootDir tools --module nodenext --moduleResolution nodenext --target esnext --rewriteRelativeImportExtensions --allowImportingTsExtensions --skipLibCheck --types node",
-    "prepare": "npm run emit:installer",
-    "prepack": "npm run emit:installer",
     "pretest": "node tools/check-test-discovery.ts",
     "test": "node --test \"tools/**/*.test.ts\"",
     "typecheck": "tsc --noEmit",
@@ -39,10 +27,12 @@
     "format:check": "biome format .",
     "lint": "biome lint ."
   },
+  "dependencies": {
+    "yaml": "^2.6.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.6",
     "@types/node": "^24.0.0",
-    "typescript": "^7.0.2",
-    "yaml": "^2.6.0"
+    "typescript": "^7.0.2"
   }
 }

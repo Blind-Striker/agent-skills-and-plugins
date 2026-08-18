@@ -420,22 +420,15 @@ function escapeRegExp(value: string): string {
 
 const REQUIRED_MODULES = ["deniz-dotnet-akka", "deniz-dotnet-aspire", "deniz-dotnet-general", "deniz-process"];
 
-const PACK_ALLOWED = new Set([
-  "package.json",
-  "README.md",
-  "tools/install-opencode.ts",
-  "tools/lib/opencode-bundle.ts",
-  "tools/lib/opencode-install-state.ts",
-  "tools/lib/opencode-install-plan.ts",
-  "tools/lib/opencode-install-apply.ts",
+// The tarball carries only the committed emitted installer and the generated Module Bundles.
+// The TS sources stay out: consumers never compile.
+const DIST_FILES = [
   "dist/install-opencode.js",
   "dist/lib/opencode-bundle.js",
   "dist/lib/opencode-install-state.js",
   "dist/lib/opencode-install-plan.js",
   "dist/lib/opencode-install-apply.js",
-]);
-
-const PACK_EXCLUDED = ["external/", "plugins/", "overlays/", "experiments/", ".claude-plugin/", "docs/"];
+];
 
 function repoRoot(): string {
   return join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -497,7 +490,6 @@ function readTarEntries(tgz: string): { path: string; content: Buffer }[] {
 
 function packRootPackage(root: string): { tgz: string; paths: Map<string, Buffer> } {
   const packDir = mkdtempSync(join(tmpdir(), "deniz-pack-"));
-  // prepack emits dist/ from the TS sources; --ignore-scripts would skip that and pack a broken bin.
   const { exe, args } = npmInvocation(["pack", "--json", "--pack-destination", packDir]);
   const result = spawnSync(exe, args, {
     cwd: root,
@@ -516,36 +508,49 @@ function packRootPackage(root: string): { tgz: string; paths: Map<string, Buffer
   return { tgz, paths };
 }
 
-test("packed payload carries the installer and every Module Bundle file", () => {
+test("packed payload is exactly the emitted installer and the Module Bundles", () => {
   const root = repoRoot();
   const opencodeRoot = join(root, "opencode");
   assert.ok(
     existsSync(join(opencodeRoot, "deniz-process", "manifest.json")),
     "generated opencode/ Module Bundles are missing; run npm run build before the pack tests",
   );
+  assert.ok(
+    existsSync(join(root, "dist", "install-opencode.js")),
+    "committed dist/ installer is missing; run npm run build before the pack tests",
+  );
 
   const { paths } = packRootPackage(root);
 
-  for (const required of PACK_ALLOWED) {
-    if (required === "README.md") {
-      continue; // npm force-includes the README, but it is not part of the runtime contract
-    }
-    assert.ok(paths.has(required), `tarball must contain ${required}`);
+  // Exact equality: package metadata, the committed dist/ files, each Module manifest, and
+  // exactly the manifest-listed Bundle files. Any extra file under opencode/ fails, and any
+  // authoring source (tools/*.ts, external/, plugins/, overlays/, experiments/, docs/) fails.
+  const expected = new Set<string>(["package.json", "README.md"]);
+  for (const file of DIST_FILES) {
+    expected.add(file);
+    assert.ok(paths.has(file), `tarball must contain ${file}`);
   }
-  for (const path of paths.keys()) {
-    assert.ok(PACK_ALLOWED.has(path) || path.startsWith("opencode/"), `tarball must not contain ${path}`);
-    for (const excluded of PACK_EXCLUDED) {
-      assert.ok(!path.startsWith(excluded), `tarball must not contain ${excluded} (found ${path})`);
-    }
-  }
-
   const bundles = loadModuleBundles(opencodeRoot);
   for (const required of REQUIRED_MODULES) {
     assert.ok(bundles.has(required), `opencode/ must contain a ${required} Module Bundle`);
   }
   for (const [name, bundle] of bundles) {
+    expected.add(`opencode/${name}/manifest.json`);
+    for (const path of Object.keys(bundle.manifest.files)) {
+      expected.add(`opencode/${name}/${path}`);
+    }
+  }
+  assert.deepEqual([...paths.keys()].sort(), [...expected].sort(), "tarball file set must match exactly");
+
+  for (const file of DIST_FILES) {
+    assert.equal(
+      paths.get(file)?.equals(readFileSync(join(root, file))),
+      true,
+      `${file} bytes must match the committed emit`,
+    );
+  }
+  for (const [name, bundle] of bundles) {
     const manifestPath = `opencode/${name}/manifest.json`;
-    assert.ok(paths.has(manifestPath), `tarball must contain ${manifestPath}`);
     assert.equal(
       paths.get(manifestPath)?.equals(readFileSync(join(opencodeRoot, name, "manifest.json"))),
       true,
@@ -553,7 +558,6 @@ test("packed payload carries the installer and every Module Bundle file", () => 
     );
     for (const path of Object.keys(bundle.manifest.files)) {
       const packedPath = `opencode/${name}/${path}`;
-      assert.ok(paths.has(packedPath), `tarball must contain ${packedPath}`);
       assert.equal(
         hashBytes(paths.get(packedPath) ?? Buffer.alloc(0)),
         bundle.manifest.files[path]?.sha256,
@@ -603,7 +607,6 @@ test("packed bin installs byte-identical Native tree and Install state", async (
     const { exe, args } = npmInvocation([
       "exec",
       "--yes",
-      "--ignore-scripts",
       "--package",
       pathToFileURL(tgz).href,
       "--",

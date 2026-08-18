@@ -1,0 +1,435 @@
+#!/usr/bin/env node
+import { lstatSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { loadModuleBundles, verifyModuleManifest } from "./lib/opencode-bundle.js";
+import { acquireInstallerLock, applyPlan, applyRecovery, inspectRecovery } from "./lib/opencode-install-apply.js";
+import { planReconcile } from "./lib/opencode-install-plan.js";
+import { loadInstallState, observePath, resolveDestination } from "./lib/opencode-install-state.js";
+const ACTIONS = new Set(["install", "update", "remove", "status"]);
+function uniqueSorted(names) {
+  return [...new Set(names)].sort((left, right) => left.localeCompare(right));
+}
+function defaultIo() {
+  return {
+    packageRoot: join(dirname(fileURLToPath(import.meta.url)), ".."),
+    env: process.env,
+    home: process.env.HOME ?? process.env.USERPROFILE ?? homedir(),
+    platform: process.platform === "win32" ? "windows" : "posix",
+  };
+}
+function isENOENT(error) {
+  return error instanceof Error && "code" in error && error.code === "ENOENT";
+}
+function pathExists(path) {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if (isENOENT(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+function sanitizePackagePaths(message, packageRoot) {
+  const root = resolve(packageRoot);
+  if (root.length < 2) {
+    return message;
+  }
+  const prefixes = [...new Set([root, root.replaceAll("\\", "/"), root.replaceAll("/", "\\")])].sort(
+    (left, right) => right.length - left.length,
+  );
+  let result = message;
+  const flags = process.platform === "win32" ? "gi" : "g";
+  for (const prefix of prefixes) {
+    result = result.replace(new RegExp(`${escapeRegExp(prefix)}[\\\\/]?`, flags), "");
+  }
+  return result.replaceAll("\\", "/");
+}
+function fail(error, packageRoot) {
+  const message = error instanceof Error ? error.message : String(error);
+  return { exitCode: 1, stdout: "", stderr: `${sanitizePackagePaths(message, packageRoot)}\n` };
+}
+export function parseInstallArgs(argv) {
+  const action = argv[0];
+  if (action === undefined || !ACTIONS.has(action)) {
+    throw new Error(
+      action === undefined
+        ? "usage: install|update|remove|status [--module <name>] [--all] [--yes]"
+        : `unknown action ${action}`,
+    );
+  }
+  const modules = [];
+  let all = false;
+  let yes = false;
+  for (let index = 1; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === "--yes") {
+      yes = true;
+      continue;
+    }
+    if (arg === "--all") {
+      all = true;
+      continue;
+    }
+    if (arg === "--module") {
+      const name = argv[index + 1];
+      if (name === undefined || name.startsWith("-")) {
+        throw new Error("--module requires a name");
+      }
+      modules.push(name);
+      index += 1;
+      continue;
+    }
+    throw new Error(`unknown flag ${arg}`);
+  }
+  if (all && modules.length > 0) {
+    throw new Error("--all cannot be combined with --module");
+  }
+  if (action === "update" && (all || modules.length > 0)) {
+    throw new Error("update does not accept --module or --all");
+  }
+  if (action === "status" && (all || modules.length > 0 || yes)) {
+    throw new Error("status does not accept --module, --all, or --yes");
+  }
+  return { action: action, modules, all, yes };
+}
+function formatFinding(finding) {
+  const parts = [finding.code];
+  if (finding.path !== undefined) {
+    parts.push(finding.path);
+  }
+  if (finding.module !== undefined) {
+    parts.push(finding.module);
+  }
+  parts.push(finding.message);
+  return parts.join(" ");
+}
+function appendSection(lines, title, entries) {
+  if (entries.length === 0) {
+    return;
+  }
+  lines.push("", title, ...entries);
+}
+function selectionLines(plan) {
+  if (plan.request.kind === "install") {
+    const names = plan.request.all ? Object.keys(plan.nextState.modules) : plan.request.modules;
+    return uniqueSorted(names).map((name) => {
+      const moduleState = plan.nextState.modules[name];
+      return moduleState === undefined ? `  + ${name}` : `  + ${name} ${moduleState.version}`;
+    });
+  }
+  if (plan.request.kind === "remove") {
+    if (plan.request.all) {
+      return ["  - (all)"];
+    }
+    return uniqueSorted(plan.request.modules).map((name) => `  - ${name}`);
+  }
+  return [];
+}
+export function renderPlan(plan, destination) {
+  const lines = [`Plan: ${plan.request.kind}`, `Destination: ${destination}`];
+  appendSection(lines, "Selection:", selectionLines(plan));
+  appendSection(
+    lines,
+    "Add:",
+    plan.operations
+      .filter((operation) => operation.kind === "add")
+      .map((operation) => `  ${operation.path} (${operation.module})`),
+  );
+  appendSection(
+    lines,
+    "Replace:",
+    plan.operations
+      .filter((operation) => operation.kind === "replace")
+      .map((operation) => `  ${operation.path} (${operation.module})`),
+  );
+  appendSection(
+    lines,
+    "Mode:",
+    plan.operations
+      .filter((operation) => operation.kind === "chmod")
+      .map((operation) => `  ${operation.path} ${operation.from} -> ${operation.to} (${operation.module})`),
+  );
+  appendSection(
+    lines,
+    "Remove:",
+    plan.operations
+      .filter((operation) => operation.kind === "remove")
+      .map((operation) => `  ${operation.path} (${operation.module})`),
+  );
+  appendSection(
+    lines,
+    "Drop missing claims:",
+    plan.operations
+      .filter((operation) => operation.kind === "drop-missing-claim")
+      .map((operation) => `  ${operation.path} (${operation.module})`),
+  );
+  appendSection(
+    lines,
+    "Ownership transfers:",
+    plan.transfers.map((transfer) => `  ${transfer.path} ${transfer.fromModule} -> ${transfer.toModule}`),
+  );
+  if (plan.findings.length > 0) {
+    appendSection(
+      lines,
+      "Findings:",
+      plan.findings.map((finding) => `  ${formatFinding(finding)}`),
+    );
+  } else if (plan.operations.length === 0 && plan.transfers.length === 0) {
+    lines.push("", "No changes.");
+  }
+  return `${lines.join("\n")}\n`;
+}
+function renderRecovery(recovery, destination) {
+  const lines = ["Recovery", `Destination: ${destination}`, `Recovery: ${recovery.kind}`];
+  if (recovery.kind === "blocked") {
+    lines.push(`message: ${recovery.message}`);
+  } else {
+    lines.push(`transaction: ${basename(recovery.transactionDir)}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+function renderStatus(destination, current, manifests, plan, lock, recovery) {
+  const lines = ["Status", `Destination: ${destination}`, "", "Selection:"];
+  const names = uniqueSorted(Object.keys(current.modules));
+  if (names.length === 0) {
+    lines.push("  (empty)");
+  } else {
+    for (const name of names) {
+      const moduleState = current.modules[name];
+      if (moduleState === undefined) {
+        continue;
+      }
+      const payload = manifests[name];
+      const currency = payload !== undefined && payload.digest === moduleState.digest ? "current" : "differs";
+      lines.push(`  ${name} ${moduleState.version} ${moduleState.digest} ${currency}`);
+    }
+  }
+  if (plan !== null && plan.findings.length > 0) {
+    appendSection(
+      lines,
+      "Findings:",
+      plan.findings.map((finding) => `  ${formatFinding(finding)}`),
+    );
+  }
+  lines.push("", `Lock: ${lock}`, `Recovery: ${recovery?.kind ?? "none"}`);
+  if (recovery?.kind === "blocked") {
+    lines.push(`message: ${recovery.message}`);
+  }
+  return `${lines.join("\n")}\n`;
+}
+function observeRequiredPaths(destination, current, manifests) {
+  const paths = new Set();
+  for (const path of Object.keys(current.files)) {
+    paths.add(path);
+  }
+  for (const manifest of Object.values(manifests)) {
+    for (const path of Object.keys(manifest.files)) {
+      paths.add(path);
+    }
+  }
+  const observed = Object.create(null);
+  for (const path of [...paths].sort((left, right) => left.localeCompare(right))) {
+    observed[path] = observePath(destination, path);
+  }
+  return observed;
+}
+function loadVerifiedBundles(packageRoot, platform) {
+  const bundles = loadModuleBundles(join(packageRoot, "opencode"));
+  const manifests = Object.create(null);
+  const findings = [];
+  for (const name of [...bundles.keys()].sort((left, right) => left.localeCompare(right))) {
+    const bundle = bundles.get(name);
+    if (bundle === undefined) {
+      continue;
+    }
+    manifests[name] = bundle.manifest;
+    for (const finding of verifyModuleManifest(bundle.root, bundle.manifest, {
+      caseInsensitive: platform === "windows",
+    })) {
+      findings.push(`${finding.code} ${name} ${finding.path}: ${finding.message}`);
+    }
+  }
+  return { bundles, manifests, findings };
+}
+function requestFrom(args, platform) {
+  return {
+    kind: args.action === "status" ? "update" : args.action,
+    modules: args.modules,
+    all: args.all,
+    platform,
+  };
+}
+function lockStatus(destination) {
+  const lockPath = join(destination, ".deniz-skills", "lock");
+  try {
+    const stat = lstatSync(lockPath);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) {
+      return "abandoned";
+    }
+  } catch {
+    return "none";
+  }
+  try {
+    const raw = JSON.parse(readFileSync(join(lockPath, "owner.json"), "utf8"));
+    if (typeof raw !== "object" || raw === null || !("pid" in raw) || typeof raw.pid !== "number") {
+      return "abandoned";
+    }
+    try {
+      process.kill(raw.pid, 0);
+      return "held";
+    } catch (error) {
+      if (error instanceof Error && "code" in error && error.code === "EPERM") {
+        return "held";
+      }
+      return "abandoned";
+    }
+  } catch {
+    return "abandoned";
+  }
+}
+function runStatus(destination, loaded, platform) {
+  const recovery = inspectRecovery(destination);
+  const current = loadInstallState(destination);
+  const lock = lockStatus(destination);
+  let plan = null;
+  if (Object.keys(current.modules).length > 0) {
+    plan = planReconcile(current, loaded.manifests, observeRequiredPaths(destination, current, loaded.manifests), {
+      kind: "update",
+      modules: [],
+      all: false,
+      platform,
+    });
+  }
+  const stdout = renderStatus(destination, current, loaded.manifests, plan, lock, recovery);
+  const blocked = recovery?.kind === "blocked" || (plan !== null && plan.findings.length > 0);
+  return { exitCode: blocked ? 1 : 0, stdout, stderr: "" };
+}
+function directoryNames(path) {
+  try {
+    return readdirSync(path);
+  } catch (error) {
+    if (isENOENT(error)) {
+      return [];
+    }
+    throw error;
+  }
+}
+function isEmptyScaffolding(path) {
+  return directoryNames(path).length === 0;
+}
+function removeIfEmpty(path) {
+  try {
+    rmdirSync(path);
+  } catch {
+    return;
+  }
+}
+function removeCreatedScaffolding(destination, destExisted, denizExisted) {
+  const deniz = join(destination, ".deniz-skills");
+  if (!denizExisted && pathExists(deniz) && isEmptyScaffolding(deniz)) {
+    removeIfEmpty(deniz);
+  }
+  if (!destExisted && pathExists(destination)) {
+    const names = directoryNames(destination);
+    if (names.length === 0 || (names.length === 1 && names[0] === ".deniz-skills" && isEmptyScaffolding(deniz))) {
+      if (pathExists(deniz) && isEmptyScaffolding(deniz)) {
+        removeIfEmpty(deniz);
+      }
+      if (isEmptyScaffolding(destination)) {
+        removeIfEmpty(destination);
+      }
+    }
+  }
+}
+function applyLockedRecovery(lock, destination, recovery) {
+  if (recovery.kind === "blocked") {
+    return { exitCode: 1, stdout: renderRecovery(recovery, destination), stderr: "" };
+  }
+  applyRecovery(lock, destination, recovery);
+  return { exitCode: 0, stdout: `${renderRecovery(recovery, destination)}Recovered.\n`, stderr: "" };
+}
+function runMutation(args, destination, loaded, io) {
+  if (!args.yes) {
+    const recovery = inspectRecovery(destination);
+    if (recovery) {
+      const rendered = renderRecovery(recovery, destination);
+      return { exitCode: recovery.kind === "blocked" ? 1 : 0, stdout: rendered, stderr: "" };
+    }
+    const current = loadInstallState(destination);
+    const plan = planReconcile(
+      current,
+      loaded.manifests,
+      observeRequiredPaths(destination, current, loaded.manifests),
+      requestFrom(args, io.platform),
+    );
+    return { exitCode: plan.findings.length > 0 ? 1 : 0, stdout: renderPlan(plan, destination), stderr: "" };
+  }
+  const destExisted = pathExists(destination);
+  const denizExisted = pathExists(join(destination, ".deniz-skills"));
+  const recoveryPeek = inspectRecovery(destination);
+  let lock;
+  try {
+    lock = acquireInstallerLock(destination, recoveryPeek ? { recover: true } : {});
+    const recovery = inspectRecovery(destination);
+    if (recovery) {
+      return applyLockedRecovery(lock, destination, recovery);
+    }
+    const current = loadInstallState(destination);
+    const plan = planReconcile(
+      current,
+      loaded.manifests,
+      observeRequiredPaths(destination, current, loaded.manifests),
+      requestFrom(args, io.platform),
+    );
+    const rendered = renderPlan(plan, destination);
+    if (plan.findings.length > 0) {
+      return { exitCode: 1, stdout: rendered, stderr: "" };
+    }
+    applyPlan(lock, destination, plan, loaded.bundles);
+    return { exitCode: 0, stdout: rendered, stderr: "" };
+  } finally {
+    lock?.release();
+    removeCreatedScaffolding(destination, destExisted, denizExisted);
+  }
+}
+function execute(argv, io) {
+  const args = parseInstallArgs(argv);
+  const loaded = loadVerifiedBundles(io.packageRoot, io.platform);
+  if (loaded.findings.length > 0) {
+    return {
+      exitCode: 1,
+      stdout: `Findings:\n${loaded.findings.map((finding) => `  ${finding}`).join("\n")}\n`,
+      stderr: "",
+    };
+  }
+  const destination = resolveDestination(io.env, io.home);
+  if (args.action === "status") {
+    return runStatus(destination, loaded, io.platform);
+  }
+  return runMutation(args, destination, loaded, io);
+}
+export async function runInstallCli(argv, io) {
+  const resolved = io ?? defaultIo();
+  try {
+    return execute(argv, resolved);
+  } catch (error) {
+    return fail(error, resolved.packageRoot);
+  }
+}
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  const result = await runInstallCli(process.argv.slice(2));
+  if (result.stdout.length > 0) {
+    process.stdout.write(result.stdout);
+  }
+  if (result.stderr.length > 0) {
+    process.stderr.write(result.stderr);
+  }
+  process.exitCode = result.exitCode;
+}

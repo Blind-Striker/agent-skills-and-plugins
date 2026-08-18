@@ -1,6 +1,5 @@
 node_modules/
 .superpowers/
-dist/
 
 experiments/**/*.txt.text
 experiments/**/.claude-home/
