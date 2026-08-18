@@ -19,6 +19,7 @@ import {
   applyRecovery,
   acquireInstallerLock,
   inspectRecovery,
+  type AppliedMutation,
   type ApplyOptions,
   type InstallerLock,
   type RecoveryPlan,
@@ -256,16 +257,39 @@ function apply(
   });
 }
 
+function completeJournal(
+  journal: Omit<TransactionJournal, "applied" | "createdDirectories" | "stateAside"> &
+    Partial<Pick<TransactionJournal, "applied" | "createdDirectories" | "stateAside">>,
+  backupPath?: string,
+): TransactionJournal {
+  const applied: AppliedMutation[] =
+    journal.applied ??
+    (backupPath
+      ? [
+          { path: backupPath, action: "backed-up" },
+          { path: backupPath, action: "placed" },
+        ]
+      : []);
+  return {
+    ...journal,
+    applied,
+    createdDirectories: journal.createdDirectories ?? [],
+    stateAside: journal.stateAside ?? false,
+  };
+}
+
 function writeLeftoverTransaction(
   destination: string,
-  journal: TransactionJournal,
+  journal: Omit<TransactionJournal, "applied" | "createdDirectories" | "stateAside"> &
+    Partial<Pick<TransactionJournal, "applied" | "createdDirectories" | "stateAside">>,
   files: { oldStateBytes: string; newStateBytes: string; backup?: { path: string; bytes: string } },
 ): string {
-  const transactionDir = join(destination, ".deniz-skills", `txn-${journal.transactionId}`);
+  const full = completeJournal(journal, files.backup?.path);
+  const transactionDir = join(destination, ".deniz-skills", `txn-${full.transactionId}`);
   mkdirSync(transactionDir, { recursive: true });
   writeFileSync(join(transactionDir, "old-state.json"), files.oldStateBytes);
   writeFileSync(join(transactionDir, "new-state.json"), files.newStateBytes);
-  writeFileSync(join(transactionDir, "journal.json"), `${JSON.stringify(journal, null, 2)}\n`);
+  writeFileSync(join(transactionDir, "journal.json"), `${JSON.stringify(full, null, 2)}\n`);
   if (files.backup) {
     const backupPath = join(transactionDir, "backup", ...files.backup.path.split("/"));
     mkdirSync(dirname(backupPath), { recursive: true });
@@ -346,7 +370,11 @@ test("second mutation cannot read or apply a stale snapshot while the lock is he
 
 test("applyPlan refuses a lock that is not held", () => {
   const fixture = makeInstallFixture();
-  const fake: InstallerLock = { path: join(fixture.destination, ".deniz-skills", "lock"), release() {} };
+  const fake: InstallerLock = {
+    path: join(fixture.destination, ".deniz-skills", "lock"),
+    token: "not-held",
+    release() {},
+  };
   assert.throws(() => applyPlan(fake, fixture.destination, fixture.plan, fixture.bundles), /lock/i);
   assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
 });
@@ -473,7 +501,8 @@ test("removing the last owned nested file prunes empty parents but not the nativ
     ),
   );
   apply(destination, plan, new Map());
-  assert.equal(readdirSync(join(destination, "skills")).includes("alpha"), false);
+  assert.ok(readdirSync(join(destination, "skills")).includes("alpha"));
+  assert.deepEqual(readdirSync(join(destination, "skills", "alpha")), []);
   assert.ok(lstatSync(join(destination, "skills")).isDirectory());
 });
 
@@ -611,7 +640,8 @@ test("abandoned lock with leftover recovery is reclaimed without deleting the tr
     join(lockDir, "owner.json"),
     `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z" })}\n`,
   );
-  const lock = acquireInstallerLock(fixture.destination);
+  assert.throws(() => acquireInstallerLock(fixture.destination), /recovery|transaction/i);
+  const lock = acquireInstallerLock(fixture.destination, { recover: true });
   try {
     const recovery = inspectRecovery(fixture.destination);
     assert.equal(recovery?.kind, "rollback");
@@ -637,3 +667,342 @@ test("first install creates destination files and install state", () => {
   assertSameState(fixture.destination, fixture.plan.nextState);
   assert.equal(inspectRecovery(fixture.destination), null);
 });
+
+function makeTwoFileFixture(): {
+  destination: string;
+  bundles: Map<string, ModuleBundle>;
+  plan: Plan;
+  alpha: string;
+  beta: string;
+  oldAlpha: string;
+  oldBeta: string;
+  oldState: InstallState;
+} {
+  const root = mkdtempSync(join(tmpdir(), "apply-two-"));
+  const destination = join(root, "config", "opencode");
+  const bundleRoot = join(root, "package", "opencode", "deniz-process");
+  const alpha = join(destination, "commands", "alpha.md");
+  const beta = join(destination, "commands", "beta.md");
+  const oldAlpha = "old-alpha\n";
+  const oldBeta = "old-beta\n";
+  mkdirSync(dirname(alpha), { recursive: true });
+  mkdirSync(join(destination, ".deniz-skills"), { recursive: true });
+  mkdirSync(join(bundleRoot, "commands"), { recursive: true });
+  writeFileSync(alpha, oldAlpha);
+  writeFileSync(beta, oldBeta);
+  writeFileSync(join(bundleRoot, "commands", "alpha.md"), "new-alpha\n");
+  writeFileSync(join(bundleRoot, "commands", "beta.md"), "new-beta\n");
+  const oldIdentities = {
+    "commands/alpha.md": { sha256: hashBytes(oldAlpha), mode: "100644" as const },
+    "commands/beta.md": { sha256: hashBytes(oldBeta), mode: "100644" as const },
+  };
+  const oldState: InstallState = {
+    schemaVersion: 1,
+    modules: { "deniz-process": { version: "0.1.0", digest: digestFileMap(oldIdentities) } },
+    files: {
+      "commands/alpha.md": { module: "deniz-process", ...oldIdentities["commands/alpha.md"] },
+      "commands/beta.md": { module: "deniz-process", ...oldIdentities["commands/beta.md"] },
+    },
+  };
+  writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const plan = requireFindingFree(
+    planReconcile(oldState, { "deniz-process": manifest }, observeOwnedPaths(destination, oldState, manifest), {
+      kind: "update",
+      modules: [],
+      all: false,
+      platform: "posix",
+    }),
+  );
+  return {
+    destination,
+    bundles: new Map([["deniz-process", { root: bundleRoot, manifest }]]),
+    plan,
+    alpha,
+    beta,
+    oldAlpha,
+    oldBeta,
+    oldState,
+  };
+}
+
+test("release of a stolen lock token does not delete the competing owner", () => {
+  const fixture = makeInstallFixture();
+  const lock = acquireInstallerLock(fixture.destination);
+  const ownerFile = join(lock.path, "owner.json");
+  writeFileSync(
+    ownerFile,
+    `${JSON.stringify({ pid: process.pid, startedAt: "2026-01-01T00:00:00.000Z", token: "competitor-token" })}\n`,
+  );
+  lock.release();
+  assert.ok(lstatSync(lock.path).isDirectory());
+  assert.match(readFileSync(ownerFile, "utf8"), /competitor-token/);
+  assert.throws(() => applyPlan(lock, fixture.destination, fixture.plan, fixture.bundles), /lock|token/i);
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+});
+
+test("a transaction directory without a journal is blocked debris", () => {
+  const fixture = makeInstallFixture();
+  mkdirSync(join(fixture.destination, ".deniz-skills", "txn-debris"), { recursive: true });
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+  assert.match(recovery && recovery.kind === "blocked" ? recovery.message : "", /debris|journal|transaction/i);
+});
+
+test("a journal that is a symlink is blocked and not followed", (t) => {
+  const fixture = makeInstallFixture();
+  const transactionDir = join(fixture.destination, ".deniz-skills", "txn-link");
+  mkdirSync(transactionDir, { recursive: true });
+  const target = join(fixture.destination, ".deniz-skills", "not-a-journal.txt");
+  writeFileSync(target, "not-json\n");
+  if (!tryLink(target, join(transactionDir, "journal.json"), "file")) {
+    t.skip("creating a journal symlink is not permitted");
+    return;
+  }
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "blocked");
+});
+
+test("normal acquire does not reclaim a dead lock when recovery is pending", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "pending-recovery",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const lockDir = join(fixture.destination, ".deniz-skills", "lock");
+  mkdirSync(lockDir, { recursive: true });
+  writeFileSync(
+    join(lockDir, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z", token: "dead-token" })}\n`,
+  );
+  assert.throws(() => acquireInstallerLock(fixture.destination), /recovery|transaction/i);
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "rollback");
+});
+
+test("recheck happens immediately before each backup, not as a batch", () => {
+  const fixture = makeTwoFileFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
+        failAfter: "after-backup",
+        beforeOperation: (operation) => {
+          if (operation.path === "commands/beta.md") {
+            writeFileSync(fixture.alpha, "edited-after-first-recheck\n");
+          }
+        },
+      }),
+    /injected after-backup failure/,
+  );
+  assert.equal(readFileSync(fixture.alpha, "utf8"), fixture.oldAlpha);
+  assert.equal(readFileSync(fixture.beta, "utf8"), fixture.oldBeta);
+});
+
+test("acquire refuses to create lock data through a .deniz-skills link", (t) => {
+  const fixture = makeInstallFixture();
+  const deniz = join(fixture.destination, ".deniz-skills");
+  const moved = join(fixture.destination, "deniz-real");
+  renameSync(deniz, moved);
+  if (!tryLink(moved, deniz, "dir") && !tryLink(moved, deniz, "junction")) {
+    renameSync(moved, deniz);
+    t.skip("creating a .deniz-skills symlink or junction is not permitted");
+    return;
+  }
+  assert.throws(() => acquireInstallerLock(fixture.destination), /symlink|junction|link/i);
+});
+
+test("injected device mismatch rejects cross-filesystem rename topology", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
+        io: {
+          deviceId(path: string): number {
+            return path.replaceAll("\\", "/").includes("/.deniz-skills") ? 2 : 1;
+          },
+        },
+      }),
+    /EXDEV|filesystem|device/i,
+  );
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+});
+
+test("crash after place leaves rollback recovery without in-process undo", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfter: "after-place" }),
+    /injected crash after-place/,
+  );
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assertSameState(fixture.destination, fixture.oldState);
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+  assert.equal(inspectRecovery(fixture.destination), null);
+});
+
+test("crash after state commit leaves finalize recovery", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfter: "after-state-commit" }),
+    /injected crash after-state-commit/,
+  );
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assertSameState(fixture.destination, fixture.plan.nextState);
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "finalize");
+});
+
+test("crash after moving old Install state aside is precommit rollback", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, fixture.bundles, {
+        forceWindowsStateReplace: true,
+        crashAfter: "after-state-aside",
+      }),
+    /injected crash after-state-aside/,
+  );
+  assert.equal(existsLstatSafe(join(fixture.destination, ".deniz-skills", "install.json")), false);
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+});
+
+test("rollback undoes only mutations recorded as applied", () => {
+  const fixture = makeTwoFileFixture();
+  writeFileSync(fixture.alpha, "new-alpha\n");
+  writeFileSync(fixture.beta, "new-beta\n");
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "partial",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        { path: "commands/alpha.md", action: "backed-up" },
+        { path: "commands/alpha.md", action: "placed" },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldAlpha },
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
+  });
+  assert.equal(readFileSync(fixture.alpha, "utf8"), fixture.oldAlpha);
+  assert.equal(readFileSync(fixture.beta, "utf8"), "new-beta\n");
+});
+
+test("recovery refuses a journal whose backup evidence is missing", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "no-backup",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+      applied: [
+        { path: "commands/alpha.md", action: "backed-up" },
+        { path: "commands/alpha.md", action: "placed" },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /backup/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assertSameState(fixture.destination, fixture.oldState);
+});
+
+test("malformed journal operations block recovery", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = join(fixture.destination, ".deniz-skills", "txn-bad-op");
+  mkdirSync(transactionDir, { recursive: true });
+  writeFileSync(
+    join(transactionDir, "journal.json"),
+    `${JSON.stringify({
+      schemaVersion: 1,
+      transactionId: "bad-op",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: [{ kind: "replace", path: "../escape", module: "deniz-process", source: "x", identity: { sha256: hashBytes("x"), mode: "100644" } }],
+      phase: "prepared",
+      applied: [],
+      createdDirectories: [],
+      stateAside: false,
+    })}\n`,
+  );
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "blocked");
+});
+
+test("rollback of an add removes directories created by this transaction", () => {
+  const root = mkdtempSync(join(tmpdir(), "apply-add-nested-"));
+  const destination = join(root, "config", "opencode");
+  const bundleRoot = join(root, "package", "opencode", "deniz-process");
+  mkdirSync(join(bundleRoot, "skills", "alpha"), { recursive: true });
+  writeFileSync(join(bundleRoot, "skills", "alpha", "SKILL.md"), "new\n");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const plan = requireFindingFree(
+    planReconcile(
+      { schemaVersion: 1, modules: {}, files: {} },
+      { "deniz-process": manifest },
+      { "skills/alpha/SKILL.md": { kind: "absent" } },
+      { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
+    ),
+  );
+  assert.throws(
+    () => apply(destination, plan, new Map([["deniz-process", { root: bundleRoot, manifest }]]), { failAfter: "after-place" }),
+    /injected after-place failure/,
+  );
+  assert.equal(existsLstatSafe(join(destination, "skills", "alpha", "SKILL.md")), false);
+  assert.equal(existsLstatSafe(join(destination, "skills", "alpha")), false);
+});
+
+function existsLstatSafe(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
