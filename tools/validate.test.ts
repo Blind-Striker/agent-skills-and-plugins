@@ -863,3 +863,101 @@ test("module manifest: a second Module whose destination path differs only by ca
     JSON.stringify(findings, null, 2),
   );
 });
+
+test("module manifest: an unexpected Module directory is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  mkdirSync(join(root, "opencode", "stray"));
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("unexpected directory under opencode/: stray")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("module manifest: a missing expected Module root is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  rmSync(opencodeModulePath(root, "deniz-process"), { recursive: true });
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("missing Module root opencode/deniz-process")),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("module manifest: a missing manifest in an existing root is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  rmSync(join(opencodeModulePath(root, "deniz-process"), "manifest.json"));
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("opencode/deniz-process/manifest.json is missing")),
+    JSON.stringify(findings, null, 2),
+  );
+  assert.equal(
+    findings.filter((f) => f.message.includes("missing Module root opencode/deniz-process")).length,
+    0,
+    "an existing root with no manifest is not a missing Module",
+  );
+});
+
+test("module manifest: a Module name mismatch is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const path = join(opencodeModulePath(root, "deniz-process"), "manifest.json");
+  const manifest = JSON.parse(readFileSync(path, "utf8")) as { module: string };
+  manifest.module = "deniz-other";
+  writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) =>
+        f.level === "error" &&
+        f.message.includes("Module name deniz-other") &&
+        f.message.includes("does not match deniz-process"),
+    ),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("module manifest: a Module version mismatch is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const path = join(opencodeModulePath(root, "deniz-process"), "manifest.json");
+  const manifest = JSON.parse(readFileSync(path, "utf8")) as { version: string };
+  manifest.version = "9.9.9";
+  writeFileSync(path, `${JSON.stringify(manifest, null, 2)}\n`);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some(
+      (f) =>
+        f.level === "error" && f.message.includes("Module version 9.9.9") && f.message.includes("does not match 0.1.0"),
+    ),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("module manifest: a dangling top-level symlink under opencode/ returns findings instead of throwing", (t) => {
+  const root = makeRepo();
+  buildAll(root);
+  const link = join(root, "opencode", "ghost");
+  try {
+    symlinkSync(join(root, "opencode", "does-not-exist"), link);
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+  let findings: ReturnType<typeof validateRepo> | undefined;
+  assert.doesNotThrow(() => {
+    findings = validateRepo(root);
+  });
+  assert.ok(findings, "validateRepo must return findings");
+  assert.ok(
+    findings.some(
+      (f) =>
+        f.level === "error" && f.message.includes("must not contain symlinks") && f.message.includes("opencode/ghost"),
+    ),
+    JSON.stringify(findings, null, 2),
+  );
+});

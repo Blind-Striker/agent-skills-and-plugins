@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
@@ -472,7 +472,9 @@ export function validateRepo(root: string): Finding[] {
   const expectedModules = new Set(moduleNames);
   const ocDir = join(root, "opencode");
   const actualModules = existsSync(ocDir)
-    ? readdirSync(ocDir).filter((name) => statSync(join(ocDir, name)).isDirectory())
+    ? readdirSync(ocDir, { withFileTypes: true })
+        .filter((entry) => !entry.isSymbolicLink() && entry.isDirectory())
+        .map((entry) => entry.name)
     : [];
   const foldedExpected = new Map<string, string[]>();
   for (const name of moduleNames) {
@@ -518,14 +520,21 @@ export function validateRepo(root: string): Finding[] {
   }
   for (const m of manifests) {
     const moduleRoot = openCodeModuleRoot(root, m.plugin.name);
+    let rootStat: ReturnType<typeof lstatSync> | undefined;
+    try {
+      rootStat = lstatSync(moduleRoot);
+    } catch {
+      continue;
+    }
+    if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) {
+      continue;
+    }
     const manifestPath = join(moduleRoot, "manifest.json");
     if (!existsSync(manifestPath)) {
-      if (existsSync(moduleRoot)) {
-        findings.push({
-          level: "error",
-          message: `opencode/${m.plugin.name}/manifest.json is missing`,
-        });
-      }
+      findings.push({
+        level: "error",
+        message: `opencode/${m.plugin.name}/manifest.json is missing`,
+      });
       continue;
     }
     let manifest: ModuleManifest;
