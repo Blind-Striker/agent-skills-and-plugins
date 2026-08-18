@@ -1,9 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
+import { indexModes } from "./lib/git.ts";
 import { loadManifest } from "./lib/manifest.ts";
+import { loadModuleManifest, verifyModuleManifest, type ModuleManifest } from "./lib/opencode-bundle.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { extractRefs } from "./lib/refs.ts";
@@ -95,31 +96,14 @@ function* walkSymlinks(dir: string): Generator<string> {
   }
 }
 
-/**
- * Index modes keyed by repository-relative POSIX path. The index, not the filesystem: a checkout
- * with `core.filemode=false` — every Windows one — reports 0644 for a file git records as 100755,
- * so the filesystem cannot answer this question. Returns empty for anything that is not a git
- * repository, which is how a throwaway fixture and a consumer clone stay silent rather than noisy.
- */
-function indexModes(dir: string, paths: string[]): Map<string, string> {
-  const modes = new Map<string, string>();
-  let out: string;
-  try {
-    out = execFileSync("git", ["-C", dir, "ls-files", "-s", "--", ...paths], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      maxBuffer: 64 * 1024 * 1024,
-    });
-  } catch {
-    return modes;
-  }
-  for (const line of out.split("\n")) {
-    const m = /^(\d{6}) [0-9a-f]+ \d+\t(.+)$/.exec(line);
-    if (m?.[1] && m[2]) {
-      modes.set(m[2], m[1]);
-    }
-  }
-  return modes;
+function openCodeModuleRoot(root: string, module: string): string {
+  return join(root, "opencode", module);
+}
+
+function openCodeArtifact(root: string, module: string, kind: "skills" | "commands" | "agents", name: string): string {
+  return kind === "skills"
+    ? join(openCodeModuleRoot(root, module), "skills", name)
+    : join(openCodeModuleRoot(root, module), kind, `${name}.md`);
 }
 
 export function validateRepo(root: string): Finding[] {
@@ -369,7 +353,10 @@ export function validateRepo(root: string): Finding[] {
         if (upstream.get([...rest, rel].join("/")) !== "100755") {
           continue;
         }
-        for (const out of [`plugins/${m.plugin.name}/skills/${outName}/${rel}`, `opencode/skills/${outName}/${rel}`]) {
+        for (const out of [
+          `plugins/${m.plugin.name}/skills/${outName}/${rel}`,
+          `opencode/${m.plugin.name}/skills/${outName}/${rel}`,
+        ]) {
           if (ourModes.has(out) && ourModes.get(out) !== "100755") {
             findings.push({
               level: "error",
@@ -480,6 +467,97 @@ export function validateRepo(root: string): Finding[] {
     });
   }
 
+  // Module bundle integrity — before linker analysis so a broken file set is named first.
+  const moduleNames = manifests.map((m) => m.plugin.name);
+  const expectedModules = new Set(moduleNames);
+  const ocDir = join(root, "opencode");
+  const actualModules = existsSync(ocDir)
+    ? readdirSync(ocDir).filter((name) => statSync(join(ocDir, name)).isDirectory())
+    : [];
+  const foldedExpected = new Map<string, string[]>();
+  for (const name of moduleNames) {
+    const key = name.toLocaleLowerCase("en-US");
+    const group = foldedExpected.get(key);
+    if (group) {
+      group.push(name);
+    } else {
+      foldedExpected.set(key, [name]);
+    }
+  }
+  for (const group of foldedExpected.values()) {
+    if (group.length < 2) {
+      continue;
+    }
+    const sorted = [...group].sort((a, b) => a.localeCompare(b));
+    const first = sorted[0];
+    if (!first) {
+      continue;
+    }
+    for (const alias of sorted.slice(1)) {
+      findings.push({
+        level: "error",
+        message: `opencode/${alias}: case alias: ${alias} aliases ${first} on a case-insensitive filesystem`,
+      });
+    }
+  }
+  for (const dir of actualModules) {
+    if (!expectedModules.has(dir)) {
+      findings.push({
+        level: "error",
+        message: `unexpected directory under opencode/: ${dir}`,
+      });
+    }
+  }
+  for (const name of moduleNames) {
+    if (!actualModules.includes(name)) {
+      findings.push({
+        level: "error",
+        message: `missing Module root opencode/${name}`,
+      });
+    }
+  }
+  for (const m of manifests) {
+    const moduleRoot = openCodeModuleRoot(root, m.plugin.name);
+    const manifestPath = join(moduleRoot, "manifest.json");
+    if (!existsSync(manifestPath)) {
+      if (existsSync(moduleRoot)) {
+        findings.push({
+          level: "error",
+          message: `opencode/${m.plugin.name}/manifest.json is missing`,
+        });
+      }
+      continue;
+    }
+    let manifest: ModuleManifest;
+    try {
+      manifest = loadModuleManifest(manifestPath);
+    } catch (error) {
+      findings.push({
+        level: "error",
+        message: error instanceof Error ? error.message : String(error),
+      });
+      continue;
+    }
+    if (manifest.module !== m.plugin.name) {
+      findings.push({
+        level: "error",
+        message: `opencode/${m.plugin.name}: Module name ${manifest.module} does not match ${m.plugin.name}`,
+      });
+    }
+    if (manifest.version !== m.plugin.version) {
+      findings.push({
+        level: "error",
+        message: `opencode/${m.plugin.name}: Module version ${manifest.version} does not match ${m.plugin.version}`,
+      });
+    }
+    for (const finding of verifyModuleManifest(moduleRoot, manifest, { caseInsensitive: true })) {
+      findings.push({
+        level: "error",
+        message: `opencode/${m.plugin.name}/${finding.path}: ${finding.code.replaceAll("_", " ")}: ${finding.message}`,
+      });
+    }
+  }
+
   // 4b. reference linking (ADR-0008). plugins/ carries the canonical namespaced text; opencode/ is
   // derived from it, so facts are read once and each tree is checked in its own address space.
   interface TargetState {
@@ -496,8 +574,8 @@ export function validateRepo(root: string): Finding[] {
       targetState.set(name, {
         modelReachClaude: doc.frontmatter["disable-model-invocation"] !== true,
         userReachClaude: doc.frontmatter["user-invocable"] !== false,
-        ocSkill: existsSync(join(root, "opencode", "skills", name, "SKILL.md")),
-        ocCommand: existsSync(join(root, "opencode", "commands", `${name}.md`)),
+        ocSkill: existsSync(join(openCodeArtifact(root, plugin, "skills", name), "SKILL.md")),
+        ocCommand: existsSync(openCodeArtifact(root, plugin, "commands", name)),
       });
     }
     for (const kind of ["commands", "agents"] as const) {
@@ -508,7 +586,7 @@ export function validateRepo(root: string): Finding[] {
           modelReachClaude: kind === "commands", // agents are dispatched, not skill-invoked
           userReachClaude: true,
           ocSkill: false,
-          ocCommand: existsSync(join(root, "opencode", "commands", `${name}.md`)),
+          ocCommand: existsSync(openCodeArtifact(root, plugin, "commands", name)),
         });
       }
     }
@@ -587,7 +665,6 @@ export function validateRepo(root: string): Finding[] {
   }
 
   // L4: output namespaces must never reach the OpenCode tree — it has no plugin concept.
-  const ocDir = join(root, "opencode");
   for (const file of existsSync(ocDir) ? [...walk(ocDir)].filter((f) => f.endsWith(".md")) : []) {
     for (const ref of extractRefs(readFileSync(file, "utf8"))) {
       if (ownNs.has(ref.ns)) {
@@ -600,28 +677,30 @@ export function validateRepo(root: string): Finding[] {
   }
 
   // L6: a command or parked body naming a parked file that is not there (omitted, renamed) ships a dead path.
-  const cmdsDir = join(root, "opencode", "commands");
-  for (const f of existsSync(cmdsDir) ? readdirSync(cmdsDir) : []) {
-    const name = basename(f, ".md");
-    const parkedDir = join(root, "opencode", "skills", name);
-    if (!existsSync(parkedDir)) {
-      continue;
-    }
-    const parkedFiles = new Set(listFiles(parkedDir));
-    const sources = [join(cmdsDir, f), join(parkedDir, "BODY.md")].filter(existsSync);
-    const hits = sources.flatMap((source) =>
-      [...readFileSync(source, "utf8").matchAll(new RegExp(`skills/${name}/([A-Za-z0-9._/-]+)`, "g"))].map((hit) => ({
-        source,
-        hit,
-      })),
-    );
-    for (const { source, hit } of hits) {
-      const target = (hit[1] as string).replace(/[).,:;'"]+$/, "");
-      if (!parkedFiles.has(target)) {
-        findings.push({
-          level: "error",
-          message: `${relative(root, source).replaceAll("\\", "/")}: references skills/${name}/${target}, which is not among the parked files`,
-        });
+  for (const module of moduleNames) {
+    const cmdsDir = join(openCodeModuleRoot(root, module), "commands");
+    for (const f of existsSync(cmdsDir) ? readdirSync(cmdsDir) : []) {
+      const name = basename(f, ".md");
+      const parkedDir = openCodeArtifact(root, module, "skills", name);
+      if (!existsSync(parkedDir)) {
+        continue;
+      }
+      const parkedFiles = new Set(listFiles(parkedDir));
+      const sources = [join(cmdsDir, f), join(parkedDir, "BODY.md")].filter(existsSync);
+      const hits = sources.flatMap((source) =>
+        [...readFileSync(source, "utf8").matchAll(new RegExp(`skills/${name}/([A-Za-z0-9._/-]+)`, "g"))].map((hit) => ({
+          source,
+          hit,
+        })),
+      );
+      for (const { source, hit } of hits) {
+        const target = (hit[1] as string).replace(/[).,:;'"]+$/, "");
+        if (!parkedFiles.has(target)) {
+          findings.push({
+            level: "error",
+            message: `${relative(root, source).replaceAll("\\", "/")}: references skills/${name}/${target}, which is not among the parked files`,
+          });
+        }
       }
     }
   }
@@ -656,8 +735,8 @@ export function validateRepo(root: string): Finding[] {
     if (tree === "plugins" && p[2] === "skills" && p[3]) {
       return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
     }
-    if (tree === "opencode" && p[1] === "skills" && p[2]) {
-      return { name: p[2], dir: join(root, ...p.slice(0, 3)) };
+    if (tree === "opencode" && p[2] === "skills" && p[3]) {
+      return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
     }
     const leaf = p.at(-1);
     return leaf?.endsWith(".md") ? { name: basename(leaf, ".md"), dir: null } : null;
@@ -673,7 +752,7 @@ export function validateRepo(root: string): Finding[] {
     const skillsOf = (name: string): string[] =>
       tree === "plugins"
         ? readdirSync(join(root, "plugins")).map((p) => join(root, "plugins", p, "skills", name))
-        : [join(root, "opencode", "skills", name)];
+        : moduleNames.map((module) => openCodeArtifact(root, module, "skills", name));
     for (const file of [...walk(treeRoot)].filter((f) => f.endsWith(".md"))) {
       const own = owningItem(tree, file);
       if (!own) {
@@ -705,7 +784,7 @@ export function validateRepo(root: string): Finding[] {
           // Where the SKILL copy resolves the very same link, the reference is sound and the
           // conversion is what broke it; the right spelling depends on which mount point the
           // install supports, which is a parked decision (ROADMAP), so this is named, not failed.
-          const skillCopy = own.dir === null ? join(root, tree, "skills", own.name) : null;
+          const skillCopy = own.dir === null ? (skillsOf(own.name).find(existsSync) ?? null) : null;
           const soundInSkillTree = skillCopy !== null && existsSync(resolve(skillCopy, link));
           findings.push({
             level: soundInSkillTree ? "warn" : "error",

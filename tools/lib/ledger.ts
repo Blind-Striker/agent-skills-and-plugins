@@ -86,15 +86,16 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
               .filter((f) => f.endsWith(".md"))
               .map((f) => join(claudeDir, f))
           : [claudeDir];
-      const ocSkill = join(root, "opencode", "skills", outName, "SKILL.md");
-      const ocCommand = join(root, "opencode", "commands", `${outName}.md`);
-      const ocAgent = join(root, "opencode", "agents", `${outName}.md`);
+      const moduleRoot = join(root, "opencode", m.plugin.name);
+      const ocSkill = join(moduleRoot, "skills", outName, "SKILL.md");
+      const ocCommand = join(moduleRoot, "commands", `${outName}.md`);
+      const ocAgent = join(moduleRoot, "agents", `${outName}.md`);
       const ocArtifacts = [
         ...(existsSync(ocSkill) ? ["skill"] : []),
         ...(existsSync(ocCommand) ? ["command"] : []),
         ...(existsSync(ocAgent) ? ["agent"] : []),
       ];
-      const parkedDir = join(root, "opencode", "skills", outName);
+      const parkedDir = join(moduleRoot, "skills", outName);
       const parked = !existsSync(ocSkill) && existsSync(parkedDir) ? listFiles(parkedDir) : [];
       const doc = parseDoc(readFileSync(outType === "skill" ? join(claudeDir, "SKILL.md") : claudeDir, "utf8"));
       const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);

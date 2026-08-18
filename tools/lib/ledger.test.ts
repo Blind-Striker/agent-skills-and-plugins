@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "../build.ts";
-import { makeRepo } from "../testutil.ts";
+import { makeRepo, opencodeModulePath } from "../testutil.ts";
 
 test("the build writes a deterministic ledger describing each item's resolved state per harness", () => {
   const root = makeRepo();
@@ -35,6 +35,8 @@ test("the build writes a deterministic ledger describing each item's resolved st
 
   const beta = ledger["deniz-process/skill/beta"];
   assert.deepEqual(beta.claude.artifacts, ["skill"]); // Claude: manual is still a skill, flagged
+  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "commands", "beta.md")));
+  assert.ok(!existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "SKILL.md")));
   assert.deepEqual(beta.opencode.artifacts, ["command"]); // OpenCode: manual is a command, no skill
   assert.deepEqual(alpha.opencode.dropped, ["user-invocable"]); // auto's Claude flag has no OpenCode home
   assert.deepEqual(beta.opencode.dropped, ["disable-model-invocation", "name"]); // command keeps description only

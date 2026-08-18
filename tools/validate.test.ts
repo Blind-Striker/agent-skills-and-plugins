@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
-import { makeRepo } from "./testutil.ts";
+import { makeRepo, opencodeModulePath } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
@@ -493,7 +493,7 @@ test("linker: an output namespace leaking into opencode/ is an error", () => {
   buildAll(root);
   // simulate the historical bug: a hand-authored output-space reference surviving into opencode
   writeFileSync(
-    join(root, "opencode", "skills", "alpha", "SKILL.md"),
+    opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
     "---\nname: alpha\ndescription: x\n---\nUse the deniz-process:beta skill.\n",
   );
   const findings = validateRepo(root);
@@ -544,7 +544,7 @@ test("linker: a parked manual BODY naming a missing parked file is an error", ()
     parkedPathFindings.some(
       (f) =>
         f.level === "error" &&
-        f.message.includes("opencode/skills/beta/BODY.md") &&
+        f.message.includes("opencode/deniz-process/skills/beta/BODY.md") &&
         f.message.includes("skills/beta/other.md"),
     ),
     JSON.stringify(findings, null, 2),
@@ -818,5 +818,48 @@ test("a merged_from files entry naming a file the source lacks is a warning", ()
     findings.filter((f) => f.message.includes("SKILL.md, which is not there")).length,
     0,
     "a name that resolves must stay silent",
+  );
+});
+
+test("module manifest: a tampered file is a hash mismatch", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const moduleRoot = opencodeModulePath(root, "deniz-process");
+  writeFileSync(join(moduleRoot, "skills", "alpha", "SKILL.md"), "tampered\n");
+  assert.ok(validateRepo(root).some((f) => f.level === "error" && f.message.includes("hash mismatch")));
+});
+
+test("module manifest: a missing listed file is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  rmSync(join(opencodeModulePath(root, "deniz-process"), "skills", "alpha", "SKILL.md"));
+  assert.ok(validateRepo(root).some((f) => f.level === "error" && f.message.includes("missing")));
+});
+
+test("module manifest: an extra unlisted file is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(join(opencodeModulePath(root, "deniz-process"), "extra.txt"), "extra\n");
+  assert.ok(validateRepo(root).some((f) => f.level === "error" && f.message.includes("not listed")));
+});
+
+test("module manifest: malformed manifest.json is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(join(opencodeModulePath(root, "deniz-process"), "manifest.json"), "{not json");
+  assert.ok(validateRepo(root).some((f) => f.level === "error" && f.message.includes("invalid Module manifest")));
+});
+
+test("module manifest: a second Module whose destination path differs only by case is an error", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "curation", "other.yaml"),
+    "plugin:\n  name: Deniz-Process\n  description: d\n  version: 0.1.0\nitems: []\n",
+  );
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && /alias/i.test(f.message)),
+    JSON.stringify(findings, null, 2),
   );
 });
