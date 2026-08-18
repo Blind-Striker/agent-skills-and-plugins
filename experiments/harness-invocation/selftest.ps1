@@ -432,6 +432,35 @@ Test-That "every runner still contains the parts that make it a runner" {
     if ($bad) { $bad -join "; " } else { $true }
 }
 
+Write-Host "`n=== documentation regression guards ===" -ForegroundColor Cyan
+
+Test-That "local packed-package protocol builds and packs the repository explicitly" {
+    $protocol = Get-Content (Join-Path $PSScriptRoot "protocol.md") -Raw
+    $localStart = $protocol.IndexOf("### Local packed package")
+    $localEnd = $protocol.IndexOf("### Immutable private GitHub Release")
+    if ($localStart -lt 0 -or $localEnd -le $localStart) { return "local packed-package section was not found" }
+    $local = $protocol.Substring($localStart, $localEnd - $localStart)
+    $required = @(
+        'npm --prefix $REPO run build',
+        'npm pack $REPO --json --pack-destination $packDir'
+    )
+    $missing = @($required | Where-Object { -not $local.Contains($_) })
+    if ($missing) { "local package commands lost repository scope: $($missing -join ', ')" } else { $true }
+}
+
+Test-That "reference audit keeps global identities and scans both harness outputs" {
+    $playbook = Get-Content (Join-Path $script:RepoRoot "docs\agents\reference-audit-playbook.md") -Raw
+    $required = @(
+        'const paths = new Set([`plugins/${plugin}`]);',
+        'taken.add(name);',
+        'const opencodeRoot = `opencode/${plugin}`;',
+        '`${opencodeRoot}/skills/${name}`',
+        '`${opencodeRoot}/${artifact}s/${name}.md`'
+    )
+    $missing = @($required | Where-Object { -not $playbook.Contains($_) })
+    if ($missing) { "reference audit lost output identity/path logic: $($missing -join ', ')" } else { $true }
+}
+
 Write-Host "`n=== fixture ===" -ForegroundColor Cyan
 
 Test-That "the generator reproduces the recorded baseline" {

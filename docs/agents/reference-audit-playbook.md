@@ -1,6 +1,6 @@
 # Reference-audit playbook
 
-Date: 2026-08-05
+Date: 2026-08-18
 
 A repeatable sweep over **emitted output** for reference problems the deterministic gates cannot
 decide. `npm run validate` handles namespaced facts, declared edges, and path resolution
@@ -55,17 +55,21 @@ const manifest = parse(readFileSync(join("curation", manifestFile), "utf8"));
 
 const taken = new Set();
 const paths = new Set([`plugins/${plugin}`]);
+const opencodeRoot = `opencode/${plugin}`;
 for (const [key, entry] of Object.entries(ledger)) {
   const [entryPlugin, , ...nameParts] = key.split("/");
   if (entryPlugin !== plugin) continue;
   const name = nameParts.join("/");
   taken.add(name);
   for (const artifact of entry.opencode.artifacts) {
-    const path = artifact === "skill" ? `opencode/skills/${name}` : `opencode/${artifact}s/${name}.md`;
+    const path = artifact === "skill"
+      ? `${opencodeRoot}/skills/${name}`
+      : `${opencodeRoot}/${artifact}s/${name}.md`;
     if (existsSync(path)) paths.add(path);
   }
-  if (entry.opencode.parked.length && existsSync(`opencode/skills/${name}`)) {
-    paths.add(`opencode/skills/${name}`);
+  const parkedPath = `${opencodeRoot}/skills/${name}`;
+  if (entry.opencode.parked.length && existsSync(parkedPath)) {
+    paths.add(parkedPath);
   }
 }
 
@@ -76,7 +80,8 @@ if (existsSync(ownRoot)) {
     if (!existsSync(emitted)) continue;
     const name = String(parseDoc(readFileSync(emitted, "utf8")).frontmatter.name ?? dir.name);
     taken.add(name);
-    if (existsSync(join("opencode", "skills", name))) paths.add(`opencode/skills/${name}`);
+    const opencodePath = `${opencodeRoot}/skills/${name}`;
+    if (existsSync(opencodePath)) paths.add(opencodePath);
   }
 }
 

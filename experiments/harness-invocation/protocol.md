@@ -101,8 +101,8 @@ $packDir = Join-Path $profile "package"
 Remove-Item $profile -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $packDir -Force | Out-Null
 
-npm run build
-$packed = npm pack --json --pack-destination $packDir | ConvertFrom-Json
+npm --prefix $REPO run build
+$packed = npm pack $REPO --json --pack-destination $packDir | ConvertFrom-Json
 $package = Join-Path $packDir $packed.filename
 $digest = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 
