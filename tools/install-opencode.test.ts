@@ -97,6 +97,10 @@ test("parseInstallArgs rejects --module on update", () => {
   assert.throws(() => parseInstallArgs(["update", "--module", "deniz-process"]), /update/);
 });
 
+test("parseInstallArgs rejects status --yes", () => {
+  assert.throws(() => parseInstallArgs(["status", "--yes"]), /status/);
+});
+
 test("mutations print a plan and require --yes", async () => {
   const fixture = makeCliFixture();
   const preview = await runInstallCli(["install", "--module", "deniz-process"], fixture.io);
@@ -153,6 +157,22 @@ test("update with no Selection is a finding and stays read-only", async () => {
   const result = await runInstallCli(["update"], fixture.io);
   assert.notEqual(result.exitCode, 0);
   assert.match(`${result.stdout}${result.stderr}`, /Selection|unknown_module/);
+  assert.equal(existsSync(fixture.destination), false);
+});
+
+test("update --yes with no Selection leaves Destination absent", async () => {
+  const fixture = makeCliFixture();
+  const result = await runInstallCli(["update", "--yes"], fixture.io);
+  assert.notEqual(result.exitCode, 0);
+  assert.match(`${result.stdout}${result.stderr}`, /Selection|unknown_module/);
+  assert.equal(existsSync(fixture.destination), false);
+});
+
+test("status --yes is a usage error and does not create the Destination", async () => {
+  const fixture = makeCliFixture();
+  const result = await runInstallCli(["status", "--yes"], fixture.io);
+  assert.notEqual(result.exitCode, 0);
+  assert.match(result.stderr, /status/);
   assert.equal(existsSync(fixture.destination), false);
 });
 
@@ -316,6 +336,49 @@ test("renderPlan prints stable sections and omits package cache paths", () => {
   assert.doesNotMatch(rendered, /source-package|node_modules/);
 });
 
+test("malformed Bundle error omits the package cache path", async () => {
+  const fixture = makeCliFixture();
+  writeFileSync(join(fixture.io.packageRoot, "opencode", "deniz-process", "manifest.json"), "{");
+  const result = await runInstallCli(["install", "--module", "deniz-process"], fixture.io);
+  assert.notEqual(result.exitCode, 0);
+  const output = `${result.stdout}${result.stderr}`;
+  assert.doesNotMatch(output, new RegExp(escapeRegExp(fixture.io.packageRoot)));
+  assert.match(output, /opencode\/deniz-process\/manifest\.json/);
+  assert.match(output, /invalid Module manifest/);
+});
+
+test("missing Bundle tree error omits the package cache path", async () => {
+  const fixture = makeCliFixture();
+  rmSync(join(fixture.io.packageRoot, "opencode"), { recursive: true, force: true });
+  const result = await runInstallCli(["status"], fixture.io);
+  assert.notEqual(result.exitCode, 0);
+  const output = `${result.stdout}${result.stderr}`;
+  assert.doesNotMatch(output, new RegExp(escapeRegExp(fixture.io.packageRoot)));
+  assert.match(output, /opencode/);
+});
+
+test("blocked Recovery on --yes is decided under the lock and does not Apply", async () => {
+  const fixture = makeCliFixture();
+  const installed = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+  assert.equal(installed.exitCode, 0);
+  const skill = join(fixture.destination, "skills", "alpha", "SKILL.md");
+  const original = readFileSync(skill, "utf8");
+  writeFileSync(join(fixture.destination, ".deniz-skills", "debris"), "unresolved\n");
+  const lockDir = join(fixture.destination, ".deniz-skills", "lock");
+  mkdirSync(lockDir);
+  writeFileSync(
+    join(lockDir, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: new Date().toISOString(), token: "dead-lock" })}\n`,
+  );
+
+  const result = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+  assert.notEqual(result.exitCode, 0);
+  assert.match(result.stdout, /Recovery: blocked/);
+  assert.equal(readFileSync(skill, "utf8"), original);
+  assert.ok(existsSync(join(fixture.destination, ".deniz-skills", "debris")));
+  assert.equal(existsSync(lockDir), false);
+});
+
 test("findings are rendered and block Apply", () => {
   const plan: Plan = {
     request: { kind: "remove", modules: ["deniz-process"], all: false, platform: "posix" },
@@ -335,6 +398,16 @@ test("findings are rendered and block Apply", () => {
   assert.match(rendered, /Findings:/);
   assert.match(rendered, /local_modification/);
 });
+
+function deadPid(): number {
+  const candidate = 2_147_483_647;
+  try {
+    process.kill(candidate, 0);
+  } catch {
+    return candidate;
+  }
+  throw new Error("could not find a dead pid for abandoned-lock tests");
+}
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

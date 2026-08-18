@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { lstatSync, readFileSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   loadModuleBundles,
@@ -67,9 +67,45 @@ function defaultIo(): InstallCliIo {
   };
 }
 
-function fail(error: unknown): CliResult {
+function isENOENT(error: unknown): boolean {
+  return error instanceof Error && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+}
+
+function pathExists(path: string): boolean {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if (isENOENT(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function sanitizePackagePaths(message: string, packageRoot: string): string {
+  const root = resolve(packageRoot);
+  if (root.length < 2) {
+    return message;
+  }
+  const prefixes = [...new Set([root, root.replaceAll("\\", "/"), root.replaceAll("/", "\\")])].sort(
+    (left, right) => right.length - left.length,
+  );
+  let result = message;
+  const flags = process.platform === "win32" ? "gi" : "g";
+  for (const prefix of prefixes) {
+    result = result.replace(new RegExp(`${escapeRegExp(prefix)}[\\\\/]?`, flags), "");
+  }
+  return result.replaceAll("\\", "/");
+}
+
+function fail(error: unknown, packageRoot: string): CliResult {
   const message = error instanceof Error ? error.message : String(error);
-  return { exitCode: 1, stdout: "", stderr: `${message}\n` };
+  return { exitCode: 1, stdout: "", stderr: `${sanitizePackagePaths(message, packageRoot)}\n` };
 }
 
 export function parseInstallArgs(argv: string[]): ParsedInstallArgs {
@@ -111,8 +147,8 @@ export function parseInstallArgs(argv: string[]): ParsedInstallArgs {
   if (action === "update" && (all || modules.length > 0)) {
     throw new Error("update does not accept --module or --all");
   }
-  if (action === "status" && (all || modules.length > 0)) {
-    throw new Error("status does not accept --module or --all");
+  if (action === "status" && (all || modules.length > 0 || yes)) {
+    throw new Error("status does not accept --module, --all, or --yes");
   }
   return { action: action as ParsedInstallArgs["action"], modules, all, yes };
 }
@@ -351,7 +387,48 @@ function runStatus(destination: string, loaded: LoadedBundles, platform: Install
   return { exitCode: blocked ? 1 : 0, stdout, stderr: "" };
 }
 
-function applyExistingRecovery(lock: InstallerLock, destination: string, recovery: RecoveryPlan): CliResult {
+function directoryNames(path: string): string[] {
+  try {
+    return readdirSync(path);
+  } catch (error) {
+    if (isENOENT(error)) {
+      return [];
+    }
+    throw error;
+  }
+}
+
+function isEmptyScaffolding(path: string): boolean {
+  return directoryNames(path).length === 0;
+}
+
+function removeIfEmpty(path: string): void {
+  try {
+    rmdirSync(path);
+  } catch {
+    return;
+  }
+}
+
+function removeCreatedScaffolding(destination: string, destExisted: boolean, denizExisted: boolean): void {
+  const deniz = join(destination, ".deniz-skills");
+  if (!denizExisted && pathExists(deniz) && isEmptyScaffolding(deniz)) {
+    removeIfEmpty(deniz);
+  }
+  if (!destExisted && pathExists(destination)) {
+    const names = directoryNames(destination);
+    if (names.length === 0 || (names.length === 1 && names[0] === ".deniz-skills" && isEmptyScaffolding(deniz))) {
+      if (pathExists(deniz) && isEmptyScaffolding(deniz)) {
+        removeIfEmpty(deniz);
+      }
+      if (isEmptyScaffolding(destination)) {
+        removeIfEmpty(destination);
+      }
+    }
+  }
+}
+
+function applyLockedRecovery(lock: InstallerLock, destination: string, recovery: RecoveryPlan): CliResult {
   if (recovery.kind === "blocked") {
     return { exitCode: 1, stdout: renderRecovery(recovery, destination), stderr: "" };
   }
@@ -376,25 +453,15 @@ function runMutation(args: ParsedInstallArgs, destination: string, loaded: Loade
     return { exitCode: plan.findings.length > 0 ? 1 : 0, stdout: renderPlan(plan, destination), stderr: "" };
   }
 
-  const existingRecovery = inspectRecovery(destination);
+  const destExisted = pathExists(destination);
+  const denizExisted = pathExists(join(destination, ".deniz-skills"));
+  const recoveryPeek = inspectRecovery(destination);
   let lock: InstallerLock | undefined;
   try {
-    if (existingRecovery) {
-      if (existingRecovery.kind === "blocked") {
-        return { exitCode: 1, stdout: renderRecovery(existingRecovery, destination), stderr: "" };
-      }
-      lock = acquireInstallerLock(destination, { recover: true });
-      const recovery = inspectRecovery(destination);
-      if (recovery === null) {
-        return { exitCode: 1, stdout: "", stderr: "Recovery disappeared after lock acquire\n" };
-      }
-      return applyExistingRecovery(lock, destination, recovery);
-    }
-
-    lock = acquireInstallerLock(destination);
-    const recoveryUnderLock = inspectRecovery(destination);
-    if (recoveryUnderLock) {
-      return applyExistingRecovery(lock, destination, recoveryUnderLock);
+    lock = acquireInstallerLock(destination, recoveryPeek ? { recover: true } : {});
+    const recovery = inspectRecovery(destination);
+    if (recovery) {
+      return applyLockedRecovery(lock, destination, recovery);
     }
 
     const current = loadInstallState(destination);
@@ -412,6 +479,7 @@ function runMutation(args: ParsedInstallArgs, destination: string, loaded: Loade
     return { exitCode: 0, stdout: rendered, stderr: "" };
   } finally {
     lock?.release();
+    removeCreatedScaffolding(destination, destExisted, denizExisted);
   }
 }
 
@@ -433,10 +501,11 @@ function execute(argv: string[], io: InstallCliIo): CliResult {
 }
 
 export async function runInstallCli(argv: string[], io?: InstallCliIo): Promise<CliResult> {
+  const resolved = io ?? defaultIo();
   try {
-    return execute(argv, io ?? defaultIo());
+    return execute(argv, resolved);
   } catch (error) {
-    return fail(error);
+    return fail(error, resolved.packageRoot);
   }
 }
 
