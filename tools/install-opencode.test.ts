@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
@@ -10,7 +20,13 @@ import { createModuleManifest, digestFileMap, hashBytes, loadModuleBundles } fro
 import { acquireInstallerLock, applyPlan, inspectRecovery } from "./lib/opencode-install-apply.ts";
 import { planReconcile, type Plan } from "./lib/opencode-install-plan.ts";
 import { loadInstallState, observePath, type InstallState, type ObservedPath } from "./lib/opencode-install-state.ts";
-import { parseInstallArgs, renderPlan, runInstallCli, type InstallCliIo } from "./install-opencode.ts";
+import {
+  isDirectEntryPoint,
+  parseInstallArgs,
+  renderPlan,
+  runInstallCli,
+  type InstallCliIo,
+} from "./install-opencode.ts";
 
 function stateWithOwnedCommand(
   module: string,
@@ -415,6 +431,55 @@ function deadPid(): number {
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// --- direct-entry detection (bin symlinks) ----------------------------------
+
+test("direct-entry detection resolves a bin symlink to the real module", (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "entry-detect-"));
+  const real = join(dir, "real.js");
+  writeFileSync(real, "");
+  let link: string;
+  try {
+    link = join(dir, "bin-link");
+    symlinkSync(real, link, "file");
+  } catch (error) {
+    t.skip(
+      `creating file symlinks is not permitted on this host: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return;
+  }
+  assert.equal(isDirectEntryPoint(link, pathToFileURL(real).href), true);
+  assert.equal(isDirectEntryPoint(real, pathToFileURL(real).href), true);
+  assert.equal(isDirectEntryPoint(join(dir, "other.js"), pathToFileURL(real).href), false);
+  assert.equal(isDirectEntryPoint(undefined, pathToFileURL(real).href), false);
+  assert.equal(isDirectEntryPoint(join(dir, "missing.js"), pathToFileURL(real).href), false);
+});
+
+test("a bin symlink process runs the real installer module", (t) => {
+  const root = repoRoot();
+  const fixture = mkdtempSync(join(tmpdir(), "bin-symlink-"));
+  cpSync(join(root, "dist"), join(fixture, "dist"), { recursive: true });
+  cpSync(join(root, "opencode", "deniz-process"), join(fixture, "opencode", "deniz-process"), { recursive: true });
+  let link: string;
+  try {
+    link = join(fixture, "deniz-skills-bin");
+    symlinkSync(join(fixture, "dist", "install-opencode.js"), link, "file");
+  } catch (error) {
+    t.skip(
+      `creating file symlinks is not permitted on this host: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return;
+  }
+  const isolatedHome = mkdtempSync(join(tmpdir(), "bin-symlink-home-"));
+  const env = { ...process.env };
+  delete env.OPENCODE_CONFIG_DIR;
+  env.HOME = isolatedHome;
+  env.USERPROFILE = isolatedHome;
+  env.XDG_CONFIG_HOME = join(isolatedHome, ".config");
+  const result = spawnSync(process.execPath, [link, "status"], { encoding: "utf8", env });
+  assert.equal(result.status, 0, `${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  assert.match(result.stdout ?? "", /Status/);
+});
 
 // --- packed-package tests --------------------------------------------------
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-import { lstatSync, readdirSync, readFileSync, rmdirSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync, rmdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { loadModuleBundles, verifyModuleManifest } from "./lib/opencode-bundle.js";
 import { acquireInstallerLock, applyPlan, applyRecovery, inspectRecovery } from "./lib/opencode-install-apply.js";
 import { planReconcile } from "./lib/opencode-install-plan.js";
@@ -423,7 +423,25 @@ export async function runInstallCli(argv, io) {
     return fail(error, resolved.packageRoot);
   }
 }
-if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+/**
+ * True when the process was launched with this module as its entry point. POSIX npm installs
+ * expose the bin as a symlink: `import.meta.url` resolves to the physical module while
+ * `process.argv[1]` keeps the symlink path, so a raw string comparison would exit silently.
+ * Comparing canonical real paths makes the check symlink-safe; when either path cannot be
+ * resolved (e.g. this module was imported, or the entry was removed) this returns false so the
+ * imported module never auto-runs.
+ */
+export function isDirectEntryPoint(argv1, moduleUrl) {
+  if (argv1 === undefined || argv1.length === 0) {
+    return false;
+  }
+  try {
+    return realpathSync(argv1) === realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
+if (isDirectEntryPoint(process.argv[1], import.meta.url)) {
   const result = await runInstallCli(process.argv.slice(2));
   if (result.stdout.length > 0) {
     process.stdout.write(result.stdout);
