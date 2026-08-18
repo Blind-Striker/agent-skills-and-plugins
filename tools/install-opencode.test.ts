@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
-import { createModuleManifest, digestFileMap, hashBytes } from "./lib/opencode-bundle.ts";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { gunzipSync } from "node:zlib";
+import { createModuleManifest, digestFileMap, hashBytes, loadModuleBundles } from "./lib/opencode-bundle.ts";
 import { acquireInstallerLock, applyPlan, inspectRecovery } from "./lib/opencode-install-apply.ts";
 import { planReconcile, type Plan } from "./lib/opencode-install-plan.ts";
 import { loadInstallState, observePath, type InstallState, type ObservedPath } from "./lib/opencode-install-state.ts";
@@ -412,3 +415,242 @@ function deadPid(): number {
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
+
+// --- packed-package tests --------------------------------------------------
+
+const REQUIRED_MODULES = ["deniz-dotnet-akka", "deniz-dotnet-aspire", "deniz-dotnet-general", "deniz-process"];
+
+const PACK_ALLOWED = new Set([
+  "package.json",
+  "README.md",
+  "tools/install-opencode.ts",
+  "tools/lib/opencode-bundle.ts",
+  "tools/lib/opencode-install-state.ts",
+  "tools/lib/opencode-install-plan.ts",
+  "tools/lib/opencode-install-apply.ts",
+  "dist/install-opencode.js",
+  "dist/lib/opencode-bundle.js",
+  "dist/lib/opencode-install-state.js",
+  "dist/lib/opencode-install-plan.js",
+  "dist/lib/opencode-install-apply.js",
+]);
+
+const PACK_EXCLUDED = ["external/", "plugins/", "overlays/", "experiments/", ".claude-plugin/", "docs/"];
+
+function repoRoot(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), "..");
+}
+
+function npmInvocation(args: string[]): { exe: string; args: string[] } {
+  if (process.platform === "win32") {
+    // Spawning npm.cmd without a shell is EINVAL on this Node; drive the npm CLI
+    // directly so paths with spaces never pass through cmd quoting.
+    const cli = join(dirname(process.execPath), "node_modules", "npm", "bin", "npm-cli.js");
+    if (!existsSync(cli)) {
+      throw new Error("npm-cli.js not found next to node; cannot invoke npm without a shell");
+    }
+    return { exe: process.execPath, args: [cli, ...args] };
+  }
+  return { exe: "npm", args };
+}
+
+const TAR_BLOCK = 512;
+
+function tarString(field: Buffer): string {
+  const end = field.indexOf(0);
+  return field.subarray(0, end === -1 ? field.length : end).toString("utf8");
+}
+
+function readTarEntries(tgz: string): { path: string; content: Buffer }[] {
+  const raw = gunzipSync(readFileSync(tgz));
+  const entries: { path: string; content: Buffer }[] = [];
+  let offset = 0;
+  let pendingName: string | null = null;
+  while (offset + TAR_BLOCK <= raw.length) {
+    const header = raw.subarray(offset, offset + TAR_BLOCK);
+    offset += TAR_BLOCK;
+    if (header.every((byte) => byte === 0)) {
+      break;
+    }
+    const name = tarString(header.subarray(0, 100));
+    const prefix = tarString(header.subarray(345, 500));
+    const size = Number.parseInt(tarString(header.subarray(124, 136)) || "0", 8);
+    const typeflag = String.fromCharCode(header[156] ?? 0);
+    const content = raw.subarray(offset, offset + size);
+    offset += Math.ceil(size / TAR_BLOCK) * TAR_BLOCK;
+    if (typeflag === "L") {
+      pendingName = tarString(content);
+      continue;
+    }
+    if (typeflag === "K" || typeflag === "x" || typeflag === "g") {
+      continue;
+    }
+    const full = pendingName ?? (prefix.length > 0 ? `${prefix}/${name}` : name);
+    pendingName = null;
+    if (typeflag === "5" || full.endsWith("/")) {
+      continue;
+    }
+    entries.push({ path: full, content: Buffer.from(content) });
+  }
+  return entries;
+}
+
+function packRootPackage(root: string): { tgz: string; paths: Map<string, Buffer> } {
+  const packDir = mkdtempSync(join(tmpdir(), "deniz-pack-"));
+  // prepack emits dist/ from the TS sources; --ignore-scripts would skip that and pack a broken bin.
+  const { exe, args } = npmInvocation(["pack", "--json", "--pack-destination", packDir]);
+  const result = spawnSync(exe, args, {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, npm_config_update_notifier: "false" },
+  });
+  assert.equal(result.status, 0, `npm pack failed:\n${result.stdout ?? ""}\n${result.stderr ?? ""}`);
+  const parsed = JSON.parse(result.stdout ?? "[]") as { filename: string }[];
+  assert.equal(parsed.length, 1, "npm pack --json must report exactly one tarball");
+  const tgz = join(packDir, parsed[0]?.filename ?? "");
+  const paths = new Map<string, Buffer>();
+  for (const entry of readTarEntries(tgz)) {
+    assert.ok(entry.path.startsWith("package/"), `unexpected tar entry ${entry.path}`);
+    paths.set(entry.path.slice("package/".length), entry.content);
+  }
+  return { tgz, paths };
+}
+
+test("packed payload carries the installer and every Module Bundle file", () => {
+  const root = repoRoot();
+  const opencodeRoot = join(root, "opencode");
+  assert.ok(
+    existsSync(join(opencodeRoot, "deniz-process", "manifest.json")),
+    "generated opencode/ Module Bundles are missing; run npm run build before the pack tests",
+  );
+
+  const { paths } = packRootPackage(root);
+
+  for (const required of PACK_ALLOWED) {
+    if (required === "README.md") {
+      continue; // npm force-includes the README, but it is not part of the runtime contract
+    }
+    assert.ok(paths.has(required), `tarball must contain ${required}`);
+  }
+  for (const path of paths.keys()) {
+    assert.ok(PACK_ALLOWED.has(path) || path.startsWith("opencode/"), `tarball must not contain ${path}`);
+    for (const excluded of PACK_EXCLUDED) {
+      assert.ok(!path.startsWith(excluded), `tarball must not contain ${excluded} (found ${path})`);
+    }
+  }
+
+  const bundles = loadModuleBundles(opencodeRoot);
+  for (const required of REQUIRED_MODULES) {
+    assert.ok(bundles.has(required), `opencode/ must contain a ${required} Module Bundle`);
+  }
+  for (const [name, bundle] of bundles) {
+    const manifestPath = `opencode/${name}/manifest.json`;
+    assert.ok(paths.has(manifestPath), `tarball must contain ${manifestPath}`);
+    assert.equal(
+      paths.get(manifestPath)?.equals(readFileSync(join(opencodeRoot, name, "manifest.json"))),
+      true,
+      `${manifestPath} bytes must match the generated manifest`,
+    );
+    for (const path of Object.keys(bundle.manifest.files)) {
+      const packedPath = `opencode/${name}/${path}`;
+      assert.ok(paths.has(packedPath), `tarball must contain ${packedPath}`);
+      assert.equal(
+        hashBytes(paths.get(packedPath) ?? Buffer.alloc(0)),
+        bundle.manifest.files[path]?.sha256,
+        `${packedPath} bytes must match its recorded sha256`,
+      );
+    }
+  }
+});
+
+function snapshotTree(root: string): Map<string, Buffer> {
+  const snapshot = new Map<string, Buffer>();
+  const visit = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        visit(path);
+      } else if (entry.isFile()) {
+        snapshot.set(relative(root, path).replaceAll("\\", "/"), readFileSync(path));
+      }
+    }
+  };
+  visit(root);
+  return snapshot;
+}
+
+test("packed bin installs byte-identical Native tree and Install state", async () => {
+  const root = repoRoot();
+  const { tgz } = packRootPackage(root);
+  const packedHome = mkdtempSync(join(tmpdir(), "packed-bin-home-"));
+  const checkoutHome = mkdtempSync(join(tmpdir(), "checkout-bin-home-"));
+  const npmCache = mkdtempSync(join(tmpdir(), "packed-bin-cache-"));
+  const runDir = mkdtempSync(join(tmpdir(), "packed-bin-run-"));
+  const packedXdg = join(packedHome, ".config");
+  const checkoutXdg = join(checkoutHome, ".config");
+
+  const packedEnv = { ...process.env };
+  delete packedEnv.OPENCODE_CONFIG_DIR;
+  packedEnv.HOME = packedHome;
+  packedEnv.USERPROFILE = packedHome;
+  packedEnv.XDG_CONFIG_HOME = packedXdg;
+  packedEnv.npm_config_cache = npmCache;
+  packedEnv.npm_config_update_notifier = "false";
+  packedEnv.npm_config_audit = "false";
+  packedEnv.npm_config_fund = "false";
+
+  const runPacked = (cliArgs: string[]): { status: number | null; stdout: string; stderr: string } => {
+    const { exe, args } = npmInvocation([
+      "exec",
+      "--yes",
+      "--ignore-scripts",
+      "--package",
+      pathToFileURL(tgz).href,
+      "--",
+      "deniz-skills",
+      ...cliArgs,
+    ]);
+    const result = spawnSync(exe, args, { cwd: runDir, env: packedEnv, encoding: "utf8" });
+    return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
+  };
+
+  const packedInstall = runPacked(["install", "--module", "deniz-process", "--yes"]);
+  assert.equal(packedInstall.status, 0, `packed install failed:\n${packedInstall.stdout}\n${packedInstall.stderr}`);
+  const packedStatus = runPacked(["status"]);
+  assert.equal(packedStatus.status, 0, `packed status failed:\n${packedStatus.stdout}\n${packedStatus.stderr}`);
+  const packedDestination = join(packedXdg, "opencode");
+
+  const checkoutEnv = { ...process.env };
+  delete checkoutEnv.OPENCODE_CONFIG_DIR;
+  checkoutEnv.HOME = checkoutHome;
+  checkoutEnv.USERPROFILE = checkoutHome;
+  checkoutEnv.XDG_CONFIG_HOME = checkoutXdg;
+  const checkoutIo: InstallCliIo = {
+    packageRoot: root,
+    env: checkoutEnv,
+    home: checkoutHome,
+    platform: process.platform === "win32" ? "windows" : "posix",
+  };
+  const checkoutInstall = await runInstallCli(["install", "--module", "deniz-process", "--yes"], checkoutIo);
+  assert.equal(checkoutInstall.exitCode, 0, `${checkoutInstall.stdout}${checkoutInstall.stderr}`);
+  const checkoutStatus = await runInstallCli(["status"], checkoutIo);
+  assert.equal(checkoutStatus.exitCode, 0, `${checkoutStatus.stdout}${checkoutStatus.stderr}`);
+  const checkoutDestination = join(checkoutXdg, "opencode");
+
+  const packedTree = snapshotTree(packedDestination);
+  const checkoutTree = snapshotTree(checkoutDestination);
+  assert.deepEqual([...packedTree.keys()].sort(), [...checkoutTree.keys()].sort(), "Native tree paths must match");
+  for (const [path, bytes] of packedTree) {
+    assert.ok(bytes.equals(checkoutTree.get(path) ?? Buffer.alloc(0)), `${path} bytes must match the repository CLI`);
+  }
+  const packedState = readFileSync(join(packedDestination, ".deniz-skills", "install.json"));
+  const checkoutState = readFileSync(join(checkoutDestination, ".deniz-skills", "install.json"));
+  assert.equal(packedState.equals(checkoutState), true, "Install state bytes must match");
+
+  const normalize = (output: string, destination: string): string => output.replaceAll(destination, "<destination>");
+  assert.equal(
+    normalize(packedStatus.stdout ?? "", packedDestination),
+    normalize(checkoutStatus.stdout, checkoutDestination),
+    "status output must match the repository CLI",
+  );
+});
