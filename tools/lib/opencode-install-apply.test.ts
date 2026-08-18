@@ -257,17 +257,36 @@ function apply(
   });
 }
 
+function fileIdentityOf(bytes: string, mode: "100644" | "100755" = "100644"): AppliedMutation["identity"] {
+  return { sha256: hashBytes(bytes), mode };
+}
+
+type LeftoverJournal = Omit<TransactionJournal, "applied" | "createdDirectories" | "stateAside"> & {
+  applied?: Array<Omit<AppliedMutation, "identity"> & { identity?: AppliedMutation["identity"] }>;
+  createdDirectories?: string[];
+  stateAside?: boolean;
+};
+
 function completeJournal(
-  journal: Omit<TransactionJournal, "applied" | "createdDirectories" | "stateAside"> &
-    Partial<Pick<TransactionJournal, "applied" | "createdDirectories" | "stateAside">>,
-  backupPath?: string,
+  journal: LeftoverJournal,
+  files: { backup?: { path: string; bytes: string }; placedBytes?: string; expectedOldBytes?: string },
 ): TransactionJournal {
+  const backupPath = files.backup?.path;
+  const oldIdentity = files.expectedOldBytes
+    ? fileIdentityOf(files.expectedOldBytes)
+    : files.backup
+      ? fileIdentityOf(files.backup.bytes)
+      : undefined;
+  const placedIdentity = fileIdentityOf(files.placedBytes ?? "new\n");
   const applied: AppliedMutation[] =
-    journal.applied ??
-    (backupPath
+    journal.applied?.map((item) => ({
+      ...item,
+      identity: item.identity ?? (item.action === "backed-up" && oldIdentity ? oldIdentity : placedIdentity),
+    })) ??
+    (backupPath && oldIdentity
       ? [
-          { path: backupPath, action: "backed-up" },
-          { path: backupPath, action: "placed" },
+          { path: backupPath, action: "backed-up", identity: oldIdentity },
+          { path: backupPath, action: "placed", identity: placedIdentity },
         ]
       : []);
   return {
@@ -280,16 +299,21 @@ function completeJournal(
 
 function writeLeftoverTransaction(
   destination: string,
-  journal: Omit<TransactionJournal, "applied" | "createdDirectories" | "stateAside"> &
-    Partial<Pick<TransactionJournal, "applied" | "createdDirectories" | "stateAside">>,
-  files: { oldStateBytes: string; newStateBytes: string; backup?: { path: string; bytes: string } },
+  journal: LeftoverJournal,
+  files: {
+    oldStateBytes: string;
+    newStateBytes: string;
+    backup?: { path: string; bytes: string };
+    placedBytes?: string;
+    expectedOldBytes?: string;
+  },
 ): string {
-  const full = completeJournal(journal, files.backup?.path);
+  const full = completeJournal(journal, files);
   const transactionDir = join(destination, ".deniz-skills", `txn-${full.transactionId}`);
-  mkdirSync(transactionDir, { recursive: true });
+  mkdirSync(join(transactionDir, "snapshots"), { recursive: true });
   writeFileSync(join(transactionDir, "old-state.json"), files.oldStateBytes);
   writeFileSync(join(transactionDir, "new-state.json"), files.newStateBytes);
-  writeFileSync(join(transactionDir, "journal.json"), `${JSON.stringify(full, null, 2)}\n`);
+  writeFileSync(join(transactionDir, "snapshots", "000001.json"), `${JSON.stringify(full, null, 2)}\n`);
   if (files.backup) {
     const backupPath = join(transactionDir, "backup", ...files.backup.path.split("/"));
     mkdirSync(dirname(backupPath), { recursive: true });
@@ -753,10 +777,10 @@ test("a transaction directory without a journal is blocked debris", () => {
 test("a journal that is a symlink is blocked and not followed", (t) => {
   const fixture = makeInstallFixture();
   const transactionDir = join(fixture.destination, ".deniz-skills", "txn-link");
-  mkdirSync(transactionDir, { recursive: true });
+  mkdirSync(join(transactionDir, "snapshots"), { recursive: true });
   const target = join(fixture.destination, ".deniz-skills", "not-a-journal.txt");
   writeFileSync(target, "not-json\n");
-  if (!tryLink(target, join(transactionDir, "journal.json"), "file")) {
+  if (!tryLink(target, join(transactionDir, "snapshots", "000001.json"), "file")) {
     t.skip("creating a journal symlink is not permitted");
     return;
   }
@@ -912,6 +936,7 @@ test("rollback undoes only mutations recorded as applied", () => {
       oldStateBytes: serializeInstallState(fixture.oldState),
       newStateBytes: serializeInstallState(fixture.plan.nextState),
       backup: { path: "commands/alpha.md", bytes: fixture.oldAlpha },
+      placedBytes: "new-alpha\n",
     },
   );
   const recovery = inspectRecovery(fixture.destination);
@@ -958,8 +983,9 @@ test("malformed journal operations block recovery", () => {
   const fixture = makeInstallFixture();
   const transactionDir = join(fixture.destination, ".deniz-skills", "txn-bad-op");
   mkdirSync(transactionDir, { recursive: true });
+  mkdirSync(join(transactionDir, "snapshots"), { recursive: true });
   writeFileSync(
-    join(transactionDir, "journal.json"),
+    join(transactionDir, "snapshots", "000001.json"),
     `${JSON.stringify({
       schemaVersion: 1,
       transactionId: "bad-op",
@@ -1006,3 +1032,271 @@ function existsLstatSafe(path: string): boolean {
     return false;
   }
 }
+
+function makeDropMissingFixture(): {
+  destination: string;
+  plan: Plan;
+  target: string;
+  oldState: InstallState;
+} {
+  const root = mkdtempSync(join(tmpdir(), "apply-drop-"));
+  const destination = join(root, "config", "opencode");
+  const target = join(destination, "commands", "alpha.md");
+  mkdirSync(join(destination, "commands"), { recursive: true });
+  mkdirSync(join(destination, ".deniz-skills"), { recursive: true });
+  const oldState = stateWithOwnedCommand("deniz-process", "commands/alpha.md", "old\n");
+  writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
+  const plan = requireFindingFree(
+    planReconcile(
+      oldState,
+      {},
+      { "commands/alpha.md": { kind: "absent" } },
+      { kind: "remove", modules: ["deniz-process"], all: false, platform: "posix" },
+    ),
+  );
+  return { destination, plan, target, oldState };
+}
+
+test("reclaim-in-progress blocks a second stale acquire", () => {
+  const fixture = makeInstallFixture();
+  const lockDir = join(fixture.destination, ".deniz-skills", "lock");
+  mkdirSync(lockDir, { recursive: true });
+  writeFileSync(
+    join(lockDir, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z", token: "dead-token" })}\n`,
+  );
+  mkdirSync(join(fixture.destination, ".deniz-skills", "lock.reclaim"));
+  assert.throws(() => acquireInstallerLock(fixture.destination), /reclaim/i);
+  assert.match(readFileSync(join(lockDir, "owner.json"), "utf8"), /dead-token/);
+});
+
+test("stale reclaim rereads liveness before renaming the lock", () => {
+  const fixture = makeInstallFixture();
+  const lockDir = join(fixture.destination, ".deniz-skills", "lock");
+  mkdirSync(lockDir, { recursive: true });
+  writeFileSync(
+    join(lockDir, "owner.json"),
+    `${JSON.stringify({ pid: deadPid(), startedAt: "2020-01-01T00:00:00.000Z", token: "dead-token" })}\n`,
+  );
+  assert.throws(
+    () =>
+      acquireInstallerLock(fixture.destination, {
+        io: {
+          beforeReclaimRename: () => {
+            writeFileSync(
+              join(lockDir, "owner.json"),
+              `${JSON.stringify({ pid: process.pid, startedAt: "2026-01-01T00:00:00.000Z", token: "now-live" })}\n`,
+            );
+          },
+        },
+      }),
+    /wait|process|live/i,
+  );
+  assert.match(readFileSync(join(lockDir, "owner.json"), "utf8"), /now-live/);
+});
+
+test("release renames the owned lock to a tombstone and survives injected rm failure", () => {
+  const fixture = makeInstallFixture();
+  const lock = acquireInstallerLock(fixture.destination, {
+    io: {
+      rmSync: () => {
+        throw new Error("injected rm failure");
+      },
+    },
+  });
+  const token = lock.token;
+  assert.throws(() => lock.release(), /injected rm failure/);
+  assert.equal(existsLstatSafe(lock.path), false);
+  const tombstone = join(fixture.destination, ".deniz-skills", `lock.released-${token}`);
+  assert.ok(lstatSync(tombstone).isDirectory());
+  const next = acquireInstallerLock(fixture.destination);
+  assert.notEqual(next.token, token);
+  next.release();
+});
+
+test("crash after backup syscall is inferred and rolled back without deleting the only backup", () => {
+  const fixture = makeInstallFixture();
+  assert.throws(
+    () => apply(fixture.destination, fixture.plan, fixture.bundles, { crashAfterSyscall: "backup" }),
+    /injected crash after backup syscall/,
+  );
+  assert.equal(existsLstatSafe(fixture.target), false);
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  assert.ok(recovery);
+  withLock(fixture.destination, (lock) => {
+    applyRecovery(lock, fixture.destination, recovery as RecoveryPlan);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+  assertSameState(fixture.destination, fixture.oldState);
+  assert.equal(inspectRecovery(fixture.destination), null);
+});
+
+test("a reappeared drop-missing-claim file blocks commit and rolls back", () => {
+  const fixture = makeDropMissingFixture();
+  assert.throws(
+    () =>
+      apply(fixture.destination, fixture.plan, new Map(), {
+        beforeOperation: (operation) => {
+          if (operation.kind === "drop-missing-claim") {
+            writeFileSync(fixture.target, "reappeared\n");
+          }
+        },
+      }),
+    /absent|reappeared|modified/i,
+  );
+  assert.equal(readFileSync(fixture.target, "utf8"), "reappeared\n");
+  assertSameState(fixture.destination, fixture.oldState);
+});
+
+test("malformed journal snapshot debris is blocked", () => {
+  const fixture = makeInstallFixture();
+  const transactionDir = join(fixture.destination, ".deniz-skills", "txn-malformed");
+  mkdirSync(join(transactionDir, "snapshots"), { recursive: true });
+  writeFileSync(join(transactionDir, "snapshots", "000001.json"), "{");
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "blocked");
+});
+
+test("a journal snapshot that is a symlink is blocked", (t) => {
+  const fixture = makeInstallFixture();
+  const transactionDir = join(fixture.destination, ".deniz-skills", "txn-snap-link");
+  mkdirSync(join(transactionDir, "snapshots"), { recursive: true });
+  const target = join(fixture.destination, ".deniz-skills", "not-a-journal.txt");
+  writeFileSync(target, "not-json\n");
+  if (!tryLink(target, join(transactionDir, "snapshots", "000001.json"), "file")) {
+    t.skip("creating a journal snapshot symlink is not permitted");
+    return;
+  }
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "blocked");
+});
+
+test("a temp journal snapshot that is a symlink is blocked debris", (t) => {
+  const fixture = makeInstallFixture();
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "tmp-link",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const snapshots = join(fixture.destination, ".deniz-skills", "txn-tmp-link", "snapshots");
+  mkdirSync(snapshots, { recursive: true });
+  const target = join(fixture.destination, ".deniz-skills", "tmp-target.txt");
+  writeFileSync(target, "tmp\n");
+  if (!tryLink(target, join(snapshots, "000002.deadbeef.tmp"), "file")) {
+    t.skip("creating a temp snapshot symlink is not permitted");
+    return;
+  }
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "blocked");
+});
+
+test("backup digest mismatch blocks recovery and keeps the transaction", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  const transactionDir = writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "bad-digest",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: "not-the-old-bytes\n" },
+      expectedOldBytes: fixture.oldBytes,
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /digest|backup|identity/i);
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assert.ok(lstatSync(transactionDir).isDirectory());
+});
+
+test("finalize refuses when a removed path is still present", () => {
+  const fixture = makeRemoveFixture();
+  const newState = fixture.plan.nextState;
+  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), serializeInstallState(newState));
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "finalize-remove",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(newState),
+      operations: fixture.plan.operations,
+      phase: "state-committed",
+      applied: [
+        {
+          path: "skills/alpha/SKILL.md",
+          action: "backed-up",
+          identity: { sha256: hashBytes("skill\n"), mode: "100644" },
+        },
+      ],
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(newState),
+      backup: { path: "skills/alpha/SKILL.md", bytes: "skill\n" },
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "finalize");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(() => applyRecovery(lock, fixture.destination, recovery as RecoveryPlan), /remove|present|finalize/i);
+  });
+  assert.equal(readFileSync(fixture.skillFile, "utf8"), "skill\n");
+});
+
+test("recovery refuses EXDEV topology before mutating", () => {
+  const fixture = makeInstallFixture();
+  writeFileSync(fixture.target, "new\n");
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "exdev",
+      oldStateDigest: stateDigest(fixture.oldState),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: fixture.plan.operations,
+      phase: "files-placed",
+    },
+    {
+      oldStateBytes: serializeInstallState(fixture.oldState),
+      newStateBytes: serializeInstallState(fixture.plan.nextState),
+      backup: { path: "commands/alpha.md", bytes: fixture.oldBytes },
+    },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.equal(recovery?.kind, "rollback");
+  withLock(fixture.destination, (lock) => {
+    assert.throws(
+      () =>
+        applyRecovery(lock, fixture.destination, recovery as RecoveryPlan, {
+          io: {
+            deviceId(path: string): number {
+              return path.replaceAll("\\", "/").includes("/.deniz-skills") ? 2 : 1;
+            },
+          },
+        }),
+      /EXDEV|filesystem|device/i,
+    );
+  });
+  assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
+  assertSameState(fixture.destination, fixture.oldState);
+});

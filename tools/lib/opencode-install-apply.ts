@@ -37,14 +37,18 @@ export interface InstallerLock {
 
 export type ApplyPhase = "after-backup" | "after-place" | "after-state-commit";
 export type CrashPoint = ApplyPhase | "after-state-aside";
+export type SyscallName = "backup" | "place" | "chmod" | "state-aside" | "state-commit";
 
 export interface ApplyIo {
   deviceId?(path: string): number;
+  rmSync?(path: string): void;
+  beforeReclaimRename?: () => void;
 }
 
 export interface ApplyOptions {
   failAfter?: ApplyPhase;
   crashAfter?: CrashPoint;
+  crashAfterSyscall?: SyscallName;
   beforeOperation?: (operation: PlanOperation) => void;
   io?: ApplyIo;
   forceWindowsStateReplace?: boolean;
@@ -52,6 +56,7 @@ export interface ApplyOptions {
 
 export interface AcquireLockOptions {
   recover?: boolean;
+  io?: ApplyIo;
 }
 
 export type AppliedAction = "backed-up" | "placed" | "chmodded";
@@ -59,6 +64,13 @@ export type AppliedAction = "backed-up" | "placed" | "chmodded";
 export interface AppliedMutation {
   path: string;
   action: AppliedAction;
+  identity: FileIdentity;
+}
+
+export interface JournalIntent {
+  syscall: SyscallName;
+  path?: string;
+  identity?: FileIdentity;
 }
 
 export interface TransactionJournal {
@@ -71,6 +83,7 @@ export interface TransactionJournal {
   applied: AppliedMutation[];
   createdDirectories: string[];
   stateAside: boolean;
+  intent?: JournalIntent;
 }
 
 export type RecoveryPlan =
@@ -85,9 +98,12 @@ interface LockOwner {
 
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 const NATIVE_ROOTS = new Set(["agents", "commands", "skills"]);
+const SNAPSHOT_NAME = /^(\d{6})\.json$/;
+const TEMP_SNAPSHOT = /^\d{6}\.[0-9a-fA-F-]+\.tmp$/;
 const JOURNAL_KEYS = new Set([
   "applied",
   "createdDirectories",
+  "intent",
   "newStateDigest",
   "oldStateDigest",
   "operations",
@@ -168,22 +184,6 @@ function fsyncDirectory(dir: string): void {
 
 function writeFlushed(path: string, bytes: string | Uint8Array, flag = "w"): void {
   writeFileSync(path, bytes, { flag, flush: true });
-}
-
-function atomicReplaceFile(path: string, bytes: string | Uint8Array): void {
-  const tmp = `${path}.${randomUUID()}.tmp`;
-  writeFlushed(tmp, bytes);
-  try {
-    renameSync(tmp, path);
-  } catch (error) {
-    if (!isWindowsReplaceError(error)) {
-      rmSync(tmp, { force: true });
-      throw error;
-    }
-    rmSync(path, { force: true });
-    renameSync(tmp, path);
-  }
-  fsyncDirectory(dirname(path));
 }
 
 function relativePathError(path: string): string | null {
@@ -288,17 +288,49 @@ function lockDirectory(destination: string): string {
   return join(validateDestinationRoot(destination), ".deniz-skills", "lock");
 }
 
-function createHeldLock(lockPath: string, token: string): InstallerLock {
+function reclaimGuardPath(destination: string): string {
+  return join(validateDestinationRoot(destination), ".deniz-skills", "lock.reclaim");
+}
+
+function removeTree(path: string, io?: ApplyIo): void {
+  if (io?.rmSync) {
+    io.rmSync(path);
+    return;
+  }
+  rmSync(path, { recursive: true, force: true });
+}
+
+function createHeldLock(lockPath: string, token: string, io?: ApplyIo): InstallerLock {
   const lock: InstallerLock = {
     path: lockPath,
     token,
     release(): void {
-      const owner = readOwner(lockPath);
-      if (!owner || owner.token !== token) {
+      const tombstone = `${lockPath}.released-${token}`;
+      if (existsLstat(lockPath)) {
+        const owner = readOwner(lockPath);
+        if (owner && owner.token !== token) {
+          return;
+        }
+        if (!owner || owner.token === token) {
+          try {
+            renameSync(lockPath, tombstone);
+          } catch (error) {
+            if (!isENOENT(error)) {
+              const message = error instanceof Error ? error.message : String(error);
+              throw new Error(`failed to release installer lock: ${message}`);
+            }
+          }
+        }
+      }
+      if (!existsLstat(tombstone)) {
+        return;
+      }
+      const tombstoneOwner = readOwner(tombstone);
+      if (tombstoneOwner && tombstoneOwner.token !== token) {
         return;
       }
       try {
-        rmSync(lockPath, { recursive: true });
+        removeTree(tombstone, io);
       } catch (error) {
         if (isENOENT(error)) {
           return;
@@ -311,28 +343,56 @@ function createHeldLock(lockPath: string, token: string): InstallerLock {
   return lock;
 }
 
-function occupyNewLock(lockPath: string): InstallerLock {
+function occupyNewLock(lockPath: string, io?: ApplyIo): InstallerLock {
   const token = randomUUID();
   writeOwner(lockPath, { pid: process.pid, startedAt: new Date().toISOString(), token });
-  return createHeldLock(lockPath, token);
+  return createHeldLock(lockPath, token, io);
 }
 
-function reclaimAbandonedLock(lockPath: string, oldToken: string): InstallerLock {
-  const moved = `${lockPath}.reclaimed-${oldToken}`;
+function reclaimAbandonedLock(destination: string, lockPath: string, options: AcquireLockOptions): InstallerLock {
+  const guard = reclaimGuardPath(destination);
   try {
-    renameSync(lockPath, moved);
-  } catch {
-    throw new Error("Active installer lock; wait for that process to finish, then retry");
+    mkdirSync(guard);
+  } catch (error) {
+    if (isEEXIST(error)) {
+      throw new Error("installer lock reclaim is already in progress");
+    }
+    throw error;
   }
-  rmSync(moved, { recursive: true, force: true });
-  mkdirSync(lockPath);
-  requireOrdinaryDir(lockPath, "installer lock");
-  return occupyNewLock(lockPath);
+  try {
+    options.io?.beforeReclaimRename?.();
+    requireOrdinaryDir(lockPath, "installer lock");
+    const owner = readOwner(lockPath);
+    if (owner && processExists(owner.pid)) {
+      throw new Error(`Active installer lock held by process ${owner.pid}; wait for that process to finish, then retry`);
+    }
+    const recovery = inspectRecovery(destination);
+    if (recovery && options.recover !== true) {
+      throw new Error("interrupted transaction requires Recovery; acquire the lock for Recovery, then retry");
+    }
+    const oldToken = owner?.token ?? `unknown-${randomUUID()}`;
+    const moved = `${lockPath}.reclaimed-${oldToken}`;
+    renameSync(lockPath, moved);
+    mkdirSync(lockPath);
+    requireOrdinaryDir(lockPath, "installer lock");
+    const held = occupyNewLock(lockPath, options.io);
+    rmSync(moved, { recursive: true, force: true });
+    return held;
+  } finally {
+    try {
+      rmdirSync(guard);
+    } catch {
+      rmSync(guard, { recursive: true, force: true });
+    }
+  }
 }
 
 export function acquireInstallerLock(destination: string, options: AcquireLockOptions = {}): InstallerLock {
   const { deniz } = ensureDestinationTree(destination);
   const lockPath = join(deniz, "lock");
+  if (existsLstat(reclaimGuardPath(destination))) {
+    throw new Error("installer lock reclaim is already in progress");
+  }
   try {
     mkdirSync(lockPath);
   } catch (error) {
@@ -348,10 +408,10 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
     if (recovery && options.recover !== true) {
       throw new Error("interrupted transaction requires Recovery; acquire the lock for Recovery, then retry");
     }
-    return reclaimAbandonedLock(lockPath, owner?.token ?? `unknown-${randomUUID()}`);
+    return reclaimAbandonedLock(destination, lockPath, options);
   }
   requireOrdinaryDir(lockPath, "installer lock");
-  return occupyNewLock(lockPath);
+  return occupyNewLock(lockPath, options.io);
 }
 
 function requireHeldLock(lock: InstallerLock, destination: string): void {
@@ -429,7 +489,44 @@ function parseApplied(value: unknown): AppliedMutation | null {
   if (value.action !== "backed-up" && value.action !== "placed" && value.action !== "chmodded") {
     return null;
   }
-  return { path: value.path, action: value.action };
+  const identity = parseIdentity(value.identity);
+  if (!identity) {
+    return null;
+  }
+  return { path: value.path, action: value.action, identity };
+}
+
+function parseIntent(value: unknown): JournalIntent | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!isRecord(value) || typeof value.syscall !== "string") {
+    return undefined;
+  }
+  if (
+    value.syscall !== "backup" &&
+    value.syscall !== "place" &&
+    value.syscall !== "chmod" &&
+    value.syscall !== "state-aside" &&
+    value.syscall !== "state-commit"
+  ) {
+    return undefined;
+  }
+  const intent: JournalIntent = { syscall: value.syscall };
+  if (typeof value.path === "string") {
+    if (relativePathError(value.path)) {
+      return undefined;
+    }
+    intent.path = value.path;
+  }
+  if (value.identity !== undefined) {
+    const identity = parseIdentity(value.identity);
+    if (!identity) {
+      return undefined;
+    }
+    intent.identity = identity;
+  }
+  return intent;
 }
 
 function parseJournal(raw: string): TransactionJournal | null {
@@ -485,7 +582,11 @@ function parseJournal(raw: string): TransactionJournal | null {
     }
     createdDirectories.push(item);
   }
-  return {
+  const intent = parseIntent(value.intent);
+  if (value.intent !== undefined && intent === undefined) {
+    return null;
+  }
+  const journal: TransactionJournal = {
     schemaVersion: 1,
     transactionId: value.transactionId,
     oldStateDigest: value.oldStateDigest,
@@ -496,6 +597,10 @@ function parseJournal(raw: string): TransactionJournal | null {
     createdDirectories,
     stateAside: value.stateAside,
   };
+  if (intent) {
+    journal.intent = intent;
+  }
+  return journal;
 }
 
 function digestOfStateFile(path: string): Sha256 | null {
@@ -505,6 +610,147 @@ function digestOfStateFile(path: string): Sha256 | null {
   } catch {
     return null;
   }
+}
+
+function observedFileIdentity(path: string): FileIdentity {
+  const stat = requireOrdinaryFile(path, path);
+  return {
+    sha256: hashBytes(readFileSync(path)),
+    mode: (stat.mode & 0o111) === 0 ? "100644" : "100755",
+  };
+}
+
+function identityMatches(left: FileIdentity, right: FileIdentity, platform: "posix" | "windows"): boolean {
+  return left.sha256 === right.sha256 && (platform === "windows" || left.mode === right.mode);
+}
+
+function hostPlatform(): "posix" | "windows" {
+  return process.platform === "win32" ? "windows" : "posix";
+}
+
+function snapshotsDir(transactionDir: string): string {
+  return join(transactionDir, "snapshots");
+}
+
+function loadLatestSnapshot(transactionDir: string): { journal: TransactionJournal } | { blocked: string } {
+  const dir = snapshotsDir(transactionDir);
+  if (!existsLstat(dir)) {
+    return { blocked: "transaction journal is missing" };
+  }
+  try {
+    requireOrdinaryDir(dir, "journal snapshots");
+  } catch {
+    return { blocked: "journal snapshots must be an ordinary directory" };
+  }
+  let latest: { seq: number; journal: TransactionJournal } | undefined;
+  for (const name of readdirSync(dir)) {
+    const entry = join(dir, name);
+    const stat = lstatSync(entry);
+    if (TEMP_SNAPSHOT.test(name)) {
+      if (stat.isSymbolicLink() || !stat.isFile()) {
+        return { blocked: "temp journal snapshot debris is not an ordinary file" };
+      }
+      continue;
+    }
+    const match = SNAPSHOT_NAME.exec(name);
+    if (!match) {
+      return { blocked: `unresolved journal debris ${JSON.stringify(name)}` };
+    }
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      return { blocked: "transaction journal is not an ordinary file" };
+    }
+    const journal = parseJournal(readFileSync(entry, "utf8"));
+    if (!journal) {
+      return { blocked: "transaction journal is malformed" };
+    }
+    const seq = Number(match[1]);
+    if (!latest || seq > latest.seq) {
+      latest = { seq, journal };
+    }
+  }
+  if (!latest) {
+    return { blocked: "transaction journal is missing" };
+  }
+  return { journal: latest.journal };
+}
+
+function destAbs(destination: string, path: string): string {
+  return join(destination, ...path.split("/"));
+}
+
+function inferIntent(destination: string, transactionDir: string, journal: TransactionJournal): TransactionJournal | { blocked: string } {
+  const intent = journal.intent;
+  if (!intent) {
+    return journal;
+  }
+  const next: TransactionJournal = {
+    ...journal,
+    applied: [...journal.applied],
+  };
+  delete next.intent;
+  if (intent.syscall === "backup" && intent.path && intent.identity) {
+    const backup = backupFilePath(transactionDir, intent.path);
+    const dest = destAbs(destination, intent.path);
+    if (existsLstat(backup) && !existsLstat(dest)) {
+      next.applied.push({ path: intent.path, action: "backed-up", identity: intent.identity });
+      return next;
+    }
+    if (existsLstat(dest) && !existsLstat(backup)) {
+      return next;
+    }
+    return { blocked: "backup syscall window is ambiguous; recovery is blocked" };
+  }
+  if (intent.syscall === "place" && intent.path && intent.identity) {
+    const dest = destAbs(destination, intent.path);
+    const staged = stagedFilePath(transactionDir, intent.path);
+    if (existsLstat(dest)) {
+      const observed = observedFileIdentity(dest);
+      if (observed.sha256 === intent.identity.sha256) {
+        next.applied.push({ path: intent.path, action: "placed", identity: intent.identity });
+        return next;
+      }
+    }
+    if (!existsLstat(dest) && existsLstat(staged)) {
+      return next;
+    }
+    return { blocked: "place syscall window is ambiguous; recovery is blocked" };
+  }
+  if (intent.syscall === "chmod" && intent.path && intent.identity) {
+    const dest = destAbs(destination, intent.path);
+    if (!existsLstat(dest)) {
+      return { blocked: "chmod syscall window is ambiguous; recovery is blocked" };
+    }
+    const observed = observedFileIdentity(dest);
+    if (observed.sha256 === intent.identity.sha256 && (hostPlatform() === "windows" || observed.mode === intent.identity.mode)) {
+      next.applied.push({ path: intent.path, action: "chmodded", identity: intent.identity });
+    }
+    return next;
+  }
+  if (intent.syscall === "state-aside") {
+    const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
+    const backed = join(transactionDir, "backup-install.json");
+    if (!existsLstat(installPath) && existsLstat(backed) && digestOfStateFile(backed) === journal.oldStateDigest) {
+      next.stateAside = true;
+      return next;
+    }
+    if (existsLstat(installPath) && digestOfStateFile(installPath) === journal.oldStateDigest) {
+      return next;
+    }
+    return { blocked: "state-aside syscall window is ambiguous; recovery is blocked" };
+  }
+  if (intent.syscall === "state-commit") {
+    const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
+    if (existsLstat(installPath) && digestOfStateFile(installPath) === journal.newStateDigest) {
+      next.phase = "state-committed";
+      return next;
+    }
+    if (!existsLstat(installPath)) {
+      next.stateAside = true;
+      return next;
+    }
+    return next;
+  }
+  return { blocked: "unsupported journal intent" };
 }
 
 function classifyRecovery(destination: string, transactionDir: string, journal: TransactionJournal): RecoveryPlan {
@@ -540,6 +786,15 @@ function classifyRecovery(destination: string, transactionDir: string, journal: 
   return blocked(transactionDir, "Install-state digest matches neither journal digest; recovery is blocked");
 }
 
+function isLockArtifact(name: string): boolean {
+  return (
+    name === "lock" ||
+    name === "lock.reclaim" ||
+    name.startsWith("lock.released-") ||
+    name.startsWith("lock.reclaimed-")
+  );
+}
+
 export function inspectRecovery(destination: string): RecoveryPlan | null {
   const root = validateDestinationRoot(destination);
   const deniz = join(root, ".deniz-skills");
@@ -557,9 +812,9 @@ export function inspectRecovery(destination: string): RecoveryPlan | null {
       }
       continue;
     }
-    if (name === "lock") {
+    if (isLockArtifact(name)) {
       if (stat.isSymbolicLink() || !stat.isDirectory()) {
-        return blocked(deniz, "lock must be an ordinary directory");
+        return blocked(deniz, `${name} must be an ordinary directory`);
       }
       continue;
     }
@@ -582,24 +837,15 @@ export function inspectRecovery(destination: string): RecoveryPlan | null {
   if (transactionDir === undefined) {
     return null;
   }
-  const journalPath = join(transactionDir, "journal.json");
-  if (!existsLstat(journalPath)) {
-    return blocked(transactionDir, "transaction journal is missing");
+  const loaded = loadLatestSnapshot(transactionDir);
+  if ("blocked" in loaded) {
+    return blocked(transactionDir, loaded.blocked);
   }
-  try {
-    requireOrdinaryFile(journalPath, "transaction journal");
-  } catch {
-    return blocked(transactionDir, "transaction journal is not an ordinary file");
+  const inferred = inferIntent(destination, transactionDir, loaded.journal);
+  if ("blocked" in inferred) {
+    return blocked(transactionDir, inferred.blocked);
   }
-  const journal = parseJournal(readFileSync(journalPath, "utf8"));
-  if (!journal) {
-    return blocked(transactionDir, "transaction journal is malformed");
-  }
-  return classifyRecovery(destination, transactionDir, journal);
-}
-
-function identityMatches(left: FileIdentity, right: FileIdentity, platform: "posix" | "windows"): boolean {
-  return left.sha256 === right.sha256 && (platform === "windows" || left.mode === right.mode);
+  return classifyRecovery(destination, transactionDir, inferred);
 }
 
 function recordedIdentity(state: InstallState, path: string): FileIdentity | null {
@@ -637,7 +883,11 @@ function recheckOperation(
   }
   if (operation.kind === "chmod") {
     const recorded = recordedIdentity(current, operation.path);
-    if (!recorded || observed.identity.sha256 !== recorded.sha256 || !identityMatches(observed.identity, { sha256: recorded.sha256, mode: operation.from }, platform)) {
+    if (
+      !recorded ||
+      observed.identity.sha256 !== recorded.sha256 ||
+      !identityMatches(observed.identity, { sha256: recorded.sha256, mode: operation.from }, platform)
+    ) {
       throw new Error(`${operation.path} was modified locally; restore, move, or delete it by hand, then retry`);
     }
     return;
@@ -663,12 +913,25 @@ function throwIfCrash(options: ApplyOptions | undefined, point: CrashPoint): voi
   }
 }
 
+function throwIfSyscallCrash(options: ApplyOptions | undefined, syscall: SyscallName): void {
+  if (options?.crashAfterSyscall === syscall) {
+    throw new Error(`injected crash after ${syscall} syscall`);
+  }
+}
+
 function isInjectedCrash(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith("injected crash ");
 }
 
-function writeJournal(transactionDir: string, journal: TransactionJournal): void {
-  atomicReplaceFile(join(transactionDir, "journal.json"), `${JSON.stringify(journal, null, 2)}\n`);
+function writeSnapshot(transactionDir: string, journal: TransactionJournal, seq: { value: number }): void {
+  const dir = snapshotsDir(transactionDir);
+  mkdirSync(dir, { recursive: true });
+  seq.value += 1;
+  const name = String(seq.value).padStart(6, "0");
+  const tmp = join(dir, `${name}.${randomUUID()}.tmp`);
+  writeFlushed(tmp, `${JSON.stringify(journal, null, 2)}\n`);
+  renameSync(tmp, join(dir, `${name}.json`));
+  fsyncDirectory(dir);
 }
 
 function bundleSourcePath(root: string, source: string): string {
@@ -738,7 +1001,7 @@ function backupFilePath(transactionDir: string, path: string): string {
 }
 
 function unlinkManagedFile(destination: string, path: string): void {
-  const destPath = join(destination, ...path.split("/"));
+  const destPath = destAbs(destination, path);
   try {
     const stat = lstatSync(destPath);
     if (stat.isSymbolicLink()) {
@@ -760,7 +1023,7 @@ function restoreBackup(destination: string, transactionDir: string, path: string
   validateManagedPath(destination, path);
   unlinkManagedFile(destination, path);
   const destPath = ensureParents(destination, path, created);
-  renameSync(backup, destPath);
+  writeFlushed(destPath, readFileSync(backup));
 }
 
 function pruneCreatedDirectories(destination: string, created: string[]): void {
@@ -792,6 +1055,7 @@ function operationFor(journal: TransactionJournal, path: string, kinds: PlanOper
 
 function rollbackApplied(destination: string, transactionDir: string, journal: TransactionJournal): void {
   for (const mutation of [...journal.applied].reverse()) {
+    validateManagedPath(destination, mutation.path);
     if (mutation.action === "placed") {
       const operation = operationFor(journal, mutation.path, ["add", "replace"]);
       if (operation && (operation.kind === "add" || operation.kind === "replace")) {
@@ -808,7 +1072,7 @@ function rollbackApplied(destination: string, transactionDir: string, journal: T
     }
     const operation = operationFor(journal, mutation.path, ["chmod"]);
     if (operation && operation.kind === "chmod") {
-      const destPath = join(destination, ...mutation.path.split("/"));
+      const destPath = destAbs(destination, mutation.path);
       if (existsLstat(destPath)) {
         applyMode(destPath, operation.from);
       }
@@ -818,11 +1082,7 @@ function rollbackApplied(destination: string, transactionDir: string, journal: T
   const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
   if (existsLstat(backedState)) {
     requireOrdinaryFile(backedState, "backed-up Install state");
-    if (existsLstat(installPath)) {
-      requireOrdinaryFile(installPath, "Install state");
-      rmSync(installPath);
-    }
-    renameSync(backedState, installPath);
+    writeFlushed(installPath, readFileSync(backedState));
   }
   pruneCreatedDirectories(destination, journal.createdDirectories);
 }
@@ -833,10 +1093,21 @@ function verifyRollbackComplete(destination: string, journal: TransactionJournal
     if (digestOfStateFile(installPath) !== journal.oldStateDigest) {
       throw new Error("rollback did not restore the old Install state");
     }
-    return;
-  }
-  if (journal.oldStateDigest !== stateDigest(EMPTY_INSTALL_STATE)) {
+  } else if (journal.oldStateDigest !== stateDigest(EMPTY_INSTALL_STATE)) {
     throw new Error("rollback did not restore the old Install state");
+  }
+  const platform = hostPlatform();
+  for (const mutation of journal.applied) {
+    if (mutation.action !== "backed-up") {
+      continue;
+    }
+    const dest = destAbs(destination, mutation.path);
+    if (!existsLstat(dest)) {
+      throw new Error(`rollback did not restore ${mutation.path}`);
+    }
+    if (!identityMatches(observedFileIdentity(dest), mutation.identity, platform)) {
+      throw new Error(`rollback did not restore ${mutation.path}`);
+    }
   }
 }
 
@@ -845,27 +1116,45 @@ function verifyFinalizeComplete(destination: string, journal: TransactionJournal
   if (digest !== journal.newStateDigest) {
     throw new Error("finalize refused: Install state is not the committed journal digest");
   }
-  for (const mutation of journal.applied) {
-    if (mutation.action !== "placed") {
+  const platform = hostPlatform();
+  for (const operation of journal.operations) {
+    const observed = observePath(destination, operation.path);
+    if (operation.kind === "remove" || operation.kind === "drop-missing-claim") {
+      if (observed.kind !== "absent") {
+        throw new Error(`finalize refused: ${operation.path} is still present`);
+      }
       continue;
     }
-    const operation = operationFor(journal, mutation.path, ["add", "replace"]);
-    if (!operation || (operation.kind !== "add" && operation.kind !== "replace")) {
-      throw new Error(`finalize refused: missing place operation for ${mutation.path}`);
+    if (operation.kind === "add" || operation.kind === "replace") {
+      if (observed.kind !== "file" || observed.identity.sha256 !== operation.identity.sha256) {
+        throw new Error(`finalize refused: ${operation.path} does not match the committed Plan`);
+      }
+      continue;
     }
-    const observed = observePath(destination, mutation.path);
-    if (observed.kind !== "file" || observed.identity.sha256 !== operation.identity.sha256) {
-      throw new Error(`finalize refused: ${mutation.path} does not match the committed Plan`);
+    if (operation.kind !== "chmod") {
+      continue;
+    }
+    if (observed.kind !== "file") {
+      throw new Error(`finalize refused: ${operation.path} is missing after chmod`);
+    }
+    if (platform !== "windows" && observed.identity.mode !== operation.to) {
+      throw new Error(`finalize refused: ${operation.path} mode is not the committed mode`);
     }
   }
 }
 
 function requireBackupEvidence(transactionDir: string, journal: TransactionJournal): void {
+  const platform = hostPlatform();
   for (const mutation of journal.applied) {
     if (mutation.action !== "backed-up") {
       continue;
     }
-    requireOrdinaryFile(backupFilePath(transactionDir, mutation.path), `backup of ${mutation.path}`);
+    const backup = backupFilePath(transactionDir, mutation.path);
+    requireOrdinaryFile(backup, `backup of ${mutation.path}`);
+    const observed = observedFileIdentity(backup);
+    if (!identityMatches(observed, mutation.identity, platform)) {
+      throw new Error(`backup of ${mutation.path} does not match the expected identity`);
+    }
   }
 }
 
@@ -934,6 +1223,7 @@ function commitInstallState(
   destination: string,
   transactionDir: string,
   journal: TransactionJournal,
+  seq: { value: number },
   options: ApplyOptions | undefined,
 ): void {
   const installPath = join(validateDestinationRoot(destination), ".deniz-skills", "install.json");
@@ -942,22 +1232,34 @@ function commitInstallState(
   requireOrdinaryFile(staged, "staged Install state");
   if (options?.forceWindowsStateReplace !== true) {
     try {
+      journal.intent = { syscall: "state-commit" };
+      writeSnapshot(transactionDir, journal, seq);
       renameOrThrow(staged, installPath);
+      throwIfSyscallCrash(options, "state-commit");
+      delete journal.intent;
       return;
     } catch (error) {
-      if (!isWindowsReplaceError(error)) {
+      if (!isWindowsReplaceError(error) || isInjectedCrash(error)) {
         throw error;
       }
     }
   }
-  journal.stateAside = true;
-  writeJournal(transactionDir, journal);
+  journal.intent = { syscall: "state-aside" };
+  writeSnapshot(transactionDir, journal, seq);
   if (existsLstat(installPath)) {
     requireOrdinaryFile(installPath, "Install state");
     renameOrThrow(installPath, backed);
+    throwIfSyscallCrash(options, "state-aside");
   }
+  journal.stateAside = true;
+  delete journal.intent;
+  writeSnapshot(transactionDir, journal, seq);
   throwIfCrash(options, "after-state-aside");
+  journal.intent = { syscall: "state-commit" };
+  writeSnapshot(transactionDir, journal, seq);
   renameOrThrow(staged, installPath);
+  throwIfSyscallCrash(options, "state-commit");
+  delete journal.intent;
 }
 
 export function applyPlan(
@@ -990,6 +1292,7 @@ export function applyPlan(
   requireSameDevice(root, transactionDir, options?.io);
 
   let committed = false;
+  const seq = { value: 0 };
   const journal: TransactionJournal = {
     schemaVersion: 1,
     transactionId,
@@ -1017,7 +1320,7 @@ export function applyPlan(
         stageBundleFile(transactionDir, bundles, operation);
       }
     }
-    writeJournal(transactionDir, journal);
+    writeSnapshot(transactionDir, journal, seq);
 
     for (const operation of plan.operations) {
       if (operation.kind !== "replace" && operation.kind !== "remove") {
@@ -1028,11 +1331,16 @@ export function applyPlan(
       recheckOperation(destination, current, operation, plan.request.platform);
       const destPath = validateManagedPath(destination, operation.path);
       requireSameDevice(root, destPath, options?.io);
+      const oldIdentity = recordedIdentity(current, operation.path) ?? operation.identity;
+      journal.intent = { syscall: "backup", path: operation.path, identity: oldIdentity };
+      writeSnapshot(transactionDir, journal, seq);
       const backup = backupFilePath(transactionDir, operation.path);
       mkdirSync(dirname(backup), { recursive: true });
       renameOrThrow(destPath, backup);
-      journal.applied.push({ path: operation.path, action: "backed-up" });
-      writeJournal(transactionDir, journal);
+      throwIfSyscallCrash(options, "backup");
+      delete journal.intent;
+      journal.applied.push({ path: operation.path, action: "backed-up", identity: oldIdentity });
+      writeSnapshot(transactionDir, journal, seq);
     }
     throwIfFail(options, "after-backup");
     throwIfCrash(options, "after-backup");
@@ -1049,9 +1357,13 @@ export function applyPlan(
       validateManagedPath(destination, operation.path);
       const destPath = ensureParents(destination, operation.path, journal.createdDirectories);
       requireSameDevice(root, dirname(destPath), options?.io);
+      journal.intent = { syscall: "place", path: operation.path, identity: operation.identity };
+      writeSnapshot(transactionDir, journal, seq);
       renameOrThrow(stagedFilePath(transactionDir, operation.path), destPath);
-      journal.applied.push({ path: operation.path, action: "placed" });
-      writeJournal(transactionDir, journal);
+      throwIfSyscallCrash(options, "place");
+      delete journal.intent;
+      journal.applied.push({ path: operation.path, action: "placed", identity: operation.identity });
+      writeSnapshot(transactionDir, journal, seq);
     }
     for (const operation of plan.operations) {
       if (operation.kind !== "chmod") {
@@ -1060,24 +1372,38 @@ export function applyPlan(
       requireHeldLock(lock, destination);
       options?.beforeOperation?.(operation);
       recheckOperation(destination, current, operation, plan.request.platform);
-      applyMode(join(destination, ...operation.path.split("/")), operation.to);
-      journal.applied.push({ path: operation.path, action: "chmodded" });
-      writeJournal(transactionDir, journal);
+      const destPath = destAbs(destination, operation.path);
+      const recorded = recordedIdentity(current, operation.path);
+      const identity: FileIdentity = { sha256: recorded?.sha256 ?? hashBytes(readFileSync(destPath)), mode: operation.to };
+      journal.intent = { syscall: "chmod", path: operation.path, identity };
+      writeSnapshot(transactionDir, journal, seq);
+      applyMode(destPath, operation.to);
+      throwIfSyscallCrash(options, "chmod");
+      delete journal.intent;
+      journal.applied.push({ path: operation.path, action: "chmodded", identity });
+      writeSnapshot(transactionDir, journal, seq);
     }
     journal.phase = "files-placed";
-    writeJournal(transactionDir, journal);
+    writeSnapshot(transactionDir, journal, seq);
     throwIfFail(options, "after-place");
     throwIfCrash(options, "after-place");
 
     requireHeldLock(lock, destination);
+    for (const operation of plan.operations) {
+      if (operation.kind === "drop-missing-claim") {
+        options?.beforeOperation?.(operation);
+        recheckOperation(destination, current, operation, plan.request.platform);
+      }
+    }
     if (stateDigest(loadInstallState(destination)) !== journal.oldStateDigest) {
       throw new Error("Install-state digest changed before commit");
     }
-    commitInstallState(destination, transactionDir, journal, options);
+    commitInstallState(destination, transactionDir, journal, seq, options);
     committed = true;
     journal.phase = "state-committed";
     journal.stateAside = false;
-    writeJournal(transactionDir, journal);
+    delete journal.intent;
+    writeSnapshot(transactionDir, journal, seq);
     throwIfFail(options, "after-state-commit");
     throwIfCrash(options, "after-state-commit");
 
@@ -1099,9 +1425,14 @@ export function applyPlan(
   }
 }
 
-export function applyRecovery(lock: InstallerLock, destination: string, recovery: RecoveryPlan): void {
+export function applyRecovery(
+  lock: InstallerLock,
+  destination: string,
+  recovery: RecoveryPlan,
+  options?: ApplyOptions,
+): void {
   requireHeldLock(lock, destination);
-  ensureDestinationTree(destination);
+  const { root, deniz } = ensureDestinationTree(destination);
   const current = inspectRecovery(destination);
   if (!current) {
     throw new Error("no installer transaction requires Recovery");
@@ -1112,6 +1443,8 @@ export function applyRecovery(lock: InstallerLock, destination: string, recovery
   if (current.kind === "blocked") {
     throw new Error(current.message);
   }
+  requireDestinationTopology(root, deniz, options?.io);
+  requireSameDevice(root, current.transactionDir, options?.io);
   if (current.kind === "finalize") {
     verifyFinalizeComplete(destination, current.journal);
     removeTransactionDir(current.transactionDir);
