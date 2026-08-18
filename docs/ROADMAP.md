@@ -20,23 +20,24 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   exact Ownership, zero-write Plan, under-lock recomputation and transactional Apply/Recovery. It
   supports Install, status, Update, and Remove; it has no force/reset/legacy migration,
   project-local target, runtime package adapter, or JSON-config mutation. The local npm-format
-  tarball is verified; private GitHub Release creation/download remains behind a separate remote
-  mutation gate.
+  tarball and the downloaded private GitHub Release asset are both verified: the immutable
+  `installer-v0.1.0` Release exists (pinned to commit `5ab4117`) and its
+  `deniz-agent-skills-0.1.0.tgz` asset measured identical to the local pack in an isolated profile.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
   build; expected warning identities remain under Known Gaps or the future module work below.
 - Harness-invocation experiments, their protocol, and committed evidence live in
   `experiments/harness-invocation/`; the [adapter guide](research/harness-adapters.md) describes
   harness-native behavior. The
-  [local packed-installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md)
-  proves isolated Plan/Apply and OpenCode discovery while leaving Release and human permission
-  observations explicitly unmeasured.
+  [packed-installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md)
+  proves isolated Plan/Apply, private Release download equivalence, and OpenCode discovery while
+  leaving human permission and model-driven reads explicitly unmeasured.
 
 ## Next Up
 
-1. **Staged machine migration to one source of truth.** First authorize and create the immutable
-   private `installer-v0.1.0` Release asset, download it with `gh`, and prove it equals the verified
-   local package in an isolated profile. Then present the real-profile Plan without Apply. Only after
-   separate approval, manually remove named Unowned Collisions and Apply the recomputed Plan. The end
+1. **Staged machine migration to one source of truth.** The immutable private `installer-v0.1.0`
+   Release exists and its downloaded asset measured equal to the verified local package; the
+   real-profile Plan (presented without Apply) lists 238 named Unowned Collisions. Only after
+   separate approval, manually remove those named collisions and Apply the recomputed Plan. The end
    state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`

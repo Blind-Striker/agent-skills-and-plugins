@@ -275,9 +275,10 @@ This repository now has a private root package with a `deniz-skills` bin pointin
 `dist/install-opencode.js`. The package contains only that emitted runtime, package metadata, and one
 generated `opencode/<module>/` Bundle per Module. It still has no OpenCode `main` or
 `exports["./server"]`: it is an installer package, not a runtime plugin adapter. The package runs
-locally from a checkout. The selected remote transport, once its separate mutation gate is
-authorized, is authenticated `gh` download of the exact immutable `deniz-agent-skills-0.1.0.tgz`
-asset from the private `installer-v0.1.0` GitHub Release.
+locally from a checkout. The selected remote transport is authenticated `gh` download of the exact
+immutable `deniz-agent-skills-0.1.0.tgz` asset from the private `installer-v0.1.0` GitHub Release,
+pinned to commit `5ab4117`. The Release was created with explicit authorization and its download is
+now measured as equivalent to the local pack (section 7).
 [`package.json`](../../package.json) [`README.md`](../../README.md) [LOCAL-CONTRACT]
 
 | Design | Per-module selection | Skills | Commands/agents | Update and uninstall | Fit |
@@ -317,12 +318,14 @@ Run these against pinned OpenCode builds in isolated temporary home, config, and
 Do not use a developer's real global config. Commit the runner, protocol, and records under the
 existing harness-invocation experiment area.
 
-The selected local-package path is recorded in
+The selected local-package path and the private Release transport are both recorded in
 [`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md):
 on Windows with OpenCode 1.18.18, packed Plan left the Destination absent, Apply selected all four
 Modules, Native discovery matched the installed names and paths, and OpenCode's own support files
-coexisted with Install state. The same record explicitly leaves the private Release download,
-model-driven parked-body read, and human permission prompt unmeasured.
+coexisted with Install state. The downloaded `installer-v0.1.0` Release asset reproduced the package
+SHA-256, all four Module digests, the Install-state digest, all 238 file hashes, and the same
+discovery results. The same record still leaves model-driven parked-body reads, the human permission
+prompt, post-initialization Update/Remove, and any real-profile Apply unmeasured.
 
 | Question | Fixture and action | Required assertion | Current status |
 |---|---|---|---|
@@ -338,7 +341,7 @@ model-driven parked-body read, and human permission prompt unmeasured.
 | Are support files relocatable? | command, agent, and skill references cross module and use relative files | every link resolves and runtime invocation reads the intended file | build linker and installed-tree introspection measured; model-driven support-file reads remain unmeasured |
 | Do parked bundles need permission configuration? | invoke a global Native-tree command that reads its parked body | literal prompt or no-prompt observation recorded by a human | unmeasured for installer composition; do not infer from the old config-dir mount |
 | Does Install state coexist with OpenCode config maintenance? | initialize OpenCode after install, then update and remove | OpenCode-owned support files survive; installer prunes only paths in its Ownership | isolated debug introspection measured; post-initialization Update/Remove interaction remains unmeasured |
-| Does the immutable private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | unmeasured until the Release is explicitly authorized and created |
+| Does the immutable private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | measured 2026-08-18: `installer-v0.1.0` asset downloaded; SHA-256 `69532caf…c9460` (688,609 bytes), all four Module digests, Install-state digest, and 238 file hashes equal the local pack |
 
 A passing package-adapter fixture proves that option is technically available. It does not by itself
 choose it over the managed installer; ownership, module selection, and recovery are separate design
@@ -435,4 +438,6 @@ per-module product, the implemented boundary is a root installer that composes a
 owned Module Bundles into OpenCode's Native tree and can update or remove exactly what it installed.
 The shipped unit is emitted JavaScript plus Bundles in an npm-format tarball, transported remotely as
 an immutable private GitHub Release asset rather than a Git package. OpenCode's `plugin` command
-improves package configuration, but it does not supply this ownership design.
+improves package configuration, but it does not supply this ownership design. The private Release
+exists (`installer-v0.1.0`, pinned to `5ab4117`) and its downloaded asset measured equivalent to the
+local pack (section 7).
