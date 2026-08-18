@@ -98,10 +98,10 @@ retrying.
 
 ### OpenCode from the private Release package
 
-The Release is versioned, not immutable: tag `installer-v0.1.0` pins a target commit, and the asset's
-recorded SHA-256 verifies each download and detects replacement — it does not prevent an authorized
-re-upload. Authenticated `gh` downloads the exact npm-format tarball; the repository itself is not
-installed as a Git package:
+The Release is versioned, not immutable: tag `installer-v0.1.0` pins a target commit, and the recipe
+below verifies each download's SHA-256 against the recorded digest before running anything.
+Verification detects replacement but does not prevent an authorized re-upload. Authenticated `gh`
+downloads the exact npm-format tarball; the repository itself is not installed as a Git package:
 
 ```powershell
 $download = Join-Path $env:TEMP "deniz-skills-installer-v0.1.0"
@@ -109,6 +109,9 @@ New-Item -ItemType Directory -Path $download -Force | Out-Null
 gh release download installer-v0.1.0 --repo Blind-Striker/agent-skills-and-plugins `
   --pattern "deniz-agent-skills-0.1.0.tgz" --dir $download
 $package = Join-Path $download "deniz-agent-skills-0.1.0.tgz"
+$expected = "69532caf101f5626ea652cdb7e1046783b3d64fe79613e4d59f21e95eccb9460"
+$actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw "downloaded package SHA-256 mismatch: $actual" }
 
 npm exec --yes --package $package -- deniz-skills install --all
 npm exec --yes --package $package -- deniz-skills install --all --yes
