@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -96,19 +105,28 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 
-// A bundle file that corresponds to a committed plugins/MODULE path keeps its Git index mode, so
-// an executable bit already guarded in generated output survives packaging; the resolver defaults
-// to 100644 for every path with no committed counterpart.
+// A copied skill support file keeps the Git index mode of its committed plugins/MODULE counterpart,
+// so an executable bit already guarded in generated output survives packaging. Build-generated
+// documents — commands, agents, parked BODY.md — stay 100644 even when a plugin counterpart is
+// staged executable. The source carries the exec bit too, so the copied output matches the
+// manifest's intended mode on POSIX as well (fs.cpSync chmods the destination to the source mode);
+// on Windows the verifier skips the observed-mode check.
 test("module manifests inherit executable modes from the plugin tree", () => {
   const root = makeRepo();
   // own skills copy everything, so a script planted here survives the wipe-and-re-emit
-  writeFileSync(join(root, "skills", "deniz-process", "my-own", "run.sh"), "#!/bin/sh\necho ok\n");
+  const runSh = join(root, "skills", "deniz-process", "my-own", "run.sh");
+  writeFileSync(runSh, "#!/bin/sh\necho ok\n");
+  chmodSync(runSh, 0o755);
   buildAll(root);
-  // index the emitted plugin tree and mark the script executable — the index, not the worktree,
-  // is what the build reads modes from
+  // index the emitted plugin tree: the copied script gets its intended 100755 mode; a generated
+  // command is staged executable as well, to prove generation force-100644 wins over the index
   execFileSync("git", ["init", "-q", "."], { cwd: root });
   execFileSync("git", ["add", "plugins"], { cwd: root, stdio: "ignore" });
   execFileSync("git", ["update-index", "--chmod=+x", "plugins/deniz-process/skills/my-own/run.sh"], {
+    cwd: root,
+    stdio: "ignore",
+  });
+  execFileSync("git", ["update-index", "--chmod=+x", "plugins/deniz-process/commands/deniz-beta.md"], {
     cwd: root,
     stdio: "ignore",
   });
@@ -118,7 +136,26 @@ test("module manifests inherit executable modes from the plugin tree", () => {
   const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
   assert.equal(manifest.files["skills/my-own/run.sh"].mode, "100755", "the plugin counterpart's mode travels");
   assert.equal(manifest.files["skills/alpha/SKILL.md"].mode, "100644");
+  // generated documents never inherit an executable bit, index or not
   assert.equal(manifest.files["commands/deniz-beta.md"].mode, "100644");
+  assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
+});
+
+// Every curated Module gets a bundle, even one with nothing curated: the installer selects by
+// manifest, so an empty module must still name itself and carry an empty file map.
+test("an empty module still gets a manifest", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "empty-mod.yaml"),
+    "plugin:\n  name: empty-mod\n  description: Nothing curated\n  version: 2.3.4\nitems: []\n",
+  );
+  buildAll(root);
+  const moduleRoot = opencodeModulePath(root, "empty-mod");
+  assert.ok(existsSync(join(moduleRoot, "manifest.json")));
+  const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
+  assert.equal(manifest.module, "empty-mod");
+  assert.equal(manifest.version, "2.3.4");
+  assert.deepEqual(manifest.files, {});
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 

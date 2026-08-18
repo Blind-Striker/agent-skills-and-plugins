@@ -585,18 +585,21 @@ function emitOpenCode(
 }
 
 /**
- * One manifest per Module, written only after `rewriteTree` so every hash covers the final bytes.
- * A file that corresponds to a committed plugins/MODULE path keeps its Git index mode — that is
- * where an upstream 100755 lands in the repo — and anything generated here defaults to 100644.
+ * One manifest per curated Module, written only after `rewriteTree` so every hash covers the final
+ * bytes. Every manifest gets written — an items: [] Module still has to name itself — and modes
+ * split by provenance: copied skill files may carry their committed plugins/MODULE Git index mode
+ * (that is where an upstream 100755 lands in the repo), while build-generated documents — commands,
+ * agents, parked BODY.md, anything with no plugin counterpart — are always 100644.
  */
 function writeOpenCodeManifests(root: string, manifests: CurationManifest[]): void {
   for (const m of manifests) {
     const moduleRoot = join(root, "opencode", m.plugin.name);
-    if (!existsSync(moduleRoot)) {
-      continue;
-    }
+    mkdirSync(moduleRoot, { recursive: true });
     const pluginModes = indexModes(root, [`plugins/${m.plugin.name}/`]);
     const manifest = createModuleManifest(moduleRoot, m.plugin.name, m.plugin.version, (path) => {
+      if (path.startsWith("commands/") || path.startsWith("agents/") || path.endsWith("/BODY.md")) {
+        return "100644";
+      }
       return pluginModes.get(`plugins/${m.plugin.name}/${path}`) ?? "100644";
     });
     writeFileSync(join(moduleRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
