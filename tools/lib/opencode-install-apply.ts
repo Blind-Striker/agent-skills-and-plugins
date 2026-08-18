@@ -43,6 +43,7 @@ export interface ApplyIo {
   deviceId?(path: string): number;
   rmSync?(path: string): void;
   beforeReclaimRename?: () => void;
+  beforeAcquireRename?: (candidate: string, lockPath: string) => void;
 }
 
 export interface ApplyOptions {
@@ -62,13 +63,16 @@ export interface AcquireLockOptions {
 export type AppliedAction = "backed-up" | "placed" | "chmodded";
 
 export interface AppliedMutation {
+  operationIndex: number;
   path: string;
+  kind: PlanOperation["kind"];
   action: AppliedAction;
   identity: FileIdentity;
 }
 
 export interface JournalIntent {
   syscall: SyscallName;
+  operationIndex?: number;
   path?: string;
   identity?: FileIdentity;
 }
@@ -169,6 +173,20 @@ function processExists(pid: number): boolean {
   }
 }
 
+function isUnsupportedDirFsync(error: unknown): boolean {
+  if (!(error instanceof Error) || !("code" in error)) {
+    return false;
+  }
+  const code = (error as NodeJS.ErrnoException).code;
+  return (
+    code === "ENOTSUP" ||
+    code === "EOPNOTSUPP" ||
+    code === "EINVAL" ||
+    code === "EISDIR" ||
+    (process.platform === "win32" && (code === "EPERM" || code === "EACCES"))
+  );
+}
+
 function fsyncDirectory(dir: string): void {
   try {
     const fd = openSync(dir, "r");
@@ -177,8 +195,11 @@ function fsyncDirectory(dir: string): void {
     } finally {
       closeSync(fd);
     }
-  } catch {
-    // Directory fsync is not supported on every host.
+  } catch (error) {
+    if (isUnsupportedDirFsync(error)) {
+      return;
+    }
+    throw error;
   }
 }
 
@@ -301,19 +322,18 @@ function removeTree(path: string, io?: ApplyIo): void {
 }
 
 function createHeldLock(lockPath: string, token: string, io?: ApplyIo): InstallerLock {
+  let tombstonePath: string | undefined;
+  const expectedTombstone = `${lockPath}.released-${token}`;
   const lock: InstallerLock = {
     path: lockPath,
     token,
     release(): void {
-      const tombstone = `${lockPath}.released-${token}`;
-      if (existsLstat(lockPath)) {
+      if (tombstonePath === undefined && existsLstat(lockPath)) {
         const owner = readOwner(lockPath);
-        if (owner && owner.token !== token) {
-          return;
-        }
-        if (!owner || owner.token === token) {
+        if (owner && owner.token === token) {
           try {
-            renameSync(lockPath, tombstone);
+            renameSync(lockPath, expectedTombstone);
+            tombstonePath = expectedTombstone;
           } catch (error) {
             if (!isENOENT(error)) {
               const message = error instanceof Error ? error.message : String(error);
@@ -322,17 +342,22 @@ function createHeldLock(lockPath: string, token: string, io?: ApplyIo): Installe
           }
         }
       }
-      if (!existsLstat(tombstone)) {
+      if (tombstonePath === undefined && existsLstat(expectedTombstone)) {
+        tombstonePath = expectedTombstone;
+      }
+      if (tombstonePath === undefined) {
         return;
       }
-      const tombstoneOwner = readOwner(tombstone);
-      if (tombstoneOwner && tombstoneOwner.token !== token) {
+      const tombstoneOwner = readOwner(tombstonePath);
+      if (!tombstoneOwner || tombstoneOwner.token !== token) {
         return;
       }
       try {
-        removeTree(tombstone, io);
+        removeTree(tombstonePath, io);
+        tombstonePath = undefined;
       } catch (error) {
         if (isENOENT(error)) {
+          tombstonePath = undefined;
           return;
         }
         const message = error instanceof Error ? error.message : String(error);
@@ -343,46 +368,10 @@ function createHeldLock(lockPath: string, token: string, io?: ApplyIo): Installe
   return lock;
 }
 
-function occupyNewLock(lockPath: string, io?: ApplyIo): InstallerLock {
-  const token = randomUUID();
-  writeOwner(lockPath, { pid: process.pid, startedAt: new Date().toISOString(), token });
-  return createHeldLock(lockPath, token, io);
-}
-
-function reclaimAbandonedLock(destination: string, lockPath: string, options: AcquireLockOptions): InstallerLock {
-  const guard = reclaimGuardPath(destination);
-  try {
-    mkdirSync(guard);
-  } catch (error) {
-    if (isEEXIST(error)) {
-      throw new Error("installer lock reclaim is already in progress");
-    }
-    throw error;
-  }
-  try {
-    options.io?.beforeReclaimRename?.();
-    requireOrdinaryDir(lockPath, "installer lock");
-    const owner = readOwner(lockPath);
-    if (owner && processExists(owner.pid)) {
-      throw new Error(`Active installer lock held by process ${owner.pid}; wait for that process to finish, then retry`);
-    }
-    const recovery = inspectRecovery(destination);
-    if (recovery && options.recover !== true) {
-      throw new Error("interrupted transaction requires Recovery; acquire the lock for Recovery, then retry");
-    }
-    const oldToken = owner?.token ?? `unknown-${randomUUID()}`;
-    const moved = `${lockPath}.reclaimed-${oldToken}`;
-    renameSync(lockPath, moved);
-    mkdirSync(lockPath);
-    requireOrdinaryDir(lockPath, "installer lock");
-    const held = occupyNewLock(lockPath, options.io);
-    rmSync(moved, { recursive: true, force: true });
-    return held;
-  } finally {
-    try {
-      rmdirSync(guard);
-    } catch {
-      rmSync(guard, { recursive: true, force: true });
+function cleanCandidateDebris(deniz: string): void {
+  for (const name of readdirSync(deniz)) {
+    if (name.startsWith("lock.candidate-")) {
+      rmSync(join(deniz, name), { recursive: true, force: true });
     }
   }
 }
@@ -390,28 +379,60 @@ function reclaimAbandonedLock(destination: string, lockPath: string, options: Ac
 export function acquireInstallerLock(destination: string, options: AcquireLockOptions = {}): InstallerLock {
   const { deniz } = ensureDestinationTree(destination);
   const lockPath = join(deniz, "lock");
-  if (existsLstat(reclaimGuardPath(destination))) {
-    throw new Error("installer lock reclaim is already in progress");
+  const guard = reclaimGuardPath(destination);
+  try {
+    mkdirSync(guard);
+  } catch (error) {
+    if (isEEXIST(error)) {
+      throw new Error("installer lock acquire/reclaim is already in progress");
+    }
+    throw error;
   }
   try {
-    mkdirSync(lockPath);
-  } catch (error) {
-    if (!isEEXIST(error)) {
-      throw error;
+    cleanCandidateDebris(deniz);
+    if (existsLstat(lockPath)) {
+      requireOrdinaryDir(lockPath, "installer lock");
+      const owner = readOwner(lockPath);
+      if (!owner) {
+        throw new Error("installer lock is ownerless or malformed; refuse to reclaim");
+      }
+      if (processExists(owner.pid)) {
+        throw new Error(`Active installer lock held by process ${owner.pid}; wait for that process to finish, then retry`);
+      }
+      const recovery = inspectRecovery(destination);
+      if (recovery && options.recover !== true) {
+        throw new Error("interrupted transaction requires Recovery; acquire the lock for Recovery, then retry");
+      }
+      options.io?.beforeReclaimRename?.();
+      const reread = readOwner(lockPath);
+      if (!reread) {
+        throw new Error("installer lock is ownerless or malformed; refuse to reclaim");
+      }
+      if (processExists(reread.pid)) {
+        throw new Error(`Active installer lock held by process ${reread.pid}; wait for that process to finish, then retry`);
+      }
+      if (reread.token !== owner.token) {
+        throw new Error("installer lock token changed during reclaim");
+      }
+      const moved = `${lockPath}.reclaimed-${reread.token}`;
+      renameSync(lockPath, moved);
+      rmSync(moved, { recursive: true, force: true });
     }
+    const token = randomUUID();
+    const candidate = join(deniz, `lock.candidate-${token}`);
+    mkdirSync(candidate);
+    writeOwner(candidate, { pid: process.pid, startedAt: new Date().toISOString(), token });
+    options.io?.beforeAcquireRename?.(candidate, lockPath);
+    renameSync(candidate, lockPath);
     requireOrdinaryDir(lockPath, "installer lock");
-    const owner = readOwner(lockPath);
-    if (owner && processExists(owner.pid)) {
-      throw new Error(`Active installer lock held by process ${owner.pid}; wait for that process to finish, then retry`);
+    return createHeldLock(lockPath, token, options.io);
+  } finally {
+    try {
+      rmdirSync(guard);
+    } catch {
+      rmSync(guard, { recursive: true, force: true });
     }
-    const recovery = inspectRecovery(destination);
-    if (recovery && options.recover !== true) {
-      throw new Error("interrupted transaction requires Recovery; acquire the lock for Recovery, then retry");
-    }
-    return reclaimAbandonedLock(destination, lockPath, options);
   }
-  requireOrdinaryDir(lockPath, "installer lock");
-  return occupyNewLock(lockPath, options.io);
 }
 
 function requireHeldLock(lock: InstallerLock, destination: string): void {
@@ -489,11 +510,29 @@ function parseApplied(value: unknown): AppliedMutation | null {
   if (value.action !== "backed-up" && value.action !== "placed" && value.action !== "chmodded") {
     return null;
   }
+  if (typeof value.operationIndex !== "number" || !Number.isInteger(value.operationIndex) || value.operationIndex < 0) {
+    return null;
+  }
+  if (
+    value.kind !== "add" &&
+    value.kind !== "replace" &&
+    value.kind !== "remove" &&
+    value.kind !== "chmod" &&
+    value.kind !== "drop-missing-claim"
+  ) {
+    return null;
+  }
   const identity = parseIdentity(value.identity);
   if (!identity) {
     return null;
   }
-  return { path: value.path, action: value.action, identity };
+  return {
+    operationIndex: value.operationIndex,
+    path: value.path,
+    kind: value.kind,
+    action: value.action,
+    identity,
+  };
 }
 
 function parseIntent(value: unknown): JournalIntent | undefined {
@@ -513,6 +552,9 @@ function parseIntent(value: unknown): JournalIntent | undefined {
     return undefined;
   }
   const intent: JournalIntent = { syscall: value.syscall };
+  if (typeof value.operationIndex === "number" && Number.isInteger(value.operationIndex) && value.operationIndex >= 0) {
+    intent.operationIndex = value.operationIndex;
+  }
   if (typeof value.path === "string") {
     if (relativePathError(value.path)) {
       return undefined;
@@ -632,6 +674,67 @@ function snapshotsDir(transactionDir: string): string {
   return join(transactionDir, "snapshots");
 }
 
+function allowedAction(kind: PlanOperation["kind"], action: AppliedAction): boolean {
+  if (action === "backed-up") {
+    return kind === "replace" || kind === "remove";
+  }
+  if (action === "placed") {
+    return kind === "add" || kind === "replace";
+  }
+  return kind === "chmod";
+}
+
+function actionOrder(action: AppliedAction): number {
+  if (action === "backed-up") {
+    return 1;
+  }
+  if (action === "placed" || action === "chmodded") {
+    return 2;
+  }
+  return 0;
+}
+
+function createdDirAllowed(dir: string, operations: PlanOperation[]): boolean {
+  return operations.some((operation) => {
+    if (operation.kind !== "add" && operation.kind !== "replace") {
+      return false;
+    }
+    return operation.path.startsWith(`${dir}/`);
+  });
+}
+
+function validateJournalSemantics(journal: TransactionJournal): string | null {
+  const seen = new Map<number, AppliedAction[]>();
+  for (const mutation of journal.applied) {
+    const operation = journal.operations[mutation.operationIndex];
+    if (!operation) {
+      return "applied entry references a missing operation";
+    }
+    if (operation.path !== mutation.path || operation.kind !== mutation.kind) {
+      return "applied entry does not match its operation";
+    }
+    if (!allowedAction(mutation.kind, mutation.action)) {
+      return "applied action is not valid for its operation kind";
+    }
+    const prior = seen.get(mutation.operationIndex) ?? [];
+    const last = prior[prior.length - 1];
+    if (last && actionOrder(mutation.action) <= actionOrder(last)) {
+      return "applied actions are not monotonic";
+    }
+    if (mutation.action === "placed" && mutation.kind === "replace" && !prior.includes("backed-up")) {
+      return "replace was placed without a backup";
+    }
+    prior.push(mutation.action);
+    seen.set(mutation.operationIndex, prior);
+  }
+  for (const dir of journal.createdDirectories) {
+    if (!createdDirAllowed(dir, journal.operations)) {
+      return "createdDirectories contains an unrelated path";
+    }
+  }
+  return null;
+}
+
 function loadLatestSnapshot(transactionDir: string): { journal: TransactionJournal } | { blocked: string } {
   const dir = snapshotsDir(transactionDir);
   if (!existsLstat(dir)) {
@@ -642,7 +745,7 @@ function loadLatestSnapshot(transactionDir: string): { journal: TransactionJourn
   } catch {
     return { blocked: "journal snapshots must be an ordinary directory" };
   }
-  let latest: { seq: number; journal: TransactionJournal } | undefined;
+  const bySeq = new Map<number, TransactionJournal>();
   for (const name of readdirSync(dir)) {
     const entry = join(dir, name);
     const stat = lstatSync(entry);
@@ -663,19 +766,64 @@ function loadLatestSnapshot(transactionDir: string): { journal: TransactionJourn
     if (!journal) {
       return { blocked: "transaction journal is malformed" };
     }
+    const semantic = validateJournalSemantics(journal);
+    if (semantic) {
+      return { blocked: semantic };
+    }
     const seq = Number(match[1]);
-    if (!latest || seq > latest.seq) {
-      latest = { seq, journal };
+    bySeq.set(seq, journal);
+  }
+  if (bySeq.size === 0) {
+    return { blocked: "transaction journal is missing" };
+  }
+  const seqs = [...bySeq.keys()].sort((left, right) => left - right);
+  if (seqs[0] !== 1) {
+    return { blocked: "journal snapshots are not a valid prefix" };
+  }
+  for (let index = 1; index < seqs.length; index += 1) {
+    const previous = seqs[index - 1];
+    const current = seqs[index];
+    if (previous === undefined || current === undefined || current !== previous + 1) {
+      return { blocked: "journal snapshots are not a valid prefix" };
     }
   }
+  const latestSeq = seqs[seqs.length - 1];
+  if (latestSeq === undefined) {
+    return { blocked: "transaction journal is missing" };
+  }
+  const latest = bySeq.get(latestSeq);
   if (!latest) {
     return { blocked: "transaction journal is missing" };
   }
-  return { journal: latest.journal };
+  return { journal: latest };
 }
 
 function destAbs(destination: string, path: string): string {
   return join(destination, ...path.split("/"));
+}
+
+function inferredMutation(
+  journal: TransactionJournal,
+  intent: JournalIntent,
+  action: AppliedAction,
+): AppliedMutation | { blocked: string } {
+  if (!intent.path || !intent.identity) {
+    return { blocked: "journal intent is missing path or identity" };
+  }
+  const operationIndex =
+    intent.operationIndex ??
+    journal.operations.findIndex((operation) => operation.path === intent.path && allowedAction(operation.kind, action));
+  const operation = journal.operations[operationIndex];
+  if (!operation || operation.path !== intent.path) {
+    return { blocked: "journal intent does not match an operation" };
+  }
+  return {
+    operationIndex,
+    path: intent.path,
+    kind: operation.kind,
+    action,
+    identity: intent.identity,
+  };
 }
 
 function inferIntent(destination: string, transactionDir: string, journal: TransactionJournal): TransactionJournal | { blocked: string } {
@@ -692,7 +840,11 @@ function inferIntent(destination: string, transactionDir: string, journal: Trans
     const backup = backupFilePath(transactionDir, intent.path);
     const dest = destAbs(destination, intent.path);
     if (existsLstat(backup) && !existsLstat(dest)) {
-      next.applied.push({ path: intent.path, action: "backed-up", identity: intent.identity });
+      const mutation = inferredMutation(journal, intent, "backed-up");
+      if ("blocked" in mutation) {
+        return mutation;
+      }
+      next.applied.push(mutation);
       return next;
     }
     if (existsLstat(dest) && !existsLstat(backup)) {
@@ -706,7 +858,11 @@ function inferIntent(destination: string, transactionDir: string, journal: Trans
     if (existsLstat(dest)) {
       const observed = observedFileIdentity(dest);
       if (observed.sha256 === intent.identity.sha256) {
-        next.applied.push({ path: intent.path, action: "placed", identity: intent.identity });
+        const mutation = inferredMutation(journal, intent, "placed");
+        if ("blocked" in mutation) {
+          return mutation;
+        }
+        next.applied.push(mutation);
         return next;
       }
     }
@@ -722,7 +878,11 @@ function inferIntent(destination: string, transactionDir: string, journal: Trans
     }
     const observed = observedFileIdentity(dest);
     if (observed.sha256 === intent.identity.sha256 && (hostPlatform() === "windows" || observed.mode === intent.identity.mode)) {
-      next.applied.push({ path: intent.path, action: "chmodded", identity: intent.identity });
+      const mutation = inferredMutation(journal, intent, "chmodded");
+      if ("blocked" in mutation) {
+        return mutation;
+      }
+      next.applied.push(mutation);
     }
     return next;
   }
@@ -790,6 +950,7 @@ function isLockArtifact(name: string): boolean {
   return (
     name === "lock" ||
     name === "lock.reclaim" ||
+    name.startsWith("lock.candidate-") ||
     name.startsWith("lock.released-") ||
     name.startsWith("lock.reclaimed-")
   );
@@ -844,6 +1005,10 @@ export function inspectRecovery(destination: string): RecoveryPlan | null {
   const inferred = inferIntent(destination, transactionDir, loaded.journal);
   if ("blocked" in inferred) {
     return blocked(transactionDir, inferred.blocked);
+  }
+  const semantic = validateJournalSemantics(inferred);
+  if (semantic) {
+    return blocked(transactionDir, semantic);
   }
   return classifyRecovery(destination, transactionDir, inferred);
 }
@@ -1017,13 +1182,20 @@ function unlinkManagedFile(destination: string, path: string): void {
   }
 }
 
-function restoreBackup(destination: string, transactionDir: string, path: string, created: string[]): void {
+function restoreBackup(
+  destination: string,
+  transactionDir: string,
+  path: string,
+  created: string[],
+  mode: FileMode,
+): void {
   const backup = backupFilePath(transactionDir, path);
   requireOrdinaryFile(backup, `backup of ${path}`);
   validateManagedPath(destination, path);
   unlinkManagedFile(destination, path);
   const destPath = ensureParents(destination, path, created);
   writeFlushed(destPath, readFileSync(backup));
+  applyMode(destPath, mode);
 }
 
 function pruneCreatedDirectories(destination: string, created: string[]): void {
@@ -1062,12 +1234,20 @@ function rollbackApplied(destination: string, transactionDir: string, journal: T
         const observed = observePath(destination, mutation.path);
         if (observed.kind === "file" && observed.identity.sha256 === operation.identity.sha256) {
           unlinkManagedFile(destination, mutation.path);
+        } else if (observed.kind === "file") {
+          const backup = backupFilePath(transactionDir, mutation.path);
+          const backupIdentity = existsLstat(backup) ? observedFileIdentity(backup) : undefined;
+          if (!backupIdentity || observed.identity.sha256 !== backupIdentity.sha256) {
+            throw new Error(
+              `${mutation.path} differs from what this transaction could have produced; recovery is blocked`,
+            );
+          }
         }
       }
       continue;
     }
     if (mutation.action === "backed-up") {
-      restoreBackup(destination, transactionDir, mutation.path, []);
+      restoreBackup(destination, transactionDir, mutation.path, [], mutation.identity.mode);
       continue;
     }
     const operation = operationFor(journal, mutation.path, ["chmod"]);
@@ -1126,7 +1306,7 @@ function verifyFinalizeComplete(destination: string, journal: TransactionJournal
       continue;
     }
     if (operation.kind === "add" || operation.kind === "replace") {
-      if (observed.kind !== "file" || observed.identity.sha256 !== operation.identity.sha256) {
+      if (observed.kind !== "file" || !identityMatches(observed.identity, operation.identity, platform)) {
         throw new Error(`finalize refused: ${operation.path} does not match the committed Plan`);
       }
       continue;
@@ -1197,7 +1377,28 @@ function requireSameDevice(left: string, right: string, io: ApplyIo | undefined)
   }
 }
 
-function requireDestinationTopology(destination: string, deniz: string, io: ApplyIo | undefined): void {
+function nearestExistingAncestor(path: string): string {
+  let current = path;
+  while (!existsLstat(current)) {
+    const parent = dirname(current);
+    if (parent === current) {
+      throw new Error(`no existing ancestor for ${path}`);
+    }
+    current = parent;
+  }
+  return current;
+}
+
+function requireManagedDevice(destination: string, managedPath: string, io: ApplyIo | undefined): void {
+  requireSameDevice(destination, nearestExistingAncestor(destAbs(destination, managedPath)), io);
+}
+
+function requireDestinationTopology(
+  destination: string,
+  deniz: string,
+  io: ApplyIo | undefined,
+  managedPaths: string[] = [],
+): void {
   requireSameDevice(destination, deniz, io);
   for (const native of NATIVE_ROOTS) {
     const path = join(destination, native);
@@ -1205,6 +1406,9 @@ function requireDestinationTopology(destination: string, deniz: string, io: Appl
       requireOrdinaryDir(path, native);
       requireSameDevice(destination, path, io);
     }
+  }
+  for (const managedPath of managedPaths) {
+    requireManagedDevice(destination, managedPath, io);
   }
 }
 
@@ -1230,6 +1434,9 @@ function commitInstallState(
   const staged = join(transactionDir, "new-state.json");
   const backed = join(transactionDir, "backup-install.json");
   requireOrdinaryFile(staged, "staged Install state");
+  if (stateDigest(parseInstallState(readFileSync(staged, "utf8"))) !== journal.newStateDigest) {
+    throw new Error("staged Install state digest does not match the Plan");
+  }
   if (options?.forceWindowsStateReplace !== true) {
     try {
       journal.intent = { syscall: "state-commit" };
@@ -1330,16 +1537,23 @@ export function applyPlan(
       options?.beforeOperation?.(operation);
       recheckOperation(destination, current, operation, plan.request.platform);
       const destPath = validateManagedPath(destination, operation.path);
-      requireSameDevice(root, destPath, options?.io);
+      requireManagedDevice(root, operation.path, options?.io);
       const oldIdentity = recordedIdentity(current, operation.path) ?? operation.identity;
-      journal.intent = { syscall: "backup", path: operation.path, identity: oldIdentity };
+      const operationIndex = plan.operations.indexOf(operation);
+      journal.intent = { syscall: "backup", operationIndex, path: operation.path, identity: oldIdentity };
       writeSnapshot(transactionDir, journal, seq);
       const backup = backupFilePath(transactionDir, operation.path);
       mkdirSync(dirname(backup), { recursive: true });
       renameOrThrow(destPath, backup);
       throwIfSyscallCrash(options, "backup");
       delete journal.intent;
-      journal.applied.push({ path: operation.path, action: "backed-up", identity: oldIdentity });
+      journal.applied.push({
+        operationIndex,
+        path: operation.path,
+        kind: operation.kind,
+        action: "backed-up",
+        identity: oldIdentity,
+      });
       writeSnapshot(transactionDir, journal, seq);
     }
     throwIfFail(options, "after-backup");
@@ -1356,13 +1570,24 @@ export function applyPlan(
       recheckOperation(destination, current, operation, plan.request.platform, true);
       validateManagedPath(destination, operation.path);
       const destPath = ensureParents(destination, operation.path, journal.createdDirectories);
-      requireSameDevice(root, dirname(destPath), options?.io);
-      journal.intent = { syscall: "place", path: operation.path, identity: operation.identity };
+      requireManagedDevice(root, operation.path, options?.io);
+      const staged = stagedFilePath(transactionDir, operation.path);
+      if (!identityMatches(observedFileIdentity(staged), operation.identity, plan.request.platform)) {
+        throw new Error(`${operation.path}: staged file does not match the Plan`);
+      }
+      const operationIndex = plan.operations.indexOf(operation);
+      journal.intent = { syscall: "place", operationIndex, path: operation.path, identity: operation.identity };
       writeSnapshot(transactionDir, journal, seq);
-      renameOrThrow(stagedFilePath(transactionDir, operation.path), destPath);
+      renameOrThrow(staged, destPath);
       throwIfSyscallCrash(options, "place");
       delete journal.intent;
-      journal.applied.push({ path: operation.path, action: "placed", identity: operation.identity });
+      journal.applied.push({
+        operationIndex,
+        path: operation.path,
+        kind: operation.kind,
+        action: "placed",
+        identity: operation.identity,
+      });
       writeSnapshot(transactionDir, journal, seq);
     }
     for (const operation of plan.operations) {
@@ -1373,14 +1598,22 @@ export function applyPlan(
       options?.beforeOperation?.(operation);
       recheckOperation(destination, current, operation, plan.request.platform);
       const destPath = destAbs(destination, operation.path);
+      requireManagedDevice(root, operation.path, options?.io);
       const recorded = recordedIdentity(current, operation.path);
       const identity: FileIdentity = { sha256: recorded?.sha256 ?? hashBytes(readFileSync(destPath)), mode: operation.to };
-      journal.intent = { syscall: "chmod", path: operation.path, identity };
+      const operationIndex = plan.operations.indexOf(operation);
+      journal.intent = { syscall: "chmod", operationIndex, path: operation.path, identity };
       writeSnapshot(transactionDir, journal, seq);
       applyMode(destPath, operation.to);
       throwIfSyscallCrash(options, "chmod");
       delete journal.intent;
-      journal.applied.push({ path: operation.path, action: "chmodded", identity });
+      journal.applied.push({
+        operationIndex,
+        path: operation.path,
+        kind: operation.kind,
+        action: "chmodded",
+        identity,
+      });
       writeSnapshot(transactionDir, journal, seq);
     }
     journal.phase = "files-placed";
@@ -1443,7 +1676,12 @@ export function applyRecovery(
   if (current.kind === "blocked") {
     throw new Error(current.message);
   }
-  requireDestinationTopology(root, deniz, options?.io);
+  requireDestinationTopology(
+    root,
+    deniz,
+    options?.io,
+    current.journal.operations.map((operation) => operation.path),
+  );
   requireSameDevice(root, current.transactionDir, options?.io);
   if (current.kind === "finalize") {
     verifyFinalizeComplete(destination, current.journal);
