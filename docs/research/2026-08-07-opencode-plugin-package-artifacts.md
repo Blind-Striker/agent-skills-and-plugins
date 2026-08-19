@@ -326,8 +326,10 @@ on Windows with OpenCode 1.18.18, packed Plan left the Destination absent, Apply
 Modules, Native discovery matched the installed names and paths, and OpenCode's own support files
 coexisted with Install state. The downloaded `installer-v0.1.0` Release asset reproduced the package
 SHA-256, all four Module digests, the Install-state digest, all 238 file hashes, and the same
-discovery results. The same record still leaves model-driven parked-body reads, the human permission
-prompt, post-initialization Update/Remove, and any real-profile Apply unmeasured.
+discovery results. The real profile was then migrated through the same Plan/Apply path with the 25
+model-routing control-plane roots preserved outside Module Ownership (same record). The same record
+still leaves model-driven parked-body reads, the human permission prompt, and post-initialization
+Update/Remove unmeasured.
 
 | Question | Fixture and action | Required assertion | Current status |
 |---|---|---|---|

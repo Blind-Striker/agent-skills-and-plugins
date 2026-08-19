@@ -24,7 +24,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   `installer-v0.1.0` Release exists (tag pinned to commit `5ab4117`; GitHub reports Releases as
   non-immutable, so the recorded asset SHA-256 is the replacement detection, not a prevention) and
   its `deniz-agent-skills-0.1.0.tgz` asset measured identical to the local pack in an isolated
-  profile.
+  profile. The real OpenCode profile was migrated through the same Plan/Apply path (2026-08-18);
+  the 25 model-routing control-plane roots (skill `subagent-model-routing`, three router commands,
+  21 routing agent files) were preserved byte-for-byte and remain outside Module Ownership.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
   build; expected warning identities remain under Known Gaps or the future module work below.
 - Harness-invocation experiments, their protocol, and committed evidence live in
@@ -38,9 +40,10 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 1. **Staged machine migration to one source of truth.** The private `installer-v0.1.0` Release
    exists (tag pinned to commit `5ab4117`) and its downloaded asset measured equal to the verified
-   local package; the
-   real-profile Plan (presented without Apply) lists 238 named Unowned Collisions. Only after
-   separate approval, manually remove those named collisions and Apply the recomputed Plan. The end
+   local package. The real OpenCode profile migrated (2026-08-18): backup + verified removal of the
+   118 Module takeover roots, a clean 238-Add Plan, and an approved Apply left four Modules current
+   with the 25 model-routing control-plane roots preserved outside Module Ownership. Remaining in
+   this item: retire the other global skill sources as their `deniz-*` replacements land. The end
    state (user, 2026-07-31): every
    globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
    package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`

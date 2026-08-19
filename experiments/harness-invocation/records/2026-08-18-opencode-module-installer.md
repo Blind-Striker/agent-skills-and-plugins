@@ -3,7 +3,7 @@ record_id: opencode-module-installer-local-pack-2026-08-18
 date: 2026-08-18
 repo_head: 5ab41171a894ed24931c704bdfbe7608c7d224de
 kind: runtime-smoke
-summary: The final local packed installer and the downloaded private GitHub Release asset both installed all four Modules into isolated Windows XDG Native trees with identical digests, bytes, and OpenCode discovery; human permission and model-driven reads remain unmeasured.
+summary: The final local packed installer and the downloaded private GitHub Release asset both installed all four Modules into isolated Windows XDG Native trees with identical digests, bytes, and OpenCode discovery; the real profile was then migrated through the same Plan/Apply path with the 25 model-routing control-plane roots preserved; human permission and model-driven reads remain unmeasured.
 isolation_ok: true
 harness_name: OpenCode
 harness_version: 1.18.18
@@ -166,6 +166,30 @@ OpenCode 1.18.18 discovery against the downloaded Release tree:
 | npm cache | `npm config get cache` equaled `<isolated-profile>/.npm-cache` | pass |
 | OpenCode support files | coexist; final installer status remained `current` | pass |
 
+## Real profile migration (2026-08-18)
+
+With explicit user approval, the real OpenCode profile (the machine's `~/.config/opencode`) was
+migrated through the same Plan/Apply path as the isolated panels:
+
+- Preflight reclassification of the 238 desired paths: 227 exact-final, 11 exact-old (bytes matched
+  the pre-review flat output tree), 0 modified, 0 absent, 0 type/link mismatches; no `.deniz-skills`
+  existed.
+- Backup: the 118 takeover roots (84 skill dirs, 33 command files, 1 agent file) were copied with
+  relative layout plus a SHA-256 manifest to
+  `<temp>/opencode-profile-cleanup-backup-2026-08-18` (238 files, 1,968,647 bytes) and verified
+  hash-for-hash before any deletion. The backup is kept, not deleted.
+- The 25 routing control-plane roots (skill `subagent-model-routing`; commands `router-code.md`,
+  `router-research.md`, `router-review.md`; 21 model-routing agent files) were preserved byte-for-byte
+  and remain outside Module Ownership: install.json claims only the 238 Module files.
+- `opencode.jsonc` remained byte-identical (no config edit; no Superpowers plugin entry existed).
+- Plan after cleanup: exit 0, 0 findings, 238 Add operations, 4 Selection additions.
+- Apply (`install --all --yes`): exit 0. Status: four Modules current, Lock none, Recovery none.
+- Final verification: all 238 installed files hash-identical to the repo Bundles and install-state
+  records; routing roots unchanged; zero link-like descendants; OpenCode discovery reports 74
+  discovered skills (73 curated plus `subagent-model-routing`) and the built-in `customize-opencode`,
+  36 commands (33 curated plus 3 router commands), and 24 agents (curated specialist plus 21 routing
+  files plus built-in `build`/`plan`); plugin list empty.
+
 ## Explicitly unmeasured
 
 - **Human permission behavior:** no TUI/model run was performed, so there is no observation of whether
@@ -173,9 +197,6 @@ OpenCode 1.18.18 discovery against the downloaded Release tree:
 - **Runtime support-file reads:** introspection proved discovery paths, not that a model followed a
   command stub and read the intended parked body.
 - **Post-initialization lifecycle:** status after OpenCode initialization was measured; Update and
-  Remove after initialization were not run in this external package panel.
-- **Real profile:** the zero-write Plan (`install --all` without `--yes`) was run against the real
-  profile and listed 238 `unowned_collision` Findings (1 `agents/`, 33 `commands/`, 204 `skills/`);
-  manual collision cleanup and the `--yes` Apply remain unperformed and unmeasured.
+  Remove after initialization were not run, in the external panels or the migrated real profile.
 
 Raw package output and unsanitized paths remain only in the external lab.
