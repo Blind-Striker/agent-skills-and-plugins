@@ -1,109 +1,71 @@
 # ADR-0008: References are symbols — one model, a linker, a ledger
 
-Date: 2026-08-06
+Date: 2026-08-19
 Status: Accepted
 
 ## Context
 
 Cross-item references begin as strings in upstream and owned bodies, then land in harnesses with
-different address spaces and reachability rules. A generated artifact is self-contained only when
-every dependency the build can identify resolves for its intended audience where that artifact
-lands. Bare-name prose and relative paths complicate that promise: not every apparent reference is
-an identity, and not every broken illustrative path was broken by this build.
+different address spaces and reachability rules. Namespaced addresses can carry authority, while
+bare names are often ordinary words and relative paths may be illustrative or already broken
+upstream. Treating every resemblance as a dependency creates warning noise; treating every string
+as prose allows real edges to disappear silently.
 
-The build therefore needs one neutral reference model before rendering, a linker over each emitted
-tree, an explicit declaration for authoritative model edges, and a durable review surface for the
-resolved result.
+The system therefore needs one symbolic model before rendering, a proof over each emitted address
+space, a declaration contract that can detect stale model edges, and a review surface that remains
+useful without pretending to serialize the whole build.
 
 ## Decision
 
-The reference system has five parts, decided together.
+The reference system has five parts, decided together:
 
-**1. One reference model.** `tools/lib/refs.ts` extracts references from final neutral bodies after
-overlays and before per-harness rewriting. Rewrite, validation, and sync consume that grammar.
-References have three tiers according to the authority their spelling earns:
+1. **One grammar with three evidence tiers.** Namespaced spellings are authoritative facts. Relative
+   paths become build state only where breakage can be attributed to transformation. Bare known
+   names are heuristic candidates for human review, never facts by resemblance alone. Detection
+   happens while neutral identity is still explicit.
+2. **Spelling encodes audience.** `ns:name` is a model-edge and `/ns:name` is a user-pointer. Each
+   emitter localizes that intent into its target address space. Touching candidate prose in an
+   overlay or patch does not promote it; promotion requires an authored namespaced spelling.
+3. **Each emitted tree is linked.** An authoritative fact must resolve in each harness and be
+   reachable by the audience its spelling names. Admitted paths must land. Legal same-name,
+   different-kind identities retain their artifact-kind distinction rather than collapsing into one
+   semantic target.
+4. **Model edges are declared twice.** The body carries the model-edge fact and `depends_on` carries
+   its manifest declaration. Either an undeclared fact or a stale declaration fails. User-pointers,
+   paths, and candidates are not dependency declarations, and dependency targets are not
+   content-hashed because their updates should flow.
+5. **The ledger is a deterministic review projection.** Generated per-item, per-harness state makes
+   posture, shape, and edge changes reviewable, but it is intentionally not a complete serialization
+   of emitted content or every finding.
 
-- **Facts** are namespaced spellings. Own plugin namespaces are linked and a missing target is an
-  error. Recognized upstream namespaces that remain after rewriting produce per-reference warnings.
-  Other namespaces warn once per namespace, with occurrence count and example paths; a small
-  exact-address list suppresses known CSS, label, placeholder, and runtime-address prose that is not
-  an agent-artifact reference.
-- **Paths** are relative file links. They become build state only where the transformation could
-  have broken them: a sibling-item climb must still land, and a missing same-item file is a finding
-  when upstream still ships it.
-- **Candidates** are bare known item names. They are heuristic ordinary words, surfaced for human
-  review and never promoted to build state without an authored spelling change.
+Declaring edges only in the manifest was rejected because runtime prose could contradict a green
+declaration. Deriving identity from built OpenCode text was rejected because bare output text cannot
+recover symbols. Warnings for undeclared facts were rejected because they make the declaration
+contract optional. Hashing dependency targets was rejected because reference targets should update
+without taking body ownership.
 
-Detection runs before rendering because OpenCode's bare output names cannot be parsed back into
-unambiguous identities.
-
-**2. Spelling records edge direction.** Runtime audience determines validity, so owned body text
-carries the edge kind:
-
-| Neutral spelling | Kind | Valid target posture |
-|---|---|---|
-| `ns:name` | model-edge | `auto` or `both` |
-| `/ns:name` | user-pointer | `manual` or `both` |
-
-Each emitter localizes both forms into its own address space. The convention binds overlays,
-patches, and original skills; bare prose remains candidate-tier unless an author deliberately
-changes it to a namespaced fact. Patching a body for another repair is not itself a promotion.
-
-**3. `validate` links each emitted address space.** For own-plugin facts, every target must exist and
-be reachable by the audience encoded in the spelling. Referenced parked files and admitted relative
-paths must land. A wrong-kind edge to a `both` target remains a review concern because either
-audience can reach it. When a skill-relative path works from the skill copy but not from a converted
-command, the linker warns rather than errors: the reference is sound and artifact shape caused the
-break.
-
-The linker keys target state by output name. Before rendering, both build and `validate` reject
-duplicate `plugin.name` values and duplicate kind/name pairs among a manifest's non-excluded items;
-the generated-tree scan retains the cross-plugin kind/name check, and `validate` detects an own skill
-overwriting a curated item. The same output name in different artifact kinds is legal.
-
-The manifest loader enforces the authoring enums before later consumers run: `invocation` accepts
-`auto`, `manual`, or `both`; `as` accepts `skill`, `command`, or `agent`; and `body` accepts
-`overlay` or `patch`. An absent optional field remains valid, while any other YAML value fails at
-load time.
-
-**4. `depends_on` declares model-edges in both directions.** Each item lists output names targeted by
-its model-edge facts. An undeclared fact and a stale declaration are both errors. User-pointers are
-not dependency declarations. Bodies speak neutral upstream addresses while the manifest speaks
-output names; the linker owns that mapping. Dependency targets are not content-hashed because their
-upstream updates should flow; merged content is guarded through ADR-0001 instead.
-
-Overlay and patch ownership has a related boundary: before checking content hashes, the build
-requires the primary lock keys in `overlays/overlays.lock.json` to equal the live upstream-backed
-target set that `eject --bless` would stamp. Overlay-only additions and pure-add patch targets have
-no upstream counterpart and remain outside that set. Declared merge inputs are guarded separately.
-
-**5. The build emits a ledger.** `docs/ledger.json` is generated and committed per item and harness,
-keyed by plugin, artifact kind, and output name. It records source, declared invocation, body mode,
-merge-source addresses, declared dependencies, description, emitted artifact kinds, fact edges,
-OpenCode dropped keys, parked files, and the boolean `user-invocable` and
-`disable-model-invocation` values resolved in emitted Claude skill frontmatter, all in a
-deterministic order. The ledger is the review surface for posture, shape, and edge changes, and CI's
-stale-output check keeps it aligned with generated trees.
-
-Declaring edge kinds only in the manifest was rejected because runtime prose could contradict a
-green declaration. Deriving identity from built OpenCode text was rejected because bare words are
-not symbols. Warnings for undeclared facts were rejected because they would make the declaration
-contract optional. Hashing dependency targets was rejected because a reference wants target
-updates to flow, unlike content an overlay owns.
+Current grammar, localization, linking, reachability, and ledger mechanics live in
+[References and linking](../architecture/references-and-linking.md); manifest authoring lives in
+[`curation/SCHEMA.md`](../../curation/SCHEMA.md). Overlay-lock and body-ownership mechanics are a
+separate transformation concern owned by
+[Transformation and emission](../architecture/transformation-and-emission.md) and the schema.
 
 ## Consequences
 
 - A model-edge exists twice — body fact and manifest declaration — so body edits that add or remove
   one require a same-change manifest edit. The duplication buys a stale-edge error in either
   direction.
-- The linker proves resolvability and audience reachability, not whether a model will traverse an
-  edge or follow its discipline. Runtime behavior is measured under the
+- Linking proves resolvability and audience reachability, not whether a model will traverse an edge
+  or follow its discipline. Reachability is not propensity; runtime behavior is measured under the
   [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
 - Candidate prose remains a deliberate blind spot. A body patch does not promote it merely by
   contact: its corpus convention persists until an author deliberately changes the spelling into a
   model-edge fact and declares it.
 - The path tier trades silence for narrowly scoped findings. It avoids treating all illustrative
-  upstream paths as dependencies while still catching breakage caused by rename, omission,
-  exclusion, or conversion.
+  upstream paths as dependencies while still catching attributable breakage caused by rename,
+  omission, exclusion, or conversion.
 - Deterministic ledger diffs make semantic changes reviewable, but the ledger remains a selected
   projection rather than a complete serialization of emitted artifacts.
+- The accepted kind distinction is not fully implemented: current rewrite and linker target maps
+  use bare output names and can collapse a legal same-name cross-kind case. That is a known
+  [implementation gap](../ROADMAP.md#known-gaps), not the decision.

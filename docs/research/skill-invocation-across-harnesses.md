@@ -1,15 +1,27 @@
 # Skill invocation across harnesses
 
-Date: 2026-08-06
+Date: 2026-08-18
 
-Who decides that a skill runs — the model, or the person at the keyboard — is a per-harness
-mechanism, and the two harnesses this repo targets disagree about it deeply enough that the same
-curation intent needs two different output shapes. This file records what each harness supports,
-what the vendored upstreams already use, and the prior art.
+> **Dated evidence and decision history, not current local policy.** This document synthesizes
+> source review and bounded harness sessions through 2026-08-18. Current local invocation and
+> emission mechanics live in
+> [Transformation and emission](../architecture/transformation-and-emission.md), reference
+> reachability lives in [References and linking](../architecture/references-and-linking.md), and the
+> shipped OpenCode route lives in
+> [Distribution and installation](../architecture/distribution-and-installation.md). Current
+> item-specific posture belongs in `curation/*.yaml` and the generated
+> [`docs/ledger.json`](../ledger.json); the protocol and linked records own the repeatable method and
+> committed observations.
+
+Who decided that a skill ran — the model, or the person at the keyboard — was a per-harness
+mechanism, and the two targeted harnesses disagreed deeply enough that the same curation intent
+needed two different output shapes. This file records what each harness supported in the measured
+versions, what the pinned upstreams used, and the prior art.
 
 `docs/inventory.md` lists what upstream offers; `upstream-repo-layouts.md` records how those repos
-sit on disk. This file records invocation. The decision built on top of it is
-[ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md).
+sat on disk at its evidence pin. This file records invocation evidence. The accepted trigger
+decision is [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md); follow the architecture
+links above for its current implementation.
 
 ## Claude Code
 
@@ -63,10 +75,10 @@ the pair is truncated at 1,536 characters in the skill listing), `paths` (globs 
 loading), `context: fork` + `agent` + `background` (run the skill in a subagent), `model` and
 `effort` (per-skill overrides), `allowed-tools` and `disallowed-tools`.
 
-The harness ships bundled skills of its own — `/debug`, `/code-review`, `/verify`, `/loop`,
-`/batch`, `/doctor`, `/claude-api`. `/verify` and `/code-review` are user-invoked only, which is
-the harness making the same trade this repo cares about: keep long, expensive checks under the
-user's control.
+The measured harness shipped bundled skills of its own — `/debug`, `/code-review`, `/verify`,
+`/loop`, `/batch`, `/doctor`, `/claude-api`. `/verify` and `/code-review` were user-invoked only,
+which was the same trade that motivated local curation at the snapshot: keep long, expensive checks
+under the user's control.
 
 ### A duplicate skill name across plugins is safe for the user and unsafe for the model
 
@@ -95,8 +107,9 @@ whether an install took.)
 Skills are model-only. There is no way for a user to invoke one — no slash form, no menu entry.
 Agents see the available skills and load them through a native `skill` tool. Recognised skill
 frontmatter is `name`, `description`, `license`, `compatibility` and `metadata`; the documentation
-states that unknown fields are ignored, so Claude Code's invocation keys travel into the OpenCode
-tree and do nothing there.
+states that unknown fields are ignored. That is a harness-tolerance fact, not a description of
+current local output: the current emitter drops and reports unsupported OpenCode keys, as documented
+in [Transformation and emission](../architecture/transformation-and-emission.md#opencode).
 
 Commands are therefore the *only* user-invocable surface. A command is a markdown file whose
 frontmatter carries `description`, `agent` (which agent runs it), `model`, `subtask` (force it into
@@ -107,8 +120,9 @@ Discovery walks up from the working directory to the git worktree root, reading
 `.opencode/skills/<name>/SKILL.md`, `.claude/skills/<name>/SKILL.md` and
 `.agents/skills/<name>/SKILL.md`; globally it reads the same three under `~/.config/opencode/`,
 `~/.claude/` and `~/.agents/`. Commands and agents live alongside, in `commands/` and `agents/`,
-under either `.opencode/` or `~/.config/opencode/`. All three directory names are plural, and this
-repo's `opencode/` tree uses the same spelling.
+under either `.opencode/` or `~/.config/opencode/`. All three directory names are plural. Generated
+Bundles also contain those plural paths, but `opencode/` is Bundle source for installer composition,
+not a directory OpenCode directly discovers as this product's route.
 
 **OpenCode reads Claude Code's skill tree, and its own wins.** Both measured on 1.18.7: a skill
 placed only in `.claude/skills/` is discovered, and when the same name exists in `.opencode/`,
@@ -120,10 +134,13 @@ Claude tree can be switched off with `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`.
 OpenCode's search path. Measured both ways at once: a skill placed the way a plugin actually lands
 is invisible to OpenCode, while a hand-placed one beside it under `~/.claude/skills/` is found.
 
-So the two output trees **are** independent for the distribution path this repo uses. Installing the
-`deniz-*` plugins for Claude Code does not leak them into OpenCode, and `opencode/` is the only way
-they arrive there — which is what ADR-0002 assumes. The Claude-tree reading only becomes relevant if
-someone hand-copies skills into `.claude/skills/`, and it can be switched off outright with
+So the two output distributions were independent in the measured paths: installing the `deniz-*`
+Plugins for Claude Code did not leak them into OpenCode. The earlier rounds mounted files copied
+from the generated `opencode/` tree directly; that predated managed installer composition and is not
+the shipped route. The current route composes Bundle files into the global Native tree, as described
+in [Distribution and installation](../architecture/distribution-and-installation.md). Claude-tree
+compatibility discovery becomes relevant only when skills are separately placed under
+`.claude/skills/`, and it can be switched off with
 `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1`.
 
 Five behaviours were measured on OpenCode 1.18.7, and each corrects or extends the documentation:
@@ -135,9 +152,9 @@ Five behaviours were measured on OpenCode 1.18.7, and each corrects or extends t
   `~/.config/opencode/` or the package cache — unlike Claude Code's `CLAUDE_CONFIG_DIR`, which does
   replace. Relevant to anyone trying to get a clean listing.
 - **Unrecognised frontmatter really is ignored.** A skill carrying `disable-model-invocation`,
-  `user-invocable` and `allowed-tools` loaded and ran without complaint. Claude-only keys reaching
-  the OpenCode tree are therefore dead weight rather than breakage — still worth dropping and
-  reporting (ADR-0006 axis 3), but a tidiness problem rather than a correctness one.
+  `user-invocable` and `allowed-tools` loaded and ran without complaint. That fixture established
+  how OpenCode tolerated unknown fields; it did not establish that current generated output carries
+  them. The current emitter drops and reports unsupported OpenCode keys at emission.
 - **A directory under `skills/` with no `SKILL.md` is ignored silently.** This is the parking spot a
   skill→command conversion needs: an item emitted as an OpenCode command can keep its bundled files
   at `skills/<name>/` and reference them from the command body, instead of losing them.
@@ -146,10 +163,19 @@ Five behaviours were measured on OpenCode 1.18.7, and each corrects or extends t
   three bases at once: `@h5-root.md` and `@.opencode/skills/…` substituted, a sibling of the command
   file and a `.opencode/`-relative spelling did not.
 
-Together those two rule out `@` as a portable skill→command recipe: project-root resolution can
-reach a project-local park but not the same assets under a global install. Bundled `manual`
-conversions therefore park their body and assets under non-discoverable `skills/<name>/` and emit a
-short prose stub naming both supported locations for the model's own read tool.
+Together those two ruled out `@` as a portable skill→command recipe: project-root resolution could
+reach a project-local park but not the same assets under a global install. The 2026-08-06 emitter
+fixtures therefore probed both project-local and isolated-global parked-body mounts. Those mounts
+are experiment evidence, not two supported product Destinations.
+
+> **Superseded 2026-08-06 emitter position:** a bundled `manual` command stub named both the
+> project-local `.opencode/skills/<name>/BODY.md` and the global
+> `~/.config/opencode/skills/<name>/BODY.md` as locations for the model's read tool.
+
+That dual-path position is preserved as decision history and is superseded by current global-only
+product support. The shipped installer and current stub are global-only; their mechanics live in
+[Transformation and emission](../architecture/transformation-and-emission.md#opencode) and
+[Distribution and installation](../architecture/distribution-and-installation.md#destination-selection-and-ownership).
 
 `opencode run` does not expand a slash in the message text: `/name …` reaches the model as literal
 prose, and a name that exists nowhere produces no error at all. What follows from that is *not*
@@ -178,8 +204,10 @@ Read that way, discovery resolves as:
 
 `OPENCODE_CONFIG_DIR` is additive: it does not hide the global config dir, and `opencode debug paths`
 still reports the standard `config` root when it is set. A directory under `skills/` with no
-`SKILL.md` appears in no listing at all — the parking-spot finding, now from a deterministic source
-rather than the absence of a complaint.
+`SKILL.md` appears in no listing at all — the parking-spot finding, at that point from a deterministic
+source rather than the absence of a complaint. This table describes OpenCode discovery in the
+measured version; project-local and alternate-config discovery are not supported installer
+Destinations.
 
 Three more behaviours that bear directly on the emitters:
 
@@ -192,16 +220,20 @@ Three more behaviours that bear directly on the emitters:
   `invocation: both` shown to be expressible rather than assumed — the collision class ADR-0005
   worried about is not a collision here.
 - **Every `.md` under `commands/` becomes a command**, frontmatter or not: a bare file with no
-  frontmatter was registered with an empty description. So bundled files must never be parked beside
-  a command — only under `skills/<name>/`, which is ignored. Parking them in `commands/` would
-  publish each one as a phantom command.
+  frontmatter was registered with an empty description. The emitter implication at the snapshot was
+  that bundled files could not be parked beside a command: `skills/<name>/`, which OpenCode ignored,
+  was the safe parking location, while `commands/` would have published each file as a phantom
+  command. Current parking mechanics live in
+  [Transformation and emission](../architecture/transformation-and-emission.md#opencode).
 
 ### Does a model read a pointer as the user's move? (1.18.7, model grok-4.5, `opencode run`)
 
-[ADR-0008](../adr/0008-references-are-symbols.md) spells a reference two ways: `ns:name` means the
-model invokes the target, `/ns:name` means the human is told what to open. The linker proves only
-that the target is *reachable* by the audience named; whether a model actually declines to invoke
-what it was told to point at is runtime behaviour, and it was probed rather than assumed.
+At the probe's decision boundary, [ADR-0008](../adr/0008-references-are-symbols.md) spelled a
+reference two ways: `ns:name` meant the model invoked the target, while `/ns:name` meant the human
+was told what to open. The linker proved only that the named audience could reach the target;
+whether a model actually declined to invoke what it was told to point at was runtime behavior, and
+it was probed rather than assumed. Current semantics live in
+[References and linking](../architecture/references-and-linking.md).
 
 Fixtures were project-local under `.opencode/`, discovery confirmed with `opencode debug skill` and
 `debug config` before any prompt: an `auto` knowledge skill carrying both reference lines, a plain
@@ -220,39 +252,51 @@ mechanism does not depend on wording at all — a `manual` item is filtered out 
 listing entirely (measured above), so the worst a bad pointer sentence can cost there is a confusing
 message, never a wrong invocation.
 
-### Observed on this repo's real output
+### Observed on generated output and later installer composition
 
-The initial real-output round used OpenCode 1.18.7 in the TUI with GPT-5.6 Terra. The fixture rounds
-above were confirmed against the built `opencode/` tree itself: three mounts (`OPENCODE_CONFIG_DIR`,
-project-local `.opencode/`, global config dir) each resolve the full set — every skill with a
-`SKILL.md`, every command, no parked directory in any listing — and the session exercised the
-artifacts end to end:
+The initial real-output round used OpenCode 1.18.7 in the TUI with GPT-5.6 Terra. It predated the
+managed installer and copied the built `opencode/` files into three direct mounts
+(`OPENCODE_CONFIG_DIR`, project-local `.opencode/`, and the global config directory). Each mount
+resolved the full set — every skill with a `SKILL.md`, every command, and no parked directory in any
+listing — and the session exercised those artifacts end to end. These were discovery probes, not the
+current product installation contract:
 
-- **A typed command pastes its command body into the chat as the message.** A command is a template,
-  so inline `both` and bundle-less `manual` commands still behave this way. Bundled `manual`
-  conversions now emit a short stub: on the OpenCode version named in the linked record, isolated
+- **A typed command pasted its command body into the chat as the message.** A command was a template,
+  so the observation also explained the inline `both` and bundle-less `manual` shape. At the
+  2026-08-06 emitter revision, bundled `manual` fixtures emitted a short stub and isolated
   project-local and global runs both read the parked `BODY.md`, followed it, and returned a CLI-only
   argument marker absent from that body, while the parked directory remained absent from skill
-  discovery. The measured stub result is recorded in
+  discovery. The measured historical stub result is recorded in
   [the OpenCode stub-command argument record](../../experiments/harness-invocation/records/2026-08-06-opencode-stub-command-arguments.md).
-- **Cross-artifact composition is model-mediated, and works.** The TUI does not expand a slash
-  command nested inside a command body; the model reads "Run a `/grilling` session" and invokes
-  the `grilling` skill through its skill tool. Trigger command → knowledge skill survives the
-  crossing, on a non-Claude model.
-- **Parked bundles are reachable.** Asked for the visual-companion guide, the model located and
-  read the parked file by absolute path — behind a folder-access permission prompt, since a
-  config-dir mount puts skill files outside the project tree.
-- **All three invocation surfaces behave on real output.** `manual` commands list in the `/`
-  menu under their curated descriptions; an `auto` skill fired on a free-form bug sentence (the
-  merged systematic-debugging visibly steered the session loop-first); a `both` item served both
-  surfaces in one session — `/writing-plans` paste, then a model-side `Skill "writing-plans"`
-  invocation.
+- **Cross-artifact composition was model-mediated, and worked.** The TUI did not expand a slash
+  command nested inside a command body; the model read "Run a `/grilling` session" and invoked the
+  `grilling` skill through its skill tool. Trigger command → knowledge skill survived the crossing
+  on a non-Claude model.
+- **Parked bundles were reachable in the direct-mount probe.** Asked for the visual-companion guide,
+  the model located and read the parked file by absolute path — behind a folder-access permission
+  prompt, since that config-dir mount put skill files outside the project tree. This does not answer
+  permission behavior for the later global Native-tree installation.
+- **All three invocation surfaces behaved on the directly mounted output.** `manual` commands listed
+  in the `/` menu under their curated descriptions; an `auto` skill fired on a free-form bug
+  sentence (the merged systematic-debugging visibly steered the session loop-first); a `both` item
+  served both surfaces in one session — `/writing-plans` paste, then a model-side
+  `Skill "writing-plans"` invocation.
 
 Two mount facts measured on the way. The **package cache outranks every mount**: `plugin:`
 packages > `OPENCODE_CONFIG_DIR` > global config skills, so an installed upstream package shadows
 same-named curated output until removed. And the **global config mount follows
 `XDG_CONFIG_HOME`**, falling back to the real profile — relocating `USERPROFILE` moves what
 `opencode debug paths` *reports* but not what discovery *reads*.
+
+The later 2026-08-18 installer session replaced those direct mounts with the shipped composition
+path. On OpenCode 1.18.18, the local packed Package and downloaded private Release asset installed
+the same four Modules into isolated global XDG Native trees with equivalent results: discovery found
+the installed skills, commands, and custom agent, while `BODY.md`-only directories remained
+undiscoverable as skills. The authoritative observations, package and Module digests, path counts,
+and limits are in record
+[`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md).
+That session did **not** invoke a model or observe a human permission prompt, so it does not supersede
+the older runtime-read observation with a Native-tree read claim.
 
 Access control is config-side — `opencode.json` carries allow/deny/ask patterns over skill names,
 and an agent can drop skills entirely with `skill: false`. None of that travels inside a
@@ -270,22 +314,23 @@ repo starts by assuming they travel. They do not.
 | **agent** | A subagent with its own context, dispatched rather than invoked | The same, declared `mode: subagent` |
 | **who invokes it** | a **frontmatter flag**, independent of packaging | **which artifact it is** — there is no flag |
 
-Two consequences this repo is built around:
+Two design consequences drawn from that evidence were later accepted in ADR-0005 and ADR-0006;
+those ADRs and the current architecture, not this explanation, own the local contract:
 
-- **Shape does not carry intent.** In Claude Code a `manual` item can be either packaging, because the
-  flag decides. In OpenCode the choice of artifact *is* the decision. So `invocation` is the word
-  that means the same thing on both sides, and `as:` is a separate dial for when a specific artifact
-  is wanted regardless (ADR-0006 axis 2).
-- **`manual` and `command` are not synonyms.** They coincide in Claude Code (a flagged skill and a
-  command behave alike) and coincide by construction in OpenCode (manual can only be a command).
-  They come apart in three places: `both` needs two artifacts in OpenCode and one flagless skill in
-  Claude Code, which `as: command` cannot express; a `manual` item carrying assets wants a directory
-  on one side and a single file on the other, so only the intent survives the crossing; and
-  `as: agent` is a shape for which invocation is not the question at all.
+- **Shape did not carry intent.** In Claude Code a `manual` item could use either packaging because
+  the flag decided; in OpenCode the artifact choice was the decision. `invocation` was therefore the
+  cross-harness trigger word, while `as:` remained a separate shape dial (ADR-0006 axis 2).
+- **`manual` and `command` were not synonyms.** They coincided in Claude Code because a flagged skill
+  and a command behaved alike, and in OpenCode because `manual` could only become a command. They
+  came apart in three places: `both` needed two OpenCode artifacts but one flagless Claude skill;
+  `as: command` could not express that; an asset-bearing `manual` item wanted a directory on one side
+  and one file on the other; and `as: agent` was a shape for which invocation was not the question.
 
 ## The intent matrix
 
-The same curation intent, expressed natively per harness:
+The harness evidence produced this native expression of the same trigger intent. It motivated
+ADR-0005; the current emitted mapping is owned by
+[Transformation and emission](../architecture/transformation-and-emission.md#harness-emission).
 
 | Intent | Claude Code | OpenCode |
 |---|---|---|
@@ -293,15 +338,15 @@ The same curation intent, expressed natively per harness:
 | The user decides | skill, `disable-model-invocation: true` | **command**; a skill cannot express this |
 | Either may | skill, neither key set | skill *and* command |
 
-The asymmetry is the whole point: in Claude Code the dial is a frontmatter flag on one artifact, in
-OpenCode it is a choice of artifact.
+The asymmetry was the evidence behind the decision: Claude Code used a frontmatter flag on one
+artifact, while OpenCode used the artifact choice.
 
 ## Reachability is not propensity
 
-`invocation` decides who *may* pull the trigger. Whether the model actually does is a separate
-property, and the two are measured differently: reachability is mechanical and exact — a flag, a
-listing, an artifact — while propensity is a selection the model makes from names and descriptions,
-and nothing in either harness forces it.
+The research distinction was that `invocation` decided who *may* pull the trigger, while whether the
+model actually did so was a separate property. The two required different evidence: reachability was
+mechanical and exact — a flag, a listing, an artifact — while propensity was a model selection from
+names and descriptions that neither harness forced.
 
 The paired tier-2 records
 [`tdd-intent-fire-claude-2026-08-02`](../../experiments/harness-invocation/records/2026-08-02-tdd-intent-fire-claude.md)
@@ -327,12 +372,12 @@ distribution over six valid attempts per condition was control: `followed` 5/6, 
 `not-followed` 1/6; intent: `followed` 6/6, `partial` 0/6, `not-followed` 0/6.
 
 Separate, earlier exploratory work—not this intent-fire panel—yielded two OpenCode command-surface
-notes. A converted command could
-reach its parked bundle, and a sibling-item path that `validate` warns about could be read through
-the parked skill layout. Tool input showed the model resolving `../<item>/…` against the skill
-directory rather than the command file. The filesystem warning remains valid where the target has
-no `skills/<name>/` directory — an excluded item, or a `manual` item whose empty bundle caused the
-emitter to drop the husk.
+notes. A converted command could reach its parked bundle, and a sibling-item path that `validate`
+warned about could be read through the parked skill layout. Tool input showed the model resolving
+`../<item>/…` against the skill directory rather than the command file. At that evidence snapshot,
+the filesystem warning still applied where the target had no `skills/<name>/` directory — an
+excluded item, or a `manual` item whose empty bundle caused the emitter to drop the husk. Current
+path-linking mechanics live in [References and linking](../architecture/references-and-linking.md#paths).
 
 Invocation and TDD discipline remain distinct events: a target `Skill` or `skill` tool input records
 the former, while the latter is a review of the session's ordering, outputs, final diff, and text.
@@ -351,8 +396,9 @@ for r in external/*/; do
 done
 ```
 
-Three of the five vendored repos set invocation frontmatter; `superpowers` and `aspire-skills` set
-none at all.
+At this snapshot, three of the five vendored repos set invocation frontmatter; `superpowers` and
+`aspire-skills` set none at all. Re-run the command above after a pin change rather than treating the
+count as current inventory.
 
 - **mattpocock-skills** uses `disable-model-invocation: true` as its *default posture*, not as a
   mark on a few flagship skills — it carries the flag across most of both promoted buckets, and
@@ -365,12 +411,14 @@ none at all.
   done
   ```
 
-  Everything that survives that filter is a *knowledge* skill — `grilling`, `tdd`,
-  `diagnosing-bugs`, `code-review`, `domain-modeling`, `codebase-design`, `research`, `prototype`,
-  `resolving-merge-conflicts`. Everything flagged is a *trigger*: `grill-me` and `grill-with-docs`
-  are user-only, while the `grilling` discipline they invoke is model-only. That is the ADR-0005
-  matrix already implemented upstream, and it maps to our field directly — flagged means
-  `invocation: manual`, unflagged means `invocation: auto`.
+  At the measured pin, everything that survived that filter was a *knowledge* skill — `grilling`,
+  `tdd`, `diagnosing-bugs`, `code-review`, `domain-modeling`, `codebase-design`, `research`,
+  `prototype`, `resolving-merge-conflicts`. Everything flagged is a *trigger*: `grill-me` and
+  `grill-with-docs` are user-only, while the `grilling` discipline they invoke is model-only. That is
+  the ADR-0005 matrix already implemented upstream, and it supplied a direct historical mapping
+  candidate: flagged meant `invocation: manual`, unflagged meant `invocation: auto`. Current item
+  decisions and their reasons live in the curation manifests; the generated ledger shows resolved
+  posture.
 - **superpowers** sets no invocation frontmatter anywhere; every skill carries `name` and
   `description` only. It reaches for automatic invocation two other ways. First, description prose:
   `brainstorming` opens with "You MUST use this before any creative work" — pressure written into
@@ -379,7 +427,8 @@ none at all.
   `hooks/hooks.json` registers a `startup|clear|compact` hook whose script reads
   `skills/using-superpowers/SKILL.md` and injects its full text wrapped in `<EXTREMELY_IMPORTANT>`.
   The bootstrap is not a separate skill — it is the delivery mechanism, and `using-superpowers` is
-  its payload. This repo packages no hooks, so that amplification is absent from our output.
+  its payload. At this evidence snapshot, local output packaged no hooks, so that amplification was
+  absent. Current hook and item posture belongs in the curation manifests and generated ledger.
 
   The coercive language is narrower than it looks, and worth locating precisely before deciding
   what to strip. `1%` appears in exactly one place: the `<EXTREMELY-IMPORTANT>` block of
@@ -391,18 +440,21 @@ none at all.
   ("REQUIRED BACKGROUND") and again inside an authoring example of that same convention.
   Re-derive with `rg -n '\b1%|You MUST|DO NOT HAVE A CHOICE' external/superpowers/skills --glob '**/SKILL.md'`.
 - **dotnet-skills** sets `invocable: true|false` on most of its skills. That is not a field in
-  either harness's frontmatter reference; it is upstream's own convention and reaches our output as
-  dead metadata.
+  either harness's frontmatter reference; it is upstream's own convention and was dead metadata for
+  the harnesses. Current per-item handling is visible in the manifest comments and ledger.
 - **dotnet-agent-skills** uses both real keys, and mostly on agents rather than skills. The
   dominant use is `user-invocable: false` on the `code-testing-*` sub-agents — pipeline stages
   meant to be dispatched by an orchestrator, kept out of the user's slash menu. A few skills
   (`filter-syntax`, `platform-detection`, and the two `*-extensions`) set `user-invocable: false`
   **and** `disable-model-invocation: true` together, which in Claude Code leaves nothing able to
   invoke them directly: they are reference material for another skill to read, not entry points.
-  The resolution, first applied in `deniz-dotnet-general`: the "neither" class maps to our
-  `invocation: auto`. The dependents point at these skills by bare name (candidate-tier prose that
-  survives unchanged into both trees), and `auto` keeps them model-reachable in both harnesses
-  while users never see them — no "neither" value is needed.
+  The historical resolution, first applied in `deniz-dotnet-general`, mapped the "neither" class to
+  `invocation: auto`. The dependents pointed at these skills by bare name (candidate-tier prose that
+  survived unchanged into both trees), and `auto` kept them model-reachable in both harnesses while
+  users did not see them — no "neither" value was needed. This records why the choice was made;
+  current posture belongs in
+  [`curation/deniz-dotnet-general.yaml`](../../curation/deniz-dotnet-general.yaml) and
+  [`docs/ledger.json`](../ledger.json).
 
 ## The composition pattern
 
@@ -427,20 +479,23 @@ produces its dense cross-reference graph — and, for us, the dangling reference
 curation leaves behind.
 
 Two things were measured about the prose form, and together they set the price of leaving it alone.
-It **works**: `grill-me` → `grilling` fired as the first act of the session, a user-only trigger
-reaching model-only knowledge across the boundary, exactly as the architecture intends. And it is
-**invisible** — a bare name is candidate-tier by [ADR-0008](../adr/0008-references-are-symbols.md),
-so that edge is in no `depends_on`, in no ledger, and under no guard. The one composition this repo
-has demonstrated at runtime is the one its linker cannot see.
+It **worked in that session**: `grill-me` → `grilling` fired as the first act, a user-only trigger
+reaching model-only knowledge across the boundary, consistent with the intended architecture. And
+it was **invisible** — a bare name was candidate-tier under
+[ADR-0008](../adr/0008-references-are-symbols.md), so at the snapshot that edge was in no
+`depends_on`, in no ledger, and under no guard. It was the one local composition observed at runtime
+and the one the linker could not see.
 
-The spelling also disagrees with ours in a way worth counting before deciding anything. Across the
-module, twenty-seven bodies name another curated item as a bare `/name`; in eleven of them the
+The spelling also disagreed with the local grammar in a way worth counting before deciding anything.
+At this evidence snapshot, twenty-seven bodies named another curated item as a bare `/name`; in
+eleven of them the
 target is `auto`, so the slash claims a user surface that target does not have — a human cannot type
-it at all. Under our grammar a slash means the human is the audience, and the same eleven sentences
-spelled namespaced would be linker errors. Matt's convention reads `/x` as "the model invokes x",
-and models oblige, which is why the incoherence costs nothing today. Re-derive the count before
-acting on it. Editing a body for another reason does not promote candidate prose; each spelling
-becomes a declared edge only when the author deliberately changes it to a namespaced fact.
+it at all. Under the local grammar at that snapshot, a slash meant the human was the audience, and
+the same eleven sentences spelled namespaced would have been linker errors. Matt's convention read
+`/x` as "the model invokes x", and models obliged in the measured sessions. Re-derive the count
+before acting on it. Current fact, pointer, and candidate semantics live in
+[References and linking](../architecture/references-and-linking.md); editing a body for another
+reason does not by itself promote candidate prose.
 
 ## Prior art: wshobson/agents
 
@@ -449,19 +504,19 @@ The multi-harness marketplace ADR-0002 took its model from. One source-of-truth 
 adapter (`tools/adapters/{codex,copilot,cursor,gemini,opencode}.py`) that emits idiomatic artifacts
 rather than a shared subset.
 
-The governing sentence, which is the design target for our manifest:
+The governing sentence used as the design target at the snapshot was:
 
 > Each adapter handles incompatibilities mechanically — authors don't need to know the per-harness
 > rules to write portable content.
 
-**What it does, read from the adapters** — worth knowing precisely, because the differences from
-this repo are as instructive as the similarities:
+**What it did, read from the adapters** — worth knowing precisely, because the differences from the
+local design at the snapshot were as instructive as the similarities:
 
 - **Type is inherited, never chosen.** Each source type maps 1:1 to the target's equivalent
   "without intermediate transformations". Conversion happens *only* where the target lacks the
   concept — Codex has no commands, so commands become skills there. Nothing lets an author say "emit
-  this skill as a command"; that is [ADR-0006](../adr/0006-output-is-a-transformation.md) axis 2, and
-  it is where this repo is more ambitious than its prior art.
+  this skill as a command"; that contrasted with [ADR-0006](../adr/0006-output-is-a-transformation.md)
+  axis 2, where the selected local design was more ambitious than its prior art.
 - **Skill directories are mirrored whole.** `skill.dir.rglob("*")` copies `references/`, `assets/`,
   `scripts/`, `examples/` verbatim, preserving relative paths and binary content. Sibling references
   inside a body keep working because the directory survives — so the problem of a converted item
@@ -471,25 +526,27 @@ this repo are as instructive as the similarities:
   tool" → `` `open` ``, `` `Bash` `` → `` `shell` ``. There is no link or file-reference rewriting
   anywhere.
 
-  **This repo does not need that rewrite, and implementing it would cause a bug.** OpenCode's own
+  **At the scanned snapshot, this repo did not need that rewrite, and applying it would have caused
+  a bug.** OpenCode's own
   tool identifiers (from its config schema) are `read`, `edit`, `glob`, `grep`, `list`, `bash`,
   `task`, `todowrite`, `question`, `webfetch`, `websearch`, `lsp`, `skill`, `external_directory`,
   `doom_loop` — the same words as Claude Code's, differing only in case, so the transform reduces to
-  a case fold. And the vendored corpus does not need even that: of 206 upstream `SKILL.md` files,
-  the search for Claude tool names returns four hits, all of them `` `Task` `` inside .NET skills
-  where it means `System.Threading.Tasks.Task`. A case-folding rewrite would have silently corrupted
-  three .NET skills to fix zero real references.
+  a case fold. At the scanned corpus snapshot, the vendored corpus did not need even that: of 206
+  upstream `SKILL.md` files, the search for Claude tool names returned four hits, all of them
+  `` `Task` `` inside .NET skills where it means `System.Threading.Tasks.Task`. A case-folding
+  rewrite would have silently corrupted three .NET skills to fix zero real references.
 - **Flat namespaces get a prefix.** OpenCode output is `.opencode/skills/<plugin>-<skill>/SKILL.md`
   and `.opencode/{commands,agents}/<plugin>__<name>.md` — the plugin name is carried into the
-  artifact name rather than requiring globally unique names as ADR-0002 does.
+  artifact name, unlike the global-uniqueness choice recorded in ADR-0002.
 - **Agent permissions are mapped, not dropped.** Claude Code's `tools:` allowlist becomes an
   OpenCode `permission:` deny block — the concrete recipe for the mapping ADR-0002 deferred.
 - **A hard size cap is absorbed by splitting.** Codex truncates skill bodies over 8 KB at load, so
   the adapter splits the overflow into `references/details.md` and `_overflow.md` rather than
   letting the truncation happen silently.
 - **Most generated output is gitignored** and rebuilt by `make generate`; only the small registries
-  are committed. This repo commits everything instead, because ADR-0001 wants a clone to work
-  immediately — a different goal, not a disagreement.
+  are committed. At the comparison snapshot, this repository instead committed its generated output
+  under ADR-0001 — a different goal, not a disagreement. Current generated-output boundaries are in
+  [Transformation and emission](../architecture/transformation-and-emission.md#authored-and-generated-boundaries).
 
 ## Sources
 

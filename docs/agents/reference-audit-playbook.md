@@ -1,10 +1,11 @@
 # Reference-audit playbook
 
-Date: 2026-08-18
+Date: 2026-08-19
 
 A repeatable sweep over **emitted output** for reference problems the deterministic gates cannot
-decide. `npm run validate` handles namespaced facts, declared edges, and path resolution
-([ADR-0008](../adr/0008-references-are-symbols.md)). This playbook surfaces bare-name candidates and
+decide. [References and linking](../architecture/references-and-linking.md) owns the current
+namespaced-fact, declared-edge, path, and candidate semantics; [ADR-0008](../adr/0008-references-are-symbols.md)
+records their rationale and trade-off. This playbook surfaces bare-name candidates and
 curation-intent contradictions for the curator. It never authorizes an agent to change curation on
 its own ([ADR-0007](../adr/0007-control-beats-fidelity.md)).
 

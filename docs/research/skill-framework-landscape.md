@@ -6,6 +6,14 @@ What the wider community concluded about the skill frameworks this repo vendors,
 evidence says about skill quality in general. This is *input* to curation; the why of any individual
 take/skip/modify decision belongs beside the item in `curation/*.yaml`.
 
+> **Dated advisory synthesis, not current local policy.** This snapshot preserves the comparisons and
+> recommendations that informed curation, including positions later refined or superseded. Current
+> item posture is owned by the [manifest comments](../../curation/deniz-process.yaml) and generated
+> [`docs/ledger.json`](../ledger.json); current trigger and emission mechanics are owned by
+> [Transformation and emission](../architecture/transformation-and-emission.md) and their accepted
+> rationale by [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md) through
+> [ADR-0007](../adr/0007-control-beats-fidelity.md).
+
 Mechanics — which harness lets whom invoke what — are in
 [skill-invocation-across-harnesses.md](skill-invocation-across-harnesses.md).
 
@@ -46,8 +54,9 @@ the skills fire less aggressively and less predictably, not never.
 The two objectives are simply different. Upstream optimises for *never miss*; a curated set that
 puts the trigger in the user's hand optimises for *never surprise*. Both are coherent, and the
 frontmatter dial exists precisely to choose. The real cost of choosing the second is that upstream
-descriptions were tuned assuming the bootstrap did the routing — strip the pressure out of one and
-it must be replaced with an honest trigger sentence, or the skill simply never fires.
+descriptions were tuned assuming the bootstrap did the routing. The snapshot's advisory conclusion
+was: strip the pressure out of one and it must be replaced with an honest trigger sentence, or the
+skill simply never fires.
 
 ### The two frameworks disagree about *how* a model-invoked skill gets invoked
 
@@ -64,12 +73,15 @@ this". They then supply completely different machinery for making that happen.
   a blanket "check for a skill before ANY response" and the descriptions are written assuming that
   pressure exists.
 
-A curated set that takes superpowers' bodies and ships no hooks has taken the content of one design
-and the delivery of neither — unless it also takes the composition, which means curating the
-trigger that names the target. The measured reliability of the two paths is not close
+At the snapshot, the analysis treated a curated set that took superpowers' bodies but shipped no
+hooks as having taken the content of one design and the delivery of neither — unless it also took the
+composition by curating a trigger that named the target. The measured reliability of the two paths
+was not close
 ([skill-invocation-across-harnesses.md](skill-invocation-across-harnesses.md)), and the practical
-rule follows: **if a discipline has to fire, something must name it.** An honest description is
-necessary and, on its own, weak.
+research synthesis at this snapshot was: **if a discipline has to fire, something must name it.**
+That sentence is advisory decision history, not a current repository rule or a new ADR. An honest
+description appeared necessary and, on its own, weak in the bounded evidence; current item trigger
+choices remain in the manifests and ledger.
 
 A second consequence, for reading upstream prose rather than judging it. A hedge like "at
 pre-agreed seams" is not sloppiness; in mattpocock's pipeline the human arrives at `implement`
@@ -79,7 +91,7 @@ which is a fact about the missing context, not about the sentence.
 
 ## Three philosophies
 
-The frameworks this repo draws from differ in what they try to own:
+At the snapshot, the frameworks this repo drew from differed in what they tried to own:
 
 - **superpowers** — a complete methodology with a staged pipeline; deep on the inner build loop,
   strong on ambiguous problems, heavy on small ones.
@@ -107,15 +119,17 @@ terminal state is invoking `writing-plans` — there is no supported way to gril
 `implement`), so the human chooses how far to go. The weight complaint is a complaint about fusion,
 not about content.
 
-A practical consequence for curation, and a measured one: what taking `brainstorming` costs
-depends entirely on where its pressure actually lives — and measurement put all of it in the
-description ("You MUST use this before any creative work"), with the body's single "You MUST"
-being in-ceremony discipline, the same class as systematic-debugging's phase gates. So the
-decision on record takes it `both` with one overridden description line: the model may open the
-ceremony when a request genuinely matches the honest trigger text, the human can always type it,
-the jump-pressure is gone because the only line that ever carried it was replaced, the
-`writing-plans` coupling holds because that skill is taken alongside, and the spec path under
-`docs/superpowers/` is runtime behaviour, working as shipped. The body needed no edit at all.
+A practical consequence identified by this snapshot was that the cost of taking `brainstorming`
+depended on where its pressure actually lived. Measurement put all of it in the description ("You
+MUST use this before any creative work"), with the body's single "You MUST" being in-ceremony
+discipline, the same class as systematic-debugging's phase gates. Those findings motivated the
+then-recorded `both` choice and one description override: the model could open the ceremony when a
+request matched the honest trigger text, the human could type it, the jump-pressure line was
+replaced, the `writing-plans` coupling was retained by taking that skill alongside it, the spec path
+under `docs/superpowers/` remained runtime behavior, and the body itself needed no edit. The current
+choice and its item-level reason are in
+[`curation/deniz-process.yaml`](../../curation/deniz-process.yaml); the generated ledger is the
+resolved posture review surface.
 
 ### Where the two overlap, and where they do not
 
@@ -138,21 +152,22 @@ Only superpowers has: `using-git-worktrees`, `finishing-a-development-branch`,
 Only mattpocock has: `domain-modeling` and `codebase-design` (the DDD side), `wayfinder` (mapping
 work too large for one session), `handoff`, `research`, `prototype`, `teach`.
 
-The standing warning against mixing: two frameworks installed as *routers* fight over command names,
-compete on routing logic, and pull in different TDD philosophies. Cherry-picking individual skills is
-fine as long as exactly one thing routes. In this repo nothing upstream routes — selection is the
-manifest's job and the trigger is decided per item (ADR-0005).
+The standing prior-art warning against mixing was that two frameworks installed as *routers* fight
+over command names, compete on routing logic, and pull in different TDD philosophies. The advisory
+response was to cherry-pick individual skills only when routing remained singular. At this snapshot
+the local curation packaged no upstream router and decided triggers per item. Current item posture is
+in the manifests and ledger; ADR-0005 owns the accepted neutral trigger decision.
 
-## What the harness now does itself
+## What the harness supplied at the snapshot
 
-Claude Code ships bundled skills that overlap the vendored frameworks directly — `/debug`,
+Claude Code shipped bundled skills that overlapped the vendored frameworks directly — `/debug`,
 `/code-review`, `/verify` against superpowers' `systematic-debugging`, `requesting-code-review` and
-`verification-before-completion`. OpenCode ships no such equivalents.
+`verification-before-completion`. OpenCode shipped no such equivalents.
 
-Two consequences for curation. First, "the harness already does this" is a per-harness observation
-and never a global skip reason in a repo that targets both. Second, bundled does not mean better:
-whether upstream content steers an agent more effectively than the built-in is a judgement made by
-reading both, not by counting features.
+The snapshot drew two advisory consequences for curation. First, "the harness already does this"
+was a per-harness observation, not a global skip reason in a repo targeting both. Second, bundled did
+not mean better: whether upstream content steered an agent more effectively than the built-in was a
+judgement made by reading both, not by counting features.
 
 ## Skill quality: what the evidence says
 
@@ -160,8 +175,8 @@ Community audits report widespread weak skill descriptions, with vague descripti
 trigger phrases as a dominant failure mode. The failure is silent: a bad `SKILL.md` does not throw,
 it simply may not be selected. Concrete trigger phrasing materially improves discoverability.
 
-The authoring guidance that follows from this, and which agrees with both Anthropic's official
-best-practices and the academic treatment of skills as software artifacts:
+The advisory authoring synthesis drawn from this evidence, which agreed with both Anthropic's
+official best-practices and the academic treatment of skills as software artifacts, was:
 
 - One coherent capability per skill. A diffuse scope produces a diffuse description, which matches
   less well — granularity is a *selection* concern before it is a maintenance one.

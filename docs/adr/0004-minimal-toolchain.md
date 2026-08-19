@@ -1,6 +1,6 @@
-# ADR-0004: Minimal toolchain — six commands, one dependency
+# ADR-0004: Minimal toolchain
 
-Date: 2026-08-18
+Date: 2026-08-19
 Status: Accepted
 
 ## Context
@@ -12,17 +12,21 @@ can safely change anything.
 
 ## Decision
 
-`tools/` stays a handful of plain-TypeScript commands (`build`, `inventory`, `eject`, `sync`,
-`validate`, and `install:opencode`). Authoring and repository-local execution use Node ≥ 24 type
-stripping. Exactly one runtime dependency (`yaml`); tests use `node:test`; no CLI framework, no
-schema library. If doing a job by hand is cheaper than writing a script for it, it is done by hand.
-Growing any of these is a deliberate decision, not a drive-by.
+`tools/` stays a minimal set of plain-TypeScript commands. The live command and package-file lists
+belong in [`package.json`](../../package.json), not in this ADR. Authoring and repository-local
+execution use Node ≥ 24 type stripping. Exactly one runtime dependency (`yaml`) is the ceiling; tests
+use `node:test`; there is no CLI framework or schema library. If doing a job by hand is cheaper than
+writing a script for it, it is done by hand. Growing the toolchain is a deliberate decision, not a
+drive-by.
 
 The installer is the one deliberate exception to typecheck-only TypeScript: `npm run build` compiles
-its five runtime source files to committed `dist/` JavaScript and formats that emit. The package ships
-only `dist/` plus generated OpenCode Module Bundles. It has no `prepare` or `prepack` lifecycle, and a
-consumer never compiles TypeScript. Remote delivery is the exact npm tarball attached immutably to a
-private GitHub Release and downloaded with `gh`, not an npm registry publication or Git package.
+the installer sources to committed `dist/` JavaScript and formats that emit. The package ships the
+emitted installer and generated OpenCode Module Bundles. It has no `prepare` or `prepack` lifecycle,
+and a consumer never compiles TypeScript. Remote delivery is the exact versioned tarball attached as
+a private GitHub Release asset, not an npm registry publication or Git package. Its tag and target
+commit identify the intended source point, while the recorded Package SHA-256 detects replacement or
+corruption but cannot prevent an authorized re-upload. The exact Package/Release transport and
+verification mechanics live in [Distribution and installation](../architecture/distribution-and-installation.md).
 
 ## Consequences
 

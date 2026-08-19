@@ -48,8 +48,9 @@ A selected Module whose every owned path still matches its ownership claim.
 _Avoid_: selected, current, present
 
 **State drift**:
-An owned path that is missing from the destination. It is not a deselection. It blocks Install and
-Update. When its Module is being removed, that path is already gone.
+An owned path that is missing from the Destination. It is not a deselection. It blocks
+reconciliation when its Module is affected by Install or Update; unrelated State drift does not
+block a request. Remove of that Module may drop the already-missing Ownership claim.
 _Avoid_: local modification, collision, deleted
 
 **Collision**:
@@ -113,5 +114,6 @@ Committing a Plan to the Destination and Install state.
 _Avoid_: install (as a synonym), sync
 
 **Recovery**:
-A Plan that only restores the prior Destination and Install state after an interrupted Apply. It does not finish the original request.
+A Plan that restores the prior Destination and Install-state boundary before commit, or finalizes
+cleanup after new Install state is committed. It never resumes or finishes the original request.
 _Avoid_: resume, retry

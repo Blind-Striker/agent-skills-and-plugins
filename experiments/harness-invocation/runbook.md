@@ -1,6 +1,6 @@
 # Harness invocation runbook
 
-Date: 2026-08-06
+Date: 2026-08-19
 
 The lab must be outside both the repository and the real user profile. If the drive-root default is
 not the prepared lab, point the runners at it for the current shell:
@@ -16,17 +16,21 @@ pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1 -SkipLab
 ```
 
 Run the parked-body command smoke only after its dry run is clean. It generates a disposable
-`manual` beta fixture through `buildAll`, checks the project-local and isolated-XDG-global mounts,
-and keeps raw event streams only in the external lab:
+`manual` beta fixture through `buildAll`, checks only the supported isolated XDG-global mount, and
+keeps raw event streams only in the external lab:
 
 ```powershell
 pwsh -NoProfile -File experiments/harness-invocation/stub-command-smoke.ps1 -DryRun -Leg grok
 pwsh -NoProfile -File experiments/harness-invocation/stub-command-smoke.ps1 -Leg grok
 ```
 
-Do not write a committed measurement record unless both mount legs pass: command discovery must
-find `beta`, skill discovery must not, and the event stream must show the parked `BODY.md` read
-before the body marker and a separate CLI-only argument marker that is absent from `BODY.md`.
+Do not write a committed measurement record unless the single isolated-global leg passes: command
+discovery must find `beta`, skill discovery must not, and the event stream must show the parked
+`BODY.md` read before the body marker and a separate CLI-only argument marker that is absent from
+`BODY.md`. The earlier dual-mount results remain historical evidence only
+([2026-08-06 mounts](records/2026-08-06-opencode-stub-command-mounts.md),
+[2026-08-06 arguments](records/2026-08-06-opencode-stub-command-arguments.md)); project-local mounts
+are not a current supported Destination.
 
 With an isolated lab prepared, walk the OpenCode matrix wiring without spending tokens:
 

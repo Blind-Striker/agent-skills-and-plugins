@@ -1,6 +1,6 @@
 # ADR-0002: Harness-native output instead of a common format
 
-Date: 2026-08-18
+Date: 2026-08-19
 Status: Accepted
 
 ## Context
@@ -11,42 +11,37 @@ harness-specific fields or reduce both targets to their lowest common denominato
 
 ## Decision
 
-One neutral authored source (`curation/`, `overlays/`, and `skills/`) produces separate output per
-harness: one `plugins/<module>/` tree per Claude Code Plugin and one `opencode/<module>/` Bundle per
-OpenCode Module. A Module Bundle keeps its transformed `skills/`, `commands/`, and `agents/` paths
-separate at distribution time. The installer composes an explicit Selection of those Bundles into
-OpenCode's one global Native tree under the normal XDG config root.
+- One neutral authored source produces separate harness-native Plugin and Bundle output. There is no
+  common emitted format that either harness must interpret.
+- Each target receives only shapes and metadata it understands. An unrepresentable feature is
+  dropped and reported rather than approximated or lost silently.
+- OpenCode output is ready native content, not input to a runtime adapter. Installation may compose
+  emitted files, but it does not reinterpret bodies, invocation, metadata, or references.
+- Output names remain concise and are not universally prefixed with their Module name. Identity is
+  flat within an artifact kind, while the same output name in different artifact kinds remains
+  legal and retains its kind distinction.
 
-- Skill bodies retain the shared `SKILL.md` shape, while each emitter filters or adds the metadata
-  its target understands.
-- Commands and agents are transformed into the target's native markdown shape.
-- Features a target cannot represent are dropped rather than approximated, and the build reports
-  each drop. Silent loss is forbidden.
-- References are localized independently from the neutral body into each target address space, per
-  ADR-0008.
-- OpenCode installation is file composition, not a runtime package adapter: the shipped package has
-  a `deniz-skills` CLI and no OpenCode plugin entrypoint, does not mutate OpenCode JSON config, and
-  refuses `OPENCODE_CONFIG_DIR` rather than turning an experiment mount into persistent state.
+Mandatory Module prefixes were rejected because they would tax every user-facing name to solve
+occasional collisions. A common target format and runtime adaptation were rejected because both
+would move harness differences out of the emitter and either leak unsupported concepts or reduce
+the outputs to their lowest common denominator.
 
-OpenCode's flat namespace makes output-name uniqueness a curation requirement. Items keep concise
-names and use item-level `name:` only when a collision must be resolved. Prefixing every OpenCode
-artifact with its plugin was rejected because it taxes every user-facing command to solve occasional
-collisions; it can be reconsidered if global uniqueness itself becomes the limiting constraint,
-because a prefix would buy back duplicate names across modules.
+Current emitter and body mechanics live in
+[Transformation and emission](../architecture/transformation-and-emission.md); current Package,
+Destination, Selection, `OPENCODE_CONFIG_DIR`, and installer mechanics live in
+[Distribution and installation](../architecture/distribution-and-installation.md). Reference
+localization follows [ADR-0008](0008-references-are-symbols.md).
 
 ## Consequences
 
 - Neither harness is constrained by what the other can express, at the cost of reviewing two
   intentionally different output trees.
-- A Module is not directly discoverable inside `opencode/`; it becomes usable only after installer
-  composition into the global Native tree. This preserves per-Module selection without asking
-  OpenCode to scan package roots or execute adapter hooks.
 - A new harness requires a new emitter that answers the transformation contract, not a redesign of
   the authored source.
-- Flat names make identity global across the build: the rewrite map and `depends_on` use output
-  names, while ledger entries qualify them with plugin and artifact kind. Manifest preflight rejects
-  duplicate `plugin.name` values and same-plugin duplicate kind/name pairs before either can
-  overwrite output; `validate` retains the generated-tree cross-plugin check. The same name in
-  different artifact kinds remains legal.
 - A reported drop turns an incompatibility into a curation decision instead of a latent runtime
   surprise.
+- Flat names preserve a usable surface but require collision checks. The accepted kind distinction
+  is not fully retained by current name-only semantic maps; that implementation gap remains in the
+  [roadmap](../ROADMAP.md#known-gaps), not as a narrower decision here.
+- Reconsider mandatory Module prefixes only if flat per-kind uniqueness becomes the limiting
+  constraint.

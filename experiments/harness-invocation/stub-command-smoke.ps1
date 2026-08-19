@@ -1,4 +1,4 @@
-# Proves the parked-body stub for a bundled manual OpenCode command in both supported mount forms.
+# Proves the parked-body stub for a bundled manual OpenCode command through the supported isolated XDG-global mount only.
 # Always run -DryRun first. Raw process output stays under the external lab.
 param(
     [Parameter(Mandatory)] [string] $Leg,
@@ -9,7 +9,6 @@ param(
 . "$PSScriptRoot\common.ps1"
 
 $script:CleanupTimeoutMilliseconds = 5000
-$script:ProjectMountCreated = $false
 $script:GlobalCommandMounted = $false
 $script:GlobalSkillMounted = $false
 $script:LegResults = [Collections.Generic.List[object]]::new()
@@ -102,7 +101,7 @@ function Test-PathInside {
 
 function Assert-IsolatedEnvironment {
     if ([Environment]::GetEnvironmentVariable("OPENCODE_CONFIG_DIR")) {
-        throw "OPENCODE_CONFIG_DIR is set; this smoke only supports the isolated project-local and XDG global mounts"
+        throw "OPENCODE_CONFIG_DIR is set; this smoke only supports the isolated XDG-global mount"
     }
     foreach ($name in "USERPROFILE", "HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME") {
         $value = [Environment]::GetEnvironmentVariable($name)
@@ -323,8 +322,8 @@ function Get-OpenCodeArguments {
 function Test-ProviderLive {
     param([Parameter(Mandatory)] $Spec)
 
-    # The liveness command deliberately has no beta mount. It proves the provider before either
-    # fixture is staged; the two smoke calls below each prove command/skill discovery immediately first.
+    # The liveness command deliberately has no beta mount. It proves the provider before the fixture
+    # is staged; the smoke call below proves command/skill discovery immediately first.
     $arguments = @("run", "--format", "json", "--auto", "-m", $Spec.m)
     if ($Spec.v) { $arguments += @("--variant", $Spec.v) }
     $arguments += "Reply with the single token ZX-STUB-LIVE and nothing else."
@@ -418,22 +417,6 @@ console.log(JSON.stringify({ report }));
     return [pscustomobject]@{ Root = $fixture; Command = $command; Skill = $skill }
 }
 
-function Get-RelativeFiles {
-    param([Parameter(Mandatory)] [string] $Root)
-
-    return @(Get-ChildItem -Path $Root -Recurse -File |
-        ForEach-Object { [IO.Path]::GetRelativePath($Root, $_.FullName).Replace("\", "/") } |
-        Sort-Object)
-}
-
-function Assert-ProjectMountShape {
-    $expected = @("commands/beta.md") + @((Get-RelativeFiles $script:Generated.Skill) | ForEach-Object { "skills/beta/$_" })
-    $actual = Get-RelativeFiles $script:ProjectConfig
-    if (($expected -join "`n") -cne ($actual -join "`n")) {
-        throw "project-local mount contains something other than the generated beta command and parked bundle"
-    }
-}
-
 function Assert-ArtifactCopy {
     param([Parameter(Mandatory)] [string] $Source, [Parameter(Mandatory)] [string] $Destination, [Parameter(Mandatory)] [string] $Label)
 
@@ -443,34 +426,17 @@ function Assert-ArtifactCopy {
     if ($sourceHash -cne $destinationHash) { throw "$Label differs from the generated buildAll artifact" }
 }
 
-function Assert-MountsClear {
-    if (Test-Path $script:ProjectConfig) { throw "scratch repository already has a project-local .opencode mount" }
+function Assert-StagingClear {
+    if (Test-Path $script:ProjectConfig) {
+        throw "scratch repository already has a project-local .opencode mount; compatibility discovery would contaminate the global-only observation"
+    }
     if ((Test-Path $script:GlobalCommand) -or (Test-Path $script:GlobalSkill)) {
-        throw "isolated XDG global config already has beta; refusing to overwrite another mount"
+        throw "isolated XDG global config already has beta; refusing to overwrite an existing command or parked body"
     }
-}
-
-function Stage-ProjectMount {
-    Assert-MountsClear
-    New-Item -ItemType Directory -Path (Join-Path $script:ProjectConfig "commands") -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $script:ProjectConfig "skills") -Force | Out-Null
-    $script:ProjectMountCreated = $true
-    Copy-Item -LiteralPath $script:Generated.Command -Destination (Join-Path $script:ProjectConfig "commands\beta.md") -Force
-    Copy-Item -LiteralPath $script:Generated.Skill -Destination (Join-Path $script:ProjectConfig "skills\beta") -Recurse -Force
-    Assert-ArtifactCopy -Source $script:Generated.Command -Destination (Join-Path $script:ProjectConfig "commands\beta.md") -Label "project beta command"
-    Assert-ArtifactCopy -Source (Join-Path $script:Generated.Skill "BODY.md") -Destination (Join-Path $script:ProjectConfig "skills\beta\BODY.md") -Label "project beta body"
-    Assert-ProjectMountShape
-}
-
-function Remove-ProjectMount {
-    if ($script:ProjectMountCreated -and (Test-Path $script:ProjectConfig)) {
-        Remove-Item -LiteralPath $script:ProjectConfig -Recurse -Force -ErrorAction Stop
-    }
-    $script:ProjectMountCreated = $false
 }
 
 function Stage-GlobalMount {
-    Assert-MountsClear
+    Assert-StagingClear
     New-Item -ItemType Directory -Path (Split-Path $script:GlobalCommand -Parent) -Force | Out-Null
     New-Item -ItemType Directory -Path (Split-Path $script:GlobalSkill -Parent) -Force | Out-Null
     $script:GlobalCommandMounted = $true
@@ -649,17 +615,9 @@ try {
 
     Reset-Scratch
     $scratchReady = $true
-    Assert-MountsClear
+    Assert-StagingClear
     $script:Generated = New-GeneratedFixture
     Pass "fresh manual beta was generated by buildAll"
-
-    $beforeProject = Get-ResolvedState -Name "before-project"
-    Assert-IsolationDiscovery $beforeProject
-    Assert-BetaAbsent -State $beforeProject -Stage "project-local"
-    Stage-ProjectMount
-    Invoke-SmokeLeg -Mount "project-local" -ExpectedReadSuffix ".opencode/skills/beta/BODY.md"
-    Remove-ProjectMount
-    Reset-Scratch
 
     $beforeGlobal = Get-ResolvedState -Name "before-global"
     Assert-IsolationDiscovery $beforeGlobal
@@ -680,7 +638,6 @@ try {
     if ($script:RunRoot) { Write-RunSummary $failure }
     throw
 } finally {
-    try { Remove-ProjectMount } catch { Write-Error "project mount cleanup failed: $($_.Exception.Message)" }
     try { Remove-GlobalMount } catch { Write-Error "global mount cleanup failed: $($_.Exception.Message)" }
     if ($scratchReady) {
         try { Reset-Scratch } catch { Write-Error "scratch cleanup failed: $($_.Exception.Message)" }

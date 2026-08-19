@@ -1,6 +1,6 @@
 # ADR-0005: The manifest states invocation intent; each emitter picks the mechanism
 
-Date: 2026-08-06
+Date: 2026-08-19
 Status: Accepted
 
 ## Context
@@ -20,19 +20,18 @@ them.
 states no intent, and upstream's own frontmatter passes through untouched. Stating a value replaces
 whatever upstream said — that is the point of stating it.
 
-Each emitter derives its own mechanism:
-
-| `invocation` | Claude Code | OpenCode |
-|---|---|---|
-| *(absent)* | upstream's frontmatter, untouched | `skills/` |
-| `auto` | skill, `user-invocable: false` | `skills/` |
-| `manual` | skill, `disable-model-invocation: true` | `commands/` |
-| `both` | skill, neither key set | `skills/` **and** `commands/` |
-
 `as:` stays orthogonal. It is the **shape** dial of
 [ADR-0006](0006-output-is-a-transformation.md) — what artifact the item becomes — while `invocation`
-is the **trigger** dial. The table above gives each invocation value its default shape per harness;
-`as:` states the shape explicitly when that default is wrong.
+is the **trigger** dial. Emitters translate that neutral trigger intent into their own native
+mechanism; the current mapping and authoring details belong in
+[Transformation and emission](../architecture/transformation-and-emission.md) and
+[`curation/SCHEMA.md`](../../curation/SCHEMA.md), rather than being repeated here.
+
+Where a manual OpenCode conversion has bundled files, its command stub is global-only and targets the
+installed global OpenCode configuration root. The exact root resolution and parked-body mechanics
+belong in [Transformation and emission](../architecture/transformation-and-emission.md). It does not
+name or support a project-local mount. Project-local mounts observed in experiment history remain
+evidence, not product support.
 
 Using `as: command` as the trigger dial was rejected because shape cannot express `both` and remains
 a useful independent decision. The value names `model` and `user` were rejected because the author
@@ -44,9 +43,15 @@ fails to carry the same intent to OpenCode.
 
 - The manifest states trigger intent without making authors learn either emitter's mechanism.
 - Absent must remain passthrough so intent can be adopted item by item. The cost is asymmetry:
-  upstream Claude posture has no OpenCode equivalent and an unstated item is model-only there.
+  upstream Claude posture has no OpenCode equivalent and an unstated item uses OpenCode's own skill
+  default, so it is model-only there. Claude and OpenCode also have different frontmatter surfaces:
+  unsupported OpenCode keys are dropped and reported rather than silently carried. These are current
+  emitter limits, not a reason to make absence a hidden default.
 - `both` produces two OpenCode artifacts with one identity, while Claude Code needs only one skill.
 - A bundled `manual` conversion preserves its parsed body and assets under a non-discoverable
-  `skills/<name>/BODY.md` park and emits a short command stub that names the supported project and
-  global paths. Inline command copies can still strand skill-relative sibling-item paths; `validate`
-  keeps that remaining shape cost visible without blurring `manual` and `command` into one concept.
+  `skills/<name>/BODY.md` park and emits a global-only command stub. Inline command copies can still
+  strand skill-relative sibling-item paths; `validate` keeps that remaining shape cost visible
+  without blurring `manual` and `command` into one concept.
+- One assembled body currently feeds both harnesses; the overlay mechanism has no per-harness body
+  ownership. That capability limit can make target-specific prose or paths costly, and remains
+  visible rather than narrowing the accepted neutral intent.

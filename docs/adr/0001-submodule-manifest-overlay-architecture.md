@@ -1,6 +1,6 @@
 # ADR-0001: Submodule + manifest + overlay architecture
 
-Date: 2026-08-18
+Date: 2026-08-19
 Status: Accepted
 
 ## Context
@@ -22,17 +22,23 @@ The architecture has four pieces:
    guidance lives in [`curation/SCHEMA.md`](../../curation/SCHEMA.md), beside the manifests.
 3. **Body edits live in overlays**, either a surgical `body: patch` or owned replacement files under
    `body: overlay`. Both modes record content hashes in `overlays/overlays.lock.json`; changes to
-   stamped primary files stop the build. Patch applicability alone is not a staleness guard because
-   a hunk can relocate while still applying; the hash carries the review boundary. A body that
-   incorporates other upstream items declares them with `merged_from`, and their stamped inputs
-   drift under the same hard-failure policy. The guard follows the files the curation actually used,
-   including explicitly named files when a same-filename rule cannot express the merge.
-4. **Generated output is committed** under `plugins/`, `opencode/`, `dist/`, and
-   `.claude-plugin/marketplace.json`. Each `opencode/<module>/` is a self-contained Bundle whose
-   deterministic `manifest.json` records its Module name, version, exact file hashes and modes, and
-   file-set digest. `dist/` is the build-emitted JavaScript installer shipped with those Bundles.
-   Generated trees contain ordinary files rather than symlinks, receive normal repository
-   formatting during the build, and CI rejects any committed output that differs from a fresh build.
+   stamped inputs stop the build. Patch applicability alone is not a staleness guard because a hunk
+   can relocate while still applying; the hash carries the review boundary. A body that incorporates
+   other upstream items declares them with `merged_from`, and those inputs receive the same review
+   protection. The current stamping and body-assembly mechanics are owned by
+   [Transformation and emission](../architecture/transformation-and-emission.md).
+4. **Generated output is committed** under `plugins/`, `opencode/`, `dist/`,
+   `.claude-plugin/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json`. Generated
+   Plugin/Module trees, marketplace output, and the ledger are deterministic and CI freshness-checked
+   against clean regeneration. Each `opencode/<module>/` is a self-contained Bundle with deterministic
+   identity and a manifest-backed byte-level review boundary. `dist/` is the build-emitted JavaScript
+   installer and is formatted by the build; generated trees contain ordinary files rather than
+   symlinks.
+
+   The current emission, Bundle-manifest, packaging, and install handoff mechanics live in
+   [Transformation and emission](../architecture/transformation-and-emission.md) and
+   [Distribution and installation](../architecture/distribution-and-installation.md); this decision
+   records the authored/generated boundary rather than cataloging those mechanics twice.
 
 Direct vendoring with three-way merges was rejected because it loses the durable boundary between
 upstream and local intent. A single overlay mode was also rejected: full-file ownership obscures

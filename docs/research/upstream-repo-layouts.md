@@ -3,14 +3,24 @@
 Date: 2026-07-31
 
 What the five vendored repos actually look like on disk, where that deviates from the obvious, and
-what it means for curation. `docs/inventory.md` lists the components; this records the traps.
+what it means for curation. This is pin-relative layout evidence: `docs/inventory.md` lists the
+components visible at the generated catalog's pins, while this note records the traps and the
+commands that re-derived them.
+
+> **Dated evidence and advisory interpretation, not current item policy.** Re-run the catalog and
+> the commands below after a pin move. Current take/skip/modify posture and reasons live in
+> [`curation/*.yaml`](../../curation/) and resolved output posture lives in
+> [`docs/ledger.json`](../ledger.json). Current scanner, emission, and reference mechanics live in
+> [Transformation and emission](../architecture/transformation-and-emission.md) and
+> [References and linking](../architecture/references-and-linking.md).
 
 ## aspire-skills
 
 - The canonical tree is `skills/<name>`. `.github/plugins/aspire-skills/` is a **symlink mirror** of
   it (per-file mode-120000 entries inside real directories) — every product skill exists twice.
-  The scanner skips symlinks; curation `source:` values must use the canonical
-  `aspire-skills/skills/<name>` form.
+  At this snapshot the scanner skipped symlinks, and using the canonical
+  `aspire-skills/skills/<name>` source form avoided treating the mirror as a second product tree.
+  Current `source:` values are owned by the curation manifests.
 - On a checkout without symlink support (`core.symlinks=false` — Windows without Developer
   Mode/admin), git materializes those symlinks as plain text files containing the target path: the
   mirror resurfaces as empty-description duplicate components, and a "plugin.json" that is really a
@@ -20,19 +30,19 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
 ## mattpocock-skills
 
 - Skills nest one level deeper than the standard layout: `skills/<category>/<name>`. Upstream's own
-  `CLAUDE.md` calls `engineering` and `productivity` the **promoted** buckets and ships exactly
+  `CLAUDE.md` called `engineering` and `productivity` the **promoted** buckets and shipped exactly
   those in its plugin; `misc`, `personal`, `in-progress` and `deprecated` are excluded by policy.
-  Treat the promoted pair as the candidate set — the rest is drafts, his own setup, and retired
-  work.
+  The snapshot's curation heuristic treated the promoted pair as the candidate set and the rest as
+  drafts, personal setup, or retired work; current item decisions remain in the manifest and ledger.
 - `ask-matt` is that repo's **router** over its own skills. Two frameworks routing at once fight
-  over names and pull in conflicting workflows, and in this repo the router is the user; do not
-  curate it.
+  over names and pull in conflicting workflows. This evidence motivated its exclusion at the
+  snapshot; the current exclusion and reason are owned by `curation/deniz-process.yaml`.
 - Several engineering skills are wired to upstream's own process rather than to a codebase:
   `setup-matt-pocock-skills`, `triage` and `setup-ts-deep-modules` assume his issue tracker, label
   vocabulary and repo conventions.
-- `ubiquitous-language` sits in `deprecated` even though its subject (DDD glossary work) is live —
-  the active discipline moved into `domain-modeling`. Check what replaced a deprecated skill before
-  concluding the capability is gone.
+- `ubiquitous-language` sat in `deprecated` even though its subject (DDD glossary work) was live —
+  the active discipline had moved into `domain-modeling`. Check what replaced a deprecated skill
+  before concluding the capability is gone.
 
 ## dotnet-agent-skills (github.com/dotnet/skills)
 
@@ -42,7 +52,8 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
 - Some scanned components are repo infrastructure, not product skills: `.agents/skills/*`
   (authoring skills), `.github/skills` and `.github/agents`, and
   `eng/skill-validator/tests/fixtures/*` — the last are literally upstream's test fixtures. They
-  appear in `docs/inventory.md` looking like ordinary skills; do not curate them by accident.
+  appeared in `docs/inventory.md` looking like ordinary skills. That is a candidate-classification
+  trap, not evidence of current item posture.
 
 ## superpowers
 
@@ -50,23 +61,24 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
   decisions: skipping a skill leaves a dangling reference in the body of every skill that points at
   it, and that is a body edit, not a manifest one.
 
-  References come in three spellings, and each gets the treatment its ambiguity deserves:
+  At this snapshot the local linker classified the three spellings as follows. Current mechanics and
+  proof limits are owned by [References and linking](../architecture/references-and-linking.md):
 
   | Spelling | Example | Seen by `validate`? |
   |---|---|---|
   | Namespaced | `superpowers:writing-plans` | yes — a fact: resolved, kind-checked, declared |
-  | Relative path | `../using-superpowers/references/` | yes, where our build could have broken it |
+  | Relative path | `../using-superpowers/references/` | yes, where the snapshot build could have broken it |
   | Bare name | `invoke writing-plans skill` | **no** — a candidate, never build state |
 
-  The middle row is narrower than it looks, deliberately. Resolving a path is deterministic, but
-  whether a broken one is *our* fault is not: upstream bodies carry illustrative paths that never
-  resolved anywhere. So two questions are asked instead of one — does a `../<item>/` climb into a
-  sibling item still land, and is a missing same-directory file one upstream still ships? Anything
-  else is upstream's prose and stays silent (ADR-0008 rationale: a warning in a green build is one
-  nobody reads).
+  At the snapshot, the middle row was deliberately narrower than it looked. Resolving a path was
+  deterministic, but whether a broken one was *our* fault was not: upstream bodies carried
+  illustrative paths that never resolved anywhere. The linker therefore asked two questions instead
+  of one — whether a `../<item>/` climb into a sibling item still landed, and whether a missing
+  same-directory file was one upstream still shipped. Other upstream prose stayed silent (ADR-0008
+  rationale: a warning in a green build is one nobody reads).
 
-  A graph built from the namespaced spelling alone is therefore still not the coupling graph — it
-  is a lower bound. Regenerate the full one with:
+  A graph built from the namespaced spelling alone was therefore not the coupling graph — it was a
+  lower bound. Regenerate the full one with:
 
   ```
   SKILLS=$(ls -d external/superpowers/skills/*/ | xargs -n1 basename)
@@ -83,12 +95,13 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
   It over-reports slightly — an edge can come from an example argument inside a bundled script
   rather than from content — so read the hit before letting it decide anything.
 
-  As pinned today the output forms three groups, treating `using-superpowers` as neither a
+  At the snapshot pin the output formed three groups, treating `using-superpowers` as neither a
   candidate nor a referrer for the purpose of reading the *upstream* graph — upstream it is the
-  bootstrap payload, and this repo packages no hooks. (It is curated all the same: a `manual`
-  opt-in switch whose patched body keeps two of upstream's seven outgoing references. Any
-  dependency reading must use the shipped body, not this upstream graph — the graphs here are
-  the finder, never the record.)
+  bootstrap payload, while the local output at the snapshot packaged no hooks. The then-current
+  curation made it a `manual` opt-in switch whose patched body kept two of upstream's seven outgoing
+  references. Current invocation, body, and dependency posture must be read from
+  `curation/deniz-process.yaml` and `docs/ledger.json`, not inferred from this upstream graph — the
+  graph is the finder, never the record.
   **Free to take** — reference nothing, referenced by nothing: `dispatching-parallel-agents`,
   `receiving-code-review`. **Sinks** — referenced but reference nothing, so skipping one breaks its
   referrers while taking it drags nothing along: `using-git-worktrees`,
@@ -98,21 +111,23 @@ what it means for curation. `docs/inventory.md` lists the components; this recor
   planning side, and `systematic-debugging` ↔ `test-driven-development` ↔ `writing-skills` on the
   authoring side.
 
-  `brainstorming` is the trap. It carries no namespaced reference at all, so it looks free, but it
-  names `writing-plans` seven times in bare form — including a graphviz terminal node and "**The
-  terminal state is invoking writing-plans.** … The ONLY skill you invoke after brainstorming is
-  writing-plans." Taking it without `writing-plans` ships a skill whose documented exit is a skill
-  that is not there, and nothing in the toolchain will say so.
+  At that pin, `brainstorming` was the trap. It carried no namespaced reference at all, so it looked
+  free, but it named `writing-plans` seven times in bare form — including a graphviz terminal node
+  and "**The terminal state is invoking writing-plans.** … The ONLY skill you invoke after
+  brainstorming is writing-plans." Taking it without `writing-plans` would ship a skill whose
+  documented exit was a skill that was not there, and nothing in the toolchain would say so.
 
-- Four skills bundle executable scripts, so each needs the `git update-index --chmod=+x` treatment
-  on its built copies: `brainstorming` (`scripts/start-server.sh`, `scripts/stop-server.sh` — the
-  browser companion), `subagent-driven-development` (`scripts/review-package`,
+- At the snapshot pin, four skills bundled executable scripts, and each then needed the
+  `git update-index --chmod=+x` treatment on its built copies to retain executable mode:
+  `brainstorming` (`scripts/start-server.sh`, `scripts/stop-server.sh` — the browser companion),
+  `subagent-driven-development` (`scripts/review-package`,
   `scripts/sdd-workspace`, `scripts/task-brief`), `systematic-debugging` (`find-polluter.sh`),
   `writing-skills` (`render-graphs.js`). Re-derive rather than trust the list:
   `git -C external/superpowers ls-files -s skills | grep 100755`.
 
-- `systematic-debugging` ships author-facing material alongside the skill — `CREATION-LOG.md` and
-  three `test-pressure-*.md` files — which travel into output unless excluded per item.
+- At the snapshot pin, `systematic-debugging` shipped author-facing material alongside the skill —
+  `CREATION-LOG.md` and three `test-pressure-*.md` files — which traveled into output unless excluded
+  per item.
 
 ## dotnet-skills
 

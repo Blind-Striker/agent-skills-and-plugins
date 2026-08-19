@@ -109,5 +109,7 @@ have no upstream counterpart, so they remain outside that set.
 
 `depends_on:` lists output names reached by model-edge facts in the shipped body. Author those facts
 in neutral upstream spelling (`namespace:name`); use `/namespace:name` when the body points the human
-at a user surface. `validate` requires model-edge declarations in both directions. The complete
-symbol and reachability decision is [ADR-0008](../docs/adr/0008-references-are-symbols.md).
+at a user surface. Current localization, linking, reachability, path, candidate, and ledger mechanics
+live in [References and linking](../docs/architecture/references-and-linking.md). The reason for the
+symbol tiers and two-way declaration trade-off is
+[ADR-0008](../docs/adr/0008-references-are-symbols.md).

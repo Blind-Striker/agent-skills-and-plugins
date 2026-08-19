@@ -1,10 +1,11 @@
 # Harness probing
 
-Date: 2026-08-18
+Date: 2026-08-19
 
-How to find out what a harness actually does. The findings live in
-[skill-invocation-across-harnesses.md](../../docs/research/skill-invocation-across-harnesses.md); this is the
-method that produces them.
+This protocol owns the repeatable method for finding out what a harness actually does. Committed
+observations live in [`records/`](records/); research such as
+[skill-invocation-across-harnesses.md](../../docs/research/skill-invocation-across-harnesses.md)
+synthesizes and cites those records rather than owning the method or observations.
 
 ## Why this exists
 

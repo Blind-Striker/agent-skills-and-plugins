@@ -1,48 +1,31 @@
 # Roadmap
 
-Date: 2026-08-18
+Date: 2026-08-19
 
-Operational document: what is done, what is next. It shrinks as work lands. How things work and why
-lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
+Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
+It shrinks as work lands and is not a chronology. Current mechanics live in
+[architecture](architecture/), working practice in [engineering](engineering/), rationale in
+[ADRs](adr/), and dated proof in [research](research/) and
+[experiment records](../experiments/harness-invocation/records/README.md).
 
 ## Current State
 
-- `tools/` provides `build`, `inventory`, `eject`, `sync`, `validate`, and `install:opencode`; CI runs
-  the checks, regenerates committed harness output and installer JavaScript, and rejects stale
-  `plugins/`, `opencode/`, `dist/`, marketplace, inventory, or ledger output.
-- This private GitHub repository (`Blind-Striker/agent-skills-and-plugins`, default branch
-  `master`) vendors upstreams in `external/`; `docs/inventory.md` catalogs them.
-- Four `deniz-*` Claude Code Plugins, matching per-Module OpenCode Bundles with deterministic
-  manifests, the emitted `deniz-skills` installer under `dist/`, and `marketplace.json` are generated
-  and committed. `deniz-process` is closed; `deniz-dotnet-general` is curated (corpus-first pass over
-  the two general-scope upstreams); akka and aspire each retain one pipeline-proof starter. The real
-  Claude profile already has the desired `deniz-process` and `deniz-dotnet-general` Plugins enabled;
-  Akka and Aspire stay uninstalled there until their curation sessions close.
-- The OpenCode installer composes an explicit Selection into the normal global Native tree with
-  exact Ownership, zero-write Plan, under-lock recomputation and transactional Apply/Recovery. It
-  supports Install, status, Update, and Remove; it has no force/reset/legacy migration,
-  project-local target, runtime package adapter, or JSON-config mutation. The local npm-format
-  tarball and the downloaded private GitHub Release asset are both verified: the versioned
-  `installer-v0.1.0` Release exists (tag pinned to commit `5ab4117`; GitHub reports Releases as
-  non-immutable, so the recorded asset SHA-256 is the replacement detection, not a prevention) and
-  its `deniz-agent-skills-0.1.0.tgz` asset measured identical to the local pack in an isolated
-  profile. The real OpenCode profile was migrated through the same Plan/Apply path (2026-08-18);
-  the 25 model-routing control-plane roots (skill `subagent-model-routing`, three router commands,
-  21 routing agent files) were preserved byte-for-byte and remain outside Module Ownership. Its
-  current Selection is `deniz-process`, `deniz-dotnet-general`, and the Akka starter; the Aspire
-  starter was removed after restart verification and remains unselected until its router is repaired.
-- Machine migration is complete for sources that currently have curated replacements. The OpenCode
-  Superpowers package entry and `~/.agents/skills/` were both measured absent; no cleanup was needed.
-  Official Claude utility Plugins are outside this skill-source migration, and future Akka/Aspire
-  Claude installs belong to their curation tasks rather than a standing machine-migration task.
-- `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
-  build; expected warning identities remain under Known Gaps or the future module work below.
-- Harness-invocation experiments, their protocol, and committed evidence live in
-  `experiments/harness-invocation/`; the [adapter guide](research/harness-adapters.md) describes
-  harness-native behavior. The
-  [packed-installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md)
-  proves isolated Plan/Apply, private Release download equivalence, and OpenCode discovery while
-  leaving human permission and model-driven reads explicitly unmeasured.
+- This GitHub repository (`Blind-Striker/agent-skills-and-plugins`) currently uses `master` as its
+  default branch. The current curation manifests emit matching Claude Code Plugins and OpenCode
+  Module Bundles. `deniz-process` is closed and `deniz-dotnet-general` has completed its corpus-first
+  pass; Akka and Aspire each remain a one-item pipeline proof awaiting the sessions below. Item
+  posture and reasons live in the [manifests](../curation/) and generated [ledger](ledger.json). The
+  real Claude profile has process and general enabled; Akka and Aspire remain uninstalled there until
+  their curation sessions close. Official Claude utility Plugins are outside the [skill-source
+  migration documented by the dated adapter and installer evidence](research/harness-adapters.md#opencode);
+  future Akka and Aspire Claude installs belong to their curation sessions rather than a standing
+  migration task.
+- The repository remains private. The emitted global-only OpenCode installer and private Package
+  recipe are available in the root [README](../README.md); current mechanics are in
+  [distribution and installation](architecture/distribution-and-installation.md). The measured real
+  OpenCode Selection contains process, general, and the Akka starter; Aspire remains unselected until
+  its router is repaired. The migration and isolated Package evidence remain in the
+  [installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md).
 
 ## Next Up
 
@@ -82,56 +65,62 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 6. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
-   That sentence survives any re-curation and therefore qualifies, but minting an ADR immediately
-   before the rules are rewritten would produce a document written to the wrong contract. The
-   evidence lives in [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md)
-   and [skill-framework-landscape.md](research/skill-framework-landscape.md).
+   Keep it unwritten until the curation rule is stable enough to state the actual contract rather
+   than promoting the research synthesis prematurely. The evidence lives in
+   [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md) and
+   [skill-framework-landscape.md](research/skill-framework-landscape.md).
 
 ## Known Gaps
 
+- **Arbitrary Selection has no cross-Module dependency closure.** Add dependency-aware planning or
+  narrow the supported Selection contract before a formal edge crosses Modules. All current formal
+  edges stay within `deniz-process`; that operational baseline is not a guarantee. See the
+  [architecture limit](architecture/distribution-and-installation.md#full-estate-versus-installed-selection).
+- **Same-name, different-kind semantic maps are name-only.** Qualify rewrite and linker maps by kind,
+  or narrow the legality rule, before relying on a cross-kind duplicate. See the
+  [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
+- **`sync` candidate names come from the ledger kind segment.** Fix `tools/sync.ts` to read the name
+  segment or parse ledger identities explicitly; the current CLI candidate universe is incomplete.
+  See the [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
+- **No repository-wide secret/token scanner.** The prohibition is always-on but currently depends on
+  review. Add a repo-wide CI guard without introducing real secret fixtures.
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
-  the experiment tree; automate the Hard Rule across the repository with an explicit fixture
-  allowlist.
+  the experiment tree; automate the always-on prohibition across the repository with an explicit
+  fixture allowlist.
 - **Optional writing-style reference remains external.** The curated `brainstorming` body says to
   use `elements-of-style:writing-clearly-and-concisely` when available, but that namespace is not
   curated here. `validate` keeps the reference visible until the style skill is either taken or the
   optional handoff is removed.
 - **Some command copies still paste their whole body into the OpenCode chat.** A command is a
-  template, and the TUI renders its body as the user's message. Bundled `manual` conversions emit a
-  short stub whose project-local and global paths are runtime-probed; the remaining full-paste cases
-  are `both` items and bundle-less `manual` items. Correctness is unaffected. Revisit only if those
-  remaining command bodies become noisy in practice.
+  template, and the TUI renders its body as the user's message. Bundled `manual` conversions with
+  files use the current global-only parked-body stub; project-local mounts are historical experiment
+  evidence, not product support or a current product gap. The remaining full-paste cases are `both`
+  items and bundle-less `manual` items. Revisit only if those command bodies become noisy in
+  practice. See [transformation and emission](architecture/transformation-and-emission.md#opencode).
 - **Native-tree parked-body permission observation is unmeasured.** The prior config-dir mount asked
   for folder access because parked files were outside the project. Installer composition puts them
   under the normal global config root; only an isolated human TUI observation can establish whether
   that shape prompts, so no permission configuration is inferred yet.
-- **Case-sensitive reference scan.** The unrewritten-reference pattern is lowercase-only by design
-  (avoids prose false positives), so a `Superpowers:Foo` spelling slips through.
+- **Case-sensitive reference scan.** Decide how to catch capitalized spellings without losing the
+  lowercase scanner's false-positive boundary; `Superpowers:Foo` currently slips through. See the
+  [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
 - **Bare names stay invisible, by decision rather than by omission.** Upstream names are ordinary
-  words, so a bare-name scan measurably over-reports; ADR-0008 keeps that tier as candidates,
-  surfaced by `sync` for human reading and never build state. The three spellings and what each
-  earns are tabulated in
-   [upstream-repo-layouts.md](research/upstream-repo-layouts.md#superpowers). Now measured rather
-   than assumed: the tier is load-bearing. `grill-me` → `grilling` is the one composition watched
-   firing at runtime and it lives entirely there — no declaration, no guard, silent if the target is
-   ever renamed or excluded. The [invocation research](research/skill-invocation-across-harnesses.md#the-composition-pattern)
-   inventories the broader spelling mismatch and its re-derivation command. Whether to promote any
-   candidate into the convention remains an item-level curation decision.
-- **A converted command cannot resolve a sibling-item path — on the filesystem, and only there.**
-  A command is one file in `commands/`, so a `../<item>/` path written for a skill directory does
-  not land, and no single spelling serves both copies of a `both` item. `validate` names each case.
-  The implementation narrows the warning when the same link resolves from the skill copy. The
-  correctness case it still guards is a target with no `skills/<name>/` directory at all (excluded,
-   or a `manual` item whose empty bundle made the emitter drop the husk), where the same climb lands
-   nowhere. This filesystem gap remains distinct from the installer and mount decisions above.
+  words, so candidates never become build state automatically. `grill-me` → `grilling` remains
+  deliberately undeclared and would be silent if its target changed; promote a load-bearing case
+  only through an item-level spelling and dependency decision. See
+  [references and linking](architecture/references-and-linking.md#one-grammar-three-evidence-tiers)
+  and the measured mismatch in the
+  [invocation research](research/skill-invocation-across-harnesses.md#the-composition-pattern).
+- **Converted commands can break skill-relative paths.** Resolve each reported case through a body,
+  shape, or emitter decision; no one relative spelling serves both copies of every `both` item. See
+  the [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
 - **Linker's unreachable-cause string assumes a skill target.** A model-edge pointing at a
   command or agent reports "(disable-model-invocation in the Claude tree)" — right verdict,
   wrong cause text. A `kind` on the target state fixes the parenthetical.
-- **L6 interpolates the output name into a RegExp unescaped.** Safe for kebab-case names; one
-  `escapeRegExp` call removes the latent throw.
-- **Own skills are edge targets but never edge sources.** The derived-edge scan walks manifest
-  items only, so the day an own skill under `skills/` carries a namespaced reference, nothing
-  scans or declares it. No own skill exists today.
+- **The parked-path check interpolates output names into a RegExp unescaped.** Current kebab-case
+  names are safe; escape the name in `tools/validate.ts` before constructing the expression.
+- **Own-skill edge source scan.** Extend derived-edge analysis to scan original skills under
+  `skills/` as sources. See the [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
 - **The clean-fixture test filters two named findings (`FIXTURE_DEBT`)** instead of asserting
   their presence, so it also passes if the linker stops reporting them. A fixture split retires
   the tolerance.
@@ -141,24 +130,20 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - **A directory appearing at a recorded-absent merge filename** reports "(appeared upstream)"
   though it could never be stamped, and the non-null sibling branch would `blobSha` a directory
   into a raw git error instead of a finding.
-- **Scanner blind spots.** Commands and agents are discovered only directly under a
-  `commands/`/`agents/` directory, so upstream subdirectory grouping is silently missing from the
-  inventory; conversely such a directory nested inside a skill is double-counted as a standalone
-  component.
-- **File modes are invisible to both overlay guards.** `git hash-object` hashes content, and
-  patches are cut with `core.fileMode=false`, so upstream flipping a bundled script's executable
-  bit produces no signal. `validate` now reads `git ls-files` to compare built output against
-  upstream, but the overlay *lock* still records content only, so a mode-only upstream change does
-  not force a re-bless.
-- **A patch cannot touch anything at or beyond a symlink.** `git apply` refuses such paths outright;
-  `aspire-skills` carries symlinks inside curated skills. Undocumented in ADR-0001.
+- **Scanner blind spots.** Broaden `tools/lib/scan.ts` discovery to handle grouped commands and
+  agents without double-counting nested skill directories. See the
+  [transformation limit](architecture/transformation-and-emission.md#current-limits).
+- **Overlay mode drift.** Include executable mode in overlay lock stamps so a mode-only upstream
+  change forces review and re-blessing. See the
+  [transformation limit](architecture/transformation-and-emission.md#current-limits).
+- **Symlink-boundary patches.** Decide how to support or report patches that touch symlink paths;
+  `aspire-skills` carries symlinks inside curated skills. See the
+  [transformation limit](architecture/transformation-and-emission.md#current-limits).
 - **`sync` still mislabels a deleted or renamed source** as "auto-updated on next build", while the
   next build fails with `source not found in external/` — the same class as the patch mislabel
   already fixed.
-- **Manifest overrides have no staleness guard.** Overlays are guarded — a patch stops applying, a
-  full-file overlay's recorded hash stops matching — but a `frontmatter.description` override
-  written for one upstream body keeps being applied after upstream rewrites that body, with nothing
-  to notice. Same class as overlay drift, rarer, and unsolved.
+- **Manifest override staleness guard.** Add an upstream-staleness guard for `frontmatter:` overrides.
+  See the [transformation limit](architecture/transformation-and-emission.md#current-limits).
 - **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
   mid-sentence, so curation sessions must open the upstream file to judge an item.
 - **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),

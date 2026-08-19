@@ -4,10 +4,10 @@ Date: 2026-08-18
 
 ## Question and scope
 
-Why can a Git-backed package such as Superpowers expose skills from OpenCode's package cache while
-this repository ships per-Module Bundles and composes selected Modules through its installer? Can one
-repository URL expose skills, commands, and agents, and can a monorepo install those artifacts a
-module at a time?
+At the 2026-08-18 evidence boundary, the lead question was why a Git-backed package such as
+Superpowers could expose skills from OpenCode's package cache while the measured local design used
+per-Module Bundles and an installer to compose selected Modules. Could one repository URL expose
+skills, commands, and agents, and could a monorepo install those artifacts a module at a time?
 
 The package, plugin, discovery, and installer paths below were rechecked against OpenCode v1.18.18,
 commit [`31406cc`](https://github.com/anomalyco/opencode/tree/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d),
@@ -17,7 +17,15 @@ Critical behavior was unchanged between those pins. Ecosystem examples are pinne
 document does not infer a convention from whichever branch happens to be current.
 
 This is source research, not a live installation report. No global config or package cache was
-mutated. Claims that still need runtime evidence are isolated in the experiment matrix.
+mutated. Questions not established by that evidence session are identified in the snapshot matrix.
+
+> **Dated source analysis and decision history, not current local policy.** The OpenCode, npm, and
+> ecosystem findings are bounded by the pins below. For the repository's current terms and product
+> mechanics, follow [`CONTEXT.md`](../../CONTEXT.md),
+> [Transformation and emission](../architecture/transformation-and-emission.md), and
+> [Distribution and installation](../architecture/distribution-and-installation.md). The root
+> [README](../../README.md) owns the runnable consumption recipe; experiment records own observed
+> installation evidence.
 
 ## Direct answer
 
@@ -32,10 +40,10 @@ mutated. Claims that still need runtime evidence are isolated in the experiment 
 - Superpowers works because its root package has an importable `main`, and that plugin explicitly
   appends its package-relative `skills/` directory to `config.skills.paths`. It also injects its
   bootstrap message. The Git URL and cache directory do neither job. [SP-PACKAGE] [SP-PLUGIN]
-- OpenCode v1.18.18 now ships `opencode plugin <module>` (alias `plug`). It installs the package,
-  inspects its server and TUI entrypoints, and safely adds the same package spec to JSON/JSONC config.
-  It is a config installer for a **plugin package**, not a package-root artifact scanner or a
-  per-module artifact installer. It has no external-plugin list, update, or uninstall command.
+- OpenCode v1.18.18 shipped `opencode plugin <module>` (alias `plug`). It installed the package,
+  inspected its server and TUI entrypoints, and safely added the same package spec to JSON/JSONC
+  config. It was a config installer for a **plugin package**, not a package-root artifact scanner or
+  a per-module artifact installer. It had no external-plugin list, update, or uninstall command.
   [OC-CLI] [OC-INSTALL]
 - A package adapter can expose all three artifact kinds; `opencode-froggy` proves that shape. The
   adapter still has to load and register each kind explicitly. [FROGGY]
@@ -43,10 +51,10 @@ mutated. Claims that still need runtime evidence are isolated in the experiment 
   inside that repository. npm workspaces make subpackages manageable inside a checkout but do not
   turn a workspace path into part of a Git package spec. A monorepo therefore needs a root adapter,
   separately published module packages, or its own installer. [NPM-SPEC] [NPM-WORKSPACES]
-- For this repository's selected **per-module composition** goal, the implemented design is a
-  managed installer that composes generated Module Bundles into one Native OpenCode config tree. A
-  root package adapter remains viable for an all-in-one distribution, but it is not the chosen
-  ownership or update boundary for selecting Modules independently. [LOCAL-CONTRACT] [WSHOBSON]
+- At the 2026-08-18 evidence boundary, this repository had selected **per-module composition** via a
+  managed installer rather than a root runtime adapter. That is the dated decision outcome; current
+  Bundle, Native-tree, ownership, and update mechanics live in the architecture linked above. A root
+  package adapter remained viable for an all-in-one distribution. [LOCAL-CANON] [WSHOBSON]
 
 ## 1. What OpenCode installs and loads
 
@@ -78,8 +86,8 @@ At the pinned OpenCode revisions, `Npm.add(spec)`:
 3. finds the installed dependency node and returns its package directory; and
 4. reuses an existing `<cache>/packages/.../node_modules/<package>` without reifying it again.
 
-The official plugin page still describes automatic Bun installation into
-`~/.cache/opencode/node_modules/`. That prose and the pinned implementation disagree on both the
+At the snapshot, the official plugin page described automatic Bun installation into
+`~/.cache/opencode/node_modules/`. That prose and the pinned implementation disagreed on both the
 installer and exact layout. Code that runs inside a package should resolve from `import.meta.url`,
 not derive a cache pathname, and tests should assert behavior through OpenCode rather than a cache
 layout. [OC-NPM] [OC-DOC]
@@ -88,16 +96,16 @@ The early reuse check also matters for updates: when the spec string is unchange
 package directory exists, a restart returns that directory without reifying the package again. A
 moving branch therefore does not refresh merely because OpenCode restarts. `opencode plugin <module>
 --force` replaces a matching config row; it does not clear the package cache. Immutable
-version/tag/commit specs remain the predictable choice; the experiment matrix still covers moved
-tags and changed spec strings. [OC-NPM] [OC-INSTALL]
+version/tag/commit specs were the predictable choice in this analysis; the 2026-08-18 matrix recorded
+moved tags and changed spec strings as unmeasured edge cases. [OC-NPM] [OC-INSTALL]
 
 ### 1.3 Package entrypoint and hook execution
 
 For a server plugin package, OpenCode resolves `exports["./server"]` first and falls back to
 `package.json.main`. The resolved path must remain inside the package. npm packages may declare an
 `engines.opencode` semver range. Once compatibility passes, OpenCode imports the module and supports
-the current default-export module shape as well as its legacy function-export fallback. A package
-directory with no server entrypoint is skipped; it is not reinterpreted as an artifact root.
+the then-current default-export module shape as well as its legacy function-export fallback. A
+package directory with no server entrypoint is skipped; it is not reinterpreted as an artifact root.
 [OC-SPEC] [OC-LOADER] [OC-PLUGIN]
 
 OpenCode loads config, initializes plugins, and runs each plugin's `config` hook before initializing
@@ -254,102 +262,120 @@ artifact scanning.
 [SP-PACKAGE] [SP-PLUGIN] [FROGGY] [MICODE] [BEADS] [WSHOBSON] [VERCEL]
 [HOMERUN]
 
-`wshobson/agents` is especially relevant but easy to overread. Its first-party modules live under
-`plugins/<module>/`; `tools/generate.py --harness opencode --plugin <module>` transforms one module,
-and its OpenCode adapter writes one flat generated `.opencode/` tree. Its installer then symlinks
-generated entries into the global config and refuses to overwrite non-symlinks. The generated
-OpenCode tree is gitignored, and the documented flow is clone, generate, install. This supports the
-per-harness transformation and module-boundary decisions already made here. It does **not** prove
-that OpenCode can install `plugins/<module>` from a Git package spec. [WSHOBSON]
+`wshobson/agents` was especially relevant but easy to overread. Its first-party modules lived under
+`plugins/<module>/`; `tools/generate.py --harness opencode --plugin <module>` transformed one module,
+and its OpenCode adapter wrote one flat generated `.opencode/` tree. Its installer then symlinked
+generated entries into the global config and refused to overwrite non-symlinks. The generated
+OpenCode tree was gitignored, and the documented flow was clone, generate, install. At the snapshot,
+this supported the per-harness transformation and module-boundary decisions already made here. It
+did **not** prove that OpenCode could install `plugins/<module>` from a Git package spec. [WSHOBSON]
 
 The Homerun precedent has a different ownership boundary from the design below. It writes an owned
 tree outside the shared config root and selects that tree through a persistent `OPENCODE_CONFIG_DIR`.
-This repository has rejected that environment-variable end state, so composing into a shared native
-config root needs the stronger path manifest, collision, rollback, and local-edit protections in
-section 6. Homerun proves an ownership manifest can work; it does not remove those additional
-requirements here. [HOMERUN] [LOCAL-CONTRACT]
+At the decision snapshot this repository had rejected that environment-variable end state, so the
+chosen shared Native-tree option was evaluated against stronger path-manifest, collision, rollback,
+and local-edit requirements. Homerun proves an ownership manifest can work; it did not establish
+those additional local requirements. Current Destination and safety mechanics are in
+[Distribution and installation](../architecture/distribution-and-installation.md). [HOMERUN]
+[LOCAL-CANON]
 
-## 6. Implemented distribution for this repository
+## 6. Dated decision outcome for this repository
 
-This repository now has a private root package with a `deniz-skills` bin pointing at committed
-`dist/install-opencode.js`. The package contains only that emitted runtime, package metadata, and one
-generated `opencode/<module>/` Bundle per Module. It still has no OpenCode `main` or
-`exports["./server"]`: it is an installer package, not a runtime plugin adapter. The package runs
-locally from a checkout. The selected remote transport is authenticated `gh` download of the exact
-versioned `deniz-agent-skills-0.1.0.tgz` asset from the private `installer-v0.1.0` GitHub Release,
-pinned to commit `5ab4117`. The Release was created with explicit authorization and its download is
-now measured as equivalent to the local pack (section 7). GitHub reports Releases as non-immutable,
-so the tag/target pin and the recorded asset SHA-256 identify the intended bytes and detect
-replacement, but do not prevent an authorized re-upload.
-[`package.json`](../../package.json) [`README.md`](../../README.md) [LOCAL-CONTRACT]
+By the 2026-08-18 evidence session, the implemented outcome was a private root Package whose
+`deniz-skills` bin used committed `dist/install-opencode.js` to compose generated
+`opencode/<module>/` Bundles. It had no OpenCode `main` or `exports["./server"]`, so it was an
+installer Package rather than a runtime plugin adapter. The measured remote recipe downloaded
+`deniz-agent-skills-0.1.0.tgz` from private Release `installer-v0.1.0`, targeted at commit `5ab4117`,
+and compared its SHA-256 with the local pack. GitHub reported `immutable: false`; the recorded pin
+and digest detected replacement but could not prevent an authorized re-upload. These exact names and
+pins are dated recipe and measurement provenance, not a current install policy. See section 7 and
+record
+[`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md).
+
+Current documentary authority is intentionally elsewhere:
+
+- [`CONTEXT.md`](../../CONTEXT.md) owns Module, Bundle, Package, Destination, Selection, Ownership,
+  Plan, Apply, and Recovery vocabulary.
+- [Transformation and emission](../architecture/transformation-and-emission.md) owns the
+  compile/install/runtime boundary and generated Bundle handoff;
+  [Distribution and installation](../architecture/distribution-and-installation.md) owns current
+  Package, Destination, composition, and lifecycle mechanics; and
+  [References and linking](../architecture/references-and-linking.md) owns the full-estate proof
+  boundary.
+- [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md),
+  [ADR-0002](../adr/0002-multi-harness-output.md), and
+  [ADR-0004](../adr/0004-minimal-toolchain.md) retain the accepted rationale and trade-offs.
+- The root [README](../../README.md) owns the runnable current recipe, while the
+  [roadmap](../ROADMAP.md) owns unfinished work and current operational state.
+
+The design comparison at the snapshot was:
 
 | Design | Per-module selection | Skills | Commands/agents | Update and uninstall | Fit |
 |---|---:|---:|---:|---:|---|
 | Continue manual staging | manual file selection | native | native | manual; stale copies possible | rejected; no ownership boundary |
 | Root OpenCode package adapter | only if adapter options implement it | `skills.paths` | generated config objects | OpenCode cache; no native uninstall command | good all-in-one package, weak module ownership |
-| Registry package per module | yes | adapter path | adapter config objects | package versions; still no OpenCode uninstall command | clean package boundary, high publication overhead |
+| Registry package per module | yes | adapter path | adapter config objects | package versions; no OpenCode uninstall command at the snapshot | clean package boundary, high publication overhead |
 | Managed config-tree installer | yes | native files | native files | exact Plan/Apply, Recovery, Update, Remove | implemented selection |
 | `skills.urls` | skill-by-skill | remote protocol | unsupported | version field refreshes files | deliberately skill-only channel |
 
-### Why the managed installer is the implementation
+### Why the managed installer won at the snapshot
 
-The product is the compile-time transformation, not a runtime reinterpretation of upstream. A
-managed installer can preserve that boundary: the build emits harness-native module bundles, and the
-installer only composes those ready artifacts into the one flat address space OpenCode scans. It
-does not need to parse upstream Markdown, infer invocation posture, or rewrite references at install
-time. [LOCAL-CONTRACT]
+The deciding premise at the snapshot was that the product was the compile-time transformation, not
+a runtime reinterpretation of upstream. A managed installer preserved that boundary: the build
+emitted harness-native Module Bundles, and the installer only composed those ready artifacts into the
+one flat address space OpenCode scanned. It did not need to parse upstream Markdown, infer invocation
+posture, or rewrite references at install time. [LOCAL-CANON]
 
-The build now writes deterministic Module manifests, while the installer owns persisted Selection
-and per-path Ownership in the global config root. Mutating actions print a Plan and require `--yes`;
-Apply recomputes under a Destination lock, rejects Unowned Collisions, Local modifications, and
-filesystem-visible links or junctions, commits Install state last, and has explicit rollback/finalize
-Recovery. There is no force/reset path, legacy migration, project-local target, config JSON mutation,
-or consumer compilation. The exact operating contract lives in [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md),
-[ADR-0002](../adr/0002-multi-harness-output.md), [ADR-0004](../adr/0004-minimal-toolchain.md), and
-the root [README](../../README.md); this document remains the evidence and alternatives record.
+Current distribution guarantees live in
+[Distribution and installation](../architecture/distribution-and-installation.md), and the current
+compile/install/runtime boundary lives in
+[Transformation and emission](../architecture/transformation-and-emission.md). This section retains
+why that boundary was selected, not a second operating contract.
 
-The root package-adapter design remains a valid alternative if the desired product changes to “one
-spec always installs the whole curated set.” In that case the minimum adapter should register the
-generated skills path, merge pre-generated command and agent objects with an explicit collision
-policy, resolve all package paths from its own module URL, and expose only build-produced data. The
-adapter must not transform `external/` content at runtime. [FROGGY] [LOCAL-CONTRACT]
+The root package-adapter design remained a valid alternative if the desired product changed to “one
+spec always installs the whole curated set.” The minimum adapter described by this analysis would
+register the generated skills path, merge pre-generated command and agent objects with an explicit
+collision policy, resolve all package paths from its own module URL, expose only build-produced data,
+and avoid transforming `external/` content at runtime. [FROGGY] [LOCAL-CANON]
 
-## 7. Implementation evidence and remaining measurements
+## 7. Implementation evidence and measurement matrix at 2026-08-18
 
-Run these against pinned OpenCode builds in isolated temporary home, config, and cache directories.
-Do not use a developer's real global config. Commit the runner, protocol, and records under the
-existing harness-invocation experiment area.
+The repeatable isolation and recording method is owned by the
+[harness-invocation protocol](../../experiments/harness-invocation/protocol.md), and committed
+observations are owned by its [records](../../experiments/harness-invocation/records/README.md). This
+section keeps the research synthesis and measurement-question matrix; it is not a substitute for a
+record's fields or evidence excerpts.
 
 The selected local-package path and the private Release transport are both recorded in
 [`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md):
-on Windows with OpenCode 1.18.18, packed Plan left the Destination absent, Apply selected all four
-Modules, Native discovery matched the installed names and paths, and OpenCode's own support files
-coexisted with Install state. The downloaded `installer-v0.1.0` Release asset reproduced the package
-SHA-256, all four Module digests, the Install-state digest, all 238 file hashes, and the same
-discovery results. The real profile was then migrated through the same Plan/Apply path with the 25
-model-routing control-plane roots preserved outside Module Ownership (same record). The same record
-still leaves model-driven parked-body reads, the human permission prompt, and post-initialization
-Update/Remove unmeasured.
+on Windows with OpenCode 1.18.18, the packed Package and downloaded private Release asset produced
+equivalent Package, Module, Install-state, Native-tree, and discovery outcomes. Plan remained
+zero-write, Apply installed the selected Modules, and OpenCode support files coexisted with Install
+state. The record separately documents the authorized real-profile migration and preservation of
+routing material outside Module Ownership. That session explicitly did not measure model-driven
+parked-body reads, the human permission prompt, or post-initialization Update/Remove. Exact digests,
+byte and file counts, and control-root details remain in the record; the root README owns the current
+download and verification recipe.
 
-| Question | Fixture and action | Required assertion | Current status |
+| Question | Fixture and action | Required assertion | Status at 2026-08-18 |
 |---|---|---|---|
-| Does a root Git package load? | tagged package with `exports["./server"]` and a diagnostic hook | exact tag, package root, hook invocation | source-established; runtime record needed |
-| Is a package root auto-scanned? | same package contains unregistered `skills/`, `commands/`, `agents/` | none appear before explicit registration | source-established; runtime control useful |
-| Can a Git spec select a workspace subdirectory? | root plus two workspace packages; try npm/Git/GitHub spellings | either documented success or recorded rejection for each spelling | unmeasured; documentation says no selector |
-| Does the all-three adapter work end to end? | generated skill path plus command and agent config objects | skill tool, slash command, and subagent each invoke the intended artifact | ecosystem-established; local fixture needed |
-| What wins on collisions? | global, project, native config-tree, and adapter definitions share names | observed winner and warning for each artifact kind | unmeasured; do not encode policy from load order |
-| How does cache refresh behave? | immutable tag, moved tag, branch, commit; restart, changed spec, and `--force` | exact installed commit after each action | unchanged-spec restart is source-established; edge cases unmeasured |
-| Is CLI patching safe? | JSONC with comments, tuples, duplicate package versions, local/global scope | comments preserved; expected add/no-op/replace; no partial write | source-tested upstream; local compatibility record useful |
-| Does Git installation work on Windows? | named Git alias and GitHub shorthand with Git on `PATH` | installation, sanitized cache path, module import | unmeasured; Superpowers reports historical failures |
-| Can the managed installer recover? | interrupted install, unowned collision, locally edited owned file | rollback succeeds; unowned and edited files survive | implementation integration tests pass; isolated package interruption was not injected |
-| Are support files relocatable? | command, agent, and skill references cross module and use relative files | every link resolves and runtime invocation reads the intended file | build linker and installed-tree introspection measured; model-driven support-file reads remain unmeasured |
-| Do parked bundles need permission configuration? | invoke a global Native-tree command that reads its parked body | literal prompt or no-prompt observation recorded by a human | unmeasured for installer composition; do not infer from the old config-dir mount |
-| Does Install state coexist with OpenCode config maintenance? | initialize OpenCode after install, then update and remove | OpenCode-owned support files survive; installer prunes only paths in its Ownership | isolated debug introspection measured; post-initialization Update/Remove interaction remains unmeasured |
-| Does the pinned private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | measured 2026-08-18: `installer-v0.1.0` asset downloaded; SHA-256 `69532caf…c9460` (688,609 bytes), all four Module digests, Install-state digest, and 238 file hashes equal the local pack |
+| Does a root Git package load? | tagged package with `exports["./server"]` and a diagnostic hook | exact tag, package root, hook invocation | Source-established at the snapshot; no local runtime record in this snapshot. |
+| Is a package root auto-scanned? | same package contains unregistered `skills/`, `commands/`, `agents/` | none appear before explicit registration | Source-established at the snapshot; no local runtime control in this snapshot. |
+| Can a Git spec select a workspace subdirectory? | root plus two workspace packages; try npm/Git/GitHub spellings | either documented success or recorded rejection for each spelling | Unmeasured as of 2026-08-18; documentation showed no selector. |
+| Does the all-three adapter work end to end? | generated skill path plus command and agent config objects | skill tool, slash command, and subagent each invoke the intended artifact | Ecosystem-established at the snapshot; no local end-to-end fixture in this snapshot. |
+| What wins on collisions? | global, project, native config-tree, and adapter definitions share names | observed winner and warning for each artifact kind | Unmeasured as of 2026-08-18; no policy was inferred from load order. |
+| How does cache refresh behave? | immutable tag, moved tag, branch, commit; restart, changed spec, and `--force` | exact installed commit after each action | Unchanged-spec restart was source-established; the edge cases were unmeasured as of 2026-08-18. |
+| Is CLI patching safe? | JSONC with comments, tuples, duplicate package versions, local/global scope | comments preserved; expected add/no-op/replace; no partial write | Source-tested upstream at the snapshot; no local compatibility record in this snapshot. |
+| Does Git installation work on Windows? | named Git alias and GitHub shorthand with Git on `PATH` | installation, sanitized cache path, module import | Unmeasured as of 2026-08-18; the cited Superpowers reports recorded historical failures. |
+| Can the managed installer recover? | interrupted install, unowned collision, locally edited owned file | rollback succeeds; unowned and edited files survive | Implementation integration tests had passed at the snapshot; no isolated Package-interruption record existed. |
+| Are support files relocatable? | command, agent, and skill references cross module and use relative files | every link resolves and runtime invocation reads the intended file | Build-linker and installed-tree introspection evidence existed; model-driven reads were unmeasured as of 2026-08-18. |
+| Do parked bundles need permission configuration? | invoke a global Native-tree command that reads its parked body | literal prompt or no-prompt observation recorded by a human | Unmeasured as of 2026-08-18 for installer composition; the old config-dir mount did not answer it. |
+| Does Install state coexist with OpenCode config maintenance? | initialize OpenCode after install, then update and remove | OpenCode-owned support files survive; installer prunes only paths in its Ownership | Isolated introspection had been measured; no post-initialization Update/Remove record existed in this snapshot. |
+| Does the pinned private Release match local pack? | download the fixed asset with `gh` into an isolated profile | package hash, Selection, Native-tree hashes, and Install state equal the local pack | Measured in `opencode-module-installer-local-pack-2026-08-18`: local pack and Release matched across Package, Module, Install-state, Native-tree, and discovery checks. |
 
-A passing package-adapter fixture proves that option is technically available. It does not by itself
-choose it over the managed installer; ownership, module selection, and recovery are separate design
-criteria.
+A passing package-adapter fixture would have proved only that the option was technically available.
+It would not by itself have chosen that option over the managed installer; ownership, module
+selection, and recovery were separate design criteria in the comparison.
 
 ## Primary sources
 
@@ -371,7 +397,7 @@ criteria.
   `plugin`/`plug`, `--global`, and `--force`.
 - **[OC-PLUGIN]** OpenCode v1.18.18
   [`plugin/index.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/plugin/index.ts):
-  current and legacy module loading and sequential config hooks.
+  then-current and legacy module loading and sequential config hooks.
 - **[OC-BOOTSTRAP]** OpenCode v1.18.18
   [`project/bootstrap.ts`](https://github.com/anomalyco/opencode/blob/31406ccc51b4bd2a4e1e086b2bcaa5f7f804f26d/packages/opencode/src/project/bootstrap.ts):
   plugin initialization before other services.
@@ -425,10 +451,17 @@ criteria.
 - **[HOMERUN]** Homerun marketplace commit `54c5a4a`:
   [root installer entrypoint](https://github.com/homeruntech/claude-plugin-marketplace/blob/54c5a4a046000026a9e0b359232c8d741723912b/tools/install.mjs)
   and [owned install-tree design](https://github.com/homeruntech/claude-plugin-marketplace/blob/54c5a4a046000026a9e0b359232c8d741723912b/docs/ARCHITECTURE.md).
-- **[LOCAL-CONTRACT]** [`AGENTS.md`](../../AGENTS.md),
-  [ADR-0006](../adr/0006-output-is-a-transformation.md),
-  [ADR-0008](../adr/0008-references-are-symbols.md), and
-  [the current roadmap](../ROADMAP.md).
+- **[LOCAL-CANON]** Current local vocabulary and mechanics:
+  [`CONTEXT.md`](../../CONTEXT.md),
+  [Transformation and emission](../architecture/transformation-and-emission.md),
+  [Distribution and installation](../architecture/distribution-and-installation.md), and
+  [References and linking](../architecture/references-and-linking.md). Accepted rationale:
+  [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md),
+  [ADR-0002](../adr/0002-multi-harness-output.md),
+  [ADR-0004](../adr/0004-minimal-toolchain.md),
+  [ADR-0006](../adr/0006-output-is-a-transformation.md), and
+  [ADR-0008](../adr/0008-references-are-symbols.md). Consumption and operational state:
+  [README](../../README.md) and [roadmap](../ROADMAP.md).
 
 ## Conclusion
 
@@ -437,11 +470,15 @@ does not make arbitrary package folders discoverable and does not select a works
 Superpowers succeeds because its adapter registers a package-relative skill path; an all-three
 adapter is likewise possible only through explicit registration.
 
-For an all-in-one product, a root package adapter is small and supported. For this repository's
-per-module product, the implemented boundary is a root installer that composes already transformed,
-owned Module Bundles into OpenCode's Native tree and can update or remove exactly what it installed.
-The shipped unit is emitted JavaScript plus Bundles in an npm-format tarball, transported remotely as
-a versioned private GitHub Release asset rather than a Git package. OpenCode's `plugin` command
-improves package configuration, but it does not supply this ownership design. The private Release
-exists (`installer-v0.1.0`, pinned to `5ab4117`) and its downloaded asset measured equivalent to the
-local pack (section 7).
+For an all-in-one product, the evidence left a root package adapter as a small supported option. The
+2026-08-18 local decision outcome instead used a root installer and already transformed Module
+Bundles because per-Module selection, path Ownership, and exact update/remove boundaries were part of
+the goal. OpenCode's `plugin` command improved package configuration but did not supply that ownership
+design.
+
+That outcome is decision history, not the current operating contract. Follow the section 6 relays to
+architecture, `CONTEXT.md`, ADRs, the root README, and the roadmap. Exact measurement digests, byte
+and file counts, control-root details, and equivalence results remain dated provenance in record
+[`opencode-module-installer-local-pack-2026-08-18`](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md),
+while the release tag and target commit remain recipe provenance in section 6, not a timeless
+installation pin.

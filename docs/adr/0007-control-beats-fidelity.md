@@ -41,9 +41,9 @@ material, not a standard to track. Concretely:
   ceremony is an expected shape, not an exception. Nothing routes except the curator.
 - **Decisions see the whole dependency closure.** A skill can lean on other skills, commands,
   agents, bundled scripts and reference files — in all three reference spellings
-  ([upstream-repo-layouts.md](../research/upstream-repo-layouts.md)). The closure is surfaced at
-  decision time; taking a package whole, cutting the edge, or rewiring it are all legitimate
-  outcomes. Deciding an item in isolation is not.
+  defined by [ADR-0008](0008-references-are-symbols.md) and [References and linking](../architecture/references-and-linking.md#one-grammar-three-evidence-tiers).
+  The closure is surfaced at decision time; taking a package whole, cutting the edge, or rewiring it
+  are all legitimate outcomes. Deciding an item in isolation is not.
 - **Both harnesses, every time.** An item's fate is decided for the Claude Code and OpenCode trees
   at once — ADR-0006 resolves each axis per harness. Claude-first with OpenCode as an afterthought
   is the named anti-pattern.
@@ -60,5 +60,7 @@ material, not a standard to track. Concretely:
   given an honest trigger description in the same decision, or it may never be selected
   ([skill-framework-landscape.md](../research/skill-framework-landscape.md)). An item the curator
   triggers needs the opposite: a human-facing line for a person browsing a menu.
-- The canon itself bends. When a need and an ADR disagree, the ADR is rewritten in place
-  (AGENTS.md, Working Style) — learning on the road is expected to reshape these documents.
+- The canon itself bends. When a need and an ADR disagree, follow the ADR guide's
+  [current-canon agreement](README.md#current-canon-agreement) and
+  [living-revision governance](README.md#living-revision-and-supersession) — learning on the road is
+  expected to reshape these documents.
