@@ -5,6 +5,7 @@ repo_head: 5ab41171a894ed24931c704bdfbe7608c7d224de
 kind: runtime-smoke
 summary: The final local packed installer and the downloaded private GitHub Release asset both installed all four Modules into isolated Windows XDG Native trees with identical digests, bytes, and OpenCode discovery; the real profile was then migrated through the same Plan/Apply path with the 25 model-routing control-plane roots preserved; human permission and model-driven reads remain unmeasured.
 isolation_ok: true
+real_profile_migration: authorized-plan-apply-2026-08-18
 harness_name: OpenCode
 harness_version: 1.18.18
 package_name: deniz-agent-skills-0.1.0.tgz
@@ -19,12 +20,14 @@ release_target: 5ab41171a894ed24931c704bdfbe7608c7d224de
 
 ## Scope and provenance
 
-This record covers two free, isolated panels: the local packed package and, after explicit
-authorization, the downloaded private GitHub Release asset. Both ran installer Plan/Apply/status and
-OpenCode `debug skill`, `debug config`, and `debug paths` with no model call, TUI permission
-decision, or real-profile Apply. The private Release download used authenticated `gh`; no credential
-material was committed to this repository or supplied to OpenCode or to a model. The Release itself
-was created in a separate, explicitly authorized mutation; it is not re-created or re-uploaded by
+This record covers three panels: two free, isolated panels — the local packed package and, after
+explicit authorization, the downloaded private GitHub Release asset — plus one separately
+authorized real-profile Plan/Apply migration. The two isolated panels ran installer
+Plan/Apply/status and OpenCode `debug skill`, `debug config`, and `debug paths` with no model call
+or TUI permission decision; `isolation_ok: true` describes only those two panels, not the
+real-profile panel. The private Release download used authenticated `gh`; no credential material
+was committed to this repository or supplied to OpenCode or to a model. The Release creation and
+the real-profile migration were separate, explicitly authorized mutations; neither is re-run by
 this record.
 
 `repo_head` is the committed implementation base at measurement time. The measurement worktree also
@@ -176,8 +179,9 @@ migrated through the same Plan/Apply path as the isolated panels:
   existed.
 - Backup: the 118 takeover roots (84 skill dirs, 33 command files, 1 agent file) were copied with
   relative layout plus a SHA-256 manifest to
-  `<temp>/opencode-profile-cleanup-backup-2026-08-18` (238 files, 1,968,647 bytes) and verified
-  hash-for-hash before any deletion. The backup is kept, not deleted.
+  `<temp>/opencode-profile-cleanup-backup-2026-08-18` (238 payload files, 1,941,064 bytes, plus the
+  27,583-byte manifest file: 239 files, 1,968,647 bytes total) and verified hash-for-hash before any
+  deletion. The backup is kept, not deleted.
 - The 25 routing control-plane roots (skill `subagent-model-routing`; commands `router-code.md`,
   `router-research.md`, `router-review.md`; 21 model-routing agent files) were preserved byte-for-byte
   and remain outside Module Ownership: install.json claims only the 238 Module files.

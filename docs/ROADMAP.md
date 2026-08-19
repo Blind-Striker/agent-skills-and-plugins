@@ -42,16 +42,15 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    exists (tag pinned to commit `5ab4117`) and its downloaded asset measured equal to the verified
    local package. The real OpenCode profile migrated (2026-08-18): backup + verified removal of the
    118 Module takeover roots, a clean 238-Add Plan, and an approved Apply left four Modules current
-   with the 25 model-routing control-plane roots preserved outside Module Ownership. Remaining in
-   this item: retire the other global skill sources as their `deniz-*` replacements land. The end
-   state (user, 2026-07-31): every
-   globally installed skill set on this machine — Claude-side plugins, OpenCode's superpowers
-   package, `~/.config/opencode/skills/`, `~/.agents/skills/` — is uninstalled as its `deniz-*`
+   with the 25 model-routing control-plane roots preserved outside Module Ownership (a deliberate
+   exception: those roots are never claimed or pruned by the installer). The OpenCode superpowers
+   package needs no removal step: its `plugin:` entry was measured absent from the real config
+   before migration. Remaining in this item: retire the other global skill sources as their
+   `deniz-*` replacements land. The end state (user, 2026-07-31): every
+   remaining globally installed skill set on this machine — the Claude-side plugins and
+   `~/.agents/skills/` — is uninstalled as its `deniz-*`
    replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
-   big-bang. First in line: the OpenCode superpowers package (`plugin:` entry in
-   `~/.config/opencode/opencode.json`), because measured precedence (package cache >
-   `OPENCODE_CONFIG_DIR` mount > global `.config` skills) means it shadows curated output for
-   every colliding name — the one global our tree cannot shadow away.
+   big-bang.
 2. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
    repetitive. The local-vs-cluster abstraction repeats across best-practices, hosting, and testing;
    management and Aspire configuration present competing option models; the best-practices
