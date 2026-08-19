@@ -15,7 +15,9 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 - Four `deniz-*` Claude Code Plugins, matching per-Module OpenCode Bundles with deterministic
   manifests, the emitted `deniz-skills` installer under `dist/`, and `marketplace.json` are generated
   and committed. `deniz-process` is closed; `deniz-dotnet-general` is curated (corpus-first pass over
-  the two general-scope upstreams); akka and aspire each retain one pipeline-proof starter.
+  the two general-scope upstreams); akka and aspire each retain one pipeline-proof starter. The real
+  Claude profile already has the desired `deniz-process` and `deniz-dotnet-general` Plugins enabled;
+  Akka and Aspire stay uninstalled there until their curation sessions close.
 - The OpenCode installer composes an explicit Selection into the normal global Native tree with
   exact Ownership, zero-write Plan, under-lock recomputation and transactional Apply/Recovery. It
   supports Install, status, Update, and Remove; it has no force/reset/legacy migration,
@@ -26,7 +28,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
   its `deniz-agent-skills-0.1.0.tgz` asset measured identical to the local pack in an isolated
   profile. The real OpenCode profile was migrated through the same Plan/Apply path (2026-08-18);
   the 25 model-routing control-plane roots (skill `subagent-model-routing`, three router commands,
-  21 routing agent files) were preserved byte-for-byte and remain outside Module Ownership.
+  21 routing agent files) were preserved byte-for-byte and remain outside Module Ownership. Its
+  current Selection is `deniz-process`, `deniz-dotnet-general`, and the Akka starter; the Aspire
+  starter was removed after restart verification and remains unselected until its router is repaired.
+- Machine migration is complete for sources that currently have curated replacements. The OpenCode
+  Superpowers package entry and `~/.agents/skills/` were both measured absent; no cleanup was needed.
+  Official Claude utility Plugins are outside this skill-source migration, and future Akka/Aspire
+  Claude installs belong to their curation tasks rather than a standing machine-migration task.
 - `docs/ledger.json` records resolved output state. `npm run validate` has no errors on the current
   build; expected warning identities remain under Known Gaps or the future module work below.
 - Harness-invocation experiments, their protocol, and committed evidence live in
@@ -38,27 +46,14 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
 
 ## Next Up
 
-1. **Staged machine migration to one source of truth.** The private `installer-v0.1.0` Release
-   exists (tag pinned to commit `5ab4117`) and its downloaded asset measured equal to the verified
-   local package. The real OpenCode profile migrated (2026-08-18): backup + verified removal of the
-   118 Module takeover roots, a clean 238-Add Plan, and an approved Apply left four Modules current
-   with the 25 model-routing control-plane roots preserved outside Module Ownership (a deliberate
-   exception: those roots are never claimed or pruned by the installer). The OpenCode superpowers
-   package needs no removal step: its `plugin:` entry was measured absent from the real config
-   before migration. Remaining in this item: retire the other global skill sources as their
-   `deniz-*` replacements land. The end state (user, 2026-07-31): every
-   remaining globally installed skill set on this machine — the Claude-side plugins and
-   `~/.agents/skills/` — is uninstalled as its `deniz-*`
-   replacement lands, leaving this repo as both harnesses' only skill source. Staged, not
-   big-bang.
-2. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
+1. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
    repetitive. The local-vs-cluster abstraction repeats across best-practices, hosting, and testing;
    management and Aspire configuration present competing option models; the best-practices
    EventStream companion actually uses its own subscription dictionary; the specialist agent
    overlaps the skill set; and hosting still names the pre-flattening
    `microsoft-extensions/dependency-injection` address. Choose canonical homes deliberately and
    record each take, merge, or exclusion beside the item.
-3. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
+2. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
    uncurated targets in model-facing frontmatter and labels upstream-URL routes as in-plugin. Taking
    the coherent six-skill closure requires harness-reachable handoffs. Resolve the contradiction
    between `aspire-configuration` rejecting application-level service discovery and
@@ -67,13 +62,13 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    two standing `dotnet-devcert-trust` references to `aspire-configuration` and
    `aspire-service-defaults` should rewrite automatically if those sources are curated. Do not
    install this module until the router is repaired or removed.
-4. **Cross-module Akka/Aspire placement.** `akka-net-aspire-configuration` is a long cookbook naming
+3. **Cross-module Akka/Aspire placement.** `akka-net-aspire-configuration` is a long cookbook naming
    skills from both modules and has no natural home. Decide its owning module and edge direction with
    both manifests open rather than allowing either session to claim it implicitly.
-5. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    repair or pull the Aspire router, and decide whether `marketplace.json`'s format-required owner
    name and email may go public.
-6. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+5. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -84,7 +79,7 @@ lives in [AGENTS.md](../AGENTS.md) and [docs/adr/](adr/).
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-7. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+6. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    That sentence survives any re-curation and therefore qualifies, but minting an ADR immediately
