@@ -1,4 +1,16 @@
 {
+  "deniz-dotnet-akka/akka-hosting-actor-patterns": {
+    "source": "dotnet-skills/skills/akka-hosting-actor-patterns",
+    "files": {
+      "SKILL.md": "4491a4797c427d2ed23553c7f5b44fb438e0e8ce"
+    }
+  },
+  "deniz-dotnet-akka/akka-net-aspire-configuration": {
+    "source": "dotnet-skills/skills/akka-aspire-configuration",
+    "files": {
+      "SKILL.md": "ec7f15f826f360161ac82e24372107e5d7336062"
+    }
+  },
   "deniz-dotnet-general/binlog-failure-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis",
     "files": {

@@ -3,6 +3,8 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.1.0
+  version: 0.2.0
 items:
   - source: aspire-skills/skills/aspire
+  - source: dotnet-skills/skills/aspire-integration-testing
+    invocation: auto # Aspire-native testing target required by the guarded Akka/Aspire cookbook handoff

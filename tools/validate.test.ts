@@ -93,11 +93,14 @@ test("known prose address does not produce an unknown namespace warning", () => 
   buildAll(root);
   writeFileSync(
     join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
-    '---\nname: alpha\ndescription: d\n---\n\nUse `<div style="display:flex">` for this example.\n',
+    '---\nname: alpha\ndescription: d\n---\n\nUse `<div style="display:flex">` and container image `my-app:latest` for this example.\n',
   );
 
   const hits = validateRepo(root).filter(
-    (f) => f.level === "warn" && f.message.includes("unknown reference namespace display"),
+    (f) =>
+      f.level === "warn" &&
+      (f.message.includes("unknown reference namespace display") ||
+        f.message.includes("unknown reference namespace my-app")),
   );
   assert.deepEqual(hits, []);
 });

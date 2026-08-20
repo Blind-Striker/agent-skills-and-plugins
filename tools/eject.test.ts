@@ -110,6 +110,32 @@ test("eject --patch lays down a working copy, then turns the edits into overlay.
   assert.ok(files["SKILL.md"], "a patch is blessed against the upstream files it touches");
 });
 
+test("eject --patch --force replaces the old patch before recutting it", () => {
+  const root = makeRepo();
+  const dir = join(root, "overlays", "deniz-process", "alpha");
+  const file = join(dir, "SKILL.md");
+  const patchFile = join(dir, "overlay.patch");
+
+  assert.ok(eject(root, ["deniz-process", "alpha", "--patch"]).ok);
+  writeFileSync(file, readFileSync(file, "utf8").replace("Use superpowers:beta next.", "First edit."));
+  assert.ok(eject(root, ["deniz-process", "alpha", "--patch"]).ok);
+  assert.ok(existsSync(patchFile));
+  writeFileSync(join(dir, "STRANDED.md"), "left beside the completed patch\n");
+
+  const phase1 = eject(root, ["deniz-process", "alpha", "--patch", "--force"]);
+  assert.ok(phase1.ok, phase1.out);
+  assert.ok(existsSync(file), "force must lay down a fresh working copy");
+  assert.ok(!existsSync(patchFile), "the old patch must not become part of the working copy");
+  assert.ok(!existsSync(join(dir, "STRANDED.md")), "force must discard a stranded working copy");
+
+  writeFileSync(file, readFileSync(file, "utf8").replace("Use superpowers:beta next.", "Second edit."));
+  const phase2 = eject(root, ["deniz-process", "alpha", "--patch"]);
+  assert.ok(phase2.ok, phase2.out);
+  const patch = readFileSync(patchFile, "utf8");
+  assert.match(patch, /^\+Second edit\.$/m);
+  assert.doesNotMatch(patch, /diff --git b\/overlay\.patch b\/overlay\.patch/);
+});
+
 // Most upstream skills carry a references/ or scripts/ directory. A flat readdir put those
 // directory names into the hash list, and `git hash-object` cannot hash a directory.
 test("eject handles a skill that carries a subdirectory", () => {

@@ -1,0 +1,85 @@
+diff --git a/SKILL.md b/SKILL.md
+index ec7f15f..26fd7f2 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -13,24 +13,24 @@ Use this skill when:
+ - Configuring Akka.Cluster with cluster bootstrapping and discovery
+ - Integrating Akka.Persistence with SQL Server
+ - Setting up Akka.Management for cluster management
+ - Configuring multi-replica actor systems in local development
+ - Deploying Akka.NET applications to Kubernetes with Aspire
+ 
+ ## Related Skills
+ 
+-- **`akka-net-management`** - Deep dive into Akka.Management, Cluster Bootstrap, and discovery providers (Kubernetes, Azure, Config)
+-- **`microsoft-extensions-configuration`** - IValidateOptions patterns for configuration validation
+-- **`akka-net-best-practices`** - Cluster/local mode abstractions for testable actor systems
+-- **`aspire-integration-testing`** - Testing Aspire applications with real infrastructure
++- **`dotnet-skills:akka-management`** - Deep dive into Akka.Management, Cluster Bootstrap, and discovery providers (Kubernetes, Azure, Config)
++- **`dotnet-skills:microsoft-extensions-configuration`** - IValidateOptions patterns for configuration validation
++- **`dotnet-skills:akka-best-practices`** - Cluster/local mode abstractions for testable actor systems
++- **`dotnet-skills:aspire-integration-testing`** - Testing Aspire applications with real infrastructure
+ 
+ ## Core Principles
+ 
+-1. **Configuration via Microsoft.Extensions.Configuration** - Use strongly-typed settings classes bound from appsettings.json (see `microsoft-extensions-configuration` skill)
++1. **Configuration via Microsoft.Extensions.Configuration** - Use strongly-typed settings classes bound from appsettings.json (see `dotnet-skills:microsoft-extensions-configuration` skill)
+ 2. **Akka.Hosting for DI Integration** - Use the Akka.Hosting library for seamless ASP.NET Core integration
+ 3. **Aspire for Orchestration** - Let Aspire manage service dependencies, networking, and environment configuration
+ 4. **Health Checks** - Always configure health checks for clustering, persistence, and readiness
+ 5. **Separate Concerns** - Keep actor definitions, configuration, and Aspire orchestration in separate layers
+ 6. **Validate Configuration at Startup** - Use `IValidateOptions<T>` and `.ValidateOnStart()` to fail fast on misconfiguration
+ 
+ ## Project Structure
+ 
+@@ -633,29 +633,29 @@ builder.Services.AddHealthChecks()
+ **Solution:**
+ 1. Use `FilterOnFallbackPort = false` in local development
+ 2. Ensure all replicas use the same discovery configuration
+ 3. Set `ContactWithAllContactPoints = true`
+ 4. Increase `StableMargin` for slower dev machines
+ 
+ ## Testing Akka.NET Actors
+ 
+-For comprehensive Akka.NET testing patterns using **Akka.Hosting.TestKit**, see the `akka-net-testing-patterns` skill.
++For comprehensive Akka.NET testing patterns using **Akka.Hosting.TestKit**, see the `dotnet-skills:akka-testing-patterns` skill.
+ 
+ That skill covers:
+ - Modern testing with Akka.Hosting.TestKit and dependency injection
+ - TestProbe patterns for verifying actor interactions
+ - Testing persistent actors and event sourcing
+ - Local cluster sharding tests with `AkkaExecutionMode.LocalTest`
+ - Scenario-based integration tests
+ - Best practices and anti-patterns
+ 
+ ### Quick Example: Testing Akka + Aspire Integration
+ 
+-When testing Aspire applications with Akka.NET actors, combine `aspire-integration-testing` patterns with `akka-net-testing-patterns`:
++When testing Aspire applications with Akka.NET actors, combine `dotnet-skills:aspire-integration-testing` patterns with `dotnet-skills:akka-testing-patterns`:
+ 
+ ```csharp
+ // Use Aspire's DistributedApplicationTestingBuilder for infrastructure
+ // Use Akka.Hosting.TestKit for actor testing
+ public class AkkaAspireIntegrationTests : IAsyncLifetime
+ {
+     private DistributedApplication? _app;
+ 
+@@ -700,17 +700,17 @@ public class AkkaAspireIntegrationTests : IAsyncLifetime
+     public async Task DisposeAsync()
+     {
+         if (_app is not null)
+             await _app.DisposeAsync();
+     }
+ }
+ ```
+ 
+-**For unit testing individual actors**, use `akka-net-testing-patterns` with in-memory persistence (no Aspire needed).
++**For unit testing individual actors**, use `dotnet-skills:akka-testing-patterns` with in-memory persistence (no Aspire needed).
+ 
+ ## Best Practices Summary
+ 
+ 1. **Always use health checks** - Configure readiness and liveness checks for all components
+ 2. **Bind settings from configuration** - Never hard-code hostnames, ports, or connection strings
+ 3. **Use Akka.Management for multi-node** - Don't use static seed nodes for clusters with >1 replica
+ 4. **Configure TLS for production** - Always use TLS in production environments
+ 5. **Separate actor logic from configuration** - Keep actors pure and configuration in extension methods

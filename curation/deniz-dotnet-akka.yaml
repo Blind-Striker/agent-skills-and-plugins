@@ -3,6 +3,28 @@
 plugin:
   name: deniz-dotnet-akka
   description: "Deniz's curated Akka.NET skills"
-  version: 0.1.0
+  version: 0.2.0
 items:
   - source: dotnet-skills/skills/akka-best-practices
+    invocation: auto # foundational Akka.NET rules; model-reachable for the Aspire configuration cookbook
+    # Keep the official local/cluster companion as shipped after reviewing its subscription dictionary.
+  - source: dotnet-skills/skills/akka-hosting-actor-patterns
+    invocation: auto # distinct Akka.Hosting, sharding, reminders, and DI-scope cookbook
+    body: patch # repair the pre-flattening DI handoff and make it linker-checked
+    depends_on: [dependency-injection-patterns]
+  - source: dotnet-skills/skills/akka-management
+    invocation: auto # management, cluster bootstrap, and discovery detail used by the Aspire configuration cookbook
+  - source: dotnet-skills/skills/akka-testing-patterns
+    invocation: auto # actor and integration-testing detail used by the Aspire configuration cookbook
+  - source: dotnet-skills/skills/akka-aspire-configuration
+    invocation: auto # Akka owns the cross-cutting cookbook; its guarded handoffs point outward from this module
+    body: patch # promote all five related-skill handoffs to linker-checked model edges
+    depends_on:
+      - akka-net-management
+      - microsoft-extensions-configuration
+      - akka-net-best-practices
+      - aspire-integration-testing
+      - akka-net-testing-patterns
+  - source: dotnet-skills/agents/akka-net-specialist.md
+    # Native diagnostic agent in both harnesses; its delegated troubleshooting posture is distinct
+    # from the model-selected reference skills, so its upstream body and agent shape stay intact.

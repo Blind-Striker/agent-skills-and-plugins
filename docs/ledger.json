@@ -1,6 +1,123 @@
 {
+  "deniz-dotnet-akka/agent/akka-net-specialist": {
+    "source": "dotnet-skills/agents/akka-net-specialist.md",
+    "description": "Expert in Akka.NET architecture, actor systems, and distributed computing patterns. Specializes in analyzing actor lifecycle issues, message passing problems, cluster coordination, persistence, and stream processing. Use for Akka.NET-specific debugging, architecture decisions, and understanding actor system behavior.",
+    "claude": {
+      "artifacts": [
+        "agent"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "agent"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-akka/skill/akka-hosting-actor-patterns": {
+    "source": "dotnet-skills/skills/akka-hosting-actor-patterns",
+    "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "dependency-injection-patterns"
+    ],
+    "description": "Patterns for building entity actors with Akka.Hosting - GenericChildPerEntityParent, message extractors, cluster sharding abstraction, akka-reminders, and ITimeProvider. Supports both local testing and clustered production modes.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:dependency-injection-patterns"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "dependency-injection-patterns"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable",
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-akka/skill/akka-net-aspire-configuration": {
+    "source": "dotnet-skills/skills/akka-aspire-configuration",
+    "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "akka-net-best-practices",
+      "akka-net-management",
+      "akka-net-testing-patterns",
+      "aspire-integration-testing",
+      "microsoft-extensions-configuration"
+    ],
+    "description": "Configure Akka.NET with .NET Aspire for local development and production deployments. Covers actor system setup, clustering, persistence, Akka.Management integration, and Aspire orchestration patterns.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-akka:akka-net-best-practices",
+          "deniz-dotnet-akka:akka-net-management",
+          "deniz-dotnet-akka:akka-net-testing-patterns",
+          "deniz-dotnet-aspire:aspire-integration-testing",
+          "deniz-dotnet-general:microsoft-extensions-configuration"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "akka-net-best-practices",
+          "akka-net-management",
+          "akka-net-testing-patterns",
+          "aspire-integration-testing",
+          "microsoft-extensions-configuration"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable",
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
   "deniz-dotnet-akka/skill/akka-net-best-practices": {
     "source": "dotnet-skills/skills/akka-best-practices",
+    "invocation": "auto",
     "description": "Critical Akka.NET best practices including EventStream vs DistributedPubSub, supervision strategies, error handling, Props vs DependencyResolver, work distribution patterns, and cluster/local mode abstractions for testability.",
     "claude": {
       "artifacts": [
@@ -9,6 +126,9 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
       }
     },
     "opencode": {
@@ -20,7 +140,70 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "invocable",
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-akka/skill/akka-net-management": {
+    "source": "dotnet-skills/skills/akka-management",
+    "invocation": "auto",
+    "description": "Akka.Management for cluster bootstrapping, service discovery (Kubernetes, Azure, Config), health checks, and dynamic cluster formation without static seed nodes.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable",
+        "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-akka/skill/akka-net-testing-patterns": {
+    "source": "dotnet-skills/skills/akka-testing-patterns",
+    "invocation": "auto",
+    "description": "Write unit and integration tests for Akka.NET actors using modern Akka.Hosting.TestKit patterns. Covers dependency injection, TestProbes, persistence testing, and actor interaction verification. Includes guidance on when to use traditional TestKit.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable",
+        "user-invocable"
       ],
       "parked": []
     }
@@ -46,6 +229,37 @@
         "pointer": []
       },
       "dropped": [],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-aspire/skill/aspire-integration-testing": {
+    "source": "dotnet-skills/skills/aspire-integration-testing",
+    "invocation": "auto",
+    "description": "Write integration tests using .NET Aspire's testing facilities with xUnit. Covers test fixtures, distributed application setup, endpoint discovery, and patterns for testing ASP.NET Core apps with real dependencies.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable",
+        "user-invocable"
+      ],
       "parked": []
     }
   },

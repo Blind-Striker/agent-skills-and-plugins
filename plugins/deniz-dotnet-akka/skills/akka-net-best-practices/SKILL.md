@@ -5,6 +5,7 @@ description: Critical Akka.NET best practices including EventStream vs
   DependencyResolver, work distribution patterns, and cluster/local mode
   abstractions for testability.
 invocable: false
+user-invocable: false
 ---
 
 # Akka.NET Best Practices

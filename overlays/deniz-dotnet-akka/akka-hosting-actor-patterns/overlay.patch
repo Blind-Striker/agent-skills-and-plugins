@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index 4491a47..ad328f5 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -500,17 +500,17 @@ public sealed class GoodActor : ReceiveActor
+             using var scope = _sp.CreateScope();
+             var repo = scope.ServiceProvider.GetRequiredService<IOrderRepository>();
+             // Fresh DbContext for this message
+         });
+     }
+ }
+ ```
+ 
+-For more on DI lifetimes and scope management, see `microsoft-extensions/dependency-injection` skill.
++For more on DI lifetimes and scope management, see `dotnet-skills:microsoft-extensions-dependency-injection` skill.
+ 
+ ---
+ 
+ ## Cluster Sharding Configuration
+ 
+ ### RememberEntities: Almost Always False
+ 
+ `RememberEntities` controls whether the shard region remembers and automatically restarts all entities that were ever created. **This should almost always be `false`.**

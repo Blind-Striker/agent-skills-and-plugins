@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -12,46 +12,41 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - This GitHub repository (`Blind-Striker/agent-skills-and-plugins`) currently uses `master` as its
   default branch. The current curation manifests emit matching Claude Code Plugins and OpenCode
-  Module Bundles. `deniz-process` is closed and `deniz-dotnet-general` has completed its corpus-first
-  pass; Akka and Aspire each remain a one-item pipeline proof awaiting the sessions below. Item
-  posture and reasons live in the [manifests](../curation/) and generated [ledger](ledger.json). The
-  real Claude profile has process and general enabled; Akka and Aspire remain uninstalled there until
-  their curation sessions close. Official Claude utility Plugins are outside the [skill-source
-  migration documented by the dated adapter and installer evidence](research/harness-adapters.md#opencode);
-  future Akka and Aspire Claude installs belong to their curation sessions rather than a standing
-  migration task.
+  Module Bundles. `deniz-process` is closed, `deniz-dotnet-general` has completed its corpus-first
+  pass, and `deniz-dotnet-akka` has completed its user-guided pass with all five upstream Akka skills
+  plus the native specialist agent. The Akka-owned Aspire cookbook has guarded links to its Akka,
+  General, and Aspire targets; `deniz-dotnet-aspire` now carries the integration-testing target but
+  remains an incomplete router proof awaiting the session below. Item posture and reasons live in the
+  [manifests](../curation/) and generated [ledger](ledger.json). The real Claude profile has process
+  and general enabled; Akka and Aspire remain uninstalled there. Official Claude utility Plugins are
+  outside the [skill-source migration documented by the dated adapter and installer
+  evidence](research/harness-adapters.md#opencode);
+  future Akka and Aspire Claude installs require explicit approval rather than a standing migration
+  task.
 - The repository remains private. The emitted global-only OpenCode installer and private Package
   recipe are available in the root [README](../README.md); current mechanics are in
   [distribution and installation](architecture/distribution-and-installation.md). The measured real
-  OpenCode Selection contains process, general, and the Akka starter; Aspire remains unselected until
+  OpenCode Selection contains process, general, and the pre-curation Akka starter; updating Akka and
+  selecting Aspire require explicit approval, and Aspire remains unsuitable for installation until
   its router is repaired. The migration and isolated Package evidence remain in the
   [installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md).
 
 ## Next Up
 
-1. **`deniz-dotnet-akka` curation session, with the user.** The five upstream skills are deep but
-   repetitive. The local-vs-cluster abstraction repeats across best-practices, hosting, and testing;
-   management and Aspire configuration present competing option models; the best-practices
-   EventStream companion actually uses its own subscription dictionary; the specialist agent
-   overlaps the skill set; and hosting still names the pre-flattening
-   `microsoft-extensions/dependency-injection` address. Choose canonical homes deliberately and
-   record each take, merge, or exclusion beside the item.
-2. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
+1. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
    uncurated targets in model-facing frontmatter and labels upstream-URL routes as in-plugin. Taking
-   the coherent six-skill closure requires harness-reachable handoffs. Resolve the contradiction
-   between `aspire-configuration` rejecting application-level service discovery and
-   `aspire-service-defaults` installing it. Also assess version drift, deployment's missing
-   `--non-interactive`, integration testing's `Task.Delay`, and Mailpit's non-compiling samples. The
-   two standing `dotnet-devcert-trust` references to `aspire-configuration` and
-   `aspire-service-defaults` should rewrite automatically if those sources are curated. Do not
-   install this module until the router is repaired or removed.
-3. **Cross-module Akka/Aspire placement.** `akka-net-aspire-configuration` is a long cookbook naming
-   skills from both modules and has no natural home. Decide its owning module and edge direction with
-   both manifests open rather than allowing either session to claim it implicitly.
-4. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+   the coherent six-skill closure requires harness-reachable handoffs. `aspire-integration-testing`
+   is already present as the guarded cross-Module target of the Akka-owned Aspire cookbook; resolve
+   the remaining router closure and the contradiction between `aspire-configuration` rejecting
+   application-level service discovery and `aspire-service-defaults` installing it. Also assess
+   version drift, deployment's missing `--non-interactive`, integration testing's `Task.Delay`, and
+   Mailpit's non-compiling samples. The two standing `dotnet-devcert-trust` references to
+   `aspire-configuration` and `aspire-service-defaults` should rewrite automatically if those sources
+   are curated. Do not install this module until the router is repaired or removed.
+2. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    repair or pull the Aspire router, and decide whether `marketplace.json`'s format-required owner
    name and email may go public.
-5. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+3. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -62,7 +57,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-6. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+4. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    Keep it unwritten until the curation rule is stable enough to state the actual contract rather
@@ -72,9 +67,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
-- **Arbitrary Selection has no cross-Module dependency closure.** Add dependency-aware planning or
-  narrow the supported Selection contract before a formal edge crosses Modules. All current formal
-  edges stay within `deniz-process`; that operational baseline is not a guarantee. See the
+- **Add dependency-aware Module Selection planning.** The Akka-owned
+  `akka-net-aspire-configuration` has guarded references from `deniz-dotnet-akka` into
+  `deniz-dotnet-general` and `deniz-dotnet-aspire`. Full-estate validation proves those links, but
+  the installer does not yet close an arbitrary Selection over required Modules. Extend Package or
+  Bundle metadata and Plan validation to add required Modules automatically or reject an incomplete
+  Selection before treating a partial install as dependency-safe. Until then, the operator must
+  select the cross-Module targets explicitly. See the
   [architecture limit](architecture/distribution-and-installation.md#full-estate-versus-installed-selection).
 - **Same-name, different-kind semantic maps are name-only.** Qualify rewrite and linker maps by kind,
   or narrow the legality rule, before relying on a cross-kind duplicate. See the

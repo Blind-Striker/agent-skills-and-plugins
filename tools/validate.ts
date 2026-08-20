@@ -43,6 +43,7 @@ const NON_SYMBOL_REF_ADDRESSES = new Set([
   "host:port",
   "justify-content:center",
   "monitor:latest",
+  "my-app:latest",
   "myapp:latest",
   "node:test",
   "postgres:alpine",

@@ -1,9 +1,21 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-akka",
-  "version": "0.1.0",
-  "digest": "sha256:0fa6792f82d306f57883b6b84c17eea41097c2f2729c7da329c619923bb34feb",
+  "version": "0.2.0",
+  "digest": "sha256:ed44cb83816e527f140549a3b33a507e3fa6bd2de5b88c6de74b5d46f599936d",
   "files": {
+    "agents/akka-net-specialist.md": {
+      "sha256": "sha256:5f47f741005698498d804d39c89dd44f84085b3a53924dbdadb0325c62bf9eb2",
+      "mode": "100644"
+    },
+    "skills/akka-hosting-actor-patterns/SKILL.md": {
+      "sha256": "sha256:249dd30950c34324af343705e9b83d83b475cb93d13d80d1df08161f60e2c184",
+      "mode": "100644"
+    },
+    "skills/akka-net-aspire-configuration/SKILL.md": {
+      "sha256": "sha256:719f0807160d8bea46ffb96598ca0faae276493e33c1a457a2e87a4a358921c1",
+      "mode": "100644"
+    },
     "skills/akka-net-best-practices/SKILL.md": {
       "sha256": "sha256:6e40861ef1dd791cf679a4fe11488abd7a96384255a1d7b20f21cc3fa7eea94e",
       "mode": "100644"
@@ -18,6 +30,30 @@
     },
     "skills/akka-net-best-practices/work-distribution-patterns.md": {
       "sha256": "sha256:e44826e9d255c0073f8d033ec09e90b360024ebb53d0de66995cc1c4e4d5438d",
+      "mode": "100644"
+    },
+    "skills/akka-net-management/SKILL.md": {
+      "sha256": "sha256:dd84303297d2e118de941508baa9c0127b5b8e0ad04342085c6f8c94656bd1c3",
+      "mode": "100644"
+    },
+    "skills/akka-net-management/configuration-reference.md": {
+      "sha256": "sha256:1a17fac60a374e2de1aae2ffb045d5e19b87408bef5f511114d84b6ed3e1a105",
+      "mode": "100644"
+    },
+    "skills/akka-net-management/discovery-providers.md": {
+      "sha256": "sha256:bc933b9f74279f2031d360d36460c3e1712e8843580d9e2992be1c4f824a3220",
+      "mode": "100644"
+    },
+    "skills/akka-net-testing-patterns/SKILL.md": {
+      "sha256": "sha256:bd25601ec259634ff47733f46ea501a18e7f384947beaebb04477851afb43e6f",
+      "mode": "100644"
+    },
+    "skills/akka-net-testing-patterns/anti-patterns-and-reference.md": {
+      "sha256": "sha256:48cc628aa1aa3eeed9aaa628e5674b11acd296c24c75a4d66634e6f2ded83321",
+      "mode": "100644"
+    },
+    "skills/akka-net-testing-patterns/examples.md": {
+      "sha256": "sha256:cf655417beba0930f9879497aed2468266d605fe3a3825aeacedaf99f0a0e874",
       "mode": "100644"
     }
   }

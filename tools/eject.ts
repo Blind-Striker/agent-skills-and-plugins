@@ -193,6 +193,9 @@ if (flags.has("--patch")) {
     console.error(`${plugin}/${name}: --patch applies to skill output only — a conversion needs a full-file overlay.`);
     process.exit(1);
   }
+  if (flags.has("--force") && existsSync(patchFile)) {
+    rmSync(dest, { recursive: true, force: true });
+  }
   const working = listFiles(dest);
   if (!working.length) {
     // Phase 1: lay down a working copy to edit. The patch is cut from it on the second run.
