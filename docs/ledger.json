@@ -2458,7 +2458,7 @@
   "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
-    "description": "Collaborative design session: turn an idea into an approved design and spec.",
+    "description": "Collaborative design session, scaled to the task: a feasibility answer, a short in-chat design, or a full written design and spec — each one ending in approval before implementation.",
     "claude": {
       "artifacts": [
         "skill"

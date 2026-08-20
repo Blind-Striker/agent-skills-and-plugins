@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8a08873..8c2cf4c 100644
+index 7ab2eb6..8c2cf4c 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -2,61 +2,26 @@
+@@ -2,62 +2,26 @@
  name: using-superpowers
  description: Use when starting any conversation - establishes how to find and use skills, requiring skill invocation before ANY response including clarifying questions
  ---
@@ -62,6 +62,7 @@ index 8a08873..8c2cf4c 100644
 -- Codex: `references/codex-tools.md`
 -- Pi: `references/pi-tools.md`
 -- Antigravity: `references/antigravity-tools.md`
+-- Hermes Agent: `references/hermes-tools.md`
 -
  ## User Instructions
  

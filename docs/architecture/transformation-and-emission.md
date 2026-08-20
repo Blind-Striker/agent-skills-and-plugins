@@ -1,6 +1,6 @@
 # Transformation and emission
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 ## Responsibility
 
@@ -166,7 +166,8 @@ to committed `dist/` JavaScript using
   [`skipSymlinks`](../../tools/build.ts#L313-L323)).
 - Manifest `frontmatter:` overrides have no upstream-staleness guard. They merge into the emitted
   document after body assembly, so an upstream rewrite does not make an old override drift
-  ([`emitItem`](../../tools/build.ts#L371-L383)).
+  ([`emitItem`](../../tools/build.ts#L371-L383)). `npm run sync` reports an override whose item's
+  `SKILL.md` moved, which is a prompt to reread the body — not a stamp, and nothing stops the build.
 - Ledger projection semantics and limits are owned by
   [References and linking](references-and-linking.md#ledger-semantics).
 - A build report proves what was emitted or dropped. It does not prove that a harness will select a

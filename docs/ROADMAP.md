@@ -25,6 +25,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Plugins are outside the [skill-source migration documented by the dated adapter and installer
   evidence](research/harness-adapters.md#opencode); future Akka and Aspire Claude installs require
   explicit approval rather than a standing migration task.
+- Two upstream pins have moved in the current recuration initiative. `dotnet-skills` is at
+  `13e26d3` (v1.5.0): the unowned OpenTelemetry body flowed, and the new
+  `csharp-nullable-reference-types` component is scanner-visible with no manifest answer yet.
+  `superpowers` is at `b36e082` (v6.3.0): the `using-superpowers` patch was recut over upstream's
+  new platform line, the `requesting-code-review` overlay absorbed upstream's no-subagent contract
+  before re-blessing, and the `brainstorming` description override was rewritten to cover all three
+  of upstream's paths instead of only the architectural one. `mattpocock-skills` and
+  `dotnet-agent-skills` remain at their pre-initiative pins. One reference-audit finding stands
+  against the current estate: `setup-matt-pocock-skills` still lists the deleted, never-curated
+  `qa` among the skills that read the issue tracker; upstream removes that mention at the
+  `mattpocock-skills` target, so the Matt wave retires it without a curation change.
 - The repository remains private. The emitted global-only OpenCode installer and private Package
   recipe are available in the root [README](../README.md); current mechanics are in
   [distribution and installation](architecture/distribution-and-installation.md). The measured real
@@ -36,10 +47,24 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+1. **Upstream recuration, with the user.** The sync machinery checkpoint is spent: a deleted or
+   renamed source now reports as the build stop it is rather than as "auto-updated", a rename that
+   `--name-only` hides is caught by asking upstream whether the address still resolves, the candidate
+   universe is derived from output names instead of artifact kinds, an override standing in front of a
+   moved body is reported, and an excluded item no longer draws posture or candidate lines it cannot
+   have. Each fix carries a regression fixture that fails without it. The `dotnet-skills` and
+   `superpowers` waves are closed. Two remain, both carrying material body, invocation,
+   source-identity and overlay drift: `mattpocock-skills` (a curated source deleted upstream, four
+   lock drifts, a non-applying patch, three new candidates, and a rewritten `grilling`) and
+   `dotnet-agent-skills` (five non-applying patches, a posture flip, an analysis skill that gained a
+   mutation step, and two new candidates). Read the live source and ask before semantic decisions;
+   parallelize advisory audits, never shared mutations. The active
+   [handover](agents/handover-prompts/s1-upstream-recuration-machinery.prompt.md) owns the pickup
+   commands and closeout deltas.
+2. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    decide whether the intentionally upstream-owned Aspire proof limits are acceptable for a public
    package and whether `marketplace.json`'s format-required owner name and email may go public.
-2. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+3. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -50,7 +75,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-3. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+4. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    Keep it unwritten until the curation rule is stable enough to state the actual contract rather
@@ -78,9 +103,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Same-name, different-kind semantic maps are name-only.** Qualify rewrite and linker maps by kind,
   or narrow the legality rule, before relying on a cross-kind duplicate. See the
   [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
-- **`sync` candidate names come from the ledger kind segment.** Fix `tools/sync.ts` to read the name
-  segment or parse ledger identities explicitly; the current CLI candidate universe is incomplete.
-  See the [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
 - **No repository-wide secret/token scanner.** The prohibition is always-on but currently depends on
   review. Add a repo-wide CI guard without introducing real secret fixtures.
 - **Repo-wide machine-path scan in CI.** `experiments/harness-invocation/selftest.ps1` scans only
@@ -138,11 +160,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Symlink-boundary patches.** Decide how to support or report patches that touch symlink paths;
   `aspire-skills` carries symlinks inside curated skills. See the
   [transformation limit](architecture/transformation-and-emission.md#current-limits).
-- **`sync` still mislabels a deleted or renamed source** as "auto-updated on next build", while the
-  next build fails with `source not found in external/` — the same class as the patch mislabel
-  already fixed.
-- **Manifest override staleness guard.** Add an upstream-staleness guard for `frontmatter:` overrides.
+- **Manifest override staleness guard.** `npm run sync` now reports an override standing in front
+  of a body that moved, so a pin move surfaces it for rereading. There is still no stamp and no
+  build-time guard, so an override can go stale between pin moves without anything saying so.
   See the [transformation limit](architecture/transformation-and-emission.md#current-limits).
+- **The Module version bump is policy, not a gate.** [`workflow.md`](engineering/workflow.md)
+  now states when `plugin.version` moves, but nothing enforces it: a wave can change a Module's
+  emitted bytes and leave its version alone, and only the Bundle digest would notice. Decide whether
+  `validate` should compare a Module's committed digest against the version that last shipped it.
 - **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
   mid-sentence, so curation sessions must open the upstream file to judge an item.
 - **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),

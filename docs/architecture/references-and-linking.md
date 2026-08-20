@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 ## Responsibility
 
@@ -129,10 +129,10 @@ by [Distribution and installation](distribution-and-installation.md).
 - Linker target state is name-only and records audience reachability rather than target kind. A
   `both` target can satisfy either audience edge, so a semantically wrong target kind may remain a
   human review concern even when linkage is green.
-- The `sync` CLI currently derives its candidate universe from segment 1 of ledger keys
-  (`<plugin>/<kind>/<name>`), so it supplies artifact kinds instead of output names
-  ([`tools/sync.ts`](../../tools/sync.ts#L116-L123)). Unit tests inject correct names directly. Until
-  that defect is fixed, CLI candidate-edge reporting is not a reliable complete surface.
+- The `sync` CLI derives its candidate universe from the output-name segments of ledger keys
+  (`<plugin>/<kind>/<name>`) via [`ledgerCandidateNames`](../../tools/sync.ts). Its candidate-edge
+  report is still bounded by the tier: it compares known output names across one changed `SKILL.md`,
+  so it surfaces edges for reading and never promotes one to a fact, a declaration, or build state.
 - The namespaced fact scanner is lowercase-only. Capitalized spellings can evade fact detection.
 - Bare-name composition can work at runtime while remaining deliberately unguarded. Its success does
   not make candidates authoritative after the fact.

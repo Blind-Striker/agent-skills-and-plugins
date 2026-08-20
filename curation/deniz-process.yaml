@@ -17,7 +17,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.2.0
+  version: 0.2.1
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -28,8 +28,10 @@ items:
     # discipline and stays.
     frontmatter:
       # replaces upstream's coercive trigger prose ("You MUST use this before any creative work");
-      # read by a human browsing the / menu and by the model matching triggers — honest, no pressure
-      description: "Collaborative design session: turn an idea into an approved design and spec."
+      # read by a human browsing the / menu and by the model matching triggers — honest, no pressure.
+      # Names all three upstream paths: the earlier wording promised a spec, which only the
+      # architectural path produces — spike answers a question and bounded designs in chat.
+      description: "Collaborative design session, scaled to the task: a feasibility answer, a short in-chat design, or a full written design and spec — each one ending in approval before implementation."
   - source: superpowers/skills/writing-plans
     invocation: both # typed directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
     depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header

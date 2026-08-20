@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-08-19
+Date: 2026-08-20
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field
@@ -92,6 +92,27 @@ After a pin move, resolve overlay drift through the bless flow, make any newly r
 decisions with nearby reasons, regenerate both harness outputs, and run the generated-output gate in
 [quality-gates.md](quality-gates.md#command-matrix). Complete its generated-output review before
 accepting the update.
+
+## Bump the Module version with the bytes
+
+A Module's `plugin.version` in `curation/<plugin>.yaml` moves in the same change that moves that
+Module's emitted bytes, so two builds never share a version:
+
+- **patch** when the emitted content moved but the Module's surface did not — an upstream body
+  flowed on a pin move, an overlay or patch was edited, a `frontmatter:` override changed.
+- **minor** when the surface itself moved — an item was taken, excluded, or renamed, or its
+  `invocation`, `as`, or declared dependencies changed.
+- **major** is unused while the estate is pre-1.0.
+
+Bump only the Modules whose own bytes changed; a pin move that reaches one Module does not version
+the others. The installer records both version and Bundle digest, so drift is still detected when a
+version is forgotten — the version exists so a human comparing two installs is not misled, not as
+the integrity mechanism.
+
+**To be reviewed later:** nothing enforces this. `validate` could compare a Module's committed
+Bundle digest against the last version that shipped it and fail when bytes moved under an unchanged
+version, which would turn the policy into a gate. Decide that when the estate stops changing every
+wave; see [`docs/ROADMAP.md`](../ROADMAP.md).
 
 ## Review a curation wave
 

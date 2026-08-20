@@ -6,8 +6,9 @@ Use this template when dispatching a code reviewer subagent.
 do what was asked — before either failure cascades into more work.
 
 Dispatching **two** subagents (only when the spec is a genuinely separate document — see the
-skill): give each the same range, the Read-Only, Calibration and Output sections, and only its own
-axis's material. Neither gets the other's brief. Otherwise dispatch one with the whole template.
+skill): give each the same range, the Read-Only, You Do Not Dispatch Subagents, Calibration and
+Output sections, and only its own axis's material. Neither gets the other's brief. Otherwise
+dispatch one with the whole template.
 
 ```
 Subagent (general-purpose):
@@ -49,6 +50,15 @@ Subagent (general-purpose):
     ## Read-Only Review
 
     Your review is read-only on this checkout. Do not mutate the working tree, the index, HEAD, or branch state in any way. Use tools like `git show`, `git diff`, and `git log` to inspect history. If you need a working copy of a different revision, check it out into a separate temporary directory (e.g. `git worktree add /tmp/review-[SHA] [SHA]`) — never move HEAD on this checkout.
+
+    ## You Do Not Dispatch Subagents
+
+    Do all of this review yourself. Never spawn a subagent to review part
+    of the diff, and never spawn another reviewer for a second opinion.
+    This process already provides every review seat the work gets; a
+    reviewer you spawn duplicates one of them at full cost, and its
+    verdict counts for nothing. If the diff feels too large for one
+    pass, review it in passes yourself and say so in your report.
 
     ## Axis 1 — Standards
 

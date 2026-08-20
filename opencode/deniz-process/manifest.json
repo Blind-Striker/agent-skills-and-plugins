@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "module": "deniz-process",
-  "version": "0.2.0",
-  "digest": "sha256:dcd6528402adff11326be2c535b7874a6b3bbd0bae6a7328222b9714a5fc642f",
+  "version": "0.2.1",
+  "digest": "sha256:bb7e5059dc178d495161ad23524f5549dfd28cc893d556529ce986d43d5c43a5",
   "files": {
     "commands/brainstorming.md": {
-      "sha256": "sha256:ae23a0736a39607b4765a614256ae68e148df3782dd08055932b715c783d40fc",
+      "sha256": "sha256:673fdf750c45a1225cab7d5471cfd766f4ae736e21cda6a433e300f7f3c0457b",
       "mode": "100644"
     },
     "commands/executing-plans.md": {
@@ -13,7 +13,7 @@
       "mode": "100644"
     },
     "commands/finishing-a-development-branch.md": {
-      "sha256": "sha256:4a2781c5fa8f8a44a4661f28ef798ef089b43772798fad18c7b68e572c2b6b5b",
+      "sha256": "sha256:7f834b69b38e8d699d000abcf0c0b20bd700b88c5aefcf3574c456a570271476",
       "mode": "100644"
     },
     "commands/grill-me.md": {
@@ -53,7 +53,7 @@
       "mode": "100644"
     },
     "commands/subagent-driven-development.md": {
-      "sha256": "sha256:b8465bcc6b440569c065e44b8910fa8c697437dab3d37cd0323066fd79a4e9d6",
+      "sha256": "sha256:3b286f72e63087cc49ef111a2d6c1123ba5dd225f8c029ef8a49480c97153aaa",
       "mode": "100644"
     },
     "commands/teach.md": {
@@ -85,7 +85,7 @@
       "mode": "100644"
     },
     "commands/writing-plans.md": {
-      "sha256": "sha256:abfdd1b82fbddc44559809d73319ccc6e001cc09e50fd07cf35e233d1383f97f",
+      "sha256": "sha256:d78668d7646c05c5c8284afccebccce28cd7ec79685b4f7c30ff4274d30901b5",
       "mode": "100644"
     },
     "commands/writing-skills.md": {
@@ -93,7 +93,7 @@
       "mode": "100644"
     },
     "skills/brainstorming/SKILL.md": {
-      "sha256": "sha256:1f7d3d6d6b416173c6242b6c1549e891df41076f9418d70be7df5c353a1d1733",
+      "sha256": "sha256:06f87949601aa6d25a3b839544b16f31632caa66c2f777b8094d84fee17d6a10",
       "mode": "100644"
     },
     "skills/brainstorming/scripts/frame-template.html": {
@@ -121,7 +121,7 @@
       "mode": "100644"
     },
     "skills/brainstorming/visual-companion.md": {
-      "sha256": "sha256:60cbad29b9dd7eaf08da020e301c498a72230b2e13c1813fa967a135ffcc1d71",
+      "sha256": "sha256:77eb44a4ec3408bb3dafb872288ecd94beb8cf21da4f2bafa54fd08255d7808b",
       "mode": "100644"
     },
     "skills/codebase-design/DEEPENING.md": {
@@ -157,7 +157,7 @@
       "mode": "100644"
     },
     "skills/finishing-a-development-branch/SKILL.md": {
-      "sha256": "sha256:14cd3c90a5203f587f92f7e7a948d9f7db4cc168fbeb2fc39edd7fe2c88481fb",
+      "sha256": "sha256:df6308dba1361c02e8933fec47718b0292cff1749dc959c12906919324240236",
       "mode": "100644"
     },
     "skills/grilling/SKILL.md": {
@@ -193,7 +193,7 @@
       "mode": "100644"
     },
     "skills/requesting-code-review/code-reviewer.md": {
-      "sha256": "sha256:6fa3b209985310320a952c823522a58252637e6d55a8cd3f13afb56d82b73c8c",
+      "sha256": "sha256:7a0e2717297d51c1351ac7d2fc51262f88be7763253435f1a57d0400b492b43f",
       "mode": "100644"
     },
     "skills/research/SKILL.md": {
@@ -229,15 +229,15 @@
       "mode": "100644"
     },
     "skills/subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:3d4fb2c4e948f83078ddb461f0095c11113ce74789a7cf9a61fb6b718a8a6236",
+      "sha256": "sha256:8977b98bbc553c1e5ce1df0a3355505c67617b901b489fdf4176b012513ee873",
       "mode": "100644"
     },
     "skills/subagent-driven-development/implementer-prompt.md": {
-      "sha256": "sha256:946601616a6f76ab3f165ef98377390968f1ec124ecef87422bc3553404e0332",
+      "sha256": "sha256:81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0",
       "mode": "100644"
     },
     "skills/subagent-driven-development/re-review-prompt.md": {
-      "sha256": "sha256:e1d8e0e65e58ccde6dc920843da9148d23e65aeb0f8932bcc30be1341a703c4c",
+      "sha256": "sha256:db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6",
       "mode": "100644"
     },
     "skills/subagent-driven-development/scripts/review-package": {
@@ -253,7 +253,7 @@
       "mode": "100755"
     },
     "skills/subagent-driven-development/task-reviewer-prompt.md": {
-      "sha256": "sha256:e3b4a1bfe7cd55ed0459e5ca9cdddb6ff086c345b99e9097036db6a18545729e",
+      "sha256": "sha256:eea23e33ec570c3041f40e9569fa711d61b8029f9eecf908345138aa1c6e61ab",
       "mode": "100644"
     },
     "skills/systematic-debugging/SKILL.md": {
@@ -337,7 +337,7 @@
       "mode": "100644"
     },
     "skills/writing-plans/SKILL.md": {
-      "sha256": "sha256:3908929ab7416639b07f81b5d0a08ca9d79963591692b44c0c8bfc98b78e4d8c",
+      "sha256": "sha256:9a7349b09aea832a123dccff0728b95552c3a1c33f4a0eb2c6f5d268a43e6351",
       "mode": "100644"
     },
     "skills/writing-plans/plan-document-reviewer-prompt.md": {
@@ -365,7 +365,7 @@
       "mode": "100644"
     },
     "skills/writing-skills/render-graphs.js": {
-      "sha256": "sha256:ccda971a87bb185f8febf81c56b556a20d026fa980c17b35fa3e8824fbb37852",
+      "sha256": "sha256:c7f412cc629461c4d10287e668731874c0497707023e3e3f74a5355eb2cee196",
       "mode": "100755"
     },
     "skills/writing-skills/testing-skills-with-subagents.md": {

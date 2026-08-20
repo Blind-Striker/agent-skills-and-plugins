@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.3.0",
-  "digest": "sha256:50b0790d67853fa1392c402584bcf21bf1b1cc190149153b226135cb4d215e2f",
+  "version": "0.3.1",
+  "digest": "sha256:7997be290e77ba0adfd9875355b159781468f7b62a89d451501da651ddf5375e",
   "files": {
     "agents/roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
@@ -429,7 +429,7 @@
       "mode": "100644"
     },
     "skills/opentelemetry-net-instrumentation/SKILL.md": {
-      "sha256": "sha256:e5aaac1736fa9e5641a81f6ee57506b24a1a71a898f900cbb267f7d72bfe4276",
+      "sha256": "sha256:39667f0d80eb5b8f5e49d399ee29f987c2b747d04ec2f3e11ee1b6ae9b0b29a6",
       "mode": "100644"
     },
     "skills/opentelemetry-net-instrumentation/metrics-and-instruments-reference.md": {
@@ -441,7 +441,7 @@
       "mode": "100644"
     },
     "skills/opentelemetry-net-instrumentation/traces-and-propagation-reference.md": {
-      "sha256": "sha256:dd53c812e2874a762694485cf9c4a9414d19368d794552dc9b923cf9e5c45e10",
+      "sha256": "sha256:aef2b17ac091dfdee54d04ffcdc425cd2d6d299b653e3979ea97df0bb2d4426d",
       "mode": "100644"
     },
     "skills/package-management/SKILL.md": {

@@ -204,7 +204,7 @@
     "source": "superpowers/skills/requesting-code-review",
     "files": {
       "SKILL.md": "fa4f2f9965591d6d8a7ef4ad47e6ba4d5ac344d0",
-      "code-reviewer.md": "db84ae2a0f91834f93de9cf9f9cf8602bbd78a11"
+      "code-reviewer.md": "b898cb982e8a368e847d31136ac106001173b1d5"
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/code-review": {
@@ -246,7 +246,7 @@
   "deniz-process/using-superpowers": {
     "source": "superpowers/skills/using-superpowers",
     "files": {
-      "SKILL.md": "8a08873ba07c1437f4f3cfd0d06c333eaf2e2715"
+      "SKILL.md": "7ab2eb678f649c8befb94512359ee0b6e9a9a9a4"
     }
   },
   "deniz-process/writing-skills": {
