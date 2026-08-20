@@ -1,0 +1,187 @@
+diff --git a/SKILL.md b/SKILL.md
+index 4219af5..d9f1960 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -4,19 +4,19 @@ description: >-
+   **WORKFLOW SKILL** - Wire an Aspire AppHost after `aspire init` drops a skeleton.
+   Scans the repo, proposes a resource graph, edits the AppHost (C#, file-based C#, or
+   TypeScript), wires `Aspire.ServiceDefaults` + OTel, validates with `aspire start`,
+   then self-deactivates.
+   USE FOR: wire AppHost, scaffold resource graph, add Postgres/Redis/Rabbit/Mongo to
+   Aspire, connect frontend to API, after `aspire init` what next, AddNextJsApp, AddViteApp,
+   WithBrowserLogs, file-based apphost.cs, apphost.ts, unified withEnvironment,
+   refuse .aspire/modules edit, migrate .env files, migrate user secrets.
+-  DO NOT USE FOR: skeleton drop (use aspire-init), start/stop/wait/restart (use
+-  aspire-orchestration), publish/deploy/destroy (use aspire-deployment), logs/traces
+-  (use aspire-monitoring).
++  DO NOT USE FOR: skeleton drop (use aspire:aspire-init), start/stop/wait/restart (use
++  aspire:aspire-orchestration), publish/deploy/destroy (use aspire:aspire-deployment),
++  logs/traces (use aspire:aspire-monitoring).
+   INVOKES: aspire CLI (add, start, wait, describe, docs api search, stop), AppHost
+   source edits, ServiceDefaults wiring.
+   FOR SINGLE OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration.
+ license: MIT
+ metadata:
+   author: Microsoft
+   version: "0.0.1"
+ ---
+@@ -132,17 +132,18 @@ declared beyond the stub):
+ | Skeleton just dropped | `aspire init` just ran in this session | ✅ Definitive |
+ | Empty AppHost stub | `apphost.cs` / `Program.cs` / `apphost.ts` only contains `Build().Run()` | ✅ Definitive |
+ | `aspire.config.json` without resources | Config present, AppHost has no `AddProject`/`addProject` | High |
+ | User asks to "wire" / "scaffold resource graph" | Verb match: wire, scaffold, integrate, hook up, add Postgres/Redis/etc. | High |
+ | User asks "what next after aspire init" | Direct handoff request | ✅ Definitive |
+ | Existing repo with services + new AppHost | Repo has `.csproj`/`package.json` projects but AppHost references none | High |
+ 
+ If the AppHost already has wired resources and the user wants to **start/stop**
+-the app → `aspire-orchestration`. If the user wants to **deploy** → `aspire-deployment`.
++the app → `aspire:aspire-orchestration`. If the user wants to **deploy** →
++`aspire:aspire-deployment`.
+ 
+ ## Language Support
+ 
+ | AppHost Style | Detection | Edit Target |
+ |---------------|-----------|-------------|
+ | **C# SDK-style** | `.csproj` containing `<Sdk Name="Aspire.AppHost.Sdk" />` | `Program.cs` (top-level statements) |
+ | **File-based C#** | `apphost.cs` with `#:sdk Aspire.AppHost.Sdk` and `#:package` directives | `apphost.cs` itself |
+ | **TypeScript** | `apphost.ts` with generated `.aspire/modules/` | `apphost.ts` only — **never edit `.aspire/modules/`** |
+@@ -152,17 +153,17 @@ See [references/csharp-authoring.md](references/csharp-authoring.md) and
+ 
+ ## Workflow Phases
+ 
+ ```
+ 1. SCAN     → discover projects, services, dependencies, integration candidates
+ 2. PROPOSE  → resource graph + integration list, confirm with user
+ 3. EDIT     → wire AppHost, add ServiceDefaults + OTel + health checks
+ 4. VALIDATE → aspire start --non-interactive → aspire wait <each resource>
+-5. DEACTIVATE → confirm clean start, hand off to aspire-orchestration
++5. DEACTIVATE → confirm clean start, hand off to aspire:aspire-orchestration
+ ```
+ 
+ For the detailed, upstream-parity workflow, load these references before editing:
+ 
+ - [apphost-wiring.md](references/apphost-wiring.md) — full AppHost wiring workflow, API lookup, endpoint/parameter patterns, validation, solution updates, and cleanup.
+ - [docker-compose.md](references/docker-compose.md) — docker-compose migration, profiles, image mapping, ports, volumes, and `depends_on`.
+ - [full-solution-apphosts.md](references/full-solution-apphosts.md) — large solution triage, mixed SDK boundaries, solution membership, ServiceDefaults placement, and legacy host migration.
+ - [javascript-apps.md](references/javascript-apps.md) — JavaScript resource selection, workspace/monorepo package-manager handling, ports, scripts, and TS AppHost package config.
+@@ -206,17 +207,17 @@ aspire describe --format Json   # sanity check graph
+ 
+ Full validation flow + recovery in [references/validation.md](references/validation.md).
+ 
+ ### 5. Self-Deactivate
+ 
+ After a clean `aspire start`, announce:
+ 
+ ```
+-✅ AppHost wired and validated. Handing off to aspire-orchestration for
++✅ AppHost wired and validated. Handing off to aspire:aspire-orchestration for
+    day-to-day start/stop/wait. Aspireify is done.
+ ```
+ 
+ ## Integration Discovery Catalog
+ 
+ Map detected services → Aspire integrations. See
+ [references/scan-and-propose.md](references/scan-and-propose.md) for the full
+ catalog.
+@@ -284,31 +285,31 @@ builder.AddNextJsApp("web", "./web")
+ ```
+ 
+ ## Validation & Recovery
+ 
+ | Symptom | Action |
+ |---------|--------|
+ | `aspire start` fails with build error | Fix code, re-run `aspire start` |
+ | `aspire wait` rejects resource name | Use `displayName` from `aspire ps --format Json` ([#15842](https://github.com/microsoft/aspire/issues/15842)) |
+-| File-lock errors during edit | Hand off to `aspire-orchestration` → `aspire stop` → retry |
++| File-lock errors during edit | Hand off to `aspire:aspire-orchestration` → `aspire stop` → retry |
+ | Resource missing from `aspire ps` | May be hidden — re-run with `--include-hidden` |
+ | TS AppHost change ignored | Confirm you edited `apphost.ts`, not `.aspire/modules/` |
+ | Mixed JSON output from `aspire start` | Strip non-JSON lines before parsing ([#15843](https://github.com/microsoft/aspire/issues/15843)) |
+ 
+ Full flow in [references/validation.md](references/validation.md).
+ 
+ ## Handoff Rules
+ 
+ | Scenario | Route To |
+ |----------|----------|
+-| AppHost skeleton not yet dropped | → `aspire-init` skill |
+-| Day-to-day start/stop/wait/restart | → `aspire-orchestration` skill |
+-| Publish, deploy, destroy, pipeline steps | → `aspire-deployment` skill |
+-| Logs, traces, metrics, dashboard, browser log inspection | → `aspire-monitoring` skill |
++| AppHost skeleton not yet dropped | → `aspire:aspire-init` skill |
++| Day-to-day start/stop/wait/restart | → `aspire:aspire-orchestration` skill |
++| Publish, deploy, destroy, pipeline steps | → `aspire:aspire-deployment` skill |
++| Logs, traces, metrics, dashboard, browser log inspection | → `aspire:aspire-monitoring` skill |
+ | Deployed (Azure/AKS) app diagnostics | → `azure-diagnostics` skill (azure-skills) |
+ 
+ ## Key Rules
+ 
+ - **Never overwrite existing files** — always augment or merge.
+ - **Ask before modifying service code**, especially OpenTelemetry and ServiceDefaults injection.
+ - **Respect existing project structure** — do not reorganize the repo.
+ - **If stuck, use `aspire doctor`** to diagnose environment issues.
+diff --git a/references/validation.md b/references/validation.md
+index 0c9b1ef..85ce2ab 100644
+--- a/references/validation.md
++++ b/references/validation.md
+@@ -1,14 +1,14 @@
+ # Validation
+ 
+ End-to-end validation after editing the AppHost. Goal: confirm the wired graph
+ starts cleanly, every resource reaches a healthy state, and `aspire describe`
+ returns the expected shape. After a clean validation, `aspireify` self-deactivates
+-and hands off to `aspire-orchestration`.
++and hands off to `aspire:aspire-orchestration`.
+ 
+ ## Flow
+ 
+ ```bash
+ # 1. Start the AppHost in the background, JSON output for parsing
+ aspire start --non-interactive --format Json
+ 
+ # 2. Wait for each declared resource (use displayName from aspire ps)
+@@ -50,17 +50,17 @@ container-internal health.
+ > `aspire wait` rejects the `name` field — pass `displayName` from
+ > `aspire ps --format Json` instead.
+ 
+ ## Recovery
+ 
+ | Symptom | Action |
+ |---------|--------|
+ | Build error in resource | Fix code; re-run `aspire start` |
+-| File-lock error during edit | Hand off to `aspire-orchestration` → `aspire stop` → retry edit |
++| File-lock error during edit | Hand off to `aspire:aspire-orchestration` → `aspire stop` → retry edit |
+ | Port conflict on start | `aspire stop` (clears prior instance) → `aspire start` |
+ | Resource missing from `aspire ps` | Re-run with `--include-hidden`; if still missing, AppHost edit is wrong |
+ | `aspire wait` rejects name | Pull `displayName` from `aspire ps --format Json` |
+ | Mixed JSON output from `aspire start` | Strip non-JSON lines before parsing |
+ | Container-backed resource fails | Confirm Docker / Podman is running; re-run `aspire doctor` |
+ | TS AppHost change had no effect | You probably edited `.aspire/modules/`. Edit `apphost.ts` only |
+ 
+ ## Hand-off Criteria
+@@ -75,23 +75,23 @@ Aspireify deactivates when **all** of these hold:
+ When done, announce:
+ 
+ ```
+ ✅ AppHost wired and validated:
+    - Resources: pg, cache, api, worker, web
+    - References: api → pg + cache; worker → pg; web → api
+    - All resources reached healthy state.
+ 
+-Handing off to aspire-orchestration for day-to-day start/stop/wait.
++Handing off to aspire:aspire-orchestration for day-to-day start/stop/wait.
+ Aspireify is done.
+ ```
+ 
+ ## Optional: Pre-Deploy Smoke Check
+ 
+ If the user plans to deploy next, suggest:
+ 
+ ```bash
+ aspire publish --list-steps
+ aspire deploy --list-steps
+ ```
+ 
+-Then route them to `aspire-deployment` for the actual `aspire deploy` /
++Then route them to `aspire:aspire-deployment` for the actual `aspire deploy` /
+ `aspire publish` / `aspire destroy` workflow.

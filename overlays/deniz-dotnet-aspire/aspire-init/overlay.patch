@@ -1,0 +1,221 @@
+diff --git a/SKILL.md b/SKILL.md
+index c3d7d1d..c54fd67 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,33 +1,34 @@
+ ---
+ name: aspire-init
+ description: >-
+   **WORKFLOW SKILL** - First-run flow for adding Aspire to a repo. Picks `aspire new`
+   (greenfield) or `aspire init` (existing repo), drops the AppHost skeleton, then hands
+-  off to `aspireify` for resource wiring.
++  off to `aspire:aspireify` for resource wiring.
+   USE FOR: aspire init, aspire new, aspire-starter, aspire-ts-starter, aspire-py-starter,
+   add Aspire to existing repo, scaffold Aspire app, bootstrap Aspire, no AppHost detected,
+   install aspireify, generated .aspire/modules.
+-  DO NOT USE FOR: AppHost wiring on an existing AppHost (use aspireify), start/stop/wait
+-  (use aspire-orchestration), deploy/publish (use aspire-deployment), logs/traces (use
+-  aspire-monitoring), repo that already has an AppHost.
+-  INVOKES: aspire CLI (init, new, doctor), aspireify (handoff after skeleton drop).
++  DO NOT USE FOR: AppHost wiring on an existing AppHost (use aspire:aspireify),
++  start/stop/wait (use aspire:aspire-orchestration), deploy/publish (use
++  aspire:aspire-deployment), logs/traces (use aspire:aspire-monitoring), repo that already
++  has an AppHost.
++  INVOKES: aspire CLI (init, new, doctor), aspire:aspireify (handoff after skeleton drop).
+   FOR SINGLE OPERATIONS: Run `aspire init` or `aspire new TEMPLATE` directly.
+ license: MIT
+ metadata:
+   author: Microsoft
+   version: "0.0.1"
+ ---
+ 
+ # Aspire Init
+ 
+ > **First-run only.** This skill owns the skeleton drop and template choice for repositories
+ > that do not yet have an Aspire AppHost. Once the skeleton is in place, hand off to
+-> [`aspireify`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/SKILL.md) for the actual resource wiring.
++> [`aspire:aspireify`](../aspireify/SKILL.md) for the actual resource wiring.
+ 
+ ## Prerequisites
+ 
+ | Requirement | Install |
+ |-------------|---------|
+ | .NET 10.0 SDK | https://dotnet.microsoft.com/download |
+ | Aspire CLI (curl installer) | `curl -sSL https://aspire.dev/install.sh \| bash` |
+ | Aspire CLI (NativeAOT global tool) | `dotnet tool install -g Aspire.Cli` (.NET 10 required) |
+@@ -45,18 +46,18 @@ of the following before running `aspire init`:
+ |--------|---------------|---------|
+ | No C# AppHost | No `.csproj` containing `Aspire.AppHost.Sdk` | OK to init |
+ | No file-based AppHost | No `apphost.cs` with `#:sdk Aspire.AppHost.Sdk` | OK to init |
+ | No TypeScript AppHost | No `apphost.ts` in repo root | OK to init |
+ | No Aspire config | No `aspire.config.json` in repo root | OK to init |
+ | User intent | Explicit "add Aspire", "scaffold Aspire", "aspire init" | OK to init |
+ 
+ If **any** AppHost signal is already present, **do not run `aspire init`**. Route to
+-[`aspireify`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/SKILL.md) (re-wire) or
+-[`aspire-orchestration`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/SKILL.md) (lifecycle).
++[`aspire:aspireify`](../aspireify/SKILL.md) (re-wire) or
++[`aspire:aspire-orchestration`](../aspire-orchestration/SKILL.md) (lifecycle).
+ 
+ ## Decision: `aspire new` vs `aspire init`
+ 
+ | Situation | Command | Why |
+ |-----------|---------|-----|
+ | Empty directory or brand-new project | `aspire new <template>` | Generates a full starter solution |
+ | Existing repo with services to model | `aspire init` | Drops minimal skeleton + `aspire.config.json` next to existing code |
+ | User wants a sample to learn from | `aspire new aspire-starter` | Includes ApiService + Web + ServiceDefaults |
+@@ -72,17 +73,17 @@ For brand-new projects in an empty or non-existent directory:
+ 
+ 1. Confirm prerequisites with `aspire doctor` if the CLI install is uncertain.
+ 2. Pick a template from [references/templates.md](references/templates.md).
+ 3. Run the template, append `--non-interactive` for agent flows:
+    ```bash
+    aspire new aspire-starter --name MyApp --output ./MyApp --non-interactive
+    ```
+ 4. The new directory is fully wired by the template — **no aspireify handoff needed**.
+-5. Route to [`aspire-orchestration`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/SKILL.md) for first run
++5. Route to [`aspire:aspire-orchestration`](../aspire-orchestration/SKILL.md) for first run
+    (`aspire start`).
+ 
+ ## Workflow B — `aspire init` (existing repo)
+ 
+ For repositories that already contain services (Express API, .NET API, Python service, etc.)
+ and need an AppHost added alongside them:
+ 
+ 1. Verify the [Detection](#detection) table — confirm **no** AppHost is present.
+@@ -96,51 +97,51 @@ and need an AppHost added alongside them:
+    - The AppHost skeleton (`apphost.cs` with `#:sdk` directives, **or** `apphost.ts` with the
+      generated `.aspire/modules/` folder)
+    - AppHost configuration describing language + AppHost path
+    - The **`aspireify`** agent skill into the project's skill directory (same one
+      `aspire agent init` uses)
+ 4. **Hand off to `aspireify`** — `aspire init` does **not** wire resources, projects, or
+    integrations on its own.
+ 5. After `aspireify` finishes wiring, validate via `aspire start`
+-   ([`aspire-orchestration`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/SKILL.md)).
++   ([`aspire:aspire-orchestration`](../aspire-orchestration/SKILL.md)).
+ 
+ See [references/init-workflow.md](references/init-workflow.md) for the full sequence
+ including what `aspire.config.json` contains and what to do if `aspire init` fails partway.
+ 
+ ## Handoff Rules
+ 
+ | After `aspire init` / `aspire new` finishes... | Route To |
+ |------------------------------------------------|----------|
+-| Skeleton dropped, resources need wiring | → `aspireify` skill (in-plugin or project-local) |
+-| Skeleton dropped, validate it starts | → `aspire-orchestration` (run `aspire start`) |
+-| New project from template, ready to run | → `aspire-orchestration` |
+-| User asks to deploy after init | → `aspire-deployment` |
+-| User asks for logs/traces after init | → `aspire-monitoring` |
+-| Existing AppHost detected — do NOT run init | → `aspireify` (re-wire) or `aspire-orchestration` (lifecycle) |
++| Skeleton dropped, resources need wiring | → `aspire:aspireify` skill (in-plugin or project-local) |
++| Skeleton dropped, validate it starts | → `aspire:aspire-orchestration` (run `aspire start`) |
++| New project from template, ready to run | → `aspire:aspire-orchestration` |
++| User asks to deploy after init | → `aspire:aspire-deployment` |
++| User asks for logs/traces after init | → `aspire:aspire-monitoring` |
++| Existing AppHost detected — do NOT run init | → `aspire:aspireify` (re-wire) or `aspire:aspire-orchestration` (lifecycle) |
+ 
+ ## Project-Local Skill Override
+ 
+ If `.agents/skills/aspire-init/SKILL.md` exists project-locally (legacy install from an
+ older `aspire init` run), **warn the user and defer to it**. The legacy project-local skill
+ may carry repo-specific guidance that should not be overridden by this in-plugin skill.
+ 
+ The project-local `aspireify` skill (installed by `aspire init`) takes precedence
+ over this plugin's in-plugin `aspireify` for the same reason — defer to the project-local
+ copy and warn.
+ 
+ ## Error Handling
+ 
+ | Symptom | Cause | Action |
+ |---------|-------|--------|
+-| `aspire init` reports AppHost already exists | Repo already has an AppHost | Stop. Route to `aspireify` (re-wire) or `aspire-orchestration` (lifecycle) |
++| `aspire init` reports AppHost already exists | Repo already has an AppHost | Stop. Route to `aspire:aspireify` (re-wire) or `aspire:aspire-orchestration` (lifecycle) |
+ | `aspire init` fails in non-interactive mode without `--language` | Multiple language paths available | Re-run with `--language csharp` or `--language typescript` |
+ | `aspire new` rejects `--output` path | Path exists and is non-empty | Use a different `--output` or empty the directory |
+ | `aspire` command not found | CLI not installed | `dotnet tool install -g Aspire.Cli` (.NET 10) or `curl -sSL https://aspire.dev/install.sh \| bash` |
+ | `aspire doctor` reports missing .NET 10 | SDK missing | Install .NET 10 SDK before retrying |
+ | `aspire init` succeeded but no `aspireify` skill installed | Agent skill directory not detected | Run `aspire agent init` to install `aspireify`, then continue wiring |
+-| Skeleton dropped but resources not wired | Expected — `aspire init` does not wire | Hand off to `aspireify` |
++| Skeleton dropped but resources not wired | Expected — `aspire init` does not wire | Hand off to `aspire:aspireify` |
+ 
+ ## References
+ 
+ - [templates.md](references/templates.md) — `aspire new` templates and options
+ - [init-workflow.md](references/init-workflow.md) — `aspire init` flow, `aspire.config.json`
+   layout, and `aspireify` handoff
+diff --git a/references/init-workflow.md b/references/init-workflow.md
+index ea24ffa..7f45447 100644
+--- a/references/init-workflow.md
++++ b/references/init-workflow.md
+@@ -66,50 +66,50 @@ C# has two sub-modes the agent may encounter:
+ 
+ - **Single-file** — `appHost.path` points at `apphost.cs` (uses `#:sdk` directive).
+ - **Full project** — `appHost.path` points at a directory containing a `.csproj` plus
+   `Program.cs`. In solution-backed repos, full project mode lets the AppHost participate in IDE and solution workflows.
+ 
+ ## End-to-End Sequence
+ 
+ 1. **Pre-flight** — verify no AppHost already exists. If one does, stop and route to
+-   `aspireify` or `aspire-orchestration`.
++   `aspire:aspireify` or `aspire:aspire-orchestration`.
+ 2. **Run init**:
+    ```bash
+    aspire init --language <csharp|typescript> --non-interactive
+    ```
+ 3. **Confirm artifacts** — `apphost.cs` (or `apphost.ts` + `.aspire/modules/`) and
+    `aspire.config.json` should be in the repo root.
+ 4. **Confirm `aspireify` skill installed** — the agent's skill directory contains
+    `aspireify/SKILL.md`. If missing, run `aspire agent init` to install it.
+ 5. **Hand off to `aspireify`** for wiring:
+    - Scan repo and discover existing projects, services, containers
+    - Ask the user clarifying questions (which services to orchestrate, hardcoded ports,
+      whether to map env vars or switch to Aspire service discovery)
+    - Wire resources with `WithReference`, `WaitFor`, endpoints, volumes
+    - Optionally configure OpenTelemetry
+    - Validate with a smoke-test `aspire start`
+ 6. **Validate** — once `aspireify` finishes wiring, run `aspire start` (handled by
+-   `aspire-orchestration`) and confirm resources reach a healthy state.
++   `aspire:aspire-orchestration`) and confirm resources reach a healthy state.
+ 
+ ## Project-Local Skill Precedence
+ 
+ `aspire init` installs `aspireify` into the project's skill directory when an agent skill location is detected.
+ When a project-local `.agents/skills/aspireify/SKILL.md` (or equivalent location) is
+ present, **defer to it and warn the user** — the project-local copy may carry repo-specific
+ guidance.
+ 
+ The same precedence applies to a legacy `.agents/skills/aspire-init/SKILL.md` from older
+ `aspire init` runs: warn and defer.
+ 
+ ## Failure Modes and Recovery
+ 
+ | Symptom | Cause | Recovery |
+ |---------|-------|----------|
+-| `aspire init` reports an AppHost already exists | Repo is already an Aspire app | Stop. Route to `aspireify` or `aspire-orchestration` |
++| `aspire init` reports an AppHost already exists | Repo is already an Aspire app | Stop. Route to `aspire:aspireify` or `aspire:aspire-orchestration` |
+ | `aspire init` fails without `--language` in `--non-interactive` | CLI needs the language explicitly when prompts are disabled | Re-run with `--language csharp` or `--language typescript` |
+ | Skeleton dropped but no `aspireify` skill | Agent skill directory not detected during init | Run `aspire agent init` to install `aspireify`, then continue |
+ | `apphost.cs` references a missing `#:package` | Channel mismatch or transient feed issue | Re-run with `--channel stable` (or `daily` for pre-release) |
+ | `aspire start` after wiring fails immediately | Wiring incomplete or wrong AppHost path | Re-invoke `aspireify`; confirm `aspire.config.json` `appHost.path` is correct |
+ 
+ ## Don't Do This
+ 
+ - **Don't run `aspire init` if any AppHost signal already exists** — it duplicates the
+diff --git a/references/templates.md b/references/templates.md
+index 044b6c3..c4c6977 100644
+--- a/references/templates.md
++++ b/references/templates.md
+@@ -83,10 +83,10 @@ aspire new aspire-starter --channel daily
+ aspire new aspire-py-starter --use-redis-cache true --name py-shop --output ./py-shop --non-interactive
+ ```
+ 
+ ## When `aspire new` Is Wrong
+ 
+ | Situation | Use Instead |
+ |-----------|-------------|
+ | Repo already contains services to model | `aspire init` (Workflow B in [SKILL.md](../SKILL.md)) |
+-| AppHost already exists in the repo | `aspireify` (re-wire) or `aspire-orchestration` (lifecycle) |
+-| Need to add an integration to an existing AppHost | `aspire add <package>` (handled by `aspire-orchestration`) |
++| AppHost already exists in the repo | `aspire:aspireify` (re-wire) or `aspire:aspire-orchestration` (lifecycle) |
++| Need to add an integration to an existing AppHost | `aspire add <package>` (handled by `aspire:aspire-orchestration`) |

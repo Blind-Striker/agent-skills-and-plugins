@@ -1,0 +1,131 @@
+diff --git a/SKILL.md b/SKILL.md
+index 906c08f..ac337aa 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -4,18 +4,18 @@ description: >-
+   **WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the CLI.
+   WHEN: "start or stop my Aspire app", "aspire_apphost_start",
+   "aspire_apphost_stop", "notEditorOwned", "ambiguousSession", "aspire start",
+   "aspire stop", "aspire wait", resource restart, file-lock errors (MSB3491 or
+   CS2012), port conflicts, git worktrees, "--isolated", "aspire update --self", "--include-hidden",
+   integration discovery, default watch, or hot reload.
+   INVOKES: VS Code lifecycle tools first when exposed; Aspire CLI for readiness,
+   inspection, resource operations, isolated worktree starts, and allowed fallbacks.
+-  DO NOT USE FOR: deploy/publish/destroy (aspire-deployment), logs/traces/metrics
+-  (aspire-monitoring), or AppHost code and resource wiring (aspireify).
++  DO NOT USE FOR: deploy/publish/destroy (aspire:aspire-deployment), logs/traces/metrics
++  (aspire:aspire-monitoring), or AppHost code and resource wiring (aspire:aspireify).
+   FOR SINGLE OPERATIONS: Load the matching editor tool first, then obey the
+   exact-target, worktree-isolation, and stop-result rules below.
+ license: MIT
+ metadata:
+   author: Microsoft
+   version: "0.0.1"
+ ---
+ 
+@@ -148,17 +148,17 @@ See [safety-guardrails.md](references/safety-guardrails.md) for detailed rules a
+ | Start app (agents) | Git worktree: `aspire start --non-interactive --isolated --apphost <filesystem-path>` even if `aspire_apphost_start` is available, because the tool cannot request isolation. Otherwise: `aspire_apphost_start` (mode `run`, exact selected `appHostPath`); CLI fallback when the tool is unavailable: `aspire start --non-interactive --apphost <filesystem-path>` |
+ | Start app (human) | `aspire run` (foreground, dashboard) |
+ | Stop app | `aspire_apphost_stop` (exact selected `appHostPath`); result-matrix fallback: `aspire stop --non-interactive --apphost <filesystem-path>` |
+ | Wait for resource | `aspire wait <resource>` |
+ | Check status | `aspire ps` or `aspire describe` |
+ | Show hidden resources (proxies, helpers, migrations) | `aspire ps --include-hidden` / `aspire describe --include-hidden` |
+ | Resource operation | `aspire resource <resource-name> <command>` such as `stop`, `start`, or `rebuild` when exposed |
+ | Create new project | `aspire new aspire-starter` |
+-| Add Aspire to existing | `aspire init` (then hand off to `aspireify` skill for wiring) |
++| Add Aspire to existing | `aspire init` (then hand off to `aspire:aspireify` skill for wiring) |
+ | Add integration | `aspire add <package>` |
+ | Discover integrations | `aspire integration list --format Json` / `aspire integration search <query> --format Json` |
+ | Upgrade the CLI itself | `aspire update --self` |
+ | Update project package refs | `aspire update` (modifies project files — get user approval) |
+ | Restore generated files | `aspire restore` |
+ | Environment maintenance | `aspire cache clear`, `aspire certs trust`, `aspire certs clean` |
+ | Diagnose environment | `aspire doctor` |
+ | Machine-readable output | `--format Json` (supported: `ps`, `describe`, `start`) |
+@@ -215,52 +215,52 @@ aspire start --non-interactive --isolated --apphost <filesystem-path>
+ 
+ The same rule applies to any "file in use", "cannot access the file", or
+ "another process is using" error during a build of an Aspire-managed resource.
+ 
+ ## Handoff Rules
+ 
+ | Scenario | Route To |
+ |----------|----------|
+-| AppHost wiring after `aspire init` (scan repo, add resources, ServiceDefaults/OTel) | → `aspireify` skill ([`aspireify/SKILL.md`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/SKILL.md)) or project-local `.agents/skills/aspireify/SKILL.md` |
+-| Browser logs (`Aspire.Hosting.Browsers` / `WithBrowserLogs()`) and dashboard authoring | → `aspireify` skill (code edits) and `aspire-monitoring` (discovery) |
+-| Custom resource commands (`WithCommand`, `ExecuteCommandResult`, `HttpCommandResultMode`) | → `aspireify` skill |
+-| Lifecycle hooks (`SubscribeBeforeStart`, `SubscribeAfterResourcesCreated`, BeforeStart pipeline phase) | → `aspireify` skill |
+-| Endpoint authoring (`WithEndpoint` updates, `ExcludeReferenceEndpoint` flag) | → `aspireify` skill |
+-| Deploy, publish, pipeline steps, `aspire destroy` | → `aspire-deployment` skill |
+-| Logs, traces, metrics, dashboard, `aspire dashboard run` | → `aspire-monitoring` skill |
++| AppHost wiring after `aspire init` (scan repo, add resources, ServiceDefaults/OTel) | → `aspire:aspireify` skill ([`aspire:aspireify`](../aspireify/SKILL.md)) or project-local `.agents/skills/aspireify/SKILL.md` |
++| Browser logs (`Aspire.Hosting.Browsers` / `WithBrowserLogs()`) and dashboard authoring | → `aspire:aspireify` skill (code edits) and `aspire:aspire-monitoring` (discovery) |
++| Custom resource commands (`WithCommand`, `ExecuteCommandResult`, `HttpCommandResultMode`) | → `aspire:aspireify` skill |
++| Lifecycle hooks (`SubscribeBeforeStart`, `SubscribeAfterResourcesCreated`, BeforeStart pipeline phase) | → `aspire:aspireify` skill |
++| Endpoint authoring (`WithEndpoint` updates, `ExcludeReferenceEndpoint` flag) | → `aspire:aspireify` skill |
++| Deploy, publish, pipeline steps, `aspire destroy` | → `aspire:aspire-deployment` skill |
++| Logs, traces, metrics, dashboard, `aspire dashboard run` | → `aspire:aspire-monitoring` skill |
+ | Deployed app diagnostics | → `azure-diagnostics` skill (azure-skills) |
+ 
+ ## Runtime Settings And Environment
+ 
+ | Variable | Default | Purpose |
+ |----------|---------|---------|
+ | `ASPIRE_ENABLE_CONTAINER_TUNNEL` | `true` | Container tunnel provides uniform host connectivity across Docker Desktop, Docker Engine, and Podman. Set to `false` to opt out. |
+ | `ASPIRE_ENVIRONMENT` | unset | Selects the environment-specific config profile — controls which `appsettings.{environment}.json` is loaded and which environment is reported in dashboard telemetry. |
+ | `ASPIRE_DCP_USE_DEVELOPER_CERTIFICATE` | `true` | The Aspire trusted developer certificate is used by DCP on Windows. Set to `false` to opt out. |
+ | `features.defaultWatchEnabled` | false unless configured | Enables Aspire default watch for supported C# and TypeScript AppHosts. Do not treat this as per-resource rebuild, restart, or hot reload for resource source changes. |
+ 
+ ## TypeScript AppHost Note
+ 
+-Detection covers TS AppHosts (`apphost.ts`), but **all TS AppHost authoring is delegated to `aspireify`**.
++Detection covers TS AppHosts (`apphost.ts`), but **all TS AppHost authoring is delegated to `aspire:aspireify`**.
+ Current rules to apply when handing off:
+ 
+ | Rule | Why |
+ |------|-----|
+ | Prefer unified `withEnvironment(name, value)` over deprecated per-kind helpers (`withEnvironmentEndpoint`, `withEnvironmentParameter`, `withEnvironmentConnectionString`, `withEnvironmentExpression`, `withEnvironmentFromOutput`, `withEnvironmentFromKeyVaultSecret`) | Per-kind helpers are deprecated — single API now handles all value types |
+ | Never edit `.aspire/modules/` directly | Generated; use `aspire add <package>` to regenerate and `aspire restore` to recover missing files |
+ | Use `aspire docs api search <query> --language typescript` for API lookup | TS surface differs from C# |
+ 
+ ## Skill Routing — In-Plugin Sibling Skills
+ 
+ After `aspire init` drops a skeleton AppHost + `aspire.config.json`, route AppHost wiring
+ (scan repo → propose resource graph → edit AppHost → wire `Aspire.ServiceDefaults` / OTel →
+-validate via `aspire start`) to the in-plugin **aspireify** skill: [`aspireify/SKILL.md`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/SKILL.md).
+-For first-run flows that only need the skeleton drop, see the in-plugin **aspire-init** skill:
+-[`aspire-init/SKILL.md`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-init/SKILL.md). This orchestration skill stays focused
++validate via `aspire start`) to the in-plugin **aspire:aspireify** skill: [`aspire:aspireify`](../aspireify/SKILL.md).
++For first-run flows that only need the skeleton drop, see the in-plugin **aspire:aspire-init** skill:
++[`aspire:aspire-init`](../aspire-init/SKILL.md). This orchestration skill stays focused
+ on lifecycle (start/stop/wait/restart) and never edits AppHost code itself.
+ 
+ ## Project-Local Skill Precedence
+ 
+ If `.agents/skills/aspire/SKILL.md` exists (from `aspire agent init`), defer to it for:
+ C# AppHost editing, TS AppHost editing, Playwright handoff, investigation workflows.
+ Safety guardrails from this plugin ALWAYS apply.
+ 
+diff --git a/references/app-commands.md b/references/app-commands.md
+index 1c32540..917e923 100644
+--- a/references/app-commands.md
++++ b/references/app-commands.md
+@@ -36,17 +36,17 @@ aspire init --language typescript
+ - Use `aspire init` when adding Aspire to an existing application.
+ 
+ ## After `aspire init` — Hand Off to `aspireify`
+ 
+ `aspire init` drops a minimal AppHost skeleton + AppHost configuration into the
+ repo and installs the **`aspireify`** agent skill alongside it. `aspire init` itself does not
+ wire resources, projects, or integrations. Hand off the wiring step to:
+ 
+-1. The in-plugin sibling skill: [`../../aspireify/SKILL.md`](../../aspireify/SKILL.md), or
++1. The in-plugin sibling skill: [`aspire:aspireify`](../../aspireify/SKILL.md), or
+ 2. The project-local `.agents/skills/aspireify/SKILL.md` if `aspire init` installed it
+    (project-local wins — defer to it and warn the user).
+ 
+ The aspireify workflow:
+ 
+ 1. **Scan** the repository — discover .NET projects, Node.js apps, Python/Go services, docker-compose files
+ 2. **Present findings** — confirm with user which services to include
+ 3. **Wire the AppHost** — add resources using 3-tier API preference:

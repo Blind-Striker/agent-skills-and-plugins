@@ -11,6 +11,50 @@
       "SKILL.md": "ec7f15f826f360161ac82e24372107e5d7336062"
     }
   },
+  "deniz-dotnet-aspire/aspire": {
+    "source": "aspire-skills/skills/aspire",
+    "files": {
+      "SKILL.md": "fe88fa20a9da885718db2326e88c382c52e9c55b",
+      "references/aspire-13-3-breaking-changes.md": "2419ef593d34af2232050e17cb6998a19d6ba1d5"
+    }
+  },
+  "deniz-dotnet-aspire/aspire-deployment": {
+    "source": "aspire-skills/skills/aspire-deployment",
+    "files": {
+      "SKILL.md": "5a7ebe0d4195c6a1a63b42c48fbf96fc24b64b26",
+      "references/preflight.md": "52361d85f67947665094d2a7464cf6a0d964bbb3"
+    }
+  },
+  "deniz-dotnet-aspire/aspire-init": {
+    "source": "aspire-skills/skills/aspire-init",
+    "files": {
+      "SKILL.md": "c3d7d1dc71d1077d5d7ea296d69b7ffb47f4b0ed",
+      "references/init-workflow.md": "ea24ffa7b375a4e11cd4da230aa4bb440205cf3e",
+      "references/templates.md": "044b6c34d392dd56a76107e0e51d77f11ebd852a"
+    }
+  },
+  "deniz-dotnet-aspire/aspire-monitoring": {
+    "source": "aspire-skills/skills/aspire-monitoring",
+    "files": {
+      "SKILL.md": "6e26e36e240a147be83c6203aa865161f0c75c7a",
+      "references/diagnostics-bridge.md": "7a7c6d77e1783ad4f5f50b8cfcff1d1263850279",
+      "references/monitoring.md": "c9de1944900a066116e590b0a5e047a84000986a"
+    }
+  },
+  "deniz-dotnet-aspire/aspire-orchestration": {
+    "source": "aspire-skills/skills/aspire-orchestration",
+    "files": {
+      "SKILL.md": "906c08ffb3c62076ce4c4d10636781b5daf40dba",
+      "references/app-commands.md": "1c3254036ff869ca363455185cced62b076f41ec"
+    }
+  },
+  "deniz-dotnet-aspire/aspireify": {
+    "source": "aspire-skills/skills/aspireify",
+    "files": {
+      "SKILL.md": "4219af53fcae9aaed80a7610e0915542e2545c10",
+      "references/validation.md": "0c9b1efb971c5c710ca57c5b8f430f02d26c6433"
+    }
+  },
   "deniz-dotnet-general/binlog-failure-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis",
     "files": {
@@ -50,6 +94,12 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies",
     "files": {
       "SKILL.md": "dca80e40a3b0ba003da0cf2fa741a9691e137e92"
+    }
+  },
+  "deniz-dotnet-general/dotnet-devcert-trust": {
+    "source": "dotnet-skills/skills/dotnet-devcert-trust",
+    "files": {
+      "SKILL.md": "6a530618fdc99a6fbb89773027ecf983bebf836f"
     }
   },
   "deniz-dotnet-general/dotnet-trace-collect": {

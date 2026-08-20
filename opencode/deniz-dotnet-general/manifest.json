@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.2.0",
-  "digest": "sha256:607d4b4652f94552446f830f2823e7e0aca188b51da0c85e90893c65e84dd258",
+  "version": "0.3.0",
+  "digest": "sha256:50b0790d67853fa1392c402584bcf21bf1b1cc190149153b226135cb4d215e2f",
   "files": {
     "agents/roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
@@ -21,7 +21,7 @@
       "mode": "100644"
     },
     "commands/dotnet-devcert-trust.md": {
-      "sha256": "sha256:6ee5a25d9ca77a76da712c5a0f251622cd73bc41b8bcf7278f8d5f919fde2656",
+      "sha256": "sha256:8aeb350efa8654953c835b33084c82a8baddca1a5699acce5ffc2a55adfad3d5",
       "mode": "100644"
     },
     "commands/dotnet-slopwatch.md": {
@@ -217,7 +217,7 @@
       "mode": "100644"
     },
     "skills/dotnet-devcert-trust/SKILL.md": {
-      "sha256": "sha256:b41042427c2b9d3a2faee6bd911beba70d4a7d71fd67b2eba49aa526e8de231d",
+      "sha256": "sha256:1cca082691d52848dfc7836733eff4649d52882960cccffe26c78f30a2eaead2",
       "mode": "100644"
     },
     "skills/dotnet-local-tools/SKILL.md": {

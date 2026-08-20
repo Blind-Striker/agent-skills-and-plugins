@@ -411,5 +411,4 @@ dotnet dev-certs https --clean && dotnet dev-certs https
 
 ## Related Skills
 
-- `dotnet-skills:aspire-configuration` — Aspire AppHost configuration including TLS settings
-- `dotnet-skills:aspire-service-defaults` — Service defaults including HTTPS configuration
+- `aspire-service-defaults` — Service defaults including HTTPS configuration

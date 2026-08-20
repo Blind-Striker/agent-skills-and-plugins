@@ -1,0 +1,15 @@
+diff --git a/SKILL.md b/SKILL.md
+index 6a53061..a93c932 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -405,10 +405,9 @@ openssl verify -CAfile /etc/ssl/certs/ca-certificates.crt \
+ openssl x509 -in /usr/local/share/ca-certificates/dotnet-dev-cert.crt -noout -subject -dates -fingerprint
+ 
+ # Nuclear option: full clean + rebuild
+ dotnet dev-certs https --clean && dotnet dev-certs https
+ ```
+ 
+ ## Related Skills
+ 
+-- `dotnet-skills:aspire-configuration` — Aspire AppHost configuration including TLS settings
+ - `dotnet-skills:aspire-service-defaults` — Service defaults including HTTPS configuration

@@ -12,41 +12,34 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - This GitHub repository (`Blind-Striker/agent-skills-and-plugins`) currently uses `master` as its
   default branch. The current curation manifests emit matching Claude Code Plugins and OpenCode
-  Module Bundles. `deniz-process` is closed, `deniz-dotnet-general` has completed its corpus-first
-  pass, and `deniz-dotnet-akka` has completed its user-guided pass with all five upstream Akka skills
-  plus the native specialist agent. The Akka-owned Aspire cookbook has guarded links to its Akka,
-  General, and Aspire targets; `deniz-dotnet-aspire` now carries the integration-testing target but
-  remains an incomplete router proof awaiting the session below. Item posture and reasons live in the
-  [manifests](../curation/) and generated [ledger](ledger.json). The real Claude profile has process
-  and general enabled; Akka and Aspire remain uninstalled there. Official Claude utility Plugins are
-  outside the [skill-source migration documented by the dated adapter and installer
-  evidence](research/harness-adapters.md#opencode);
-  future Akka and Aspire Claude installs require explicit approval rather than a standing migration
-  task.
+  Module Bundles. `deniz-process`, `deniz-dotnet-general`, `deniz-dotnet-akka`, and
+  `deniz-dotnet-aspire` have completed their current curation passes. Aspire 0.3.0 follows the current
+  `microsoft/aspire-skills` pin and carries the complete six-skill official workflow package,
+  `aspire-integration-testing`, and the selected `aspire-service-defaults` specialist. Upstream eval
+  assets are omitted; package-local model handoffs are localized and linker-checked;
+  `aspire-configuration` and the broken Mailpit cookbook are explicitly excluded. General's devcert
+  skill now retains one guarded cross-Module edge to ServiceDefaults, while the closed Akka cookbook
+  keeps its guarded General and Aspire edges. Item posture and reasons live in the
+  [manifests](../curation/) and generated [ledger](ledger.json). The real Claude profile still has
+  process and General enabled; Akka and Aspire remain uninstalled there. Official Claude utility
+  Plugins are outside the [skill-source migration documented by the dated adapter and installer
+  evidence](research/harness-adapters.md#opencode); future Akka and Aspire Claude installs require
+  explicit approval rather than a standing migration task.
 - The repository remains private. The emitted global-only OpenCode installer and private Package
   recipe are available in the root [README](../README.md); current mechanics are in
   [distribution and installation](architecture/distribution-and-installation.md). The measured real
-  OpenCode Selection contains process, general, and the pre-curation Akka starter; updating Akka and
-  selecting Aspire require explicit approval, and Aspire remains unsuitable for installation until
-  its router is repaired. The migration and isolated Package evidence remain in the
+  OpenCode Selection contains process, General 0.2.0, and the pre-curation Akka starter. General and
+  Akka now differ from generated output, while Aspire remains unselected; any update must explicitly
+  keep General, Akka, and Aspire together until dependency-aware Selection planning exists. No Apply
+  was performed in this curation pass. The migration and isolated Package evidence remain in the
   [installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md).
 
 ## Next Up
 
-1. **`deniz-dotnet-aspire` curation and router repair, with the user.** The current router names five
-   uncurated targets in model-facing frontmatter and labels upstream-URL routes as in-plugin. Taking
-   the coherent six-skill closure requires harness-reachable handoffs. `aspire-integration-testing`
-   is already present as the guarded cross-Module target of the Akka-owned Aspire cookbook; resolve
-   the remaining router closure and the contradiction between `aspire-configuration` rejecting
-   application-level service discovery and `aspire-service-defaults` installing it. Also assess
-   version drift, deployment's missing `--non-interactive`, integration testing's `Task.Delay`, and
-   Mailpit's non-compiling samples. The two standing `dotnet-devcert-trust` references to
-   `aspire-configuration` and `aspire-service-defaults` should rewrite automatically if those sources
-   are curated. Do not install this module until the router is repaired or removed.
-2. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
-   repair or pull the Aspire router, and decide whether `marketplace.json`'s format-required owner
-   name and email may go public.
-3. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+1. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+   decide whether the intentionally upstream-owned Aspire proof limits are acceptable for a public
+   package and whether `marketplace.json`'s format-required owner name and email may go public.
+2. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -57,7 +50,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-4. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+3. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    Keep it unwritten until the curation rule is stable enough to state the actual contract rather
@@ -68,13 +61,20 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 ## Known Gaps
 
 - **Add dependency-aware Module Selection planning.** The Akka-owned
-  `akka-net-aspire-configuration` has guarded references from `deniz-dotnet-akka` into
-  `deniz-dotnet-general` and `deniz-dotnet-aspire`. Full-estate validation proves those links, but
-  the installer does not yet close an arbitrary Selection over required Modules. Extend Package or
-  Bundle metadata and Plan validation to add required Modules automatically or reject an incomplete
-  Selection before treating a partial install as dependency-safe. Until then, the operator must
-  select the cross-Module targets explicitly. See the
+  `akka-net-aspire-configuration` has guarded references from `deniz-dotnet-akka` into General and
+  Aspire, while General's `dotnet-devcert-trust` now has a guarded reference into Aspire's
+  `aspire-service-defaults`. Full-estate validation proves those links, but the installer does not
+  yet close an arbitrary Selection over required Modules. Extend Package or Bundle metadata and Plan
+  validation to add required Modules automatically or reject an incomplete Selection before
+  treating a partial install as dependency-safe. Until then, the operator must select General,
+  Akka, and Aspire together. See the
   [architecture limit](architecture/distribution-and-installation.md#full-estate-versus-installed-selection).
+- **Aspire runtime examples remain upstream-owned.** The official Microsoft package is pinned to
+  current upstream and transformed only for package-local references; the selected dotnet-skills
+  integration-testing body is also unowned. Review identified version-sensitive CLI/TypeScript
+  examples and testing API samples that deterministic generation and linkage do not prove. They were
+  deliberately preserved rather than forked, so a green build must not be described as proof that
+  every upstream sample compiles or matches the installed Aspire CLI version.
 - **Same-name, different-kind semantic maps are name-only.** Qualify rewrite and linker maps by kind,
   or narrow the legality rule, before relying on a cross-kind duplicate. See the
   [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).

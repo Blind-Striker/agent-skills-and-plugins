@@ -1,10 +1,49 @@
-# Intended sources: aspire-skills + the aspire-* skills of dotnet-skills —
-# orchestration, integration testing, service defaults, monitoring.
+# Intended sources: the complete Microsoft Aspire workflow package plus the
+# selected Aspire specialists from dotnet-skills.
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.2.0
+  version: 0.3.0
 items:
   - source: aspire-skills/skills/aspire
+    omit: ["evals/**"] # upstream Copilot/vally evaluation assets are not harness runtime content
+    body: patch # make all retained in-package routes linker-checked in both harnesses
+    depends_on:
+      - aspire-init
+      - aspireify
+      - aspire-orchestration
+      - aspire-deployment
+      - aspire-monitoring
+  - source: aspire-skills/skills/aspire-init
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize the bootstrap handoffs without changing the upstream workflow
+    depends_on: [aspireify, aspire-orchestration, aspire-deployment, aspire-monitoring]
+  - source: aspire-skills/skills/aspireify
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize the bounded authoring workflow's sibling handoffs
+    depends_on: [aspire-init, aspire-orchestration, aspire-deployment, aspire-monitoring]
+  - source: aspire-skills/skills/aspire-orchestration
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize lifecycle routing while preserving project-local precedence
+    depends_on: [aspireify, aspire-init, aspire-deployment, aspire-monitoring]
+  - source: aspire-skills/skills/aspire-deployment
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize deployment's retained sibling handoffs
+    depends_on: [aspireify, aspire-orchestration, aspire-monitoring]
+  - source: aspire-skills/skills/aspire-monitoring
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize diagnostics routing to the packaged sibling skills
+    depends_on: [aspire-orchestration, aspire-deployment, aspireify]
   - source: dotnet-skills/skills/aspire-integration-testing
-    invocation: auto # Aspire-native testing target required by the guarded Akka/Aspire cookbook handoff
+    invocation: auto # Aspire-native testing target required by the guarded Akka/Aspire cookbook handoff;
+    # its current upstream body and companions remain unowned despite known example/API proof limits
+  - source: dotnet-skills/skills/aspire-service-defaults
+    invocation: auto # canonical shared OTel, health, resilience, and HTTP service-discovery guidance
+
+  # --- exclusions ---
+  - source: aspire-skills/.github/skills/pr-review
+    exclude: true # upstream repository-maintainer review workflow, not an Aspire application skill
+  - source: dotnet-skills/skills/aspire-configuration
+    exclude: true # its application service-discovery ban contradicts the selected ServiceDefaults approach
+  - source: dotnet-skills/skills/aspire-mailpit-integration
+    exclude: true # broken Aspire/Mailpit APIs and compile errors make the large cookbook unsafe to ship

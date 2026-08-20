@@ -15,17 +15,17 @@
 # the one repair flow the model should reach on its exact error (dotnet-devcert-trust).
 # The one agent kept is a genuine specialist.
 #
-# Reference posture: .NET upstream bodies point at sibling skills by bare name ("see the
-# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state. .NET's upstream
-# bare-reference style is preserved when a body is patched: touching a body does not create a
-# formal fact or `depends_on`. The reference husks (filter-syntax, platform-detection,
+# Reference posture: .NET upstream bodies usually point at sibling skills by bare name ("see the
+# `filter-syntax` skill") — candidate-tier by ADR-0008, never build state merely because a body is
+# patched. An upstream-authored namespaced fact is retained only when its curated target exists and
+# is declared with exact `depends_on`. The reference husks (filter-syntax, platform-detection,
 # test-analysis-extensions) are taken `auto`, which is the grammar's answer to upstream's
 # user-invocable:false + disable-model-invocation:true "neither" class: model loads them by name,
 # users never see them.
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.2.0
+  version: 0.3.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -200,6 +200,8 @@ items:
     invocation: auto # small decompilation knowledge; its allowed-tools key drops in OpenCode (reported, harmless)
   - source: dotnet-skills/skills/dotnet-devcert-trust
     invocation: both # Linux/WSL cert repair — system-mutating, so the curator may type it; model may reach it on the exact error
+    body: patch # drop the handoff to excluded aspire-configuration; keep ServiceDefaults linker-checked
+    depends_on: [aspire-service-defaults]
   # --- modernization (all one-shot ceremonies) ---
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references
     invocation: manual # NRT adoption ceremony with readiness script — typed

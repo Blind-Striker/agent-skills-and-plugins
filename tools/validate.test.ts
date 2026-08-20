@@ -91,18 +91,55 @@ test("unknown namespace warning aggregates occurrences and caps sorted example p
 test("known prose address does not produce an unknown namespace warning", () => {
   const root = makeRepo();
   buildAll(root);
+  const proseAddresses = [
+    "active:properties",
+    "app:main",
+    "azurite:latest",
+    "display:flex",
+    "fqdn:fqdn",
+    "fqdn:properties",
+    "id:id",
+    "key:value",
+    "location:location",
+    "mailcatcher:latest",
+    "main:app",
+    "my-app:latest",
+    "name:name",
+    "resource:api",
+    "severity:debug",
+    "severity:error",
+    "start:dev",
+    "state:properties",
+    "state:provisioning",
+    "state:state",
+    "status:error",
+    "system:redis",
+    "timestamp:properties",
+    "type:type",
+  ];
   writeFileSync(
     join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
-    '---\nname: alpha\ndescription: d\n---\n\nUse `<div style="display:flex">` and container image `my-app:latest` for this example.\n',
+    `---\nname: alpha\ndescription: d\n---\n\nKnown prose: ${proseAddresses.join(" ")}\n`,
   );
 
   const hits = validateRepo(root).filter(
-    (f) =>
-      f.level === "warn" &&
-      (f.message.includes("unknown reference namespace display") ||
-        f.message.includes("unknown reference namespace my-app")),
+    (f) => f.level === "warn" && f.message.includes("unknown reference namespace"),
   );
   assert.deepEqual(hits, []);
+});
+
+test("known prose address allowlist remains exact", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: d\n---\n\nUnrecognized qualifier: severity:info\n",
+  );
+
+  const hits = validateRepo(root).filter(
+    (f) => f.level === "warn" && f.message.includes("unknown reference namespace severity"),
+  );
+  assert.equal(hits.length, 1);
 });
 
 // Two plugins can each curate the same upstream skill without either manifest looking wrong, but

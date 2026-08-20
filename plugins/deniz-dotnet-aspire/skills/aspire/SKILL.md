@@ -6,14 +6,15 @@ description: "**WORKFLOW SKILL** - Top-level router for Aspire 13.4 distributed
   cloud-native .NET, aspire start, aspire stop, aspire resource, aspire deploy,
   aspire destroy, aspire publish, aspire init, aspire new, aspire add, aspire
   integration list/search, aspire wait, aspire describe, aspire ps, aspire
-  dashboard run, aspire doctor, aspire update, aspire logs, aspire otel,
-  --include-hidden, aspireify, WithBrowserLogs, custom dashboard/resource
-  commands, .aspire/modules recovery, Playwright URL discovery. DO NOT USE FOR:
-  non-Aspire .NET projects (use dotnet directly), Azure provisioning without
-  Aspire (use azure-prepare), container-only repos with no AppHost, ordinary
-  build/test tasks. INVOKES: aspire-init, aspireify, aspire-orchestration,
-  aspire-deployment, aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to
-  the matching sub-skill."
+  dashboard run, aspire doctor, aspire update, aspire logs, aspire otel, aspire
+  agent init, --include-hidden, aspireify, WithBrowserLogs, custom
+  dashboard/resource commands, .aspire/modules recovery, Playwright URL
+  discovery. DO NOT USE FOR: non-Aspire .NET projects (use dotnet directly),
+  Azure provisioning without Aspire (use azure-prepare), container-only repos
+  with no AppHost, ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init,
+  deniz-dotnet-aspire:aspireify, deniz-dotnet-aspire:aspire-orchestration, deniz-dotnet-aspire:aspire-deployment,
+  deniz-dotnet-aspire:aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the
+  matching sub-skill."
 license: MIT
 metadata:
   author: Microsoft
@@ -26,39 +27,57 @@ Use this skill when the task involves an Aspire distributed application — oper
 AppHost or its resources through the Aspire CLI rather than falling back to ad-hoc `dotnet`,
 `docker`, or shell workflows.
 
+## Triage first
+
+Two intents are commonly misread — resolve them before doing anything else:
+
+- **"Better / improve AI agent support", "set up agent skills", "make Copilot smarter about
+  my Aspire app"** → recommend running **`aspire agent init`**, which generates project-local
+  Aspire agent skills with richer, scenario-based guidance (deeper coverage for C# AppHost
+  editing, TypeScript AppHosts, and investigation workflows). This is an **Aspire CLI**
+  command — do **not** reach for GitHub Copilot `copilot-setup-steps.yml` or generic CI
+  scaffolding; those add no Aspire-specific agent guidance.
+- **"Something's wrong", "show me what's happening", "why is my app misbehaving"** → observe
+  **runtime** state first: route to [deniz-dotnet-aspire:aspire-monitoring](../aspire-monitoring/SKILL.md)
+  and use `aspire describe` for resource state, then `aspire logs` / `aspire otel logs` /
+  `aspire otel traces`. Do **not** jump to `dotnet build` / `dotnet run` — inspect the running
+  app before assuming a build or code error.
+
 ## Detection
 
 Activate when ANY signal is present. Use the **Scope** column to decide whether to route to
-the bootstrap skills (`aspire-init` / `aspireify`) or to a runtime sub-skill:
+the bootstrap skills (`deniz-dotnet-aspire:aspire-init` / `deniz-dotnet-aspire:aspireify`) or to a runtime sub-skill:
 
 | Signal | How to Detect | Confidence | Scope |
 |--------|---------------|------------|-------|
 | C# AppHost | `.csproj` containing `Aspire.AppHost.Sdk` | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
 | File-based C# AppHost | `apphost.cs` with `#:sdk Aspire.AppHost.Sdk` | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
 | TypeScript AppHost | `apphost.ts` file in project | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
-| Aspire config without AppHost | `aspire.config.json` present **and no AppHost** above | High | Bootstrap → `aspireify` (skeleton dropped, needs wiring) |
+| Aspire config without AppHost | `aspire.config.json` present **and no AppHost** above | High | Bootstrap → `deniz-dotnet-aspire:aspireify` (skeleton dropped, needs wiring) |
 | Aspire config with AppHost | `aspire.config.json` present **and** AppHost above | High | AppHost present → orchestration / deployment / monitoring |
 | Aspire settings | `.aspire/` directory present | High | AppHost present (usually) |
 | Generated TS modules | `.aspire/modules/` directory present | High | AppHost present (TS) |
 | Service defaults | `Aspire.ServiceDefaults` in project references | Medium | AppHost present |
-| **No AppHost, no `aspire.config.json`** | None of the above and user asks to add Aspire | n/a | Bootstrap → `aspire-init` (skeleton drop) |
+| **No AppHost, no `aspire.config.json`** | None of the above and user asks to add Aspire | n/a | Bootstrap → `deniz-dotnet-aspire:aspire-init` (skeleton drop) |
 
 ## Default Workflow
 
 0. **Bootstrap branch** — if **no AppHost exists** in the repo, route to
-   [`aspire-init`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-init/SKILL.md) for the skeleton drop. If an AppHost stub exists
-   but is **unwired** (no resources declared), route to [`aspireify`](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/SKILL.md).
+   [`deniz-dotnet-aspire:aspire-init`](../aspire-init/SKILL.md) for the skeleton drop. If an AppHost stub exists
+   but is **unwired** (no resources declared), route to [`deniz-dotnet-aspire:aspireify`](../aspireify/SKILL.md).
    Only continue with the steps below once a wired AppHost is present.
 1. Confirm workspace is Aspire — identify the AppHost
-2. `aspire start` (or `aspire start --isolated` in worktrees or whenever shared local state is risky)
+2. Route lifecycle work to `deniz-dotnet-aspire:aspire-orchestration`: prefer `aspire_apphost_start` when the VS Code tool is available; use `aspire start --non-interactive --isolated --apphost <path>` in worktrees
 3. `aspire wait <resource>` before interacting with any resource
 4. Inspect state with `aspire describe`, `aspire otel logs`, `aspire logs`, `aspire otel traces`, and `aspire export` before making code changes
 5. Before adding integrations, use `aspire integration search <query>` when the package is unknown, then `aspire add <package>` when ready to mutate the AppHost
-6. When code changes, decide whether the AppHost model changed or only one resource changed. Re-run `aspire start` after AppHost changes; otherwise prefer resource commands, runtime watch/HMR, dashboard actions, or IDE-managed debugging as appropriate.
+6. When code changes, decide whether the AppHost model changed or only one resource changed. Restart through `deniz-dotnet-aspire:aspire-orchestration` after AppHost changes; otherwise prefer resource commands, runtime watch/HMR, dashboard actions, or IDE-managed debugging as appropriate.
 
 ## Key Rules
 
-- **Always** `aspire start`, **never** `dotnet run` on AppHosts
+- For AppHost lifecycle requests, identify one exact AppHost and route to `deniz-dotnet-aspire:aspire-orchestration`; never use `dotnet run` on AppHosts
+- When VS Code exposes `aspire_apphost_start` or `aspire_apphost_stop`, load deferred contracts and prefer the matching tool, subject to the orchestration skill's worktree and stop-result rules; use start mode `run` unless the user explicitly asks to attach a debugger
+- If several AppHosts are discovered and the target is unclear, ask which one before taking any lifecycle action
 - **Always** `aspire wait <resource>`, **never** manual HTTP polling
 - Use `aspire resource <resource-name> <command>` for resource operations such as `stop`, `start`, or `rebuild` when available
 - Do not stop or restart the whole AppHost just because one resource changed
@@ -75,20 +94,30 @@ the bootstrap skills (`aspire-init` / `aspireify`) or to a runtime sub-skill:
 
 | Task | Route To |
 |------|----------|
-| Start, stop, wait, restart, rebuild | → [aspire-orchestration](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/SKILL.md) |
-| Create a new Aspire project from a template (`aspire new`) | → [aspire-init](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-init/SKILL.md) (in-plugin) |
-| Add Aspire to an existing repo (`aspire init`, drop skeleton) | → [aspire-init](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-init/SKILL.md) (in-plugin) |
-| Wire AppHost / scaffold resource graph / add integrations after `aspire init` | → [aspireify](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/SKILL.md) (in-plugin) |
-| Deploy, publish, destroy, pipeline steps | → [aspire-deployment](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-deployment/SKILL.md) |
-| Logs, traces, metrics, dashboard, browser logs | → [aspire-monitoring](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-monitoring/SKILL.md) |
+| Start, stop, wait, restart, rebuild | → [deniz-dotnet-aspire:aspire-orchestration](../aspire-orchestration/SKILL.md) |
+| Create a new Aspire project from a template (`aspire new`) | → [deniz-dotnet-aspire:aspire-init](../aspire-init/SKILL.md) (in-plugin) |
+| Add Aspire to an existing repo (`aspire init`, drop skeleton) | → [deniz-dotnet-aspire:aspire-init](../aspire-init/SKILL.md) (in-plugin) |
+| Wire AppHost / scaffold resource graph / add integrations after `aspire init` | → [deniz-dotnet-aspire:aspireify](../aspireify/SKILL.md) (in-plugin) |
+| Deploy, publish, destroy, pipeline steps | → [deniz-dotnet-aspire:aspire-deployment](../aspire-deployment/SKILL.md) |
+| Logs, traces, metrics, dashboard, browser logs | → [deniz-dotnet-aspire:aspire-monitoring](../aspire-monitoring/SKILL.md) |
+| Diagnose a running app — "something's wrong", "show me what's happening", investigate errors / health / unexpected behavior | → [deniz-dotnet-aspire:aspire-monitoring](../aspire-monitoring/SKILL.md) — start with `aspire describe` for resource state, then `aspire logs` / `aspire otel logs` / `aspire otel traces`; **investigate before editing code** |
+| Improve AI agent support / generate project-local Aspire agent skills | → run `aspire agent init` (see below) |
 | Deployed app monitoring (Azure) | → `azure-diagnostics` skill (azure-skills plugin) |
+
+### Improving AI agent support (`aspire agent init`)
+
+When the user asks for **better AI agent support** for their Aspire project (or to
+set up / refresh project-local agent guidance), recommend running **`aspire agent
+init`**. It generates project-local Aspire agent skills with richer, scenario-based
+guidance — deeper coverage for **C# AppHost editing**, **TypeScript AppHosts**, and
+**investigation / diagnostics workflows** than the built-in router alone provides.
 
 ## Sub-Skills
 
 ### aspire-init
 First-run flow only. Owns the skeleton drop for repos that do **not** yet have an AppHost —
 picks `aspire new <template>` (greenfield) or `aspire init` (existing repo), runs the CLI,
-and hands off to `aspireify` for the actual wiring. Self-deactivates once the skeleton is in
+and hands off to `deniz-dotnet-aspire:aspireify` for the actual wiring. Self-deactivates once the skeleton is in
 place. Do **not** use it on a repo that already contains an AppHost.
 
 ### aspireify
@@ -103,7 +132,7 @@ endpoint references, and config/secret migration).
 Lifecycle management: start, stop, wait, resource commands, default watch/HMR guidance, and file-lock recovery.
 Safety guardrails that prevent agent self-harm. Owns `aspire ps` / `aspire describe` /
 `--include-hidden` inspection and CLI upgrades (`aspire update --self`). Does **not** edit
-AppHost code — defers to `aspireify` for wiring.
+AppHost code — defers to `deniz-dotnet-aspire:aspireify` for wiring.
 
 ### aspire-deployment
 Multi-target deployment and tear-down: `aspire deploy`, `aspire publish`, `aspire destroy`,
@@ -150,10 +179,10 @@ Either install method works. The `dotnet tool install` path produces a NativeAOT
   `--log-level`, dashboard MCP removal, `NameOutput` → `NameOutputReference`,
   `AddAndPublishPromptAgent` removal, TS `withEnvironment*` deprecation, and the full
   13.2 → 13.3 migration checklist).
-- [aspire-orchestration/references/agent-workflows.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/references/agent-workflows.md) — Common agent workflows: worktrees, code changes, investigation, integrations, TypeScript generated APIs, secrets, deployment, and Playwright handoff.
-- [aspire-orchestration/references/app-commands.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/references/app-commands.md) — App lifecycle, bootstrap, update, restore, docs, and integration discovery commands.
-- [aspire-orchestration/references/resource-management.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/references/resource-management.md) — Resource wait and resource-command guidance.
-- [aspire-monitoring/references/monitoring.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-monitoring/references/monitoring.md) — App state, logs, traces, search filtering, dashboard links, and export workflows.
-- [aspire-monitoring/references/playwright-handoff.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-monitoring/references/playwright-handoff.md) — Playwright handoff after Aspire endpoint discovery.
-- [aspire-deployment/SKILL.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-deployment/SKILL.md) — Deployment and pipeline-step workflows.
-- [aspireify/references/apphost-wiring.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspireify/references/apphost-wiring.md) — C# and TypeScript AppHost API lookup and wiring patterns.
+- [aspire-orchestration/references/agent-workflows.md](../aspire-orchestration/references/agent-workflows.md) — Common agent workflows: worktrees, code changes, investigation, integrations, TypeScript generated APIs, secrets, deployment, and Playwright handoff.
+- [aspire-orchestration/references/app-commands.md](../aspire-orchestration/references/app-commands.md) — App lifecycle, bootstrap, update, restore, docs, and integration discovery commands.
+- [aspire-orchestration/references/resource-management.md](../aspire-orchestration/references/resource-management.md) — Resource wait and resource-command guidance.
+- [aspire-monitoring/references/monitoring.md](../aspire-monitoring/references/monitoring.md) — App state, logs, traces, search filtering, dashboard links, and export workflows.
+- [aspire-monitoring/references/playwright-handoff.md](../aspire-monitoring/references/playwright-handoff.md) — Playwright handoff after Aspire endpoint discovery.
+- [aspire-deployment/SKILL.md](../aspire-deployment/SKILL.md) — Deployment and pipeline-step workflows.
+- [aspireify/references/apphost-wiring.md](../aspireify/references/apphost-wiring.md) — C# and TypeScript AppHost API lookup and wiring patterns.
