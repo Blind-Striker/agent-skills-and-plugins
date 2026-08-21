@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.4.0",
-  "digest": "sha256:ff9037655e7a4b8460e96af9cbb76cb0acb8ebc470b9e07de5571bd98fae734c",
+  "version": "0.6.0",
+  "digest": "sha256:541d647fa4e880ef8ce83319454c93a90eca6a252a6a13bda6e23dc91d8d1dc6",
   "files": {
     "agents/roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
@@ -10,6 +10,10 @@
     },
     "commands/analyzing-dotnet-performance.md": {
       "sha256": "sha256:145abab2bb1d0e91fd127800e89d0a594f7e1e9148fb0eb2ece972eeea818910",
+      "mode": "100644"
+    },
+    "commands/code-testing-agent.md": {
+      "sha256": "sha256:5e0092438a5ef5ccd69902e98718f285c99742d2b0d27e7560aea6efde2224f4",
       "mode": "100644"
     },
     "commands/convert-to-cpm.md": {
@@ -110,6 +114,14 @@
     },
     "skills/check-bin-obj-clash/SKILL.md": {
       "sha256": "sha256:4577033c786b42d99c60481ba878fbee1391c11cc4debc8353a1dc7a2fd8b6fa",
+      "mode": "100644"
+    },
+    "skills/code-testing-agent/BODY.md": {
+      "sha256": "sha256:741b7dbb72c565196eedd0acf413d5d762e10a8d8e1ab8687fe02520e8b5da6b",
+      "mode": "100644"
+    },
+    "skills/code-testing-agent/unit-test-generation.prompt.md": {
+      "sha256": "sha256:3b15527fa3525c1217f9c17afc4c67a709e8583caf90f710116d5742c8cce20d",
       "mode": "100644"
     },
     "skills/configuring-opentelemetry-dotnet/SKILL.md": {
@@ -574,6 +586,10 @@
     },
     "skills/testcontainers-integration-tests/infrastructure-patterns.md": {
       "sha256": "sha256:846865de531a6c518105c673a62eacfe352a37711c2f6cd95081cd4b239b3814",
+      "mode": "100644"
+    },
+    "skills/writing-tunit-tests/SKILL.md": {
+      "sha256": "sha256:870ab6a5032befdaf112aad5dea6964bd9d181f40c12ae8f41cd70b0aba5ae5a",
       "mode": "100644"
     }
   }

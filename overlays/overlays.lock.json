@@ -84,6 +84,12 @@
       "SKILL.md": "8d1007cfde8104ca1c991fdddd76727892a4ac38"
     }
   },
+  "deniz-dotnet-general/code-testing-agent": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent",
+    "files": {
+      "SKILL.md": "9f51fdf1c8e031ac80d120a6a594bf40883ed283"
+    }
+  },
   "deniz-dotnet-general/coverage-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {

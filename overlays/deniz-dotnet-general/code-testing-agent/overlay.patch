@@ -1,0 +1,63 @@
+diff --git a/SKILL.md b/SKILL.md
+index 9f51fdf..c143021 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,20 +1,19 @@
+ ---
+ name: code-testing-agent
+ description: >-
+   Generate or add unit tests for existing code, from one function to a complete
+-  project-wide suite. ALWAYS USE when asked to "write unit tests", "add tests",
+-  "generate tests", "cover this untested method", scaffold tests where none
+-  exist, or create comprehensive tests across multiple modules or packages.
+-  Polyglot: C#/.NET, Python/pytest, TS/JS, Go, Rust, Java, Ruby. Handles classic
+-  non-SDK/packages.config MSTest projects, explicit Compile registration, sparse
+-  workspaces, existing-suite extension, and proportional focused work. DO NOT USE
+-  for only running/diagnosing tests, analyzing a coverage report, auditing test
+-  quality, or answering an MSTest API question without writing tests.
++  project-wide suite. USE FOR "write unit tests", "add tests", "cover this
++  untested method", scaffolding tests where none exist, or extending an existing
++  suite across several files. Sizes the request first and stays proportional.
++  Polyglot: C#/.NET, Python/pytest, TS/JS, Go, Rust, Java, Ruby; also handles
++  classic non-SDK projects, explicit Compile registration and sparse workspaces.
++  DO NOT USE for only running or diagnosing tests, analyzing a coverage report,
++  or auditing test quality.
+ license: MIT
+ ---
+ 
+ # Code Testing Generation Skill
+ 
+ An AI-powered skill that generates comprehensive, workable unit tests for any programming language using a coordinated multi-agent pipeline.
+ 
+ ## Non-negotiable execution contract
+@@ -39,25 +38,26 @@ must cite an exact test name; validation rows cite the successful command.
+ 
+ Use this skill when you need to:
+ 
+ - Generate unit tests for an entire project or specific files
+ - Improve test coverage for existing codebases
+ - Create test files that follow project conventions
+ - Write tests that actually compile and pass
+ - Add tests for new features or untested code
+-- Generate or extend MSTest suites; load `writing-mstest-tests` as supporting
+-  guidance after this entry skill has established scope and project conventions
++- Generate or extend a C# suite; once this entry skill has established scope and
++  project conventions, load the `writing-tunit-tests` skill for the framework
++  itself — this estate is TUnit-first
+ 
+ ## When Not to Use
+ 
+ - Running or executing existing tests (use the `run-tests` skill)
+ - Migrating between test frameworks (use migration skills)
+-- Answering an MSTest API/pattern or modernization question that does not ask to
+-  generate tests (use `writing-mstest-tests`)
++- Answering a framework API or modernization question that does not ask to
++  generate tests
+ - Debugging failing test logic
+ 
+ ## How It Works
+ 
+ This skill coordinates multiple specialized agents in a **Research → Plan → Implement** pipeline:
+ 
+ ### Pipeline Overview
+ 

@@ -65,14 +65,47 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    NRT migration ceremony. And the new OpenTelemetry body ships an example whose `EmitLogs` flag is
    declared and never read, so the exception callback fires in the spans-only default the surrounding
    prose promises; the item is unowned, so correcting it means opening a body.
-2. **A TUnit-first test-writing skill, as an original skill under `skills/`.** The estate ships no
-   test-writing knowledge: the corpus's only writer was MSTest-bound and excluded, and
-   `code-testing-agent` was left out for the same reason — its methodology half is good and runs
-   without its pipeline, but its only C# example is MSTest. Write ours instead, seeded by
-   `github/awesome-copilot`'s `csharp-tunit` (MIT) and current TUnit documentation, without that
-   skill's xUnit-migration half. Note the mechanism has never been exercised: `skills/` does not
-   exist yet, and an own skill is copied verbatim with no invocation dial, no lock, and no linker
-   scan of its outgoing references.
+2. **Decide whether an original skill may participate in guarded references.** Measured while
+   wiring `code-testing-agent` to `writing-tunit-tests`: today it cannot, in either direction, and
+   the two halves are independent.
+
+   *As a target.* The linker's target map is read from the emitted tree, so an own skill is in it —
+   but nothing ever reaches that check, because localization runs first and
+   [`buildRewriteMap`](../tools/lib/rewrite.ts) is keyed by UPSTREAM address. An own skill has no
+   upstream address, so no authored spelling resolves: the output form survives into `opencode/`,
+   where an own namespace is illegal, and `validate` rejects it.
+
+   The observed failure, kept here because it is the fix's acceptance test. Write the output
+   spelling into the curated `code-testing-agent` body, where the C# handoff now names the skill:
+
+   ```text
+   - Generate or extend a C# suite; … load deniz-dotnet-general:writing-tunit-tests for the
+     framework itself — this estate is TUnit-first
+   ```
+
+   then `npm run build && npm run validate`:
+
+   ```text
+   ERROR: opencode/deniz-dotnet-general/skills/code-testing-agent/BODY.md:
+          output namespace leaked into opencode/: deniz-dotnet-general:writing-tunit-tests
+   ```
+
+   The Claude tree passes — `<plugin>:<name>` is already its spelling — so this fails on one harness
+   only, which is what makes it easy to write and miss. Giving own skills a key (`<plugin>:<dir>`,
+   mapping to itself for Claude and to the bare name for OpenCode) is a handful of lines and is the
+   whole of this half. The fix is done when that reference localizes, `depends_on:
+   [writing-tunit-tests]` is accepted on the item, and removing the declaration then fails.
+
+   *As a source.* The derived-edge scan walks manifest items, so an own skill's outgoing references
+   are never read. Lifting the per-file check out of that loop and running it over own skills too is
+   larger but still small. It buys half of what curated items get: dangling targets and audience
+   mismatches, but no two-way `depends_on` symmetry, because an own skill has no manifest entry to
+   declare in. Decide whether that half is worth having, or whether own skills need a declaration
+   surface first.
+
+   Until both land, an own skill points by bare name and nothing checks it. `writing-tunit-tests`
+   has five such pointers, and one of them crosses a Module boundary — `test-driven-development`
+   lives in `deniz-process` — which nothing catches either.
 3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    decide whether the intentionally upstream-owned Aspire proof limits are acceptable for a public
    package and whether `marketplace.json`'s format-required owner name and email may go public.
@@ -152,6 +185,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   wrong cause text. A `kind` on the target state fixes the parenthetical.
 - **The parked-path check interpolates output names into a RegExp unescaped.** Current kebab-case
   names are safe; escape the name in `tools/validate.ts` before constructing the expression.
+- **`manual` cannot be expressed for an original skill.** `emitOpenCode` reads its invocation from
+  the map `buildAll` fills from manifest items only, so an own skill always resolves to `undefined`
+  and OpenCode always emits it as a skill. Writing `disable-model-invocation: true` into an own
+  body therefore makes it user-only in Claude while it stays model-discoverable in OpenCode — the
+  two harnesses disagree. Absent frontmatter and `user-invocable: false` are the two postures the
+  path expresses coherently. Feed own skills into the invocation map, or say in
+  [documentation](engineering/workflow.md) that own skills are model-reachable by construction.
 - **Own-skill edge source scan.** Extend derived-edge analysis to scan original skills under
   `skills/` as sources. See the [architecture limit](architecture/references-and-linking.md#proof-boundary-and-current-limits).
 - **The clean-fixture test filters two named findings (`FIXTURE_DEBT`)** instead of asserting
@@ -223,10 +263,6 @@ Gemini outputs; automated or scheduled upstream sync (`npm run sync` stays manua
   home + relay principle, evergreen/operational split, audience-based placement, ADR and roadmap
   skeletons) as an original skill under `skills/` so any repo can adopt it. The skill form looks
   right, but the idea needs its own brainstorming session before any work starts.
-- **Own TUnit test-writing skill.** The corpus's only test-writing skill was MSTest-bound and is
-  excluded; the general module deliberately ships no test-writing knowledge, and its audit bodies
-   no longer name a test-writing destination. A TUnit-first original skill under `skills/` needs a
-   separate authoring session, and that session decides its scope.
 - **`expects` — optional manifest-side guard for bare-name edges.** Design only if load-bearing
   bare-name edges accumulate enough that review-only candidate status becomes unsafe; today's single
   case (`grill-me` → `grilling`) stays deliberately unguarded. Decide the guard's shape only after

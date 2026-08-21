@@ -27,7 +27,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.4.0
+  version: 0.6.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -273,16 +273,16 @@ items:
     # generate-testability-wrappers now. It caught a real defect there: the shipped scope example
     # cleared the slot on dispose while the rule printed beneath it asked for the previous value
     # restored, so nesting lost the outer override. Its own remaining half writes the tests, which
-    # belongs to the TUnit-first own skill (docs/ROADMAP.md), and a fourth member would put a second
+    # belongs to writing-tunit-tests (own skill), and a fourth member would put a second
     # seam-building entry point beside the deliberately bounded testability trio.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/scaffold-dotnet-test-project
     exclude: true # scaffolds via `dotnet new xunit|nunit|mstest` with no TUnit path and no detection;
-    # it would occupy the slot the TUnit-first own skill is for, and both its code-testing-agent and
+    # it occupies the slot writing-tunit-tests (own skill) fills, and both its code-testing-agent and
     # writing-mstest-tests handoffs are excluded here
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/writing-mstest-tests
     exclude: true # MSTest fires in no repo the curator keeps. Upstream has since demoted it from
     # test-writing to MSTest API review and handed generation to code-testing-agent (also excluded);
-    # the TUnit-first replacement is an own skill (docs/ROADMAP.md)
+    # the replacement is writing-tunit-tests, an own skill under skills/
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v1v2-to-v3
     exclude: true # shrinking legacy + MSTest unused
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v3-to-v4
@@ -291,11 +291,15 @@ items:
     exclude: true # converts toward a framework the curator never uses
   # --- orchestration glue that survives neither harness ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent
-    exclude: true # test-writing is reserved for the TUnit-first own skill (docs/ROADMAP.md), and this
-    # one's only C# example is MSTest. Not excluded for its pipeline: the body sizes itself, skips the
-    # fan-out and the .testagent/ artifacts for focused work, and says to run the sequence inline when
-    # the generator agent is absent. Its methodology half — a test must fail under a plausible bug —
-    # is worth carrying into the own skill.
+    invocation: manual # a generation ceremony: broad scope writes many files and leaves .testagent/
+    # artifacts in the target repo, so the human starts it. Keeping it off the model trigger is also
+    # what stops it competing with writing-tunit-tests, which fires while a test is being written
+    body: patch # drops the writing-mstest-tests handoffs (excluded) and points C# generation at our
+    # own TUnit skill instead; softens the ALWAYS-USE description, which was trigger prose aimed at a
+    # model that can no longer reach this item
+    # No depends_on: the pointer to writing-tunit-tests stays a bare name. A declared edge needs a
+    # namespaced spelling, and the rewrite map is keyed by UPSTREAM address — an original skill has
+    # none, so the output spelling would leak into opencode/ instead of localizing. See docs/ROADMAP.md.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-extensions
     exclude: true # reference husk for the excluded pipeline only; no taken dependent
   - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-builder.agent.md
