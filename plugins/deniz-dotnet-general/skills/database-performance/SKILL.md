@@ -193,6 +193,58 @@ public async Task<PaginatedList<OrderSummary>> GetOrdersAsync(
 }
 ```
 
+### Prefer keyset over offset on deep pages
+
+`Skip`/`Take` still scans and discards the skipped rows, so latency grows with the page number.
+Page by the last key seen instead:
+
+```csharp
+db.Orders.Where(o => o.Id > lastSeenId).OrderBy(o => o.Id).Take(pageSize);
+```
+
+Order by a unique, stable, indexed key, adding tie-breakers when the sort column is not unique.
+Keyset pages by the last key rather than a page number, so it changes the method's inputs; when a
+fixed signature rules out an in-place switch, still flag the deep-offset scan and recommend keyset.
+
+**Verify:** page latency stays roughly constant from early to deep pages.
+
+---
+
+## Keep Predicates Sargable
+
+An index can only be used when the indexed column appears **bare** on one side of the comparison.
+Wrapping it in a function or arithmetic — `CreatedAt.Year == y`, `ToLower(Name) == n`,
+`Price * 1.1 > x`, or a leading-wildcard `LIKE '%foo'` — forces a per-row computation the index
+cannot satisfy, so the query **scans the whole table even though the index exists**. Adding another
+index changes nothing. Rewrite the predicate so the column stays bare, usually as a half-open range:
+
+```csharp
+// Non-sargable: a function is computed for every row → full scan
+db.Logs.Where(l => l.CreatedAt.Year == year);
+
+// Sargable: bare column compared to constants → index seek
+var start = new DateTime(year, 1, 1);
+db.Logs.Where(l => l.CreatedAt >= start && l.CreatedAt < start.AddYears(1));
+```
+
+The same rule covers several common shapes:
+
+- **Case-insensitive text** — compare a stored normalized column instead of `ToLower(...)`/`ToUpper(...)`.
+- **Computed expressions** — compare against the precomputed constant, not `column * k > x`.
+- **Converting the column to another type** — a predicate over `column.ToString()` applies a
+  function to every row and often cannot be translated to SQL at all, forcing client-side evaluation
+  that pulls the whole table into memory. Filter on the typed column with a real comparison or range.
+- **Substring search** — `name.Contains(term)` becomes an unanchored `LIKE '%term%'` that cannot
+  seek and scans the table; a trailing wildcard (`name.StartsWith(term)` → `'term%'`) can seek.
+  Anchoring changes which rows match, so confirm the behaviour first, and put real substring or fuzzy
+  search behind a full-text index on large tables.
+
+This is a SQL-level rule, not an EF Core one: the same predicate written in Dapper scans for the same
+reason.
+
+**Verify:** the plan shows a seek instead of a scan and duration drops. If the column genuinely has
+no index, add one — but only after the predicate is sargable.
+
 ---
 
 ## AsNoTracking for Read Queries

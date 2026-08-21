@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index a369a29..cd519e0 100644
+index c667959..cd519e0 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,22 +1,23 @@
@@ -44,7 +44,7 @@ index a369a29..cd519e0 100644
 +## Portable workflow — text-log replay
  
 -Use this only when the MCP server cannot be started (for example, on an older
--SDK or in an offline environment without access to the `dotnet-tools` NuGet feed).
+-SDK or in an offline environment).
 +This works without any MCP server, on any machine with the .NET SDK.
  
  ### Replay the binlog to text logs

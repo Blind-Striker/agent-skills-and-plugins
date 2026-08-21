@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 58ec557..a0ecdad 100644
+index aa29dfc..a4e56bd 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,23 +1,18 @@
@@ -60,21 +60,22 @@ index 58ec557..a0ecdad 100644
  
  ### Prerequisites
  
-@@ -60,19 +55,68 @@ Use this skill when the user mentions test coverage, coverage gaps, code risk, C
- The skill auto-detects coverage provider state per test project and selects the least-invasive execution strategy:
- 
- - unified Microsoft CodeCoverage when all projects use it,
- - unified Coverlet when no project uses Microsoft CodeCoverage,
- - per-project provider execution when the solution is truly mixed.
- 
- No pre-existing runsettings files or manually installed tools required.
+@@ -75,19 +70,69 @@ for Cobertura output. Never convert the project, run `dotnet add package`, or ad
+ > **CLASSIC-ONLY HARD STOP:** If every discovered test project is classic and no
+ > existing Cobertura report or checked-in coverage command exists, stop after
+ > discovery. Do not create a temporary SDK-style wrapper/project, copy the source
+ > into one, install a collector elsewhere, or generate substitute coverage from
+ > a different assembly. That data does not describe the requested project.
+ > Report complexity alone if useful and request real Cobertura from the
+ > repository's supported toolchain.
  
 -## Workflow
 +## Targeted Method, Class, or File Workflow
  
 -> **MANDATORY: deliver the final assistant response with the CRAP/risk-hotspot summary BEFORE any optional work.** As soon as `Compute-CrapScores.ps1` and `Extract-MethodCoverage.ps1` return data, your **next** assistant response must contain the user-facing analysis (CRAP table, blocking methods, recommendations). Do not run ReportGenerator (Phase 5), do not install global tools, and do not start any heavy parallel work before that response is delivered. The user is judged on the final assistant message, not on side-effect files.
 +Use this branch when the user names an exact method, class, or source file. Locate or collect
-+Cobertura XML using the setup and provider rules below, then stop before the project-wide analysis
++Cobertura XML using the Phase 1 setup rules below and `references/setup-discovery.md`, then stop
++before the project-wide analysis
 +and report phases.
 +
 +Run the bundled method extractor over all methods:

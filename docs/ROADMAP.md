@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-20
+Date: 2026-08-21
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -37,9 +37,18 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   three merge sources were re-blessed and `diagnosing-bugs`' secret-redaction rules were absorbed
   into the owned `systematic-debugging` body, `wait-what`, `to-questionnaire` and `wizard` were
   taken as `manual`, ten read-and-rejected components were recorded as exclusions, and `ask-matt`
-  became the owned router `ask-deniz`. `deniz-process` is 0.3.0. `dotnet-agent-skills` remains at
-  its pre-initiative pin. Its corpus is now fully answered: the module's only never-curated
-  scanner-visible name is `csharp-nullable-reference-types`, still deliberately open.
+  became the owned router `ask-deniz`. `deniz-process` is 0.3.0. `dotnet-agent-skills` is at `516db1e`: five drifted patches were
+  recut after reading their new source intent, `test-gap-analysis` lost the upstream step that made
+  a report-only audit write test files, `platform-detection`'s husk posture became this repo's own
+  choice once upstream dropped its posture keys, and two new components were answered. Two exclusions
+  became merges rather than rejections — `testability-obstacle`'s ambient-seam corrections went into
+  `generate-testability-wrappers` (they caught a real defect there: the shipped scope example cleared
+  the slot on dispose while the rule beneath it asked for the previous value restored), and the
+  rewritten `optimizing-ef-core-queries` was split by level, its SQL-level sargability and keyset
+  paging into `database-performance` and its `EF.CompileQuery` guidance into `efcore-patterns`.
+  `deniz-dotnet-general` is 0.4.0. Every module's corpus is now fully answered; the one
+  never-curated scanner-visible name left in the estate is `csharp-nullable-reference-types`, still
+  deliberately open.
 - The repository remains private. The emitted global-only OpenCode installer and private Package
   recipe are available in the root [README](../README.md); current mechanics are in
   [distribution and installation](architecture/distribution-and-installation.md). The measured real
@@ -51,22 +60,23 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Upstream recuration, with the user.** The sync machinery checkpoint is spent: a deleted or
-   renamed source now reports as the build stop it is rather than as "auto-updated", a rename that
-   `--name-only` hides is caught by asking upstream whether the address still resolves, the candidate
-   universe is derived from output names instead of artifact kinds, an override standing in front of a
-   moved body is reported, and an excluded item no longer draws posture or candidate lines it cannot
-   have. Each fix carries a regression fixture that fails without it. The `dotnet-skills`,
-   `superpowers` and `mattpocock-skills` waves are closed. One remains: `dotnet-agent-skills` —
-   five non-applying patches, the estate's only upstream posture flip (`platform-detection`), an
-   analysis skill that gained a mutation step, and two new candidates. Read the live source and ask before semantic decisions;
-   parallelize advisory audits, never shared mutations. The active
-   [handover](agents/handover-prompts/s1-upstream-recuration-machinery.prompt.md) owns the pickup
-   commands and closeout deltas.
-2. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+1. **Two decisions the recuration left open.** `csharp-nullable-reference-types` arrived with the
+   `dotnet-skills` v1.5.0 pin and is still unanswered — knowledge content beside the existing manual
+   NRT migration ceremony. And the new OpenTelemetry body ships an example whose `EmitLogs` flag is
+   declared and never read, so the exception callback fires in the spans-only default the surrounding
+   prose promises; the item is unowned, so correcting it means opening a body.
+2. **A TUnit-first test-writing skill, as an original skill under `skills/`.** The estate ships no
+   test-writing knowledge: the corpus's only writer was MSTest-bound and excluded, and
+   `code-testing-agent` was left out for the same reason — its methodology half is good and runs
+   without its pipeline, but its only C# example is MSTest. Write ours instead, seeded by
+   `github/awesome-copilot`'s `csharp-tunit` (MIT) and current TUnit documentation, without that
+   skill's xUnit-migration half. Note the mechanism has never been exercised: `skills/` does not
+   exist yet, and an own skill is copied verbatim with no invocation dial, no lock, and no linker
+   scan of its outgoing references.
+3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    decide whether the intentionally upstream-owned Aspire proof limits are acceptable for a public
    package and whether `marketplace.json`'s format-required owner name and email may go public.
-3. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+4. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -77,7 +87,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-4. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+5. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    Keep it unwritten until the curation rule is stable enough to state the actual contract rather
@@ -178,11 +188,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `validate` should compare a Module's committed digest against the version that last shipped it.
 - **Inventory truncates descriptions at 140 characters** with no ellipsis marker — many rows cut
   mid-sentence, so curation sessions must open the upstream file to judge an item.
-- **`dotnet-agent-skills` is pinned at a nightly-adjacent tag** (`skill-validator-nightly-*`),
-  unlike the other four submodules, which sit on releases. Measured consequence during the general
-  curation pass: the globally installed `ms-dotnet-test-frameworks` skill does not exist at the
-  pin — its reference data lives inside `test-analysis-extensions` there. Hold or move is an open
-  decision for the next `npm run sync`.
+- **`dotnet-agent-skills` has no release-shaped pin to move to, and that is settled.** Its whole
+  repository carries two tags: a rolling `skill-validator-nightly` that marks a tool rather than a
+  release, and a `v1.0.0` hundreds of commits behind. `git describe` reports
+  `skill-validator-nightly-N-g<sha>` only because that tag is the nearest reachable one, which is
+  what made the pin look nightly. A reviewed `main` commit is the only available boundary; the
+  choice each sync is hold-or-move, not release-or-main. The `ms-dotnet-test-frameworks` skill the
+  earlier note expected to reappear has never existed on `main` at any point, so nothing is waiting
+  on it — its reference data lives inside `test-analysis-extensions`.
 - **Dead `invocable:` metadata in the Claude tree.** Upstream `dotnet-skills` sets
   `invocable: true|false`, which is a field in neither target harness. The OpenCode adapter now
   drops and reports it; the Claude tree still carries it, because that tree passes upstream

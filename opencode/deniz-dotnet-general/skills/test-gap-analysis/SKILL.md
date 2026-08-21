@@ -1,15 +1,9 @@
 ---
 name: test-gap-analysis
-description: "Performs pseudo-mutation analysis on production code in any
-  language to find gaps in existing tests. Use when the user asks to find weak
-  or shallow tests, discover untested edge cases, or check whether tests would
-  catch a bug — for example, whether a boundary, boolean, null, exception, or
-  arithmetic change would slip through. Confirms candidate survivors by applying
-  them and running the covering tests when execution is available. Polyglot:
-  .NET, Python, TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin,
-  PowerShell, and C++. DO NOT USE FOR: writing new tests; pragmatic anti-pattern
-  or qualitative assertion-depth audits; quantitative assertion-diversity
-  metrics; or running an actual mutation-testing framework."
+description: 'Find verified gaps in existing tests. USE FOR: "would tests catch
+  this bug?", weak tests, survived boundaries/guards/errors, or pseudo-mutation
+  analysis. Polyglot. DO NOT USE FOR: writing tests, smells/assertion audits, or
+  an actual mutation tool.'
 license: MIT
 ---
 
@@ -45,7 +39,7 @@ This skill uses **static pseudo-mutation** to find mutation candidates at the sp
 
 ## When Not to Use
 
-- User wants to write new tests from scratch (out of scope)
+- User wants to write tests from scratch (out of scope)
 - User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `test-anti-patterns` skill)
 - User wants quantitative assertion-diversity metrics (not provided by the curated set)
 - User wants to run an actual mutation testing framework (Stryker for .NET/JS/TS, mutmut for Python, PIT for Java, go-mutesting for Go, cargo-mutants for Rust, mutant for Ruby) — help them directly with the tool

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.3.1",
-  "digest": "sha256:7997be290e77ba0adfd9875355b159781468f7b62a89d451501da651ddf5375e",
+  "version": "0.4.0",
+  "digest": "sha256:ff9037655e7a4b8460e96af9cbb76cb0acb8ebc470b9e07de5571bd98fae734c",
   "files": {
     "agents/roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
@@ -37,7 +37,7 @@
       "mode": "100644"
     },
     "commands/generate-testability-wrappers.md": {
-      "sha256": "sha256:a5c87720a9836215439e34875d6000f7337ca39defe0d773686c0643fd4ff752",
+      "sha256": "sha256:f340a9595dfb65ca5fabc19d1520f87689fce8adcb7ea947197eebe330f7bdec",
       "mode": "100644"
     },
     "commands/migrate-nullable-references.md": {
@@ -117,27 +117,31 @@
       "mode": "100644"
     },
     "skills/convert-to-cpm/BODY.md": {
-      "sha256": "sha256:6bd7ff75c63908f58525a4517281d343ad2de2dd0f5c03ab70c7e51fafd6c371",
+      "sha256": "sha256:85d207c5c7d223e530741627da28377ffcd3d6f0b6bb8f211f27233491420f5a",
       "mode": "100644"
     },
     "skills/convert-to-cpm/references/audit-complexities.md": {
-      "sha256": "sha256:bc800008376654c72fbd25aca2a12ffbed4f3a99d8686292bb905db748292ae7",
+      "sha256": "sha256:7b6cdb3479d575bcab29d01e08712dde928eca47c47d56870b6cefa653d1a837",
       "mode": "100644"
     },
     "skills/convert-to-cpm/references/baseline-comparison.md": {
-      "sha256": "sha256:27375f972010499e3503fecdcab2ba60171bc50278889451a28dbb364ba1bb91",
+      "sha256": "sha256:9defb15f72a7dcaca41856ff5181be98f07972d06dd8d9a4c2d51069337ad3fb",
       "mode": "100644"
     },
     "skills/convert-to-cpm/references/directory-packages-props.md": {
-      "sha256": "sha256:f2a2fc03e206982fe03ba1b006e03aee3fb08740b28d336c876d21ee68e3a113",
+      "sha256": "sha256:eb6f9cfa3f79ee25df548b30729d2fcd3faa4fb905372cfcbd80ae7da70a61b2",
       "mode": "100644"
     },
     "skills/convert-to-cpm/references/msbuild-property-handling.md": {
-      "sha256": "sha256:3bc84372446e38af3336dd8161ad242938c70cfa4a3960c3e04a246d28d05063",
+      "sha256": "sha256:dd4cf1528b16589b73369afbec6f1dbf4fbff8d1cbb52c0108b3b3cfc4a326c8",
+      "mode": "100644"
+    },
+    "skills/convert-to-cpm/references/report-template.md": {
+      "sha256": "sha256:3dd5a11d62dfc39d270a9fb24a4c13790b05adf31aaf06717a3584a8523752e5",
       "mode": "100644"
     },
     "skills/convert-to-cpm/references/validation-and-errors.md": {
-      "sha256": "sha256:f60a06adec7f0deb3fc8b5ca10cda9e6446c54089dd8b0246dcc3fcd6e8c836a",
+      "sha256": "sha256:553c7674f04978a6e08f486156319c7c76a5a733d31c4a72b26be8946a4c5ccf",
       "mode": "100644"
     },
     "skills/copy-to-output-directory/SKILL.md": {
@@ -145,15 +149,27 @@
       "mode": "100644"
     },
     "skills/coverage-analysis/SKILL.md": {
-      "sha256": "sha256:19ec3b8ac3d283bb46f8a7ec72b9f7047d22c1d9ef82eaa7cbabed19df50f92c",
+      "sha256": "sha256:613e996bfac954fc9270b730e6e0c4eadc21d9fc78d0ffae316e1afa9e985fb3",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/guidelines.md": {
-      "sha256": "sha256:8e7bced5e4deb5e11b008f1d6f8ee69bd5f9a2bb743c9ccceb75f54a7f2790f1",
+      "sha256": "sha256:f5738895ba74c5853f87d8ed5beca839fae34e274e20550151efbbfdcc8219ec",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/output-format.md": {
       "sha256": "sha256:f2328f0250002c25276f51373ab3b935b15b41be09c161db02d3e22316ad78c4",
+      "mode": "100644"
+    },
+    "skills/coverage-analysis/references/report-generation.md": {
+      "sha256": "sha256:923ba6a89c3ba054dffb40398f33980548f5967a4dc8c6c52e372c8097b66c97",
+      "mode": "100644"
+    },
+    "skills/coverage-analysis/references/setup-discovery.md": {
+      "sha256": "sha256:f8b1c1726bbe8dce4f7825628232600b8ff5791fc7e08ff781e598e993201cd9",
+      "mode": "100644"
+    },
+    "skills/coverage-analysis/references/test-execution.md": {
+      "sha256": "sha256:b4b92390eadc8e508a09a9233c120895a217c0a12aca268c4eeed798b3a917c8",
       "mode": "100644"
     },
     "skills/coverage-analysis/scripts/Compute-CrapScores.ps1": {
@@ -177,7 +193,7 @@
       "mode": "100644"
     },
     "skills/database-performance/SKILL.md": {
-      "sha256": "sha256:92a2a489548f6ae582b031133904703759e62d8f7b5e9ef6198d712fb06c9021",
+      "sha256": "sha256:91494f44d59869172dd98f893e02112255caa126ded605de1f91f3dca2550025",
       "mode": "100644"
     },
     "skills/dependency-injection-patterns/SKILL.md": {
@@ -289,7 +305,7 @@
       "mode": "100644"
     },
     "skills/efcore-patterns/SKILL.md": {
-      "sha256": "sha256:43b5f636f210e000de544643b4a595df86c4397cb89c4b7d76acefb9e6883a90",
+      "sha256": "sha256:f6e233eeedded8232095e2a7daa8ca60e56edf3b3dc1584e0d30242f89d400ce",
       "mode": "100644"
     },
     "skills/eval-performance/SKILL.md": {
@@ -449,7 +465,7 @@
       "mode": "100644"
     },
     "skills/platform-detection/SKILL.md": {
-      "sha256": "sha256:12609f59e68dbb0aceaccd4fca6749e43df6a6d383970006d980a3f8087fbc7a",
+      "sha256": "sha256:70272e68ec87b04544f9600de9910fdefae8e7727308304ab0c7547124c680a7",
       "mode": "100644"
     },
     "skills/playwright-blazor-testing/SKILL.md": {
@@ -477,7 +493,7 @@
       "mode": "100644"
     },
     "skills/run-tests/SKILL.md": {
-      "sha256": "sha256:2dd2b199f13208fb0dc6e113b5623e065933c06b744df0685d31e027bbaea717",
+      "sha256": "sha256:cb593fb40d52a287c6bfcfda0048b51a8968a5de84014a9f90d375e8034f1f55",
       "mode": "100644"
     },
     "skills/serialization/SKILL.md": {
@@ -545,7 +561,7 @@
       "mode": "100644"
     },
     "skills/test-gap-analysis/SKILL.md": {
-      "sha256": "sha256:1fa0882763496b66f2d64a041723546d5d3180d33ae73ebd683c0dd509c58b26",
+      "sha256": "sha256:de4c6dfacd16e5a650bca2989bf6e7532483fa6caa07b27d405b7ec2b032e1c7",
       "mode": "100644"
     },
     "skills/testcontainers-integration-tests/SKILL.md": {

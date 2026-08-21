@@ -58,7 +58,7 @@
   "deniz-dotnet-general/binlog-failure-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis",
     "files": {
-      "SKILL.md": "a369a296dddd4e896ddb94c228644f18d33146db"
+      "SKILL.md": "c667959482c8b68f31509f8dcc415e36099c1684"
     }
   },
   "deniz-dotnet-general/build-parallelism": {
@@ -87,7 +87,18 @@
   "deniz-dotnet-general/coverage-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {
-      "SKILL.md": "58ec55788b80b450b2ab5255c2516a07b8ade2ab"
+      "SKILL.md": "aa29dfc7af56b951c675acff0f29746d25314c10"
+    }
+  },
+  "deniz-dotnet-general/database-performance": {
+    "source": "dotnet-skills/skills/database-performance",
+    "files": {
+      "SKILL.md": "38e63cc439d36a48fe2ced7763ec62e3ecf8dcac"
+    },
+    "mergeSources": {
+      "dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries": {
+        "SKILL.md": "7892ee5ea6b71c8c599df6bad49f86f5852ce0b6"
+      }
     }
   },
   "deniz-dotnet-general/detect-static-dependencies": {
@@ -115,6 +126,17 @@
       "SKILL.md": "c22ba5ca10cb48dd69c53dd87cebc165d6b21a58"
     }
   },
+  "deniz-dotnet-general/efcore-patterns": {
+    "source": "dotnet-skills/skills/efcore-patterns",
+    "files": {
+      "SKILL.md": "129f403bb0526045eb666ee5404149904eff87a5"
+    },
+    "mergeSources": {
+      "dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries": {
+        "SKILL.md": "7892ee5ea6b71c8c599df6bad49f86f5852ce0b6"
+      }
+    }
+  },
   "deniz-dotnet-general/eval-performance": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance",
     "files": {
@@ -124,7 +146,12 @@
   "deniz-dotnet-general/generate-testability-wrappers": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers",
     "files": {
-      "SKILL.md": "6fab470304ee1adcd431545c46f6c65c3674db95"
+      "SKILL.md": "45cc02750f62ae3ca9d511fabeb8adcb1668bf40"
+    },
+    "mergeSources": {
+      "dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle": {
+        "SKILL.md": "c9533e252b21c8854976ab2cb258b4260374707b"
+      }
     }
   },
   "deniz-dotnet-general/incremental-build": {
@@ -148,7 +175,7 @@
   "deniz-dotnet-general/run-tests": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
     "files": {
-      "SKILL.md": "f1e32266890dc7b7d8814cbf19bd4725a09bb2e1"
+      "SKILL.md": "ebdbaf54ebdd0068601a9ea62f5e8de71e4ab93b"
     }
   },
   "deniz-dotnet-general/snapshot-testing": {
@@ -183,7 +210,7 @@
   "deniz-dotnet-general/test-gap-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "files": {
-      "SKILL.md": "973a20dd33acb74a45ad6e8ab3d3009f93717f4d"
+      "SKILL.md": "8c5da01b92f3e184696aa496d49a1e8244203da6"
     }
   },
   "deniz-dotnet-general/testcontainers-integration-tests": {

@@ -419,6 +419,33 @@ await _db.Orders
 
 ---
 
+## Pattern 6: Compiled Queries on a Hot Path
+
+On a path that runs the *same* query shape thousands of times over a reused context, EF Core
+re-parses the LINQ expression tree and probes its query cache on every call. When the query is
+already minimal — an indexed lookup or a small projection — and `AsNoTracking` buys nothing, that
+per-call translation is the remaining cost. Compile once with `EF.CompileQuery` /
+`EF.CompileAsyncQuery` and reuse the delegate:
+
+```csharp
+private static readonly Func<AppDbContext, int, ProductListItem> GetProduct =
+    EF.CompileQuery((AppDbContext db, int id) =>
+        db.Products.Where(p => p.Id == id)
+                   .Select(p => new ProductListItem(p.Id, p.Name, p.Price))
+                   .First());
+
+public ProductListItem Lookup(AppDbContext db, int id) => GetProduct(db, id);
+```
+
+The delegate is `static`, so it compiles once, and takes the `DbContext` plus each parameter as
+arguments. Reach for it on endpoints or loops that execute one query shape at very high frequency; it
+does nothing for a one-off query, and it is the last thing to try rather than the first — a
+non-sargable predicate or an N+1 costs far more than translation does.
+
+**Verify:** the hot loop's mean time drops with identical results.
+
+---
+
 ## Common Pitfalls
 
 ### 1. Forgetting to Update When NoTracking

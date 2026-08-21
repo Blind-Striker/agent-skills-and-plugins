@@ -19,13 +19,15 @@
 # `filter-syntax` skill") — candidate-tier by ADR-0008, never build state merely because a body is
 # patched. An upstream-authored namespaced fact is retained only when its curated target exists and
 # is declared with exact `depends_on`. The reference husks (filter-syntax, platform-detection,
-# test-analysis-extensions) are taken `auto`, which is the grammar's answer to upstream's
-# user-invocable:false + disable-model-invocation:true "neither" class: model loads them by name,
-# users never see them.
+# test-analysis-extensions) are taken `auto`: model loads them by name, users never see them. For
+# filter-syntax and test-analysis-extensions that matches upstream's own
+# user-invocable:false + disable-model-invocation:true "neither" class. platform-detection left that
+# class upstream — it is now an ALWAYS-USE skill there — so its husk posture is this repo's choice,
+# held by the invocation dial and its description override rather than inherited.
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.3.1
+  version: 0.4.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -50,8 +52,16 @@ items:
     invocation: auto # Options/IValidateOptions/ValidateOnStart — clean, current
   - source: dotnet-skills/skills/efcore-patterns
     invocation: auto # EF usage patterns: tracking, migrations, split queries
+    body: patch # absorbs the EF-Core-specific half of the excluded optimizing-ef-core-queries:
+    # EF.CompileQuery on a hot path, framed as the last thing to try rather than the first
+    merged_from: [dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries]
   - source: dotnet-skills/skills/database-performance
     invocation: auto # data-access architecture/perf — a different job from efcore-patterns despite the overlap; merging costs more than it saves
+    body: patch # absorbs the SQL-level half of the excluded optimizing-ef-core-queries: predicate
+    # sargability and keyset pagination. Both are engine-level rather than EF-level — the same
+    # predicate written in Dapper scans for the same reason — so this skill, which already spans
+    # EF Core and Dapper and already teaches offset paging, is where they belong
+    merged_from: [dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries]
   - source: dotnet-skills/skills/opentelementry-dotnet-instrumentation
     invocation: auto # manual instrumentation (Activities/metrics/logs); complements, not duplicates, the MS setup skill below
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/configuring-opentelemetry-dotnet
@@ -135,10 +145,12 @@ items:
       # upstream's loader list names migrate-vstest-to-mtp (excluded); this is the surviving truth
       description: "Reference data for test filter syntax across all platform and framework combinations: VSTest --filter expressions, MTP filters for MSTest/NUnit/xUnit v3/TUnit, and VSTest-to-MTP filter translation. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need filter syntax."
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/platform-detection
-    invocation: auto # reference husk: VSTest-vs-MTP + framework detection
+    invocation: auto # reference husk posture, and now ours rather than upstream's: it dropped its own
+    # user-invocable:false + disable-model-invocation:true and became an ALWAYS-USE detection skill.
+    # The dial holds the posture; the override below holds the selection surface.
     frontmatter:
       # same reason as filter-syntax
-      description: "Reference data for detecting the test platform (VSTest vs Microsoft.Testing.Platform) and test framework (MSTest, xUnit, NUnit, TUnit) from project files. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need detection logic."
+      description: "Reference data for detecting the .NET test platform (VSTest vs Microsoft.Testing.Platform), test framework (MSTest, xUnit, NUnit, TUnit), and project system (SDK-style vs classic non-SDK/packages.config) from project files. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need detection logic."
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions
     invocation: auto # reference husk: per-language lookup tables for the audit pair (incl. TUnit at this pin)
     body: patch # its consumer lists named five skills and an agent; only two consumers survive here
@@ -162,7 +174,9 @@ items:
     body: patch # reports the two manual ceremonies for the user to invoke separately
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
     invocation: manual # writes production abstractions + DI registrations — typed deliberately, never model-fired
-    body: patch # user invokes the migration ceremony separately after wrapper creation
+    body: patch # user invokes the migration ceremony separately after wrapper creation, plus the
+    # merged ambient-seam corrections below
+    merged_from: [dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
     invocation: manual # codemod across a bounded scope — typed deliberately
     body: patch # user invokes the wrapper-creation ceremony separately first
@@ -239,18 +253,36 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/crap-score
     exclude: true # a second CRAP surface duplicating coverage-analysis; one authoritative capability, not two
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/assertion-quality
-    exclude: true # subsumed by test-anti-patterns' broader audit
+    exclude: true # subsumed by test-anti-patterns' broader audit; its description is now MANDATORY
+    # upstream, so taking it would trigger-compete with that audit and with test-gap-analysis
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-smell-detection
     exclude: true # its 19-smell claim is honest (10 core + 9 by reference) but its distinct value over test-anti-patterns is academic citability only
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-tagging
     exclude: true # description names 9 tags, body defines 15, and it silently edits tests — taxonomy + contract both unstable
   - source: dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries
-    exclude: true # weaker duplicate of efcore-patterns + database-performance (taken)
+    exclude: true # not rejected — merged, and split by level: the upstream rewrite stopped being a
+    # weaker duplicate and grew three things neither taken skill had. Sargability and keyset paging
+    # are SQL-level, so they went into database-performance; EF.CompileQuery is an EF Core API, so it
+    # went into efcore-patterns. Taking it whole would put a third data auto in trigger competition
+    # with both, the same reason csharp-type-design-performance is excluded above
   - source: dotnet-agent-skills/plugins/dotnet-data/skills/create-datadriven-aspnetcore
     exclude: true # scaffolding sprawl across API+EF+UI; no cleanly bounded job
   # --- framework fit (curator: TUnit primary, xUnit occasional, NUnit/MSTest never) ---
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle
+    exclude: true # not rejected — merged: its ambient-seam corrections live inside
+    # generate-testability-wrappers now. It caught a real defect there: the shipped scope example
+    # cleared the slot on dispose while the rule printed beneath it asked for the previous value
+    # restored, so nesting lost the outer override. Its own remaining half writes the tests, which
+    # belongs to the TUnit-first own skill (docs/ROADMAP.md), and a fourth member would put a second
+    # seam-building entry point beside the deliberately bounded testability trio.
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/scaffold-dotnet-test-project
+    exclude: true # scaffolds via `dotnet new xunit|nunit|mstest` with no TUnit path and no detection;
+    # it would occupy the slot the TUnit-first own skill is for, and both its code-testing-agent and
+    # writing-mstest-tests handoffs are excluded here
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/writing-mstest-tests
-    exclude: true # the corpus's only test-writing skill, but MSTest fires in no repo the curator keeps; no TUnit-writing skill exists upstream (own-skill candidate); the TUnit-first replacement is a deferred own skill (docs/ROADMAP.md)
+    exclude: true # MSTest fires in no repo the curator keeps. Upstream has since demoted it from
+    # test-writing to MSTest API review and handed generation to code-testing-agent (also excluded);
+    # the TUnit-first replacement is an own skill (docs/ROADMAP.md)
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v1v2-to-v3
     exclude: true # shrinking legacy + MSTest unused
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-mstest-v3-to-v4
@@ -259,7 +291,11 @@ items:
     exclude: true # converts toward a framework the curator never uses
   # --- orchestration glue that survives neither harness ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent
-    exclude: true # the pipeline's public face; its value is subagent orchestration that both harness outputs drop, and deniz-process already owns how work gets done
+    exclude: true # test-writing is reserved for the TUnit-first own skill (docs/ROADMAP.md), and this
+    # one's only C# example is MSTest. Not excluded for its pipeline: the body sizes itself, skips the
+    # fan-out and the .testagent/ artifacts for focused work, and says to run the sequence inline when
+    # the generator agent is absent. Its methodology half — a test must fail under a plausible bug —
+    # is worth carrying into the own skill.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-extensions
     exclude: true # reference husk for the excluded pipeline only; no taken dependent
   - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-builder.agent.md
@@ -285,7 +321,9 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/agents/test-migration.agent.md
     exclude: true # migration router; high-impact migrations are chosen deliberately, not classified into
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/msbuild.agent.md
-    exclude: true # router shell; the taken skills carry the knowledge
+    exclude: true # router shell; the taken skills carry the knowledge. Its output name collides with
+    # the MSBuild executable, so a candidate scan over this Module returns ~76 hits for it — every one
+    # a CLI invocation or an issue URL, none a reference to this agent. Drop them without re-reading.
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/msbuild-code-review.agent.md
     exclude: true # its substantive rules live in msbuild-antipatterns (taken)
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/build-perf.agent.md
@@ -367,7 +405,9 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-dotnet10-to-dotnet11
     exclude: true # explicitly Preview-3 facts upstream; revisit at .NET 11 GA
   - source: dotnet-agent-skills/plugins/dotnet-ai/skills/technology-selection
-    exclude: true # AI/ML library selection: unstable prerelease claims, malformed snippets upstream, and a separate concern from this module
+    exclude: true # AI/ML library selection is a separate concern from this module. (Upstream has
+    # since labelled the prereleases and moved the malformed snippets into references — the scope
+    # call, not the quality call, is what keeps this out)
   - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-simd-vectorization
     exclude: true # mandates `dotnet run` as verification even for test projects; extreme niche
   - source: dotnet-skills/skills/playwright-ci-caching
@@ -387,6 +427,8 @@ items:
     exclude: true # upstream contributor tooling; its agentic-workflows path reference is stale upstream
   - source: dotnet-agent-skills/.agents/skills/create-custom-agent
     exclude: true # scaffolds VS Code custom agents — upstream authoring, not a .NET product capability
+  - source: dotnet-agent-skills/.agents/skills/improve-skill-quality
+    exclude: true # upstream eval-triage tooling for dotnet/skills' own skills and evals
   - source: dotnet-agent-skills/.agents/skills/create-skill
     exclude: true # upstream skill-repo scaffolding
   - source: dotnet-agent-skills/.agents/skills/create-skill-test
