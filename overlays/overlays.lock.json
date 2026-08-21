@@ -194,6 +194,13 @@
       "infrastructure-patterns.md": "de33ff0f4683961c131a058cea90de54a15619ed"
     }
   },
+  "deniz-process/ask-deniz": {
+    "source": "mattpocock-skills/skills/engineering/ask-matt",
+    "files": {
+      "PHASE-BOUNDARIES.md": "fb58ef9febcfd558cdb4517e370f19034869ba26",
+      "SKILL.md": "ae8eb9b211972d9ae584b41d0f1439c644494fc7"
+    }
+  },
   "deniz-process/implement": {
     "source": "mattpocock-skills/skills/engineering/implement",
     "files": {
@@ -208,7 +215,7 @@
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/code-review": {
-        "SKILL.md": "2a0b5240731b927caa9ac0bf43c3e2af9dc3f0a7",
+        "SKILL.md": "e28d7acbf7b3bb4d7817b7eb5d9c105af03f6ec4",
         "code-reviewer.md": null
       }
     }
@@ -216,7 +223,7 @@
   "deniz-process/research": {
     "source": "mattpocock-skills/skills/engineering/research",
     "files": {
-      "SKILL.md": "0ba594a07f306479baa67104381f48e209ab6aae"
+      "SKILL.md": "fecee97e9457ba039678d2fcf1b1bc9fca78307d"
     }
   },
   "deniz-process/systematic-debugging": {
@@ -226,7 +233,7 @@
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/diagnosing-bugs": {
-        "SKILL.md": "f400de7c1937377fec7ff9bae3b0c072670f1e81"
+        "SKILL.md": "061c25a524acaa93d4534e9e08a793c0a5fe45fd"
       }
     }
   },
@@ -238,7 +245,7 @@
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/tdd": {
-        "SKILL.md": "9a2e1d2a1ad856b0d5903dd002209ff8c32c9a48",
+        "SKILL.md": "8fc086710806190ee7c4baa32089cb877a75736a",
         "mocking.md": "71cbfee674d93244ce81d1830b930ca9a69200bd"
       }
     }

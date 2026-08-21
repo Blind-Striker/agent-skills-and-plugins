@@ -37,6 +37,15 @@ regressions, build failures, integration issues.
 **Don't skip when:** the issue seems simple (simple bugs have root causes too), you're in a hurry
 (systematic is faster than thrashing), or someone wants it fixed NOW.
 
+## Redact
+
+This skill has you show commands, outputs and captured artifacts. **Redact every secret first**:
+write `<REDACTED>` in its place. Build loops against env vars, so the credential stays in the
+environment rather than in what you show. Captured artifacts carry auth headers: quote only the
+lines that carry the signal.
+
+If the redacted output is not enough to diagnose the bug, say so and ask your human partner.
+
 ## Phase 1 — Build a Feedback Loop
 
 **This is the skill. Everything else is mechanical.** If you have a **tight** pass/fail signal
@@ -85,14 +94,14 @@ not — keep raising the rate until it is.
 ### When you genuinely cannot build a loop
 
 Stop and say so explicitly. List what you tried. Ask your human partner for (a) access to the
-environment that reproduces it, (b) a captured artifact (HAR file, log dump, core dump,
+environment that reproduces it, (b) a redacted captured artifact (HAR file, log dump, core dump,
 recording with timestamps), or (c) permission to add temporary production instrumentation.
 Do **not** proceed to hypothesise without a loop.
 
 ### Completion criterion — one command that goes red
 
 Phase 1 is done when you can name **one command** — a script path, a test invocation, a curl —
-that you have **already run at least once** (paste the invocation and its output), and that is:
+that you have **already run at least once** (show the invocation and its output, redacted), and that is:
 
 - [ ] **Red-capable** — it drives the actual bug code path and asserts the **user's exact
       symptom**, so it goes red on this bug and green once fixed.

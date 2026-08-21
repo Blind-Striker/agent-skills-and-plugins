@@ -58,6 +58,7 @@ const manifests: CurationManifest[] = [
       { source: "sp/skills/host", body: "overlay", merged_from: [{ source: "mp/skills/beta" }] },
       { source: "sp/skills/overridden", frontmatter: { description: "ours" } },
       { source: "sp/skills/owned", body: "overlay", frontmatter: { description: "ours" } },
+      { source: "sp/skills/pinned", invocation: "auto" },
     ],
   },
 ];
@@ -157,6 +158,42 @@ test("a passthrough item's invocation flip is reported as posture drift", () => 
       (l) => l.includes("POSTURE") && l.includes("disable-model-invocation") && l.includes("undefined -> true"),
     ),
   );
+});
+
+// A stated invocation wins, so the flip does not reach output — but upstream changing its mind about
+// who triggers a skill is exactly the evidence the stated intent was weighed against. Reporting only
+// passthrough items made the one real case in this estate (platform-detection, pinned `auto` while
+// upstream dropped both of its own posture keys) invisible to the report.
+test("a posture flip under a stated invocation is reported, and says it does not reach output", () => {
+  const lines = syncReport("sp", ["skills/pinned/SKILL.md"], manifests, {
+    ...NO_IO,
+    readFile: oneFile(
+      "skills/pinned/SKILL.md",
+      "---\nname: pinned\ndescription: a\ndisable-model-invocation: true\nuser-invocable: false\n---\nB.\n",
+      "---\nname: pinned\ndescription: a\n---\nB.\n",
+    ),
+  });
+  const posture = lines.filter((l) => l.includes("POSTURE"));
+  assert.equal(posture.length, 2);
+  for (const l of posture) {
+    assert.match(l, /invocation: auto replaces this key, so it does not reach output/);
+    assert.match(l, /re-ask whether the stated intent still holds/);
+  }
+});
+
+// The description is not an invocation key, so a stated invocation does not shield it: it flows.
+test("a description flip under a stated invocation still flows into output", () => {
+  const lines = syncReport("sp", ["skills/pinned/SKILL.md"], manifests, {
+    ...NO_IO,
+    readFile: oneFile(
+      "skills/pinned/SKILL.md",
+      "---\nname: pinned\ndescription: narrow\n---\nB.\n",
+      "---\nname: pinned\ndescription: much broader now\n---\nB.\n",
+    ),
+  });
+  const posture = lines.find((l) => l.includes("POSTURE description"));
+  assert.ok(posture);
+  assert.match(posture, /this flows straight into output/);
 });
 
 test("a pin move touching a merge source tags the merged item even across submodules", () => {

@@ -13,6 +13,9 @@ import { candidateHits } from "./lib/refs.ts";
  */
 const POSTURE_KEYS = ["disable-model-invocation", "user-invocable", "description"] as const;
 
+/** The two POSTURE_KEYS a stated `invocation:` overwrites; `description` is not one of them. */
+const CLAUDE_INVOCATION_KEYS: readonly string[] = ["disable-model-invocation", "user-invocable"];
+
 /** Reading upstream at either pin — the only impure thing the report needs, so it comes in. */
 export interface SyncIO {
   /** File content at the old/new pin, or null when the path is unreadable there. */
@@ -167,14 +170,23 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
         continue;
       }
       if (fa) {
-        if (!item.invocation) {
-          for (const k of POSTURE_KEYS) {
-            if (JSON.stringify(fa[k]) !== JSON.stringify(fb[k])) {
-              lines.push(
-                `${m.plugin.name}: ${item.source} POSTURE ${k}: ${show(fa[k])} -> ${show(fb[k])} (passthrough item — this flows straight into output)`,
-              );
-            }
+        // Reported whether or not the item states an invocation. A stated one wins, so the flip does
+        // not reach output — but upstream changing its mind about who triggers a skill is the
+        // evidence the stated intent was weighed against, and it is the one thing a curator has to
+        // re-ask on. Reporting only passthrough items made exactly that silent.
+        for (const k of POSTURE_KEYS) {
+          if (JSON.stringify(fa[k]) === JSON.stringify(fb[k])) {
+            continue;
           }
+          let consequence = "this flows straight into output";
+          if (CLAUDE_INVOCATION_KEYS.includes(k) && item.invocation) {
+            consequence = `invocation: ${item.invocation} replaces this key, so it does not reach output — but upstream changed its mind about who triggers this item, so re-ask whether the stated intent still holds`;
+          } else if (k === "description" && item.frontmatter?.[k] !== undefined) {
+            consequence = "a frontmatter override replaces this key, so it does not reach output";
+          }
+          lines.push(
+            `${m.plugin.name}: ${item.source} POSTURE ${k}: ${show(fa[k])} -> ${show(fb[k])} (${consequence})`,
+          );
         }
         // An override merges in AFTER body assembly and carries no upstream stamp, so an upstream
         // rewrite never makes it drift: it goes on describing the body it was written against, and

@@ -31,11 +31,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `superpowers` is at `b36e082` (v6.3.0): the `using-superpowers` patch was recut over upstream's
   new platform line, the `requesting-code-review` overlay absorbed upstream's no-subagent contract
   before re-blessing, and the `brainstorming` description override was rewritten to cover all three
-  of upstream's paths instead of only the architectural one. `mattpocock-skills` and
-  `dotnet-agent-skills` remain at their pre-initiative pins. One reference-audit finding stands
-  against the current estate: `setup-matt-pocock-skills` still lists the deleted, never-curated
-  `qa` among the skills that read the issue tracker; upstream removes that mention at the
-  `mattpocock-skills` target, so the Matt wave retires it without a curation change.
+  of upstream's paths instead of only the architectural one. `mattpocock-skills` is at `0ab1b63` (v1.2.3-33):
+  the deleted `writing-great-skills` source was replaced by `writing-for-agents` rather than
+  patched around, the `research` patch was recut so upstream's own wording survives as its context,
+  three merge sources were re-blessed and `diagnosing-bugs`' secret-redaction rules were absorbed
+  into the owned `systematic-debugging` body, `wait-what`, `to-questionnaire` and `wizard` were
+  taken as `manual`, ten read-and-rejected components were recorded as exclusions, and `ask-matt`
+  became the owned router `ask-deniz`. `deniz-process` is 0.3.0. `dotnet-agent-skills` remains at
+  its pre-initiative pin. Its corpus is now fully answered: the module's only never-curated
+  scanner-visible name is `csharp-nullable-reference-types`, still deliberately open.
 - The repository remains private. The emitted global-only OpenCode installer and private Package
   recipe are available in the root [README](../README.md); current mechanics are in
   [distribution and installation](architecture/distribution-and-installation.md). The measured real
@@ -52,12 +56,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    `--name-only` hides is caught by asking upstream whether the address still resolves, the candidate
    universe is derived from output names instead of artifact kinds, an override standing in front of a
    moved body is reported, and an excluded item no longer draws posture or candidate lines it cannot
-   have. Each fix carries a regression fixture that fails without it. The `dotnet-skills` and
-   `superpowers` waves are closed. Two remain, both carrying material body, invocation,
-   source-identity and overlay drift: `mattpocock-skills` (a curated source deleted upstream, four
-   lock drifts, a non-applying patch, three new candidates, and a rewritten `grilling`) and
-   `dotnet-agent-skills` (five non-applying patches, a posture flip, an analysis skill that gained a
-   mutation step, and two new candidates). Read the live source and ask before semantic decisions;
+   have. Each fix carries a regression fixture that fails without it. The `dotnet-skills`,
+   `superpowers` and `mattpocock-skills` waves are closed. One remains: `dotnet-agent-skills` —
+   five non-applying patches, the estate's only upstream posture flip (`platform-detection`), an
+   analysis skill that gained a mutation step, and two new candidates. Read the live source and ask before semantic decisions;
    parallelize advisory audits, never shared mutations. The active
    [handover](agents/handover-prompts/s1-upstream-recuration-machinery.prompt.md) owns the pickup
    commands and closeout deltas.
@@ -164,6 +166,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   of a body that moved, so a pin move surfaces it for rereading. There is still no stamp and no
   build-time guard, so an override can go stale between pin moves without anything saying so.
   See the [transformation limit](architecture/transformation-and-emission.md#current-limits).
+- **Six Aspire items never got an invocation decision.** `aspire`, `aspire-init`, `aspireify`,
+  `aspire-orchestration`, `aspire-deployment` and `aspire-monitoring` state no `invocation:`, so
+  Microsoft's own frontmatter posture passes straight through and a future flip would land in output
+  unreviewed — the class of surprise `platform-detection` turned out to be. `npm run sync` now
+  reports such a flip, but the dial itself is still unset. Decide each of the six, or record that
+  passthrough is the intent.
 - **The Module version bump is policy, not a gate.** [`workflow.md`](engineering/workflow.md)
   now states when `plugin.version` moves, but nothing enforces it: a wave can change a Module's
   emitted bytes and leave its version alone, and only the Bundle digest would notice. Decide whether

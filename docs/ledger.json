@@ -2455,6 +2455,41 @@
       "parked": []
     }
   },
+  "deniz-process/skill/ask-deniz": {
+    "source": "mattpocock-skills/skills/engineering/ask-matt",
+    "invocation": "manual",
+    "body": "overlay",
+    "description": "Ask which skill or flow fits your situation. A router over the skills in this module.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "BODY.md",
+        "PHASE-BOUNDARIES.md"
+      ]
+    }
+  },
   "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
@@ -2544,7 +2579,7 @@
   "deniz-process/skill/domain-modeling": {
     "source": "mattpocock-skills/skills/engineering/domain-modeling",
     "invocation": "auto",
-    "description": "Build and sharpen a project's domain model. Use when the user wants to pin down domain terminology or a ubiquitous language, record an architectural decision, or when another skill needs to maintain the domain model.",
+    "description": "Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a CONTEXT.md, or recording or editing an ADR.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3000,7 +3035,7 @@
   "deniz-process/skill/setup-matt-pocock-skills": {
     "source": "mattpocock-skills/skills/engineering/setup-matt-pocock-skills",
     "invocation": "manual",
-    "description": "Configure this repo for the engineering skills — set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.",
+    "description": "Configure this repo for the engineering skills: set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3200,10 +3235,41 @@
       "parked": []
     }
   },
+  "deniz-process/skill/to-questionnaire": {
+    "source": "mattpocock-skills/skills/productivity/to-questionnaire",
+    "invocation": "manual",
+    "description": "Turn a decision you can't fully answer into a questionnaire for someone else to fill in.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
   "deniz-process/skill/to-spec": {
     "source": "mattpocock-skills/skills/engineering/to-spec",
     "invocation": "manual",
-    "description": "Turn the current conversation into a spec and publish it to the project issue tracker — no interview, just synthesis of what you've already discussed.",
+    "description": "Turn the current conversation into a spec and publish it to the project issue tracker: no interview, just synthesis of what you've already discussed.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3234,7 +3300,7 @@
   "deniz-process/skill/to-tickets": {
     "source": "mattpocock-skills/skills/engineering/to-tickets",
     "invocation": "manual",
-    "description": "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker — edges as text in one file per ticket locally, or native blocking links on a real tracker.",
+    "description": "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker (edges as text in one file per ticket locally, or native blocking links on a real tracker).",
     "claude": {
       "artifacts": [
         "skill"
@@ -3265,7 +3331,7 @@
   "deniz-process/skill/triage": {
     "source": "mattpocock-skills/skills/engineering/triage",
     "invocation": "manual",
-    "description": "Move issues and external PRs through a state machine of triage roles — categorise, verify, grill if needed, and write agent-ready briefs.",
+    "description": "Move issues and external PRs through a state machine of triage roles, categorise, verify, grill if needed, and write agent-ready briefs.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3399,10 +3465,10 @@
       "parked": []
     }
   },
-  "deniz-process/skill/wayfinder": {
-    "source": "mattpocock-skills/skills/engineering/wayfinder",
+  "deniz-process/skill/wait-what": {
+    "source": "mattpocock-skills/skills/productivity/wait-what",
     "invocation": "manual",
-    "description": "Plan a huge chunk of work — more than one agent session can hold — as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.",
+    "description": "Stop. That last message did not land: re-pitch it.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3430,10 +3496,41 @@
       "parked": []
     }
   },
-  "deniz-process/skill/writing-great-skills": {
-    "source": "mattpocock-skills/skills/productivity/writing-great-skills",
+  "deniz-process/skill/wayfinder": {
+    "source": "mattpocock-skills/skills/engineering/wayfinder",
     "invocation": "manual",
-    "description": "Reference for writing and editing skills well — the vocabulary and principles that make a skill predictable.",
+    "description": "Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-process/skill/wizard": {
+    "source": "mattpocock-skills/skills/engineering/wizard",
+    "invocation": "manual",
+    "description": "Generate an interactive bash wizard that walks a human through steps only they can perform. Use when provisioning infrastructure, setting up credentials or CI secrets, walking an unfamiliar third-party dashboard, or running a one-off migration or cutover. Don't invoke this for steps the agent can perform itself.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3460,7 +3557,41 @@
       ],
       "parked": [
         "BODY.md",
-        "GLOSSARY.md"
+        "template.sh"
+      ]
+    }
+  },
+  "deniz-process/skill/writing-for-agents": {
+    "source": "mattpocock-skills/skills/productivity/writing-for-agents",
+    "invocation": "manual",
+    "description": "Writing documents for agents. Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "command"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "name"
+      ],
+      "parked": [
+        "BODY.md",
+        "SKILL-MECHANICS.md"
       ]
     }
   },

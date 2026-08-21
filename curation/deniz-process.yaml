@@ -17,7 +17,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.2.1
+  version: 0.3.0
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -195,8 +195,31 @@ items:
   - source: mattpocock-skills/skills/productivity/teach
     invocation: manual # upstream's own flag; stateful learning workspace, wanted around
     omit: ["agents/**"]
-  - source: mattpocock-skills/skills/productivity/writing-great-skills
-    invocation: manual # upstream's own flag; authoring vocabulary — complement, not substitute, of writing-skills
+  - source: mattpocock-skills/skills/productivity/writing-for-agents
+    invocation: manual # curator's call now, not upstream's flag: upstream deleted writing-great-skills,
+    # rewrote it under this name, broadened it from skills to any agent-consumed document, and dropped
+    # its disable-model-invocation. Its new trigger fires on "modifying AGENTS.md or CLAUDE.md", which
+    # is ordinary canon work in this repo, so the trigger stays in the curator's hand. Still the
+    # complement, not the substitute, of writing-skills: that one is a TDD-for-skills testing
+    # methodology, this one is the design vocabulary — and both being manual, neither competes.
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/productivity/wait-what
+    invocation: manual # upstream's own flag, and the right one: a mid-conversation corrective typed
+    # when a message did not land. Nine lines, no dependencies; leans on CONTEXT.md and asks for
+    # Simplified Technical English, which is the whole point of it.
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/productivity/to-questionnaire
+    invocation: manual # upstream's own flag; graduated out of in-progress. Dependency-free and the
+    # inverse of grill-me: it interviews about the recipient rather than the subject, then aims the
+    # questions at the gap. Feeds grill-with-docs and to-spec, both taken.
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/wizard
+    invocation: manual # curator's call, diverging from upstream: it graduated out of in-progress AS a
+    # model-invoked skill, and its trigger ("provisioning infrastructure, setting up credentials or CI
+    # secrets") would let the model reach for a credential-writing script generator on its own. The
+    # generated script writes plaintext .env values and runs `gh secret set` against a real repo, so
+    # the human pulls this trigger. template.sh is deliberately NOT omitted: the body's central
+    # instruction is to copy it and never hand-edit it, so omitting it would break the skill.
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/code-review
     exclude: true # not rejected — merged: the standards axis, the smell baseline, the range
@@ -207,9 +230,38 @@ items:
     # test-driven-development overlay. Taking it as well would put two auto TDD skills in trigger
     # competition, the same reason diagnosing-bugs is excluded above.
   - source: mattpocock-skills/skills/engineering/ask-matt
-    exclude: true # the router over upstream's own set — it would lie about ours (diagnosing-bugs
-    # merged away, names differ), and nothing routes except the curator (ADR-0007)
+    name: ask-deniz # it is a map of THIS module, so it carries this module's name
+    invocation: manual # you ask it; it never volunteers
+    body: overlay # a router is the one artifact selection alone cannot curate. Upstream maps
+    # upstream's own set, so every name in it is either right by luck or wrong on arrival: tdd,
+    # code-review and diagnosing-bugs are merged away here, half this module is superpowers, and
+    # /clear and /compact are Claude-only spellings. The shape is upstream's and worth keeping — main
+    # flow, on-ramps, vocabulary underneath, phase boundaries — the routing is ours.
+    omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---
+  # --- mattpocock components read and rejected, kept visible so a pin move does not re-raise them ---
+  - source: mattpocock-skills/skills/in-progress/loop-me
+    exclude: true # spec-grilling wrapper over grilling (taken); the grill entry points already cover it
+  - source: mattpocock-skills/skills/in-progress/setup-ts-deep-modules
+    exclude: true # wires dependency-cruiser into a TS repo; a one-off setup for a boundary discipline
+    # this estate does not run
+  - source: mattpocock-skills/skills/in-progress/writing-fragments
+    exclude: true # article-writing hat trick (explore); this module writes canon, not articles
+  - source: mattpocock-skills/skills/in-progress/writing-shape
+    exclude: true # article-writing hat trick (shape) — same reason as writing-fragments
+  - source: mattpocock-skills/skills/in-progress/writing-beats
+    exclude: true # article-writing hat trick (exploit) — same reason as writing-fragments
+  - source: mattpocock-skills/skills/in-progress/claude-handoff
+    exclude: true # overlaps the taken handoff, and its name binds it to one harness
+  - source: mattpocock-skills/skills/misc/git-guardrails-claude-code
+    exclude: true # installs Claude Code hooks; harness-specific setup with no OpenCode equivalent,
+    # and hook installation is deliberately off here (hooks.include stays empty)
+  - source: mattpocock-skills/skills/misc/migrate-to-shoehorn
+    exclude: true # test migration bound to one library (@total-typescript/shoehorn)
+  - source: mattpocock-skills/skills/misc/scaffold-exercises
+    exclude: true # scaffolds course exercise directories — upstream author's own teaching workflow
+  - source: mattpocock-skills/skills/misc/setup-pre-commit
+    exclude: true # installs Husky + lint-staged + Prettier; this estate formats with Biome
   - source: superpowers/skills/dispatching-parallel-agents
     invocation: auto # dependency-free dispatch knowledge; research's stitch points at it
   - source: superpowers/skills/writing-skills
