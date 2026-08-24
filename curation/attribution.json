@@ -1,0 +1,44 @@
+{
+  "asd-ste100": {
+    "name": "ASD-STE100 skill",
+    "repository": "https://github.com/danyuchn/asd-ste100-skill",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 Dustin Yuchen Teng",
+    "licenseFile": "LICENSE"
+  },
+  "aspire-skills": {
+    "name": "Aspire skills",
+    "repository": "https://github.com/microsoft/aspire-skills",
+    "license": "MIT",
+    "copyright": "Copyright (c) Microsoft Corporation.",
+    "licenseFile": "LICENSE"
+  },
+  "dotnet-agent-skills": {
+    "name": ".NET agent skills",
+    "repository": "https://github.com/dotnet/skills",
+    "license": "MIT",
+    "copyright": "Copyright (c) .NET Foundation and Contributors",
+    "licenseFile": "LICENSE"
+  },
+  "dotnet-skills": {
+    "name": "dotnet-skills",
+    "repository": "https://github.com/Aaronontheweb/dotnet-skills",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2025 Aaron Stannard <https://aaronstannard.com/>",
+    "licenseFile": "LICENSE"
+  },
+  "mattpocock-skills": {
+    "name": "Matt Pocock skills",
+    "repository": "https://github.com/mattpocock/skills",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 Matt Pocock",
+    "licenseFile": "LICENSE"
+  },
+  "superpowers": {
+    "name": "Superpowers",
+    "repository": "https://github.com/obra/superpowers",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2025 Jesse Vincent",
+    "licenseFile": "LICENSE"
+  }
+}

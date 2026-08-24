@@ -133,6 +133,26 @@ test("mutations print a plan and require --yes", async () => {
   assert.doesNotMatch(`${applied.stdout}${applied.stderr}`, new RegExp(escapeRegExp(fixture.io.packageRoot)));
 });
 
+test("Bundle distribution metadata is verified but not installed into the Native tree", async () => {
+  const fixture = makeCliFixture();
+  writeBundle(fixture.io.packageRoot, "deniz-process", {
+    LICENSE: "repository license\n",
+    "THIRD_PARTY_NOTICES.md": "third-party notices\n",
+    "third_party/source/LICENSE": "source license\n",
+    "skills/alpha/SKILL.md": "alpha skill\n",
+  });
+
+  const applied = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+
+  assert.equal(applied.exitCode, 0, `${applied.stdout}${applied.stderr}`);
+  assert.ok(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")));
+  assert.equal(existsSync(join(fixture.destination, "LICENSE")), false);
+  assert.equal(existsSync(join(fixture.destination, "THIRD_PARTY_NOTICES.md")), false);
+  assert.equal(existsSync(join(fixture.destination, "third_party")), false);
+  const state = loadInstallState(fixture.destination);
+  assert.deepEqual(Object.keys(state.files), ["skills/alpha/SKILL.md"]);
+});
+
 test("repeated --yes install is idempotent and names the no-op Module", async () => {
   const fixture = makeCliFixture();
   const first = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
@@ -878,7 +898,11 @@ test("packed payload is exactly the emitted installer and the Module Bundles", (
   // Exact equality: package metadata, the committed dist/ files, each Module manifest, and
   // exactly the manifest-listed Bundle files. Any extra file under opencode/ fails, and any
   // authoring source (tools/*.ts, external/, plugins/, overlays/, experiments/, docs/) fails.
-  const expected = new Set<string>(["package.json", "README.md"]);
+  const expected = new Set<string>(["package.json", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"]);
+  const packedPackage = JSON.parse(paths.get("package.json")?.toString("utf8") ?? "{}");
+  assert.equal(packedPackage.dependencies, undefined, "the compiled installer has no runtime dependencies");
+  assert.equal(paths.get("LICENSE")?.equals(readFileSync(join(root, "LICENSE"))), true);
+  assert.equal(paths.get("THIRD_PARTY_NOTICES.md")?.equals(readFileSync(join(root, "THIRD_PARTY_NOTICES.md"))), true);
   for (const file of DIST_FILES) {
     expected.add(file);
     assert.ok(paths.has(file), `tarball must contain ${file}`);

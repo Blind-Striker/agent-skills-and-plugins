@@ -13,6 +13,7 @@ export function makeRepo(): string {
   // upstream submodule 'sp' with namespace 'superpowers'
   mkdirSync(join(root, "external", "sp", ".claude-plugin"), { recursive: true });
   writeFileSync(join(root, "external", "sp", ".claude-plugin", "plugin.json"), JSON.stringify({ name: "superpowers" }));
+  writeFileSync(join(root, "external", "sp", "LICENSE"), "upstream license\n");
   mkdirSync(join(root, "external", "sp", "skills", "alpha"), { recursive: true });
   writeFileSync(
     join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
@@ -55,6 +56,23 @@ export function makeRepo(): string {
   );
   // curation manifest
   mkdirSync(join(root, "curation"), { recursive: true });
+  writeFileSync(
+    join(root, "curation", "attribution.json"),
+    `${JSON.stringify(
+      {
+        sp: {
+          name: "Superpowers",
+          repository: "https://example.test/superpowers",
+          license: "MIT",
+          copyright: "Copyright (c) Example Author",
+          licenseFile: "LICENSE",
+        },
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  writeFileSync(join(root, "LICENSE"), "repository license\n");
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
     `${[

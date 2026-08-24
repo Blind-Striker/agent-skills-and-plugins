@@ -1,3 +1,4 @@
+import { isDistributionMetadataPath, isNativeTreePath } from "./opencode-install-state.js";
 import { ordinalCompare } from "./order.js";
 function compareStrings(left, right) {
   return ordinalCompare(left, right);
@@ -150,6 +151,12 @@ function buildFinalOwnership(current, manifests, request, affected, selection, f
         continue;
       }
       for (const path of sortedKeys(moduleManifest.files)) {
+        if (!isNativeTreePath(path)) {
+          if (isDistributionMetadataPath(path)) {
+            continue;
+          }
+          throw new Error(`${path}: Bundle path is neither Native-tree content nor supported distribution metadata`);
+        }
         const identity = moduleManifest.files[path];
         if (identity) {
           claim(final, findings, path, name, identity);

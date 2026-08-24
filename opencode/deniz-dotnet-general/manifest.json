@@ -1,9 +1,17 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.8.0",
-  "digest": "sha256:56f0f508684997b27e81e5543c709e330eff53eebf71dd99d3bd08e148d0595c",
+  "version": "0.8.1",
+  "digest": "sha256:08a550d2a9ce274849b5d84fee6da8b5e3424c9ff950fa6c60aee736e010a29c",
   "files": {
+    "LICENSE": {
+      "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",
+      "mode": "100644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "sha256:8ee59d89bd176d262589a76d81a06cd7fc33721a993c60afde77cd893048fa3c",
+      "mode": "100644"
+    },
     "agents/roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
       "mode": "100644"
@@ -598,6 +606,14 @@
     },
     "skills/writing-tunit-tests/SKILL.md": {
       "sha256": "sha256:72b223ea2468f4d5ed5468a48eef7b6a0379220c98c2a1419b5fac50c38ab07b",
+      "mode": "100644"
+    },
+    "third_party/dotnet-agent-skills/LICENSE": {
+      "sha256": "sha256:cfc21f5e8bd655ae997eec916138b707b1d290b83272c02a95c9f821b8c87310",
+      "mode": "100644"
+    },
+    "third_party/dotnet-skills/LICENSE": {
+      "sha256": "sha256:1de738de902858f27f12152b1d0f85e7e7ec12802d99084ee858a651e25c82ff",
       "mode": "100644"
     }
   }

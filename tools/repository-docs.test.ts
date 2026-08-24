@@ -10,55 +10,10 @@ test("README build command names every committed generated tree", () => {
   assert.match(readme, /`npm run build`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`dist\/`/);
 });
 
-test("README Release recipe verifies the downloaded digest before npm exec", () => {
+test("README does not present the stale Release and keeps verification as a publication gate", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
-  const sectionStart = readme.indexOf("### OpenCode from the private Release package");
-  assert.ok(sectionStart >= 0, "README lost the private Release section");
-  const nextHeading = readme.indexOf("\n##", sectionStart + 1);
-  const section = readme.slice(sectionStart, nextHeading >= 0 ? nextHeading : undefined);
-  const fenceOpen = section.indexOf("```powershell");
-  assert.ok(fenceOpen >= 0, "recipe lost its PowerShell code block");
-  const fenceClose = section.indexOf("```", fenceOpen + 3);
-  assert.ok(fenceClose >= 0, "recipe PowerShell code block is unterminated");
-  const recipe = section.slice(fenceOpen, fenceClose);
-
-  const download = "gh release download installer-v0.1.0 --repo Blind-Striker/agent-skills-and-plugins";
-  const asset = '"deniz-agent-skills-0.1.0.tgz"';
-  const digest = "69532caf101f5626ea652cdb7e1046783b3d64fe79613e4d59f21e95eccb9460";
-  const expected = "$expected = ";
-  const compute = "Get-FileHash -LiteralPath $package -Algorithm SHA256";
-  const compare = "if ($actual -ne $expected) { throw";
-  const firstExec = "npm exec --yes --package $package -- deniz-skills install --all";
-
-  const at = (needle: string) => recipe.indexOf(needle);
-  const downloadAt = at(download);
-  const assetAt = at(asset);
-  const expectedAt = at(expected);
-  const digestAt = at(digest);
-  const computeAt = at(compute);
-  const compareAt = at(compare);
-  const execAt = at(firstExec);
-
-  assert.ok(downloadAt >= 0, "recipe lost the exact gh release download (tag)");
-  assert.ok(assetAt >= 0, "recipe lost the exact asset name");
-  assert.ok(expectedAt >= 0, "recipe lost the expected-hash assignment");
-  assert.ok(digestAt >= 0, "recipe lost the expected release digest");
-  assert.ok(computeAt >= 0, "recipe lost the hash computation");
-  assert.ok(compareAt >= 0, "recipe lost the mismatch comparison/failure");
-  assert.ok(execAt >= 0, "recipe lost the packed npm exec");
-  assert.ok(
-    downloadAt < assetAt &&
-      assetAt < expectedAt &&
-      expectedAt < digestAt &&
-      digestAt < computeAt &&
-      computeAt < compareAt &&
-      compareAt < execAt,
-    "recipe order must be: gh release download < asset name < expected-hash assignment < digest < hash computation < mismatch comparison/throw < first npm exec",
-  );
-  assert.ok(
-    recipe.indexOf("npm exec") === execAt,
-    "recipe must contain no npm exec before the verified first npm exec",
-  );
+  assert.doesNotMatch(readme, /installer-v0\.1\.0|deniz-agent-skills-0\.1\.0\.tgz/);
+  assert.match(readme, /Release Package[\s\S]{0,200}SHA-256[\s\S]{0,80}before[\s\S]{0,80}execution/i);
 });
 
 test("OpenCode lab describes installer composition rather than a mounted build tree", () => {

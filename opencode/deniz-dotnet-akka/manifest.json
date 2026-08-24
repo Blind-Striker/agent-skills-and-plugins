@@ -1,9 +1,17 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-akka",
-  "version": "0.2.0",
-  "digest": "sha256:ed44cb83816e527f140549a3b33a507e3fa6bd2de5b88c6de74b5d46f599936d",
+  "version": "0.2.1",
+  "digest": "sha256:3f2fe3b1d3023075f30fe0ba6c335331f35c9641de406e24318956a9c96b047d",
   "files": {
+    "LICENSE": {
+      "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",
+      "mode": "100644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "sha256:c128ddbf876a075caaf6704de800f07c4d4ebbe01ea70ffee19805faef427271",
+      "mode": "100644"
+    },
     "agents/akka-net-specialist.md": {
       "sha256": "sha256:5f47f741005698498d804d39c89dd44f84085b3a53924dbdadb0325c62bf9eb2",
       "mode": "100644"
@@ -54,6 +62,10 @@
     },
     "skills/akka-net-testing-patterns/examples.md": {
       "sha256": "sha256:cf655417beba0930f9879497aed2468266d605fe3a3825aeacedaf99f0a0e874",
+      "mode": "100644"
+    },
+    "third_party/dotnet-skills/LICENSE": {
+      "sha256": "sha256:1de738de902858f27f12152b1d0f85e7e7ec12802d99084ee858a651e25c82ff",
       "mode": "100644"
     }
   }

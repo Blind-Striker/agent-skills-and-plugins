@@ -468,7 +468,7 @@ Write-Host "`n=== documentation regression guards ===" -ForegroundColor Cyan
 Test-That "local packed-package protocol builds and packs the repository explicitly" {
     $protocol = Get-Content (Join-Path $PSScriptRoot "protocol.md") -Raw
     $localStart = $protocol.IndexOf("### Local packed package")
-    $localEnd = $protocol.IndexOf("### Pinned private GitHub Release")
+    $localEnd = $protocol.IndexOf("### Pinned GitHub Release")
     if ($localStart -lt 0 -or $localEnd -le $localStart) { return "local packed-package section was not found" }
     $local = $protocol.Substring($localStart, $localEnd - $localStart)
     $required = @(

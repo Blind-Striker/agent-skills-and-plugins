@@ -40,7 +40,7 @@ test("install state rejects traversal and case aliases", () => {
 
 test("OPENCODE_CONFIG_DIR is refused", () => {
   assert.throws(
-    () => resolveDestination({ HOME: "/home/test", OPENCODE_CONFIG_DIR: "/tmp/other" }),
+    () => resolveDestination({ HOME: "/tmp/test-home", OPENCODE_CONFIG_DIR: "/tmp/other" }),
     /OPENCODE_CONFIG_DIR/,
   );
 });

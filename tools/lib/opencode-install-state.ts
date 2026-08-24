@@ -37,6 +37,8 @@ export interface ParseInstallStateOptions {
 
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
 const NATIVE_ROOTS = new Set(["agents", "commands", "skills"]);
+const DISTRIBUTION_ROOT_FILES = new Set(["LICENSE", "THIRD_PARTY_NOTICES.md"]);
+const THIRD_PARTY_LICENSE = /^third_party\/[a-z0-9-]+\/LICENSE$/;
 const TOP_LEVEL_KEYS = new Set(["files", "modules", "schemaVersion"]);
 const MODULE_STATE_KEYS = new Set(["digest", "version"]);
 const OWNED_FILE_KEYS = new Set(["mode", "module", "sha256"]);
@@ -92,6 +94,14 @@ function nativeTreePathError(path: unknown): string | null {
     return "path must be under skills/, commands/, or agents/";
   }
   return null;
+}
+
+export function isNativeTreePath(path: string): boolean {
+  return nativeTreePathError(path) === null;
+}
+
+export function isDistributionMetadataPath(path: string): boolean {
+  return relativePathError(path) === null && (DISTRIBUTION_ROOT_FILES.has(path) || THIRD_PARTY_LICENSE.test(path));
 }
 
 function firstCaseAlias(paths: string[]): { path: string; first: string } | null {

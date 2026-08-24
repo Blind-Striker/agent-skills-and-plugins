@@ -27,7 +27,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.8.0
+  version: 0.8.1
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards

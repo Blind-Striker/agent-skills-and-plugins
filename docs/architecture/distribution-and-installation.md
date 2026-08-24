@@ -1,6 +1,6 @@
 # Distribution and installation
 
-Date: 2026-08-19
+Date: 2026-08-24
 
 ## Responsibility
 
@@ -21,8 +21,9 @@ the repository marketplace; installing a Plugin neither selects nor installs its
 The build writes one `opencode/<module>/` Bundle per curation manifest. Its `manifest.json` records
 the Module name and curator-facing version plus every other Bundle-relative path's SHA-256 and POSIX
 mode. The Module digest is the SHA-256 of a locale-independent, path-sorted serialization of those
-path/hash/mode claims. `manifest.json` excludes itself from the file map; an empty Module still has a
-manifest and an empty file set. Digest serialization and hashing are implemented in
+path/hash/mode claims. `manifest.json` excludes itself from the file map; a Module with no curated
+items still has a manifest plus repository `LICENSE` and `THIRD_PARTY_NOTICES.md` distribution
+metadata. Digest serialization and hashing are implemented in
 [`tools/lib/opencode-bundle.ts`](../../tools/lib/opencode-bundle.ts#L47-L59), and manifest creation
 is implemented in [`createModuleManifest`](../../tools/lib/opencode-bundle.ts#L196-L229).
 
@@ -32,30 +33,36 @@ Module roots named by curation, and checks each manifest's Module name and versi
 manifest source. These are integrity checks over final emitted bytes, not another transformation
 pass ([`verifyModuleManifest`](../../tools/lib/opencode-bundle.ts#L278-L370)).
 
-The private npm-format Package contains package metadata and README material, committed `dist/`
-installer JavaScript, and every generated Bundle. It excludes TypeScript authoring sources,
-upstreams, Plugin output, overlays, experiments, and documentation other than package-included
-README material. Focused package tests require the packed installer and every Bundle file and
-manifest to match the committed emit byte-for-byte
+The npm-format Package contains package metadata, README, the repository license and notices,
+committed `dist/` installer JavaScript, and every generated Bundle. Each Bundle also carries its
+source-specific notice and exact upstream license copies. The Package excludes TypeScript authoring
+sources, upstream worktrees, Plugin output, overlays, experiments, and other documentation. Focused
+package tests require the packed installer, licenses and notices, and every Bundle file and manifest
+to match the committed emit byte-for-byte
 ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L864-L920)). Consumers do
 not compile the installer.
 
-Remote delivery uses that exact tarball as a private GitHub Release asset, not an npm publication or
-Git package install. The Release is versioned but not immutable: the tag and target commit identify
-the intended source point, while the recorded Package SHA-256 detects replacement or corruption but
-does not prevent an authorized re-upload. The current pin and runnable verification recipe remain in
-the root [`README.md`](../../README.md#opencode-from-the-private-release-package).
+Remote delivery uses that exact tarball as a GitHub Release asset, not an npm publication or Git
+package install. The Release is versioned but not immutable: the tag and target commit identify the
+intended source point, while the repository-recorded Package SHA-256 detects replacement or
+corruption but does not prevent an authorized re-upload. A runnable recipe is published only after a
+current asset passes the release gate; the root [`README.md`](../../README.md#opencode-from-a-release-package)
+owns consumer instructions.
 
 ## Byte-preserving composition
 
 Installation does not parse Markdown, resolve invocation, localize references, or synthesize harness
-configuration. Before planning, the CLI loads and verifies every Bundle in the Package. For each add
-or replacement, Apply stages the manifest-named source bytes, verifies their hash and intended mode,
-and places them at the same relative path in the Destination. POSIX mode participates in matching and
-is applied; on Windows the intended mode remains recorded while byte identity is the enforced
-filesystem comparison.
+configuration. Before planning, the CLI loads and verifies every Bundle in the Package, including
+distribution-only licenses and notices. Planning then selects only manifest paths under `skills/`,
+`commands/`, and `agents/` as Native-tree content; the known Bundle-root license and notice paths are
+verified Package metadata and never become Destination Ownership. Any other non-Native manifest path
+is rejected. For each add or replacement, Apply stages the selected source bytes, verifies their hash
+and intended mode, and places them at the same relative path in the Destination. POSIX mode
+participates in matching and is applied; on Windows the intended mode remains recorded while byte
+identity is the enforced filesystem comparison.
 
-The resulting Native tree is therefore a composition of already transformed Bundle files. The
+The resulting Native tree is therefore a composition of already transformed Bundle Native payloads,
+not a copy of Bundle distribution metadata. The
 packed-bin integration test compares its paths, bytes, Install state, and status output with the
 checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L939-L1011)).
 

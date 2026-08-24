@@ -1,9 +1,17 @@
 {
   "schemaVersion": 1,
   "module": "deniz-process",
-  "version": "0.4.0",
-  "digest": "sha256:206e77aac347ac03b3381cc60ddd502c0750dc45c036212030e1a02e2f963bac",
+  "version": "0.4.1",
+  "digest": "sha256:20e214a70016ecb1b69bfc8620b179a3b2b93124926f95678e96467a10eed06c",
   "files": {
+    "LICENSE": {
+      "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",
+      "mode": "100644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "sha256:725fd088595b9bec157340205a950bbf4ccfd7086ffdee91b1304ed6cd4832ff",
+      "mode": "100644"
+    },
     "commands/ask-deniz.md": {
       "sha256": "sha256:0371469cc97db080d80faa4ccd3b6583f52689325dde527a45e34b53f800b0b4",
       "mode": "100644"
@@ -418,6 +426,18 @@
     },
     "skills/writing-skills/testing-skills-with-subagents.md": {
       "sha256": "sha256:0dba46de2d2640af8df1530692587a2b6896b249d74016ac9d8e06c74cd195c2",
+      "mode": "100644"
+    },
+    "third_party/asd-ste100/LICENSE": {
+      "sha256": "sha256:d3c674e8592076c9021a59b55177adbcba6fd7e1710082becb922522b22ec672",
+      "mode": "100644"
+    },
+    "third_party/mattpocock-skills/LICENSE": {
+      "sha256": "sha256:0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+      "mode": "100644"
+    },
+    "third_party/superpowers/LICENSE": {
+      "sha256": "sha256:a37e0e9697144819e1d965176ac4ae5bc3fa02d11e7812036bbcadf6dafe2400",
       "mode": "100644"
     }
   }

@@ -1,5 +1,11 @@
 import type { FileIdentity, FileMode, ModuleManifest } from "./opencode-bundle.ts";
-import type { InstallState, ObservedPath, OwnedFile } from "./opencode-install-state.ts";
+import {
+  isDistributionMetadataPath,
+  isNativeTreePath,
+  type InstallState,
+  type ObservedPath,
+  type OwnedFile,
+} from "./opencode-install-state.ts";
 import { ordinalCompare } from "./order.ts";
 
 export type RequestKind = "install" | "update" | "remove";
@@ -245,6 +251,12 @@ function buildFinalOwnership(
         continue;
       }
       for (const path of sortedKeys(moduleManifest.files)) {
+        if (!isNativeTreePath(path)) {
+          if (isDistributionMetadataPath(path)) {
+            continue;
+          }
+          throw new Error(`${path}: Bundle path is neither Native-tree content nor supported distribution metadata`);
+        }
         const identity = moduleManifest.files[path];
         if (identity) {
           claim(final, findings, path, name, identity);

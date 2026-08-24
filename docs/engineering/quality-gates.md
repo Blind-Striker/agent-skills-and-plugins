@@ -1,6 +1,6 @@
 # Engineering quality gates
 
-Date: 2026-08-19
+Date: 2026-08-24
 
 This document owns completion evidence: which repository commands apply, what CI proves, what still
 requires human review, and which words those results authorize. Script implementations remain
@@ -13,8 +13,8 @@ The matrix is additive. When a change matches more than one row, run the union o
 
 | Change trigger | Required local commands | Additional proof |
 |---|---|---|
-| Repository tooling under `tools/`, or its TypeScript, package, formatter, or linter configuration | `npm test`; `npm run typecheck`; `npm run lint`; `npm run format:check` | Review failures and warnings; do not weaken a gate to make the change pass |
-| Installer, packaging, emitter, or other generated-output behavior; `curation/`, `overlays/`, or original `skills/`; an upstream submodule pin | The four tooling commands, then `npm run build`; `npm run inventory`; `npm run validate` | Perform the idempotence rerun and generated-output review below |
+| Repository tooling under `tools/`, or its TypeScript, package, formatter, or linter configuration | `npm test`; `npm run typecheck`; `npm run lint`; `npm run format:check`; `npm run check:public-safety` | Review failures and warnings; do not weaken a gate to make the change pass |
+| Installer, packaging, emitter, or other generated-output behavior; `curation/`, overlays, root license/notices, or original `skills/`; an upstream submodule pin | The five tooling commands, then `npm run build`; `npm run inventory`; `npm run validate` | Perform the idempotence rerun and generated-output review below |
 | Prose protected by `tools/repository-docs.test.ts` | `npm test` | Retarget the assertion in the same change when protected prose intentionally moves |
 | Harness-invocation experiment scripts, method, or prose protected by the subsystem selftest | The applicable repository row above, plus `pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1 -SkipLab` | Use the full prepared-lab selftest only for the claims described below |
 | Other documentation-only changes | No narrower local command is prescribed | Check dates, links, ownership, relays, contradictions, and claim loss manually; CI still runs its full gate |
@@ -40,7 +40,16 @@ npm run format:check
 npm run build
 npm run inventory
 npm run validate
+npm run check:public-safety
 ```
+
+A separate least-privilege job checks out full superproject history and runs Gitleaks with redacted
+reporting and no uploaded report artifact. The validation job scans current tracked and untracked
+authored/generated files for Gmail identities, user-profile paths, and machine-specific workspace
+paths; only the named synthetic detector fixture is exempt. Commit identity is not repository
+documentation and is outside that current-tree policy. Submodule histories remain upstream
+responsibility, while copied generated output and Package content remain inside this repository's
+build and package gates.
 
 After generation, CI mechanically stages only `plugins/`, `opencode/`, `dist/`, `.claude-plugin/`,
 `docs/inventory.md`, and `docs/ledger.json`, and fails if that staged generated state differs from
@@ -51,7 +60,8 @@ regeneration matches the checked-in generated estate.
 CI does **not** prove that generation is idempotent across a second run, that an intentional
 generated diff is semantically correct, that warnings are acceptable, that documentation has one
 owner, or that a harness selects and follows an artifact at runtime. It also does not run the
-harness-invocation subsystem selftest.
+harness-invocation subsystem selftest. Secret scanning lowers risk; it does not prove that no secret
+class exists outside its rules.
 
 ## Human-only generation proof
 

@@ -1,9 +1,17 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-aspire",
-  "version": "0.3.0",
-  "digest": "sha256:0a3f205cde540ac9df5cfc4420d48536153d0e01f0a50d4a7c671e3359c71563",
+  "version": "0.3.1",
+  "digest": "sha256:1a0c713441fb23d1daf8081469c876ebcb5e130902f1259436416983f061d51e",
   "files": {
+    "LICENSE": {
+      "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",
+      "mode": "100644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "sha256:ef699827c84fee9fde0cbdddead647ee253252ee93d84750998f9626ba545070",
+      "mode": "100644"
+    },
     "skills/aspire-deployment/SKILL.md": {
       "sha256": "sha256:f1436997fde7a7ec715a8470f641541a70a28db45bd1bf141d0e0c2ee91dc1fd",
       "mode": "100644"
@@ -162,6 +170,14 @@
     },
     "skills/aspireify/references/validation.md": {
       "sha256": "sha256:f1035d891f022e376b5b61d5f05fddaf9e6d31f698b0cd544493101e882f91f8",
+      "mode": "100644"
+    },
+    "third_party/aspire-skills/LICENSE": {
+      "sha256": "sha256:7df20dcdf9197e9945c14858d41c60f11b52b93e5b69e2b63416b874d598d322",
+      "mode": "100644"
+    },
+    "third_party/dotnet-skills/LICENSE": {
+      "sha256": "sha256:1de738de902858f27f12152b1d0f85e7e7ec12802d99084ee858a651e25c82ff",
       "mode": "100644"
     }
   }

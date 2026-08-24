@@ -29,7 +29,8 @@ contradicts recorded item intent; it never re-solves a runtime problem upstream 
   `.claude-plugin/marketplace.json`, `docs/inventory.md`, or `docs/ledger.json`. `external/` is
   read-only upstream evidence; the others are generated, committed review surfaces.
 - Authored work belongs in `curation/`, `overlays/` and `overlays/overlays.lock.json`, original
-  `skills/`, `tools/`, `docs/`, or `experiments/`, according to the task owner below.
+  `skills/`, `tools/`, `docs/`, `experiments/`, or root public metadata such as `LICENSE` and
+  `THIRD_PARTY_NOTICES.md`, according to the task owner below.
 - Before any item-level take, skip, merge, or modification decision, run `npm run inventory`, use the
   generated scanner-visible catalog to find candidates, and read the actual upstream source and
   dependency closure. Record the why beside the item in `curation/*.yaml`.

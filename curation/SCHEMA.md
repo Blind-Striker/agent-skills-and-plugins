@@ -18,6 +18,18 @@ items:
   - source: <submodule>/<component-path>
 ```
 
+## Source attribution
+
+`curation/attribution.json` records the public name, repository, license identifier, copyright line,
+and root license filename for every submodule used by a non-excluded primary item or `merged_from`
+source. The build rejects a used source with no entry or missing upstream license file. It emits only
+the sources each Module actually uses, copies their license bytes directly from `external/`, and
+keeps excluded-only sources out of that Module's notices.
+
+The repository's root `LICENSE` covers original work and modifications. It does not replace upstream
+terms. Root `THIRD_PARTY_NOTICES.md` credits the complete source estate; generated Plugin and Bundle
+notice packs are source-specific distribution output and must never be edited directly.
+
 ## Choose the lowest-cost mechanism
 
 Several fields can express similar-looking changes. Use the lowest rung that states the intent;

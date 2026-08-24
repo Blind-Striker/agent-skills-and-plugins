@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-08-20
+Date: 2026-08-24
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field
@@ -21,7 +21,8 @@ Treat repository areas according to the action they permit:
 - `external/` is read-only upstream evidence. Change a pin through the upstream-sync flow; never
   author inside a submodule worktree.
 - `curation/`, `overlays/` and `overlays/overlays.lock.json`, original `skills/`, `tools/`, `docs/`,
-  and `experiments/` are authored inputs.
+  `experiments/`, and root public metadata such as `LICENSE` and `THIRD_PARTY_NOTICES.md` are authored
+  inputs.
 - `plugins/`, `opencode/`, `dist/`, `.claude-plugin/marketplace.json`, `docs/inventory.md`, and
   `docs/ledger.json` are generated review surfaces. Change their inputs and regenerate; never patch
   them directly.

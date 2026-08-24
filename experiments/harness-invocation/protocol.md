@@ -1,6 +1,6 @@
 # Harness probing
 
-Date: 2026-08-19
+Date: 2026-08-24
 
 This protocol owns the repeatable method for finding out what a harness actually does. Committed
 observations live in [`records/`](records/); research such as
@@ -140,21 +140,22 @@ Record the OpenCode version, selected Modules, package SHA-256, Native-tree coun
 path, and each assertion. A package-cache path proves only npm materialization; discovery must resolve
 from the installed Native tree.
 
-### Pinned private GitHub Release
+### Pinned GitHub Release
 
-The remote transport is a private Release asset pinned to a tag and target commit and verified by
-SHA-256, not a Git package spec. GitHub reports Releases as non-immutable, so the recorded hash
-detects but does not prevent an authorized replacement; treat the download-hash comparison as the
-identity check. Only after the tag and asset exist with explicit authorization, download them
-through authenticated `gh` into a new external-lab directory; never overwrite an existing asset:
+The remote transport is a Release asset pinned to a tag and target commit and verified by SHA-256,
+not a Git package spec. GitHub reports Releases as non-immutable, so the recorded hash detects but
+does not prevent an authorized replacement; treat the download-hash comparison as the identity
+check. Only after the tag and asset exist with explicit authorization, download them into a new
+external-lab directory; never overwrite an existing asset. Substitute the release record's exact tag,
+asset name, and repository-recorded digest:
 
 ```powershell
 $profile = Join-Path $LAB "installer-release"
 Remove-Item $profile -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Path $profile -Force | Out-Null
-gh release download installer-v0.1.0 --repo Blind-Striker/agent-skills-and-plugins `
-  --pattern "deniz-agent-skills-0.1.0.tgz" --dir $profile
-$package = Join-Path $profile "deniz-agent-skills-0.1.0.tgz"
+gh release download <installer-tag> --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "<package-name>.tgz" --dir $profile
+$package = Join-Path $profile "<package-name>.tgz"
 $releaseDigest = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 
 $env:USERPROFILE = $profile

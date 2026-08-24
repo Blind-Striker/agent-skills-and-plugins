@@ -1,14 +1,15 @@
-# Intended sources: superpowers + mattpocock-skills — brainstorming, TDD,
-# debugging, planning, code review, skill writing. No upstream hooks; triggers tuned per item.
+# Intended sources: all 14 Superpowers skills, 22 direct Matt Pocock skills, three Matt merge
+# sources, and the ASD-STE100 root skill. The result is a personal transformation, not either
+# upstream framework wholesale: overlapping TDD, debugging, and review material is merged; ten Matt
+# items are excluded; no upstream hooks ship; triggers are tuned per item.
 #
 # Batch 1: the daily-flow spine — brainstorm/grill → plan →
 # execute → review/verify — plus the passive disciplines. Invocation rule that shaped it:
 # `manual` is unreachable even from another skill's body, so every link another taken skill
 # invokes is `both` or `auto`; only true entry points are `manual`.
 #
-# Batch 2 closes the module: the whole mattpocock production
-# chain taken as upstream shipped it (compile-time/runtime boundary, AGENTS.md — tracker/setup
-# behaviour is the wizard's job at use time), the authoring pair, and superpowers' last two.
+# Batch 2 closes the module: the selected Matt production chain, with its runtime setup behavior
+# preserved but dead harness metadata omitted, plus the authoring pair and Superpowers' last two.
 #
 # Both merge passes have landed — the TDD mix (superpowers test-driven-development × matt tdd,
 # which also repointed implement's two bare slash references) and the review mix
@@ -17,7 +18,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.4.0
+  version: 0.4.1
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming

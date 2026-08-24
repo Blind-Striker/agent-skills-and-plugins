@@ -38,6 +38,11 @@ test("buildAll compiles plugins with overrides, overlays, conversions, rewrites"
   assert.equal(pj.name, "deniz-process");
   const mp = JSON.parse(readFileSync(join(root, ".claude-plugin", "marketplace.json"), "utf8"));
   assert.equal(mp.plugins[0].source, "./plugins/deniz-process");
+  assert.deepEqual(mp.owner, {
+    name: "Deniz İrgin",
+    email: "1965259+Blind-Striker@users.noreply.github.com",
+  });
+  assert.doesNotMatch(JSON.stringify(mp), /gmail\.com/i);
 });
 
 test("buildAll emits opencode tree and reports dropped keys", () => {
@@ -96,6 +101,29 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 
+test("buildAll carries exact source licenses and notices in each distribution", () => {
+  const root = makeRepo();
+
+  buildAll(root);
+
+  const pluginRoot = join(root, "plugins", "deniz-process");
+  const moduleRoot = opencodeModulePath(root, "deniz-process");
+  for (const distributionRoot of [pluginRoot, moduleRoot]) {
+    assert.equal(readFileSync(join(distributionRoot, "LICENSE"), "utf8"), "repository license\n");
+    assert.equal(readFileSync(join(distributionRoot, "third_party", "sp", "LICENSE"), "utf8"), "upstream license\n");
+    const notices = readFileSync(join(distributionRoot, "THIRD_PARTY_NOTICES.md"), "utf8");
+    assert.match(notices, /Superpowers/);
+    assert.match(notices, /https:\/\/example\.test\/superpowers/);
+    assert.match(notices, /Copyright \(c\) Example Author/);
+  }
+
+  const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
+  assert.ok("LICENSE" in manifest.files);
+  assert.ok("THIRD_PARTY_NOTICES.md" in manifest.files);
+  assert.ok("third_party/sp/LICENSE" in manifest.files);
+  assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
+});
+
 test("a curated item localizes a guarded original-skill target in both harnesses", () => {
   const root = makeRepo();
   writeFileSync(
@@ -135,6 +163,16 @@ test("a root-level source never emits submodule git metadata", () => {
   writeFileSync(join(root, "external", "rootsp", "SKILL.md"), "---\nname: root-skill\ndescription: Root\n---\nBody.\n");
   writeFileSync(join(root, "external", "rootsp", "README.md"), "installation prose\n");
   writeFileSync(join(root, "external", "rootsp", "LICENSE"), "license\n");
+  const attributionPath = join(root, "curation", "attribution.json");
+  const attributions = JSON.parse(readFileSync(attributionPath, "utf8"));
+  attributions.rootsp = {
+    name: "Root skill",
+    repository: "https://example.test/root-skill",
+    license: "MIT",
+    copyright: "Copyright (c) Root Author",
+    licenseFile: "LICENSE",
+  };
+  writeFileSync(attributionPath, `${JSON.stringify(attributions, null, 2)}\n`);
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
     [
@@ -194,8 +232,8 @@ test("module manifests inherit executable modes from the plugin tree", () => {
 });
 
 // Every curated Module gets a bundle, even one with nothing curated: the installer selects by
-// manifest, so an empty module must still name itself and carry an empty file map.
-test("an empty module still gets a manifest", () => {
+// manifest, so an empty module still names itself and carries repository distribution metadata.
+test("an empty module still gets a notice-only manifest", () => {
   const root = makeRepo();
   writeFileSync(
     join(root, "curation", "empty-mod.yaml"),
@@ -207,7 +245,7 @@ test("an empty module still gets a manifest", () => {
   const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
   assert.equal(manifest.module, "empty-mod");
   assert.equal(manifest.version, "2.3.4");
-  assert.deepEqual(manifest.files, {});
+  assert.deepEqual(Object.keys(manifest.files), ["LICENSE", "THIRD_PARTY_NOTICES.md"]);
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 
@@ -582,6 +620,55 @@ test("missing overlay throws a helpful error", () => {
     "plugin:\n  name: deniz-process\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n    body: overlay\n",
   );
   assert.throws(() => buildAll(root), /overlay/);
+});
+
+test("a missing repository license aborts before deleting generated output", () => {
+  const root = makeRepo();
+  rmSync(join(root, "LICENSE"));
+  mkdirSync(join(root, "plugins", "keep"), { recursive: true });
+  const sentinel = join(root, "plugins", "keep", "sentinel.txt");
+  writeFileSync(sentinel, "keep\n");
+
+  assert.throws(() => buildAll(root), /repository LICENSE must be an ordinary readable file/);
+  assert.equal(readFileSync(sentinel, "utf8"), "keep\n");
+});
+
+test("a non-file repository license aborts before deleting generated output", () => {
+  const root = makeRepo();
+  rmSync(join(root, "LICENSE"));
+  mkdirSync(join(root, "LICENSE"));
+  mkdirSync(join(root, "plugins", "keep"), { recursive: true });
+  const sentinel = join(root, "plugins", "keep", "sentinel.txt");
+  writeFileSync(sentinel, "keep\n");
+
+  assert.throws(() => buildAll(root), /repository LICENSE must be an ordinary readable file/);
+  assert.equal(readFileSync(sentinel, "utf8"), "keep\n");
+});
+
+test("an attribution license path cannot escape its source", () => {
+  const root = makeRepo();
+  const attributionPath = join(root, "curation", "attribution.json");
+  const attributions = JSON.parse(readFileSync(attributionPath, "utf8"));
+  attributions.sp.licenseFile = "../LICENSE";
+  writeFileSync(attributionPath, `${JSON.stringify(attributions, null, 2)}\n`);
+  mkdirSync(join(root, "plugins", "keep"), { recursive: true });
+  const sentinel = join(root, "plugins", "keep", "sentinel.txt");
+  writeFileSync(sentinel, "keep\n");
+
+  assert.throws(() => buildAll(root), /licenseFile must be a root filename/);
+  assert.equal(readFileSync(sentinel, "utf8"), "keep\n");
+});
+
+test("a non-file upstream license aborts before deleting generated output", () => {
+  const root = makeRepo();
+  rmSync(join(root, "external", "sp", "LICENSE"));
+  mkdirSync(join(root, "external", "sp", "LICENSE"));
+  mkdirSync(join(root, "plugins", "keep"), { recursive: true });
+  const sentinel = join(root, "plugins", "keep", "sentinel.txt");
+  writeFileSync(sentinel, "keep\n");
+
+  assert.throws(() => buildAll(root), /license file .* must be an ordinary readable file/);
+  assert.equal(readFileSync(sentinel, "utf8"), "keep\n");
 });
 
 // The build wipes plugins/ and opencode/ before re-emitting them, so any failure it discovers

@@ -11,6 +11,12 @@ import {
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  loadAttributions,
+  manifestAttributions,
+  requireReadableRegularFile,
+  writeDistributionNotices,
+} from "./lib/attribution.ts";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { OPENCODE_SKILL_KEYS, writeLedger } from "./lib/ledger.ts";
@@ -37,11 +43,14 @@ import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export function buildAll(root: string): string[] {
   requireSubmodules(root);
+  requireReadableRegularFile(join(root, "LICENSE"), "repository LICENSE");
   const report: string[] = [];
   const manifests = readdirSync(join(root, "curation"))
     .filter((f) => f.endsWith(".yaml"))
     .sort()
     .map((f) => loadManifest(join(root, "curation", f)));
+  const attributions = loadAttributions(root);
+  const notices = new Map(manifests.map((m) => [m.plugin.name, manifestAttributions(m, attributions)]));
   for (const m of manifests) {
     if (m.hooks?.include?.length) {
       throw new Error(`${m.plugin.name}: hooks.include is not implemented yet — keep it empty (YAGNI)`);
@@ -72,6 +81,7 @@ export function buildAll(root: string): string[] {
     }
     emitOwnSkills(root, m, report);
     const pluginDir = join(root, "plugins", m.plugin.name);
+    writeDistributionNotices(root, pluginDir, notices.get(m.plugin.name) ?? []);
     mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
     writeFileSync(join(pluginDir, ".claude-plugin", "plugin.json"), `${JSON.stringify(m.plugin, null, 2)}\n`);
   }
@@ -92,6 +102,9 @@ export function buildAll(root: string): string[] {
   // then be rewritten with the spelling its own harness resolves (ADR-0006 axis 3). Emitting after
   // the rewrite is what left OpenCode carrying `<plugin>:<name>` references it cannot resolve.
   emitOpenCode(root, invocations, report);
+  for (const m of manifests) {
+    writeDistributionNotices(root, join(root, "opencode", m.plugin.name), notices.get(m.plugin.name) ?? []);
+  }
   rewriteTree(join(root, "plugins"), claudeRewrite);
   rewriteTree(join(root, "opencode"), opencodeRewrite);
   // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
@@ -436,7 +449,7 @@ function emitOwnSkills(root: string, m: CurationManifest, report: string[]): voi
 function writeMarketplace(root: string, manifests: CurationManifest[]): void {
   const marketplace = {
     name: "deniz-skills",
-    owner: { name: "Deniz Irgin", email: "denizirgin@gmail.com" },
+    owner: { name: "Deniz İrgin", email: "1965259+Blind-Striker@users.noreply.github.com" },
     plugins: manifests.map((m) => ({
       name: m.plugin.name,
       source: `./plugins/${m.plugin.name}`,

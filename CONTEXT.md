@@ -20,9 +20,9 @@ The build-produced on-disk payload of one Module: its manifest and every file th
 _Avoid_: module, package, output
 
 **Package**:
-The npm-format tarball that contains the emitted installer and every Module Bundle. Remote delivery
-uses that exact tarball as a pinned private GitHub Release asset (tag plus target commit, SHA-256
-verified); it is not an npm publication.
+The npm-format tarball that contains the emitted installer, repository license and notices, and every
+Module Bundle. Remote delivery uses that exact tarball as a pinned GitHub Release asset (tag plus
+target commit, SHA-256 verified); it is not an npm publication.
 _Avoid_: module, plugin, bundle
 
 ### Installation

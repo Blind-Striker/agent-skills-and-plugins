@@ -6,7 +6,13 @@ import { fileURLToPath } from "node:url";
 import { loadModuleBundles, verifyModuleManifest } from "./lib/opencode-bundle.js";
 import { acquireInstallerLock, applyPlan, applyRecovery, inspectRecovery } from "./lib/opencode-install-apply.js";
 import { planReconcile } from "./lib/opencode-install-plan.js";
-import { loadInstallState, observePath, resolveDestination } from "./lib/opencode-install-state.js";
+import {
+  loadInstallState,
+  isDistributionMetadataPath,
+  isNativeTreePath,
+  observePath,
+  resolveDestination,
+} from "./lib/opencode-install-state.js";
 import { ordinalCompare } from "./lib/order.js";
 const ACTIONS = new Set(["install", "update", "remove", "status"]);
 function uniqueSorted(names) {
@@ -246,7 +252,11 @@ function observeRequiredPaths(destination, current, manifests) {
   }
   for (const manifest of Object.values(manifests)) {
     for (const path of Object.keys(manifest.files)) {
-      paths.add(path);
+      if (isNativeTreePath(path)) {
+        paths.add(path);
+      } else if (!isDistributionMetadataPath(path)) {
+        throw new Error(`${path}: Bundle path is neither Native-tree content nor supported distribution metadata`);
+      }
     }
   }
   const observed = Object.create(null);

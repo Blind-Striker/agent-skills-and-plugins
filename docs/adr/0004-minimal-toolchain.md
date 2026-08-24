@@ -1,6 +1,6 @@
 # ADR-0004: Minimal toolchain
 
-Date: 2026-08-19
+Date: 2026-08-24
 Status: Accepted
 
 ## Context
@@ -23,10 +23,11 @@ The installer is the one deliberate exception to typecheck-only TypeScript: `npm
 the installer sources to committed `dist/` JavaScript and formats that emit. The package ships the
 emitted installer and generated OpenCode Module Bundles. It has no `prepare` or `prepack` lifecycle,
 and a consumer never compiles TypeScript. Remote delivery is the exact versioned tarball attached as
-a private GitHub Release asset, not an npm registry publication or Git package. Its tag and target
-commit identify the intended source point, while the recorded Package SHA-256 detects replacement or
-corruption but cannot prevent an authorized re-upload. The exact Package/Release transport and
-verification mechanics live in [Distribution and installation](../architecture/distribution-and-installation.md).
+a GitHub Release asset, not an npm registry publication or Git package. Repository visibility does
+not change that transport decision. Its tag and target commit identify the intended source point,
+while the recorded Package SHA-256 detects replacement or corruption but cannot prevent an
+authorized re-upload. The exact Package/Release transport and verification mechanics live in
+[Distribution and installation](../architecture/distribution-and-installation.md).
 
 ## Consequences
 

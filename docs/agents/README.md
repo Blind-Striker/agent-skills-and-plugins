@@ -9,11 +9,6 @@ an active handover against live git, and delete it when the follow-up ships. The
 problems the deterministic gates cannot see; run it after a curation wave and before closing a
 module.
 
-The active cross-session pickup is
-[`handover-prompts/s1-public-release-preparation.prompt.md`](handover-prompts/s1-public-release-preparation.prompt.md).
-It onboards the next session and holds the release-preparation commands and deltas; consume and
-delete it when that work ships or a replacement handoff takes ownership.
-
 Shared current harness and product guidance lives in
 [transformation and emission](../architecture/transformation-and-emission.md),
 [references and linking](../architecture/references-and-linking.md), and

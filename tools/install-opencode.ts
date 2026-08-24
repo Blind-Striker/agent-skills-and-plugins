@@ -20,6 +20,8 @@ import {
 import { planReconcile, type InstallRequest, type Plan, type PlanFinding } from "./lib/opencode-install-plan.ts";
 import {
   loadInstallState,
+  isDistributionMetadataPath,
+  isNativeTreePath,
   observePath,
   resolveDestination,
   type InstallState,
@@ -322,7 +324,11 @@ function observeRequiredPaths(
   }
   for (const manifest of Object.values(manifests)) {
     for (const path of Object.keys(manifest.files)) {
-      paths.add(path);
+      if (isNativeTreePath(path)) {
+        paths.add(path);
+      } else if (!isDistributionMetadataPath(path)) {
+        throw new Error(`${path}: Bundle path is neither Native-tree content nor supported distribution metadata`);
+      }
     }
   }
   const observed = Object.create(null) as Record<string, ObservedPath>;

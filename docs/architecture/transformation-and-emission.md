@@ -38,7 +38,8 @@ phase reinterprets a skill after emission.
 ## Authored and generated boundaries
 
 - Upstream worktrees under `external/` are scanned but never authored into. Curation manifests,
-  overlays and their lock, and original skills are the authored transformation layer.
+  `curation/attribution.json`, overlays and their lock, original skills, and the root license and
+  notice are the authored transformation layer.
 - `plugins/`, `opencode/`, `dist/`, `.claude-plugin/marketplace.json`, `docs/inventory.md`, and
   `docs/ledger.json` are generated and committed. They are review surfaces and consumable output,
   not edit surfaces.
@@ -85,6 +86,12 @@ The compiler assembles a body in this order:
 4. Apply the shared full-file overlay or skill patch, then merge frontmatter and force the resolved
    output identity last.
 5. Copy original skills after curated manifest items, then write Plugin metadata and the marketplace.
+
+Each non-excluded primary or merge source must have an entry in `curation/attribution.json`. After
+body assembly, the build copies the repository `LICENSE`, writes a source-specific
+`THIRD_PARTY_NOTICES.md`, and copies each used upstream license byte-for-byte under
+`third_party/<source>/LICENSE` in both the Plugin and Bundle. Bundle manifests hash these
+distribution files with the rest of the final Bundle.
 
 The fail-before-delete and emit order are explicit in
 [`tools/build.ts`](../../tools/build.ts#L37-L97), with per-item assembly in
