@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-process",
-  "version": "0.3.0",
-  "digest": "sha256:cdcf1e3d76454e8b9722a71a4cf14c82a3cf6a9037d264e3e786338cd0d4495c",
+  "version": "0.4.0",
+  "digest": "sha256:206e77aac347ac03b3381cc60ddd502c0750dc45c036212030e1a02e2f963bac",
   "files": {
     "commands/ask-deniz.md": {
       "sha256": "sha256:0371469cc97db080d80faa4ccd3b6583f52689325dde527a45e34b53f800b0b4",
@@ -85,7 +85,7 @@
       "mode": "100644"
     },
     "commands/wait-what.md": {
-      "sha256": "sha256:018ed9b5575ea94f1c1e7ffd0652dd82bc83f8d8c8b6c5b59d876d753fdfb294",
+      "sha256": "sha256:e42cff5cdf8b587e39056a1cd5826359d4ae10acd30c9ce87cf11acac1737d38",
       "mode": "100644"
     },
     "commands/wayfinder.md": {
@@ -108,8 +108,24 @@
       "sha256": "sha256:996e049ea2dd88dfb32be4c679b43c33c55990bc920a4020030a4849275e143d",
       "mode": "100644"
     },
+    "skills/asd-ste100/LICENSE": {
+      "sha256": "sha256:d3c674e8592076c9021a59b55177adbcba6fd7e1710082becb922522b22ec672",
+      "mode": "100644"
+    },
+    "skills/asd-ste100/SKILL.md": {
+      "sha256": "sha256:d06bf28824ac2c8da052bc26c85a31cd308aa57a1262eb260d04ebf8f90da0c4",
+      "mode": "100644"
+    },
+    "skills/asd-ste100/examples/before-after.md": {
+      "sha256": "sha256:8b86a33ad88cabc088d1d19c0623e8e50a948e840e5ecdb9e022418c8a3476a9",
+      "mode": "100644"
+    },
+    "skills/asd-ste100/references/writing-rules.md": {
+      "sha256": "sha256:778a8adc1feec8845ea78078adfa8cd2824f28aba610bef322d729e1be5064ba",
+      "mode": "100644"
+    },
     "skills/ask-deniz/BODY.md": {
-      "sha256": "sha256:f550a5ce2df12678a94f79e0073775f93aa68c0cc4e0e20dc77e2273c969ae25",
+      "sha256": "sha256:b76f7861455e4142079121ad9b9128a836119afc6fd64aa0a73ecfadb79f282b",
       "mode": "100644"
     },
     "skills/ask-deniz/PHASE-BOUNDARIES.md": {

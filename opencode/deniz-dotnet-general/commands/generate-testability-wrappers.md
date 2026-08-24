@@ -32,7 +32,8 @@ Generate wrapper interfaces, default implementations, and DI service registratio
 ## When Not to Use
 
 - The user wants to find statics first (use `detect-static-dependencies`)
-- The user wants to bulk-replace call sites (after wrapper creation, the user invokes `migrate-static-to-wrapper` separately)
+- The user wants to bulk-replace call sites (after wrapper creation, the user invokes
+  `migrate-static-to-wrapper` separately)
 - The static is already behind an interface
 
 > A project with **no DI container**, or a user who does not want to add one, is **not** a reason to skip this skill —
@@ -203,9 +204,17 @@ public static class Clock
         s_override.Value = () => fixedTime;
         return new Scope(() => s_override.Value = previous);
     }
-    private sealed class Scope(Action restore) : IDisposable
+
+    private sealed class Scope : IDisposable
     {
-        public void Dispose() => restore();
+        private readonly Action _restore;
+
+        public Scope(Action restore)
+        {
+            _restore = restore;
+        }
+
+        public void Dispose() => _restore();
     }
 }
 ```
@@ -223,14 +232,14 @@ Three properties this pattern must keep, because each has broken a real migratio
 
 The same shape works for non-time statics: swap `TimeProvider.System.GetUtcNow()` for the real static call and keep the override slot, the disposable scope, and the original semantics.
 
-Do not wrap delays. The BCL already accepts a `TimeProvider`, so reach for the overload rather than
-inventing an `IDelay`:
+On .NET 8+, do not wrap delays. The BCL already accepts a `TimeProvider`, so reach for the overload
+rather than inventing an `IDelay`:
 
 | Ambient operation | Replacement |
 |-------------------|-------------|
 | `Task.Delay(delay, token)` | `Task.Delay(delay, timeProvider, token)` |
 | `new CancellationTokenSource(delay)` | `new CancellationTokenSource(delay, timeProvider)` |
-| `PeriodicTimer(period)` | `new PeriodicTimer(period, timeProvider)` where the target framework has it |
+| `PeriodicTimer(period)` | `new PeriodicTimer(period, timeProvider)` |
 
 Test delayed behavior by starting the operation, proving it is still incomplete, advancing
 `FakeTimeProvider`, then awaiting it. Never wait on wall-clock time.

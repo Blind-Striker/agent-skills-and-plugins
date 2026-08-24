@@ -1,5 +1,8 @@
 # plugins/ and opencode/ are committed build output: a CRLF checkout on Windows would make every
 # rebuild look like a diff, so normalise line endings in the working tree, not just the index.
 * text=auto eol=lf
+# A unified diff represents an empty context line as one space. Do not treat that required nested
+# patch syntax as trailing whitespace when the outer repository diff reviews a recut overlay.
+overlays/**/overlay.patch whitespace=-blank-at-eol
 # external/ submodules contain symlinks; checking them out on Windows needs core.symlinks=true
 # (enabled by Developer Mode or an elevated clone), otherwise git writes them as plain text files.

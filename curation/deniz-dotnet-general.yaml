@@ -27,13 +27,22 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.6.0
+  version: 0.8.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
     invocation: auto # the module's spine; passive C# convention knowledge. Tolerated upstream
     # content bug: the main body endorses generic Result<T,TError> while its companion file says
     # don't build generic Results — runtime content, flows as shipped
+  - source: dotnet-skills/skills/csharp-nullable-reference-types
+    invocation: auto # passive NRT semantics for writing and review where nullable context is already
+    # enabled. Project/solution adoption and systematic CS86xx cleanup remain the existing manual
+    # migrate-nullable-references ceremony, so the two items do not trigger-compete.
+    omit: [nrt-migration-playbook-reference.md] # adoption procedure belongs to the manual ceremony
+    frontmatter:
+      description: "Apply C# nullable-reference-type semantics where nullable context is already enabled: null-state flow, T? and !, API contracts, System.Diagnostics.CodeAnalysis nullable attributes, and gated C# 14 field-backed-property analysis. USE FOR: writing, refactoring, or reviewing nullable-aware C#. DO NOT USE FOR: enabling NRT across an existing project, systematic CS86xx cleanup, or migration planning; the user invokes migrate-nullable-references separately."
+    body: patch # removes migration activation and the omitted playbook links, preserving passive
+    # flow/API/attribute knowledge and a user pointer to the manual migration ceremony
   - source: dotnet-skills/skills/csharp-api-design
     invocation: auto # extend-only public API + wire compatibility; the NuGet/distributed side of design
   - source: dotnet-skills/skills/csharp-concurrency-patterns
@@ -60,10 +69,16 @@ items:
     body: patch # absorbs the SQL-level half of the excluded optimizing-ef-core-queries: predicate
     # sargability and keyset pagination. Both are engine-level rather than EF-level — the same
     # predicate written in Dapper scans for the same reason — so this skill, which already spans
-    # EF Core and Dapper and already teaches offset paging, is where they belong
+    # EF Core and Dapper and already teaches offset paging, is where they belong. Provider-specific
+    # expression-index exceptions are upstream factual detail, not set-level placement or dependency
+    # debt, so this curation does not expand the imported section to teach them.
     merged_from: [dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries]
   - source: dotnet-skills/skills/opentelementry-dotnet-instrumentation
     invocation: auto # manual instrumentation (Activities/metrics/logs); complements, not duplicates, the MS setup skill below
+    # Tolerated upstream example defect: the dependency-free exception callback computes EmitLogs
+    # but invokes the callback unconditionally in the spans-only default. This is local runtime
+    # guidance, not set wiring or harness fit; opening ownership on its 770-line reference file costs
+    # more than this curation owes, so the body continues to flow upstream-owned.
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/configuring-opentelemetry-dotnet
     invocation: auto # the SDK-setup half of OTel; Aspire interplay belongs to the aspire session
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi
@@ -175,7 +190,9 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
     invocation: manual # writes production abstractions + DI registrations — typed deliberately, never model-fired
     body: patch # user invokes the migration ceremony separately after wrapper creation, plus the
-    # merged ambient-seam corrections below
+    # merged ambient-seam corrections below. Target fit keeps the nested restoration example valid
+    # on the destination's older C# targets and scopes imported BCL delay overloads to .NET 8+; it
+    # does not grow into a pre-.NET 8 package API tutorial.
     merged_from: [dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
     invocation: manual # codemod across a bounded scope — typed deliberately
@@ -296,10 +313,10 @@ items:
     # what stops it competing with writing-tunit-tests, which fires while a test is being written
     body: patch # drops the writing-mstest-tests handoffs (excluded) and points C# generation at our
     # own TUnit skill instead; softens the ALWAYS-USE description, which was trigger prose aimed at a
-    # model that can no longer reach this item
-    # No depends_on: the pointer to writing-tunit-tests stays a bare name. A declared edge needs a
-    # namespaced spelling, and the rewrite map is keyed by UPSTREAM address — an original skill has
-    # none, so the output spelling would leak into opencode/ instead of localizing. See docs/ROADMAP.md.
+    # model that can no longer reach this item. The same patch internalizes the excluded helper-agent
+    # pipeline in SKILL.md and removes its last dead extension handoff from the bundled prompt.
+    depends_on: [writing-tunit-tests] # guarded original-skill target: C# generation loads the
+    # TUnit-first framework guide after this manual entry ceremony has established scope
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-extensions
     exclude: true # reference husk for the excluded pipeline only; no taken dependent
   - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-builder.agent.md

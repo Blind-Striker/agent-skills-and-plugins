@@ -28,6 +28,7 @@ const components = [
   comp({ name: "tdd", sourcePath: "sp/skills/tdd" }),
   comp({ name: "dropped", sourcePath: "sp/skills/dropped" }),
 ];
+const own = [{ plugin: "deniz-process", name: "my-own", address: "deniz-process:my-own" }];
 
 test("map covers included items with renames, skips excluded", () => {
   const map = buildRewriteMap([manifest], components);
@@ -65,6 +66,26 @@ test("commands and agents are addressed by file name without the extension", () 
     [comp({ type: "command", name: "fancy-name", sourcePath: "sp/commands/do-it.md" })],
   );
   assert.equal(map.get("superpowers:do-it"), "deniz-process:fancy-name");
+});
+
+test("original skill targets use Plugin-qualified Claude and bare OpenCode spellings", () => {
+  assert.equal(
+    buildRewriteMap([manifest], components, "claude", own).get("deniz-process:my-own"),
+    "deniz-process:my-own",
+  );
+  assert.equal(buildRewriteMap([manifest], components, "opencode", own).get("deniz-process:my-own"), "my-own");
+});
+
+test("an original skill rewrite key cannot overwrite another target", () => {
+  const colliding = [comp({ namespace: "deniz-process", name: "upstream-name", sourcePath: "sp/skills/my-own" })];
+  const collisionManifest: CurationManifest = {
+    plugin: manifest.plugin,
+    items: [{ source: "sp/skills/my-own", name: "other-target" }],
+  };
+  assert.throws(
+    () => buildRewriteMap([collisionManifest], colliding, "claude", own),
+    /reference identity deniz-process:my-own.*deniz-process:other-target.*deniz-process:my-own/,
+  );
 });
 
 test("rewriteRefs replaces longest keys first", () => {

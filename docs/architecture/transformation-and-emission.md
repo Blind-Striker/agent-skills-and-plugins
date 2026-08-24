@@ -1,6 +1,6 @@
 # Transformation and emission
 
-Date: 2026-08-20
+Date: 2026-08-24
 
 ## Responsibility
 
@@ -56,6 +56,11 @@ follows `item.as` -> scanned component type -> `skill`. **The scanned source typ
 default when `as:` is absent, never a binding authority.** An explicit shape can replace it. The
 current resolver is [`tools/lib/resolve.ts`](../../tools/lib/resolve.ts#L25-L42), while the scanner's
 source-kind classification is [`tools/lib/scan.ts`](../../tools/lib/scan.ts#L69-L104).
+
+A submodule whose only skill lives at its repository root uses the submodule name as its source
+address and namespace fallback; its `SKILL.md` remains the component document. Upstream `.git`
+metadata is never copied into output, including the machine-path gitdir file a submodule root
+contains. Item-level `omit` continues to own runtime files such as installation-only READMEs.
 
 Current implementation support is narrower than the design dial: skill-to-command and
 skill-to-agent conversions work, but command-to-skill and agent-to-skill conversions stop in

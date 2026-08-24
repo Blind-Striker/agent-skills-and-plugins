@@ -13,9 +13,9 @@ skill pulls it in.
 
 ### 1. Sharpen the idea
 
-- **`/grill-with-docs`** when you are in a working directory. It interviews you and leaves a paper
-  trail: `CONTEXT.md` and ADRs. Stateful, and the better of the two whenever a repo is there to
-  write into.
+- **`/grill-with-docs`** when you are in a working directory. It interviews you and records
+  qualifying terms in `CONTEXT.md` and qualifying decisions in ADRs, creating either lazily.
+  Stateful, and the better of the two whenever a repo is there to write into.
 - **`/grill-me`** when there is no working directory — same interview, no paper trail.
 
 Both drive the same `grilling` primitive underneath. It works the design tree in **rounds**: the

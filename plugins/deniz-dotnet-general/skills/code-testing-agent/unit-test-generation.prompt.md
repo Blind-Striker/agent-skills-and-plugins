@@ -189,7 +189,7 @@ class TestCalculator:
 - **Scoped builds during development**: Build the specific test project during implementation for faster iteration
 - **Final full-workspace build**: After all test generation is complete, run a full non-incremental build from the workspace root to catch cross-project errors
 - **API signature verification**: Before calling any method in test code, verify the exact parameter types, count, and order by reading the source code
-- **Project reference validation**: Before writing test code, verify the test project references all source projects the tests will use. Call the `code-testing-extensions` skill and read the language-specific extension file for guidance (e.g., `dotnet.md` for .NET)
+- **Project reference validation**: Before writing test code, inspect the test project manifest and verify it references every source project the tests will use. Preserve the repository's existing project system, package versions, and reference style
 
 ## Test Scope Guidelines
 

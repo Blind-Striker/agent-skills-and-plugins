@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { CurationManifest } from "./manifest.ts";
+import type { OwnSkillIdentity } from "./own-skills.ts";
 import { scanRefs } from "./refs.ts";
 import type { ComponentInfo } from "./scan.ts";
 
@@ -25,6 +26,7 @@ export function buildRewriteMap(
   manifests: CurationManifest[],
   components: ComponentInfo[],
   style: RefStyle = "claude",
+  ownSkills: OwnSkillIdentity[] = [],
 ): Map<string, string> {
   const bySource = new Map(components.map((c) => [c.sourcePath, c]));
   const map = new Map<string, string>();
@@ -41,6 +43,14 @@ export function buildRewriteMap(
       const outName = item.name ?? c.name;
       map.set(`${c.namespace}:${addressOf(c)}`, style === "opencode" ? outName : `${m.plugin.name}:${outName}`);
     }
+  }
+  for (const own of ownSkills) {
+    const value = style === "opencode" ? own.name : own.address;
+    const existing = map.get(own.address);
+    if (existing !== undefined && existing !== value) {
+      throw new Error(`reference identity ${own.address} resolves to both ${existing} and ${value}`);
+    }
+    map.set(own.address, value);
   }
   return map;
 }

@@ -87,13 +87,20 @@
   "deniz-dotnet-general/code-testing-agent": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent",
     "files": {
-      "SKILL.md": "9f51fdf1c8e031ac80d120a6a594bf40883ed283"
+      "SKILL.md": "9f51fdf1c8e031ac80d120a6a594bf40883ed283",
+      "unit-test-generation.prompt.md": "18525a86135af37ecbfd2b495272a71b83c6b4f2"
     }
   },
   "deniz-dotnet-general/coverage-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {
       "SKILL.md": "aa29dfc7af56b951c675acff0f29746d25314c10"
+    }
+  },
+  "deniz-dotnet-general/csharp-nullable-reference-types": {
+    "source": "dotnet-skills/skills/csharp-nullable-reference-types",
+    "files": {
+      "SKILL.md": "a39a1fbbb00898d563f66525979d8065faef2a7c"
     }
   },
   "deniz-dotnet-general/database-performance": {
@@ -287,6 +294,12 @@
     "source": "superpowers/skills/using-superpowers",
     "files": {
       "SKILL.md": "7ab2eb678f649c8befb94512359ee0b6e9a9a9a4"
+    }
+  },
+  "deniz-process/wait-what": {
+    "source": "mattpocock-skills/skills/productivity/wait-what",
+    "files": {
+      "SKILL.md": "f8854f1b4527bca90378baf5430557172136a1bf"
     }
   },
   "deniz-process/writing-skills": {

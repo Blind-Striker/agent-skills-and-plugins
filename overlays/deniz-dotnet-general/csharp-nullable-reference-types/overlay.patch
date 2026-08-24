@@ -1,0 +1,107 @@
+diff --git a/SKILL.md b/SKILL.md
+index a39a1fb..7e9c877 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -7,30 +7,32 @@ tags:
+   - nullable
+   - nrt
+   - code-quality
+   - api-design
+ ---
+ 
+ # C# Nullable Reference Types
+ 
++This skill assumes nullable context is already enabled for the code in scope. For project- or
++solution-wide adoption, rollout planning, or systematic CS86xx cleanup, ask the user to invoke
++`/dotnet-upgrade:migrate-nullable-references`; do not perform that migration through this skill.
++
+ ## When to Use
+ 
+-- Introducing nullable reference types (NRT) into a codebase that has not yet adopted them
+ - Writing or refactoring C# code that uses `T?` / nullable annotations
+ - Annotating APIs with `System.Diagnostics.CodeAnalysis` nullable attributes
+ - Designing public/internal APIs where nullability contracts matter
+ - Wrapping unannotated or legacy APIs so downstream callers still benefit from NRT
+ - Reviewing code for correct null-state analysis, guard helpers, and the `field` keyword
+ 
+ ## Core Goals
+ 
+ - Prevent `NullReferenceException` at runtime by making null intent explicit in signatures.
+ - Express contracts the type system cannot represent directly using the official nullable attributes.
+-- Adopt NRT incrementally in legacy codebases without a big-bang rewrite.
+ 
+ ## Core Nullability Model
+ 
+ ### Non-nullable vs nullable
+ 
+ - `string` — non-nullable reference. The compiler assumes instances are never `null`; assigning `null` or a maybe-null value produces a warning.
+ - `string?` — nullable reference. The variable may be `null`; the compiler requires a null check before dereference.
+ 
+@@ -92,27 +94,29 @@ public void Process(Order? order)
+     Console.WriteLine(customer.Name);
+ }
+ ```
+ 
+ Do not extract a function solely to satisfy nullable analysis. Use an explicit non-nullable function boundary when it also simplifies a large or branching implementation. Use `!` only when a real external invariant cannot be represented through control flow, signatures, or nullable-analysis attributes.
+ 
+ ## Project Configuration
+ 
+-Enable NRT for new code:
++Confirm that nullable context is enabled for the file or project before applying this guidance:
+ 
+ ```xml
+ <PropertyGroup>
+   <Nullable>enable</Nullable>
+ </PropertyGroup>
+ ```
+ 
+-For legacy codebases, enable incrementally with file-level directives (`#nullable enable`, `#nullable disable`, `#nullable enable warnings`, `#nullable enable annotations`). Treat `CS86xx` nullable warnings as important; consider `TreatWarningsAsErrors` or treating nullable warnings as errors in new projects.
+-
+-See [nrt-migration-playbook-reference.md](nrt-migration-playbook-reference.md) for the full incremental-adoption strategy, `#nullable` directive reference, legacy interop, and known static-analysis limitations (arrays, `default(struct)`).
++NRT analysis requires a C# 8 or newer compiler even when the project targets an older framework.
++The `field` and null-conditional assignment examples in this skill require C# 14. Older target
++frameworks may not define every nullable-analysis attribute type. Do not add polyfill packages or
++copy attribute definitions through this auto skill; project-wide compatibility and rollout choices
++belong to the manual migration ceremony.
+ 
+ ## API Design Rules (Signatures)
+ 
+ These rules apply to public and internal APIs and to models.
+ 
+ **Parameters** — if `null` is not allowed, use a non-nullable type and add a runtime guard for public APIs:
+ 
+ ```csharp
+@@ -170,30 +174,29 @@ public class C
+ }
+ ```
+ 
+ See [nullable-attributes-reference.md](nullable-attributes-reference.md) for the full `field` nullability rules (null-resilient vs non-resilient getters, the `[field: AllowNull, MaybeNull]` escape hatch, and setter/constructor analysis).
+ 
+ ## Reference Files
+ 
+ - [nullable-attributes-reference.md](nullable-attributes-reference.md): The complete `System.Diagnostics.CodeAnalysis` attribute catalog — preconditions (`AllowNull`, `DisallowNull`), postconditions (`MaybeNull`, `NotNull`), conditional postconditions (`NotNullWhen`, `MaybeNullWhen`, `NotNullIfNotNull`), helper methods (`MemberNotNull`, `MemberNotNullWhen`), unreachable-code helpers (`DoesNotReturn`, `DoesNotReturnIf`), and the `field` keyword nullability rules. Each with intent, pattern, and agent rules.
+-- [nrt-migration-playbook-reference.md](nrt-migration-playbook-reference.md): Incremental adoption strategy, `#nullable` directive reference, legacy/unannotated API interop, polyfilling nullable attributes for older target frameworks (with tradeoffs and a confirm-before-adding decision process), known static-analysis limitations (arrays of non-nullable references, `default(struct)` with reference fields), warning handling, and the full generation checklist.
+ 
+ ## Generation Checklist (Summary)
+ 
+-1. **Project** — `<Nullable>enable</Nullable>` present; disable only around unavoidable legacy code.
++1. **Project** — nullable context is already enabled for the code in scope; otherwise route the user to the manual migration ceremony.
+ 2. **Types** — non-nullable for required params/returns/properties; `T?` only when `null` is valid and expected.
+ 3. **Initialization** — constructors, `required` + object initializers, `field`-backed lazy getters, or `[MemberNotNull]` helpers. Avoid `null!` except as a documented escape hatch.
+ 4. **Null checks** — explicit guards at public boundaries; narrow with control flow, and extract a non-nullable helper only when it improves complex code; `!` only with a clear invariant.
+ 5. **Attributes** — apply to express contracts the type system cannot express (see reference file).
+ 6. **Interop** — trust BCL/annotated libraries; add your own guards and attributes when wrapping unannotated APIs.
+ 7. **Warnings** — never ignore; fix design or add attributes rather than suppressing with `!` or `#pragma`.
+ 8. **Compatibility** — for released libraries, review public nullability changes as potential source breaks and test nullable-enabled consumers.
+ 
+ ## References
+ 
+ - [Nullable reference types (overview)](https://learn.microsoft.com/dotnet/csharp/nullable-references)
+ - [Attributes for null-state static analysis](https://learn.microsoft.com/dotnet/csharp/language-reference/attributes/nullable-analysis)
+ - [Nullable migration strategies](https://learn.microsoft.com/dotnet/csharp/advanced-topics/update-applications/nullable-migration-strategies)
+ - [Breaking change: Nullable reference type annotation changes](https://learn.microsoft.com/dotnet/core/compatibility/core-libraries/6.0/nullable-ref-type-annotation-changes)
+ - [Tutorial: Express your design intent with nullable and non-nullable reference types](https://learn.microsoft.com/dotnet/csharp/whats-new/tutorials/nullable-reference-types)
+ - [What's new in C# 14](https://learn.microsoft.com/dotnet/csharp/whats-new/csharp-14) (extension members, `field` keyword GA, null-conditional assignment)
+-- [The `field` contextual keyword (feature spec)](https://learn.microsoft.com/dotnet/csharp/language-reference/proposals/csharp-14.0/field-keyword)
+\ No newline at end of file
++- [The `field` contextual keyword (feature spec)](https://learn.microsoft.com/dotnet/csharp/language-reference/proposals/csharp-14.0/field-keyword)

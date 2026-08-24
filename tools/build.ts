@@ -16,6 +16,7 @@ import { indexModes } from "./lib/git.ts";
 import { OPENCODE_SKILL_KEYS, writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
+import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
   applyPatch,
@@ -58,6 +59,9 @@ export function buildAll(root: string): string[] {
     const header = problems.length > 1 ? `${problems.length} unresolvable curation items, nothing deleted:\n` : "";
     throw new Error(header + problems.join("\n"));
   }
+  const ownSkills = ownSkillIdentities(root, manifests);
+  const claudeRewrite = buildRewriteMap(manifests, components, "claude", ownSkills);
+  const opencodeRewrite = buildRewriteMap(manifests, components, "opencode", ownSkills);
 
   rmSync(join(root, "plugins"), { recursive: true, force: true });
   rmSync(join(root, "opencode"), { recursive: true, force: true });
@@ -88,8 +92,8 @@ export function buildAll(root: string): string[] {
   // then be rewritten with the spelling its own harness resolves (ADR-0006 axis 3). Emitting after
   // the rewrite is what left OpenCode carrying `<plugin>:<name>` references it cannot resolve.
   emitOpenCode(root, invocations, report);
-  rewriteTree(join(root, "plugins"), buildRewriteMap(manifests, components, "claude"));
-  rewriteTree(join(root, "opencode"), buildRewriteMap(manifests, components, "opencode"));
+  rewriteTree(join(root, "plugins"), claudeRewrite);
+  rewriteTree(join(root, "opencode"), opencodeRewrite);
   // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
   // excluded from the walk.
   writeOpenCodeManifests(root, manifests);
@@ -108,12 +112,17 @@ function overlayBodyFile(comp: ComponentInfo, item: CurationItem): string {
  * A directory is kept whenever anything under it is kept; emptied ones are pruned afterwards.
  */
 function omitFilter(srcRoot: string, item: CurationItem): (src: string) => boolean {
-  if (!item.omit?.length) {
-    return () => true;
-  }
   return (src) => {
     const rel = itemRelative(srcRoot, src);
-    return rel === "" || !isOmitted(rel, item.omit);
+    if (rel === "") {
+      return true;
+    }
+    // A root-level skill can make a submodule's gitdir file part of the copied source tree. It
+    // contains a machine path and is repository metadata, never a runtime skill asset.
+    if (rel === ".git" || rel.startsWith(".git/")) {
+      return false;
+    }
+    return !item.omit?.length || !isOmitted(rel, item.omit);
   };
 }
 

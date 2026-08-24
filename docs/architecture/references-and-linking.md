@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-08-20
+Date: 2026-08-24
 
 ## Responsibility
 
@@ -63,10 +63,12 @@ not confidence in a heuristic.
 ## Localization
 
 The rewrite map keys the scanner's upstream namespace and filesystem address to the resolved output
-name. A renamed item therefore changes the symbol target, not just its destination filename. Claude
-Code receives `<plugin>:<output-name>` and preserves a pointer's leading slash; OpenCode receives the
-bare output name and preserves the slash. The map and in-place rewrite are
-[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts#L14-L66).
+name. A renamed item therefore changes the symbol target, not just its destination filename.
+Original skills add their authored `<plugin>:<top-level-directory>` identity to the same map, so a
+curated item can guard an original-skill target without inventing an upstream address. Claude Code
+receives `<plugin>:<output-name>` and preserves a pointer's leading slash; OpenCode receives the bare
+output name and preserves the slash. The map and in-place rewrite are
+[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts).
 
 Both trees are rewritten from their own pre-localized copies. OpenCode is not produced by stripping
 namespaces from already localized Claude text. Validation rejects any own output namespace that
@@ -130,15 +132,17 @@ by [Distribution and installation](distribution-and-installation.md).
   `both` target can satisfy either audience edge, so a semantically wrong target kind may remain a
   human review concern even when linkage is green.
 - The `sync` CLI derives its candidate universe from the output-name segments of ledger keys
-  (`<plugin>/<kind>/<name>`) via [`ledgerCandidateNames`](../../tools/sync.ts). Its candidate-edge
-  report is still bounded by the tier: it compares known output names across one changed `SKILL.md`,
-  so it surfaces edges for reading and never promotes one to a fact, a declaration, or build state.
+  (`<plugin>/<kind>/<name>`) plus authored original-skill directory names. Its candidate-edge report
+  is still bounded by the tier: it compares known output names across one changed `SKILL.md`, so it
+  surfaces edges for reading and never promotes one to a fact, a declaration, or build state.
 - The namespaced fact scanner is lowercase-only. Capitalized spellings can evade fact detection.
 - Bare-name composition can work at runtime while remaining deliberately unguarded. Its success does
   not make candidates authoritative after the fact.
-- Original skills under `skills/` may be edge targets, but the current derived-edge source scan walks
-  manifest items only, so references originating in an own skill are not scanned or declared
-  ([`validateRepo`](../../tools/validate.ts#L604-L674)).
+- Original skills under `skills/` are guarded edge targets: curated items can author their
+  `<plugin>:<directory>` fact, localize it for both harnesses, and declare the output name in
+  `depends_on`. The derived-edge source scan still walks manifest items only, so references
+  originating in an original skill are not scanned or declared
+  ([`validateRepo`](../../tools/validate.ts#L628-L698)).
 - Relative-path checks are attribution-aware, not a general Markdown link checker. A silent path may
   still be wrong upstream; a warning on a converted command may still require a body or emitter
   decision.

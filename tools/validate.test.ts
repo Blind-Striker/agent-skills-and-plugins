@@ -14,6 +14,26 @@ import { validateRepo } from "./validate.ts";
 // hard zero on a clean build.
 const FIXTURE_DEBT = ["model-edge to a target the model cannot reach: beta-agent", "undeclared dependency: beta-agent"];
 
+function writeOwnTargetCase(root: string, body: string, dependsOn: string[] = ["my-own"]): void {
+  rmSync(join(root, "overlays"), { recursive: true, force: true });
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    `---\nname: alpha\ndescription: Alpha\n---\n${body}\n`,
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      ...(dependsOn.length ? [`    depends_on: [${dependsOn.join(", ")}]`] : []),
+    ].join("\n")}\n`,
+  );
+}
+
 test("a clean build has no errors beyond the fixture's own model-edge debt", () => {
   const root = makeRepo();
   buildAll(root);
@@ -521,6 +541,35 @@ test("linker: depends_on is enforced in both directions", () => {
     findings.some((f) => f.level === "error" && f.message.includes("stale depends_on: gamma")),
     JSON.stringify(findings, null, 2),
   );
+});
+
+test("linker: a declared original-skill target passes", () => {
+  const root = makeRepo();
+  writeOwnTargetCase(root, "Load deniz-process:my-own.");
+  buildAll(root);
+  assert.ok(!validateRepo(root).some((f) => f.level === "error"));
+});
+
+test("linker: an original-skill fact without depends_on is undeclared", () => {
+  const root = makeRepo();
+  writeOwnTargetCase(root, "Load deniz-process:my-own.", []);
+  buildAll(root);
+  assert.ok(validateRepo(root).some((f) => f.message.includes("undeclared dependency: my-own")));
+});
+
+test("linker: original-skill depends_on without a fact is stale", () => {
+  const root = makeRepo();
+  writeOwnTargetCase(root, "No handoff.");
+  buildAll(root);
+  assert.ok(validateRepo(root).some((f) => f.message.includes("stale depends_on: my-own")));
+});
+
+test("linker: removing an original-skill target leaves a dangling fact", () => {
+  const root = makeRepo();
+  writeOwnTargetCase(root, "Load deniz-process:my-own.");
+  rmSync(join(root, "skills", "deniz-process", "my-own"), { recursive: true, force: true });
+  buildAll(root);
+  assert.ok(validateRepo(root).some((f) => f.message.includes("dangling reference")));
 });
 
 test("linker: an output namespace leaking into opencode/ is an error", () => {

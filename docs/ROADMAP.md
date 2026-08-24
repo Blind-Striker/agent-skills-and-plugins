@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-21
+Date: 2026-08-24
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -25,9 +25,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Plugins are outside the [skill-source migration documented by the dated adapter and installer
   evidence](research/harness-adapters.md#opencode); future Akka and Aspire Claude installs require
   explicit approval rather than a standing migration task.
-- Two upstream pins have moved in the current recuration initiative. `dotnet-skills` is at
-  `13e26d3` (v1.5.0): the unowned OpenTelemetry body flowed, and the new
-  `csharp-nullable-reference-types` component is scanner-visible with no manifest answer yet.
+- Four upstream pins have moved in the current recuration initiative. `dotnet-skills` is at
+  `13e26d3` (v1.5.0): the OpenTelemetry body remains upstream-owned with its known dependency-free
+  callback defect recorded beside the item, while `csharp-nullable-reference-types` is now passive
+  `auto` knowledge for nullable-enabled code. Its migration playbook is omitted and project-wide
+  adoption still routes to the existing manual `migrate-nullable-references` ceremony.
   `superpowers` is at `b36e082` (v6.3.0): the `using-superpowers` patch was recut over upstream's
   new platform line, the `requesting-code-review` overlay absorbed upstream's no-subagent contract
   before re-blessing, and the `brainstorming` description override was rewritten to cover all three
@@ -37,7 +39,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   three merge sources were re-blessed and `diagnosing-bugs`' secret-redaction rules were absorbed
   into the owned `systematic-debugging` body, `wait-what`, `to-questionnaire` and `wizard` were
   taken as `manual`, ten read-and-rejected components were recorded as exclusions, and `ask-matt`
-  became the owned router `ask-deniz`. `deniz-process` is 0.3.0. `dotnet-agent-skills` is at `516db1e`: five drifted patches were
+  became the owned router `ask-deniz`. The single-purpose `asd-ste100` source was added at reviewed
+  master commit `d5ce157`; Process takes its root skill as `auto`, and `wait-what` now has a guarded
+  handoff to it in both harnesses. `deniz-process` is 0.4.0. `dotnet-agent-skills` is at `516db1e`: five drifted patches were
   recut after reading their new source intent, `test-gap-analysis` lost the upstream step that made
   a report-only audit write test files, `platform-detection`'s husk posture became this repo's own
   choice once upstream dropped its posture keys, and two new components were answered. Two exclusions
@@ -46,9 +50,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   the slot on dispose while the rule beneath it asked for the previous value restored), and the
   rewritten `optimizing-ef-core-queries` was split by level, its SQL-level sargability and keyset
   paging into `database-performance` and its `EF.CompileQuery` guidance into `efcore-patterns`.
-  `deniz-dotnet-general` is 0.4.0. Every module's corpus is now fully answered; the one
-  never-curated scanner-visible name left in the estate is `csharp-nullable-reference-types`, still
-  deliberately open.
+  `deniz-dotnet-general` is 0.8.0. Every module's scanner-visible corpus now has an explicit answer.
 - The repository remains private. The emitted global-only OpenCode installer and private Package
   recipe are available in the root [README](../README.md); current mechanics are in
   [distribution and installation](architecture/distribution-and-installation.md). The measured real
@@ -60,56 +62,18 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Two decisions the recuration left open.** `csharp-nullable-reference-types` arrived with the
-   `dotnet-skills` v1.5.0 pin and is still unanswered — knowledge content beside the existing manual
-   NRT migration ceremony. And the new OpenTelemetry body ships an example whose `EmitLogs` flag is
-   declared and never read, so the exception callback fires in the spans-only default the surrounding
-   prose promises; the item is unowned, so correcting it means opening a body.
-2. **Decide whether an original skill may participate in guarded references.** Measured while
-   wiring `code-testing-agent` to `writing-tunit-tests`: today it cannot, in either direction, and
-   the two halves are independent.
-
-   *As a target.* The linker's target map is read from the emitted tree, so an own skill is in it —
-   but nothing ever reaches that check, because localization runs first and
-   [`buildRewriteMap`](../tools/lib/rewrite.ts) is keyed by UPSTREAM address. An own skill has no
-   upstream address, so no authored spelling resolves: the output form survives into `opencode/`,
-   where an own namespace is illegal, and `validate` rejects it.
-
-   The observed failure, kept here because it is the fix's acceptance test. Write the output
-   spelling into the curated `code-testing-agent` body, where the C# handoff now names the skill:
-
-   ```text
-   - Generate or extend a C# suite; … load deniz-dotnet-general:writing-tunit-tests for the
-     framework itself — this estate is TUnit-first
-   ```
-
-   then `npm run build && npm run validate`:
-
-   ```text
-   ERROR: opencode/deniz-dotnet-general/skills/code-testing-agent/BODY.md:
-          output namespace leaked into opencode/: deniz-dotnet-general:writing-tunit-tests
-   ```
-
-   The Claude tree passes — `<plugin>:<name>` is already its spelling — so this fails on one harness
-   only, which is what makes it easy to write and miss. Giving own skills a key (`<plugin>:<dir>`,
-   mapping to itself for Claude and to the bare name for OpenCode) is a handful of lines and is the
-   whole of this half. The fix is done when that reference localizes, `depends_on:
-   [writing-tunit-tests]` is accepted on the item, and removing the declaration then fails.
-
-   *As a source.* The derived-edge scan walks manifest items, so an own skill's outgoing references
-   are never read. Lifting the per-file check out of that loop and running it over own skills too is
-   larger but still small. It buys half of what curated items get: dangling targets and audience
-   mismatches, but no two-way `depends_on` symmetry, because an own skill has no manifest entry to
-   declare in. Decide whether that half is worth having, or whether own skills need a declaration
-   surface first.
-
-   Until both land, an own skill points by bare name and nothing checks it. `writing-tunit-tests`
-   has five such pointers, and one of them crosses a Module boundary — `test-driven-development`
-   lives in `deniz-process` — which nothing catches either.
-3. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
+1. **Decide how original skills declare outgoing guarded references.** Original skills are now
+   guarded targets and participate in `sync`'s candidate universe: `code-testing-agent` carries the
+   first linker-checked edge to `writing-tunit-tests`. The remaining source half is independent.
+   Derived-edge analysis still walks manifest items, so an original skill's outgoing references are
+   not scanned and it has no surface for two-way `depends_on` symmetry. `writing-tunit-tests` has
+   five such bare pointers, including the cross-Module `test-driven-development` handoff. Decide
+   whether target existence and audience checks without declaration symmetry are worth adding, or
+   whether original skills need a declaration surface first.
+2. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
    decide whether the intentionally upstream-owned Aspire proof limits are acceptable for a public
    package and whether `marketplace.json`'s format-required owner name and email may go public.
-4. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
+3. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
    the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
    read a curated item's upstream original, its overlay/patch and the recorded intent (the
    manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
@@ -120,7 +84,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    after the reference-model wave; needs a short design pass for the panel prompt and the
    presentation shape before anything runs.
 
-5. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
+4. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
    mechanisms of different reliability, and curation should treat that as a dial rather than an
    accident — an item that must fire needs something that names it, not merely a good description.
    Keep it unwritten until the curation rule is stable enough to state the actual contract rather

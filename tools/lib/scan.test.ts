@@ -47,6 +47,18 @@ test("falls back to submodule dir name when no plugin.json", () => {
   assert.equal(first.namespace, "raw");
 });
 
+test("a root-level skill uses the submodule name as its source address", () => {
+  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  mkdirSync(join(ext, "rootsp"), { recursive: true });
+  writeFileSync(join(ext, "rootsp", "SKILL.md"), "---\nname: root-skill\ndescription: Root\n---\n\nB");
+  const comps = scanSubmodule(ext, "rootsp");
+  assert.equal(comps.length, 1);
+  const first = comps[0];
+  assert.ok(first);
+  assert.equal(first.namespace, "rootsp");
+  assert.equal(first.sourcePath, "rootsp");
+});
+
 test("tolerates trailing separator on submodule name", () => {
   const ext = mkdtempSync(join(tmpdir(), "scan-"));
   mkdirSync(join(ext, "raw", "skills", "x"), { recursive: true });

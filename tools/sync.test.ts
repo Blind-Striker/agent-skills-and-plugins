@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CurationManifest } from "./lib/manifest.ts";
-import { ledgerCandidateNames, renameDestination, type SyncIO, syncReport, treeExists } from "./sync.ts";
+import {
+  ledgerCandidateNames,
+  renameDestination,
+  type SyncIO,
+  syncCandidateNames,
+  syncReport,
+  treeExists,
+} from "./sync.ts";
 
 // Reading upstream at both pins is the only impure thing the report needs, so it arrives as a
 // parameter: these tests hand it fixtures where the CLI hands it `git show` and `git ls-tree`.
@@ -74,6 +81,11 @@ test("tree existence resolves a directory by prefix and respects the segment bou
   assert.ok(!exists("skills/missing"));
 });
 
+test("tree existence treats an initialised submodule root as an address", () => {
+  const exists = treeExists(["SKILL.md", "references/rules.md"]);
+  assert.ok(exists(""));
+});
+
 // Every bare command or agent source IS a file, so the renamed path equals the curated address and
 // there is no directory tail to strip. Matching only by prefix reported those moves as an
 // unexplained SOURCE GONE — the exact half of the delete/rename defect this machinery exists to fix.
@@ -116,6 +128,55 @@ test("reports only changed curated items with overlay flag", () => {
   assert.match(alpha, /auto-updated/);
   assert.match(beta, /beta/);
   assert.match(beta, /OVERLAY/);
+});
+
+test("a changed root-level skill is reported and its SKILL.md is parsed", () => {
+  const rootManifest: CurationManifest = {
+    plugin: { name: "deniz-process", description: "d", version: "0.1.0" },
+    items: [{ source: "rootsp" }],
+  };
+  const lines = syncReport("rootsp", ["SKILL.md"], [rootManifest], {
+    ...NO_IO,
+    readFile: oneFile(
+      "SKILL.md",
+      "---\nname: root\ndescription: old\n---\nB.\n",
+      "---\nname: root\ndescription: new\n---\nB.\n",
+    ),
+  });
+  assert.ok(lines.some((line) => line.includes("rootsp changed upstream")));
+  assert.ok(lines.some((line) => line.includes("POSTURE description")));
+});
+
+test("malformed frontmatter in a root-level skill is reported as a build stop", () => {
+  const rootManifest: CurationManifest = {
+    plugin: { name: "deniz-process", description: "d", version: "0.1.0" },
+    items: [{ source: "rootsp" }],
+  };
+  const lines = syncReport("rootsp", ["SKILL.md"], [rootManifest], {
+    ...NO_IO,
+    readFile: oneFile(
+      "SKILL.md",
+      "---\nname: root\ndescription: old\n---\nB.\n",
+      "---\nname: root\ndescription: broken: yaml\n---\nB.\n",
+    ),
+  });
+  assert.ok(lines.some((line) => line.includes("FRONTMATTER NO LONGER PARSES")));
+});
+
+test("a deleted root-level SKILL.md is a build stop even when other root files remain", () => {
+  const rootManifest: CurationManifest = {
+    plugin: { name: "deniz-process", description: "d", version: "0.1.0" },
+    items: [{ source: "rootsp" }],
+  };
+  const lines = syncReport("rootsp", ["SKILL.md"], [rootManifest], {
+    ...NO_IO,
+    readFile: (rev, rel) =>
+      rel === "SKILL.md" && rev === "old" ? "---\nname: root\ndescription: old\n---\nB.\n" : null,
+  });
+  assert.equal(lines.length, 1);
+  assert.match(String(lines[0]), /COMPONENT DOCUMENT GONE/);
+  assert.match(String(lines[0]), /the next build stops/);
+  assert.doesNotMatch(String(lines[0]), /auto-updated/);
 });
 
 // "auto-updated on next build" is a lie for a patch item: upstream moving into the patched region
@@ -196,6 +257,21 @@ test("a description flip under a stated invocation still flows into output", () 
   assert.match(posture, /this flows straight into output/);
 });
 
+test("a posture flip under an owned body says the overlay keeps it out of output", () => {
+  const lines = syncReport("sp", ["skills/beta/SKILL.md"], manifests, {
+    ...NO_IO,
+    readFile: oneFile(
+      "skills/beta/SKILL.md",
+      "---\nname: beta\ndescription: narrow\n---\nB.\n",
+      "---\nname: beta\ndescription: broader\n---\nB.\n",
+    ),
+  });
+  const posture = lines.find((l) => l.includes("POSTURE description"));
+  assert.ok(posture);
+  assert.match(posture, /the owned overlay replaces this key, so it does not reach output/);
+  assert.doesNotMatch(posture, /flows straight into output/);
+});
+
 test("a pin move touching a merge source tags the merged item even across submodules", () => {
   const lines = syncReport("mp", ["skills/beta/SKILL.md"], manifests, NO_IO);
   assert.ok(
@@ -234,6 +310,42 @@ test("the candidate universe is output names, not artifact kinds", () => {
 test("the candidate universe de-duplicates a name two Modules both emit", () => {
   const names = ledgerCandidateNames({ "a/skill/shared": {}, "b/command/shared": {} });
   assert.deepEqual(names, ["shared"]);
+});
+
+test("the sync candidate universe includes original skill names", () => {
+  assert.deepEqual(
+    syncCandidateNames({ "deniz-process/skill/writing-plans": {} }, [
+      {
+        plugin: "deniz-general",
+        name: "writing-tunit-tests",
+        address: "deniz-general:writing-tunit-tests",
+      },
+    ]),
+    ["writing-plans", "writing-tunit-tests"],
+  );
+});
+
+test("an original skill candidate gained or lost in an upstream body is reported", () => {
+  const io = (atOld: string, atNew: string): SyncIO => ({
+    ...NO_IO,
+    readFile: oneFile("skills/alpha/SKILL.md", atOld, atNew),
+    ledgerNames: ["writing-tunit-tests"],
+  });
+  const header = "---\nname: alpha\ndescription: a\n---\n";
+  const gained = syncReport(
+    "sp",
+    ["skills/alpha/SKILL.md"],
+    manifests,
+    io(`${header}No handoff.\n`, `${header}Load writing-tunit-tests.\n`),
+  );
+  const lost = syncReport(
+    "sp",
+    ["skills/alpha/SKILL.md"],
+    manifests,
+    io(`${header}Load writing-tunit-tests.\n`, `${header}No handoff.\n`),
+  );
+  assert.ok(gained.some((line) => line.includes("CANDIDATE EDGES +writing-tunit-tests")));
+  assert.ok(lost.some((line) => line.includes("CANDIDATE EDGES -writing-tunit-tests")));
 });
 
 // A deleted source IS in the changed-path list, so the old report matched it and tagged it
@@ -360,6 +472,40 @@ test("frontmatter that no longer parses is reported, not thrown", () => {
   assert.ok(lines.some((l) => l.includes("FRONTMATTER NO LONGER PARSES")));
   // The report survives: the item after the broken one is still reported.
   assert.ok(lines.some((l) => l.includes("sp/skills/beta")));
+});
+
+test("malformed frontmatter in a file-shaped source is reported as a build stop", () => {
+  const fileManifest: CurationManifest = {
+    plugin: { name: "deniz-dotnet", description: "d", version: "0.1.0" },
+    items: [{ source: "sp/agents/helper.md" }],
+  };
+  const lines = syncReport("sp", ["agents/helper.md"], [fileManifest], {
+    ...NO_IO,
+    readFile: oneFile(
+      "agents/helper.md",
+      "---\nname: helper\ndescription: fine\n---\nB.\n",
+      "---\nname: helper\ndescription: broken: unquoted: colons\n---\nB.\n",
+    ),
+  });
+  assert.equal(lines.length, 1);
+  assert.match(String(lines[0]), /FRONTMATTER NO LONGER PARSES/);
+  assert.match(String(lines[0]), /the next build stops during the upstream scan/);
+  assert.doesNotMatch(String(lines[0]), /auto-updated/);
+});
+
+test("malformed frontmatter in an excluded skill is reported as a global scan build stop", () => {
+  const lines = syncReport("sp", ["skills/gone/SKILL.md"], manifests, {
+    ...NO_IO,
+    readFile: oneFile(
+      "skills/gone/SKILL.md",
+      "---\nname: gone\ndescription: fine\n---\nB.\n",
+      "---\nname: gone\ndescription: broken: unquoted: colons\n---\nB.\n",
+    ),
+  });
+  assert.equal(lines.length, 1);
+  assert.match(String(lines[0]), /FRONTMATTER NO LONGER PARSES/);
+  assert.match(String(lines[0]), /the next build stops during the upstream scan/);
+  assert.doesNotMatch(String(lines[0]), /excluded — no action/);
 });
 
 test("an item with no override gets no override line", () => {

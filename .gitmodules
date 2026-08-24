@@ -13,3 +13,6 @@
 [submodule "external/dotnet-agent-skills"]
 	path = external/dotnet-agent-skills
 	url = https://github.com/dotnet/skills.git
+[submodule "external/asd-ste100"]
+	path = external/asd-ste100
+	url = https://github.com/danyuchn/asd-ste100-skill.git

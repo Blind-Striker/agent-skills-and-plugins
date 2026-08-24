@@ -96,6 +96,67 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 
+test("a curated item localizes a guarded original-skill target in both harnesses", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha\n---\nLoad deniz-process:my-own.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    depends_on: [my-own]",
+      "",
+    ].join("\n"),
+  );
+
+  buildAll(root);
+
+  assert.match(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    /deniz-process:my-own/,
+  );
+  assert.match(
+    readFileSync(opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    /Load my-own\./,
+  );
+});
+
+test("a root-level source never emits submodule git metadata", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "external", "rootsp"), { recursive: true });
+  writeFileSync(join(root, "external", "rootsp", ".git"), "gitdir: C:/machine-specific/path\n");
+  writeFileSync(join(root, "external", "rootsp", "SKILL.md"), "---\nname: root-skill\ndescription: Root\n---\nBody.\n");
+  writeFileSync(join(root, "external", "rootsp", "README.md"), "installation prose\n");
+  writeFileSync(join(root, "external", "rootsp", "LICENSE"), "license\n");
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: rootsp",
+      "    omit: [README.md]",
+      "",
+    ].join("\n"),
+  );
+
+  buildAll(root);
+
+  const emitted = join(root, "plugins", "deniz-process", "skills", "root-skill");
+  assert.ok(!existsSync(join(emitted, ".git")));
+  assert.ok(!existsSync(join(emitted, "README.md")));
+  assert.ok(existsSync(join(emitted, "LICENSE")));
+});
+
 // A copied skill support file keeps the Git index mode of its committed plugins/MODULE counterpart,
 // so an executable bit already guarded in generated output survives packaging. Build-generated
 // documents — commands, agents, parked BODY.md — stay 100644 even when a plugin counterpart is
@@ -617,6 +678,38 @@ test("own skills participate in cross-Module OpenCode destination preflight", ()
 
   assert.throws(() => buildAll(root), /OpenCode destination skill:alpha.*skills\/deniz-other\/alpha/i);
   assert.ok(existsSync(existing), "previous generated output must survive rejected own-skill collision");
+});
+
+test("an original-skill rewrite identity conflict aborts before deleting existing output", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const existing = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  const before = readFileSync(existing);
+  writeFileSync(
+    join(root, "external", "sp", ".claude-plugin", "plugin.json"),
+    JSON.stringify({ name: "deniz-process" }),
+  );
+  mkdirSync(join(root, "external", "sp", "skills", "my-own"), { recursive: true });
+  writeFileSync(
+    join(root, "external", "sp", "skills", "my-own", "SKILL.md"),
+    "---\nname: upstream-own\ndescription: Upstream\n---\nBody.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/my-own",
+      "    name: other-target",
+      "",
+    ].join("\n"),
+  );
+
+  assert.throws(() => buildAll(root), /reference identity deniz-process:my-own resolves to both/);
+  assert.equal(readFileSync(existing).equals(before), true, "previous generated output must survive the conflict");
 });
 
 test("same OpenCode name in different artifact kinds remains legal across Modules", () => {

@@ -70,8 +70,9 @@ public class CheckoutTests
 ```
 
 `[Test]` on the method, and nothing on the class — there is no `[TestClass]` or `[TestFixture]`.
-Test methods must be **public instance methods**; a private or static one is silently not
-discovered.
+Test methods must be **public instance methods**. The bundled analyzers reject private or static
+tests, and generated invocations can produce ordinary C# compiler errors too — fix the build rather
+than looking for a silently missing test.
 
 A test with no assertion passes as long as it does not throw. That is occasionally what you want (a
 smoke test that a pipeline runs at all), but state it deliberately rather than by accident.
@@ -84,9 +85,10 @@ This is the rule that catches everyone:
 await Assert.That(result).IsEqualTo(3);
 ```
 
-`Assert.That(result).IsEqualTo(3)` **without `await` does nothing at all**. The fluent chain only
-builds a rule; `await` is what executes it. A forgotten `await` is not a compile error and not a
-failure — the test passes, silently, whatever the value was.
+`Assert.That(result).IsEqualTo(3)` **without `await` does nothing at runtime**. The fluent chain only
+builds a rule; `await` is what executes it. In a normal TUnit project the bundled analyzer makes a
+forgotten `await` a build error. If that analyzer is removed, suppressed, or demoted, the test can
+instead pass silently whatever the value was.
 
 Two things save you. The design reason: because every assertion is async, you never have to
 remember which ones need awaiting — they all do. And the mechanical backstop: the bundled analyzer
@@ -154,8 +156,7 @@ public async Task Discount_matches_the_tier(string tier, double subtotal, double
 }
 ```
 
-Rows from a method — the attribute is **`[MethodDataSource]`**, and the source method must be
-**static**:
+Rows from a method use **`[MethodDataSource]`**. A static source is the simplest form:
 
 ```csharp
 [Test]
@@ -169,10 +170,12 @@ public static IEnumerable<(string tier, double subtotal, double expected)> Disco
 ];
 ```
 
-Note the tuple: rows are strongly typed, not `object[]`. `[MethodDataSource(typeof(Other),
-nameof(Other.Cases))]` reaches another class, and `[MethodDataSource<T>(nameof(T.Cases))]` is the
-AOT-safe generic form. `[InstanceMethodDataSource]` exists when the source has to be an instance
-member.
+Prefer the tuple because it keeps rows strongly typed. TUnit also accepts `IEnumerable<object[]>`,
+but then the compiler cannot check each element against the matching test parameter.
+`[MethodDataSource(typeof(Other), nameof(Other.Cases))]` reaches another class, and
+`[MethodDataSource<T>(nameof(T.Cases))]` names a provider without reflection. Public instance
+sources are supported when TUnit can construct the test or provider instance;
+`[InstanceMethodDataSource]` makes that lifetime choice explicit.
 
 **`[ClassDataSource<T>]` is not a row provider.** Despite the name it is the shared-fixture
 mechanism — the equivalent of xUnit's `IClassFixture<T>`. It injects one managed instance whose
@@ -190,8 +193,10 @@ For a generated source, subclass `DataSourceGeneratorAttribute<T…>` (or the as
 variants) and override `GenerateDataSources(DataGeneratorMetadata)`. It returns `Func<…>` delegates,
 not values. There is no `ITestDataSource` — that is an MSTest interface and it does not exist here.
 
-Also available: `[MatrixDataSource]` with `[Matrix(...)]` per parameter for a cross product,
-`[TestDataRow<T>]`, and `[GenerateGenericTest(typeof(...))]` for generic test methods.
+Also available: `[MatrixDataSource]` with `[Matrix(...)]` per parameter for a cross product, and
+`[GenerateGenericTest(typeof(...))]` for generic test methods. `TestDataRow<T>` is not an attribute;
+return that wrapper from a data-source method when a row needs metadata such as a custom display
+name or categories.
 
 ## Parallelism, and the instance rule that goes with it
 
@@ -239,7 +244,7 @@ dependency failed.
 `TestDiscovery`. They nest outermost to innermost — TestSession, Assembly, Class, Test — and the
 `After` side unwinds in reverse.
 
-**Staticness is not optional and getting it wrong fails silently:**
+**Staticness is not optional, and the bundled analyzers fail the build when it is wrong:**
 
 | Hook level | Must be |
 |---|---|
@@ -267,17 +272,21 @@ so cleanup does not silently stop halfway.
 | `[Property("key", "value")]` | Arbitrary metadata — the `[Trait]` equivalent |
 | `[DisplayName("Adds $a and $b")]` | `$parameterName` interpolates the argument |
 
-These apply at method, class or assembly level, and the most specific wins: method beats class beats
-assembly.
+Scope depends on the attribute. Scoped controls such as repeat, retry, skip, and timeout resolve the
+most specific applicable value. `Category` and `Property` are additive metadata across their
+supported scopes, while `DisplayName` applies only to methods and classes.
 
 ## Test output
 
-There is no `ITestOutputHelper`. Take a `TestContext` parameter, or reach for `TestContext.Current!`:
+There is no `ITestOutputHelper`. Ordinary test methods read the current context from
+`TestContext.Current!` — `TestContext` parameters are supported by test-level hooks, not injected
+into `[Test]` methods:
 
 ```csharp
 [Test]
-public async Task Writes_a_note(TestContext context)
+public void Writes_a_note()
 {
+    var context = TestContext.Current!;
     context.Output.WriteLine("about to call the API");
 }
 ```
@@ -286,8 +295,14 @@ public async Task Writes_a_note(TestContext context)
 
 ## Mocking
 
-TUnit ships its own mocking library, `TUnit.Mocks` — source-generated, so it works under Native AOT
-where reflection-based mockers do not:
+TUnit ships a separate source-generated mocking package. Add it explicitly and use a C# 14-capable
+SDK/compiler; the `TUnit` meta-package alone does not include it:
+
+```bash
+dotnet add package TUnit.Mocks
+```
+
+It works under Native AOT where reflection-based mockers do not:
 
 ```csharp
 var mock = IGreeter.Mock();
@@ -316,12 +331,14 @@ suite has no escape hatch. Write for the generator from the start.
 
 What the generator has to be able to see at compile time:
 
-- **Data-source methods must be static and named literally.** Building a source reflectively, or
-  resolving the method name at runtime, fails with **`TUnit0059`**. The AOT-safe spelling is
-  `[MethodDataSource<T>(nameof(T.Cases))]`.
+- **Data-source members must be named at compile time.** Use `nameof`, not a value resolved at
+  runtime. Static sources are simplest; an instance source also works when TUnit can generate a
+  factory for a constructible test or provider instance.
 - **Generic test methods and classes need `[GenerateGenericTest(typeof(...))]`**, one per closed
-  type you want run. Without it the build fails with **`TUnit0058`** — a compile error, not a
-  silently skipped test.
+  type you want emitted. Without a concrete type the generator has no runnable test to produce.
+- **Do not diagnose those two cases from `TUnit0058` or `TUnit0059`.** In current TUnit,
+  `TUnit0058` reports unsupported hook parameters and `TUnit0059` reports an abstract data-driven
+  test class whose concrete subclass is missing `[InheritsTests]`.
 - **Mocking has to be generated too.** Reflection-based mockers cannot run under AOT, which is why
   `TUnit.Mocks` is source-generated.
 

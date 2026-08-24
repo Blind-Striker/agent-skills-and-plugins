@@ -44,7 +44,7 @@ Use this skill when you need to:
 - Write tests that actually compile and pass
 - Add tests for new features or untested code
 - Generate or extend a C# suite; once this entry skill has established scope and
-  project conventions, load the `writing-tunit-tests` skill for the framework
+  project conventions, load deniz-dotnet-general:writing-tunit-tests for the framework
   itself — this estate is TUnit-first
 
 ## When Not to Use
@@ -108,19 +108,18 @@ When in doubt, start focused and escalate only if the request turns out to span
 several files. Escalating costs one extra pass; running the broad pipeline on a
 focused request costs several.
 
-### Step 3: Invoke the Test Generator (broad scope)
+### Step 3: Run the broad pipeline inline
 
-Start by calling the `code-testing-generator` agent with your test generation request:
+For broad scope, execute the Research → Plan → Implement sequence directly:
 
-```text
-Generate unit tests for [path or description of what to test], following the [unit-test-generation.prompt.md](unit-test-generation.prompt.md) guidelines. Treat the current workspace as authoritative even when it is sparse, gutted-looking, synthetic, or missing tracked files; never restore or reconstruct it, including with `git checkout`, `git restore`, `git reset`, or `git clean`.
-```
-
-The Test Generator will manage the entire pipeline automatically.
-
-If `code-testing-generator` is unavailable, do not skip the workflow. Execute the
-same Research → Plan → Implement sequence inline, create the `.testagent/`
-artifacts described below, and apply the same completion contract.
+1. Treat the current workspace as authoritative even when it is sparse, gutted-looking, synthetic,
+   or missing tracked files. Never restore or reconstruct it with `git checkout`, `git restore`,
+   `git reset`, or `git clean`.
+2. Research only the requested project or module and write `.testagent/research.md`.
+3. Map every requirement and target to a concrete planned test in `.testagent/plan.md`.
+4. Implement one bounded phase at a time, running the narrowest build and test command after each
+   phase.
+5. Record final quality findings and fixes in `.testagent/status.md`.
 
 ### Step 4: Execute with bounded context
 
@@ -128,12 +127,12 @@ For multi-file requests:
 
 1. Turn every explicit user requirement into a checklist before implementation. Include requested layers, collaborators to mock, boundary cases, integrations, coverage thresholds, and report artifacts. Copy multi-condition requirements verbatim — they must each map to one test that exercises the whole combination.
 2. Research only the requested module or project and write the checklist plus a compact target inventory to `.testagent/research.md`.
-3. Reuse manifests, symbol references, and deterministic pairing tools instead of reading every source and test file.
-4. For multi-file scopes in C#, Python, TypeScript/JavaScript, Go, Java, Rust, or Ruby, run `find-untested-sources` once and consume its pairing and suggested-path output; do not repeat that discovery manually.
+3. Reuse manifests, symbol references, and deterministic pairing tools instead of reading every source and test file. Build a bounded target inventory from those sources and representative neighboring tests.
+4. For multi-file scopes, pair production sources with tests once and record the suggested paths in `.testagent/research.md`; do not repeat discovery manually.
 5. Plan each target file once, then implement phases sequentially. Map every checklist item to at least one concrete test or explain why it is blocked.
 6. Build and test the narrow target during fix cycles; run workspace-level validation once at the end.
 7. Before reporting success, re-open the generated tests and verify every checklist item against concrete test names and assertions. Coverage alone is not evidence that a requested mock seam, boundary, state transition, or property combination was tested.
-8. Read a language example from `code-testing-extensions` only when the repository has no representative tests and the base extension is insufficient.
+8. When the repository has no representative tests, inspect the installed framework version, project manifests, and primary framework documentation rather than inventing conventions.
 9. For .NET, classify SDK-style vs. classic non-SDK before choosing commands or creating files. In classic projects, preserve `packages.config`, existing framework/mock versions and custom base fixtures, add every new test file to the project's explicit `<Compile Include>` items, and use the repository's MSBuild/test-runner commands. Never modernize the project or dependency stack merely to generate tests.
 
 ### Completion contract
@@ -158,7 +157,7 @@ Do not report completion until all of these are true:
    commands, or coverage artifacts, cite the relevant file, command, or report
    instead of forcing a test-name mapping.
 5. Review the generated tests for behavior gaps and weak assertions. On a broad
-   scope, invoke `test-gap-analysis` and `assertion-quality` when available and
+   scope, invoke `test-gap-analysis` and `test-anti-patterns` when available and
    record the findings and fixes in `.testagent/status.md`. On a focused scope,
    do the equivalent review inline — re-read each generated assertion against
    the source — without spawning extra passes.
@@ -193,18 +192,18 @@ request does not create these files:
 | `.testagent/plan.md`     | Phased implementation plan   |
 | `.testagent/status.md`   | Final quality review and fixes |
 
-## Agent Reference
+## Pipeline Roles
 
-| Agent                      | Purpose              |
-| -------------------------- | -------------------- |
-| `code-testing-generator`   | Coordinates pipeline |
-| `code-testing-researcher`  | Analyzes codebase    |
-| `code-testing-planner`     | Creates test plan    |
-| `code-testing-implementer` | Writes test files    |
-| `code-testing-builder`     | Compiles code        |
-| `code-testing-tester`      | Runs tests           |
-| `code-testing-fixer`       | Fixes errors         |
-| `code-testing-linter`      | Formats code         |
+| Role        | Purpose                                      |
+| ----------- | -------------------------------------------- |
+| Coordinate  | Own the requirement checklist and boundaries |
+| Research    | Analyze the bounded codebase surface          |
+| Plan        | Map requirements to concrete tests            |
+| Implement   | Write test files                              |
+| Build       | Compile the narrow target                     |
+| Test        | Run the selected tests                        |
+| Fix         | Correct test and build failures               |
+| Format      | Apply repository formatting                   |
 
 ## Requirements
 
@@ -221,7 +220,10 @@ execution as blocked rather than substituting `dotnet test`.
 
 ### Tests don't compile
 
-The `code-testing-fixer` agent will attempt to resolve compilation errors. Check `.testagent/plan.md` for the expected test structure. Call the `code-testing-extensions` skill and read the language-specific extension file for error code references (e.g., `dotnet.md` for .NET).
+Read the exact compiler error, the project manifest, and one working neighboring test before changing
+the generated code. Check `.testagent/plan.md` for the expected structure, make the smallest
+version-compatible correction, then rebuild the narrow target. Do not modernize packages or project
+shape merely to make generated tests compile.
 
 ### Tests fail
 

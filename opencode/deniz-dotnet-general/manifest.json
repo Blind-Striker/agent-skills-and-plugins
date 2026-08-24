@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.6.0",
-  "digest": "sha256:541d647fa4e880ef8ce83319454c93a90eca6a252a6a13bda6e23dc91d8d1dc6",
+  "version": "0.8.0",
+  "digest": "sha256:56f0f508684997b27e81e5543c709e330eff53eebf71dd99d3bd08e148d0595c",
   "files": {
     "agents/roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
@@ -41,7 +41,7 @@
       "mode": "100644"
     },
     "commands/generate-testability-wrappers.md": {
-      "sha256": "sha256:f340a9595dfb65ca5fabc19d1520f87689fce8adcb7ea947197eebe330f7bdec",
+      "sha256": "sha256:ed60f3c14292fe84a9526e093b93c6cd5162410b21a0a5844ff8ec3aefca4737",
       "mode": "100644"
     },
     "commands/migrate-nullable-references.md": {
@@ -117,11 +117,11 @@
       "mode": "100644"
     },
     "skills/code-testing-agent/BODY.md": {
-      "sha256": "sha256:741b7dbb72c565196eedd0acf413d5d762e10a8d8e1ab8687fe02520e8b5da6b",
+      "sha256": "sha256:009dcf455274a72854c60ff56e1779201e1501604459a1280870d6d52c18fc16",
       "mode": "100644"
     },
     "skills/code-testing-agent/unit-test-generation.prompt.md": {
-      "sha256": "sha256:3b15527fa3525c1217f9c17afc4c67a709e8583caf90f710116d5742c8cce20d",
+      "sha256": "sha256:1fb179e5380aa6a26069a67771bffd6068a8fed7d75a02b8b242472fe1134def",
       "mode": "100644"
     },
     "skills/configuring-opentelemetry-dotnet/SKILL.md": {
@@ -198,6 +198,14 @@
     },
     "skills/csharp-concurrency-patterns/advanced-concurrency.md": {
       "sha256": "sha256:658e53ba44100a90ab92ebbe0e9027e0968f3d7e8ff096b083bdcaa87911c6a7",
+      "mode": "100644"
+    },
+    "skills/csharp-nullable-reference-types/SKILL.md": {
+      "sha256": "sha256:c7a4b68127b6b0a695412d68521c758aec1802153fb282f3eadd29b5dbb8214c",
+      "mode": "100644"
+    },
+    "skills/csharp-nullable-reference-types/nullable-attributes-reference.md": {
+      "sha256": "sha256:7227f7c94e2fcc383475dca6979da078def5b51678a9ac33d65f607ed1418e2a",
       "mode": "100644"
     },
     "skills/csharp-scripts/SKILL.md": {
@@ -589,7 +597,7 @@
       "mode": "100644"
     },
     "skills/writing-tunit-tests/SKILL.md": {
-      "sha256": "sha256:870ab6a5032befdaf112aad5dea6964bd9d181f40c12ae8f41cd70b0aba5ae5a",
+      "sha256": "sha256:72b223ea2468f4d5ed5468a48eef7b6a0379220c98c2a1419b5fac50c38ab07b",
       "mode": "100644"
     }
   }

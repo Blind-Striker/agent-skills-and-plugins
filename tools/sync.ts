@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { type OwnSkillIdentity, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { candidateHits } from "./lib/refs.ts";
 
@@ -65,6 +66,10 @@ export function ledgerCandidateNames(ledger: Record<string, unknown>): string[] 
   return [...new Set(names)].sort();
 }
 
+export function syncCandidateNames(ledger: Record<string, unknown>, ownSkills: OwnSkillIdentity[]): string[] {
+  return [...new Set([...ledgerCandidateNames(ledger), ...ownSkills.map((skill) => skill.name)])].sort();
+}
+
 /**
  * What a vanished address costs, in the words of the thing that will actually stop.
  *
@@ -90,10 +95,10 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
       // A merge source may live in a different submodule than the item's primary, so this runs
       // outside — and before — the primary-source guard: the pin that moved is often the other one.
       for (const { source: msrc } of item.merged_from ?? []) {
-        if (!msrc.startsWith(`${sub}/`)) {
+        if (msrc !== sub && !msrc.startsWith(`${sub}/`)) {
           continue;
         }
-        const mrel = msrc.slice(sub.length + 1);
+        const mrel = msrc === sub ? "" : msrc.slice(sub.length + 1);
         // A merge source that vanished cannot be re-blessed: `--bless` stamps upstream files by
         // hashing them, and there is nothing left to hash. Printing the re-bless command would be
         // handing over a command that cannot succeed.
@@ -105,16 +110,16 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
           }
           continue;
         }
-        if (changed.some((c) => c === mrel || c.startsWith(`${mrel}/`))) {
+        if (mrel === "" ? changed.length > 0 : changed.some((c) => c === mrel || c.startsWith(`${mrel}/`))) {
           lines.push(
-            `${m.plugin.name}: ${item.source} MERGE SOURCE ${msrc} changed upstream — review, then re-bless: git -C external/${sub} diff <old> <new> -- ${mrel}`,
+            `${m.plugin.name}: ${item.source} MERGE SOURCE ${msrc} changed upstream — review, then re-bless: git -C external/${sub} diff <old> <new> -- ${mrel || "."}`,
           );
         }
       }
-      if (!item.source.startsWith(`${sub}/`)) {
+      if (item.source !== sub && !item.source.startsWith(`${sub}/`)) {
         continue;
       }
-      const rel = item.source.slice(sub.length + 1);
+      const rel = item.source === sub ? "" : item.source.slice(sub.length + 1);
       // Existence is asked BEFORE the changed-path list, and for every item rather than the ones
       // that list happens to name. `git diff --name-only` prints only the DESTINATION of a rename it
       // detected, so a curated source that upstream moved never appears there at all: the item would
@@ -125,11 +130,29 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
         }
         continue;
       }
-      const hit = changed.some((c) => c === rel || c.startsWith(`${rel}/`));
+      const hit = rel === "" ? changed.length > 0 : changed.some((c) => c === rel || c.startsWith(`${rel}/`));
       if (!hit) {
         continue;
       }
-      const review = `git -C external/${sub} diff <old> <new> -- ${rel}`;
+      const documentRel = rel === "" ? "SKILL.md" : rel.endsWith(".md") ? rel : `${rel}/SKILL.md`;
+      if (changed.includes(documentRel)) {
+        const before = io.readFile("old", documentRel);
+        const after = io.readFile("new", documentRel);
+        if (before !== null && after === null) {
+          const consequence = item.exclude
+            ? "nothing breaks (excluded), but the exclusion record no longer names a scanner-visible component"
+            : "the next build stops because the scanner no longer finds this component";
+          lines.push(`${m.plugin.name}: ${item.source} COMPONENT DOCUMENT GONE at ${documentRel} — ${consequence}`);
+          continue;
+        }
+        if (after !== null && !frontmatterOf(after)) {
+          lines.push(
+            `${m.plugin.name}: ${item.source} FRONTMATTER NO LONGER PARSES at the new pin — the next build stops during the upstream scan before it emits anything`,
+          );
+          continue;
+        }
+      }
+      const review = `git -C external/${sub} diff <old> <new> -- ${rel || "."}`;
       let tag = "auto-updated on next build";
       if (item.exclude) {
         tag = "excluded — no action";
@@ -150,7 +173,7 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
       }
       // Beyond the path: what the move did to the three things a diff hides — the posture upstream
       // still owns, the names this body points at, and the override standing in front of it.
-      const skillRel = `${rel}/SKILL.md`;
+      const skillRel = rel === "" ? "SKILL.md" : `${rel}/SKILL.md`;
       if (!changed.includes(skillRel)) {
         continue;
       }
@@ -179,7 +202,9 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
             continue;
           }
           let consequence = "this flows straight into output";
-          if (CLAUDE_INVOCATION_KEYS.includes(k) && item.invocation) {
+          if (item.body === "overlay") {
+            consequence = "the owned overlay replaces this key, so it does not reach output";
+          } else if (CLAUDE_INVOCATION_KEYS.includes(k) && item.invocation) {
             consequence = `invocation: ${item.invocation} replaces this key, so it does not reach output — but upstream changed its mind about who triggers this item, so re-ask whether the stated intent still holds`;
           } else if (k === "description" && item.frontmatter?.[k] !== undefined) {
             consequence = "a frontmatter override replaces this key, so it does not reach output";
@@ -234,7 +259,7 @@ function git(args: string[], cwd?: string): string {
  */
 export function treeExists(files: Iterable<string>): (rel: string) => boolean {
   const set = new Set(files);
-  return (rel) => set.has(rel) || [...set].some((f) => f.startsWith(`${rel}/`));
+  return (rel) => (rel === "" ? set.size > 0 : set.has(rel) || [...set].some((f) => f.startsWith(`${rel}/`)));
 }
 
 function treeLookup(dir: string, rev: string): (rel: string) => boolean {
@@ -289,11 +314,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
     .filter((f) => f.endsWith(".yaml"))
     .map((f) => loadManifest(join(root, "curation", f)));
   const ledgerPath = join(root, "docs", "ledger.json");
-  // Before the first build there is no universe to match against, and no candidates is the
-  // truthful answer for that state.
-  const ledgerNames = existsSync(ledgerPath)
-    ? ledgerCandidateNames(JSON.parse(readFileSync(ledgerPath, "utf8")) as Record<string, unknown>)
-    : [];
+  const ledger = existsSync(ledgerPath)
+    ? (JSON.parse(readFileSync(ledgerPath, "utf8")) as Record<string, unknown>)
+    : {};
+  const ledgerNames = syncCandidateNames(ledger, ownSkillIdentities(root, manifests));
 
   for (const sub of subs) {
     const dir = join(root, "external", sub);

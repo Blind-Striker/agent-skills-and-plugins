@@ -17,7 +17,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.3.0
+  version: 0.4.0
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -203,10 +203,18 @@ items:
     # complement, not the substitute, of writing-skills: that one is a TDD-for-skills testing
     # methodology, this one is the design vocabulary — and both being manual, neither competes.
     omit: ["agents/**"]
+  - source: asd-ste100
+    invocation: auto # passive controlled-English rewrite knowledge and wait-what's model-reachable
+    # handoff target. This single-purpose root-skill repo stays a submodule so pin drift reaches the
+    # normal sync review machinery instead of becoming an untracked original-skill fork.
+    omit: [README.md] # installation prose with stale examples is not a runtime asset; the compiler
+    # drops submodule git metadata from every source tree before item-specific omission
   - source: mattpocock-skills/skills/productivity/wait-what
     invocation: manual # upstream's own flag, and the right one: a mid-conversation corrective typed
-    # when a message did not land. Nine lines, no dependencies; leans on CONTEXT.md and asks for
-    # Simplified Technical English, which is the whole point of it.
+    # when a message did not land. Its STE request now loads the curated rules rather than naming a
+    # standard with nothing behind it; CONTEXT.md remains the second half of the repitch.
+    body: patch
+    depends_on: [asd-ste100]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/to-questionnaire
     invocation: manual # upstream's own flag; graduated out of in-progress. Dependency-free and the
@@ -237,6 +245,8 @@ items:
     # code-review and diagnosing-bugs are merged away here, half this module is superpowers, and
     # /clear and /compact are Claude-only spellings. The shape is upstream's and worth keeping — main
     # flow, on-ramps, vocabulary underneath, phase boundaries — the routing is ours.
+    # Stateful routing names only qualifying vocabulary and decisions because domain-modeling creates
+    # CONTEXT.md and ADRs lazily; the router must not promise files that the delegated skill may skip.
     omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---
   # --- mattpocock components read and rejected, kept visible so a pin move does not re-raise them ---
@@ -273,4 +283,3 @@ items:
     # the target directory does not exist either. The clause named nothing but those two links;
     # the runtime paths it wrapped stay, because they are the ones our harnesses actually use.
     body: patch
-

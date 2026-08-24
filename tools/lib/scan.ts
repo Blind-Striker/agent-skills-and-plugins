@@ -74,6 +74,7 @@ export function scanSubmodule(externalDir: string, submoduleArg: string): Compon
     const r = rel(root, file);
     if (basename(file) === "SKILL.md") {
       const dir = dirname(file);
+      const skillPath = rel(root, dir);
       const { frontmatter } = parseDoc(readFileSync(file, "utf8"));
       const all = [...walk(dir)];
       out.push({
@@ -82,7 +83,7 @@ export function scanSubmodule(externalDir: string, submoduleArg: string): Compon
         type: "skill",
         name: String(frontmatter.name ?? basename(dir)),
         description: String(frontmatter.description ?? ""),
-        sourcePath: `${submodule}/${rel(root, dir)}`,
+        sourcePath: skillPath ? `${submodule}/${skillPath}` : submodule,
         files: all.length,
         bytes: all.reduce((s, f) => s + statSync(f).size, 0),
       });

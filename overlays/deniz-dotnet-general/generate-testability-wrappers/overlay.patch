@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 45cc027..7541534 100644
+index 45cc027..1e0fb74 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -7,17 +7,17 @@ description: >
+@@ -7,17 +7,18 @@ description: >
    With no DI container, produces the ambient context seam instead.
    USE FOR: generate wrapper for static, create IFileSystem wrapper, wrap DateTime.Now,
    make a static or a class testable, create abstraction for File.*, generate DI registration,
@@ -12,7 +12,8 @@ index 45cc027..7541534 100644
    DO NOT USE FOR: detecting statics (use detect-static-dependencies), migrating
    call sites or replacing existing DateTime.*/File.* usages once the wrapper is created
 -  or already registered in DI (use migrate-static-to-wrapper), general interface design.
-+  or already registered in DI (after wrapper creation, the user invokes `migrate-static-to-wrapper` separately), general interface design.
++  or already registered in DI (after wrapper creation, the user invokes
++  `migrate-static-to-wrapper` separately), general interface design.
  license: MIT
  ---
  
@@ -21,7 +22,7 @@ index 45cc027..7541534 100644
  Generate wrapper interfaces, default implementations, and DI service registration code for untestable static dependencies. For statics that already have .NET built-in abstractions (`TimeProvider`, `IHttpClientFactory`), guide adoption of the built-in. For statics without built-in alternatives, generate custom minimal wrappers.
  
  ## When to Use
-@@ -26,17 +26,17 @@ Generate wrapper interfaces, default implementations, and DI service registratio
+@@ -26,17 +27,18 @@ Generate wrapper interfaces, default implementations, and DI service registratio
  - When the user asks to make a class testable by replacing statics with injected abstractions
  - When adopting `TimeProvider` (.NET 8+) or `System.IO.Abstractions`
  - When creating a custom wrapper for `Environment.*`, `Console.*`, or `Process.*`
@@ -31,7 +32,8 @@ index 45cc027..7541534 100644
  
  - The user wants to find statics first (use `detect-static-dependencies`)
 -- The user wants to bulk-replace call sites (use `migrate-static-to-wrapper`)
-+- The user wants to bulk-replace call sites (after wrapper creation, the user invokes `migrate-static-to-wrapper` separately)
++- The user wants to bulk-replace call sites (after wrapper creation, the user invokes
++  `migrate-static-to-wrapper` separately)
  - The static is already behind an interface
  
  > A project with **no DI container**, or a user who does not want to add one, is **not** a reason to skip this skill —
@@ -40,7 +42,7 @@ index 45cc027..7541534 100644
  
  ## Inputs
  
-@@ -193,36 +193,52 @@ If the codebase does not use DI (e.g., old console app, library code), offer the
+@@ -193,36 +195,60 @@ If the codebase does not use DI (e.g., old console app, library code), offer the
  public static class Clock
  {
      private static readonly AsyncLocal<Func<DateTimeOffset>?> s_override = new();
@@ -54,11 +56,18 @@ index 45cc027..7541534 100644
 -        return new Scope();
 +        return new Scope(() => s_override.Value = previous);
      }
--    private sealed class Scope : IDisposable
-+    private sealed class Scope(Action restore) : IDisposable
++
+     private sealed class Scope : IDisposable
      {
 -        public void Dispose() => s_override.Value = null;
-+        public void Dispose() => restore();
++        private readonly Action _restore;
++
++        public Scope(Action restore)
++        {
++            _restore = restore;
++        }
++
++        public void Dispose() => _restore();
      }
  }
  ```
@@ -76,14 +85,14 @@ index 45cc027..7541534 100644
  
  The same shape works for non-time statics: swap `TimeProvider.System.GetUtcNow()` for the real static call and keep the override slot, the disposable scope, and the original semantics.
  
-+Do not wrap delays. The BCL already accepts a `TimeProvider`, so reach for the overload rather than
-+inventing an `IDelay`:
++On .NET 8+, do not wrap delays. The BCL already accepts a `TimeProvider`, so reach for the overload
++rather than inventing an `IDelay`:
 +
 +| Ambient operation | Replacement |
 +|-------------------|-------------|
 +| `Task.Delay(delay, token)` | `Task.Delay(delay, timeProvider, token)` |
 +| `new CancellationTokenSource(delay)` | `new CancellationTokenSource(delay, timeProvider)` |
-+| `PeriodicTimer(period)` | `new PeriodicTimer(period, timeProvider)` where the target framework has it |
++| `PeriodicTimer(period)` | `new PeriodicTimer(period, timeProvider)` |
 +
 +Test delayed behavior by starting the operation, proving it is still incomplete, advancing
 +`FakeTimeProvider`, then awaiting it. Never wait on wall-clock time.

@@ -787,13 +787,18 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent",
     "invocation": "manual",
     "body": "patch",
+    "dependsOn": [
+      "writing-tunit-tests"
+    ],
     "description": "Generate or add unit tests for existing code, from one function to a complete project-wide suite. USE FOR \"write unit tests\", \"add tests\", \"cover this untested method\", scaffolding tests where none exist, or extending an existing suite across several files. Sizes the request first and stays proportional. Polyglot: C#/.NET, Python/pytest, TS/JS, Go, Rust, Java, Ruby; also handles classic non-SDK projects, explicit Compile registration and sparse workspaces. DO NOT USE for only running or diagnosing tests, analyzing a coverage report, or auditing test quality.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:writing-tunit-tests"
+        ],
         "pointer": []
       },
       "flags": {
@@ -805,7 +810,9 @@
         "command"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "writing-tunit-tests"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -977,6 +984,43 @@
       "dropped": [
         "invocable",
         "user-invocable"
+      ],
+      "parked": []
+    }
+  },
+  "deniz-dotnet-general/skill/csharp-nullable-reference-types": {
+    "source": "dotnet-skills/skills/csharp-nullable-reference-types",
+    "invocation": "auto",
+    "body": "patch",
+    "description": "Apply C# nullable-reference-type semantics where nullable context is already enabled: null-state flow, T? and !, API contracts, System.Diagnostics.CodeAnalysis nullable attributes, and gated C# 14 field-backed-property analysis. USE FOR: writing, refactoring, or reviewing nullable-aware C#. DO NOT USE FOR: enabling NRT across an existing project, systematic CS86xx cleanup, or migration planning; the user invokes migrate-nullable-references separately.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "deniz-dotnet-general:migrate-nullable-references"
+        ]
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "migrate-nullable-references"
+        ]
+      },
+      "dropped": [
+        "tags",
+        "user-invocable",
+        "version"
       ],
       "parked": []
     }
@@ -2503,6 +2547,37 @@
       "parked": []
     }
   },
+  "deniz-process/skill/asd-ste100": {
+    "source": "asd-ste100",
+    "invocation": "auto",
+    "description": "Use when English text must be parsed without a human to resolve ambiguity — tool descriptions, error messages, inter-agent instructions, system prompts, status reports — and misreading has a real cost, or when text reads as dense, hedged, or easy to misparse. Triggers: disambiguate, STE100 rewrite, apply Simplified Technical English, plain-language rewrite, controlled-language rewrite, rewrite so an agent cannot misread this. Not for creative or marketing copy.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "user-invocable",
+        "version"
+      ],
+      "parked": []
+    }
+  },
   "deniz-process/skill/ask-deniz": {
     "source": "mattpocock-skills/skills/engineering/ask-matt",
     "invocation": "manual",
@@ -3516,13 +3591,19 @@
   "deniz-process/skill/wait-what": {
     "source": "mattpocock-skills/skills/productivity/wait-what",
     "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "asd-ste100"
+    ],
     "description": "Stop. That last message did not land: re-pitch it.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:asd-ste100"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3534,7 +3615,9 @@
         "command"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "asd-ste100"
+        ],
         "pointer": []
       },
       "dropped": [
