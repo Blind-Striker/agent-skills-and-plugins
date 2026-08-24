@@ -30,13 +30,15 @@ $cfg    = (& opencode debug config 2>&1 | Out-String) | ConvertFrom-Json
 $cmds   = @($cfg.command.PSObject.Properties.Name)
 $leaked = @($skills | Where-Object { $_.location -ne "<built-in>" -and $_.location -notlike "$LAB*" })
 
-Check "skills discovered (73 ours + 1 built-in)"        $skills.Count 74
-Check "commands discovered"                             $cmds.Count   33
+Check "skills discovered (86 ours + 1 built-in)"        $skills.Count 87
+Check "commands discovered"                             $cmds.Count   38
 Check "built-in control present (customize-opencode)"   (@($skills | Where-Object name -eq "customize-opencode").Count) 1
 Check "skills resolving OUTSIDE the lab (must be zero)" $leaked.Count 0
 Check "plugin: list empty (no package cache)"           (@($cfg.plugin).Count) 0
 Check "parked bundles invisible"                        (@($skills | Where-Object name -in @(
+    "ask-deniz",
     "convert-to-cpm",
+    "code-testing-agent",
     "dotnet-aot-compat",
     "dotnet-trace-collect",
     "dump-collect",
@@ -45,7 +47,8 @@ Check "parked bundles invisible"                        (@($skills | Where-Objec
     "setup-matt-pocock-skills",
     "teach",
     "triage",
-    "writing-great-skills",
+    "wizard",
+    "writing-for-agents",
     "writing-skills"
 )).Count) 0
 if ($leaked.Count) { $leaked | ForEach-Object { Write-Host ("      LEAK: " + $_.name + " <- " + $_.location) -ForegroundColor Red } }
@@ -71,7 +74,7 @@ if ($Deep) {
     $bMine = @($b -split "`r?`n" | Where-Object { $_ -match "^deniz-process:" })
     $bLeak = @($b -split "`r?`n" | Where-Object { $_ -match "superpowers:|dotnet-|aspire:|mattpocock" })
     Check "control: unmounted session sees no curated skill"  $aLeak.Count 0
-    Check "mounted: model sees auto+both only (10+8)"         $bMine.Count 18
+    Check "mounted: model sees auto+both only"                $bMine.Count 19
     Check "mounted: no upstream plugin leaked in"             $bLeak.Count 0
 }
 

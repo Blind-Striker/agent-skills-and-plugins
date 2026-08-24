@@ -59,38 +59,99 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   keep General, Akka, and Aspire together until dependency-aware Selection planning exists. No Apply
   was performed in this curation pass. The migration and isolated Package evidence remain in the
   [installer record](../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md).
+- Live installation status on 2026-08-24 is behind generated output. Claude Code has Process 0.2.0
+  and General 0.2.0 enabled; Akka, Aspire, and the new ASD-STE100 surface are not installed there.
+  OpenCode Selection has Process 0.2.0, General 0.2.0, and Akka 0.1.0, all differing from current
+  Bundles; Aspire is unselected, with no lock or Recovery. Installing every Module is a supported
+  complete Selection and avoids the unresolved arbitrary-subset dependency gap. It still requires a
+  read-only Plan first and explicit approval before Apply; no real installation changed in this wave.
 
 ## Next Up
 
-1. **Decide how original skills declare outgoing guarded references.** Original skills are now
-   guarded targets and participate in `sync`'s candidate universe: `code-testing-agent` carries the
-   first linker-checked edge to `writing-tunit-tests`. The remaining source half is independent.
-   Derived-edge analysis still walks manifest items, so an original skill's outgoing references are
-   not scanned and it has no surface for two-way `depends_on` symmetry. `writing-tunit-tests` has
-   five such bare pointers, including the cross-Module `test-driven-development` handoff. Decide
-   whether target existence and audience checks without declaration symmetry are worth adding, or
-   whether original skills need a declaration surface first.
-2. **Public release decision.** The repo is private today. Going public needs a deliberate pass:
-   decide whether the intentionally upstream-owned Aspire proof limits are acceptable for a public
-   package and whether `marketplace.json`'s format-required owner name and email may go public.
-3. **Curation sanity panel — advisory subagents, never a gate (requested 2026-07-31).** Alongside
-   the deterministic linker and the TUI rounds: a few non-deterministic reviewer subagents that
-   read a curated item's upstream original, its overlay/patch and the recorded intent (the
-   manifest comment, ADR-0007) side by side and return *judgement*, not findings — do these two
-   skills fight inside one module, did a softening pass over-prune the wording, would a small
-   touch serve the recorded intent better. Output is opinion for the curator; nothing fails a
-   build, nothing is deterministic, nothing repeats twice the same way — that is the point.
-   Natural triggers: after a merge pass lands, before a module is declared closed. Deliberately
-   after the reference-model wave; needs a short design pass for the panel prompt and the
-   presentation shape before anything runs.
+1. **Add an original-skill declaration surface.** Original skills are now guarded targets and
+   participate in `sync` candidates, but their bodies are not guarded sources and their invocation
+   cannot be expressed neutrally for both harnesses. Add a manifest-owned declaration keyed by the
+   existing top-level skill directory, for example:
 
-4. **An ADR candidate, deliberately unwritten.** Body-invocation and description-matching are two
-   mechanisms of different reliability, and curation should treat that as a dial rather than an
-   accident — an item that must fire needs something that names it, not merely a good description.
-   Keep it unwritten until the curation rule is stable enough to state the actual contract rather
-   than promoting the research synthesis prematurely. The evidence lives in
+   ```yaml
+   original_skills:
+     writing-tunit-tests:
+       invocation: auto
+       depends_on:
+         - test-driven-development
+         - test-gap-analysis
+         - test-anti-patterns
+         - run-tests
+         - filter-syntax
+   ```
+
+   The declaration is not a second body manifest: `skills/<plugin>/<name>/SKILL.md` continues to own
+   content and description, while this surface owns harness-neutral invocation and outgoing model
+   edges. Replace the current bare handoffs with namespaced facts; keep the human-started
+   `generate-testability-wrappers` route as a namespaced user-pointer rather than `depends_on`.
+   Compiler work must feed the existing Claude invocation flags and OpenCode skill/command shape,
+   scan original-skill Markdown as an edge source, enforce exact two-way dependency symmetry and
+   audience reachability, and add original entries to the ledger with an explicit own-source marker.
+   Validation must reject a directory with no declaration, a declaration with no directory, stale or
+   undeclared edges, duplicate identities, and a posture the target harness cannot express. This one
+   design closes both current gaps: original outgoing source guards and original `manual`/`both`
+   posture. Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and
+   generated-ledger tests in both harness trees.
+2. **Prepare a deliberate public release.** The repo is private today, and green generation is not a
+   public-release gate by itself. Before changing visibility:
+
+   - decide whether intentionally upstream-owned Aspire examples and their stated proof limits are
+     acceptable in a public package;
+   - decide whether the format-required marketplace owner name and email may be public, or replace
+     them with approved public contact metadata;
+   - choose and add a root license for this repository's original code, declare package license
+     metadata, and audit that every redistributed upstream MIT copyright/permission notice travels
+     with Plugin, Bundle, and Package output where required;
+   - add repository-wide secret/token and machine-path CI scans, with only the named synthetic
+     machine-path fixture allowlisted, then scan current files and Git history before visibility
+     changes;
+   - review public README wording, private authenticated Release recipes, Release tags/assets and
+     hashes, security/contact expectations, and generated marketplace metadata for a public audience;
+   - run the full gate from a clean recursive-submodule checkout and inspect the public GitHub view
+     before announcing availability.
+
+   Until those checks pass, the repository is functionally consumable by its owner but not approved
+   for public release.
+3. **Design the curation sanity panel as an agent playbook, never a gate.** Deterministic validation
+   answers identity, shape, linkage, ownership and byte questions; it cannot judge whether two skills
+   trigger-compete, an overlay over-pruned upstream, or a transformed body still serves its nearby
+   manifest intent. Start with a read-only `docs/agents/` playbook rather than product code. Each run
+   receives one bounded item packet: pinned upstream original and bundled dependency closure,
+   manifest reason, overlay/patch plus lock evidence, and both emitted harness forms. Use isolated
+   reviewers for trigger/overlap, body-intent preservation, and harness fit; current curator routing
+   limits agents to OpenAI Luna/Sol. Require evidence as `file:line`, a concrete consequence, a
+   confidence level, and one of `retain`, `narrow`, `reconsider`, or `ambiguous`. Present a merged
+   advisory table and preserve disagreements; reviewers never edit, bless, bump versions, or fail CI.
+   Natural triggers are after a merge/overlay pass and before declaring a Module closed. The panel is
+   successful when it gives the curator a small decision packet without re-reporting deterministic
+   linker/validator findings or turning model agreement into policy.
+4. **An invocation ADR candidate, deliberately unwritten.** Body handoffs and description matching
+   are mechanisms of different reliability. A namespaced body fact gives deterministic existence and
+   audience proof once its source runs, but does not make the source run. A trigger description is
+   probabilistic selection pressure, but can reach work with no explicit caller. Stabilize a rule for
+   when a capability needs one, the other, or both: load-bearing composition should use guarded body
+   facts; opportunistic passive knowledge can rely on honest descriptions; ceremonies need a human
+   user surface. Keep the ADR unwritten until more runtime evidence confirms that this is the actual
+   durable dial rather than today's synthesis. Evidence remains in
    [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md) and
    [skill-framework-landscape.md](research/skill-framework-landscape.md).
+
+## Recommended Sequence
+
+1. Install all four current Modules and all four Claude Plugins only after reviewing the read-only
+   Plans; an all-Module Selection is complete even before dependency-aware subset planning exists.
+2. Design and implement `original_skills` when another original skill, a manual original posture, or
+   more load-bearing outgoing edges make the current review-only protection insufficient.
+3. If public release is the next goal, perform licensing/notice, privacy metadata, secret-history,
+   machine-path and public transport checks before changing repository visibility.
+4. Prototype the sanity panel as documentation and prompts; promote no part of it into CI.
+5. Write the invocation ADR only after the declaration surface and another bounded runtime sample
+   make the trigger-versus-handoff rule stable.
 
 ## Known Gaps
 
