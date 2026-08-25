@@ -17,21 +17,21 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.2.0`. Independent
-  review found that the Windows-packed asset loses seven executable modes and fails Bundle
-  verification on POSIX. The recursive-clone transport remains verified; the Package is not current
-  again until a Linux-built replacement passes the manual release workflow. The older 0.1.0 Release
-  remains historical rather than current.
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.2.0`. The corrected
+  Linux-built asset passed the manual release workflow's full source gate, tar-mode verifier, isolated
+  Plan/Apply/status, publication, and remote re-download checks. Its exact identity and proof boundary
+  are in the [correction record](../experiments/harness-invocation/records/2026-08-25-opencode-installer-v0.2.0-posix-correction.md).
+  The older 0.1.0 Release remains historical rather than current.
 - Aspire CLI, TypeScript, testing, and package examples remain intentionally upstream-owned. Build,
   generation, and linking do not prove every example in a consumer environment; this is an accepted
   public limitation, not a claim to repair by silently forking the bodies.
 
 ## Next Up
 
-1. **Replace the broken `installer-v0.2.0` asset through the manual Linux release workflow.** Build
-   from `8867fc4`, verify tar modes against Bundle manifests, exercise the exact artifact through
-   isolated Plan, Apply, and status, then replace the unused asset with explicit authorization and
-   publish its new size and SHA-256. Do not treat Windows-only success as cross-platform Package proof.
+1. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
+   dependency-safe.** The complete estate links, but the installer does not close a selected subset
+   over cross-Module `depends_on`. Until then, selecting all Modules is complete; partial Selections
+   must include General, Akka, and Aspire together when those guarded edges are needed.
 2. **Add an original-skill declaration only when the current limit becomes material.** The trigger is
    another original skill, a manual original posture, or enough load-bearing outgoing edges that
    review-only protection is no longer sufficient. Original skills can be guarded targets, but their
@@ -60,11 +60,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in both harness trees.
-3. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
-   dependency-safe.** The complete estate links, but the installer does not close a selected subset
-   over cross-Module `depends_on`. Until then, selecting all Modules is complete; partial Selections
-   must include General, Akka, and Aspire together when those guarded edges are needed.
-4. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -75,7 +71,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
    Run it after a body-ownership pass and before declaring a Module closed.
-5. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
+4. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
    deterministic existence and audience reachability once a source runs, but do not make it run.
    Descriptions provide probabilistic selection pressure and can reach work with no explicit caller.
    The current candidate rule is: load-bearing composition uses guarded body facts; opportunistic

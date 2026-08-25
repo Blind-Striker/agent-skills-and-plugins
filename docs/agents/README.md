@@ -9,11 +9,6 @@ an active handover against live git, and delete it when the follow-up ships. The
 problems the deterministic gates cannot see; run it after a curation wave and before closing a
 module.
 
-The active cross-session pickup is the
-[independent public-release review](handover-prompts/s1-public-release-independent-review.prompt.md).
-It is a read-only-first onboarding and review brief covering public distribution, proof boundaries,
-and lossless documentation preservation. Delete it when the review and approved follow-up close.
-
 Shared current harness and product guidance lives in
 [transformation and emission](../architecture/transformation-and-emission.md),
 [references and linking](../architecture/references-and-linking.md), and

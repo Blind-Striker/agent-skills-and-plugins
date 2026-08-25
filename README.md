@@ -180,13 +180,11 @@ retrying.
 
 ### OpenCode from a Release Package
 
-The Package attached to GitHub Release `installer-v0.2.0` targets commit `8867fc4`. Its current asset
-was packed on Windows and loses seven executable-mode claims, so Linux and macOS verification rejects
-it before Plan. A corrected asset is being rebuilt through the manual Linux release workflow; use the
-recursive-clone transport until the digest below is replaced with that verified artifact's identity.
-Verify its repository-recorded SHA-256 before first execution. The digest detects replacement or
-corruption but cannot prevent an authorized re-upload. The Package is an npm-format transport
-artifact, not an npm publication or Git package install:
+The current Package is attached to GitHub Release `installer-v0.2.0`, targeting commit `8867fc4`.
+It was built on Linux and verified through manifest-backed tar-mode checks, zero-write Plan, Apply,
+status, and a remote re-download. Verify its repository-recorded SHA-256 before first execution. The
+digest detects replacement or corruption but cannot prevent an authorized re-upload. The Package is
+an npm-format transport artifact, not an npm publication or Git package install:
 
 ```powershell
 $download = Join-Path $env:TEMP "deniz-skills-installer-v0.2.0"
@@ -194,7 +192,7 @@ New-Item -ItemType Directory -Path $download -Force | Out-Null
 gh release download installer-v0.2.0 --repo Blind-Striker/agent-skills-and-plugins `
   --pattern "deniz-agent-skills-0.2.0.tgz" --dir $download
 $package = Join-Path $download "deniz-agent-skills-0.2.0.tgz"
-$expected = "f266ab796a5cb858a0e9fbad9c98c64959f20733ce1c84fc6b789e23585efe24"
+$expected = "4ce23817052317b80926a6cd0aed7063364e9625c012f22080bfb887727286be"
 $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "downloaded Package SHA-256 mismatch: $actual" }
 
@@ -210,7 +208,8 @@ alternate config-dir mounts. Current boundaries and lifecycle mechanics are in
 [distribution and installation](docs/architecture/distribution-and-installation.md); the dated
 [adapter research](docs/research/harness-adapters.md) and
 [experiment protocol](experiments/harness-invocation/protocol.md) retain measured evidence and its
-verification method.
+verification method. The exact corrected-asset evidence is in the
+[v0.2.0 POSIX correction record](experiments/harness-invocation/records/2026-08-25-opencode-installer-v0.2.0-posix-correction.md).
 
 ## Limits and support
 
