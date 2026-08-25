@@ -401,7 +401,7 @@ function runMutation(args, destination, loaded, io) {
     const recovery = inspectRecovery(destination);
     if (recovery) {
       const rendered = renderRecovery(recovery, destination);
-      return { exitCode: recovery.kind === "blocked" ? 1 : 0, stdout: rendered, stderr: "" };
+      return { exitCode: 1, stdout: rendered, stderr: "" };
     }
     const current = loadInstallState(destination);
     const plan = planReconcile(

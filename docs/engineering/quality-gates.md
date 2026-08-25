@@ -1,6 +1,6 @@
 # Engineering quality gates
 
-Date: 2026-08-24
+Date: 2026-08-25
 
 This document owns completion evidence: which repository commands apply, what CI proves, what still
 requires human review, and which words those results authorize. Script implementations remain
@@ -17,6 +17,7 @@ The matrix is additive. When a change matches more than one row, run the union o
 | Installer, packaging, emitter, or other generated-output behavior; `curation/`, overlays, root license/notices, or original `skills/`; an upstream submodule pin | The five tooling commands, then `npm run build`; `npm run inventory`; `npm run validate` | Perform the idempotence rerun and generated-output review below |
 | Prose protected by `tools/repository-docs.test.ts` | `npm test` | Retarget the assertion in the same change when protected prose intentionally moves |
 | Harness-invocation experiment scripts, method, or prose protected by the subsystem selftest | The applicable repository row above, plus `pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1 -SkipLab` | Use the full prepared-lab selftest only for the claims described below |
+| Release Package production or replacement | The generated-output row, then `npm run verify:package -- <package.tgz>` on the exact artifact | Run the manual `release-package` workflow build job on Linux; publish only the artifact that passed isolated Plan, Apply, status, digest, and remote re-download verification |
 | Other documentation-only changes | No narrower local command is prescribed | Check dates, links, ownership, relays, contradictions, and claim loss manually; CI still runs its full gate |
 
 Changing a command definition can also change packaging or generated behavior; in that case the
@@ -62,6 +63,12 @@ generated diff is semantically correct, that warnings are acceptable, that docum
 owner, or that a harness selects and follows an artifact at runtime. It also does not run the
 harness-invocation subsystem selftest. Secret scanning lowers risk; it does not prove that no secret
 class exists outside its rules.
+
+The manual [Release Package workflow](../../.github/workflows/release-package.yml) defaults to
+build-only and keeps its build job at `contents: read`. An explicitly requested publish runs in a
+separate `contents: write` job. The workflow can package an older source commit while using the
+current verifier, which is required for a corrective asset rebuild whose Release target remains the
+older commit.
 
 ## Human-only generation proof
 

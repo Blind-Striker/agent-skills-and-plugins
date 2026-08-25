@@ -1,6 +1,6 @@
 # Harness probing
 
-Date: 2026-08-24
+Date: 2026-08-25
 
 This protocol owns the repeatable method for finding out what a harness actually does. Committed
 observations live in [`records/`](records/); research such as
@@ -146,8 +146,9 @@ The remote transport is a Release asset pinned to a tag and target commit and ve
 not a Git package spec. GitHub reports Releases as non-immutable, so the recorded hash detects but
 does not prevent an authorized replacement; treat the download-hash comparison as the identity
 check. Only after the tag and asset exist with explicit authorization, download them into a new
-external-lab directory; never overwrite an existing asset. Substitute the release record's exact tag,
-asset name, and repository-recorded digest:
+external-lab directory. Never replace an existing asset except for an explicitly authorized
+correction after that exact asset fails the release gate; record both identities and re-run the full
+remote verification. Substitute the release record's exact tag, asset name, and repository-recorded digest:
 
 ```powershell
 $profile = Join-Path $LAB "installer-release"

@@ -149,13 +149,19 @@
   "deniz-dotnet-akka/skill/akka-net-management": {
     "source": "dotnet-skills/skills/akka-management",
     "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "akka-net-aspire-configuration"
+    ],
     "description": "Akka.Management for cluster bootstrapping, service discovery (Kubernetes, Azure, Config), health checks, and dynamic cluster formation without static seed nodes.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-akka:akka-net-aspire-configuration"
+        ],
         "pointer": []
       },
       "flags": {
@@ -167,7 +173,9 @@
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "akka-net-aspire-configuration"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -2616,13 +2624,19 @@
   "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
+    "body": "patch",
+    "dependsOn": [
+      "writing-plans"
+    ],
     "description": "Collaborative design session, scaled to the task: a feasibility answer, a short in-chat design, or a full written design and spec — each one ending in approval before implementation.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:writing-plans"
+        ],
         "pointer": []
       }
     },
@@ -2632,7 +2646,9 @@
         "command"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "writing-plans"
+        ],
         "pointer": []
       },
       "dropped": [],

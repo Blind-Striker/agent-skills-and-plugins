@@ -3,7 +3,7 @@
 plugin:
   name: deniz-dotnet-akka
   description: "Deniz's curated Akka.NET skills"
-  version: 0.2.1
+  version: 0.3.0
 items:
   - source: dotnet-skills/skills/akka-best-practices
     invocation: auto # foundational Akka.NET rules; model-reachable for the Aspire configuration cookbook
@@ -14,6 +14,8 @@ items:
     depends_on: [dependency-injection-patterns]
   - source: dotnet-skills/skills/akka-management
     invocation: auto # management, cluster bootstrap, and discovery detail used by the Aspire configuration cookbook
+    body: patch # formalize its same-Module Aspire handoff without changing the upstream guidance
+    depends_on: [akka-net-aspire-configuration]
   - source: dotnet-skills/skills/akka-testing-patterns
     invocation: auto # actor and integration-testing detail used by the Aspire configuration cookbook
   - source: dotnet-skills/skills/akka-aspire-configuration

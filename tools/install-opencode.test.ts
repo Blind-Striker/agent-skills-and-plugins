@@ -403,6 +403,11 @@ test("Recovery Apply performs Recovery only and exits", async () => {
   const leftover = inspectRecovery(fixture.destination);
   assert.equal(leftover?.kind, "rollback");
 
+  const preview = await runInstallCli(["update"], fixture.io);
+  assert.equal(preview.exitCode, 1);
+  assert.match(preview.stdout, /Recovery/);
+  assert.equal(inspectRecovery(fixture.destination)?.kind, "rollback");
+
   const recovered = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
   assert.equal(recovered.exitCode, 0);
   assert.match(recovered.stdout, /Recovery/);

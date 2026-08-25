@@ -1,0 +1,88 @@
+diff --git a/SKILL.md b/SKILL.md
+index b56a3b5..bff4f09 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -95,17 +95,17 @@ your path and complete them in order.
+ 1. **Explore project context** — check files, docs, recent commits
+ 2. **Offer the visual companion just-in-time** — NOT upfront. The first time a question would genuinely be clearer shown than described, offer it then (its own message); on approval its browser tab opens for you. If no visual question ever arises, never offer it. See the Visual Companion section below.
+ 3. **Ask clarifying questions** — one at a time, understand purpose/constraints/success criteria
+ 4. **Propose 2-3 approaches** — with trade-offs and your recommendation
+ 5. **Present design** — in sections scaled to their complexity, get user approval after each section
+ 6. **Write design doc** — save to `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` and commit
+ 7. **Spec self-review** — quick inline check for placeholders, contradictions, ambiguity, scope (see below)
+ 8. **User reviews written spec** — ask user to review the spec file before proceeding
+-9. **Transition to implementation** — invoke writing-plans skill to create implementation plan
++9. **Transition to implementation** — invoke superpowers:writing-plans skill to create implementation plan
+ 
+ ## Process Flow
+ 
+ ```dot
+ digraph brainstorming {
+     "Classify: spike / bounded / architectural" [shape=diamond];
+     "Present question + probe (2-3 sentences)" [shape=box];
+     "Ask clarifying questions (bounded)" [shape=box];
+@@ -116,17 +116,17 @@ digraph brainstorming {
+     "Explore project context" [shape=box];
+     "Ask clarifying questions" [shape=box];
+     "Propose 2-3 approaches" [shape=box];
+     "Present design sections" [shape=box];
+     "User approves design?" [shape=diamond];
+     "Write design doc" [shape=box];
+     "Spec self-review\n(fix inline)" [shape=box];
+     "User reviews spec?" [shape=diamond];
+-    "Invoke writing-plans skill" [shape=doublecircle];
++    "Invoke superpowers:writing-plans skill" [shape=doublecircle];
+     "Hidden complexity? Upgrade path" [shape=box];
+ 
+     "Classify: spike / bounded / architectural" -> "Present question + probe (2-3 sentences)" [label="spike"];
+     "Classify: spike / bounded / architectural" -> "Ask clarifying questions (bounded)" [label="bounded"];
+     "Classify: spike / bounded / architectural" -> "Explore project context" [label="architectural"];
+     "Present question + probe (2-3 sentences)" -> "Human approves?";
+     "Ask clarifying questions (bounded)" -> "Present short design in chat";
+     "Present short design in chat" -> "Human approves?";
+@@ -137,22 +137,22 @@ digraph brainstorming {
+     "Ask clarifying questions" -> "Propose 2-3 approaches";
+     "Propose 2-3 approaches" -> "Present design sections";
+     "Present design sections" -> "User approves design?";
+     "User approves design?" -> "Present design sections" [label="no, revise"];
+     "User approves design?" -> "Write design doc" [label="yes"];
+     "Write design doc" -> "Spec self-review\n(fix inline)";
+     "Spec self-review\n(fix inline)" -> "User reviews spec?";
+     "User reviews spec?" -> "Write design doc" [label="changes requested"];
+-    "User reviews spec?" -> "Invoke writing-plans skill" [label="approved"];
++    "User reviews spec?" -> "Invoke superpowers:writing-plans skill" [label="approved"];
+ }
+ ```
+ 
+ **Terminal states are path-bound.** Architectural: the ONLY skill you
+-invoke after brainstorming is writing-plans — never frontend-design,
++invoke after brainstorming is superpowers:writing-plans — never frontend-design,
+ mcp-builder, or any other implementation skill. Bounded: after
+ approval, implementation proceeds directly through the normal
+ development workflow; no plan document. Spike: the terminal state is a
+ reported recommendation.
+ 
+ ## The Process
+ 
+ The subsections below serve the bounded and architectural paths (a
+@@ -222,18 +222,18 @@ Fix any issues inline. No need to re-review — just fix and move on.
+ After the spec review loop passes, ask the user to review the written spec before proceeding:
+ 
+ > "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
+ 
+ Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+ 
+ **Implementation:**
+ 
+-- Invoke the writing-plans skill to create a detailed implementation plan
+-- Do NOT invoke any other skill. writing-plans is the next step.
++- Invoke the superpowers:writing-plans skill to create a detailed implementation plan
++- Do NOT invoke any other skill. superpowers:writing-plans is the next step.
+ 
+ ## Visual Companion
+ 
+ A browser-based companion for showing mockups, diagrams, and visual options during brainstorming. Available as a tool — not a mode. Accepting the companion means it's available for questions that benefit from visual treatment; it does NOT mean every question goes through the browser.
+ 
+ **Offering the companion (just-in-time):** Do NOT offer it upfront. Wait until a question would genuinely be clearer shown than told — a real mockup / layout / diagram question, not merely a UI *topic*. The first time that happens, offer it then, as its own message:
+ > "This next part might be easier if I show you — I can put together mockups, diagrams, and comparisons in a browser tab as we go. It's still new and can be token-intensive. Want me to? I'll open it for you."
+ 

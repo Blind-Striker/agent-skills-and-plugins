@@ -1,0 +1,171 @@
+name: release-package
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Commit or tag whose Package bytes should be built
+        required: true
+        default: 8867fc4077494a4bedb32f9f75ea251acbf8b81a
+        type: string
+      release_tag:
+        description: Existing GitHub Release tag to publish to
+        required: true
+        default: installer-v0.2.0
+        type: string
+      publish:
+        description: Upload the verified Package to the GitHub Release
+        required: true
+        default: false
+        type: boolean
+      replace_existing:
+        description: Delete an existing same-named asset before upload
+        required: true
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: release-package-${{ inputs.release_tag }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      filename: ${{ steps.pack.outputs.filename }}
+      sha256: ${{ steps.pack.outputs.sha256 }}
+      size: ${{ steps.pack.outputs.size }}
+      source_sha: ${{ steps.pack.outputs.source_sha }}
+    steps:
+      - name: Check out release workflow tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: workflow-tools
+          persist-credentials: false
+      - name: Check out Package source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+          submodules: recursive
+          path: source
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          check-latest: true
+      - name: Verify source and full history
+        env:
+          SOURCE_REF: ${{ inputs.source_ref }}
+        run: |
+          test "$(git -C source rev-parse HEAD)" = "$(git -C source rev-parse "$SOURCE_REF^{commit}")"
+          docker run --rm -v "$GITHUB_WORKSPACE/source:/repo" \
+            ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            detect --source=/repo --no-banner --redact=100
+      - name: Run repository gate
+        run: |
+          npm --prefix source ci
+          npm --prefix source test
+          npm --prefix source run typecheck
+          npm --prefix source run lint
+          npm --prefix source run format:check
+          npm --prefix source run check:public-safety
+          npm --prefix source run build
+          npm --prefix source run inventory
+          npm --prefix source run validate
+          pwsh -NoProfile -File source/experiments/harness-invocation/selftest.ps1 -SkipLab
+          git -C source diff --check
+          test -z "$(git -C source status --porcelain)"
+          npm --prefix source run build
+          npm --prefix source run inventory
+          git -C source diff --check
+          test -z "$(git -C source status --porcelain)"
+      - id: pack
+        name: Pack and verify exact artifact
+        run: |
+          mkdir -p package
+          npm pack ./source --json --pack-destination package > pack.json
+          filename="$(node -p "JSON.parse(require('node:fs').readFileSync('pack.json', 'utf8'))[0].filename")"
+          package="$GITHUB_WORKSPACE/package/$filename"
+          node workflow-tools/tools/verify-package.ts "$package"
+
+          profile="$RUNNER_TEMP/package-profile"
+          export HOME="$profile"
+          export USERPROFILE="$profile"
+          export XDG_CONFIG_HOME="$profile/.config"
+          export XDG_DATA_HOME="$profile/.local/share"
+          export npm_config_cache="$profile/.npm-cache"
+          export npm_config_update_notifier=false
+          export npm_config_audit=false
+          export npm_config_fund=false
+          export OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1
+          unset OPENCODE_CONFIG_DIR
+          mkdir -p "$profile/work"
+          npm exec --yes --package "$package" -- deniz-skills install --all
+          test ! -e "$XDG_CONFIG_HOME/opencode"
+          npm exec --yes --package "$package" -- deniz-skills install --all --yes
+          npm exec --yes --package "$package" -- deniz-skills status
+
+          {
+            echo "filename=$filename"
+            echo "sha256=$(sha256sum "$package" | cut -d' ' -f1)"
+            echo "size=$(stat -c '%s' "$package")"
+            echo "source_sha=$(git -C source rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Upload verified workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-package-${{ steps.pack.outputs.source_sha }}
+          path: package/${{ steps.pack.outputs.filename }}
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+      - name: Record artifact identity
+        run: |
+          {
+            echo "### Verified Package"
+            echo "- Source: \`${{ steps.pack.outputs.source_sha }}\`"
+            echo "- File: \`${{ steps.pack.outputs.filename }}\`"
+            echo "- Size: \`${{ steps.pack.outputs.size }}\` bytes"
+            echo "- SHA-256: \`${{ steps.pack.outputs.sha256 }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+  publish:
+    if: ${{ inputs.publish }}
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release workflow tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: workflow-tools
+          persist-credentials: false
+      - name: Download verified workflow artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-package-${{ needs.build.outputs.source_sha }}
+          path: package
+      - name: Publish exact artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          REPLACE_EXISTING: ${{ inputs.replace_existing }}
+          ASSET: ${{ needs.build.outputs.filename }}
+          SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
+          EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+        run: |
+          package="$GITHUB_WORKSPACE/package/$ASSET"
+          test "$(sha256sum "$package" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
+          test "$(gh release view "$RELEASE_TAG" --json targetCommitish --jq .targetCommitish)" = "$SOURCE_SHA"
+          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET"; then
+            test "$REPLACE_EXISTING" = "true"
+            gh release delete-asset "$RELEASE_TAG" "$ASSET" --yes
+          fi
+          gh release upload "$RELEASE_TAG" "$package#OpenCode installer Package"
+
+          mkdir -p remote
+          gh release download "$RELEASE_TAG" --pattern "$ASSET" --dir remote
+          cmp "$package" "remote/$ASSET"
+          node workflow-tools/tools/verify-package.ts "remote/$ASSET"
+          echo "Published \`$ASSET\` with SHA-256 \`$EXPECTED_SHA256\`." >> "$GITHUB_STEP_SUMMARY"

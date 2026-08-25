@@ -11,6 +11,12 @@
       "SKILL.md": "ec7f15f826f360161ac82e24372107e5d7336062"
     }
   },
+  "deniz-dotnet-akka/akka-net-management": {
+    "source": "dotnet-skills/skills/akka-management",
+    "files": {
+      "SKILL.md": "6c0d0ab4fedfba8d244f6f055310d96e3e8d2613"
+    }
+  },
   "deniz-dotnet-aspire/aspire": {
     "source": "aspire-skills/skills/aspire",
     "files": {
@@ -239,6 +245,12 @@
     "files": {
       "PHASE-BOUNDARIES.md": "fb58ef9febcfd558cdb4517e370f19034869ba26",
       "SKILL.md": "ae8eb9b211972d9ae584b41d0f1439c644494fc7"
+    }
+  },
+  "deniz-process/brainstorming": {
+    "source": "superpowers/skills/brainstorming",
+    "files": {
+      "SKILL.md": "b56a3b5ed6ea0d6216501e0e401ecb00a1b4675f"
     }
   },
   "deniz-process/implement": {

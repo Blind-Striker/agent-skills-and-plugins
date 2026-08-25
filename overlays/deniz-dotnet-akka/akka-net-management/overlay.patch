@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index 6c0d0ab..e2ce583 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -244,17 +244,17 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
+ 2. Storage account allows table operations
+ 3. All nodes use same `ServiceName`
+ 4. Firewall allows access to Azure Storage
+ 
+ ---
+ 
+ ## Aspire Integration
+ 
+-For detailed Aspire-specific patterns, see the `akka-net-aspire-configuration` skill.
++For detailed Aspire-specific patterns, see the `dotnet-skills:akka-aspire-configuration` skill.
+ 
+ Quick reference for Aspire:
+ 
+ ```csharp
+ // In AppHost
+ appBuilder
+     .WithEndpoint(name: "remote", protocol: ProtocolType.Tcp,
+         env: "AkkaSettings__RemoteOptions__Port")

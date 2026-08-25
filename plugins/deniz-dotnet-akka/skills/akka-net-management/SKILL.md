@@ -252,7 +252,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 
 ## Aspire Integration
 
-For detailed Aspire-specific patterns, see the `akka-net-aspire-configuration` skill.
+For detailed Aspire-specific patterns, see the `deniz-dotnet-akka:akka-net-aspire-configuration` skill.
 
 Quick reference for Aspire:
 

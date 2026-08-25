@@ -1,6 +1,6 @@
 # Distribution and installation
 
-Date: 2026-08-24
+Date: 2026-08-25
 
 ## Responsibility
 
@@ -106,6 +106,10 @@ Destination. `status` is also read-only; it reports Selection, currency against 
 findings, lock state, and Recovery. A missing owned path of an affected Module blocks Install or
 Update, but Remove of that Module can drop the already-missing claim. A Local modification blocks
 Remove so neither Selection nor Ownership changes around altered bytes.
+
+Pending Recovery takes precedence over a requested Plan. A plan-only mutating command prints the
+Recovery action and exits nonzero because no Plan was produced; `--yes` applies only Recovery and
+requires the original request to be issued again.
 
 ## Apply
 

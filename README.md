@@ -1,9 +1,8 @@
 # deniz-skills
 
 Personal, opinionated multi-harness skill collection. It exists for my own workflow rather than as a
-general-purpose framework or supported product. I am preparing to keep it public because the curation
-engine, the .NET selections, or the recorded transformation decisions may still be useful to someone
-else.
+general-purpose framework or supported product. I keep it public because the curation engine, the .NET
+selections, or the recorded transformation decisions may still be useful to someone else.
 
 Upstream skill repositories live as submodules in `external/`; curation manifests in
 `curation/*.yaml` select and transform what gets packaged into the `deniz-*` Claude Code Plugins in
@@ -120,6 +119,7 @@ worktrees.
 | `npm run eject -- <plugin> <name>` | Copy an item to `overlays/` for body editing |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
 | `npm run validate` | Link the built trees: references resolve and are reachable, `depends_on` matches the bodies, plus sources, frontmatter, collisions, overlay wiring, file modes, marketplace |
+| `npm run verify:package -- <package.tgz>` | Verify an exact Package's payload, Bundle hashes, and tar executable modes before publication |
 | `npm run check:public-safety` | Reject Gmail identities and user/workspace machine paths in current authored and generated files |
 | `npm run install:opencode -- <action>` | Plan or Apply global OpenCode Module installation from this checkout |
 | `npm test` | Run the tooling test suite (a `pretest` guard fails if the glob stops finding it) |
@@ -168,6 +168,9 @@ npm run install:opencode -- remove --module deniz-process
 npm run install:opencode -- remove --module deniz-process --yes
 ```
 
+Until dependency-aware Selection planning lands, `--all` is the complete path. A partial Selection
+that uses the current guarded cross-Module handoffs must include General, Akka, and Aspire together.
+
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing
 files are Unowned Collisions: there is no force, reset, legacy migration, project-local target, or
@@ -177,7 +180,10 @@ retrying.
 
 ### OpenCode from a Release Package
 
-The current Package is attached to GitHub Release `installer-v0.2.0`, targeting commit `8867fc4`.
+The Package attached to GitHub Release `installer-v0.2.0` targets commit `8867fc4`. Its current asset
+was packed on Windows and loses seven executable-mode claims, so Linux and macOS verification rejects
+it before Plan. A corrected asset is being rebuilt through the manual Linux release workflow; use the
+recursive-clone transport until the digest below is replaced with that verified artifact's identity.
 Verify its repository-recorded SHA-256 before first execution. The digest detects replacement or
 corruption but cannot prevent an authorized re-upload. The Package is an npm-format transport
 artifact, not an npm publication or Git package install:

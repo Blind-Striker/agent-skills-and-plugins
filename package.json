@@ -34,6 +34,7 @@
     "eject": "node tools/eject.ts",
     "sync": "node tools/sync.ts",
     "validate": "node tools/validate.ts",
+    "verify:package": "node tools/verify-package.ts",
     "check:public-safety": "node tools/check-public-safety.ts",
     "install:opencode": "node tools/install-opencode.ts",
     "pretest": "node tools/check-test-discovery.ts",

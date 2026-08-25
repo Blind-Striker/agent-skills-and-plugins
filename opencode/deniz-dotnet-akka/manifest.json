@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-akka",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "digest": "sha256:3f2fe3b1d3023075f30fe0ba6c335331f35c9641de406e24318956a9c96b047d",
   "files": {
     "LICENSE": {
