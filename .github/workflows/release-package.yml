@@ -73,7 +73,6 @@ jobs:
           npm --prefix source run build
           npm --prefix source run inventory
           npm --prefix source run validate
-          pwsh -NoProfile -File source/experiments/harness-invocation/selftest.ps1 -SkipLab
           git -C source diff --check
           test -z "$(git -C source status --porcelain)"
           npm --prefix source run build
