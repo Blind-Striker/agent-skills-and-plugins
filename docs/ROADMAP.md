@@ -13,26 +13,20 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - The four current curation manifests emit matching Claude Code Plugins and OpenCode Module Bundles.
   Their item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
-- Public-release preparation is active. The authored work now selects an MIT license for original
-  material, emits source-specific notices and exact upstream license copies, uses a public noreply
-  marketplace identity, adds least-privilege secret and machine-path CI checks, and gives the README
-  an explicit personal/no-SLA boundary. The repository remains private until current-tree safety,
-  generated output, clean-checkout proof, current Release Package, and final readiness table pass.
-- The existing pre-public installer Release targets old output and is not a current distribution.
-  The next approved Package is version 0.2.0; publishing, replacing or deleting Release assets, and
-  changing visibility remain explicit stop-gate actions.
+- The repository is public with MIT licensing for original work, source-specific notices and exact
+  upstream license copies, a public noreply marketplace contact, least-privilege secret and
+  machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
+- OpenCode supports two installation transports: a recursive clone using the repository installer,
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.2.0`. The Release asset
+  was downloaded, hash-verified, and exercised through isolated Plan, Apply, and current status. The
+  older 0.1.0 Release remains historical rather than current.
 - Aspire CLI, TypeScript, testing, and package examples remain intentionally upstream-owned. Build,
   generation, and linking do not prove every example in a consumer environment; this is an accepted
   public limitation, not a claim to repair by silently forking the bodies.
 
 ## Next Up
 
-1. **Close the public-release gate.** Run redacted full-history secret scanning and current-tree
-   privacy/path scanning; regenerate and review both harnesses; prove a fresh recursive checkout;
-   inspect exact Package bytes; enable private vulnerability reporting; publish a current
-   digest-recorded Package; then present the final readiness table before visibility changes. Commit
-   author/committer identity is ordinary Git provenance and is not rewritten by this initiative.
-2. **Add an original-skill declaration only when the current limit becomes material.** Original
+1. **Add an original-skill declaration only when the current limit becomes material.** Original
    skills can be guarded targets, but their invocation and outgoing model edges have no manifest
    declaration. A future surface can be keyed by the existing top-level skill directory:
 
@@ -58,11 +52,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in both harness trees.
-3. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
+2. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
    dependency-safe.** The complete estate links, but the installer does not close a selected subset
    over cross-Module `depends_on`. Until then, selecting all Modules is complete; partial Selections
    must include General, Akka, and Aspire together when those guarded edges are needed.
-4. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -72,7 +66,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    confidence, and one of `retain`, `narrow`, `reconsider`, or `ambiguous`; preserve disagreements.
    Reviewers never edit, bless, bump versions, or fail CI. Run it after a body-ownership pass and
    before declaring a Module closed.
-5. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
+4. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
    deterministic existence and audience reachability once a source runs, but do not make it run.
    Descriptions provide probabilistic selection pressure and can reach work with no explicit caller.
    The current candidate rule is: load-bearing composition uses guarded body facts; opportunistic

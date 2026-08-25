@@ -10,10 +10,27 @@ test("README build command names every committed generated tree", () => {
   assert.match(readme, /`npm run build`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`dist\/`/);
 });
 
-test("README does not present the stale Release and keeps verification as a publication gate", () => {
+test("README verifies the current Release digest before package execution", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
   assert.doesNotMatch(readme, /installer-v0\.1\.0|deniz-agent-skills-0\.1\.0\.tgz/);
-  assert.match(readme, /Release Package[\s\S]{0,200}SHA-256[\s\S]{0,80}before[\s\S]{0,80}execution/i);
+  const section = readme.slice(readme.indexOf("### OpenCode from a Release Package"));
+  const download = "gh release download installer-v0.2.0 --repo Blind-Striker/agent-skills-and-plugins";
+  const asset = '"deniz-agent-skills-0.2.0.tgz"';
+  const digest = "f266ab796a5cb858a0e9fbad9c98c64959f20733ce1c84fc6b789e23585efe24";
+  const compute = "Get-FileHash -LiteralPath $package -Algorithm SHA256";
+  const compare = "if ($actual -ne $expected) { throw";
+  const execute = "npm exec --yes --package $package -- deniz-skills install --all";
+  const positions = [download, asset, digest, compute, compare, execute].map((value) => section.indexOf(value));
+
+  assert.ok(
+    positions.every((position) => position >= 0),
+    "Release recipe lost a required identity or safety step",
+  );
+  assert.deepEqual(
+    positions,
+    [...positions].sort((left, right) => left - right),
+  );
+  assert.equal(section.indexOf("npm exec"), positions.at(-1), "no package execution may precede digest verification");
 });
 
 test("OpenCode lab describes installer composition rather than a mounted build tree", () => {

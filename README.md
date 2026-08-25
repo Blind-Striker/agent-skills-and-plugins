@@ -177,11 +177,26 @@ retrying.
 
 ### OpenCode from a Release Package
 
-A current public Package will be published only after the public-release gate closes. Every
-published Release Package must be checked against its repository-recorded SHA-256 before its first
-execution. A tag and target commit identify the intended source, while the digest detects replacement
-or corruption; it cannot prevent an authorized re-upload. The Package is an npm-format transport
-artifact, not an npm publication or Git package install.
+The current Package is attached to GitHub Release `installer-v0.2.0`, targeting commit `8867fc4`.
+Verify its repository-recorded SHA-256 before first execution. The digest detects replacement or
+corruption but cannot prevent an authorized re-upload. The Package is an npm-format transport
+artifact, not an npm publication or Git package install:
+
+```powershell
+$download = Join-Path $env:TEMP "deniz-skills-installer-v0.2.0"
+New-Item -ItemType Directory -Path $download -Force | Out-Null
+gh release download installer-v0.2.0 --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "deniz-agent-skills-0.2.0.tgz" --dir $download
+$package = Join-Path $download "deniz-agent-skills-0.2.0.tgz"
+$expected = "f266ab796a5cb858a0e9fbad9c98c64959f20733ce1c84fc6b789e23585efe24"
+$actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
+if ($actual -ne $expected) { throw "downloaded Package SHA-256 mismatch: $actual" }
+
+# Plan, then Apply
+npm exec --yes --package $package -- deniz-skills install --all
+npm exec --yes --package $package -- deniz-skills install --all --yes
+npm exec --yes --package $package -- deniz-skills status
+```
 
 Release Packages use the same `install`, `update`, `remove`, module-selection, Plan, and Apply grammar
 shown for the checkout. The installer targets only OpenCode's normal global config root and refuses
