@@ -153,18 +153,19 @@ jobs:
           ASSET: ${{ needs.build.outputs.filename }}
           SOURCE_SHA: ${{ needs.build.outputs.source_sha }}
           EXPECTED_SHA256: ${{ needs.build.outputs.sha256 }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           package="$GITHUB_WORKSPACE/package/$ASSET"
           test "$(sha256sum "$package" | cut -d' ' -f1)" = "$EXPECTED_SHA256"
-          test "$(gh release view "$RELEASE_TAG" --json targetCommitish --jq .targetCommitish)" = "$SOURCE_SHA"
-          if gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET"; then
+          test "$(gh release view "$RELEASE_TAG" --repo "$REPOSITORY" --json targetCommitish --jq .targetCommitish)" = "$SOURCE_SHA"
+          if gh release view "$RELEASE_TAG" --repo "$REPOSITORY" --json assets --jq '.assets[].name' | grep -Fxq "$ASSET"; then
             test "$REPLACE_EXISTING" = "true"
-            gh release delete-asset "$RELEASE_TAG" "$ASSET" --yes
+            gh release delete-asset "$RELEASE_TAG" "$ASSET" --repo "$REPOSITORY" --yes
           fi
-          gh release upload "$RELEASE_TAG" "$package#OpenCode installer Package"
+          gh release upload "$RELEASE_TAG" "$package#OpenCode installer Package" --repo "$REPOSITORY"
 
           mkdir -p remote
-          gh release download "$RELEASE_TAG" --pattern "$ASSET" --dir remote
+          gh release download "$RELEASE_TAG" --repo "$REPOSITORY" --pattern "$ASSET" --dir remote
           cmp "$package" "remote/$ASSET"
           node workflow-tools/tools/verify-package.ts "remote/$ASSET"
           echo "Published \`$ASSET\` with SHA-256 \`$EXPECTED_SHA256\`." >> "$GITHUB_STEP_SUMMARY"
