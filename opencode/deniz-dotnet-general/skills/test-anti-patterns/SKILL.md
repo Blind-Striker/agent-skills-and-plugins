@@ -3,14 +3,12 @@ name: test-anti-patterns
 description: >
   Audits an existing test file or suite in any language for pragmatic
   anti-patterns and quality issues, producing a severity-ranked report. Use when
-  asked to audit or review tests, find false-confidence tests, investigate
-  flakiness or order dependence, identify duplicated tests or magic values, or
-  judge whether assertions are absent, trivial-only, or repeatedly verify only
-  one facet of behavior. Polyglot: .NET, Python, TypeScript/JavaScript, Java,
-  Go, Ruby, Rust, Swift, Kotlin, PowerShell, and C++. DO NOT USE FOR: writing or
-  running tests; coverage/CRAP metrics; full assertion-diversity metrics or an
-  academic smell-catalog audit; fixing or rewriting the tests it audits
-  (report-only).
+  asked to review tests, find false-confidence assertions, investigate flakiness
+  or order dependence, identify duplication or magic values, or judge whether
+  assertions repeatedly verify only one facet of behavior. DO NOT USE FOR:
+  writing or running tests, coverage/CRAP metrics, behavioral gap analysis, full
+  assertion-diversity metrics, an academic smell catalog, or fixing the tests it
+  audits (report-only).
 license: MIT
 ---
 
@@ -26,17 +24,18 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
 - User wants to know why tests are flaky or unreliable
 - User asks "are my tests good?" or "what's wrong with my tests?"
 - User requests a test audit or test code review
-- User wants to improve existing test code
+- User wants diagnostic findings before deciding what to improve
 
 ## When Not to Use
 
-- User wants to write new tests from scratch (out of scope — this skill audits existing tests)
+- User wants to write new tests from scratch (out of scope)
 - User wants direct implementation fixes rather than a diagnostic review (use the relevant write/edit skill)
-- User asks to fix or modernize test code (this skill reports; it does not edit tests)
-- User wants to run or execute tests (use the `run-tests` skill for .NET)
+- User wants to run or execute tests (use `run-tests` for .NET)
 - User wants to migrate between test frameworks or versions (use migration skills)
-- User wants to measure code coverage (out of scope)
-- User requires a full academic smell catalog or citable taxonomy (not provided by this pragmatic audit)
+- User wants coverage collection or coverage/CRAP metrics
+- User asks whether tests would catch a bug or wants behavioral/pseudo-mutation gaps (use `test-gap-analysis`)
+- User wants test-mix or trait/category distributions
+- User wants a deep formal test-smell audit with an academic taxonomy
 
 ## Inputs
 
@@ -70,7 +69,7 @@ Check each test file against the anti-pattern catalog below. Report findings gro
 | **Trivial-only assertions** | Tests whose only checks are null/presence/truthiness guards or constants, with no assertion on the value, state, structure, error, or side effect that defines the behavior. A guard followed by a meaningful assertion is not trivial-only. |
 | **Missing await on async assertions (JS/TS, .NET, Python, Kotlin, Swift)** | `expect(promise).resolves.toBe(x)` without `await`/`return`, `pytest-asyncio` test with un-awaited coroutine, `async Task` xUnit test calling `Assert.ThrowsAsync` without `await`, Kotest suspending test without `runTest`, Swift Testing async test without `await`. These tests silently pass even when the underlying assertion would have failed. |
 | **Coverage touching** | Test class that methodically calls every public member on a type — often in alphabetical or declaration order — without asserting meaningful outcomes. Each test typically does `var result = sut.MethodName(...)` (or `result = sut.method_name(...)`, `sut.methodName()`, `sut.MethodName(t)`) with no assertion, or only a trivial null/None/nil check. The intent is to inflate code-coverage metrics rather than verify behavior. Distinct from a single assertion-free test: the pattern is *systematic* coverage of the surface area with no real verification. |
-| **Self-referential assertion** | Asserts that the output of an operation equals its input when the operation is expected to be an identity or no-op, e.g. `Assert.AreEqual(input, Parse(input.ToString()))`, `assert input == parse(str(input))`, `expect(parse(input.toString())).toBe(input)`, `assert.Equal(t, input, parse(input))`. Also flags `Assert.AreEqual(dto.Name, dto.Name)` / `assert dto.name == dto.name` / `expect(dto.name).toBe(dto.name)` (asserting a field against itself). The test is tautological — it can only fail if the round-trip is broken, but never verifies that a *transformation* actually happened. |
+| **Self-referential assertion** | The expected value is computed from the same actual value, such as `Assert.AreEqual(dto.Name, dto.Name)`, `Assert.AreEqual(result, result)`, or equivalents. Do not apply this label merely because a valid identity, clone, serialization, or round-trip contract compares output with input: those assertions can fail. Instead check whether the input exercises a transformation and whether independently known representation, field, reference-identity, or invalid-input assertions are missing. |
 | **Swallowed exceptions** | `try { ... } catch { }`, `catch (Exception)` without rethrowing or asserting (.NET); bare `except:` or `except Exception:` with `pass` (Python); `try { ... } catch (e) {}` (JS/TS/Java); `defer recover()` without re-panic and no assertion (Go); `rescue StandardError` with no assertion (Ruby); `Result::unwrap_or(...)` swallowing errors in a test (Rust); empty `catch` block (Kotlin/Swift). |
 | **Assert in catch block only** | `try { Act(); } catch (Exception ex) { Assert.Fail(ex.Message); }` (and equivalents in other languages) -- use `Assert.ThrowsException` / `pytest.raises` / `expect(fn).toThrow` / `assertThrows` / `assert.Error(t, err)` / `#[should_panic]` / `Should -Throw` / `EXPECT_THROW` instead. The test passes when no exception is thrown even if the result is wrong. |
 | **Always-true assertions** | `Assert.IsTrue(true)`, `Assert.AreEqual(x, x)`, `assert True`, `expect(true).toBe(true)`, `assert.True(t, true)`, `assert!(true)`, or conditions that can never fail. |
@@ -114,6 +113,22 @@ Before reporting, re-check each finding against these severity rules:
 - **Critical/High**: Only for issues that cause tests to give false confidence or be unreliable. A test that always passes regardless of correctness is Critical. Flaky shared state is High. Missing-await on async assertions is Critical (silent pass).
 - **Medium**: Only for issues that actively harm maintainability -- 5+ nearly-identical tests, truly meaningless names like `Test1` / `test` / `it1`.
 - **Low**: Cosmetic naming mismatches, minor style preferences, assertion messages that could be better. When in doubt, rate Low.
+- **Use the caller's severity vocabulary consistently.** If the caller asks for
+  Critical / Warning / Info, map reliability risks to Warning and
+  maintenance/cosmetic concerns to Info rather than silently collapsing every
+  item into Critical. Severity describes the demonstrated failure mode, not how
+  much prose a finding receives.
+- **Separate a systemic finding from its instances.** Coverage touching across a
+  facade is one Critical systemic finding whose evidence lists every affected
+  test. All assertion-free instances, including the last facade method, retain
+  the same false-confidence severity. Report `1 finding / 6 affected tests`, not
+  six findings plus a seventh summary finding, and do not downgrade one instance
+  merely to manufacture multiple tiers.
+- **Do not severity-rank ordinary missing cases as anti-patterns.** Adjacent
+  untested branches, exception paths, and boundaries may be useful coverage
+  opportunities, but list them separately from the anti-pattern counts unless a
+  weak existing test specifically creates the gap. They are not Critical merely
+  because the suite has a systemic Critical issue.
 - **Not an issue** (per-language nuance):
   - Go and Rust **table-driven loops** with sub-tests (`t.Run` / `for case in cases { ... }`) are *idiomatic*, not "Conditional Test Logic". Do NOT flag.
   - pytest **bare `assert`** is the canonical assertion form, not a missing assertion library. Do NOT flag.
@@ -121,6 +136,14 @@ Before reporting, re-check each finding against these severity rules:
   - Separate tests for distinct boundary conditions (zero vs. negative vs. null). Do NOT flag as duplicates.
   - Explicit per-test setup instead of `[TestInitialize]` / `beforeEach` (this *improves* isolation).
   - Tests that are short and clear but could theoretically be consolidated.
+  - Round-trip or serialization equality with non-trivial input. It is valid
+    metamorphic evidence; suggest an independent representation assertion when
+    two implementations could share the same bug.
+  - Clone value equality. Keep it, and add distinct-reference or mutation-
+    independence evidence when the contract promises a deep copy.
+  - A validator or accessor returning the original value when pass-through is the
+    production contract. Missing invalid-input cases are a coverage gap, not proof
+    that the existing assertion is tautological.
 
 IMPORTANT: If the tests are well-written, say so clearly up front. Do not inflate severity to justify the review. A review that finds zero Critical/High issues and only minor Low suggestions is a valid and valuable outcome. Lead with what the tests do well.
 
@@ -128,8 +151,17 @@ IMPORTANT: If the tests are well-written, say so clearly up front. Do not inflat
 
 **Depth bar — a tidy report that is shallower than an unassisted review is a failure.** Before writing, satisfy all five:
 
-1. **Account for every test in scope.** Walk the full list of test methods and fields; a finding table that silently skips tests (or fixtures like an unused `static HttpClient` field) is incomplete. State the number of tests reviewed.
-2. **Calibrate assertion depth.** Distinguish assertion-free, trivial-only, and meaningful assertions. Name a missing value, state, structure, error, or side-effect facet only when the production behavior makes that facet relevant.
+1. **Account for every test in scope.** Build the complete method/field inventory
+   before summarizing. For a systematic pattern such as coverage touching,
+   enumerate every affected test at least once rather than giving representative
+   examples. A finding table that silently skips tests (or fixtures like an
+   unused `static HttpClient` field) is incomplete. State the number reviewed.
+2. **Verify the production contract and calibrate assertion depth.** Inspect the
+   actual transformation, DTO fields, and promised identity/clone semantics.
+   Distinguish assertion-free, trivial-only, and meaningful assertions; name a
+   missing facet only when production behavior makes it relevant. Never invent
+   fields or require lossless round-tripping when production is intentionally
+   lossy.
 3. **Make every Critical/High fix complete and specific.** Give the replacement assertion with the *exact expected value* (the computed discount, the exact CSV line, the full expected object), not a `// assert something here` placeholder.
 4. **Name the adjacent gaps the tests should also cover** — untested error paths, boundary values, and round-trip/culture-sensitivity risks in the same class. These are part of "what's wrong with my tests", and omitting them is the most common way this review loses to an unassisted one.
 5. **Keep the report internally consistent.** Summary counts must equal the enumerated findings. Publish a settled conclusion: do all reconsidering before you write, and never leave "wait, that's wrong" / "this should fail but doesn't" reasoning in the output.
@@ -145,6 +177,11 @@ Present findings in this structure:
 3. **Medium and Low findings** -- Summarize in a table unless the user wants full detail
 4. **Positive observations** -- Call out things the tests do well (sealed class, specific exception types, data-driven tests, clear AAA structure, proper use of fakes, good naming). Don't only report negatives.
 
+Before publishing, assign each finding a stable identity. A grouped row counts
+as one finding regardless of how many methods it lists; separate rows count
+separately. Recompute the summary from those rows. Keep `affected tests` as a
+different number so a bundled finding cannot create a hidden count mismatch.
+
 ### Step 6: Prioritize recommendations
 
 If there are many findings, recommend which to fix first:
@@ -156,10 +193,13 @@ If there are many findings, recommend which to fix first:
 ## Validation
 
 - [ ] Every test method in scope is accounted for (reviewed count stated; none silently skipped)
+- [ ] Identity and round-trip findings match the production contract and use only real fields
 - [ ] Every finding includes a specific location (not just a general warning)
 - [ ] Every Critical/High finding includes a concrete fix with exact expected values
 - [ ] Adjacent untested error paths and boundary values are called out
 - [ ] Summary counts match the enumerated findings
+- [ ] Grouped findings distinguish finding count from affected-test count
+- [ ] Adjacent coverage opportunities are not inflated into Critical anti-pattern findings
 - [ ] Report covers all categories (assertions, isolation, naming, structure)
 - [ ] Positive observations are included alongside problems
 - [ ] Recommendations are prioritized by severity

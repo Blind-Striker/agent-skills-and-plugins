@@ -1,20 +1,16 @@
 ---
 description: >
-  Generate wrapper interfaces and DI registration for hard-to-test static
-  dependencies in C#, when the abstraction does NOT exist yet. Produces
-  IFileSystem, IEnvironmentProvider, IConsole, IProcessRunner wrappers, or
-  guides first-time adoption of TimeProvider and IHttpClientFactory. With no DI
-  container, produces the ambient context seam instead. USE FOR: generate
-  wrapper for static, create IFileSystem wrapper, wrap DateTime.Now, make a
-  static or a class testable, create abstraction for File.*, generate DI
-  registration, adopt TimeProvider when it is not registered yet,
-  IHttpClientFactory setup, testability wrapper, how to make statics injectable,
-  adopt System.IO.Abstractions, make code testable without adding a DI
-  framework. DO NOT USE FOR: detecting statics (use detect-static-dependencies),
-  migrating call sites or replacing existing DateTime.*/File.* usages once the
-  wrapper is created or already registered in DI (after wrapper creation, the
-  user invokes `migrate-static-to-wrapper` separately), general interface
-  design.
+  Generate C# testability abstractions and DI registration when none exists:
+  minimal Environment/Console/Process wrappers, or first-time TimeProvider,
+  IHttpClientFactory, and System.IO.Abstractions adoption. USE FOR: generate a
+  wrapper for statics, make a class testable, wrap DateTime/File/Process, create
+  IProcessRunner, add DI registration, or preserve a static API with an ambient
+  seam. DO NOT USE FOR: wrapping an API already consumed through an interface or
+  built-in abstraction such as IFileSystem or TimeProvider; detecting statics
+  (detect-static-dependencies); migrating call sites to an existing/registered
+  abstraction (after wrapper creation, the user invokes
+  `migrate-static-to-wrapper` separately); behavior-test requests whose seam is
+  still open; or general interface design.
 ---
 
 # Generate Testability Wrappers
@@ -27,18 +23,20 @@ Generate wrapper interfaces, default implementations, and DI service registratio
 - When the user asks to make a class testable by replacing statics with injected abstractions
 - When adopting `TimeProvider` (.NET 8+) or `System.IO.Abstractions`
 - When creating a custom wrapper for `Environment.*`, `Console.*`, or `Process.*`
-- When there is no DI container and the seam has to be ambient rather than injected
+- When a released static API needs an ambient seam because signatures cannot change
 
 ## When Not to Use
 
 - The user wants to find statics first (use `detect-static-dependencies`)
-- The user wants to bulk-replace call sites (after wrapper creation, the user invokes
-  `migrate-static-to-wrapper` separately)
+- The user wants to bulk-replace call sites (after wrapper creation, the user
+  invokes `migrate-static-to-wrapper` separately)
 - The static is already behind an interface
 
-> A project with **no DI container**, or a user who does not want to add one, is **not** a reason to skip this skill —
-> that is exactly what the ambient context seam in Step 5 is for. Choose the seam over constructor injection in that
-> case; do not decline the request and do not propose registering anything in a service collection.
+> A missing DI package does not by itself force an ambient seam. For an
+> instantiable class, prefer constructor injection and compose it explicitly or
+> show the requested registration. Use Step 5 when the API is static and its
+> signatures must stay static, or when the user explicitly forbids caller
+> construction/DI changes.
 
 ## Inputs
 
@@ -46,7 +44,7 @@ Generate wrapper interfaces, default implementations, and DI service registratio
 |-------|----------|-------------|
 | Static category | Yes | Which category: `time`, `filesystem`, `environment`, `network`, `console`, `process` |
 | Target framework | Yes | The `TargetFramework` from `.csproj` (affects which built-in abstractions exist) |
-| DI container | No | Which DI framework: `microsoft` (default), `autofac`, `none` (ambient context) |
+| Composition | No | Existing DI framework, explicit/manual construction, or immutable static API |
 | Namespace | No | Target namespace for generated wrapper code |
 
 ## Workflow
@@ -64,18 +62,24 @@ Based on the category and target framework:
 | Console | Custom `IConsole` | Same | Same |
 | Process | Custom `IProcessRunner` | Same | Same |
 
-The table picks *which abstraction*. How it reaches the code under test is a separate axis: constructor
-injection when a DI container exists, and the **ambient context seam of Step 5** when one does not. Decide that
-axis first — check for a host builder, `IServiceCollection`, or an existing container registration — because a
-static class cannot take a constructor and a project without a container has nowhere to register anything. In
-that case skip Steps 2–4 and go to Step 5; the abstraction chosen above still applies, it is just reached through
-the ambient seam.
+The table picks *which abstraction*. How it reaches the code under test is a
+separate axis:
+
+- instantiable class: constructor injection, even if current callers compose the
+  object manually;
+- existing container: add compile-ready registration following its conventions;
+- public static API/signatures that cannot change: Step 5's ambient seam.
+
+Check for a host builder, `IServiceCollection`, existing registrations, and
+construction sites. Do not infer "must remain static" merely because the project
+currently has no container.
 
 ### Step 2: Generate built-in abstraction adoption (Time, HTTP)
 
 #### TimeProvider (.NET 8+)
 
-No wrapper code needed — guide the user:
+No wrapper code needed. Complete all four parts: production registration,
+constructor injection, a `FakeTimeProvider` test, and the testing package.
 
 1. Register in DI:
 ```csharp
@@ -100,13 +104,34 @@ fakeTime.Advance(TimeSpan.FromDays(1));
 Assert.True(processor.IsExpired(order));
 ```
 
+The assertion must prove a time-dependent result after the fake is pinned or
+advanced. Merely constructing `FakeTimeProvider` is not a test. When the project
+has no container but the target is an instantiable class, inject
+`TimeProvider` anyway and show explicit production construction with
+`TimeProvider.System`; do not replace it with a custom static clock.
+
+Before calling the adoption complete, verify the repository contains or the
+answer supplies every required artifact: the testing package reference, the
+production composition/registration, every affected constructor call, and a
+runnable fake-time test. A code fragment that omits one of those integration
+points is guidance, not a completed adoption.
+
 #### TimeProvider (pre-.NET 8)
 
 Guide: install `Microsoft.Bcl.TimeProvider` NuGet. Same API as above.
 
 #### IHttpClientFactory
 
-No wrapper code needed — register typed clients via `builder.Services.AddHttpClient<MyService>()` and inject `HttpClient` directly into the class constructor.
+No wrapper code needed. Register a typed client via
+`builder.Services.AddHttpClient<MyService>()` and inject `HttpClient` directly
+into the class constructor. Preserve cancellation by passing the caller's token
+to the HTTP operation.
+
+For tests, provide a complete fake `HttpMessageHandler` whose `SendAsync`
+returns a deterministic `HttpResponseMessage`, construct `HttpClient` with that
+handler, and exercise the typed client without network access. Compile and run
+the focused test when the task asks for implementation; do not stop at a
+schematic handler method.
 
 ### Step 3: Generate custom wrappers (Environment, Console, Process)
 
@@ -115,6 +140,10 @@ For categories without built-in abstractions, follow this template:
 #### Interface — define the minimal surface
 
 Only include methods that were actually detected in the codebase. Do NOT generate a wrapper for every possible member — wrap only what is used.
+
+Prefer a stateless operation-shaped interface. For example, if a caller only
+needs to start a process, wait, and return its exit code, expose one `Run`
+operation rather than a stateful wrapper that leaks `Process` lifecycle.
 
 ```csharp
 namespace <Namespace>;
@@ -150,6 +179,12 @@ public sealed class <WrapperName> : I<WrapperName>
 // In Program.cs or Startup.cs:
 builder.Services.AddSingleton<I<WrapperName>, <WrapperName>>();
 ```
+
+Treat registration as a deliverable, not a sentence in the summary. Add it to
+the repository's existing registration surface when one exists. Otherwise show
+the exact compile-ready statement and identify where the caller should place
+it. Stateless delegating wrappers are singleton; if state must be retained,
+explain why a shorter lifetime is required.
 
 ### Step 4: Generate file system wrapper adoption
 
@@ -187,62 +222,104 @@ var loader = new ConfigLoader(mockFs);
 Assert.Equal("{\"key\": \"value\"}", loader.LoadConfig("/config.json"));
 ```
 
-### Step 5: Generate ambient context alternative (when DI is not available)
+Package-first adoption is exclusive: add both package references, use
+`IFileSystem` in production, register or explicitly compose `FileSystem`, and
+seed `MockFileSystem` before exercising the consumer. Do not also generate a
+second custom filesystem interface, and do not present an unseeded mock whose
+test could pass without proving the requested read/write behavior.
 
-If the codebase does not use DI (e.g., old console app, library code), offer the ambient context pattern:
+### Step 5: Generate a signature-preserving ambient context
+
+Use this pattern when the API must remain static or its released signatures
+cannot accept a dependency:
 
 ```csharp
 public static class Clock
 {
-    private static readonly AsyncLocal<Func<DateTimeOffset>?> s_override = new();
-    public static DateTimeOffset UtcNow
-        => s_override.Value?.Invoke() ?? TimeProvider.System.GetUtcNow();
+    private static readonly AsyncLocal<Func<DateTime>?> s_override = new();
+    public static DateTime UtcNow
+        => s_override.Value?.Invoke() ?? TimeProvider.System.GetUtcNow().UtcDateTime;
 
-    public static IDisposable Override(DateTimeOffset fixedTime)
+    internal static IDisposable Override(DateTime fixedUtcTime)
     {
+        if (fixedUtcTime.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("The override must be UTC.", nameof(fixedUtcTime));
+
         var previous = s_override.Value;
-        s_override.Value = () => fixedTime;
+        s_override.Value = () => fixedUtcTime;
         return new Scope(() => s_override.Value = previous);
     }
-
     private sealed class Scope : IDisposable
     {
-        private readonly Action _restore;
+        private Action? _restore;
 
         public Scope(Action restore)
         {
             _restore = restore;
         }
 
-        public void Dispose() => _restore();
+        public void Dispose() =>
+            Interlocked.Exchange(ref _restore, null)?.Invoke();
     }
 }
 ```
 
 Key trade-offs: `AsyncLocal<T>` ensures parallel tests don't interfere; production cost is one null check per call; the `static readonly` field is essentially free.
 
+Store the provider or value itself in `AsyncLocal<T>`. Do not put a mutable
+stack, list, or other shared collection in the slot: child execution contexts
+can inherit the same object and corrupt each other's nesting. When the provider
+is mutable, create a fresh provider inside each parallel flow rather than
+mutating one inherited from a parent context.
+
 Three properties this pattern must keep, because each has broken a real migration:
 
 - **Scope the override and make it reversible.** Return an `IDisposable` that restores the previous value, so a test cannot leak a pinned time into the next one. A bare setter, or a manual `try`/`finally` at each call site, puts that burden on every test author.
 - **Use `AsyncLocal<T>`, never `[ThreadStatic]`.** `[ThreadStatic]` does not flow across `await`, so the override silently disappears mid-test.
 - **Preserve the semantics of the member you are replacing.** Substituting `DateTime.UtcNow` with a local-time source changes the `DateTimeKind` every existing caller and stored value depends on — pair `UtcNow` with `GetUtcNow()`, and `Now` with `GetLocalNow()`.
-- **Restore the previous value, not null.** Capture the prior override per scope, as above. Disposing
-  an inner scope must hand the outer one back; clearing the slot is the common bug, and a test suite
-  that only exercises parallel flows never catches it. Test nesting explicitly.
+- **Prove the test assembly can reach the override.** An `internal` override is
+  inaccessible from a separate test assembly unless the production project adds
+  the exact `InternalsVisibleTo` for that test assembly. Otherwise use an
+  already-public seam only when a public API change is authorized. Never show a
+  test calling an inaccessible member.
 
 The same shape works for non-time statics: swap `TimeProvider.System.GetUtcNow()` for the real static call and keep the override slot, the disposable scope, and the original semantics.
 
-On .NET 8+, do not wrap delays. The BCL already accepts a `TimeProvider`, so reach for the overload
-rather than inventing an `IDelay`:
+Test nested restoration across exception unwinding. Observe the outer value
+after the exception leaves the inner `using` scope but before disposing the
+outer scope:
+
+```csharp
+var outerTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+var innerTime = outerTime.AddDays(1);
+using var outer = Clock.Override(outerTime);
+
+Assert.Equal(outerTime, Clock.UtcNow);
+Assert.Throws<InvalidOperationException>(() =>
+{
+    using var inner = Clock.Override(innerTime);
+    Assert.Equal(innerTime, Clock.UtcNow);
+    throw new InvalidOperationException("test");
+});
+Assert.Equal(outerTime, Clock.UtcNow);
+```
+
+Also overlap two async flows that each establish a fresh override and assert
+that each sees only its own value. The nested test catches an inner dispose that
+clears the slot; the parallel test catches cross-flow leakage.
+
+On .NET 8+, do not wrap delays. The BCL already accepts a `TimeProvider`:
 
 | Ambient operation | Replacement |
 |-------------------|-------------|
 | `Task.Delay(delay, token)` | `Task.Delay(delay, timeProvider, token)` |
 | `new CancellationTokenSource(delay)` | `new CancellationTokenSource(delay, timeProvider)` |
-| `PeriodicTimer(period)` | `new PeriodicTimer(period, timeProvider)` |
+| `PeriodicTimer(period)` | `new PeriodicTimer(period, timeProvider)` when the target framework provides it |
 
-Test delayed behavior by starting the operation, proving it is still incomplete, advancing
-`FakeTimeProvider`, then awaiting it. Never wait on wall-clock time.
+Test delayed behavior by starting the operation and proving it is incomplete
+before advancing `FakeTimeProvider`. For a deadline, advance to immediately
+before the boundary and assert that the task is still incomplete before
+advancing across it. Never wait for wall-clock time.
 
 ### Step 6: Place generated files
 
@@ -254,7 +331,19 @@ Generate files following the project's existing conventions:
 Always generate:
 1. The interface file (or adoption instructions for built-in abstractions)
 2. The default implementation file
-3. The DI registration snippet (as a code comment at the bottom of the implementation, or as separate instructions) — **skip this one entirely on the ambient-seam path**: there is no container to register into, and offering one anyway is the failure mode that made a user ask for the seam in the first place
+3. The compile-ready DI registration, applied to an existing registration
+   surface or shown at the exact composition point.
+4. A deterministic substitution example or focused test that exercises the
+   consumer without the ambient resource.
+
+Skip registration entirely on the ambient-seam path: there is no container to
+register into, and offering one anyway is the failure mode that made a user ask
+for the seam in the first place.
+
+Before reporting completion, verify the delivered output contains every item
+the prompt requested. In particular, do not summarize "singleton registration"
+when no registration code was added or shown, and do not claim testability
+without demonstrating how the consumer receives a fake.
 
 ## Validation
 
@@ -263,17 +352,26 @@ Always generate:
 - [ ] DI registration uses `AddSingleton` for stateless wrappers, `AddTransient` for stateful ones
 - [ ] NuGet packages are recommended where established libraries exist (System.IO.Abstractions, etc.)
 - [ ] For .NET 8+, `TimeProvider` is recommended over custom `ISystemClock`
+- [ ] TimeProvider adoption includes injection, production composition,
+      `FakeTimeProvider`, its testing package, and an assertion on a
+      time-dependent result
+- [ ] HTTP adoption includes a complete fake-handler test and preserves
+      cancellation
+- [ ] On injection paths, registration or explicit composition is compile-ready,
+      and a fake demonstrates the consumer without the real ambient dependency
 - [ ] Ambient context pattern includes `AsyncLocal<T>`, a scoped `IDisposable` that restores the previous value, and trade-off explanation
-- [ ] On the ambient-seam path, no `IServiceCollection` registration is proposed and the replaced member's semantics (`UtcNow` vs `Now`, and its `DateTimeKind`) are preserved
+- [ ] Nested exception unwinding restores the outer override and overlapping async flows remain isolated
+- [ ] On the ambient-seam path, no `IServiceCollection` registration is proposed, the separate test assembly can reach the override, and the replaced member's return type and semantics (`UtcNow` vs `Now`, and its `DateTimeKind`) are preserved
 
 ## Common Pitfalls
 
 | Pitfall | Solution |
 |---------|----------|
-| Declining because the project has no DI container | The ambient seam in Step 5 is the answer for that case — offer it instead of asking the user to adopt a container |
+| Treating "no DI package" as "must be ambient" | Inject into instantiable classes and compose explicitly; reserve Step 5 for static/signature-preserving APIs |
 | Wrapping ALL members of a static class | Only wrap methods actually called in the codebase |
 | Custom time wrapper on .NET 8+ | Use built-in `TimeProvider` instead |
 | Custom file system wrapper | Prefer `System.IO.Abstractions` NuGet — battle-tested, complete |
 | Registering scoped when singleton suffices | Stateless wrappers should be `AddSingleton` |
 | Forgetting test helper packages | `Microsoft.Extensions.TimeProvider.Testing` for time, `System.IO.Abstractions.TestingHelpers` for filesystem |
 | Ambient context without `AsyncLocal` | Non-async `[ThreadStatic]` breaks with `async`/`await` — always use `AsyncLocal<T>` |
+| Showing an internal ambient override to external tests | Add the exact friend assembly or use an authorized public seam; compile the test project |

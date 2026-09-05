@@ -1,98 +1,159 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8c5da01..3424cb1 100644
+index 37d6654..065f3ba 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,15 +1,15 @@
+@@ -1,21 +1,17 @@
  ---
  name: test-gap-analysis
  description: >-
--  Find or close verified gaps in existing tests. USE FOR: "add missing edge
--  cases", "would tests catch this bug?", weak tests, survived boundaries/guards/
--  errors, or pseudo-mutation analysis. Polyglot. DO NOT USE FOR: a new suite
--  (code-testing-agent), smells/assertion audits, or an actual mutation tool.
-+  Find verified gaps in existing tests. USE FOR: "would tests catch this bug?",
-+  weak tests, survived boundaries/guards/errors, or pseudo-mutation analysis.
-+  Polyglot. DO NOT USE FOR: writing tests, smells/assertion audits, or an actual
-+  mutation tool.
+-  Pseudo-mutation analysis ONLY: find caller-visible production-code changes
+-  that existing assertions would not catch, then optionally close verified
+-  gaps. Activate only when the request asks whether a bug/change/mutation could
+-  survive, names behavioral blind spots, or asks for missing edge cases tied to
+-  production behavior. Polyglot. DO NOT USE FOR: suite organization, taxonomy,
+-  metadata, or distribution reports (test-tagging); .NET line-vs-branch or
+-  Cobertura interpretation, arithmetic, plateaus, project-wide coverage gaps,
+-  or coverage-backed test/CRAP priorities (coverage-analysis; use native
+-  coverage tooling outside .NET); named-target CRAP (crap-score); new suites
+-  (code-testing-agent); assertion/smell audits; or mutation tools.
++  Performs report-only pseudo-mutation analysis of existing tests: find
++  caller-visible production-code changes that current assertions would not
++  catch. Use when asked whether a bug or mutation could survive, where tests are
++  behaviorally blind, or which production outcomes lack protection. Polyglot.
++  DO NOT USE FOR: writing tests, suite organization or taxonomy, coverage/CRAP
++  interpretation, assertion/smell audits, or running a mutation-testing tool.
  license: MIT
  ---
  
- # Test Gap Analysis via Pseudo-Mutation
+ # Test Gap Analysis
  
- Analyze production code in any supported language by reasoning about hypothetical mutations, then confirming them against the real test suite. This reveals blind spots where tests pass but would continue to pass even if the code were broken.
+ Answer one question: **which caller-visible production behaviors could change
+ without an existing test failing?** Mutation reasoning is a probe, not the goal.
+ Inventory public outcomes first, then verify only credible gaps.
+@@ -28,18 +24,17 @@ Discover production and test files from manifests and file types. After a narrow
+ search misses, inspect the current directory broadly before asking for paths.
  
- > **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`). The extension file helps you find test files, recognize framework-specific assertion APIs, and identify language-specific null/None/nil patterns and error-handling idioms that map to the mutation catalog below.
-@@ -31,24 +31,23 @@ This skill uses **static pseudo-mutation** to find mutation candidates at the sp
- ## When to Use
+ | Request | Action |
+ |---|---|
+ | One component or named risk | Inventory every high-risk public outcome in scope; do not edit production code unless verification was requested |
+ | General small-component review | Inventory distinct outcomes and report caller-visible gaps from source/assertion mapping |
+ | Explicit survivor verification | Inventory all requested outcomes; execute one representative observable candidate for each distinct high-risk outcome under verification, then classify it as **Survived** or **Killed** |
+ | Explicit exhaustive audit | Read [references/mutation-catalog.md](references/mutation-catalog.md) and classify all meaningful candidates |
+-| Add tests to an existing suite | Analyze first; add tests only for verified survivors or demonstrated no-coverage outcomes |
+-| Create a new suite | Stop and use `code-testing-agent` |
++| Add or create tests | Report the verified gaps; test writing is outside this skill |
  
- - User asks "would my tests catch a bug in this code?"
- - User wants to find weak or shallow tests
- - User wants to evaluate test effectiveness beyond coverage
- - User asks for mutation testing or mutation analysis
- - User asks "where are my tests blind?"
- - User wants to prioritize which tests to strengthen
--- User wants the verified gaps fixed with focused additions to an existing suite
--- The `code-testing-generator` agent (or any test-generation workflow) calls this skill as a pre-completion self-review step on freshly generated tests, before declaring the run finished
-+- Any test-generation workflow can call this skill as a pre-completion self-review step on freshly generated tests
+ When the request names a risk, turn it into a one-line public-outcome allowlist
+ before reading code. An outcome is not in scope merely because the same method writes it.
+ For `money math`, allow computed or returned amounts, rates, tier/boundary
+ choice, percentage base/order, floors/caps, and rounding; exclude non-monetary
+ state predicates (including derived booleans), identity, and formatting. Private
+ code is in scope only to trace an allowed outcome.
  
- ## When Not to Use
+@@ -57,17 +52,17 @@ attempt cannot run the suite, do not troubleshoot the runner or try alternate
+ commands for an advisory review; continue statically and label all candidates
+ **unverified**. Do not infer a project-configuration cause from missing output;
+ name a cause only when the command reports it.
  
--- User wants to write a new suite from scratch (use `code-testing-agent` for any language, or `writing-mstest-tests` for MSTest specifically)
--- User wants to detect test anti-patterns like flakiness or poor naming (use `test-anti-patterns`)
--- User wants to measure assertion variety (use `assertion-quality`)
-+- User wants to write tests from scratch (out of scope)
-+- User wants a pragmatic anti-pattern or qualitative assertion-depth audit (use the `test-anti-patterns` skill)
-+- User wants quantitative assertion-diversity metrics (not provided by the curated set)
- - User wants to run an actual mutation testing framework (Stryker for .NET/JS/TS, mutmut for Python, PIT for Java, go-mutesting for Go, cargo-mutants for Rust, mutant for Ruby) — help them directly with the tool
- - User only wants code coverage numbers (out of scope)
+ For an advisory review such as "would tests catch this?", stop execution after
+ that baseline. Source-to-assertion mapping is sufficient evidence for **No
+ coverage** and **Candidate survivor (unverified)**. Trace or run the unmodified
+ code once only when an original value is unclear. Apply mutations only for
+-explicit verification, an exhaustive audit, or closing gaps with tests.
++explicit verification or an exhaustive audit.
  
- ## Inputs
+ Any focused mutation budget limits execution, not discovery. Keep every
+ distinct unasserted public outcome in the inventory.
  
- | Input | Required | Description |
- |-------|----------|-------------|
- | Production code | Yes | The source files to analyze for mutation points |
-@@ -207,31 +206,16 @@ Present the analysis in this structure:
+ ### 3. Inventory public outcomes
  
- 4. **Killed Mutations (Strengths)** — Briefly note areas where tests are effective. Highlight well-tested methods and strong assertion patterns. Don't enumerate every killed mutation — summarize.
+ For each public entry point, map:
  
- 5. **Recommendations** — Prioritized list:
-    - Which survived mutations to address first (by risk)
-    - Specific test methods to add or strengthen
-    - Patterns the team can adopt to prevent future gaps (e.g., always test boundary values, always assert exception types)
+@@ -181,64 +176,42 @@ calculate a score.
+ | Result | Meaning |
+ |---|---|
+ | **Likely killed** | An existing assertion observes the changed outcome |
+ | **Candidate survivor (unverified)** | Observable change appears unasserted; not executed |
+ | **Survived** | Exact observable mutation executed and tests stayed green |
+ | **No coverage** | No test reaches the public outcome; report the missing branch without inventing a survivor |
+ | **Equivalent** | No public observation changes; omit from findings |
  
--### Step 7: Close verified gaps when requested
+-Outside explicit verification, an exhaustive audit, or a requested test
+-addition, execute no mutations. Do not mutate to confirm obvious no coverage.
++Outside explicit verification or an exhaustive audit, execute no mutations. Do
++not mutate to confirm obvious no coverage.
+ For explicit verification, execute one representative candidate per distinct
+ high-risk outcome in scope; do not stop after the first one or two while another
+ guard, action branch, error class, or denial remains unclassified. Omit
+ equivalent syntax variants.
+ 
+ ### 6. Verify without creating false positives
+ 
+-Enter this phase only for explicit verification, an exhaustive audit, or a
+-requested test addition.
++Enter this phase only for explicit verification or an exhaustive audit.
+ 
+ 1. Apply one candidate and confirm the diff changes exactly one intended
+    expression.
+ 2. Run the narrowest covering test: green means **Survived**, red means
+    **Killed**, for that edit only.
+ 3. Revert immediately and confirm the clean source/test baseline.
+ 4. After a green run, re-check the public counterfactual. Execution proves the
+    suite missed the edit, not that the edit changes behavior; drop inert or
+    unobservable mutants.
+ 
+ Never leave mutations in the workspace. Before reporting, reconcile every
+ unasserted high-risk outcome as **Survived**, **Candidate survivor
+ (unverified)**, **No coverage**, or omitted **Equivalent**. Stop when no credible
+ public gap remains; do not fill a report with internal details or calculate a
+ score unless the user requested an exhaustive audit.
+ 
+-### 7. Close gaps only when requested
 -
--When the user asks to add/fix tests rather than only report:
+-1. Add focused tests only for executed **Survived** mutations or demonstrated
+-   **No coverage** behavior.
+-2. Cover every distinct gap in the requested scope before adding tests
+-   for alternate variants of an already-covered behavior.
+-3. Before editing, create a survivor-to-test checklist. Before stopping, map
+-   every verified survivor to an added test and every added test back to a
+-   verified survivor; a passing final suite alone does not prove completeness.
+-4. Preserve production code and existing tests when requested.
+-5. Prefer one behavior-focused test that kills related mutations over one test
+-   per syntax change.
+-6. Re-apply the original mutation and prove the new test kills it, then restore
+-   the source and run the narrow suite cleanly.
+-7. If the fixture or repository supplies a canonical mutation verifier, run
+-   that exact command after the tests are added and cite its successful result.
+-   Hand-created substitute mutations, a broad green suite, or a test-count
+-   increase do not replace the supplied oracle. Once every requested survivor
+-   maps to a focused test and the canonical verifier passes, stop; extra tests
+-   are not an advantage.
 -
--1. Implement tests only for empirically **Survived** or **No coverage** behavior.
--   A plausible edge whose mutation was killed is not a gap; do not duplicate it.
--2. Preserve existing test files when requested and follow the suite's framework
--   and naming conventions.
--3. Prefer one focused test that kills several related mutations over one test per
--   syntax variation.
--4. Run the narrow suite, re-apply each original mutation, and confirm the new
--   tests kill it. Revert every mutation immediately.
--5. Report the added test names and the mutations they now kill. Never leave a
--   mutation or production-code change in the workspace.
--
- ## Validation
+ ## Output contract
  
- - [ ] The suite was run and every reported survivor was empirically confirmed (or all findings are explicitly labelled unverified)
- - [ ] All applied mutations were reverted and the suite is green again
- - [ ] Every mutation point was classified (Killed / Survived / No coverage / Equivalent)
- - [ ] Every survived mutation includes the original code, the hypothetical change, and why tests miss it
- - [ ] Every survived mutation includes a concrete recommended fix (a test assertion or test case)
- - [ ] Equivalent mutations are correctly identified and excluded from the score
-@@ -250,11 +234,11 @@ When the user asks to add/fix tests rather than only report:
- | Leaving a mutation applied | Revert every edit and re-run the suite before reporting |
- | Analyzing trivial code | Skip auto-properties, simple getters, `@dataclass`/`record`/`data class` accessors, `#[derive]` impls — focus on logic |
- | Reporting equivalent mutations as gaps | If the mutation doesn't change behavior, it's not a gap — mark Equivalent |
- | Ignoring call chains | A private/internal/unexported helper called from a tested public method is reachable — trace the chain |
- | Over-counting mutations in generated code | Skip auto-generated code (`*.g.cs`, `*.designer.cs`, `*_pb.go`, `*.pb.dart`), designer files, migration files, generated mocks/stubs |
- | Recommending a new test for every survived mutation | Multiple survived mutations in the same method often share a single missing test — recommend one test that kills several |
- | Ignoring production context | A survived mutation in `ToString()` / `__repr__` / `toString()` formatting is less important than one in `CalculateTotal()` — prioritize by business risk |
- | Claiming 100% kill rate is required | Some mutations in low-risk code are acceptable to leave — acknowledge this in the report |
--| Not considering integration with other skills | If gaps are found, mention that `code-testing-agent` (any language) or `writing-mstest-tests` (MSTest-specific) can help write the missing tests, and `test-anti-patterns` can audit existing test quality |
-+| Not considering integration with other skills | If gaps are found, mention that `test-anti-patterns` can audit existing test quality |
- | Forgetting Go's error idiom | Removing `if err != nil { return err }` is a valid mutation target only when the function actually does something else with `err` (e.g., wrap, log, branch). Bare passthroughs in idiomatic Go are not meaningful gaps. |
- | Forgetting Rust's `?` operator | `?` propagates `Err`/`None` short-circuits. Mutating `expr?` → `expr.unwrap()` panics instead of returning — flag as Exception/Panic mutation when tests should observe the propagated error. |
+ Scale the response to the request.
+ 
+ For focused or small analysis, return:
+ 
+ 1. A one-line verdict: **Strong**, **Mixed**, or **Weak**, with the reason.
+ 2. One compact row per actionable **Survived**, **Candidate survivor
+@@ -257,19 +230,16 @@ For focused or small analysis, return:
+ 
+ Do not repeat the table in prose or report discarded mutants, tool chronology,
+ or in-flight reasoning.
+ 
+ For an exhaustive audit, add counts for Killed / Survived / No coverage /
+ Equivalent and group findings by risk. Count only executed or definitively
+ classified candidates.
+ 
+-For test additions, name the tests added, the verified mutations they kill, and
+-the successful final command.
+-
+ ## Reliability rules
+ 
+ - A passing test that does not assert the changed outcome does not kill a
+   mutation.
+ - Coverage is per behavior partition. One switch/ternary arm or compound input
+   does not prove siblings: allow does not prove deny; read does not prove write;
+   null does not prove empty or whitespace when those inputs have different
+   caller-visible outcomes. A kill clears only the edit and path that ran.

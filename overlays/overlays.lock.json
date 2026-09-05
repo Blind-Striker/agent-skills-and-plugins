@@ -93,14 +93,14 @@
   "deniz-dotnet-general/code-testing-agent": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent",
     "files": {
-      "SKILL.md": "9f51fdf1c8e031ac80d120a6a594bf40883ed283",
+      "SKILL.md": "8419ae9a0051af1110930078a75aa0f117bfc1ef",
       "unit-test-generation.prompt.md": "18525a86135af37ecbfd2b495272a71b83c6b4f2"
     }
   },
   "deniz-dotnet-general/coverage-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {
-      "SKILL.md": "aa29dfc7af56b951c675acff0f29746d25314c10"
+      "SKILL.md": "ce5b4807bc45ef0b610173933188ed7525596b39"
     }
   },
   "deniz-dotnet-general/csharp-nullable-reference-types": {
@@ -123,7 +123,7 @@
   "deniz-dotnet-general/detect-static-dependencies": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies",
     "files": {
-      "SKILL.md": "dca80e40a3b0ba003da0cf2fa741a9691e137e92"
+      "SKILL.md": "7d15517a9cd259ac71e7556e986697c235c58cbc"
     }
   },
   "deniz-dotnet-general/dotnet-devcert-trust": {
@@ -165,11 +165,11 @@
   "deniz-dotnet-general/generate-testability-wrappers": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers",
     "files": {
-      "SKILL.md": "45cc02750f62ae3ca9d511fabeb8adcb1668bf40"
+      "SKILL.md": "8bed06c046fadb64bf374720a696f19166aeddbc"
     },
     "mergeSources": {
       "dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle": {
-        "SKILL.md": "c9533e252b21c8854976ab2cb258b4260374707b"
+        "SKILL.md": "3a1674312fd3dc87282cacb8c197c9e9f9421810"
       }
     }
   },
@@ -182,19 +182,13 @@
   "deniz-dotnet-general/migrate-static-to-wrapper": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper",
     "files": {
-      "SKILL.md": "e91d47583baf373540e3b6338d48e3bcba1a8ee8"
+      "SKILL.md": "fe4ba95343c21b23493722564207d9b58e025331"
     }
   },
   "deniz-dotnet-general/mtp-hot-reload": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload",
     "files": {
-      "SKILL.md": "5f3eea06ba3e04e054dd5ba044c2726256dc0281"
-    }
-  },
-  "deniz-dotnet-general/run-tests": {
-    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
-    "files": {
-      "SKILL.md": "ebdbaf54ebdd0068601a9ea62f5e8de71e4ab93b"
+      "SKILL.md": "df5b9a5a8780f13d920e52dd2c70e4728218c8a0"
     }
   },
   "deniz-dotnet-general/snapshot-testing": {
@@ -223,13 +217,13 @@
   "deniz-dotnet-general/test-anti-patterns": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
     "files": {
-      "SKILL.md": "300cebaf17c2ba099233169fb7ba17731c66ebab"
+      "SKILL.md": "94b0e1083bcc7f4e24ab3a0501a5f6f980414efc"
     }
   },
   "deniz-dotnet-general/test-gap-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "files": {
-      "SKILL.md": "8c5da01b92f3e184696aa496d49a1e8244203da6"
+      "SKILL.md": "37d6654c6b94f9c2d3274d59e90be6e4e3cef9c0"
     }
   },
   "deniz-dotnet-general/testcontainers-integration-tests": {

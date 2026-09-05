@@ -76,7 +76,7 @@ Most reference skills activate when their topic appears. These are the useful de
 | Nullable adoption | `migrate-nullable-references` for project migration | `csharp-nullable-reference-types` for ordinary nullable-enabled code |
 | Testability migrations | `generate-testability-wrappers`, then `migrate-static-to-wrapper` when approved | `detect-static-dependencies` identifies the obstacles without mutating code |
 | Build and MSBuild | `binlog-generation` then `binlog-failure-analysis`; `build-perf-baseline` first for slow builds | antipatterns, incrementality, parallelism, evaluation, props, items, targets, extensions |
-| Performance | `microbenchmarking`, `analyzing-dotnet-performance` | database performance, EF Core, serialization and allocation guidance |
+| Performance | `microbenchmarking`, `analyzing-dotnet-performance` | vectorization, database performance, EF Core, serialization and allocation guidance |
 | Diagnostics and upgrade | `dotnet-trace-collect`, `dump-collect`, `dotnet-aot-compat`, `thread-abort-migration` | ILSpy and focused framework references |
 | Guardrail | `dotnet-slopwatch` after code changes | static-dependency detection and other passive review knowledge |
 

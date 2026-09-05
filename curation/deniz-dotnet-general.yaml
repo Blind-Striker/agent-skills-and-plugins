@@ -18,16 +18,15 @@
 # Reference posture: .NET upstream bodies usually point at sibling skills by bare name ("see the
 # `filter-syntax` skill") — candidate-tier by ADR-0008, never build state merely because a body is
 # patched. An upstream-authored namespaced fact is retained only when its curated target exists and
-# is declared with exact `depends_on`. The reference husks (filter-syntax, platform-detection,
-# test-analysis-extensions) are taken `auto`: model loads them by name, users never see them. For
-# filter-syntax and test-analysis-extensions that matches upstream's own
-# user-invocable:false + disable-model-invocation:true "neither" class. platform-detection left that
-# class upstream — it is now an ALWAYS-USE skill there — so its husk posture is this repo's choice,
-# held by the invocation dial and its description override rather than inherited.
+# is declared with exact `depends_on`. The reference husks (filter-syntax and
+# test-analysis-extensions) are taken `auto`: model loads them by name, users never see them. That
+# matches their upstream user-invocable:false + disable-model-invocation:true "neither" class.
+# platform-detection is now a bounded identification specialist upstream; this repo keeps it
+# model-reachable and lets that narrower selection surface flow.
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.8.1
+  version: 0.9.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -91,6 +90,10 @@ items:
     invocation: auto # file-based C# apps (.NET 10+) — prototype/spike knowledge
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/dotnet-pinvoke
     invocation: auto # P/Invoke + LibraryImport specialist reference; rare but exactly-when-needed
+  - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/vectorization
+    invocation: auto # official SIMD authoring/review knowledge: contract preservation, portable
+    # Vector128-first implementation, tail/memory safety, fallbacks, and measurement. Its bounded
+    # SIMD trigger complements the general performance audit and BenchmarkDotNet guidance.
   # --- project / package / build ---
   - source: dotnet-skills/skills/project-structure
     invocation: auto # the curator's opinionated repo layout (slnx, Directory.Build.props, CPM, SourceLink, global.json)
@@ -151,27 +154,20 @@ items:
     invocation: auto # SDK-style conversion; recommends a nonexistent `dotnet migrate-packages-config` upstream — tolerated content bug, do not follow that one command
   # --- testing ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/run-tests
-    invocation: auto # the operational core: platform/framework detection → exact dotnet test syntax
-    body: patch # drops redirects to excluded items (code-testing-agent, writing-mstest-tests,
-    # migrate-vstest-to-mtp); retained sibling references preserve the upstream bare style
+    invocation: auto # the operational core: current upstream owns exact classic/VSTest/MTP syntax
+    # and now keeps its routing within the surviving test-execution cluster
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax
-    invocation: auto # reference husk: VSTest/MTP filter syntax incl. TUnit; upstream ships it "neither", we ship it model-reachable
-    frontmatter:
-      # upstream's loader list names migrate-vstest-to-mtp (excluded); this is the surviving truth
-      description: "Reference data for test filter syntax across all platform and framework combinations: VSTest --filter expressions, MTP filters for MSTest/NUnit/xUnit v3/TUnit, and VSTest-to-MTP filter translation. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need filter syntax."
+    invocation: auto # reference husk: upstream now names only run-tests and mtp-hot-reload and
+    # scopes loading to filtered runs, so its description can flow while this dial makes it reachable
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/platform-detection
-    invocation: auto # reference husk posture, and now ours rather than upstream's: it dropped its own
-    # user-invocable:false + disable-model-invocation:true and became an ALWAYS-USE detection skill.
-    # The dial holds the posture; the override below holds the selection surface.
-    frontmatter:
-      # same reason as filter-syntax
-      description: "Reference data for detecting the .NET test platform (VSTest vs Microsoft.Testing.Platform), test framework (MSTest, xUnit, NUnit, TUnit), and project system (SDK-style vs classic non-SDK/packages.config) from project files. DO NOT USE directly — loaded by run-tests and mtp-hot-reload when they need detection logic."
+    invocation: auto # bounded identification specialist; upstream's non-ALWAYS-USE description and
+    # on-demand command-mode reference now align with run-tests and mtp-hot-reload
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions
     invocation: auto # reference husk: per-language lookup tables for the audit pair (incl. TUnit at this pin)
     body: patch # its consumer lists named five skills and an agent; only two consumers survive here
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload
     invocation: auto # TUnit is MTP-native, so MTP iteration speed matters here
-    body: patch # drops the migrate-vstest-to-mtp handoff; retained sibling references stay bare
+    body: patch # keeps the safe VSTest watch fallback but removes the generic migration offer
   # The audit menu — report-only, so auto is safe: each fires on its own explicit audit request.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns
     invocation: auto # the broad pragmatic audit, including qualitative assertion-depth review
@@ -179,7 +175,8 @@ items:
     # preserve the upstream bare style
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
-    body: patch # dead redirects dropped; qualitative audit handoff and extension lookup stay bare
+    body: patch # preserves the report-only contract by removing upstream's close-gaps/test-writing
+    # path; dead redirects stay out while the bundled mutation catalog flows by copy
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
     invocation: auto # the module's single CRAP/coverage home (Cobertura-based) — including the
     # targeted method/class/file job it absorbed from the excluded crap-score
@@ -190,9 +187,9 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers
     invocation: manual # writes production abstractions + DI registrations — typed deliberately, never model-fired
     body: patch # user invokes the migration ceremony separately after wrapper creation, plus the
-    # merged ambient-seam corrections below. Target fit keeps the nested restoration example valid
-    # on the destination's older C# targets and scopes imported BCL delay overloads to .NET 8+; it
-    # does not grow into a pre-.NET 8 package API tutorial.
+    # selected ambient-seam corrections below: idempotent nested restoration, exception and parallel
+    # isolation checks, and BCL fake-time deadline guidance. It does not grow into a pre-.NET 8
+    # package API tutorial or absorb the merge source's test-writing workflow.
     merged_from: [dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper
     invocation: manual # codemod across a bounded scope — typed deliberately
@@ -249,7 +246,8 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-test-maintainability
     exclude: true # experimental shelf; the broad audit keeps the practical duplication checks
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/find-untested-sources
-    exclude: true # a second where-to-test surface; coverage-analysis is the single prioritization home
+    exclude: true # static source-to-test pairing is distinct but not in the curator's flow;
+    # coverage-analysis remains the single data-backed prioritization home
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-vstest-to-mtp
     exclude: true # test-platform migration is not in the flow: old repos are rewritten TUnit-first, not migrated
   - source: dotnet-agent-skills/plugins/dotnet-test-migration/skills/migrate-xunit-to-xunit-v3
@@ -270,12 +268,14 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/crap-score
     exclude: true # a second CRAP surface duplicating coverage-analysis; one authoritative capability, not two
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/assertion-quality
-    exclude: true # subsumed by test-anti-patterns' broader audit; its description is now MANDATORY
+    exclude: true # subsumed by test-anti-patterns' broader audit; its description is now ALWAYS USE
     # upstream, so taking it would trigger-compete with that audit and with test-gap-analysis
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-smell-detection
-    exclude: true # its 19-smell claim is honest (10 core + 9 by reference) but its distinct value over test-anti-patterns is academic citability only
+    exclude: true # its 19-smell taxonomy is honest, but academic catalog depth is the only
+    # distinct job beyond the broader pragmatic test-anti-patterns audit
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-tagging
-    exclude: true # description names 9 tags, body defines 15, and it silently edits tests — taxonomy + contract both unstable
+    exclude: true # taxonomy/reporting is not in the curator's flow; canonical-framework edits remain
+    # in its default scope, and its MUST-USE trigger would compete with the report-only audit pair
   - source: dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries
     exclude: true # not rejected — merged, and split by level: the upstream rewrite stopped being a
     # weaker duplicate and grew three things neither taken skill had. Sargability and keyset paging
@@ -287,15 +287,13 @@ items:
   # --- framework fit (curator: TUnit primary, xUnit occasional, NUnit/MSTest never) ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle
     exclude: true # not rejected — merged: its ambient-seam corrections live inside
-    # generate-testability-wrappers now. It caught a real defect there: the shipped scope example
-    # cleared the slot on dispose while the rule printed beneath it asked for the previous value
-    # restored, so nesting lost the outer override. Its own remaining half writes the tests, which
-    # belongs to writing-tunit-tests (own skill), and a fourth member would put a second
-    # seam-building entry point beside the deliberately bounded testability trio.
+    # generate-testability-wrappers now: idempotent nested restore, exception/parallel isolation,
+    # and fake-time deadline checks. Its remaining workflow writes behavior tests, which belongs to
+    # writing-tunit-tests (own skill), and a fourth member would put a second seam-building entry
+    # point beside the deliberately bounded testability trio.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/scaffold-dotnet-test-project
-    exclude: true # scaffolds via `dotnet new xunit|nunit|mstest` with no TUnit path and no detection;
-    # it occupies the slot writing-tunit-tests (own skill) fills, and both its code-testing-agent and
-    # writing-mstest-tests handoffs are excluded here
+    exclude: true # its richer create/reuse/register flow still has no TUnit path, occupies the slot
+    # writing-tunit-tests (own skill) fills, and routes to excluded generation/MSTest surfaces
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/writing-mstest-tests
     exclude: true # MSTest fires in no repo the curator keeps. Upstream has since demoted it from
     # test-writing to MSTest API review and handed generation to code-testing-agent (also excluded);
@@ -429,8 +427,6 @@ items:
     exclude: true # AI/ML library selection is a separate concern from this module. (Upstream has
     # since labelled the prereleases and moved the malformed snippets into references — the scope
     # call, not the quality call, is what keeps this out)
-  - source: dotnet-agent-skills/plugins/dotnet-experimental/skills/exp-simd-vectorization
-    exclude: true # mandates `dotnet run` as verification even for test projects; extreme niche
   - source: dotnet-skills/skills/playwright-ci-caching
     exclude: true # CI-environment recipes (specific Actions/AzDO + one CPM layout), not application knowledge
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/resolve-project-references

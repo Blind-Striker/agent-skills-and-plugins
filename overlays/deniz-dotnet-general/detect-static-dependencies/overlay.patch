@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index dca80e4..8d009fb 100644
+index 7d15517..21f6bd3 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -2,18 +2,20 @@
@@ -13,10 +13,10 @@ index dca80e4..8d009fb 100644
    testability report, static analysis for testability.
 -  DO NOT USE FOR: generating wrappers (use generate-testability-wrappers),
 -  migrating code (use migrate-static-to-wrapper), general code review,
-+  DO NOT USE FOR: generating wrappers (report `generate-testability-wrappers` as the matching
-+  manual ceremony; the user may invoke it separately), migrating code (report
-+  `migrate-static-to-wrapper` as the matching manual ceremony; the user may invoke it separately),
-+  general code review,
++  DO NOT USE FOR: generating wrappers (report `generate-testability-wrappers` as
++  the matching manual ceremony; the user may invoke it separately), migrating
++  code (report `migrate-static-to-wrapper` as the matching manual ceremony; the
++  user may invoke it separately), general code review,
    or finding statics that are already behind abstractions.
  license: MIT
  ---
@@ -25,7 +25,7 @@ index dca80e4..8d009fb 100644
  
  Scan a C# codebase for calls to hard-to-test static APIs and produce a ranked report showing which statics appear most frequently, which files are most affected, and which abstractions already exist in the .NET ecosystem to replace them.
  
-@@ -27,18 +29,18 @@ Scan a C# codebase for calls to hard-to-test static APIs and produce a ranked re
+@@ -27,18 +29,20 @@ Scan a C# codebase for calls to hard-to-test static APIs and produce a ranked re
  ## Response Guidelines
  
  - Scale the response to the user's request. A question about a specific category (e.g., "find time statics") should focus on that category with file locations and counts, not produce a full report across all categories.
@@ -36,8 +36,10 @@ index dca80e4..8d009fb 100644
  
 -- The user wants wrappers generated (hand off to `generate-testability-wrappers`)
 -- The user wants mechanical migration done (hand off to `migrate-static-to-wrapper`)
-+- The user wants wrappers generated (report `generate-testability-wrappers` as the matching manual ceremony; the user may invoke it separately)
-+- The user wants mechanical migration done (report `migrate-static-to-wrapper` as the matching manual ceremony; the user may invoke it separately)
++- The user wants wrappers generated (report `generate-testability-wrappers` as
++  the matching manual ceremony; the user may invoke it separately)
++- The user wants mechanical migration done (report `migrate-static-to-wrapper`
++  as the matching manual ceremony; the user may invoke it separately)
  - The statics are already behind interfaces or `TimeProvider`
  - The code is not C# / .NET
  
@@ -46,7 +48,7 @@ index dca80e4..8d009fb 100644
  | Input | Required | Description |
  |-------|----------|-------------|
  | Target path | Yes | A file, directory, project (.csproj), or solution (.sln) to scan |
-@@ -135,17 +137,17 @@ Format the output as a structured report:
+@@ -168,17 +172,17 @@ Format the output as a structured report:
  2. **File System** (31 sites) — Use `System.IO.Abstractions` NuGet package
  3. ...
  ```
@@ -63,5 +65,5 @@ index dca80e4..8d009fb 100644
  - [ ] All `.cs` files in scope were scanned (check count)
  - [ ] Report includes category totals, top patterns, and affected files
  - [ ] Category totals, top patterns, and per-file counts reconcile to the same grand total
- - [ ] Every occurrence carries a `file:line` location
- - [ ] No findings are held outside the totals in an "additional" section
+ - [ ] Files scanned, affected files, and call sites are reported as different quantities
+ - [ ] Every aggregate was derived from one occurrence ledger rather than independently recounted

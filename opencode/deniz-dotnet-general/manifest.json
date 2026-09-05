@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "module": "deniz-dotnet-general",
-  "version": "0.8.1",
-  "digest": "sha256:08a550d2a9ce274849b5d84fee6da8b5e3424c9ff950fa6c60aee736e010a29c",
+  "version": "0.9.0",
+  "digest": "sha256:cac201056290e377884757e4c1b7bd889867b79596d87d5f17a128a089662312",
   "files": {
     "LICENSE": {
       "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",
@@ -21,7 +21,7 @@
       "mode": "100644"
     },
     "commands/code-testing-agent.md": {
-      "sha256": "sha256:5e0092438a5ef5ccd69902e98718f285c99742d2b0d27e7560aea6efde2224f4",
+      "sha256": "sha256:b58d60f03ae7ba81a2fdf3579cb537d289a23d4e2f155187509d306ad28784e2",
       "mode": "100644"
     },
     "commands/convert-to-cpm.md": {
@@ -49,7 +49,7 @@
       "mode": "100644"
     },
     "commands/generate-testability-wrappers.md": {
-      "sha256": "sha256:ed60f3c14292fe84a9526e093b93c6cd5162410b21a0a5844ff8ec3aefca4737",
+      "sha256": "sha256:e087e78000a56eb4a65e78614061f0e1b65f1d8df7e3a798b43ff233a233d724",
       "mode": "100644"
     },
     "commands/migrate-nullable-references.md": {
@@ -57,7 +57,7 @@
       "mode": "100644"
     },
     "commands/migrate-static-to-wrapper.md": {
-      "sha256": "sha256:a42b44eee29fc2bf97a496987dc2beb1580fe437be91647b346bd7ff66d176dd",
+      "sha256": "sha256:9fb2e9aeedb02cf4a5dfbddfa7558e0f61ad60fca75c8ef843205682a4673f99",
       "mode": "100644"
     },
     "commands/thread-abort-migration.md": {
@@ -125,7 +125,7 @@
       "mode": "100644"
     },
     "skills/code-testing-agent/BODY.md": {
-      "sha256": "sha256:009dcf455274a72854c60ff56e1779201e1501604459a1280870d6d52c18fc16",
+      "sha256": "sha256:8fc153587e83cd30871ac3157ebb55e61c01f03f974a96aceada17d0b344a07e",
       "mode": "100644"
     },
     "skills/code-testing-agent/unit-test-generation.prompt.md": {
@@ -169,27 +169,27 @@
       "mode": "100644"
     },
     "skills/coverage-analysis/SKILL.md": {
-      "sha256": "sha256:613e996bfac954fc9270b730e6e0c4eadc21d9fc78d0ffae316e1afa9e985fb3",
+      "sha256": "sha256:66cb21004789e93b67a5ed97a445399ee051ce588a8318dd0fac9e6432c1f1d4",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/guidelines.md": {
-      "sha256": "sha256:f5738895ba74c5853f87d8ed5beca839fae34e274e20550151efbbfdcc8219ec",
+      "sha256": "sha256:1482e2cd12389047c7f1aa6e1c4420967aafc430b25156d9246b1147fedfe071",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/output-format.md": {
-      "sha256": "sha256:f2328f0250002c25276f51373ab3b935b15b41be09c161db02d3e22316ad78c4",
+      "sha256": "sha256:6731a634c278988f9b9c0c83defb3dfe8574176b9ad34a74ce9207069db8ce75",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/report-generation.md": {
-      "sha256": "sha256:923ba6a89c3ba054dffb40398f33980548f5967a4dc8c6c52e372c8097b66c97",
+      "sha256": "sha256:f2583a688de77f950bc18446913531f603ca528839b35c3c394a77981eafd7bb",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/setup-discovery.md": {
-      "sha256": "sha256:f8b1c1726bbe8dce4f7825628232600b8ff5791fc7e08ff781e598e993201cd9",
+      "sha256": "sha256:4a943c7bba9f392fc8241740d9770f6afa52bb1bba2627954dd85396551c83c9",
       "mode": "100644"
     },
     "skills/coverage-analysis/references/test-execution.md": {
-      "sha256": "sha256:b4b92390eadc8e508a09a9233c120895a217c0a12aca268c4eeed798b3a917c8",
+      "sha256": "sha256:0eb1b6ffc08dfac34a75c0effca13d9d749b56837deb883cdb5c0c799a8c9e9a",
       "mode": "100644"
     },
     "skills/coverage-analysis/scripts/Compute-CrapScores.ps1": {
@@ -233,7 +233,7 @@
       "mode": "100644"
     },
     "skills/detect-static-dependencies/SKILL.md": {
-      "sha256": "sha256:8fcb6abc4c16ee1ca226423a3b221cfcc33ee63b06b7bb335e83c67c354b0431",
+      "sha256": "sha256:b36556b434d33d630ddcfca9bbc1161452514a964f0f16223ffd7e1259e83041",
       "mode": "100644"
     },
     "skills/directory-build-organization/SKILL.md": {
@@ -345,7 +345,7 @@
       "mode": "100644"
     },
     "skills/filter-syntax/SKILL.md": {
-      "sha256": "sha256:2ac00826cb417a15308e1dae535f7427c92cd41217dfe2ff71d085d742f54d63",
+      "sha256": "sha256:9529b227962ebedb0ee42a30282a2f87cb8efc877963b3c7062aea5ef19bc255",
       "mode": "100644"
     },
     "skills/ilspy-decompile/SKILL.md": {
@@ -469,7 +469,7 @@
       "mode": "100644"
     },
     "skills/mtp-hot-reload/SKILL.md": {
-      "sha256": "sha256:057a24f9fb8dfe6706805402b602ab97d40ede7de11f97f1ad91e4a434d384be",
+      "sha256": "sha256:936ef6e0e64c1e744f4d9b4de6749a2b29c01b833315c978c930522e3ba65ffc",
       "mode": "100644"
     },
     "skills/opentelemetry-net-instrumentation/SKILL.md": {
@@ -493,7 +493,11 @@
       "mode": "100644"
     },
     "skills/platform-detection/SKILL.md": {
-      "sha256": "sha256:70272e68ec87b04544f9600de9910fdefae8e7727308304ab0c7547124c680a7",
+      "sha256": "sha256:34b36e323974b04cad67ff2d9de58cdb1c6cc6df01ed6e2364046aac23cc0173",
+      "mode": "100644"
+    },
+    "skills/platform-detection/references/command-mode.md": {
+      "sha256": "sha256:08e276dcafe6bd5bfbaab435065ca24a5800a4eae3ffd7fc15daa1e81354bbc4",
       "mode": "100644"
     },
     "skills/playwright-blazor-testing/SKILL.md": {
@@ -521,7 +525,7 @@
       "mode": "100644"
     },
     "skills/run-tests/SKILL.md": {
-      "sha256": "sha256:cb593fb40d52a287c6bfcfda0048b51a8968a5de84014a9f90d375e8034f1f55",
+      "sha256": "sha256:ef8a8372939671eda92f40aa83317af4aed0b197cab28cac4ee87ce620a66c05",
       "mode": "100644"
     },
     "skills/serialization/SKILL.md": {
@@ -585,11 +589,15 @@
       "mode": "100644"
     },
     "skills/test-anti-patterns/SKILL.md": {
-      "sha256": "sha256:c0ed19c7b38cc1baba8c9cde8d469858680a3f337f865650e9206114d93b7de8",
+      "sha256": "sha256:2b30dcfbbcbd3be6dd6dd3d16455fbc959713be0df8dea5ba54936e56f5c5d13",
       "mode": "100644"
     },
     "skills/test-gap-analysis/SKILL.md": {
-      "sha256": "sha256:de4c6dfacd16e5a650bca2989bf6e7532483fa6caa07b27d405b7ec2b032e1c7",
+      "sha256": "sha256:2fd40a17d70fa0b43281e582bb4f72ded9573d166818d8f2a783e6220a0155ed",
+      "mode": "100644"
+    },
+    "skills/test-gap-analysis/references/mutation-catalog.md": {
+      "sha256": "sha256:a7b31dcd2ae1641f29f33fab720721b27f416f2379ae531c33d409740003482d",
       "mode": "100644"
     },
     "skills/testcontainers-integration-tests/SKILL.md": {
@@ -602,6 +610,10 @@
     },
     "skills/testcontainers-integration-tests/infrastructure-patterns.md": {
       "sha256": "sha256:846865de531a6c518105c673a62eacfe352a37711c2f6cd95081cd4b239b3814",
+      "mode": "100644"
+    },
+    "skills/vectorization/SKILL.md": {
+      "sha256": "sha256:5937ee231b6dc6cbdf938a23078929dbb47f0ce5188867f38419e67e6943df7c",
       "mode": "100644"
     },
     "skills/writing-tunit-tests/SKILL.md": {

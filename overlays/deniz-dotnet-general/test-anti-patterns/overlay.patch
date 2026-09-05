@@ -1,36 +1,31 @@
 diff --git a/SKILL.md b/SKILL.md
-index 300ceba..53a2273 100644
+index 94b0e10..63d47b8 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,26 +1,21 @@
+@@ -1,23 +1,19 @@
  ---
  name: test-anti-patterns
  description: >
--  Audits an existing test file or suite in any language for anti-patterns
--  and quality issues — produces a severity-ranked report
--  (Critical/Warning/Info). INVOKE whenever asked to audit or review tests,
--  find what's wrong with a suite, judge whether tests are any good, or
--  check for: tests that pass but verify nothing, missing assertions,
--  swallowed exceptions, self-comparing / tautological assertions,
--  coverage-touching tests, broad exceptions, flaky or order-dependent tests
--  (Thread.Sleep, DateTime.Now, shared state), duplicated tests, or magic
--  values — in .NET, Python/pytest, TS/Jest, Java, Go, Ruby or C++. DO NOT
--  USE FOR: writing new tests (use code-testing-agent, or writing-mstest-tests
--  for MSTest); running tests (use
--  run-tests); migration; assertion-diversity metrics (use assertion-quality);
--  coverage/CRAP metrics (use coverage-analysis); the testsmells.org academic
--  catalog (use test-smell-detection); fixing or modernizing MSTest tests,
--  assertions, attributes, or lifecycle (use writing-mstest-tests).
+-  Audit a test file or suite; produce a severity-ranked diagnostic report.
+-  ALWAYS USE for tests that verify nothing, missing/tautological
+-  assertions, swallowed/broad exceptions, flaky/order-dependent tests,
+-  duplication, or magic values. Polyglot. DO NOT USE for direct edits:
+-  writing-mstest-tests owns supplied MSTest assertions/attributes/lifecycle;
+-  code-testing-agent owns new tests. Exclude running tests, migration, assertion
+-  metrics (assertion-quality), raw .NET coverage collection (run-tests),
+-  non-.NET coverage collection/analysis (native tooling), project-wide .NET coverage/CRAP
+-  (coverage-analysis), named-target .NET CRAP
+-  (crap-score), behavioral/pseudo-mutation gaps (test-gap-analysis), test-mix/
+-  happy-vs-error classification and trait distributions (test-tagging), or the
+-  testsmells.org catalog (test-smell-detection).
 +  Audits an existing test file or suite in any language for pragmatic
-+  anti-patterns and quality issues, producing a severity-ranked report.
-+  Use when asked to audit or review tests, find false-confidence tests,
-+  investigate flakiness or order dependence, identify duplicated tests or
-+  magic values, or judge whether assertions are absent, trivial-only, or
-+  repeatedly verify only one facet of behavior. Polyglot: .NET, Python,
-+  TypeScript/JavaScript, Java, Go, Ruby, Rust, Swift, Kotlin, PowerShell,
-+  and C++. DO NOT USE FOR: writing or running tests; coverage/CRAP metrics;
-+  full assertion-diversity metrics or an academic smell-catalog audit; fixing
-+  or rewriting the tests it audits (report-only).
++  anti-patterns and quality issues, producing a severity-ranked report. Use when
++  asked to review tests, find false-confidence assertions, investigate
++  flakiness or order dependence, identify duplication or magic values, or judge
++  whether assertions repeatedly verify only one facet of behavior. DO NOT USE
++  FOR: writing or running tests, coverage/CRAP metrics, behavioral gap analysis,
++  full assertion-diversity metrics, an academic smell catalog, or fixing the
++  tests it audits (report-only).
  license: MIT
  ---
  
@@ -39,27 +34,29 @@ index 300ceba..53a2273 100644
  Quick, pragmatic analysis of test code in any supported language for anti-patterns and quality issues that undermine test reliability, maintainability, and diagnostic value.
  
  > **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
-@@ -30,24 +25,23 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
+@@ -27,26 +23,24 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
  - User asks to review test quality or find test smells
  - User wants to know why tests are flaky or unreliable
  - User asks "are my tests good?" or "what's wrong with my tests?"
  - User requests a test audit or test code review
- - User wants to improve existing test code
+ - User wants diagnostic findings before deciding what to improve
  
  ## When Not to Use
  
--- User wants to write new tests from scratch (use `code-testing-agent` for any language, or `writing-mstest-tests` for MSTest specifically)
-+- User wants to write new tests from scratch (out of scope — this skill audits existing tests)
+-- User wants to write new tests from scratch (use `code-testing-agent`)
++- User wants to write new tests from scratch (out of scope)
  - User wants direct implementation fixes rather than a diagnostic review (use the relevant write/edit skill)
 -- User asks to fix swapped `Assert.AreEqual` argument order in MSTest (use `writing-mstest-tests`)
 -- User asks to convert MSTest `DynamicData` from `IEnumerable<object[]>` to `ValueTuple` (use `writing-mstest-tests`)
--- User wants to run or execute tests (use `run-tests` for .NET)
-+- User asks to fix or modernize test code (this skill reports; it does not edit tests)
-+- User wants to run or execute tests (use the `run-tests` skill for .NET)
+ - User wants to run or execute tests (use `run-tests` for .NET)
  - User wants to migrate between test frameworks or versions (use migration skills)
- - User wants to measure code coverage (out of scope)
+-- User wants raw .NET coverage collection (use `run-tests`), non-.NET coverage collection or analysis (use native tooling), project-wide .NET coverage/CRAP metrics (use `coverage-analysis`), or named-target .NET CRAP (use `crap-score`)
++- User wants coverage collection or coverage/CRAP metrics
+ - User asks whether tests would catch a bug or wants behavioral/pseudo-mutation gaps (use `test-gap-analysis`)
+-- User wants test-mix or happy-vs-error-path classification, standardized tagging, or trait/category distributions (use `test-tagging`)
 -- User wants a deep formal test smell audit with academic taxonomy and extended catalog (use `test-smell-detection`)
-+- User requires a full academic smell catalog or citable taxonomy (not provided by this pragmatic audit)
++- User wants test-mix or trait/category distributions
++- User wants a deep formal test-smell audit with an academic taxonomy
  
  ## Inputs
  
@@ -68,7 +65,7 @@ index 300ceba..53a2273 100644
  | Test code | Yes | One or more test files or classes to analyze |
  | Production code | No | The code under test, for context on what tests should verify |
  | Specific concern | No | A focused area like "flakiness" or "naming" to narrow the review |
-@@ -68,41 +62,43 @@ If production code is available, read it too -- this is critical for detecting t
+@@ -67,41 +61,43 @@ If production code is available, read it too -- this is critical for detecting t
  
  Check each test file against the anti-pattern catalog below. Report findings grouped by severity. The examples are .NET-centric but the patterns generalize — use the loaded language extension file to map each pattern to the framework you are auditing.
  
@@ -80,7 +77,7 @@ index 300ceba..53a2273 100644
 +| **Trivial-only assertions** | Tests whose only checks are null/presence/truthiness guards or constants, with no assertion on the value, state, structure, error, or side effect that defines the behavior. A guard followed by a meaningful assertion is not trivial-only. |
  | **Missing await on async assertions (JS/TS, .NET, Python, Kotlin, Swift)** | `expect(promise).resolves.toBe(x)` without `await`/`return`, `pytest-asyncio` test with un-awaited coroutine, `async Task` xUnit test calling `Assert.ThrowsAsync` without `await`, Kotest suspending test without `runTest`, Swift Testing async test without `await`. These tests silently pass even when the underlying assertion would have failed. |
  | **Coverage touching** | Test class that methodically calls every public member on a type — often in alphabetical or declaration order — without asserting meaningful outcomes. Each test typically does `var result = sut.MethodName(...)` (or `result = sut.method_name(...)`, `sut.methodName()`, `sut.MethodName(t)`) with no assertion, or only a trivial null/None/nil check. The intent is to inflate code-coverage metrics rather than verify behavior. Distinct from a single assertion-free test: the pattern is *systematic* coverage of the surface area with no real verification. |
- | **Self-referential assertion** | Asserts that the output of an operation equals its input when the operation is expected to be an identity or no-op, e.g. `Assert.AreEqual(input, Parse(input.ToString()))`, `assert input == parse(str(input))`, `expect(parse(input.toString())).toBe(input)`, `assert.Equal(t, input, parse(input))`. Also flags `Assert.AreEqual(dto.Name, dto.Name)` / `assert dto.name == dto.name` / `expect(dto.name).toBe(dto.name)` (asserting a field against itself). The test is tautological — it can only fail if the round-trip is broken, but never verifies that a *transformation* actually happened. |
+ | **Self-referential assertion** | The expected value is computed from the same actual value, such as `Assert.AreEqual(dto.Name, dto.Name)`, `Assert.AreEqual(result, result)`, or equivalents. Do not apply this label merely because a valid identity, clone, serialization, or round-trip contract compares output with input: those assertions can fail. Instead check whether the input exercises a transformation and whether independently known representation, field, reference-identity, or invalid-input assertions are missing. |
  | **Swallowed exceptions** | `try { ... } catch { }`, `catch (Exception)` without rethrowing or asserting (.NET); bare `except:` or `except Exception:` with `pass` (Python); `try { ... } catch (e) {}` (JS/TS/Java); `defer recover()` without re-panic and no assertion (Go); `rescue StandardError` with no assertion (Ruby); `Result::unwrap_or(...)` swallowing errors in a test (Rust); empty `catch` block (Kotlin/Swift). |
  | **Assert in catch block only** | `try { Act(); } catch (Exception ex) { Assert.Fail(ex.Message); }` (and equivalents in other languages) -- use `Assert.ThrowsException` / `pytest.raises` / `expect(fn).toThrow` / `assertThrows` / `assert.Error(t, err)` / `#[should_panic]` / `Should -Throw` / `EXPECT_THROW` instead. The test passes when no exception is thrown even if the result is wrong. |
  | **Always-true assertions** | `Assert.IsTrue(true)`, `Assert.AreEqual(x, x)`, `assert True`, `expect(true).toBe(true)`, `assert.True(t, true)`, `assert!(true)`, or conditions that can never fail. |
@@ -114,31 +111,29 @@ index 300ceba..53a2273 100644
  
  | Anti-Pattern | What to Look For |
  |---|---|
-@@ -125,22 +121,23 @@ Before reporting, re-check each finding against these severity rules:
-   - Separate tests for distinct boundary conditions (zero vs. negative vs. null). Do NOT flag as duplicates.
-   - Explicit per-test setup instead of `[TestInitialize]` / `beforeEach` (this *improves* isolation).
-   - Tests that are short and clear but could theoretically be consolidated.
+@@ -155,20 +151,22 @@ IMPORTANT: If the tests are well-written, say so clearly up front. Do not inflat
  
- IMPORTANT: If the tests are well-written, say so clearly up front. Do not inflate severity to justify the review. A review that finds zero Critical/High issues and only minor Low suggestions is a valid and valuable outcome. Lead with what the tests do well.
+ **Depth bar — a tidy report that is shallower than an unassisted review is a failure.** Before writing, satisfy all five:
  
- ### Step 5: Report findings
- 
--**Depth bar — a tidy report that is shallower than an unassisted review is a failure.** Before writing, satisfy all four:
-+**Depth bar — a tidy report that is shallower than an unassisted review is a failure.** Before writing, satisfy all five:
- 
- 1. **Account for every test in scope.** Walk the full list of test methods and fields; a finding table that silently skips tests (or fixtures like an unused `static HttpClient` field) is incomplete. State the number of tests reviewed.
--2. **Make every Critical/High fix complete and specific.** Give the replacement assertion with the *exact expected value* (the computed discount, the exact CSV line, the full expected object), not a `// assert something here` placeholder.
--3. **Name the adjacent gaps the tests should also cover** — untested error paths, boundary values, and round-trip/culture-sensitivity risks in the same class. These are part of "what's wrong with my tests", and omitting them is the most common way this review loses to an unassisted one.
--4. **Keep the report internally consistent.** Summary counts must equal the enumerated findings. Publish a settled conclusion: do all reconsidering before you write, and never leave "wait, that's wrong" / "this should fail but doesn't" reasoning in the output.
-+2. **Calibrate assertion depth.** Distinguish assertion-free, trivial-only, and meaningful assertions. Name a missing value, state, structure, error, or side-effect facet only when the production behavior makes that facet relevant.
-+3. **Make every Critical/High fix complete and specific.** Give the replacement assertion with the *exact expected value* (the computed discount, the exact CSV line, the full expected object), not a `// assert something here` placeholder.
-+4. **Name the adjacent gaps the tests should also cover** — untested error paths, boundary values, and round-trip/culture-sensitivity risks in the same class. These are part of "what's wrong with my tests", and omitting them is the most common way this review loses to an unassisted one.
-+5. **Keep the report internally consistent.** Summary counts must equal the enumerated findings. Publish a settled conclusion: do all reconsidering before you write, and never leave "wait, that's wrong" / "this should fail but doesn't" reasoning in the output.
+ 1. **Account for every test in scope.** Build the complete method/field inventory
+    before summarizing. For a systematic pattern such as coverage touching,
+    enumerate every affected test at least once rather than giving representative
+    examples. A finding table that silently skips tests (or fixtures like an
+    unused `static HttpClient` field) is incomplete. State the number reviewed.
+-2. **Verify the production contract before judging the oracle.** Inspect the
++2. **Verify the production contract and calibrate assertion depth.** Inspect the
+    actual transformation, DTO fields, and promised identity/clone semantics.
+-   Never invent fields or require lossless round-tripping when production is
+-   intentionally lossy.
++   Distinguish assertion-free, trivial-only, and meaningful assertions; name a
++   missing facet only when production behavior makes it relevant. Never invent
++   fields or require lossless round-tripping when production is intentionally
++   lossy.
+ 3. **Make every Critical/High fix complete and specific.** Give the replacement assertion with the *exact expected value* (the computed discount, the exact CSV line, the full expected object), not a `// assert something here` placeholder.
+ 4. **Name the adjacent gaps the tests should also cover** — untested error paths, boundary values, and round-trip/culture-sensitivity risks in the same class. These are part of "what's wrong with my tests", and omitting them is the most common way this review loses to an unassisted one.
+ 5. **Keep the report internally consistent.** Summary counts must equal the enumerated findings. Publish a settled conclusion: do all reconsidering before you write, and never leave "wait, that's wrong" / "this should fail but doesn't" reasoning in the output.
  
  Present findings in this structure:
  
  1. **Summary** -- Total issues found, broken down by severity (Critical / High / Medium / Low). If tests are well-written, lead with that assessment.
  2. **Critical and High findings** -- List each with:
-    - The anti-pattern name
-    - The specific location (file, method name, line)
-    - A brief explanation of why it's a problem

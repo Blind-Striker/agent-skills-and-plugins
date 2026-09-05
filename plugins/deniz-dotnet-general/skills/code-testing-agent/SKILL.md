@@ -1,13 +1,13 @@
 ---
 name: code-testing-agent
-description: 'Generate or add unit tests for existing code, from one function to
-  a complete project-wide suite. USE FOR "write unit tests", "add tests", "cover
-  this untested method", scaffolding tests where none exist, or extending an
-  existing suite across several files. Sizes the request first and stays
-  proportional. Polyglot: C#/.NET, Python/pytest, TS/JS, Go, Rust, Java, Ruby;
-  also handles classic non-SDK projects, explicit Compile registration and
-  sparse workspaces. DO NOT USE for only running or diagnosing tests, analyzing
-  a coverage report, or auditing test quality.'
+description: Generate or add unit tests for existing code, from one helper or
+  regression case to a project-wide suite. Use for "write unit tests", "add
+  tests", "cover this untested method", scaffolding tests where none exist, or
+  extending a healthy suite. Focused requests stay proportional; broad requests
+  use the full pipeline. Polyglot, including classic packages.config projects.
+  DO NOT USE for only running or diagnosing tests, coverage analysis,
+  test-quality audits, or a behavior test blocked on a production seam that has
+  not been selected.
 license: MIT
 disable-model-invocation: true
 ---
@@ -33,6 +33,14 @@ Classify scope **before editing**:
 For either scope, run the narrowest relevant test command to a clean exit and
 finish with a compact `Requirement | Evidence` table. Each requested behavior
 must cite an exact test name; validation rows cite the successful command.
+For focused work, "no `.testagent/` artifacts" changes only the process, not the
+final evidence contract.
+
+Treat completeness as a requirement matrix, not a test-count target. Give every
+independently requested state, boundary, error path, or interaction its own
+concrete assertion. Combine cases only when one execution genuinely proves the
+whole requested combination; do not let a parameterized happy-path case stand in
+for an empty state, invalid discriminator, or before/at/after boundary.
 
 ## When to Use This Skill
 
@@ -44,8 +52,8 @@ Use this skill when you need to:
 - Write tests that actually compile and pass
 - Add tests for new features or untested code
 - Generate or extend a C# suite; once this entry skill has established scope and
-  project conventions, load deniz-dotnet-general:writing-tunit-tests for the framework
-  itself — this estate is TUnit-first
+  project conventions, load deniz-dotnet-general:writing-tunit-tests for the
+  framework itself — this estate is TUnit-first
 
 ## When Not to Use
 
@@ -108,17 +116,30 @@ When in doubt, start focused and escalate only if the request turns out to span
 several files. Escalating costs one extra pass; running the broad pipeline on a
 focused request costs several.
 
+Before ending a focused request, check all three conditions together:
+
+1. every named behavior has a concrete assertion, including each requested
+   boundary or error path;
+2. the narrow test command exited successfully;
+3. the final `Requirement | Evidence` table maps those behaviors to exact test
+   names and cites that successful command.
+
+Do not replace this table with a prose list of covered areas, even for a
+single-function request.
+
 ### Step 3: Run the broad pipeline inline
 
 For broad scope, execute the Research → Plan → Implement sequence directly:
 
-1. Treat the current workspace as authoritative even when it is sparse, gutted-looking, synthetic,
-   or missing tracked files. Never restore or reconstruct it with `git checkout`, `git restore`,
-   `git reset`, or `git clean`.
-2. Research only the requested project or module and write `.testagent/research.md`.
-3. Map every requirement and target to a concrete planned test in `.testagent/plan.md`.
-4. Implement one bounded phase at a time, running the narrowest build and test command after each
-   phase.
+1. Treat the current workspace as authoritative even when it is sparse,
+   synthetic, or missing tracked files. Never restore or reconstruct it with
+   `git checkout`, `git restore`, `git reset`, or `git clean`.
+2. Research only the requested project or module and write
+   `.testagent/research.md`.
+3. Map every requirement and target to a concrete planned test in
+   `.testagent/plan.md`.
+4. Implement one bounded phase at a time, running the narrowest build and test
+   command after each phase.
 5. Record final quality findings and fixes in `.testagent/status.md`.
 
 ### Step 4: Execute with bounded context
@@ -134,6 +155,9 @@ For multi-file requests:
 7. Before reporting success, re-open the generated tests and verify every checklist item against concrete test names and assertions. Coverage alone is not evidence that a requested mock seam, boundary, state transition, or property combination was tested.
 8. When the repository has no representative tests, inspect the installed framework version, project manifests, and primary framework documentation rather than inventing conventions.
 9. For .NET, classify SDK-style vs. classic non-SDK before choosing commands or creating files. In classic projects, preserve `packages.config`, existing framework/mock versions and custom base fixtures, add every new test file to the project's explicit `<Compile Include>` items, and use the repository's MSBuild/test-runner commands. Never modernize the project or dependency stack merely to generate tests.
+10. For MSTest, inspect the pinned package version before choosing exception
+    assertions. MSTest 3.5.x uses `Assert.ThrowsException<T>`; do not substitute
+    `[ExpectedException]`, `Assert.Throws<T>`, or `Assert.ThrowsExactly<T>`.
 
 ### Completion contract
 
@@ -156,6 +180,9 @@ Do not report completion until all of these are true:
    blocked. For non-behavioral requirements such as scaffolding, scope limits,
    commands, or coverage artifacts, cite the relevant file, command, or report
    instead of forcing a test-name mapping.
+   A passing suite with fewer tests is not automatically weaker: judge
+   completeness by whether every independently requested behavior has direct,
+   nonredundant evidence, not by raw test volume.
 5. Review the generated tests for behavior gaps and weak assertions. On a broad
    scope, invoke `test-gap-analysis` and `test-anti-patterns` when available and
    record the findings and fixes in `.testagent/status.md`. On a focused scope,
@@ -220,10 +247,11 @@ execution as blocked rather than substituting `dotnet test`.
 
 ### Tests don't compile
 
-Read the exact compiler error, the project manifest, and one working neighboring test before changing
-the generated code. Check `.testagent/plan.md` for the expected structure, make the smallest
-version-compatible correction, then rebuild the narrow target. Do not modernize packages or project
-shape merely to make generated tests compile.
+Read the exact compiler error, the project manifest, and one working neighboring
+test before changing generated code. Check `.testagent/plan.md` for the expected
+structure, make the smallest version-compatible correction, then rebuild the
+narrow target. Do not modernize packages or project shape merely to make the
+generated tests compile.
 
 ### Tests fail
 

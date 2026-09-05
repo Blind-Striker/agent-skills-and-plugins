@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-25
+Date: 2026-08-28
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -13,6 +13,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - The four current curation manifests emit matching Claude Code Plugins and OpenCode Module Bundles.
   Their item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
+- `dotnet/skills` is reviewed through `d68dd708`. General 0.9.0 carries the current test-execution,
+  coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
+  retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -31,7 +34,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 1. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
    dependency-safe.** The complete estate links, but the installer does not close a selected subset
    over cross-Module `depends_on`. Until then, selecting all Modules is complete; partial Selections
-   must include General, Akka, and Aspire together when those guarded edges are needed.
+   must include General, Akka, and Aspire together when those guarded edges are needed. Before this
+   work starts, recheck Microsoft Aspire skills PR #54: if its `0.0.2` release boundary has landed,
+   recurate Aspire first rather than implementing against known-stale workflow bodies; do not pin
+   the open stacked PR itself.
 2. **Add an original-skill declaration only when the current limit becomes material.** The trigger is
    another original skill, a manual original posture, or enough load-bearing outgoing edges that
    review-only protection is no longer sufficient. Original skills can be guarded targets, but their
@@ -134,6 +140,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   byte-identical to upstream.
 - **Runtime proof remains bounded:** links prove existence and audience reachability, not model
   selection, instruction following, or permission behavior.
+- **Aspire 13.5 guidance is waiting on an upstream release boundary:** current emitted monitoring
+  still contains the older `aspire ps` resource path and frontend-OTel BrowserLogs route. Upstream
+  has corrected them and is aligning all six workflow skills with Aspire 13.5.3 in the open stacked
+  `0.0.2` release PR. Recurate the released body once rather than locally solving upstream runtime
+  guidance or recutting the same skills twice.
 
 ## Deferred
 

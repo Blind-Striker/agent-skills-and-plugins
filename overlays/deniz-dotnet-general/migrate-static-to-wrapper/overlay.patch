@@ -1,20 +1,24 @@
 diff --git a/SKILL.md b/SKILL.md
-index e91d475..922b233 100644
+index fe4ba95..f2f8913 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -7,18 +7,18 @@ description: >
-   USE FOR: replace DateTime.UtcNow/DateTime.Now with TimeProvider and add the
-   constructor parameter, migrate static call sites to a wrapper already in DI,
-   bulk replace File.* with IFileSystem, scoped migration of statics in only
-   certain files, update unit tests to a fake time source, make an existing
-   static or utility class testable by adding an ambient
-   TimeProvider/IFileSystem seam while every current call site keeps compiling,
-   behavior-preserving time refactors that must keep the same DateTimeKind.
-   DO NOT USE FOR: detecting statics (use detect-static-dependencies), designing a
--  brand-new wrapper interface that does not exist yet (use
--  generate-testability-wrappers), migrating between test frameworks.
-+  brand-new wrapper interface that does not exist yet (the user invokes
-+  `generate-testability-wrappers` separately first), migrating between test frameworks.
+@@ -1,20 +1,20 @@
+ ---
+ name: migrate-static-to-wrapper
+ description: >
+   Migrate C# static calls to a wrapper or built-in abstraction the user already
+   named, within named files/projects, including affected fake-based test updates.
+   USE FOR explicit DateTime.UtcNow/Now to TimeProvider, File.* to IFileSystem,
+   existing IEnvironmentReader/ITextFileStore, scoped migrations, constructor
+   injection, or a static API seam that keeps callers compiling and DateTimeKind
+-  unchanged. DO NOT USE when the user asks for behavior tests but leaves seam
+-  selection open (testability-obstacle), for detecting statics
+-  (detect-static-dependencies), designing a new wrapper
+-  (generate-testability-wrappers), or test-framework migration.
++  unchanged. DO NOT USE for detecting statics (detect-static-dependencies),
++  designing a new wrapper (the user invokes `generate-testability-wrappers`
++  separately first), behavior-test requests whose seam is still open, or
++  test-framework migration.
  license: MIT
  ---
  
@@ -23,22 +27,29 @@ index e91d475..922b233 100644
  Perform mechanical, codemod-style replacement of static dependency call sites with calls to injected wrapper interfaces or built-in abstractions. Operates on a bounded scope (single file, project, or namespace) so migrations can be done incrementally.
  
  ## When to Use
-@@ -28,17 +28,17 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
- - Migrating `File.*` → `IFileSystem.File.*` across a namespace
- - Adding constructor injection for the new abstraction to affected classes
+@@ -26,22 +26,23 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
  - Making a `static` utility class testable by adding an ambient seam (Step 3) while its existing call sites keep
    compiling unchanged
  - Incremental migration: one project or namespace at a time
+ - Updating affected tests with fakes when the requested migration names the
+   replacement abstraction
  
  ## When Not to Use
  
 -- No wrapper or abstraction exists yet and one must be designed from scratch (use `generate-testability-wrappers` first).
-+- No wrapper or abstraction exists yet and one must be designed from scratch (the user invokes `generate-testability-wrappers` separately first).
++- No wrapper or abstraction exists yet and one must be designed from scratch
++  (the user invokes `generate-testability-wrappers` separately first).
    A built-in abstraction such as `TimeProvider` or `IFileSystem` always counts as existing.
  - The user wants to detect statics, not migrate them (use `detect-static-dependencies`)
  - Migrating between test frameworks (use the appropriate migration skill)
+ - The user primarily asks for a deterministic behavior test and has not selected
+-  the production seam (use `testability-obstacle`)
++  the production seam; create or select the seam separately first
  
  > A class that is `static`, or a project with no DI container, is **not** a reason to skip this skill — that is exactly
  > what the ambient seam in Step 3 is for. Use it whenever the call sites must keep compiling unchanged.
  
  ## Inputs
+ 
+ | Input | Required | Description |
+ |-------|----------|-------------|
