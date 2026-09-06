@@ -12,11 +12,11 @@ test("README build command names every committed generated tree", () => {
 
 test("README verifies the current Release digest before package execution", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
-  assert.doesNotMatch(readme, /installer-v0\.1\.0|deniz-agent-skills-0\.1\.0\.tgz/);
+  assert.doesNotMatch(readme, /installer-v0\.[12]\.0|deniz-agent-skills-0\.[12]\.0\.tgz/);
   const section = readme.slice(readme.indexOf("### OpenCode from a Release Package"));
-  const download = "gh release download installer-v0.2.0 --repo Blind-Striker/agent-skills-and-plugins";
-  const asset = '"deniz-agent-skills-0.2.0.tgz"';
-  const digest = "4ce23817052317b80926a6cd0aed7063364e9625c012f22080bfb887727286be";
+  const download = "gh release download installer-v0.3.0 --repo Blind-Striker/agent-skills-and-plugins";
+  const asset = '"deniz-agent-skills-0.3.0.tgz"';
+  const digest = "a6e5c309cd4739684d908c9bae224941272c57471f278b9a738dac53f704ef22";
   const compute = "Get-FileHash -LiteralPath $package -Algorithm SHA256";
   const compare = "if ($actual -ne $expected) { throw";
   const execute = "npm exec --yes --package $package -- deniz-skills install --all";

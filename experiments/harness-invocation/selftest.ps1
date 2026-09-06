@@ -573,7 +573,8 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
         model    = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
         parked   = @($all  | Where-Object { $_.opencode.artifacts -notcontains "skill" -and @($_.opencode.parked).Count -gt 0 }).Count
     }
-    $want = @{ skills = 86; commands = 38; model = 19; parked = 14 }
+    # General's vectorization adds one ledger skill; the other three counts are unchanged.
+    $want = @{ skills = 87; commands = 38; model = 19; parked = 14 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }

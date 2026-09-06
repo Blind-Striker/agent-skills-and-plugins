@@ -180,23 +180,20 @@ retrying.
 
 ### OpenCode from a Release Package
 
-Package 0.3.0 is being prepared with General 0.9.0 and Aspire 0.3.2. The verified recipe
-below remains on the last published Release until the new asset passes publication checks.
-For the current recipe after publication, use the [repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
-
-The current Package is attached to GitHub Release `installer-v0.2.0`, targeting commit `8867fc4`.
+The current Package is attached to GitHub Release `installer-v0.3.0`, targeting commit `1271595`.
+It includes General 0.9.0 and Aspire 0.3.2 alongside Process 0.5.0 and Akka 0.3.0.
 It was built on Linux and verified through manifest-backed tar-mode checks, zero-write Plan, Apply,
 status, and a remote re-download. Verify its repository-recorded SHA-256 before first execution. The
 digest detects replacement or corruption but cannot prevent an authorized re-upload. The Package is
 an npm-format transport artifact, not an npm publication or Git package install:
 
 ```powershell
-$download = Join-Path $env:TEMP "deniz-skills-installer-v0.2.0"
+$download = Join-Path $env:TEMP "deniz-skills-installer-v0.3.0"
 New-Item -ItemType Directory -Path $download -Force | Out-Null
-gh release download installer-v0.2.0 --repo Blind-Striker/agent-skills-and-plugins `
-  --pattern "deniz-agent-skills-0.2.0.tgz" --dir $download
-$package = Join-Path $download "deniz-agent-skills-0.2.0.tgz"
-$expected = "4ce23817052317b80926a6cd0aed7063364e9625c012f22080bfb887727286be"
+gh release download installer-v0.3.0 --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "deniz-agent-skills-0.3.0.tgz" --dir $download
+$package = Join-Path $download "deniz-agent-skills-0.3.0.tgz"
+$expected = "a6e5c309cd4739684d908c9bae224941272c57471f278b9a738dac53f704ef22"
 $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "downloaded Package SHA-256 mismatch: $actual" }
 
@@ -212,8 +209,8 @@ alternate config-dir mounts. Current boundaries and lifecycle mechanics are in
 [distribution and installation](docs/architecture/distribution-and-installation.md); the dated
 [adapter research](docs/research/harness-adapters.md) and
 [experiment protocol](experiments/harness-invocation/protocol.md) retain measured evidence and its
-verification method. The exact corrected-asset evidence is in the
-[v0.2.0 POSIX correction record](experiments/harness-invocation/records/2026-08-25-opencode-installer-v0.2.0-posix-correction.md).
+verification method. The exact asset identity and source-snapshot boundary are in the
+[v0.3.0 release record](experiments/harness-invocation/records/2026-09-06-opencode-installer-v0.3.0.md).
 
 ## Limits and support
 

@@ -5,12 +5,12 @@ on:
       source_ref:
         description: Commit or tag whose Package bytes should be built
         required: true
-        default: 8867fc4077494a4bedb32f9f75ea251acbf8b81a
+        default: 127159518c956fc39406809abce11bab1afb8b28
         type: string
       release_tag:
         description: Existing GitHub Release tag to publish to
         required: true
-        default: installer-v0.2.0
+        default: installer-v0.3.0
         type: string
       publish:
         description: Upload the verified Package to the GitHub Release
