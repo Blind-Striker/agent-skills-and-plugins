@@ -1,13 +1,16 @@
 # Intended sources: the complete Microsoft Aspire workflow package plus the
 # selected Aspire specialists from dotnet-skills.
+# Follow the reviewed merged Aspire 13.5.3 guidance without waiting for an upstream release tag.
+# Runtime behavior stays upstream-owned; patches only bind in-package routes while preserving
+# project-local skill precedence. Upstream eval and plugin-level hook machinery is not shipped.
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.3.1
+  version: 0.3.2
 items:
   - source: aspire-skills/skills/aspire
     omit: ["evals/**"] # upstream Copilot/vally evaluation assets are not harness runtime content
-    body: patch # make all retained in-package routes linker-checked in both harnesses
+    body: patch # guard the router and both migration references' in-package routes in both harnesses
     depends_on:
       - aspire-init
       - aspireify
@@ -20,7 +23,7 @@ items:
     depends_on: [aspireify, aspire-orchestration, aspire-deployment, aspire-monitoring]
   - source: aspire-skills/skills/aspireify
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
-    body: patch # localize the bounded authoring workflow's sibling handoffs
+    body: patch # localize authoring handoffs, including the CLI migration owned by orchestration
     depends_on: [aspire-init, aspire-orchestration, aspire-deployment, aspire-monitoring]
   - source: aspire-skills/skills/aspire-orchestration
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content

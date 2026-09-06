@@ -1,33 +1,33 @@
 diff --git a/SKILL.md b/SKILL.md
-index 4219af5..d9f1960 100644
+index 30eac9f..d2c0c1c 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -4,19 +4,19 @@ description: >-
-   **WORKFLOW SKILL** - Wire an Aspire AppHost after `aspire init` drops a skeleton.
-   Scans the repo, proposes a resource graph, edits the AppHost (C#, file-based C#, or
-   TypeScript), wires `Aspire.ServiceDefaults` + OTel, validates with `aspire start`,
-   then self-deactivates.
-   USE FOR: wire AppHost, scaffold resource graph, add Postgres/Redis/Rabbit/Mongo to
-   Aspire, connect frontend to API, after `aspire init` what next, AddNextJsApp, AddViteApp,
-   WithBrowserLogs, file-based apphost.cs, apphost.ts, unified withEnvironment,
-   refuse .aspire/modules edit, migrate .env files, migrate user secrets.
--  DO NOT USE FOR: skeleton drop (use aspire-init), start/stop/wait/restart (use
--  aspire-orchestration), publish/deploy/destroy (use aspire-deployment), logs/traces
--  (use aspire-monitoring).
-+  DO NOT USE FOR: skeleton drop (use aspire:aspire-init), start/stop/wait/restart (use
-+  aspire:aspire-orchestration), publish/deploy/destroy (use aspire:aspire-deployment),
-+  logs/traces (use aspire:aspire-monitoring).
-   INVOKES: aspire CLI (add, start, wait, describe, docs api search, stop), AppHost
-   source edits, ServiceDefaults wiring.
+   **WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript AppHost toolchains.
+   Scans the repo, proposes a resource graph, edits C#, file-based C#, or TypeScript
+   AppHosts, wires ServiceDefaults + OTel, validates with `aspire start`, then stops.
+   USE FOR: wire/scaffold AppHost, add Postgres/Redis/Rabbit/Mongo, connect frontend
+   to API, after `aspire init`, AddNextJsApp, AddViteApp, WithBrowserLogs, WithTerminal,
+   Interaction Service, command arguments, apphost.cs, apphost.mts, unified
+   withEnvironment, .aspire/modules refusal, config/secrets,
+   TS dependency restore, pnpm/yarn/bun, or Yarn Classic.
+-  DO NOT USE FOR: skeleton drop (aspire-init), lifecycle-only start/stop/wait/restart
+-  or `aspire update --migrate` (aspire-orchestration), publish/deploy/destroy
+-  (aspire-deployment), logs/traces (aspire-monitoring).
++  DO NOT USE FOR: skeleton drop (aspire:aspire-init), lifecycle-only start/stop/wait/restart
++  or `aspire update --migrate` (aspire:aspire-orchestration), publish/deploy/destroy
++  (aspire:aspire-deployment), logs/traces (aspire:aspire-monitoring).
+   INVOKES: aspire CLI, AppHost source edits, ServiceDefaults wiring.
    FOR SINGLE OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration.
  license: MIT
  metadata:
    author: Microsoft
-   version: "0.0.1"
+   version: "0.0.2"
  ---
-@@ -132,17 +132,18 @@ declared beyond the stub):
+ 
+@@ -130,30 +130,30 @@ declared beyond the stub):
  | Skeleton just dropped | `aspire init` just ran in this session | ✅ Definitive |
- | Empty AppHost stub | `apphost.cs` / `Program.cs` / `apphost.ts` only contains `Build().Run()` | ✅ Definitive |
+ | Empty AppHost stub | `apphost.cs` / `Program.cs` / current `apphost.mts` (or legacy `apphost.ts`) only contains `Build().Run()` | ✅ Definitive |
  | `aspire.config.json` without resources | Config present, AppHost has no `AddProject`/`addProject` | High |
  | User asks to "wire" / "scaffold resource graph" | Verb match: wire, scaffold, integrate, hook up, add Postgres/Redis/etc. | High |
  | User asks "what next after aspire init" | Direct handoff request | ✅ Definitive |
@@ -35,8 +35,7 @@ index 4219af5..d9f1960 100644
  
  If the AppHost already has wired resources and the user wants to **start/stop**
 -the app → `aspire-orchestration`. If the user wants to **deploy** → `aspire-deployment`.
-+the app → `aspire:aspire-orchestration`. If the user wants to **deploy** →
-+`aspire:aspire-deployment`.
++the app → `aspire:aspire-orchestration`. If the user wants to **deploy** → `aspire:aspire-deployment`.
  
  ## Language Support
  
@@ -44,8 +43,22 @@ index 4219af5..d9f1960 100644
  |---------------|-----------|-------------|
  | **C# SDK-style** | `.csproj` containing `<Sdk Name="Aspire.AppHost.Sdk" />` | `Program.cs` (top-level statements) |
  | **File-based C#** | `apphost.cs` with `#:sdk Aspire.AppHost.Sdk` and `#:package` directives | `apphost.cs` itself |
- | **TypeScript** | `apphost.ts` with generated `.aspire/modules/` | `apphost.ts` only — **never edit `.aspire/modules/`** |
-@@ -152,17 +153,17 @@ See [references/csharp-authoring.md](references/csharp-authoring.md) and
+ | **TypeScript** | Current `apphost.mts` or legacy `apphost.ts` with generated `.aspire/modules/` | Configured AppHost entry point only — **never edit `.aspire/modules/`** |
+ 
+ See [references/csharp-authoring.md](references/csharp-authoring.md) and
+ [references/typescript-authoring.md](references/typescript-authoring.md).
+ 
+-`aspire-orchestration` owns the CLI-driven migration from legacy `apphost.ts`. After it
++`aspire:aspire-orchestration` owns the CLI-driven migration from legacy `apphost.ts`. After it
+ updates packages and migration artifacts, return to aspireify only when the user still
+ needs AppHost source wiring or authoring.
+ 
+ ### TypeScript AppHost package managers
+ 
+ Dependency and toolchain failures belong to this skill. Before recommending a command,
+ inspect the AppHost directory and then its immediate eligible parent. Within each directory,
+ the first recognized marker wins in this order:
+@@ -184,17 +184,17 @@ command matrix and resolver details.
  
  ## Workflow Phases
  
@@ -64,7 +77,7 @@ index 4219af5..d9f1960 100644
  - [docker-compose.md](references/docker-compose.md) — docker-compose migration, profiles, image mapping, ports, volumes, and `depends_on`.
  - [full-solution-apphosts.md](references/full-solution-apphosts.md) — large solution triage, mixed SDK boundaries, solution membership, ServiceDefaults placement, and legacy host migration.
  - [javascript-apps.md](references/javascript-apps.md) — JavaScript resource selection, workspace/monorepo package-manager handling, ports, scripts, and TS AppHost package config.
-@@ -206,17 +207,17 @@ aspire describe --format Json   # sanity check graph
+@@ -238,17 +238,17 @@ aspire describe --format Json   # sanity check graph
  
  Full validation flow + recovery in [references/validation.md](references/validation.md).
  
@@ -83,7 +96,8 @@ index 4219af5..d9f1960 100644
  Map detected services → Aspire integrations. See
  [references/scan-and-propose.md](references/scan-and-propose.md) for the full
  catalog.
-@@ -284,31 +285,31 @@ builder.AddNextJsApp("web", "./web")
+@@ -323,31 +323,31 @@ builder.AddNextJsApp("web", "./web")
+     .WithBrowserLogs();        // browser console + screenshots
  ```
  
  ## Validation & Recovery
@@ -91,11 +105,10 @@ index 4219af5..d9f1960 100644
  | Symptom | Action |
  |---------|--------|
  | `aspire start` fails with build error | Fix code, re-run `aspire start` |
- | `aspire wait` rejects resource name | Use `displayName` from `aspire ps --format Json` ([#15842](https://github.com/microsoft/aspire/issues/15842)) |
 -| File-lock errors during edit | Hand off to `aspire-orchestration` → `aspire stop` → retry |
 +| File-lock errors during edit | Hand off to `aspire:aspire-orchestration` → `aspire stop` → retry |
- | Resource missing from `aspire ps` | May be hidden — re-run with `--include-hidden` |
- | TS AppHost change ignored | Confirm you edited `apphost.ts`, not `.aspire/modules/` |
+ | Resource missing from `aspire describe` | Re-run `aspire describe --include-hidden`; `aspire ps` is AppHost-level |
+ | TS AppHost change ignored | Confirm you edited the configured `apphost.mts` (or legacy `apphost.ts`), not `.aspire/modules/` |
  | Mixed JSON output from `aspire start` | Strip non-JSON lines before parsing ([#15843](https://github.com/microsoft/aspire/issues/15843)) |
  
  Full flow in [references/validation.md](references/validation.md).
@@ -120,8 +133,38 @@ index 4219af5..d9f1960 100644
  - **Ask before modifying service code**, especially OpenTelemetry and ServiceDefaults injection.
  - **Respect existing project structure** — do not reorganize the repo.
  - **If stuck, use `aspire doctor`** to diagnose environment issues.
+@@ -361,9 +361,9 @@ Full flow in [references/validation.md](references/validation.md).
+ - [full-solution-apphosts.md](references/full-solution-apphosts.md) — Large/full-solution AppHost guidance
+ - [javascript-apps.md](references/javascript-apps.md) — JavaScript/TypeScript app and workspace handling
+ - [opentelemetry.md](references/opentelemetry.md) — Non-.NET OpenTelemetry setup
+ - [scan-and-propose.md](references/scan-and-propose.md) — Repo scan heuristics + integration catalog
+ - [csharp-authoring.md](references/csharp-authoring.md) — C# AppHost patterns
+ - [typescript-authoring.md](references/typescript-authoring.md) — TS AppHost patterns + parity APIs
+ - [service-defaults.md](references/service-defaults.md) — Wire OTel, health checks, service discovery
+ - [validation.md](references/validation.md) — End-to-end validation + recovery
+-- [aspire-13-5-breaking-changes.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire/references/aspire-13-5-breaking-changes.md) — 13.5.3 migrations, command changes, and experimental surfaces
++- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) — 13.5.3 migrations, command changes, and experimental surfaces
+diff --git a/references/typescript-authoring.md b/references/typescript-authoring.md
+index 47e2d20..b0f368e 100644
+--- a/references/typescript-authoring.md
++++ b/references/typescript-authoring.md
+@@ -1,13 +1,13 @@
+ # TypeScript AppHost Authoring
+ 
+ Patterns for editing current `apphost.mts`. **Never edit `.aspire/modules/`** — that
+ directory is generated and any changes will be clobbered. Hand legacy `apphost.ts`
+-migration to `aspire-orchestration`; it owns approval and
++migration to `aspire:aspire-orchestration`; it owns approval and
+ `aspire update --migrate --yes --non-interactive`. Return here only if source authoring
+ remains after migration.
+ 
+ > Look up unfamiliar API: `aspire docs api search <query> --language typescript`
+ > then `aspire docs api get <id>`.
+ 
+ ## ⛔ Hard Refusal: `.aspire/modules/` Is Off-Limits
+ 
 diff --git a/references/validation.md b/references/validation.md
-index 0c9b1ef..85ce2ab 100644
+index 8dc6f32..35dd167 100644
 --- a/references/validation.md
 +++ b/references/validation.md
 @@ -1,14 +1,14 @@
@@ -139,10 +182,10 @@ index 0c9b1ef..85ce2ab 100644
  # 1. Start the AppHost in the background, JSON output for parsing
  aspire start --non-interactive --format Json
  
- # 2. Wait for each declared resource (use displayName from aspire ps)
-@@ -50,17 +50,17 @@ container-internal health.
- > `aspire wait` rejects the `name` field — pass `displayName` from
- > `aspire ps --format Json` instead.
+ # 2. Inspect the full resource graph and wait for each declared resource
+@@ -43,17 +43,17 @@ validation use `aspire describe --include-hidden` so you do not miss graph resou
+ own health model. Hand-rolled `curl` loops race with startup and don't see
+ container-internal health.
  
  ## Recovery
  
@@ -152,14 +195,14 @@ index 0c9b1ef..85ce2ab 100644
 -| File-lock error during edit | Hand off to `aspire-orchestration` → `aspire stop` → retry edit |
 +| File-lock error during edit | Hand off to `aspire:aspire-orchestration` → `aspire stop` → retry edit |
  | Port conflict on start | `aspire stop` (clears prior instance) → `aspire start` |
- | Resource missing from `aspire ps` | Re-run with `--include-hidden`; if still missing, AppHost edit is wrong |
- | `aspire wait` rejects name | Pull `displayName` from `aspire ps --format Json` |
+ | Resource missing from `aspire describe` | Re-run `aspire describe --include-hidden`; if still missing, the AppHost edit is wrong |
  | Mixed JSON output from `aspire start` | Strip non-JSON lines before parsing |
  | Container-backed resource fails | Confirm Docker / Podman is running; re-run `aspire doctor` |
- | TS AppHost change had no effect | You probably edited `.aspire/modules/`. Edit `apphost.ts` only |
+ | TS AppHost change had no effect | You probably edited `.aspire/modules/`. Edit the configured `apphost.mts` (or legacy `apphost.ts`) only |
  
  ## Hand-off Criteria
-@@ -75,23 +75,23 @@ Aspireify deactivates when **all** of these hold:
+ 
+@@ -67,23 +67,23 @@ Aspireify deactivates when **all** of these hold:
  When done, announce:
  
  ```

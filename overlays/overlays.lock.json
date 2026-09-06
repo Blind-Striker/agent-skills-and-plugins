@@ -20,45 +20,47 @@
   "deniz-dotnet-aspire/aspire": {
     "source": "aspire-skills/skills/aspire",
     "files": {
-      "SKILL.md": "fe88fa20a9da885718db2326e88c382c52e9c55b",
-      "references/aspire-13-3-breaking-changes.md": "2419ef593d34af2232050e17cb6998a19d6ba1d5"
+      "SKILL.md": "b02ac1730f40bb960fc7b1dd5369d29520d6fb2f",
+      "references/aspire-13-3-breaking-changes.md": "2419ef593d34af2232050e17cb6998a19d6ba1d5",
+      "references/aspire-13-5-breaking-changes.md": "25066325039011a0d3574cc7d8565fe5fe333f68"
     }
   },
   "deniz-dotnet-aspire/aspire-deployment": {
     "source": "aspire-skills/skills/aspire-deployment",
     "files": {
-      "SKILL.md": "5a7ebe0d4195c6a1a63b42c48fbf96fc24b64b26",
-      "references/preflight.md": "52361d85f67947665094d2a7464cf6a0d964bbb3"
+      "SKILL.md": "8f9fb19d44f7f47ee1df4d45f794186cefc5b17f",
+      "references/preflight.md": "0d0a8772361820c14943d3bd7f244af862ffe470"
     }
   },
   "deniz-dotnet-aspire/aspire-init": {
     "source": "aspire-skills/skills/aspire-init",
     "files": {
-      "SKILL.md": "c3d7d1dc71d1077d5d7ea296d69b7ffb47f4b0ed",
-      "references/init-workflow.md": "ea24ffa7b375a4e11cd4da230aa4bb440205cf3e",
-      "references/templates.md": "044b6c34d392dd56a76107e0e51d77f11ebd852a"
+      "SKILL.md": "d29b9ff9a0da642cc2a4d62d652ca396951ba5d4",
+      "references/init-workflow.md": "4efa63ed140e2fa7d967a6d255df7773750bac72",
+      "references/templates.md": "83bace71a6b586b109857f646db53bb2ae21f45f"
     }
   },
   "deniz-dotnet-aspire/aspire-monitoring": {
     "source": "aspire-skills/skills/aspire-monitoring",
     "files": {
-      "SKILL.md": "6e26e36e240a147be83c6203aa865161f0c75c7a",
-      "references/diagnostics-bridge.md": "7a7c6d77e1783ad4f5f50b8cfcff1d1263850279",
-      "references/monitoring.md": "c9de1944900a066116e590b0a5e047a84000986a"
+      "SKILL.md": "325f674825b372d8429c5698db45a5fb0e03d0d5",
+      "references/diagnostics-bridge.md": "389a8190601cbfc80fd60a3c62682587cafbf489",
+      "references/monitoring.md": "96b2cef7ce454181f6b5ad7ce0bdc3689deacc8e"
     }
   },
   "deniz-dotnet-aspire/aspire-orchestration": {
     "source": "aspire-skills/skills/aspire-orchestration",
     "files": {
-      "SKILL.md": "906c08ffb3c62076ce4c4d10636781b5daf40dba",
-      "references/app-commands.md": "1c3254036ff869ca363455185cced62b076f41ec"
+      "SKILL.md": "96ae187afebe50bc7752e8a8bb873fdd9480c531",
+      "references/app-commands.md": "1a95c824119b0f8b65477457ca988967406f6c32"
     }
   },
   "deniz-dotnet-aspire/aspireify": {
     "source": "aspire-skills/skills/aspireify",
     "files": {
-      "SKILL.md": "4219af53fcae9aaed80a7610e0915542e2545c10",
-      "references/validation.md": "0c9b1efb971c5c710ca57c5b8f430f02d26c6433"
+      "SKILL.md": "30eac9f193e8a953b22c0253dde4c1088c7f451b",
+      "references/typescript-authoring.md": "47e2d209984dd7cc1bf1ac96bb2f28717484e8d0",
+      "references/validation.md": "8dc6f326b890383edad4878488d03962cf277401"
     }
   },
   "deniz-dotnet-general/binlog-failure-analysis": {

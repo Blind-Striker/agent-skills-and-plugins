@@ -1,11 +1,11 @@
 diff --git a/SKILL.md b/SKILL.md
-index 5a7ebe0..24724cd 100644
+index 8f9fb19..8574305 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -105,17 +105,17 @@ If the user explicitly asked to deploy now, continue through preflight and deplo
- ### Keep Azure deployment Aspire-native
- 
- The Azure deployment path in this skill is `aspire add <azure-target>`, AppHost environment configuration, `aspire publish`, and `aspire deploy`. Do not route Azure deployment work through a separate Azure deployment tool or generated infrastructure workflow.
+@@ -125,17 +125,17 @@ Migrate obsolete 13.5 surfaces while editing deployment code:
+ - use `.Services` instead of hosting context `.ServiceProvider`;
+ - use `AddConnectionString` instead of `PublishAsConnectionString`; and
+ - migrate deprecated `Aspire.Hosting.GitHub.Models` resources to Azure AI Foundry.
  
  ## Default workflow
  
@@ -21,7 +21,20 @@ index 5a7ebe0..24724cd 100644
     - If exactly one target environment already exists, use it and state what was detected.
     - If multiple targets exist, none exists, or the user says only "Azure", ask where to deploy using the choices above.
  3. **Load target and app-type references.**
-@@ -201,19 +201,19 @@ Use `aspire secret list` for AppHost user secrets when appropriate, but do not p
+@@ -213,31 +213,31 @@ Use `aspire secret list` for AppHost user secrets when appropriate, but do not p
+ 
+ - [references/docker-compose.md](references/docker-compose.md) - Docker Compose target, generated files, environment variables, cleanup.
+ - [references/kubernetes.md](references/kubernetes.md) - Kubernetes and Azure Kubernetes Service (AKS) target selection, Helm output, registry requirements, kubectl/Helm checks.
+ - [references/azure.md](references/azure.md) - Azure target selection, Azure settings, Container Apps, App Service, and Azure Kubernetes Service (AKS).
+ - [references/aws.md](references/aws.md) - AWS target selection, AWS CDK prerequisites, publish/deploy workflow, and AWS integration docs.
+ - [references/javascript.md](references/javascript.md) - JavaScript app deployment models, including Vite/static assets, Node/SSR servers, Next.js, and gateway/backend serving patterns.
+ - [references/cicd.md](references/cicd.md) - CI/CD and GitHub Actions workflow guidance for Aspire publish/deploy, parameters, secrets, registry auth, and cloud auth.
+ - [references/preflight.md](references/preflight.md) - Common preflight, preview, parameter, destroy, and validation checklist.
+-- [aspire-13-5-breaking-changes.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire/references/aspire-13-5-breaking-changes.md) - 13.5.3 package, API, and CLI migration rules.
++- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) - 13.5.3 package, API, and CLI migration rules.
+ 
+ ## Agent execution
+ 
  When running unattended (CI, scripted, agent-driven), append `--non-interactive` to every Aspire CLI invocation that may prompt — most importantly `aspire publish`, `aspire deploy`, and `aspire destroy`. For `aspire destroy`, also pass `--yes` only after the user has explicitly confirmed teardown intent (or a CI workflow already encodes that intent).
  
  Prefer surfacing prompt-driving values up front (target subscription/region/resource group, parameters, secrets, registry credentials) so the unattended run does not stall. See [references/preflight.md](references/preflight.md) for the full preflight checklist.
@@ -45,7 +58,7 @@ index 5a7ebe0..24724cd 100644
  
  If `.agents/skills/aspire-deployment/SKILL.md` exists (dropped by `aspire agent init`),
 diff --git a/references/preflight.md b/references/preflight.md
-index 52361d8..4c590d4 100644
+index 0d0a877..0e47871 100644
 --- a/references/preflight.md
 +++ b/references/preflight.md
 @@ -3,17 +3,17 @@
@@ -59,7 +72,7 @@ index 52361d8..4c590d4 100644
  2. If `aspire ls` shows exactly one AppHost, use it.
 -3. If `aspire ls` shows no AppHosts, stop deployment work and invoke the `aspireify` skill to initialize/wire the AppHost before continuing.
 +3. If `aspire ls` shows no AppHosts, stop deployment work and invoke the `aspire:aspireify` skill to initialize/wire the AppHost before continuing.
- 4. If `aspire ls` shows multiple AppHosts or discovery is still ambiguous, inspect `aspire.config.json`, `*.AppHost.csproj`, `apphost.cs`, or `apphost.ts`.
+ 4. If `aspire ls` shows multiple AppHosts or discovery is still ambiguous, inspect `aspire.config.json`, `*.AppHost.csproj`, `apphost.cs`, current `apphost.mts`, or legacy `apphost.ts`.
  5. For C# project AppHosts, confirm the project references Aspire AppHost support.
  6. For C# single-file AppHosts, look for the Aspire AppHost SDK directive.
  7. For TypeScript AppHosts, look for the AppHost file and generated module support.

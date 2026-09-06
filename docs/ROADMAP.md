@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-08-28
+Date: 2026-09-06
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -16,6 +16,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.9.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
+- Aspire 0.3.2 follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
+  0.0.2 and guidance targets Aspire 13.5.3. This is a reviewed main-commit choice, not a claim that
+  upstream published a 0.0.2 tag or Release. The eight-skill set and declared dependency closure are
+  unchanged; the six official workflow patches continue to own only package-local routing.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -31,14 +35,16 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
+1. **Publish a new Package containing the General and Aspire updates.** The current
+   `installer-v0.2.0` Release still carries the older Bundles. Use a distinct Package version and
+   Release tag, rebuild the exact source commit through the manual release workflow, verify the
+   remote asset, and update the consumption recipe and digest. Do not overwrite the old asset or
+   delay these content updates for the Selection feature.
+2. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
    dependency-safe.** The complete estate links, but the installer does not close a selected subset
    over cross-Module `depends_on`. Until then, selecting all Modules is complete; partial Selections
-   must include General, Akka, and Aspire together when those guarded edges are needed. Before this
-   work starts, recheck Microsoft Aspire skills PR #54: if its `0.0.2` release boundary has landed,
-   recurate Aspire first rather than implementing against known-stale workflow bodies; do not pin
-   the open stacked PR itself.
-2. **Add an original-skill declaration only when the current limit becomes material.** The trigger is
+   must include General, Akka, and Aspire together when those guarded edges are needed.
+3. **Add an original-skill declaration only when the current limit becomes material.** The trigger is
    another original skill, a manual original posture, or enough load-bearing outgoing edges that
    review-only protection is no longer sufficient. Original skills can be guarded targets, but their
    invocation and outgoing model edges have no manifest declaration. A future surface can be keyed by
@@ -66,7 +72,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in both harness trees.
-3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+4. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -77,7 +83,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
    Run it after a body-ownership pass and before declaring a Module closed.
-4. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
+5. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
    deterministic existence and audience reachability once a source runs, but do not make it run.
    Descriptions provide probabilistic selection pressure and can reach work with no explicit caller.
    The current candidate rule is: load-bearing composition uses guarded body facts; opportunistic
@@ -127,6 +133,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   build-time guard exists.
 - **Unstated Aspire invocation:** six official workflow items still pass upstream Claude posture
   through because their manifests state no invocation intent.
+- **Aspireify activation tension remains upstream-owned:**
+  `external/aspire-skills/skills/aspireify/SKILL.md` advertises integration/authoring and toolchain
+  work while its Detection section still requires an unwired AppHost and its header says one-time.
+  The reviewed update preserves this inherited runtime scope rather than widening it through a
+  routing-only curation patch.
 - **Module version bumps are policy-only:** emitted bytes can move under an unchanged curator version;
   the Bundle digest detects it, but validation does not enforce the human-facing version rule.
 - **Inventory descriptions truncate silently:** long descriptions stop at 140 characters without an
@@ -140,11 +151,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   byte-identical to upstream.
 - **Runtime proof remains bounded:** links prove existence and audience reachability, not model
   selection, instruction following, or permission behavior.
-- **Aspire 13.5 guidance is waiting on an upstream release boundary:** current emitted monitoring
-  still contains the older `aspire ps` resource path and frontend-OTel BrowserLogs route. Upstream
-  has corrected them and is aligning all six workflow skills with Aspire 13.5.3 in the open stacked
-  `0.0.2` release PR. Recurate the released body once rather than locally solving upstream runtime
-  guidance or recutting the same skills twice.
 
 ## Deferred
 

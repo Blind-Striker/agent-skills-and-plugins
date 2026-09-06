@@ -1,24 +1,20 @@
 ---
 name: aspire
-description: "**WORKFLOW SKILL** - Top-level router for Aspire 13.4 distributed
-  apps. Detects the AppHost, enforces safety guardrails, and routes to the right
-  sub-skill. USE FOR: Aspire AppHost detected, aspire CLI, distributed app,
-  cloud-native .NET, aspire start, aspire stop, aspire resource, aspire deploy,
-  aspire destroy, aspire publish, aspire init, aspire new, aspire add, aspire
-  integration list/search, aspire wait, aspire describe, aspire ps, aspire
-  dashboard run, aspire doctor, aspire update, aspire logs, aspire otel, aspire
-  agent init, --include-hidden, aspireify, WithBrowserLogs, custom
-  dashboard/resource commands, .aspire/modules recovery, Playwright URL
-  discovery. DO NOT USE FOR: non-Aspire .NET projects (use dotnet directly),
-  Azure provisioning without Aspire (use azure-prepare), container-only repos
-  with no AppHost, ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init,
+description: "**WORKFLOW SKILL** - Aspire 13.5.3 router. Detects AppHosts,
+  enforces guardrails, and selects the right sub-skill. USE FOR: Aspire AppHost,
+  Aspire CLI, distributed app, cloud-native .NET, aspire
+  start/stop/resource/deploy/destroy/publish/init/new/add/wait/describe/ps/logs\
+  /otel, aspire agent init, WithBrowserLogs, WithTerminal, Interaction Service,
+  apphost.mts, TS package managers, Yarn Classic, custom resource commands,
+  .aspire/modules recovery, or Playwright URL discovery. DO NOT USE FOR:
+  non-Aspire projects or ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init,
   deniz-dotnet-aspire:aspireify, deniz-dotnet-aspire:aspire-orchestration, deniz-dotnet-aspire:aspire-deployment,
   deniz-dotnet-aspire:aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the
   matching sub-skill."
 license: MIT
 metadata:
   author: Microsoft
-  version: 0.0.1
+  version: 0.0.2
 ---
 
 # Aspire
@@ -52,7 +48,7 @@ the bootstrap skills (`deniz-dotnet-aspire:aspire-init` / `deniz-dotnet-aspire:a
 |--------|---------------|------------|-------|
 | C# AppHost | `.csproj` containing `Aspire.AppHost.Sdk` | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
 | File-based C# AppHost | `apphost.cs` with `#:sdk Aspire.AppHost.Sdk` | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
-| TypeScript AppHost | `apphost.ts` file in project | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
+| TypeScript AppHost | Current `apphost.mts` or legacy `apphost.ts` file in project | ✅ Definitive | AppHost present → orchestration / deployment / monitoring |
 | Aspire config without AppHost | `aspire.config.json` present **and no AppHost** above | High | Bootstrap → `deniz-dotnet-aspire:aspireify` (skeleton dropped, needs wiring) |
 | Aspire config with AppHost | `aspire.config.json` present **and** AppHost above | High | AppHost present → orchestration / deployment / monitoring |
 | Aspire settings | `.aspire/` directory present | High | AppHost present (usually) |
@@ -75,11 +71,20 @@ the bootstrap skills (`deniz-dotnet-aspire:aspire-init` / `deniz-dotnet-aspire:a
 
 ## Key Rules
 
-- For AppHost lifecycle requests, identify one exact AppHost and route to `deniz-dotnet-aspire:aspire-orchestration`; never use `dotnet run` on AppHosts
+- For agent AppHost lifecycle requests, identify one exact AppHost and route to
+  `deniz-dotnet-aspire:aspire-orchestration`. New 13.5 C# templates can make `dotnet run` delegate through the
+  CLI bundle, but agents still use the editor lifecycle tool or `aspire start` for
+  detached, noninteractive, exact-target, and worktree-isolated execution.
 - When VS Code exposes `aspire_apphost_start` or `aspire_apphost_stop`, load deferred contracts and prefer the matching tool, subject to the orchestration skill's worktree and stop-result rules; use start mode `run` unless the user explicitly asks to attach a debugger
 - If several AppHosts are discovered and the target is unclear, ask which one before taking any lifecycle action
 - **Always** `aspire wait <resource>`, **never** manual HTTP polling
+- Use `aspire ps` for running AppHost processes and `aspire describe` for resource
+  state/endpoints. Never generate removed 13.5 forms such as `aspire ps --resources`
+  or `aspire ps --include-hidden`.
 - Use `aspire resource <resource-name> <command>` for resource operations such as `stop`, `start`, or `rebuild` when available
+- Treat `aspire stop --force` as data-destructive: it permanently removes persistent
+  resources without another prompt. Use it only after explicit confirmation for one
+  exact AppHost.
 - Do not stop or restart the whole AppHost just because one resource changed
 - Use `features.defaultWatchEnabled` only for Aspire default watch; do not treat it as per-resource rebuild, restart, or hot reload
 - Prefer a resource's own framework/runtime hot reload, HMR, or watch workflow when it already handles the change
@@ -89,6 +94,11 @@ the bootstrap skills (`deniz-dotnet-aspire:aspire-init` / `deniz-dotnet-aspire:a
 - Use `aspire integration list --format Json` and `aspire integration search <query> --format Json` for read-only integration discovery
 - **Never** install the obsolete Aspire workload
 - **Never** edit `.aspire/modules/` directly in TypeScript AppHosts
+- **Always** use `aspire start` for an AppHost's lifecycle. When diagnosing or repairing
+  a TypeScript AppHost's package-manager toolchain, defer to
+  [`deniz-dotnet-aspire:aspireify`](../aspireify/SKILL.md)
+  and its package-manager rules; do not substitute a raw package-manager launcher for
+  `aspire start`.
 
 ## Routing
 
@@ -98,6 +108,7 @@ the bootstrap skills (`deniz-dotnet-aspire:aspire-init` / `deniz-dotnet-aspire:a
 | Create a new Aspire project from a template (`aspire new`) | → [deniz-dotnet-aspire:aspire-init](../aspire-init/SKILL.md) (in-plugin) |
 | Add Aspire to an existing repo (`aspire init`, drop skeleton) | → [deniz-dotnet-aspire:aspire-init](../aspire-init/SKILL.md) (in-plugin) |
 | Wire AppHost / scaffold resource graph / add integrations after `aspire init` | → [deniz-dotnet-aspire:aspireify](../aspireify/SKILL.md) (in-plugin) |
+| Migrate legacy TypeScript `apphost.ts` (`aspire update --migrate`) | → [deniz-dotnet-aspire:aspire-orchestration](../aspire-orchestration/SKILL.md); hand back to deniz-dotnet-aspire:aspireify only if source authoring remains |
 | Deploy, publish, destroy, pipeline steps | → [deniz-dotnet-aspire:aspire-deployment](../aspire-deployment/SKILL.md) |
 | Logs, traces, metrics, dashboard, browser logs | → [deniz-dotnet-aspire:aspire-monitoring](../aspire-monitoring/SKILL.md) |
 | Diagnose a running app — "something's wrong", "show me what's happening", investigate errors / health / unexpected behavior | → [deniz-dotnet-aspire:aspire-monitoring](../aspire-monitoring/SKILL.md) — start with `aspire describe` for resource state, then `aspire logs` / `aspire otel logs` / `aspire otel traces`; **investigate before editing code** |
@@ -125,26 +136,31 @@ Agentic AppHost wiring after `aspire init` lands the skeleton. Scans the repo, p
 resource graph (Postgres / Redis / Rabbit / etc.), edits the AppHost (C#, file-based C#, or
 TypeScript), wires `Aspire.ServiceDefaults` + OTel, validates with `aspire start`, then
 self-deactivates. Owns current AppHost authoring patterns (`AddNextJsApp`, `AddViteApp`,
-`WithBrowserLogs()`, generated `.aspire/modules/`, unified TS `withEnvironment`,
-endpoint references, and config/secret migration).
+`WithBrowserLogs()`, command arguments, Interaction Service availability, experimental
+`WithTerminal()`, generated `.aspire/modules/`, unified TS `withEnvironment`, endpoint
+references, and config/secret migration).
 
 ### aspire-orchestration
 Lifecycle management: start, stop, wait, resource commands, default watch/HMR guidance, and file-lock recovery.
-Safety guardrails that prevent agent self-harm. Owns `aspire ps` / `aspire describe` /
-`--include-hidden` inspection and CLI upgrades (`aspire update --self`). Does **not** edit
-AppHost code — defers to `deniz-dotnet-aspire:aspireify` for wiring.
+Safety guardrails that prevent agent self-harm. Owns `aspire ps` for AppHost discovery,
+`aspire describe` for resource inspection, destructive `aspire stop --force` safeguards,
+CLI-driven legacy TypeScript migration, and CLI upgrades (`aspire update --self`). It
+hands back to `deniz-dotnet-aspire:aspireify` only when AppHost source authoring remains after migration.
 
 ### aspire-deployment
 Multi-target deployment and tear-down: `aspire deploy`, `aspire publish`, `aspire destroy`,
 `aspire do <step>`. Targets: Azure Container Apps, App Service, AKS, Kubernetes (Helm),
-Docker Compose. Owns current deployment surfaces (Front Door, NSP, AKS hosting, Foundry
-`AddPromptAgent`, JS `PublishAs*`, `--pipeline-log-level`) and 13.4 API naming.
+Docker Compose, AWS, and preview Radius. Owns current deployment surfaces (persistent
+Kubernetes volumes, delegated Azure subnets, cross-scope Azure references, deterministic
+Container Apps naming, Foundry hosted agents, JS `PublishAs*`, and
+`--pipeline-log-level`) and 13.5 API naming.
 
 ### aspire-monitoring
 Observability: `aspire logs`, `aspire otel`, `aspire describe`, `aspire export`,
 `aspire dashboard run`. Routes between local Aspire CLI diagnostics, AKS workload tooling,
 and deployed-Azure platform tools. Surfaces dashboard features (notification center,
-Rebuild command, browser-logs telemetry).
+Rebuild command, terminal sessions, richer filtering, browser-logs telemetry) without
+assuming the removed dashboard AI Assistant or automatic VS Code dashboard launch.
 
 ## Project-Local Skill Override
 
@@ -167,13 +183,19 @@ active.
 |-------------|---------|
 | .NET 10.0 SDK | https://dotnet.microsoft.com/download |
 | Aspire CLI (curl/PowerShell) | `curl -sSL https://aspire.dev/install.sh \| bash` |
+| Aspire CLI (npm) | `npm install -g @microsoft/aspire-cli` |
 | Aspire CLI (NativeAOT global tool, .NET 10) | `dotnet tool install -g Aspire.Cli` |
 
-Either install method works. The `dotnet tool install` path produces a NativeAOT binary
-(instant startup, no JIT warmup) and is recommended when .NET 10 is already present.
+Use the installation method owned by the user's environment. The `dotnet tool install`
+path produces a NativeAOT binary; npm, Nix, Homebrew, WinGet, mise, and the install
+scripts are also supported. `aspire update --self` reports the package-manager-specific
+update command when it cannot update a managed installation in place.
 
 ## References
 
+- [aspire-13-5-breaking-changes.md](references/aspire-13-5-breaking-changes.md) — Aspire
+  13.5.3 target versions, breaking-change scrub, current CLI/AppHost behavior, deployment
+  additions, and patch-level fixes.
 - [aspire-13-3-breaking-changes.md](references/aspire-13-3-breaking-changes.md) — Every 13.3
   breaking change to scrub from agent-generated code, scripts, and CI snippets (rename of
   `--log-level`, dashboard MCP removal, `NameOutput` → `NameOutputReference`,

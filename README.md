@@ -180,6 +180,10 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.3.0 is being prepared with General 0.9.0 and Aspire 0.3.2. The verified recipe
+below remains on the last published Release until the new asset passes publication checks.
+For the current recipe after publication, use the [repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.2.0`, targeting commit `8867fc4`.
 It was built on Linux and verified through manifest-backed tar-mode checks, zero-write Plan, Apply,
 status, and a remote re-download. Verify its repository-recorded SHA-256 before first execution. The
