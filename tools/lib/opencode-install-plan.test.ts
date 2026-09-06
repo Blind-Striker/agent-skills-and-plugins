@@ -8,7 +8,7 @@ import {
   type ModuleManifest,
 } from "./opencode-bundle.ts";
 import { EMPTY_INSTALL_STATE, type InstallState, type ObservedPath } from "./opencode-install-state.ts";
-import { planReconcile, type InstallRequest } from "./opencode-install-plan.ts";
+import { planReconcile, type InstallRequest, type PlanFinding } from "./opencode-install-plan.ts";
 
 interface Case {
   name: string;
@@ -65,7 +65,9 @@ function manifest(
   };
 }
 
-function installed(entries: Record<string, { version?: string; files: Record<string, FileIdentity> }>): InstallState {
+function installed(
+  entries: Record<string, { version?: string; files: Record<string, FileIdentity>; requiredModules?: string[] }>,
+): InstallState {
   const modules = Object.create(null) as InstallState["modules"];
   const files = Object.create(null) as InstallState["files"];
   for (const name of Object.keys(entries).sort((left, right) => left.localeCompare(right))) {
@@ -73,7 +75,7 @@ function installed(entries: Record<string, { version?: string; files: Record<str
     if (!entry) {
       continue;
     }
-    const moduleManifest = manifest(name, entry.files, entry.version ?? "1.0.0");
+    const moduleManifest = manifest(name, entry.files, entry.version ?? "1.0.0", entry.requiredModules ?? []);
     modules[name] = {
       version: moduleManifest.version,
       digest: moduleManifest.digest,
@@ -355,6 +357,181 @@ for (const c of cases) {
     }
     if (c.remainingModules) {
       assert.deepEqual(Object.keys(plan.nextState.modules), c.remainingModules);
+    }
+  });
+}
+
+function findingGraph(findings: PlanFinding[]) {
+  return findings.map((item) => ({
+    code: item.code,
+    module: item.module,
+    requiredModule: item.requiredModule,
+  }));
+}
+
+test("dependency: install cannot create an incomplete Selection", () => {
+  const current = EMPTY_INSTALL_STATE;
+  const manifests = {
+    consumer: manifest("consumer", {}, "1.0.0", ["provider"]),
+    provider: manifest("provider", {}),
+  };
+  const plan = planReconcile(current, manifests, {}, request("install", { modules: ["consumer"] }));
+  assert.deepEqual(findingGraph(plan.findings), [
+    { code: "missing_dependency", module: "consumer", requiredModule: "provider" },
+  ]);
+  assert.deepEqual(plan.operations, []);
+  assert.deepEqual(plan.transfers, []);
+  assert.equal(plan.nextState, current);
+  const repaired = planReconcile(current, manifests, {}, request("install", { modules: ["consumer", "provider"] }));
+  assert.deepEqual(repaired.findings, []);
+  assert.deepEqual(Object.keys(repaired.nextState.modules), ["consumer", "provider"]);
+});
+
+const dependencyCases: {
+  name: string;
+  current: InstallState;
+  manifests: Record<string, ModuleManifest>;
+  request: InstallRequest;
+  missing?: { module: string; requiredModule: string }[];
+  remainingModules?: string[];
+  preservedRequirements?: Record<string, string[]>;
+}[] = [
+  {
+    name: "dependency: transitive install does not add the unselected requirement",
+    current: EMPTY_INSTALL_STATE,
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["b"]),
+      b: manifest("b", {}, "1.0.0", ["c"]),
+      c: manifest("c", {}),
+    },
+    request: request("install", { modules: ["a", "b"] }),
+    missing: [{ module: "b", requiredModule: "c" }],
+  },
+  {
+    name: "dependency: complete cycle install is a valid Selection",
+    current: EMPTY_INSTALL_STATE,
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["b"]),
+      b: manifest("b", {}, "1.0.0", ["a"]),
+    },
+    request: request("install", { modules: ["a", "b"] }),
+    remainingModules: ["a", "b"],
+  },
+  {
+    name: "dependency: partial cycle removal leaves the remaining Module incomplete",
+    current: installed({
+      a: { files: {}, requiredModules: ["b"] },
+      b: { files: {}, requiredModules: ["a"] },
+    }),
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["b"]),
+      b: manifest("b", {}, "1.0.0", ["a"]),
+    },
+    request: request("remove", { modules: ["a"] }),
+    missing: [{ module: "b", requiredModule: "a" }],
+  },
+  {
+    name: "dependency: whole cycle removal yields an empty Selection",
+    current: installed({
+      a: { files: {}, requiredModules: ["b"] },
+      b: { files: {}, requiredModules: ["a"] },
+    }),
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["b"]),
+      b: manifest("b", {}, "1.0.0", ["a"]),
+    },
+    request: request("remove", { modules: ["a", "b"] }),
+    remainingModules: [],
+  },
+  {
+    name: "dependency: persisted requirements survive a newer Package edge",
+    current: installed({
+      a: { files: {}, requiredModules: ["b"] },
+      b: { files: {} },
+    }),
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["c"]),
+      b: manifest("b", {}),
+      c: manifest("c", {}),
+    },
+    request: request("remove", { modules: ["b"] }),
+    missing: [{ module: "a", requiredModule: "b" }],
+  },
+  {
+    name: "dependency: targeted install keeps recorded requirements",
+    current: installed({
+      a: { files: {}, requiredModules: ["b"] },
+      b: { files: {} },
+    }),
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["c"]),
+      b: manifest("b", {}),
+      c: manifest("c", {}),
+      d: manifest("d", {}),
+    },
+    request: request("install", { modules: ["d"] }),
+    remainingModules: ["a", "b", "d"],
+    preservedRequirements: { a: ["b"] },
+  },
+  {
+    name: "dependency: whole update does not auto-select a new requirement",
+    current: installed({
+      a: { files: {}, requiredModules: ["b"] },
+      b: { files: {} },
+    }),
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["c"]),
+      b: manifest("b", {}),
+      c: manifest("c", {}),
+    },
+    request: request("update"),
+    missing: [{ module: "a", requiredModule: "c" }],
+  },
+  {
+    name: "dependency: explicit repair preserves recorded requirements",
+    current: installed({
+      a: { files: {}, requiredModules: ["b"] },
+    }),
+    manifests: {
+      a: manifest("a", {}, "1.0.0", ["b"]),
+      b: manifest("b", {}),
+    },
+    request: request("install", { modules: ["b"] }),
+    remainingModules: ["a", "b"],
+    preservedRequirements: { a: ["b"] },
+  },
+  {
+    name: "dependency: absent source on removal uses stored state",
+    current: installed({
+      gone: { files: {} },
+    }),
+    manifests: {},
+    request: request("remove", { modules: ["gone"] }),
+    remainingModules: [],
+  },
+];
+
+for (const c of dependencyCases) {
+  test(c.name, () => {
+    const plan = planReconcile(c.current, c.manifests, {}, c.request);
+    if (c.missing) {
+      assert.deepEqual(
+        findingGraph(plan.findings),
+        c.missing.map((item) => ({ code: "missing_dependency", ...item })),
+      );
+      assert.deepEqual(plan.operations, []);
+      assert.deepEqual(plan.transfers, []);
+      assert.equal(plan.nextState, c.current);
+    } else {
+      assert.deepEqual(plan.findings, []);
+    }
+    if (c.remainingModules) {
+      assert.deepEqual(Object.keys(plan.nextState.modules), c.remainingModules);
+    }
+    if (c.preservedRequirements) {
+      for (const [name, requiredModules] of Object.entries(c.preservedRequirements)) {
+        assert.deepEqual(plan.nextState.modules[name]?.requiredModules, requiredModules);
+      }
     }
   });
 }

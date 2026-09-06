@@ -216,7 +216,7 @@ function renderRecovery(recovery, destination) {
   }
   return `${lines.join("\n")}\n`;
 }
-function renderStatus(destination, current, manifests, plan, lock, recovery) {
+function renderStatus(destination, current, manifests, plan, lock, recovery, currentDependencies) {
   const lines = ["Status", `Destination: ${destination}`, "", "Selection:"];
   const names = uniqueSorted(Object.keys(current.modules));
   if (names.length === 0) {
@@ -232,13 +232,24 @@ function renderStatus(destination, current, manifests, plan, lock, recovery) {
       lines.push(`  ${name} ${moduleState.version} ${moduleState.digest} ${currency}`);
     }
   }
-  if (plan !== null && plan.findings.length > 0) {
-    appendSection(
-      lines,
-      "Findings:",
-      plan.findings.map((finding) => `  ${formatFinding(finding)}`),
-    );
-  }
+  appendSection(
+    lines,
+    "Selection dependency findings:",
+    currentDependencies.map(
+      ({ module, requiredModule }) => `  missing_dependency ${module} requires selected Module ${requiredModule}`,
+    ),
+  );
+  const proposed = plan?.findings ?? [];
+  appendSection(
+    lines,
+    "Proposed Update dependency findings:",
+    proposed.filter((item) => item.code === "missing_dependency").map((item) => `  ${formatFinding(item)}`),
+  );
+  appendSection(
+    lines,
+    "Findings:",
+    proposed.filter((item) => item.code !== "missing_dependency").map((item) => `  ${formatFinding(item)}`),
+  );
   lines.push("", `Lock: ${lock}`, `Recovery: ${recovery?.kind ?? "none"}`);
   if (recovery?.kind === "blocked") {
     lines.push(`message: ${recovery.message}`);
@@ -351,8 +362,10 @@ function runStatus(destination, loaded, platform) {
       platform,
     });
   }
-  const stdout = renderStatus(destination, current, loaded.manifests, plan, lock, recovery);
-  const blocked = recovery?.kind === "blocked" || (plan !== null && plan.findings.length > 0);
+  const currentDependencies = findMissingModuleRequirements(current.modules);
+  const stdout = renderStatus(destination, current, loaded.manifests, plan, lock, recovery, currentDependencies);
+  const blocked =
+    currentDependencies.length > 0 || recovery?.kind === "blocked" || (plan !== null && plan.findings.length > 0);
   return { exitCode: blocked ? 1 : 0, stdout, stderr: "" };
 }
 function directoryNames(path) {

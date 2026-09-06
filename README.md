@@ -81,9 +81,10 @@ pinned upstream repos + original skills
   frontmatter movement, merge-source drift, and candidate reference changes for human review.
 
 Current limitations are stated rather than hidden: reverse command/agent-to-skill conversion,
-per-harness body overlays, arbitrary-subset Module dependency closure, and runtime model behavior are
-not claimed. See the linked architecture documents and [roadmap](docs/ROADMAP.md) for the exact proof
-boundaries.
+per-harness body overlays, automatic Selection expansion, cross-version item/API compatibility, and
+runtime model behavior are not claimed. Checkout schema-2 planning does check that recorded required
+Modules are present in the Selection. See the linked architecture documents and
+[roadmap](docs/ROADMAP.md) for the exact proof boundaries.
 
 ## Sources and credits
 
@@ -171,10 +172,13 @@ npm run install:opencode -- remove --module deniz-process
 npm run install:opencode -- remove --module deniz-process --yes
 ```
 
-Until dependency-aware Selection planning lands, `--all` is the complete path. A partial Selection
-that uses the current guarded cross-Module handoffs must include General, Akka, and Aspire together.
 Checkout Bundles and the checkout installer require schema 2; they do not read the schema-1 public
-Release Package.
+Release Package. Plan refuses a final Selection that omits a Module another selected Module records
+as required. That check is presence-only: it does not add missing Modules, compare versions, or
+claim item/API compatibility. `status` reports recorded Selection dependency findings separately
+from proposed Update dependency findings and exits nonzero for an incomplete recorded Selection even
+when a proposed Update would repair it. `--all` remains a complete Selection; a named subset is
+accepted only when its recorded requirements are already selected.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing

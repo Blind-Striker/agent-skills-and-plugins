@@ -1,3 +1,4 @@
+import { findMissingModuleRequirements } from "./opencode-bundle.js";
 import { isDistributionMetadataPath, isNativeTreePath } from "./opencode-install-state.js";
 import { ordinalCompare } from "./order.js";
 function compareStrings(left, right) {
@@ -16,6 +17,9 @@ function finding(code, message, extra = {}) {
   }
   if (extra.path !== undefined) {
     result.path = extra.path;
+  }
+  if (extra.requiredModule !== undefined) {
+    result.requiredModule = extra.requiredModule;
   }
   return result;
 }
@@ -40,7 +44,11 @@ function compareFindings(left, right) {
   if (path !== 0) {
     return path;
   }
-  return compareStrings(left.module ?? "", right.module ?? "");
+  const module = compareStrings(left.module ?? "", right.module ?? "");
+  if (module !== 0) {
+    return module;
+  }
+  return compareStrings(left.requiredModule ?? "", right.requiredModule ?? "");
 }
 function compareOperations(left, right) {
   const path = compareStrings(left.path, right.path);
@@ -344,6 +352,16 @@ export function planReconcile(current, manifests, observed, request) {
     }
     planPath(path, old, next, snapshot, request, affected, operations, findings);
   }
+  const nextState = buildNextState(current, manifests, request, selection, affected, final);
+  for (const { module, requiredModule } of findMissingModuleRequirements(nextState.modules)) {
+    findings.push(
+      finding(
+        "missing_dependency",
+        `${module} requires selected Module ${requiredModule}; change the Selection explicitly`,
+        { module, requiredModule },
+      ),
+    );
+  }
   findings.sort(compareFindings);
   operations.sort(compareOperations);
   transfers.sort(compareTransfers);
@@ -366,7 +384,7 @@ export function planReconcile(current, manifests, observed, request) {
     selectionChanges: changes,
     operations,
     transfers,
-    nextState: buildNextState(current, manifests, request, selection, affected, final),
+    nextState,
     findings,
   };
 }

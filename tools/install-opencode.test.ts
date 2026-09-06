@@ -19,7 +19,13 @@ import { gunzipSync } from "node:zlib";
 import { createModuleManifest, digestModulePayload, hashBytes, loadModuleBundles } from "./lib/opencode-bundle.ts";
 import { acquireInstallerLock, applyPlan, inspectRecovery } from "./lib/opencode-install-apply.ts";
 import { planReconcile, type Plan } from "./lib/opencode-install-plan.ts";
-import { loadInstallState, observePath, type InstallState, type ObservedPath } from "./lib/opencode-install-state.ts";
+import {
+  loadInstallState,
+  observePath,
+  serializeInstallState,
+  type InstallState,
+  type ObservedPath,
+} from "./lib/opencode-install-state.ts";
 import {
   isDirectEntryPoint,
   parseInstallArgs,
@@ -372,6 +378,58 @@ test("status reports drift without mutation", async () => {
   assert.match(result.stdout, /Lock:/);
   assert.match(result.stdout, /Recovery:/);
   assert.equal(readFileSync(join(fixture.destination, "skills", "alpha", "SKILL.md"), "utf8"), "drifted\n");
+});
+
+test("dependency: blocked CLI Plan and Apply leave Destination absent", async () => {
+  const fixture = makeCliFixture({ "deniz-provider": { "skills/provider/SKILL.md": "provider\n" } });
+  writeBundle(fixture.io.packageRoot, "deniz-process", { "skills/alpha/SKILL.md": "alpha skill\n" }, "0.2.0", [
+    "deniz-provider",
+  ]);
+  for (const args of [
+    ["install", "--module", "deniz-process"],
+    ["install", "--module", "deniz-process", "--yes"],
+  ]) {
+    const result = await runInstallCli(args, fixture.io);
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stdout, /missing_dependency/);
+    assert.match(result.stdout, /deniz-provider/);
+    assert.equal(existsSync(fixture.destination), false);
+  }
+});
+
+test("dependency: status separates recorded Selection from proposed Update", async () => {
+  const fixture = makeCliFixture({ "deniz-provider": { "skills/provider/SKILL.md": "provider\n" } });
+  assert.equal((await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io)).exitCode, 0);
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  const before = readFileSync(statePath);
+  writeBundle(fixture.io.packageRoot, "deniz-process", { "skills/alpha/SKILL.md": "alpha skill\n" }, "0.3.0", [
+    "deniz-provider",
+  ]);
+  const status = await runInstallCli(["status"], fixture.io);
+  assert.equal(status.exitCode, 1);
+  assert.doesNotMatch(status.stdout, /Selection dependency findings:/);
+  assert.match(status.stdout, /Proposed Update dependency findings:/);
+  assert.ok(readFileSync(statePath).equals(before));
+});
+
+test("dependency: status reports recorded Selection findings when a proposal would repair them", async () => {
+  const fixture = makeCliFixture({ "deniz-provider": { "skills/provider/SKILL.md": "provider\n" } });
+  assert.equal((await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io)).exitCode, 0);
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  writeFileSync(
+    statePath,
+    serializeInstallState(
+      stateWithOwnedCommand("deniz-process", "skills/alpha/SKILL.md", "alpha skill\n", "0.2.0", "100644", [
+        "deniz-provider",
+      ]),
+    ),
+  );
+  const before = readFileSync(statePath);
+  const status = await runInstallCli(["status"], fixture.io);
+  assert.equal(status.exitCode, 1);
+  assert.match(status.stdout, /Selection dependency findings:/);
+  assert.doesNotMatch(status.stdout, /Proposed Update dependency findings:/);
+  assert.ok(readFileSync(statePath).equals(before));
 });
 
 test("OPENCODE_CONFIG_DIR is refused", async () => {

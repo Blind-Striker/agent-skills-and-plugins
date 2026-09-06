@@ -107,15 +107,23 @@ Every mutating request computes a Plan before disk moves:
 Planning compares current Ownership, target Bundle claims, and explicit observations of every
 currently owned or Package-manifest path. It emits deterministic add, replace, mode-change, remove,
 and missing-claim-drop operations plus any ownership transfers and Selection changes. A Local
-modification, State drift, Collision, type/link mismatch, unknown Module, missing observation, or
-unresolved double claim becomes a finding. Any finding clears operations and leaves the next state
-equal to current state ([`planReconcile`](../../tools/lib/opencode-install-plan.ts#L440-L503)).
+modification, State drift, Collision, type/link mismatch, unknown Module, missing observation,
+unresolved double claim, or missing required Module becomes a finding. After constructing the
+proposed next state's Module records, Plan reports a `missing_dependency` finding for each required
+Module absent from that Selection. Affected non-remove Modules take current Package metadata;
+surviving unaffected Modules keep their recorded requirements. The check is presence-only: it does
+not compare versions or item/API compatibility, and it does not automatically add, cascade-remove,
+or range-resolve those names. Any finding clears operations and leaves the next state equal to
+current state ([`planReconcile`](../../tools/lib/opencode-install-plan.ts)).
 
 Without `--yes`, a mutating command prints this Plan without taking the mutation lock or creating the
 Destination. `status` is also read-only; it reports Selection, currency against Package digests,
-findings, lock state, and Recovery. A missing owned path of an affected Module blocks Install or
-Update, but Remove of that Module can drop the already-missing claim. A Local modification blocks
-Remove so neither Selection nor Ownership changes around altered bytes.
+recorded Selection dependency findings, proposed Update dependency findings separately from other
+Plan findings, lock state, and Recovery. A recorded incomplete Selection exits nonzero even when a
+proposed Update would repair it. Status never mutates Install state. A missing owned path of an
+affected Module blocks Install or Update, but Remove of that Module can drop the already-missing
+claim. A Local modification blocks Remove so neither Selection nor Ownership changes around altered
+bytes.
 
 Pending Recovery takes precedence over a requested Plan. A plan-only mutating command prints the
 Recovery action and exits nonzero because no Plan was produced; `--yes` applies only Recovery and
@@ -164,14 +172,17 @@ are in [`inspectRecovery`](../../tools/lib/opencode-install-apply.ts#L1469-L1545
 ## Full estate versus installed Selection
 
 Compilation and `validate` reason over the complete generated estate: every Plugin, Module, formal
-fact, and Bundle is present together. The installer, by contrast, permits an arbitrary explicit
-Selection. Module manifests and Install state carry file identity but no inter-Module dependency
-graph, and the installer does not consume `docs/ledger.json` or close Selection over `depends_on`.
+fact, and Bundle is present together. The installer, by contrast, still takes an explicit Selection
+rather than installing every Package Module. Schema-2 Module manifests and Install state record
+`requiredModules` with file identity. Plan refuses a final Selection that omits a Module another
+selected Module records as required. The installer does not consume `docs/ledger.json` or treat
+compile-time `depends_on` as an install-time expansion source. Presence-checking recorded
+`requiredModules` is not automatic Selection expansion.
 
 Consequently, successful full-estate linking plus successful installation of a subset proves Bundle
-integrity and collision-free composition for that subset; it does **not** prove that every reference
-target used by selected Modules is also selected. The current operational baseline belongs in the
-[roadmap](../ROADMAP.md#known-gaps); the durable symbol-side proof boundary is detailed in
+integrity, collision-free composition, and that every recorded required Module is also selected. It
+does **not** prove cross-version item or API compatibility. Automatic Selection expansion and
+version-range resolution remain out of scope. The durable symbol-side proof boundary is detailed in
 [References and linking](references-and-linking.md).
 
 ## Other current limits
@@ -180,7 +191,8 @@ target used by selected Modules is also selected. The current operational baseli
   JSON configuration mutation path. Existing files and lost ownership state require manual
   resolution.
 - The CLI verifies every Package Bundle before any action, even when the request names only one
-  Module. This broad integrity check does not add dependency closure.
+  Module, and rejects a Package whose required Module names are absent. Plan then refuses an
+  incomplete Selection. Neither step automatically adds Modules.
 - Release hash verification detects changed Package bytes; it cannot make a mutable Release asset
   immutable.
 - Committed tests and the installer experiment establish Plan/Apply behavior, byte equality, and
