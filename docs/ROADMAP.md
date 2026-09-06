@@ -43,9 +43,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    automatically expand an Install request or cascade a Remove request. Keep this one bounded
    feature, roughly three or four implementation commits, with the broader work below explicitly
    excluded. Acceptance must cover direct and transitive requirements, cycles, removal of a
-   still-required Module, mixed installed versions, and safe handling of already-published
-   manifest/Install-state formats without breaking zero-write Plan or Recovery's exact prior-state
-   evidence.
+   still-required Module, mixed installed versions, and explicit rejection of unsupported
+   manifest/Install-state formats. Use a clean format break with no backward-compatibility reader,
+   migration, or metadata-adoption fallback; preserve zero-write Plan and exact prior-state Recovery
+   evidence within the new format. The approved design is in the temporary
+   [iteration-1 spec](superpowers/specs/2026-09-06-module-selection-validation-design.md).
    The complete estate already links, but the installer does not yet close a selected subset over
    cross-Module `depends_on`. Until this lands, selecting all Modules is complete; partial Selections
    must include General, Akka, and Aspire together when those guarded edges are needed.

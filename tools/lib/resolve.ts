@@ -2,6 +2,7 @@ import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { matchesGlob } from "node:path";
 import type { ComponentType, CurationItem, CurationManifest } from "./manifest.ts";
+import type { OwnSkillIdentity } from "./own-skills.ts";
 import type { ComponentInfo } from "./scan.ts";
 import { ordinalCompare } from "./order.ts";
 
@@ -40,6 +41,62 @@ export function resolveItem(
     overlayDir: join(root, "overlays", plugin, outName),
     id: `${plugin}/${outName}`,
   };
+}
+
+/**
+ * Per-Module `requiredModules` projection: every `depends_on` output name resolved to the Module
+ * that ships it. Build-time only — the installer reads the emitted manifest, never this file.
+ * Original skills own their output names, an excluded item owns nothing on either side, and a
+ * target with zero or several owners is an error rather than a guess.
+ */
+export function deriveModuleRequirements(
+  root: string,
+  manifests: CurationManifest[],
+  components: ComponentInfo[],
+  ownSkills: OwnSkillIdentity[],
+): Map<string, string[]> {
+  const owners = new Map<string, Set<string>>();
+  const addOwner = (name: string, module: string): void => {
+    const modules = owners.get(name) ?? new Set<string>();
+    modules.add(module);
+    owners.set(name, modules);
+  };
+  for (const manifest of manifests) {
+    for (const item of manifest.items) {
+      if (!item.exclude) {
+        addOwner(resolveItem(root, manifest.plugin.name, item, components).outName, manifest.plugin.name);
+      }
+    }
+  }
+  for (const own of ownSkills) {
+    addOwner(own.name, own.plugin);
+  }
+
+  const result = new Map<string, string[]>();
+  for (const manifest of [...manifests].sort((a, b) => ordinalCompare(a.plugin.name, b.plugin.name))) {
+    const required = new Set<string>();
+    for (const item of manifest.items) {
+      if (item.exclude) {
+        continue;
+      }
+      for (const target of item.depends_on ?? []) {
+        const candidates = owners.get(target);
+        if (!candidates?.size) {
+          throw new Error(`${manifest.plugin.name}: unknown dependency target ${target}`);
+        }
+        if (candidates.size !== 1) {
+          throw new Error(`${manifest.plugin.name}: ambiguous dependency target ${target}`);
+        }
+        for (const owner of candidates) {
+          if (owner !== manifest.plugin.name) {
+            required.add(owner);
+          }
+        }
+      }
+    }
+    result.set(manifest.plugin.name, [...required].sort(ordinalCompare));
+  }
+  return result;
 }
 
 /** Manifest identities that would overwrite one another before generated-tree checks can see them. */
