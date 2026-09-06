@@ -47,7 +47,7 @@ transformation can reasonably have caused:
 The linker also checks explicit `skills/<name>/...` references in parked commands and bodies against
 the parked file set. A relative path that works from a skill copy but not from a converted command is
 reported as a warning: the symbol is present, but the additional artifact location broke the
-filesystem spelling. These checks live in [`tools/validate.ts`](../../tools/validate.ts#L688-L829).
+filesystem spelling. These checks live in [`tools/validate.ts`](../../tools/validate.ts#L712-L853).
 
 ### Candidates
 
@@ -90,7 +90,7 @@ For each fact, the linker checks the canonical namespaced Plugin body and asks w
 reachable in both emitted address spaces. Claude reachability comes from emitted invocation flags
 and artifact posture; OpenCode reachability comes from the existence of the corresponding skill or
 command. This is a generated-estate link, not a runtime call graph
-([`tools/validate.ts`](../../tools/validate.ts#L570-L674)).
+([`tools/validate.ts`](../../tools/validate.ts#L594-L698)).
 
 Reachability is not propensity. A green link proves that the intended audience has a mechanism to
 reach the target; it cannot prove that a model will select it, follow a pointer, or obey the target's
@@ -110,7 +110,7 @@ Each entry projects the review-relevant state: source, declared invocation and b
 addresses, declared dependencies, emitted artifact kinds, description, own fact edges in each
 harness spelling, emitted Claude boolean invocation flags, an item-level OpenCode dropped-key list,
 and parked files. OpenCode edges are respelled from the known namespaced facts rather than
-rediscovered from bare text ([`tools/lib/ledger.ts`](../../tools/lib/ledger.ts#L52-L139)).
+rediscovered from bare text ([`tools/lib/ledger.ts`](../../tools/lib/ledger.ts#L103-L105)).
 
 The ledger is deterministic but intentionally incomplete. It does not serialize complete emitted
 files, path-tier findings, candidates, overlay stamp filenames, or Module install dependencies.

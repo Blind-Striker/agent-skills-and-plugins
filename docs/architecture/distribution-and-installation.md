@@ -39,7 +39,7 @@ source-specific notice and exact upstream license copies. The Package excludes T
 sources, upstream worktrees, Plugin output, overlays, experiments, and other documentation. Focused
 package tests require the packed installer, licenses and notices, and every Bundle file and manifest
 to match the committed emit byte-for-byte
-([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L864-L920)). Consumers do
+([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L889-L950)). Consumers do
 not compile the installer.
 
 Remote delivery uses that exact tarball as a GitHub Release asset, not an npm publication or Git
@@ -64,7 +64,7 @@ identity is the enforced filesystem comparison.
 The resulting Native tree is therefore a composition of already transformed Bundle Native payloads,
 not a copy of Bundle distribution metadata. The
 packed-bin integration test compares its paths, bytes, Install state, and status output with the
-checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L939-L1011)).
+checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L968-L1041)).
 
 ## Destination, Selection, and Ownership
 
@@ -72,7 +72,7 @@ The installer resolves exactly one global Destination: `$XDG_CONFIG_HOME/opencod
 home is set, otherwise `$HOME/.config/opencode`. A non-empty `OPENCODE_CONFIG_DIR` is refused, and
 there is no project-local target. OpenCode may discover artifacts through other locations; that
 harness capability does not make those locations supported installer Destinations
-([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L485-L497)).
+([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L495-L507)).
 
 Install state lives at `<Destination>/.deniz-skills/install.json`. It persists Selection and one
 Ownership claim per managed Native-tree path, including the responsible Module, hash, and mode.
@@ -99,7 +99,7 @@ currently owned or Package-manifest path. It emits deterministic add, replace, m
 and missing-claim-drop operations plus any ownership transfers and Selection changes. A Local
 modification, State drift, Collision, type/link mismatch, unknown Module, missing observation, or
 unresolved double claim becomes a finding. Any finding clears operations and leaves the next state
-equal to current state ([`planReconcile`](../../tools/lib/opencode-install-plan.ts#L428-L491)).
+equal to current state ([`planReconcile`](../../tools/lib/opencode-install-plan.ts#L440-L503)).
 
 Without `--yes`, a mutating command prints this Plan without taking the mutation lock or creating the
 Destination. `status` is also read-only; it reports Selection, currency against Package digests,

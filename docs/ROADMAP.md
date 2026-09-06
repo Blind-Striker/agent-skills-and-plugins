@@ -36,15 +36,28 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Add dependency-aware Module Selection planning before advertising arbitrary subsets as
-   dependency-safe.** The complete estate links, but the installer does not close a selected subset
-   over cross-Module `depends_on`. Until then, selecting all Modules is complete; partial Selections
+1. **Iteration 1: dependency-aware Module Selection validation.** Derive required-Module metadata
+   from existing declared `depends_on` edges at build time, carry it with the Bundles and installed
+   Module identities, and check the final Selection for Install, Update, and Remove. An incomplete
+   Selection must produce a blocking Plan finding that names the missing requirements; do not
+   automatically expand an Install request or cascade a Remove request. Keep this one bounded
+   feature, roughly three or four implementation commits, with the broader work below explicitly
+   excluded. Acceptance must cover direct and transitive requirements, cycles, removal of a
+   still-required Module, mixed installed versions, and safe handling of already-published
+   manifest/Install-state formats without breaking zero-write Plan or Recovery's exact prior-state
+   evidence.
+   The complete estate already links, but the installer does not yet close a selected subset over
+   cross-Module `depends_on`. Until this lands, selecting all Modules is complete; partial Selections
    must include General, Akka, and Aspire together when those guarded edges are needed.
-2. **Add an original-skill declaration only when the current limit becomes material.** The trigger is
-   another original skill, a manual original posture, or enough load-bearing outgoing edges that
-   review-only protection is no longer sufficient. Original skills can be guarded targets, but their
-   invocation and outgoing model edges have no manifest declaration. A future surface can be keyed by
-   the existing top-level skill directory:
+2. **Iteration 2: dependency automation and original-skill declarations.** After the validation-only
+   feature, address automatic dependency installation, cascade remove, version-range resolution, and
+   the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
+   the first feature. Selection/Ownership semantics, user approval for automatic changes, and version
+   constraint/conflict policy must be designed in that iteration rather than assumed by the first.
+   For original skills, the pressure points are additional original skills, manual original posture,
+   and load-bearing outgoing edges that review-only protection cannot guard. Original skills can
+   already be guarded targets, but their invocation and outgoing model edges have no manifest
+   declaration. The planned surface can be keyed by the existing top-level skill directory:
 
    ```yaml
    original_skills:

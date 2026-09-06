@@ -71,9 +71,9 @@ Identity preflight rejects duplicate `plugin.name` values, duplicate kind/name i
 manifest, and cross-Module OpenCode destination collisions before generated output is deleted. The
 checks include OpenCode destinations claimed by original skills
 ([`collectIdentityProblems`](../../tools/lib/resolve.ts#L45-L118), pre-delete call in
-[`buildAll`](../../tools/build.ts#L53-L64)). Validation separately reports when an original skill
+[`buildAll`](../../tools/build.ts#L63-L76)). Validation separately reports when an original skill
 would be copied last and silently overwrite a curated skill of the same name in emitted output
-([`tools/validate.ts`](../../tools/validate.ts#L213-L221)).
+([`tools/validate.ts`](../../tools/validate.ts#L240-L245)).
 
 The compiler assembles a body in this order:
 
@@ -94,8 +94,8 @@ body assembly, the build copies the repository `LICENSE`, writes a source-specif
 distribution files with the rest of the final Bundle.
 
 The fail-before-delete and emit order are explicit in
-[`tools/build.ts`](../../tools/build.ts#L37-L97), with per-item assembly in
-[`emitItem`](../../tools/build.ts#L327-L407). Overlay hashes guard every upstream-backed file the
+[`tools/build.ts`](../../tools/build.ts#L44-L115), with per-item assembly in
+[`emitItem`](../../tools/build.ts#L349-L430). Overlay hashes guard every upstream-backed file the
 owned body uses, including declared merge inputs; additions with no upstream counterpart are not
 pretended to have an upstream stamp. This is review ownership, not a content dependency lock.
 
@@ -110,7 +110,7 @@ The two emitters make target decisions independently. The implementation reuses 
 rewrite Plugin staging tree as the common assembled input for OpenCode, but it emits OpenCode before
 Claude localization and then filters and rewrites each tree separately. Final Claude output is not
 mirrored into OpenCode. See the ordering comment and calls in
-[`buildAll`](../../tools/build.ts#L75-L96).
+[`buildAll`](../../tools/build.ts#L101-L113).
 
 ### Claude Code
 
@@ -128,7 +128,7 @@ its output file identity. This keeps generated identity, localization, and revie
 OpenCode skills keep only its recognized skill frontmatter. Commands keep their description; agents
 keep their description and receive `mode: subagent`. Every dropped frontmatter key is reported by
 the build rather than silently carried into a target that ignores it
-([`emitOpenCode`](../../tools/build.ts#L541-L583)).
+([`emitOpenCode`](../../tools/build.ts#L566-L605)).
 
 For items whose resolved shape is a skill, invocation selects OpenCode artifacts:
 
@@ -142,8 +142,8 @@ the directory has no `SKILL.md` and is not a discoverable skill. Its command is 
 fallback, then reads the parked body and forwards `$ARGUMENTS`. It does not name or support a
 project-local `.opencode` path. If no bundled file survives besides `SKILL.md`, no park is emitted
 and the command contains the body directly. `both` likewise keeps the command body inline rather
-than creating `BODY.md` ([`emitOpenCodeSkill`](../../tools/build.ts#L463-L539), focused assertion in
-[`tools/build.test.ts`](../../tools/build.test.ts#L258-L300)).
+than creating `BODY.md` ([`emitOpenCodeSkill`](../../tools/build.ts#L496-L561), focused assertion in
+[`tools/build.test.ts`](../../tools/build.test.ts#L349-L354)).
 
 ## Finalization and handoff
 
@@ -152,7 +152,7 @@ Module manifests are then written over final OpenCode bytes, and the ledger is w
 resolved output. The separate reference contract is
 [References and linking](references-and-linking.md).
 
-The [`npm run build` script](../../package.json#L17) subsequently compiles the installer runtime
+The [`npm run build` script](../../package.json#L32) subsequently compiles the installer runtime
 to committed `dist/` JavaScript using
 [`tsconfig.installer.json`](../../tsconfig.installer.json#L4-L18), then formats only that emitted
 `dist/` JavaScript. Consumers never run the curation compiler or compile installer TypeScript.
@@ -175,10 +175,10 @@ to committed `dist/` JavaScript using
   [`stampFiles`](../../tools/lib/overlay.ts#L155-L164)).
 - Patch application cannot touch a path at or beyond a symlink: `git apply` rejects those paths while
   emitted copies skip symlinks ([`gitApply`](../../tools/lib/overlay.ts#L100-L149),
-  [`skipSymlinks`](../../tools/build.ts#L313-L323)).
+  [`skipSymlinks`](../../tools/build.ts#L338-L347)).
 - Manifest `frontmatter:` overrides have no upstream-staleness guard. They merge into the emitted
   document after body assembly, so an upstream rewrite does not make an old override drift
-  ([`emitItem`](../../tools/build.ts#L371-L383)). `npm run sync` reports an override whose item's
+  ([`emitItem`](../../tools/build.ts#L395-L405)). `npm run sync` reports an override whose item's
   `SKILL.md` moved, which is a prompt to reread the body — not a stamp, and nothing stops the build.
 - Ledger projection semantics and limits are owned by
   [References and linking](references-and-linking.md#ledger-semantics).
