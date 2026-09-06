@@ -1,6 +1,6 @@
 # Engineering quality gates
 
-Date: 2026-08-25
+Date: 2026-09-06
 
 This document owns completion evidence: which repository commands apply, what CI proves, what still
 requires human review, and which words those results authorize. Script implementations remain
@@ -65,10 +65,11 @@ harness-invocation subsystem selftest. Secret scanning lowers risk; it does not 
 class exists outside its rules.
 
 The manual [Release Package workflow](../../.github/workflows/release-package.yml) defaults to
-build-only and keeps its build job at `contents: read`. An explicitly requested publish runs in a
-separate `contents: write` job. The workflow can package an older source commit while using the
-current verifier, which is required for a corrective asset rebuild whose Release target remains the
-older commit.
+build-only (`publish: false`, `replace_existing: false`) and keeps its build job at `contents: read`.
+An explicitly requested publish runs in a separate `contents: write` job. `source_ref` defaults to
+`master`; evidence runs must pass an exact SHA explicitly. A selected source must use a format
+supported by that workflow revision's verifier. Historical schema-1 evidence is reproduced by
+matching the historical workflow revision, not by a runtime compatibility shim.
 
 ## Human-only generation proof
 

@@ -131,7 +131,7 @@ export function verifyPackageEntries(entries: PackageTarEntry[]): string[] {
       findings.push(`${manifestPath}: Module name does not match its path`);
     }
     if (manifest.digest !== digestModulePayload(manifest.files, manifest.requiredModules)) {
-      findings.push(`${manifestPath}: Module digest does not match its file map`);
+      findings.push(`${manifestPath}: Module digest does not match its required Modules and files`);
     }
     for (const [relativePath, identity] of Object.entries(manifest.files)) {
       const path = `opencode/${moduleName}/${relativePath}`;

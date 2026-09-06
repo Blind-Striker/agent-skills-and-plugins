@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-08-24
+Date: 2026-09-06
 
 ## Responsibility
 
@@ -47,7 +47,8 @@ transformation can reasonably have caused:
 The linker also checks explicit `skills/<name>/...` references in parked commands and bodies against
 the parked file set. A relative path that works from a skill copy but not from a converted command is
 reported as a warning: the symbol is present, but the additional artifact location broke the
-filesystem spelling. These checks live in [`tools/validate.ts`](../../tools/validate.ts#L712-L853).
+filesystem spelling. These checks live in [`tools/validate.ts`](../../tools/validate.ts#L754-L781)
+and [`tools/validate.ts`](../../tools/validate.ts#L783-L895).
 
 ### Candidates
 
@@ -90,7 +91,7 @@ For each fact, the linker checks the canonical namespaced Plugin body and asks w
 reachable in both emitted address spaces. Claude reachability comes from emitted invocation flags
 and artifact posture; OpenCode reachability comes from the existence of the corresponding skill or
 command. This is a generated-estate link, not a runtime call graph
-([`tools/validate.ts`](../../tools/validate.ts#L594-L698)).
+([`tools/validate.ts`](../../tools/validate.ts#L636-L740)).
 
 Reachability is not propensity. A green link proves that the intended audience has a mechanism to
 reach the target; it cannot prove that a model will select it, follow a pointer, or obey the target's
@@ -123,7 +124,10 @@ by [Distribution and installation](distribution-and-installation.md).
 ## Proof boundary and current limits
 
 - `validate` links the complete generated Plugin/Module estate. An installer Selection is a later,
-  independent boundary; a full-estate proof does not establish dependency closure for every subset.
+  independent boundary. Full-estate linking does not prove that every subset is a valid Selection or
+  that selected Bundles are item/API compatible. The installer separately presence-checks recorded
+  `requiredModules` against the Selection a request would produce; that is not automatic expansion
+  and is owned by [Distribution and installation](distribution-and-installation.md).
 - Same output names in different artifact kinds are legal, but the current rewrite and linker target
   maps use bare output name rather than kind-qualified identity. A same-name cross-kind case can
   overwrite target state or lose the intended kind distinction. This is an implementation limit,
@@ -142,7 +146,7 @@ by [Distribution and installation](distribution-and-installation.md).
   `<plugin>:<directory>` fact, localize it for both harnesses, and declare the output name in
   `depends_on`. The derived-edge source scan still walks manifest items only, so references
   originating in an original skill are not scanned or declared
-  ([`validateRepo`](../../tools/validate.ts#L628-L698)).
+  ([`validateRepo`](../../tools/validate.ts#L670-L740)).
 - Relative-path checks are attribution-aware, not a general Markdown link checker. A silent path may
   still be wrong upstream; a warning on a converted command may still require a body or emitter
   decision.

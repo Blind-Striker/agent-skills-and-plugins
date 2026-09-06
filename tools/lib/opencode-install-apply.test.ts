@@ -154,6 +154,40 @@ function makeInstallFixture(): {
   };
 }
 
+function makeMetadataFixture() {
+  const fixture = makeInstallFixture();
+  const processBundle = fixture.bundles.get("deniz-process");
+  assert.ok(processBundle);
+  writeFileSync(join(processBundle.root, "commands", "alpha.md"), fixture.oldBytes);
+  const providerRoot = join(processBundle.root, "..", "deniz-provider");
+  mkdirSync(providerRoot, { recursive: true });
+  const provider = createModuleManifest(providerRoot, "deniz-provider", "0.1.0", () => "100644", []);
+  fixture.oldState.modules["deniz-provider"] = {
+    version: provider.version,
+    digest: provider.digest,
+    requiredModules: [],
+  };
+  writeFileSync(join(fixture.destination, ".deniz-skills", "install.json"), serializeInstallState(fixture.oldState));
+  const consumer = createModuleManifest(processBundle.root, "deniz-process", "0.1.0", () => "100644", [
+    "deniz-provider",
+  ]);
+  const bundles = new Map<string, ModuleBundle>([
+    ["deniz-process", { root: processBundle.root, manifest: consumer }],
+    ["deniz-provider", { root: providerRoot, manifest: provider }],
+  ]);
+  const plan = requireFindingFree(
+    planReconcile(
+      fixture.oldState,
+      { "deniz-process": consumer, "deniz-provider": provider },
+      observeOwnedPaths(fixture.destination, fixture.oldState, consumer),
+      { kind: "update", modules: [], all: false, platform: "posix" },
+    ),
+  );
+  assert.deepEqual(plan.operations, []);
+  assert.notEqual(stateDigest(plan.currentState), stateDigest(plan.nextState));
+  return { ...fixture, bundles, plan };
+}
+
 function makeRemoveFixture(): {
   destination: string;
   bundles: Map<string, ModuleBundle>;
@@ -478,6 +512,130 @@ test("successful apply replaces bytes, commits next state, and leaves no transac
   assert.equal(readFileSync(fixture.target, "utf8"), "new\n");
   assertSameState(fixture.destination, fixture.plan.nextState);
   assert.equal(inspectRecovery(fixture.destination), null);
+});
+
+test("requirements: metadata-only Apply persists next state and repeats as no-op", () => {
+  const fixture = makeMetadataFixture();
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  const lock = acquireInstallerLock(fixture.destination);
+  try {
+    applyPlan(lock, fixture.destination, fixture.plan, fixture.bundles);
+    assert.equal(readFileSync(statePath, "utf8"), serializeInstallState(fixture.plan.nextState));
+    assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+    assert.equal(inspectRecovery(fixture.destination), null);
+    applyPlan(lock, fixture.destination, fixture.plan, fixture.bundles);
+    assert.equal(readFileSync(statePath, "utf8"), serializeInstallState(fixture.plan.nextState));
+    assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+    assert.equal(inspectRecovery(fixture.destination), null);
+  } finally {
+    lock.release();
+  }
+});
+
+for (const point of ["state-aside", "state-commit"] as const) {
+  test(`requirements: metadata-only Recovery after ${point}`, () => {
+    const fixture = makeMetadataFixture();
+    const lock = acquireInstallerLock(fixture.destination);
+    try {
+      assert.throws(
+        () =>
+          applyPlan(lock, fixture.destination, fixture.plan, fixture.bundles, {
+            forceWindowsStateReplace: true,
+            crashAfterSyscall: point,
+          }),
+        /injected crash/,
+      );
+    } finally {
+      lock.release();
+    }
+    const recovery = inspectRecovery(fixture.destination);
+    assert.ok(recovery);
+    assert.notEqual(recovery.kind, "blocked");
+    assert.equal(recovery.kind, point === "state-aside" ? "rollback" : "finalize");
+    const recoveryLock = acquireInstallerLock(fixture.destination, { recover: true });
+    try {
+      applyRecovery(recoveryLock, fixture.destination, recovery);
+    } finally {
+      recoveryLock.release();
+    }
+    const expected = point === "state-aside" ? fixture.oldState : fixture.plan.nextState;
+    assert.equal(
+      readFileSync(join(fixture.destination, ".deniz-skills", "install.json"), "utf8"),
+      serializeInstallState(expected),
+    );
+    assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+    assert.equal(inspectRecovery(fixture.destination), null);
+  });
+}
+
+test("requirements: metadata-only Recovery rejects tampered requirement evidence", () => {
+  const fixture = makeMetadataFixture();
+  const lock = acquireInstallerLock(fixture.destination);
+  try {
+    assert.throws(
+      () =>
+        applyPlan(lock, fixture.destination, fixture.plan, fixture.bundles, {
+          forceWindowsStateReplace: true,
+          crashAfterSyscall: "state-commit",
+        }),
+      /injected crash/,
+    );
+  } finally {
+    lock.release();
+  }
+  const recovery = inspectRecovery(fixture.destination);
+  assert.ok(recovery);
+  assert.notEqual(recovery.kind, "blocked");
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  const installedBefore = readFileSync(statePath);
+  const evidencePath = join(recovery.transactionDir, "new-state.json");
+  const altered = JSON.parse(readFileSync(evidencePath, "utf8")) as InstallState;
+  const recorded = altered.modules["deniz-process"];
+  assert.ok(recorded);
+  recorded.requiredModules = [];
+  writeFileSync(evidencePath, serializeInstallState(altered));
+  const blocked = inspectRecovery(fixture.destination);
+  assert.ok(blocked);
+  assert.equal(blocked.kind, "blocked");
+  assert.match(blocked.kind === "blocked" ? blocked.message : "", /digest/);
+  assert.ok(readFileSync(statePath).equals(installedBefore));
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
+});
+
+test("requirements: metadata-only Recovery rejects schema-1 state evidence", () => {
+  const fixture = makeMetadataFixture();
+  const oldFormat = {
+    schemaVersion: 1,
+    modules: Object.fromEntries(
+      Object.entries(fixture.oldState.modules).map(([name, value]) => [
+        name,
+        { version: value.version, digest: value.digest },
+      ]),
+    ),
+    files: fixture.oldState.files,
+  };
+  const oldBytes = `${JSON.stringify(oldFormat, null, 2)}\n`;
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  writeFileSync(statePath, oldBytes);
+  writeLeftoverTransaction(
+    fixture.destination,
+    {
+      schemaVersion: 1,
+      transactionId: "unsupported-state",
+      phase: "prepared",
+      oldStateDigest: hashBytes(oldBytes),
+      newStateDigest: stateDigest(fixture.plan.nextState),
+      operations: [],
+      applied: [],
+    },
+    { oldStateBytes: oldBytes, newStateBytes: serializeInstallState(fixture.plan.nextState) },
+  );
+  const recovery = inspectRecovery(fixture.destination);
+  assert.ok(recovery);
+  assert.equal(recovery.kind, "blocked");
+  assert.match(recovery.kind === "blocked" ? recovery.message : "", /schemaVersion/);
+  assert.equal(readFileSync(statePath, "utf8"), oldBytes);
+  assert.equal(readFileSync(fixture.target, "utf8"), fixture.oldBytes);
 });
 
 test("live lock owner blocks a second mutating acquire", () => {

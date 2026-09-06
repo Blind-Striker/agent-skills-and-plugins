@@ -432,6 +432,42 @@ test("dependency: status reports recorded Selection findings when a proposal wou
   assert.ok(readFileSync(statePath).equals(before));
 });
 
+test("dependency: mutation checks Selection only after acquiring its lock", async () => {
+  const fixture = makeCliFixture({ "deniz-provider": { "skills/provider/SKILL.md": "provider\n" } });
+  writeBundle(fixture.io.packageRoot, "deniz-process", { "skills/alpha/SKILL.md": "alpha skill\n" }, "0.2.0", [
+    "deniz-provider",
+  ]);
+  assert.equal((await runInstallCli(["install", "--all", "--yes"], fixture.io)).exitCode, 0);
+  const lock = acquireInstallerLock(fixture.destination);
+  try {
+    const result = await runInstallCli(["remove", "--module", "deniz-provider", "--yes"], fixture.io);
+    assert.equal(result.exitCode, 1);
+    assert.match(result.stderr, /Active installer lock/);
+    assert.doesNotMatch(result.stdout, /missing_dependency/);
+  } finally {
+    lock.release();
+  }
+  const result = await runInstallCli(["remove", "--module", "deniz-provider", "--yes"], fixture.io);
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stdout, /missing_dependency/);
+});
+
+test("dependency: Apply does not reuse a previously valid printed Plan", async () => {
+  const fixture = makeCliFixture({ "deniz-provider": { "skills/provider/SKILL.md": "provider\n" } });
+  assert.equal((await runInstallCli(["install", "--all", "--yes"], fixture.io)).exitCode, 0);
+  assert.equal((await runInstallCli(["remove", "--module", "deniz-provider"], fixture.io)).exitCode, 0);
+  writeBundle(fixture.io.packageRoot, "deniz-process", { "skills/alpha/SKILL.md": "alpha skill\n" }, "0.3.0", [
+    "deniz-provider",
+  ]);
+  assert.equal((await runInstallCli(["update", "--yes"], fixture.io)).exitCode, 0);
+  const statePath = join(fixture.destination, ".deniz-skills", "install.json");
+  const before = readFileSync(statePath);
+  const result = await runInstallCli(["remove", "--module", "deniz-provider", "--yes"], fixture.io);
+  assert.equal(result.exitCode, 1);
+  assert.match(result.stdout, /missing_dependency/);
+  assert.ok(readFileSync(statePath).equals(before));
+});
+
 test("OPENCODE_CONFIG_DIR is refused", async () => {
   const fixture = makeCliFixture();
   const result = await runInstallCli(["status"], {

@@ -1,6 +1,6 @@
 # Distribution and installation
 
-Date: 2026-08-25
+Date: 2026-09-06
 
 ## Responsibility
 
@@ -39,7 +39,7 @@ Bundle verification rejects missing, extra, tampered, or linked files and checks
 on POSIX. Repository validation also runs the case-insensitive alias checks, requires exactly the
 Module roots named by curation, and checks each manifest's Module name and version against its
 manifest source. These are integrity checks over final emitted bytes, not another transformation
-pass ([`verifyModuleManifest`](../../tools/lib/opencode-bundle.ts#L278-L370)).
+pass ([`verifyModuleManifest`](../../tools/lib/opencode-bundle.ts#L354-L446)).
 
 The npm-format Package contains package metadata, README, the repository license and notices,
 committed `dist/` installer JavaScript, and every generated Bundle. Each Bundle also carries its
@@ -47,7 +47,7 @@ source-specific notice and exact upstream license copies. The Package excludes T
 sources, upstream worktrees, Plugin output, overlays, experiments, and other documentation. Focused
 package tests require the packed installer, licenses and notices, and every Bundle file and manifest
 to match the committed emit byte-for-byte
-([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L889-L950)). Consumers do
+([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L996-L1057)). Consumers do
 not compile the installer.
 
 Remote delivery uses that exact tarball as a GitHub Release asset, not an npm publication or Git
@@ -72,7 +72,7 @@ identity is the enforced filesystem comparison.
 The resulting Native tree is therefore a composition of already transformed Bundle Native payloads,
 not a copy of Bundle distribution metadata. The
 packed-bin integration test compares its paths, bytes, Install state, and status output with the
-checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L968-L1041)).
+checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L1075-L1148)).
 
 ## Destination, Selection, and Ownership
 
@@ -80,7 +80,7 @@ The installer resolves exactly one global Destination: `$XDG_CONFIG_HOME/opencod
 home is set, otherwise `$HOME/.config/opencode`. A non-empty `OPENCODE_CONFIG_DIR` is refused, and
 there is no project-local target. OpenCode may discover artifacts through other locations; that
 harness capability does not make those locations supported installer Destinations
-([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L495-L507)).
+([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L504-L516)).
 
 Install state lives at `<Destination>/.deniz-skills/install.json`. Checkout state uses
 `schemaVersion: 2`. It persists Selection and one Ownership claim per managed Native-tree path,
@@ -113,7 +113,9 @@ proposed next state's Module records, Plan reports a `missing_dependency` findin
 Module absent from that Selection. Affected non-remove Modules take current Package metadata;
 surviving unaffected Modules keep their recorded requirements. The check is presence-only: it does
 not compare versions or item/API compatibility, and it does not automatically add, cascade-remove,
-or range-resolve those names. Any finding clears operations and leaves the next state equal to
+or range-resolve those names. Named-subset requirements are judged against the Selection the request
+would produce, not against Modules that had to be selected before the request. Any finding clears
+operations and leaves the next state equal to
 current state ([`planReconcile`](../../tools/lib/opencode-install-plan.ts)).
 
 Without `--yes`, a mutating command prints this Plan without taking the mutation lock or creating the
@@ -146,6 +148,9 @@ For a finding-free Plan, Apply:
 6. commits the new Install state only after file placement, verifies the committed result, prunes
    only now-empty managed subdirectories, and removes transaction data.
 
+A finding-free Plan with no file operations still commits next Install state when only recorded
+requirements or Module identity changed. Apply does not invent a dummy file mutation for metadata.
+
 Unknown files and non-empty directories survive pruning, and the top-level Native roots are retained.
 Apply refuses a Plan with findings, a stale or unheld lock, cross-filesystem rename topology,
 ambiguous path evidence, or a pending transaction
@@ -162,7 +167,8 @@ journal and persisted evidence before classifying Recovery:
 - when new Install state is already committed, finalize verifies the committed files, completes safe
   pruning, and removes transaction debris;
 - ambiguous, malformed, linked, missing, or digest-inconsistent evidence blocks Recovery without
-  guessing.
+  guessing. Schema-1 or otherwise unsupported Install-state evidence is blocked even when the raw
+  bytes hash to the journal digest; the journal envelope itself remains schema 1.
 
 Recovery restores the prior state or finalizes cleanup of an already committed state. It does not
 resume or finish the original Install, Update, or Remove request. The classification and execution

@@ -5,7 +5,7 @@ on:
       source_ref:
         description: Commit or tag whose Package bytes should be built
         required: true
-        default: 127159518c956fc39406809abce11bab1afb8b28
+        default: master
         type: string
       release_tag:
         description: Existing GitHub Release tag to publish to

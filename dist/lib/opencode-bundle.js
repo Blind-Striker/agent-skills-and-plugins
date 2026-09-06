@@ -154,7 +154,7 @@ function validateManifest(value) {
   }
   const files = value.files;
   if (digestModulePayload(files, value.requiredModules) !== value.digest) {
-    return "digest does not match files";
+    return "digest does not match required Modules and files";
   }
   return null;
 }

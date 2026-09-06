@@ -118,6 +118,7 @@ Committing a Plan to the Destination and Install state.
 _Avoid_: install (as a synonym), sync
 
 **Recovery**:
-A Plan that restores the prior Destination and Install-state boundary before commit, or finalizes
-cleanup after new Install state is committed. It never resumes or finishes the original request.
+A Plan that restores transaction-managed Destination changes and the prior Install-state boundary
+before commit, or finalizes cleanup after new Install state is committed. Unrelated Destination
+files are preserved. It never resumes or finishes the original request.
 _Avoid_: resume, retry

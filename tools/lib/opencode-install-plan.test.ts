@@ -387,6 +387,33 @@ test("dependency: install cannot create an incomplete Selection", () => {
   assert.deepEqual(Object.keys(repaired.nextState.modules), ["consumer", "provider"]);
 });
 
+test("dependency: multiple missing requirements from one Module are ordinal", () => {
+  const current = EMPTY_INSTALL_STATE;
+  const manifests = {
+    consumer: manifest("consumer", {}, "1.0.0", ["z", "a"]),
+    a: manifest("a", {}),
+    z: manifest("z", {}),
+  };
+  const plan = planReconcile(current, manifests, {}, request("install", { modules: ["consumer"] }));
+  assert.deepEqual(plan.findings, [
+    {
+      code: "missing_dependency",
+      module: "consumer",
+      requiredModule: "a",
+      message: "consumer requires selected Module a; change the Selection explicitly",
+    },
+    {
+      code: "missing_dependency",
+      module: "consumer",
+      requiredModule: "z",
+      message: "consumer requires selected Module z; change the Selection explicitly",
+    },
+  ]);
+  assert.deepEqual(plan.operations, []);
+  assert.deepEqual(plan.transfers, []);
+  assert.equal(plan.nextState, current);
+});
+
 const dependencyCases: {
   name: string;
   current: InstallState;

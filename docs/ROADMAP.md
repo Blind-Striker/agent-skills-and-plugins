@@ -11,12 +11,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 ## Current State
 
 - The four current curation manifests emit matching Claude Code Plugins and OpenCode Module Bundles.
-  Their item posture, source pins, transformations, exclusions, and reasons live in
+  Checkout Module versions are Process 0.5.1, General 0.9.1, Akka 0.3.1, and Aspire 0.3.3. Their item
+  posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
-- `dotnet/skills` is reviewed through `d68dd708`. General 0.9.0 carries the current test-execution,
+- `dotnet/skills` is reviewed through `d68dd708`. General 0.9.1 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
-- Aspire 0.3.2 follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
+- Aspire 0.3.3 follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
   0.0.2 and guidance targets Aspire 13.5.3. This is a reviewed main-commit choice, not a claim that
   upstream published a 0.0.2 tag or Release. The eight-skill set and declared dependency closure are
   unchanged; the six official workflow patches continue to own only package-local routing.
@@ -27,6 +28,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and the compiled npm-format Package attached to GitHub Release `installer-v0.3.0`. The Linux-built
   asset includes the General and Aspire updates and passed the manual release workflow's source
   gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote re-download checks.
+  The checkout installer is schema 2; that public Package remains a schema-1 historical source
+  snapshot. There is no new Release for this feature.
   Its exact identity and proof boundary are in the
   [release record](../experiments/harness-invocation/records/2026-09-06-opencode-installer-v0.3.0.md).
   The older Releases remain historical and their assets were not replaced.
@@ -36,21 +39,16 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Iteration 1: dependency-aware Module Selection validation.** Derive required-Module metadata
-   from existing declared `depends_on` edges at build time, carry it with the Bundles and installed
-   Module identities, and check the final Selection for Install, Update, and Remove. An incomplete
-   Selection must produce a blocking Plan finding that names the missing requirements; do not
-   automatically expand an Install request or cascade a Remove request. Keep this one bounded
-   feature, roughly three or four implementation commits, with the broader work below explicitly
-   excluded. Acceptance must cover direct and transitive requirements, cycles, removal of a
-   still-required Module, mixed installed versions, and explicit rejection of unsupported
-   manifest/Install-state formats. Use a clean format break with no backward-compatibility reader,
-   migration, or metadata-adoption fallback; preserve zero-write Plan and exact prior-state Recovery
-   evidence within the new format. The approved design is in the temporary
-   [iteration-1 spec](superpowers/specs/2026-09-06-module-selection-validation-design.md).
-   The complete estate already links, but the installer does not yet close a selected subset over
-   cross-Module `depends_on`. Until this lands, selecting all Modules is complete; partial Selections
-   must include General, Akka, and Aspire together when those guarded edges are needed.
+1. **Iteration 1 closeout: remaining verification.** Dependency-aware Module Selection is implemented
+   in the checkout: schema-2 Bundles and Install state, compile-time `requiredModules` derivation,
+   final-Selection presence checks, actual-versus-proposed status, and metadata-only Apply with exact
+   Recovery. The full local gate and independent Standards/Spec review have passed. That is not
+   completed acceptance: exact-commit Linux Package proof and an authorized code checkpoint remain
+   pending. Keep the temporary
+   [iteration-1 spec](superpowers/specs/2026-09-06-module-selection-validation-design.md)
+   and [plan](superpowers/plans/2026-09-06-module-selection-validation.md) until post-proof closing
+   docs. Do not invent a new public Release or operate a real profile; `installer-v0.3.0` remains the
+   schema-1 historical snapshot.
 2. **Iteration 2: dependency automation and original-skill declarations.** After the validation-only
    feature, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
@@ -106,8 +104,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
-- **Selection dependency closure:** Module manifests and Install state carry file identity, not a
-  dependency graph. See
+- **Selection dependency automation:** schema-2 manifests and Install state record `requiredModules`.
+  Plan presence-checks the final Selection and does not automatically add, cascade-remove, or
+  range-resolve Modules. Cross-version item/API compatibility is not claimed. See
   [distribution and installation](architecture/distribution-and-installation.md#full-estate-versus-installed-selection).
 - **Same-name, different-kind reference maps are name-only:** a cross-kind duplicate can overwrite
   target state or lose kind semantics. See

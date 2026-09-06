@@ -177,8 +177,12 @@ Release Package. Plan refuses a final Selection that omits a Module another sele
 as required. That check is presence-only: it does not add missing Modules, compare versions, or
 claim item/API compatibility. `status` reports recorded Selection dependency findings separately
 from proposed Update dependency findings and exits nonzero for an incomplete recorded Selection even
-when a proposed Update would repair it. `--all` remains a complete Selection; a named subset is
-accepted only when its recorded requirements are already selected.
+when a proposed Update would repair it. `--all` remains a complete Selection. A named subset is
+accepted when every Module it records as required is present in the Selection after the request,
+including Modules added by that same request; requirements need not already be selected before the
+request. `--yes` recomputes under the lock and never reapplies a previously printed Plan. A
+finding-free metadata-only Plan still commits next Install state. Interrupted Apply rolls back
+exact prior bytes or finalizes already-committed state; schema-1 Install-state evidence is refused.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing

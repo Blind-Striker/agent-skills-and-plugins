@@ -52,6 +52,17 @@ test("requirements: distinguish missing, malformed, duplicate, and self requirem
   }
   assert.equal(requiredModulesError("consumer", []), null);
   assert.equal(requiredModulesError("consumer", ["provider"]), null);
+  for (const value of [undefined, null, "provider"]) {
+    assert.equal(requiredModulesError("consumer", value), "requiredModules must be an array");
+  }
+  for (const value of [[1], [""], ["a/b"], ["a\\b"], ["a\0b"]]) {
+    assert.equal(
+      requiredModulesError("consumer", value),
+      "requiredModules must contain nonempty Module names without path separators or NUL",
+    );
+  }
+  assert.equal(requiredModulesError("consumer", ["a", "a"]), "requiredModules contains duplicate a");
+  assert.equal(requiredModulesError("consumer", ["consumer"]), "requiredModules must not contain the owning Module");
 });
 
 test("requirements: closure is deterministic and allows a complete cycle", () => {

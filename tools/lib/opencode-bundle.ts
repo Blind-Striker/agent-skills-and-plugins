@@ -225,7 +225,7 @@ function validateManifest(value: unknown): string | null {
 
   const files = value.files as Record<string, FileIdentity>;
   if (digestModulePayload(files, value.requiredModules as string[]) !== value.digest) {
-    return "digest does not match files";
+    return "digest does not match required Modules and files";
   }
   return null;
 }
