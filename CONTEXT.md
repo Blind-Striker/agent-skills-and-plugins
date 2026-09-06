@@ -60,8 +60,7 @@ _Avoid_: local modification, state drift, conflict
 **Module digest**:
 The identity of a Bundle's file set and required Modules. Checkout Bundles use schema 2: the
 digest covers the normalized requirement list plus path/hash/mode claims. Module name and
-curator-facing version stay outside it. The public `installer-v0.3.0` Package remains a schema-1
-historical snapshot.
+curator-facing version stay outside it.
 _Avoid_: version, git ref, package hash
 
 **Version**:

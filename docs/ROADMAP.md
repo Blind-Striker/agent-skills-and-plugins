@@ -28,28 +28,26 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and the compiled npm-format Package attached to GitHub Release `installer-v0.3.0`. The Linux-built
   asset includes the General and Aspire updates and passed the manual release workflow's source
   gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote re-download checks.
-  The checkout installer is schema 2; that public Package remains a schema-1 historical source
-  snapshot. There is no new Release for this feature.
-  Its exact identity and proof boundary are in the
+  That public Package remains a schema-1 historical source snapshot. Its exact identity and proof
+  boundary are in the
   [release record](../experiments/harness-invocation/records/2026-09-06-opencode-installer-v0.3.0.md).
   The older Releases remain historical and their assets were not replaced.
+- Dependency-aware Module Selection is implemented in the checkout: schema-2 Bundles and Install
+  state, compile-time `requiredModules` derivation, final-Selection presence checks,
+  actual-versus-proposed status, and metadata-only Apply with exact Recovery. Feature source is
+  four commits through `8be80489cd721b08f0ffa3bee711d8348d1e0ac1`; the independently reviewed tree
+  `6e111fbcdcfae83d3401e89a9db27d898d8d001f` equals that source HEAD tree. Linux Package proof is a
+  build-only workflow artifact that shares the public Package filename; it is not a new public
+  Release and was not installed into a real profile. Exact artifact identity, both workflow runs,
+  and the presence-only proof boundary are in the
+  [schema-2 record](../experiments/harness-invocation/records/2026-09-06-module-selection-schema2.md).
 - Aspire CLI, TypeScript, testing, and package examples remain intentionally upstream-owned. Build,
   generation, and linking do not prove every example in a consumer environment; this is an accepted
   public limitation, not a claim to repair by silently forking the bodies.
 
 ## Next Up
 
-1. **Iteration 1 closeout: remaining verification.** Dependency-aware Module Selection is implemented
-   in the checkout: schema-2 Bundles and Install state, compile-time `requiredModules` derivation,
-   final-Selection presence checks, actual-versus-proposed status, and metadata-only Apply with exact
-   Recovery. The full local gate and independent Standards/Spec review have passed. That is not
-   completed acceptance: exact-commit Linux Package proof and an authorized code checkpoint remain
-   pending. Keep the temporary
-   [iteration-1 spec](superpowers/specs/2026-09-06-module-selection-validation-design.md)
-   and [plan](superpowers/plans/2026-09-06-module-selection-validation.md) until post-proof closing
-   docs. Do not invent a new public Release or operate a real profile; `installer-v0.3.0` remains the
-   schema-1 historical snapshot.
-2. **Iteration 2: dependency automation and original-skill declarations.** After the validation-only
+1. **Iteration 2: dependency automation and original-skill declarations.** After the validation-only
    feature, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
    the first feature. Selection/Ownership semantics, user approval for automatic changes, and version
@@ -81,7 +79,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in both harness trees.
-3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+2. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -92,7 +90,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
    Run it after a body-ownership pass and before declaring a Module closed.
-4. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
+3. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
    deterministic existence and audience reachability once a source runs, but do not make it run.
    Descriptions provide probabilistic selection pressure and can reach work with no explicit caller.
    The current candidate rule is: load-bearing composition uses guarded body facts; opportunistic
