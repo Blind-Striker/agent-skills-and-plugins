@@ -18,14 +18,22 @@ the repository marketplace; installing a Plugin neither selects nor installs its
 
 ## Bundle and Package identity
 
-The build writes one `opencode/<module>/` Bundle per curation manifest. Its `manifest.json` records
-the Module name and curator-facing version plus every other Bundle-relative path's SHA-256 and POSIX
-mode. The Module digest is the SHA-256 of a locale-independent, path-sorted serialization of those
-path/hash/mode claims. `manifest.json` excludes itself from the file map; a Module with no curated
-items still has a manifest plus repository `LICENSE` and `THIRD_PARTY_NOTICES.md` distribution
-metadata. Digest serialization and hashing are implemented in
-[`tools/lib/opencode-bundle.ts`](../../tools/lib/opencode-bundle.ts#L47-L59), and manifest creation
-is implemented in [`createModuleManifest`](../../tools/lib/opencode-bundle.ts#L196-L229).
+The build writes one `opencode/<module>/` Bundle per curation manifest. Its `manifest.json` uses
+`schemaVersion: 2` and records the Module name, curator-facing version, mandatory `requiredModules`,
+and every other Bundle-relative path's SHA-256 and POSIX mode. The Module digest is the SHA-256 of a
+locale-independent serialization whose field order is `schemaVersion`, `requiredModules`, then
+`files`; requirement names and file paths use ordinal ordering, and each file identity is `sha256`
+then `mode`. Module name and curator-facing version remain outside that content/dependency digest.
+`manifest.json` excludes itself from the file map; a Module with no curated items still has a
+manifest plus repository `LICENSE` and `THIRD_PARTY_NOTICES.md` distribution metadata. Missing
+required Module names in the Package are a graph finding. Digest serialization and hashing are
+implemented in
+[`digestModulePayload`](../../tools/lib/opencode-bundle.ts), and manifest creation is implemented in
+[`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
+
+Checkout Bundles and Install state are schema 2. The still-public Release Package
+`installer-v0.3.0` is a schema-1 historical source snapshot; its download and digest recipe is
+unchanged. There is no compatibility reader between the two formats.
 
 Bundle verification rejects missing, extra, tampered, or linked files and checks the recorded mode
 on POSIX. Repository validation also runs the case-insensitive alias checks, requires exactly the
@@ -74,11 +82,13 @@ there is no project-local target. OpenCode may discover artifacts through other 
 harness capability does not make those locations supported installer Destinations
 ([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L495-L507)).
 
-Install state lives at `<Destination>/.deniz-skills/install.json`. It persists Selection and one
-Ownership claim per managed Native-tree path, including the responsible Module, hash, and mode.
-Selection is read from this state, never inferred from files present on disk. Deleting the state does
-not turn owned files into a supported fresh install; it loses the ownership evidence needed to
-distinguish them from Unowned paths.
+Install state lives at `<Destination>/.deniz-skills/install.json`. Checkout state uses
+`schemaVersion: 2`. It persists Selection and one Ownership claim per managed Native-tree path,
+including the responsible Module, hash, and mode. Each selected Module also records its version,
+digest, and required Modules. Selection is read from this state, never inferred from files present on
+disk. Deleting the state does not turn owned files into a supported fresh install; it loses the
+ownership evidence needed to distinguish them from Unowned paths. The journal envelope remains
+schema 1; its old/new state evidence now contains schema-2 Install state.
 
 Only paths under `skills/`, `commands/`, or `agents/` can be owned. Destination, metadata, and managed
 ancestors must be ordinary directories and managed leaves ordinary files; symlinks and junctions are

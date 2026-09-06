@@ -5,7 +5,9 @@ import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
-import { verifyModuleManifest } from "./lib/opencode-bundle.ts";
+import { loadModuleManifest, verifyModuleManifest } from "./lib/opencode-bundle.ts";
+import { loadManifest } from "./lib/manifest.ts";
+import { stringify } from "yaml";
 import { stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import { makeRepo, opencodeModulePath } from "./testutil.ts";
 
@@ -1276,4 +1278,37 @@ test("a merge source that shares no filename with the overlay stops the build", 
   };
   writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
   assert.throws(() => buildAll(root), /merge source sp\/skills\/epsilon shares no filename with the overlay/);
+});
+
+test("buildAll emits requiredModules for a guarded cross-Module edge", () => {
+  const root = makeRepo();
+  const path = join(root, "curation", "deniz-process.yaml");
+  const consumer = loadManifest(path);
+  const alpha = consumer.items.find((item) => item.source === "sp/skills/alpha");
+  const delta = consumer.items.find((item) => item.source === "sp/skills/delta");
+  assert.ok(alpha && delta);
+  alpha.depends_on = ["provider"];
+  delta.exclude = true;
+  writeFileSync(path, stringify(consumer));
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha\n---\nUse superpowers:delta.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-provider.yaml"),
+    stringify({
+      plugin: { name: "deniz-provider", description: "Provider", version: "1.0.0" },
+      items: [{ source: "sp/skills/delta", name: "provider", invocation: "auto" }],
+    }),
+  );
+  buildAll(root);
+  const generated = loadModuleManifest(join(root, "opencode", "deniz-process", "manifest.json"));
+  assert.deepEqual(generated.requiredModules, ["deniz-provider"]);
+
+  const previouslyGenerated = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
+  assert.ok(existsSync(previouslyGenerated));
+  alpha.depends_on = ["missing"];
+  writeFileSync(path, stringify(consumer));
+  assert.throws(() => buildAll(root), /unknown.*missing/);
+  assert.ok(existsSync(previouslyGenerated), "previous build output must survive an aborted build");
 });

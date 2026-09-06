@@ -69,8 +69,11 @@ pinned upstream repos + original skills
 - Preflight aggregates source, identity, collision, conversion, and attribution failures before old
   generated output is deleted. The deterministic ledger makes invocation, shape, dependencies,
   dropped metadata, and emitted artifacts reviewable as data.
-- Every OpenCode Bundle carries a manifest of final paths, SHA-256 hashes, executable-mode claims,
-  source-specific notices, and exact upstream license texts.
+- Every OpenCode Bundle carries a schema-2 manifest of final paths, SHA-256 hashes, executable-mode
+  claims, required Modules, source-specific notices, and exact upstream license texts. The Module
+  digest covers that file set and requirement list. Checkout Install state is the same schema-2
+  format. The public `installer-v0.3.0` Package remains a schema-1 historical snapshot; see the
+  Release recipe below.
 - The OpenCode installer verifies those Bundles and composes a selected Native tree through a
   zero-write Plan followed by explicit Apply. Ownership, collisions, local modifications, locking,
   crash recovery, rollback, and post-commit finalization fail closed rather than taking over files.
@@ -170,6 +173,8 @@ npm run install:opencode -- remove --module deniz-process --yes
 
 Until dependency-aware Selection planning lands, `--all` is the complete path. A partial Selection
 that uses the current guarded cross-Module handoffs must include General, Akka, and Aspire together.
+Checkout Bundles and the checkout installer require schema 2; they do not read the schema-1 public
+Release Package.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing

@@ -37,7 +37,14 @@ import {
   PATCH_FILE,
   patchTargets,
 } from "./lib/overlay.ts";
-import { collectIdentityProblems, isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
+import {
+  collectIdentityProblems,
+  deriveModuleRequirements,
+  isOmitted,
+  itemRelative,
+  resolveItem,
+  upstreamBase,
+} from "./lib/resolve.ts";
 import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -69,6 +76,7 @@ export function buildAll(root: string): string[] {
     throw new Error(header + problems.join("\n"));
   }
   const ownSkills = ownSkillIdentities(root, manifests);
+  const moduleRequirements = deriveModuleRequirements(root, manifests, components, ownSkills);
   const claudeRewrite = buildRewriteMap(manifests, components, "claude", ownSkills);
   const opencodeRewrite = buildRewriteMap(manifests, components, "opencode", ownSkills);
 
@@ -109,7 +117,7 @@ export function buildAll(root: string): string[] {
   rewriteTree(join(root, "opencode"), opencodeRewrite);
   // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
   // excluded from the walk.
-  writeOpenCodeManifests(root, manifests);
+  writeOpenCodeManifests(root, manifests, moduleRequirements);
   writeLedger(root, manifests, components);
   return report;
 }
@@ -611,17 +619,31 @@ function emitOpenCode(
  * (that is where an upstream 100755 lands in the repo), while build-generated documents — commands,
  * agents, parked BODY.md, anything with no plugin counterpart — are always 100644.
  */
-function writeOpenCodeManifests(root: string, manifests: CurationManifest[]): void {
+function writeOpenCodeManifests(
+  root: string,
+  manifests: CurationManifest[],
+  moduleRequirements: Map<string, string[]>,
+): void {
   for (const m of manifests) {
     const moduleRoot = join(root, "opencode", m.plugin.name);
     mkdirSync(moduleRoot, { recursive: true });
     const pluginModes = indexModes(root, [`plugins/${m.plugin.name}/`]);
-    const manifest = createModuleManifest(moduleRoot, m.plugin.name, m.plugin.version, (path) => {
-      if (path.startsWith("commands/") || path.startsWith("agents/") || path.endsWith("/BODY.md")) {
-        return "100644";
-      }
-      return pluginModes.get(`plugins/${m.plugin.name}/${path}`) ?? "100644";
-    });
+    const requiredModules = moduleRequirements.get(m.plugin.name);
+    if (requiredModules === undefined) {
+      throw new Error(`internal error: missing requiredModules for ${m.plugin.name}`);
+    }
+    const manifest = createModuleManifest(
+      moduleRoot,
+      m.plugin.name,
+      m.plugin.version,
+      (path) => {
+        if (path.startsWith("commands/") || path.startsWith("agents/") || path.endsWith("/BODY.md")) {
+          return "100644";
+        }
+        return pluginModes.get(`plugins/${m.plugin.name}/${path}`) ?? "100644";
+      },
+      requiredModules,
+    );
     writeFileSync(join(moduleRoot, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
   }
 }

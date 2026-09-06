@@ -3,7 +3,7 @@ import { lstatSync, readdirSync, readFileSync, realpathSync, rmdirSync } from "n
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadModuleBundles, verifyModuleManifest } from "./lib/opencode-bundle.js";
+import { findMissingModuleRequirements, loadModuleBundles, verifyModuleManifest } from "./lib/opencode-bundle.js";
 import { acquireInstallerLock, applyPlan, applyRecovery, inspectRecovery } from "./lib/opencode-install-apply.js";
 import { planReconcile } from "./lib/opencode-install-plan.js";
 import {
@@ -280,6 +280,9 @@ function loadVerifiedBundles(packageRoot, platform) {
     })) {
       findings.push(`${finding.code} ${name} ${finding.path}: ${finding.message}`);
     }
+  }
+  for (const missing of findMissingModuleRequirements(manifests)) {
+    findings.push(`${missing.module} requires ${missing.requiredModule}`);
   }
   return { bundles, manifests, findings };
 }

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { digestFileMap, hashBytes, type FileIdentity, type FileMode, type ModuleManifest } from "./opencode-bundle.ts";
+import {
+  digestModulePayload,
+  hashBytes,
+  type FileIdentity,
+  type FileMode,
+  type ModuleManifest,
+} from "./opencode-bundle.ts";
 import { EMPTY_INSTALL_STATE, type InstallState, type ObservedPath } from "./opencode-install-state.ts";
 import { planReconcile, type InstallRequest } from "./opencode-install-plan.ts";
 
@@ -40,15 +46,21 @@ function omit(files: Record<string, FileIdentity>, path: string): Record<string,
   return next;
 }
 
-function manifest(module: string, files: Record<string, FileIdentity>, version = "1.0.0"): ModuleManifest {
+function manifest(
+  module: string,
+  files: Record<string, FileIdentity>,
+  version = "1.0.0",
+  requiredModules: string[] = [],
+): ModuleManifest {
   const sorted = Object.fromEntries(
     Object.entries(files).sort(([left], [right]) => left.localeCompare(right)),
   ) as Record<string, FileIdentity>;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module,
     version,
-    digest: digestFileMap(sorted),
+    digest: digestModulePayload(sorted, requiredModules),
+    requiredModules: [...requiredModules],
     files: sorted,
   };
 }
@@ -62,7 +74,11 @@ function installed(entries: Record<string, { version?: string; files: Record<str
       continue;
     }
     const moduleManifest = manifest(name, entry.files, entry.version ?? "1.0.0");
-    modules[name] = { version: moduleManifest.version, digest: moduleManifest.digest };
+    modules[name] = {
+      version: moduleManifest.version,
+      digest: moduleManifest.digest,
+      requiredModules: [...moduleManifest.requiredModules],
+    };
     for (const path of Object.keys(moduleManifest.files).sort((left, right) => left.localeCompare(right))) {
       const file = moduleManifest.files[path];
       if (!file) {
@@ -71,7 +87,7 @@ function installed(entries: Record<string, { version?: string; files: Record<str
       files[path] = { module: name, sha256: file.sha256, mode: file.mode };
     }
   }
-  return { schemaVersion: 1, modules, files };
+  return { schemaVersion: 2, modules, files };
 }
 
 function matching(files: Record<string, FileIdentity>): Record<string, ObservedPath> {

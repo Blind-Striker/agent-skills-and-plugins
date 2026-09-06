@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
-import { digestFileMap, hashBytes, type FileIdentity, type ModuleManifest } from "./lib/opencode-bundle.ts";
+import {
+  digestModulePayload,
+  findMissingModuleRequirements,
+  hashBytes,
+  requiredModulesError,
+  type FileIdentity,
+  type ModuleManifest,
+} from "./lib/opencode-bundle.ts";
 import { type PackageTarEntry, readPackageTar } from "./lib/package-tar.ts";
 
 const ROOT_FILES = ["package.json", "README.md", "LICENSE", "THIRD_PARTY_NOTICES.md"];
@@ -28,7 +35,7 @@ function parseManifest(content: Buffer, path: string, findings: string[]): Modul
   }
   const manifest = value as Partial<ModuleManifest>;
   if (
-    manifest.schemaVersion !== 1 ||
+    manifest.schemaVersion !== 2 ||
     typeof manifest.module !== "string" ||
     typeof manifest.version !== "string" ||
     typeof manifest.digest !== "string" ||
@@ -37,6 +44,11 @@ function parseManifest(content: Buffer, path: string, findings: string[]): Modul
     Array.isArray(manifest.files)
   ) {
     findings.push(`${path}: invalid manifest shape`);
+    return null;
+  }
+  const requirementsError = requiredModulesError(manifest.module, manifest.requiredModules);
+  if (requirementsError) {
+    findings.push(`${path}: ${requirementsError}`);
     return null;
   }
   for (const [file, identity] of Object.entries(manifest.files)) {
@@ -106,6 +118,7 @@ export function verifyPackageEntries(entries: PackageTarEntry[]): string[] {
   if (manifests.length === 0) {
     findings.push("opencode/: Package contains no Module manifests");
   }
+  const parsedModules = Object.create(null) as Record<string, { requiredModules: readonly string[] }>;
   for (const [manifestPath, entry] of manifests) {
     expected.add(manifestPath);
     const moduleName = manifestPath.split("/")[1];
@@ -113,10 +126,11 @@ export function verifyPackageEntries(entries: PackageTarEntry[]): string[] {
     if (!manifest) {
       continue;
     }
+    parsedModules[manifest.module] = { requiredModules: manifest.requiredModules };
     if (manifest.module !== moduleName) {
       findings.push(`${manifestPath}: Module name does not match its path`);
     }
-    if (manifest.digest !== digestFileMap(manifest.files)) {
+    if (manifest.digest !== digestModulePayload(manifest.files, manifest.requiredModules)) {
       findings.push(`${manifestPath}: Module digest does not match its file map`);
     }
     for (const [relativePath, identity] of Object.entries(manifest.files)) {
@@ -134,6 +148,10 @@ export function verifyPackageEntries(entries: PackageTarEntry[]): string[] {
         findings.push(`${path}: tar mode ${packed.mode} does not match manifest mode ${identity.mode}`);
       }
     }
+  }
+
+  for (const missing of findMissingModuleRequirements(parsedModules)) {
+    findings.push(`${missing.module} requires ${missing.requiredModule}`);
   }
 
   for (const path of files.keys()) {

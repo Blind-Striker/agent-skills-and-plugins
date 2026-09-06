@@ -16,7 +16,7 @@ import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { gunzipSync } from "node:zlib";
-import { createModuleManifest, digestFileMap, hashBytes, loadModuleBundles } from "./lib/opencode-bundle.ts";
+import { createModuleManifest, digestModulePayload, hashBytes, loadModuleBundles } from "./lib/opencode-bundle.ts";
 import { acquireInstallerLock, applyPlan, inspectRecovery } from "./lib/opencode-install-apply.ts";
 import { planReconcile, type Plan } from "./lib/opencode-install-plan.ts";
 import { loadInstallState, observePath, type InstallState, type ObservedPath } from "./lib/opencode-install-state.ts";
@@ -34,11 +34,18 @@ function stateWithOwnedCommand(
   bytes: string,
   version = "0.1.0",
   mode: "100644" | "100755" = "100644",
+  requiredModules: string[] = [],
 ): InstallState {
   const identity = { sha256: hashBytes(bytes), mode };
   return {
-    schemaVersion: 1,
-    modules: { [module]: { version, digest: digestFileMap({ [path]: identity }) } },
+    schemaVersion: 2,
+    modules: {
+      [module]: {
+        version,
+        digest: digestModulePayload({ [path]: identity }, requiredModules),
+        requiredModules: [...requiredModules],
+      },
+    },
     files: { [path]: { module, sha256: identity.sha256, mode: identity.mode } },
   };
 }
@@ -55,14 +62,20 @@ function observeOwnedPaths(
   return observed;
 }
 
-function writeBundle(packageRoot: string, module: string, files: Record<string, string>, version = "0.2.0"): void {
+function writeBundle(
+  packageRoot: string,
+  module: string,
+  files: Record<string, string>,
+  version = "0.2.0",
+  requiredModules: string[] = [],
+): void {
   const root = join(packageRoot, "opencode", module);
   for (const [path, bytes] of Object.entries(files)) {
     const abs = join(root, ...path.split("/"));
     mkdirSync(join(abs, ".."), { recursive: true });
     writeFileSync(abs, bytes);
   }
-  const manifest = createModuleManifest(root, module, version, () => "100644");
+  const manifest = createModuleManifest(root, module, version, () => "100644", requiredModules);
   writeFileSync(join(root, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`);
 }
 
@@ -451,7 +464,7 @@ test("status refuses an install.json symlink without following its valid target"
   const deniz = join(fixture.destination, ".deniz-skills");
   mkdirSync(deniz, { recursive: true });
   const target = join(dirname(fixture.destination), "outside-install.json");
-  writeFileSync(target, JSON.stringify({ schemaVersion: 1, modules: {}, files: {} }));
+  writeFileSync(target, JSON.stringify({ schemaVersion: 2, modules: {}, files: {} }));
   try {
     symlinkSync(target, join(deniz, "install.json"), "file");
   } catch (error) {
@@ -470,7 +483,7 @@ test("status refuses a linked .deniz-skills metadata directory", async (t) => {
   mkdirSync(fixture.destination, { recursive: true });
   const target = join(dirname(fixture.destination), "outside-deniz");
   mkdirSync(target, { recursive: true });
-  writeFileSync(join(target, "install.json"), JSON.stringify({ schemaVersion: 1, modules: {}, files: {} }));
+  writeFileSync(join(target, "install.json"), JSON.stringify({ schemaVersion: 2, modules: {}, files: {} }));
   const link = join(fixture.destination, ".deniz-skills");
   try {
     symlinkSync(target, link, process.platform === "win32" ? "junction" : "dir");
@@ -541,7 +554,7 @@ test("renderPlan prints stable sections and omits package cache paths", () => {
   const plan: Plan = {
     request: { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
     affectedModules: ["deniz-process", "deniz-dotnet-general"],
-    currentState: { schemaVersion: 1, modules: {}, files: {} },
+    currentState: { schemaVersion: 2, modules: {}, files: {} },
     selectionChanges: { added: ["deniz-process"], removed: [] },
     operations: [
       {
@@ -667,13 +680,13 @@ test("renderPlan groups deterministic paths by Module and names current no-op Mo
   const alpha = stateWithOwnedCommand("deniz-alpha", "commands/z.md", "z\n");
   const zeta = stateWithOwnedCommand("deniz-zeta", "commands/a.md", "a\n");
   const current: InstallState = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     modules: { ...zeta.modules, ...alpha.modules },
     files: { ...zeta.files, ...alpha.files },
   };
   const identity = { sha256: hashBytes("next\n"), mode: "100644" as const };
   const next: InstallState = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     modules: current.modules,
     files: current.files,
   };
@@ -709,7 +722,7 @@ test("renderPlan omits selected Modules unaffected by a targeted install", () =>
   const unrelated = stateWithOwnedCommand("deniz-unrelated", "commands/u.md", "u\n");
   const installed = stateWithOwnedCommand("deniz-process", "commands/p.md", "p\n", "0.2.0");
   const next: InstallState = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     modules: { ...unrelated.modules, ...installed.modules },
     files: { ...unrelated.files, ...installed.files },
   };

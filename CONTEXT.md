@@ -58,7 +58,10 @@ A destination path a Bundle cannot take because something else is already there 
 _Avoid_: local modification, state drift, conflict
 
 **Module digest**:
-The identity of a Bundle's file set.
+The identity of a Bundle's file set and required Modules. Checkout Bundles use schema 2: the
+digest covers the normalized requirement list plus path/hash/mode claims. Module name and
+curator-facing version stay outside it. The public `installer-v0.3.0` Package remains a schema-1
+historical snapshot.
 _Avoid_: version, git ref, package hash
 
 **Version**:
@@ -97,11 +100,12 @@ The flattened skills, commands, and agents layout OpenCode reads at the Destinat
 _Avoid_: module directory, bundle layout, plugin tree
 
 **Module manifest**:
-The Bundle's inventory of paths, hashes, modes, digest, and version.
+The Bundle's schema-2 inventory of paths, hashes, modes, digest, version, and required Modules.
 _Avoid_: install state, manifest (alone)
 
 **Install state**:
-The Destination record of Selection plus Ownership. Deleting it is unsupported ownership loss, not
+The Destination record of Selection plus Ownership. Checkout state is schema 2: each selected Module
+records version, digest, and required Modules. Deleting it is unsupported ownership loss, not
 factory reset.
 _Avoid_: module manifest, manifest (alone)
 

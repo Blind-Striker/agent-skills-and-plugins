@@ -4,11 +4,24 @@ import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { loadManifest } from "./lib/manifest.ts";
-import { loadModuleManifest, verifyModuleManifest, type ModuleManifest } from "./lib/opencode-bundle.ts";
+import {
+  findMissingModuleRequirements,
+  loadModuleManifest,
+  verifyModuleManifest,
+  type ModuleManifest,
+} from "./lib/opencode-bundle.ts";
+import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { extractRefs } from "./lib/refs.ts";
-import { collectIdentityProblems, isOmitted, itemRelative, resolveItem, upstreamBase } from "./lib/resolve.ts";
+import {
+  collectIdentityProblems,
+  deriveModuleRequirements,
+  isOmitted,
+  itemRelative,
+  resolveItem,
+  upstreamBase,
+} from "./lib/resolve.ts";
 import { scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -143,6 +156,16 @@ export function validateRepo(root: string): Finding[] {
   findings.push(
     ...collectIdentityProblems(root, manifests, components).map((message) => ({ level: "error" as const, message })),
   );
+  const ownSkills = ownSkillIdentities(root, manifests);
+  let expectedRequirements: Map<string, string[]> | undefined;
+  try {
+    expectedRequirements = deriveModuleRequirements(root, manifests, components, ownSkills);
+  } catch (error) {
+    findings.push({
+      level: "error",
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
   const firstUse = new Map<string, string>();
 
   // 1. manifest sources exist, plus the two curation footguns the build resolves silently
@@ -542,6 +565,7 @@ export function validateRepo(root: string): Finding[] {
       });
     }
   }
+  const loadedModules = Object.create(null) as Record<string, { requiredModules: readonly string[] }>;
   for (const m of manifests) {
     const moduleRoot = openCodeModuleRoot(root, m.plugin.name);
     let rootStat: ReturnType<typeof lstatSync> | undefined;
@@ -583,12 +607,30 @@ export function validateRepo(root: string): Finding[] {
         message: `opencode/${m.plugin.name}: Module version ${manifest.version} does not match ${m.plugin.version}`,
       });
     }
+    loadedModules[manifest.module] = { requiredModules: manifest.requiredModules };
+    const expected = expectedRequirements?.get(m.plugin.name);
+    if (
+      expected !== undefined &&
+      (manifest.requiredModules.length !== expected.length ||
+        manifest.requiredModules.some((name, index) => name !== expected[index]))
+    ) {
+      findings.push({
+        level: "error",
+        message: `opencode/${m.plugin.name}: required Modules do not match curation`,
+      });
+    }
     for (const finding of verifyModuleManifest(moduleRoot, manifest, { caseInsensitive: true })) {
       findings.push({
         level: "error",
         message: `opencode/${m.plugin.name}/${finding.path}: ${finding.code.replaceAll("_", " ")}: ${finding.message}`,
       });
     }
+  }
+  for (const missing of findMissingModuleRequirements(loadedModules)) {
+    findings.push({
+      level: "error",
+      message: `${missing.module} requires ${missing.requiredModule}`,
+    });
   }
 
   // 4b. reference linking (ADR-0008). plugins/ carries the canonical namespaced text; opencode/ is

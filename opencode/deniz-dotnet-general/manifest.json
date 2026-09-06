@@ -1,8 +1,11 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.9.0",
-  "digest": "sha256:cac201056290e377884757e4c1b7bd889867b79596d87d5f17a128a089662312",
+  "version": "0.9.1",
+  "digest": "sha256:af9f5595afc68035cad633567be03f6c49fce32f3ade2309164a7e9c64361a01",
+  "requiredModules": [
+    "deniz-dotnet-aspire"
+  ],
   "files": {
     "LICENSE": {
       "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",

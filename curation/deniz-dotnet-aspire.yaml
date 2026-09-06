@@ -6,7 +6,7 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.3.2
+  version: 0.3.3
 items:
   - source: aspire-skills/skills/aspire
     omit: ["evals/**"] # upstream Copilot/vally evaluation assets are not harness runtime content

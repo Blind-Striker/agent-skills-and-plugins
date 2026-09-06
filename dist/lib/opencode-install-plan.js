@@ -288,13 +288,21 @@ function buildNextState(current, manifests, request, selection, affected, final)
     if (affected.has(name) && request.kind !== "remove") {
       const moduleManifest = manifests[name];
       if (moduleManifest) {
-        modules[name] = { version: moduleManifest.version, digest: moduleManifest.digest };
+        modules[name] = {
+          version: moduleManifest.version,
+          digest: moduleManifest.digest,
+          requiredModules: [...moduleManifest.requiredModules],
+        };
       }
       continue;
     }
     const existing = current.modules[name];
     if (existing) {
-      modules[name] = { version: existing.version, digest: existing.digest };
+      modules[name] = {
+        version: existing.version,
+        digest: existing.digest,
+        requiredModules: [...existing.requiredModules],
+      };
     }
   }
   const files = Object.create(null);
@@ -304,7 +312,7 @@ function buildNextState(current, manifests, request, selection, affected, final)
       files[path] = { module: entry.module, sha256: entry.identity.sha256, mode: entry.identity.mode };
     }
   }
-  return { schemaVersion: 1, modules, files };
+  return { schemaVersion: 2, modules, files };
 }
 export function planReconcile(current, manifests, observed, request) {
   const findings = [];

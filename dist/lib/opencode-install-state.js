@@ -1,9 +1,9 @@
 import { lstatSync, readFileSync } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { hashBytes } from "./opencode-bundle.js";
+import { hashBytes, requiredModulesError } from "./opencode-bundle.js";
 import { ordinalCompare } from "./order.js";
 export const EMPTY_INSTALL_STATE = Object.freeze({
-  schemaVersion: 1,
+  schemaVersion: 2,
   modules: Object.freeze({}),
   files: Object.freeze({}),
 });
@@ -12,7 +12,7 @@ const NATIVE_ROOTS = new Set(["agents", "commands", "skills"]);
 const DISTRIBUTION_ROOT_FILES = new Set(["LICENSE", "THIRD_PARTY_NOTICES.md"]);
 const THIRD_PARTY_LICENSE = /^third_party\/[a-z0-9-]+\/LICENSE$/;
 const TOP_LEVEL_KEYS = new Set(["files", "modules", "schemaVersion"]);
-const MODULE_STATE_KEYS = new Set(["digest", "version"]);
+const MODULE_STATE_KEYS = new Set(["digest", "requiredModules", "version"]);
 const OWNED_FILE_KEYS = new Set(["mode", "module", "sha256"]);
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -88,8 +88,8 @@ function validateInstallState(value, caseInsensitive) {
       return unknownField("", key);
     }
   }
-  if (value.schemaVersion !== 1) {
-    return "schemaVersion must be 1";
+  if (value.schemaVersion !== 2) {
+    return "schemaVersion must be 2";
   }
   if (!isRecord(value.modules)) {
     return "modules must be an object";
@@ -115,6 +115,10 @@ function validateInstallState(value, caseInsensitive) {
     }
     if (!isSha256(moduleState.digest)) {
       return `modules.${JSON.stringify(name)}.digest must be a sha256 hash`;
+    }
+    const requirementsError = requiredModulesError(name, moduleState.requiredModules);
+    if (requirementsError) {
+      return `modules.${JSON.stringify(name)}.${requirementsError}`;
     }
     moduleNames.add(name);
   }
@@ -158,13 +162,17 @@ function sortedRecord(record) {
 function normalizeState(state) {
   const modules = Object.create(null);
   for (const [name, moduleState] of Object.entries(sortedRecord(state.modules))) {
-    modules[name] = { version: moduleState.version, digest: moduleState.digest };
+    modules[name] = {
+      version: moduleState.version,
+      digest: moduleState.digest,
+      requiredModules: [...moduleState.requiredModules].sort(ordinalCompare),
+    };
   }
   const files = Object.create(null);
   for (const [path, owned] of Object.entries(sortedRecord(state.files))) {
     files[path] = { module: owned.module, sha256: owned.sha256, mode: owned.mode };
   }
-  return { schemaVersion: 1, modules, files };
+  return { schemaVersion: 2, modules, files };
 }
 function isHex(char) {
   return (char >= "0" && char <= "9") || (char >= "a" && char <= "f") || (char >= "A" && char <= "F");

@@ -1,11 +1,12 @@
 import { lstatSync, readFileSync, type Stats } from "node:fs";
 import { isAbsolute, join, relative, resolve } from "node:path";
-import { hashBytes, type FileIdentity, type FileMode, type Sha256 } from "./opencode-bundle.ts";
+import { hashBytes, requiredModulesError, type FileIdentity, type FileMode, type Sha256 } from "./opencode-bundle.ts";
 import { ordinalCompare } from "./order.ts";
 
 export interface ModuleState {
   version: string;
   digest: Sha256;
+  requiredModules: string[];
 }
 
 export interface OwnedFile extends FileIdentity {
@@ -13,13 +14,13 @@ export interface OwnedFile extends FileIdentity {
 }
 
 export interface InstallState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   modules: Record<string, ModuleState>;
   files: Record<string, OwnedFile>;
 }
 
 export const EMPTY_INSTALL_STATE: InstallState = Object.freeze({
-  schemaVersion: 1,
+  schemaVersion: 2,
   modules: Object.freeze({}),
   files: Object.freeze({}),
 });
@@ -40,7 +41,7 @@ const NATIVE_ROOTS = new Set(["agents", "commands", "skills"]);
 const DISTRIBUTION_ROOT_FILES = new Set(["LICENSE", "THIRD_PARTY_NOTICES.md"]);
 const THIRD_PARTY_LICENSE = /^third_party\/[a-z0-9-]+\/LICENSE$/;
 const TOP_LEVEL_KEYS = new Set(["files", "modules", "schemaVersion"]);
-const MODULE_STATE_KEYS = new Set(["digest", "version"]);
+const MODULE_STATE_KEYS = new Set(["digest", "requiredModules", "version"]);
 const OWNED_FILE_KEYS = new Set(["mode", "module", "sha256"]);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -128,8 +129,8 @@ function validateInstallState(value: unknown, caseInsensitive: boolean): string 
       return unknownField("", key);
     }
   }
-  if (value.schemaVersion !== 1) {
-    return "schemaVersion must be 1";
+  if (value.schemaVersion !== 2) {
+    return "schemaVersion must be 2";
   }
   if (!isRecord(value.modules)) {
     return "modules must be an object";
@@ -156,6 +157,10 @@ function validateInstallState(value: unknown, caseInsensitive: boolean): string 
     }
     if (!isSha256(moduleState.digest)) {
       return `modules.${JSON.stringify(name)}.digest must be a sha256 hash`;
+    }
+    const requirementsError = requiredModulesError(name, moduleState.requiredModules);
+    if (requirementsError) {
+      return `modules.${JSON.stringify(name)}.${requirementsError}`;
     }
     moduleNames.add(name);
   }
@@ -207,13 +212,17 @@ function sortedRecord<T>(record: Record<string, T>): Record<string, T> {
 function normalizeState(state: InstallState): InstallState {
   const modules = Object.create(null) as Record<string, ModuleState>;
   for (const [name, moduleState] of Object.entries(sortedRecord(state.modules))) {
-    modules[name] = { version: moduleState.version, digest: moduleState.digest };
+    modules[name] = {
+      version: moduleState.version,
+      digest: moduleState.digest,
+      requiredModules: [...moduleState.requiredModules].sort(ordinalCompare),
+    };
   }
   const files = Object.create(null) as Record<string, OwnedFile>;
   for (const [path, owned] of Object.entries(sortedRecord(state.files))) {
     files[path] = { module: owned.module, sha256: owned.sha256, mode: owned.mode };
   }
-  return { schemaVersion: 1, modules, files };
+  return { schemaVersion: 2, modules, files };
 }
 
 function isHex(char: string): boolean {

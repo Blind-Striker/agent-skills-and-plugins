@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { gzipSync } from "node:zlib";
 import { test } from "node:test";
-import { digestFileMap, hashBytes, type ModuleManifest } from "./lib/opencode-bundle.ts";
+import { digestModulePayload, hashBytes, type ModuleManifest } from "./lib/opencode-bundle.ts";
 import { type PackageTarEntry, readPackageTar } from "./lib/package-tar.ts";
 import { verifyPackageEntries } from "./verify-package.ts";
 
@@ -22,10 +22,11 @@ function validEntries(): PackageTarEntry[] {
   const script = Buffer.from("#!/bin/sh\n");
   const files = { "skills/alpha/run.sh": { sha256: hashBytes(script), mode: "100755" as const } };
   const manifest: ModuleManifest = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module: "deniz-process",
     version: "1.0.0",
-    digest: digestFileMap(files),
+    digest: digestModulePayload(files, []),
+    requiredModules: [],
     files,
   };
   return [
@@ -77,4 +78,25 @@ test("Package tar reader preserves executable identity from tar headers", () => 
   const tgz = gzipSync(Buffer.concat([header, content, padding, Buffer.alloc(1024)]));
 
   assert.deepEqual(readPackageTar(tgz), [{ path: "package/run.sh", content, mode: "100755" }]);
+});
+
+test("Package verifier rejects a re-signed missing required Module", () => {
+  const entries = validEntries();
+  const manifestEntry = entries.find((item) => item.path === "package/opencode/deniz-process/manifest.json");
+  assert.ok(manifestEntry);
+  const manifest = JSON.parse(manifestEntry.content.toString("utf8")) as ModuleManifest;
+  manifest.requiredModules = ["deniz-provider"];
+  manifest.digest = digestModulePayload(manifest.files, manifest.requiredModules);
+  manifestEntry.content = Buffer.from(JSON.stringify(manifest));
+  assert.ok(verifyPackageEntries(entries).some((message) => /deniz-process.*requires.*deniz-provider/.test(message)));
+  const provider: ModuleManifest = {
+    schemaVersion: 2,
+    module: "deniz-provider",
+    version: "1.0.0",
+    requiredModules: [],
+    files: {},
+    digest: digestModulePayload({}, []),
+  };
+  entries.push(entry("opencode/deniz-provider/manifest.json", JSON.stringify(provider)));
+  assert.deepEqual(verifyPackageEntries(entries), []);
 });

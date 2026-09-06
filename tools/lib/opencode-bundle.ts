@@ -12,11 +12,17 @@ export interface FileIdentity {
 }
 
 export interface ModuleManifest {
-  schemaVersion: 1;
+  schemaVersion: 2;
   module: string;
   version: string;
   digest: Sha256;
+  requiredModules: string[];
   files: Record<string, FileIdentity>;
+}
+
+export interface MissingModuleRequirement {
+  module: string;
+  requiredModule: string;
 }
 
 export interface ModuleBundle {
@@ -50,12 +56,51 @@ export function hashBytes(bytes: Uint8Array | string): Sha256 {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
 
-export function digestFileMap(files: Record<string, FileIdentity>): Sha256 {
-  const payload = Object.entries(files)
+export function requiredModulesError(module: string, value: unknown): string | null {
+  if (!Array.isArray(value)) {
+    return "requiredModules must be an array";
+  }
+  const seen = new Set<string>();
+  for (const name of value) {
+    if (typeof name !== "string" || name.length === 0 || /[\\/\0]/.test(name)) {
+      return "requiredModules must contain nonempty Module names without path separators or NUL";
+    }
+    if (name === module) {
+      return "requiredModules must not contain the owning Module";
+    }
+    if (seen.has(name)) {
+      return `requiredModules contains duplicate ${name}`;
+    }
+    seen.add(name);
+  }
+  return null;
+}
+
+export function digestModulePayload(files: Record<string, FileIdentity>, requiredModules: readonly string[]): Sha256 {
+  const canonicalFiles = Object.entries(files)
     .sort(([a], [b]) => ordinalCompare(a, b))
-    .map(([path, identity]) => `${path}\0${identity.sha256}\0${identity.mode}\n`)
-    .join("");
-  return hashBytes(payload);
+    .map(([path, value]) => `${JSON.stringify(path)}:${JSON.stringify({ sha256: value.sha256, mode: value.mode })}`)
+    .join(",");
+  const requirements = JSON.stringify([...requiredModules].sort(ordinalCompare));
+  return hashBytes(`{"schemaVersion":2,"requiredModules":${requirements},"files":{${canonicalFiles}}}`);
+}
+
+export function findMissingModuleRequirements(
+  modules: Readonly<Record<string, { requiredModules: readonly string[] }>>,
+): MissingModuleRequirement[] {
+  const missing: MissingModuleRequirement[] = [];
+  for (const module of Object.keys(modules).sort(ordinalCompare)) {
+    const entry = modules[module];
+    if (!entry) {
+      continue;
+    }
+    for (const requiredModule of [...entry.requiredModules].sort(ordinalCompare)) {
+      if (!Object.hasOwn(modules, requiredModule)) {
+        missing.push({ module, requiredModule });
+      }
+    }
+  }
+  return missing;
 }
 
 interface WalkedPath {
@@ -103,11 +148,16 @@ function relativePathError(path: unknown): string | null {
   return null;
 }
 
+function canonicalFileIdentity(identity: FileIdentity): FileIdentity {
+  return { sha256: identity.sha256, mode: identity.mode };
+}
+
 function sortedFileMap(files: Record<string, FileIdentity>): Record<string, FileIdentity> {
-  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => ordinalCompare(a, b))) as Record<
-    string,
-    FileIdentity
-  >;
+  return Object.fromEntries(
+    Object.entries(files)
+      .sort(([a], [b]) => ordinalCompare(a, b))
+      .map(([path, identity]) => [path, canonicalFileIdentity(identity)]),
+  ) as Record<string, FileIdentity>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,21 +172,33 @@ function isSha256(value: unknown): value is Sha256 {
   return typeof value === "string" && SHA256.test(value);
 }
 
+function moduleNameError(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0 || /[\\/\0]/.test(value)) {
+    return "module must be a non-empty string without path separators or NUL";
+  }
+  return null;
+}
+
 function validateManifest(value: unknown): string | null {
   if (!isRecord(value)) {
     return "must be an object";
   }
-  if (value.schemaVersion !== 1) {
-    return "schemaVersion must be 1";
+  if (value.schemaVersion !== 2) {
+    return "schemaVersion must be 2";
   }
-  if (typeof value.module !== "string" || value.module.length === 0) {
-    return "module must be a non-empty string";
+  const nameError = moduleNameError(value.module);
+  if (nameError) {
+    return nameError;
   }
   if (typeof value.version !== "string" || value.version.length === 0) {
     return "version must be a non-empty string";
   }
   if (!isSha256(value.digest)) {
     return "digest must be a sha256 hash";
+  }
+  const requirementsError = requiredModulesError(value.module as string, value.requiredModules);
+  if (requirementsError) {
+    return requirementsError;
   }
   if (!isRecord(value.files)) {
     return "files must be an object";
@@ -162,18 +224,23 @@ function validateManifest(value: unknown): string | null {
   }
 
   const files = value.files as Record<string, FileIdentity>;
-  if (digestFileMap(files) !== value.digest) {
+  if (digestModulePayload(files, value.requiredModules as string[]) !== value.digest) {
     return "digest does not match files";
   }
   return null;
 }
 
+function normalizedRequirements(value: readonly string[]): string[] {
+  return [...value].sort(ordinalCompare);
+}
+
 function normalizedManifest(value: ModuleManifest): ModuleManifest {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module: value.module,
     version: value.version,
     digest: value.digest,
+    requiredModules: normalizedRequirements(value.requiredModules),
     files: sortedFileMap(value.files),
   };
 }
@@ -185,10 +252,11 @@ function requireValidManifest(value: unknown, source: string): ModuleManifest {
   }
   const manifest = value as Record<string, unknown>;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module: manifest.module as string,
     version: manifest.version as string,
     digest: manifest.digest as Sha256,
+    requiredModules: normalizedRequirements(manifest.requiredModules as string[]),
     files: sortedFileMap(manifest.files as Record<string, FileIdentity>),
   };
 }
@@ -198,12 +266,18 @@ export function createModuleManifest(
   module: string,
   version: string,
   resolveMode: ModeResolver,
+  requiredModules: readonly string[],
 ): ModuleManifest {
-  if (module.length === 0) {
-    throw new Error("module must be a non-empty string");
+  const nameError = moduleNameError(module);
+  if (nameError) {
+    throw new Error(nameError);
   }
   if (version.length === 0) {
     throw new Error("version must be a non-empty string");
+  }
+  const requirementsError = requiredModulesError(module, requiredModules);
+  if (requirementsError) {
+    throw new Error(requirementsError);
   }
 
   const files = Object.create(null) as Record<string, FileIdentity>;
@@ -220,11 +294,13 @@ export function createModuleManifest(
     files[path] = { sha256: hashBytes(readFileSync(file)), mode };
   }
   const sortedFiles = sortedFileMap(files);
+  const sortedRequirements = normalizedRequirements(requiredModules);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module,
     version,
-    digest: digestFileMap(sortedFiles),
+    digest: digestModulePayload(sortedFiles, sortedRequirements),
+    requiredModules: sortedRequirements,
     files: sortedFiles,
   };
 }

@@ -6,12 +6,47 @@ const SHA256 = /^sha256:[a-f0-9]{64}$/;
 export function hashBytes(bytes) {
   return `sha256:${createHash("sha256").update(bytes).digest("hex")}`;
 }
-export function digestFileMap(files) {
-  const payload = Object.entries(files)
+export function requiredModulesError(module, value) {
+  if (!Array.isArray(value)) {
+    return "requiredModules must be an array";
+  }
+  const seen = new Set();
+  for (const name of value) {
+    if (typeof name !== "string" || name.length === 0 || /[\\/\0]/.test(name)) {
+      return "requiredModules must contain nonempty Module names without path separators or NUL";
+    }
+    if (name === module) {
+      return "requiredModules must not contain the owning Module";
+    }
+    if (seen.has(name)) {
+      return `requiredModules contains duplicate ${name}`;
+    }
+    seen.add(name);
+  }
+  return null;
+}
+export function digestModulePayload(files, requiredModules) {
+  const canonicalFiles = Object.entries(files)
     .sort(([a], [b]) => ordinalCompare(a, b))
-    .map(([path, identity]) => `${path}\0${identity.sha256}\0${identity.mode}\n`)
-    .join("");
-  return hashBytes(payload);
+    .map(([path, value]) => `${JSON.stringify(path)}:${JSON.stringify({ sha256: value.sha256, mode: value.mode })}`)
+    .join(",");
+  const requirements = JSON.stringify([...requiredModules].sort(ordinalCompare));
+  return hashBytes(`{"schemaVersion":2,"requiredModules":${requirements},"files":{${canonicalFiles}}}`);
+}
+export function findMissingModuleRequirements(modules) {
+  const missing = [];
+  for (const module of Object.keys(modules).sort(ordinalCompare)) {
+    const entry = modules[module];
+    if (!entry) {
+      continue;
+    }
+    for (const requiredModule of [...entry.requiredModules].sort(ordinalCompare)) {
+      if (!Object.hasOwn(modules, requiredModule)) {
+        missing.push({ module, requiredModule });
+      }
+    }
+  }
+  return missing;
 }
 function* walkTree(root, dir = root) {
   const names = readdirSync(dir).sort(ordinalCompare);
@@ -50,8 +85,15 @@ function relativePathError(path) {
   }
   return null;
 }
+function canonicalFileIdentity(identity) {
+  return { sha256: identity.sha256, mode: identity.mode };
+}
 function sortedFileMap(files) {
-  return Object.fromEntries(Object.entries(files).sort(([a], [b]) => ordinalCompare(a, b)));
+  return Object.fromEntries(
+    Object.entries(files)
+      .sort(([a], [b]) => ordinalCompare(a, b))
+      .map(([path, identity]) => [path, canonicalFileIdentity(identity)]),
+  );
 }
 function isRecord(value) {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -62,21 +104,32 @@ function isFileMode(value) {
 function isSha256(value) {
   return typeof value === "string" && SHA256.test(value);
 }
+function moduleNameError(value) {
+  if (typeof value !== "string" || value.length === 0 || /[\\/\0]/.test(value)) {
+    return "module must be a non-empty string without path separators or NUL";
+  }
+  return null;
+}
 function validateManifest(value) {
   if (!isRecord(value)) {
     return "must be an object";
   }
-  if (value.schemaVersion !== 1) {
-    return "schemaVersion must be 1";
+  if (value.schemaVersion !== 2) {
+    return "schemaVersion must be 2";
   }
-  if (typeof value.module !== "string" || value.module.length === 0) {
-    return "module must be a non-empty string";
+  const nameError = moduleNameError(value.module);
+  if (nameError) {
+    return nameError;
   }
   if (typeof value.version !== "string" || value.version.length === 0) {
     return "version must be a non-empty string";
   }
   if (!isSha256(value.digest)) {
     return "digest must be a sha256 hash";
+  }
+  const requirementsError = requiredModulesError(value.module, value.requiredModules);
+  if (requirementsError) {
+    return requirementsError;
   }
   if (!isRecord(value.files)) {
     return "files must be an object";
@@ -100,17 +153,21 @@ function validateManifest(value) {
     }
   }
   const files = value.files;
-  if (digestFileMap(files) !== value.digest) {
+  if (digestModulePayload(files, value.requiredModules) !== value.digest) {
     return "digest does not match files";
   }
   return null;
 }
+function normalizedRequirements(value) {
+  return [...value].sort(ordinalCompare);
+}
 function normalizedManifest(value) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module: value.module,
     version: value.version,
     digest: value.digest,
+    requiredModules: normalizedRequirements(value.requiredModules),
     files: sortedFileMap(value.files),
   };
 }
@@ -121,19 +178,25 @@ function requireValidManifest(value, source) {
   }
   const manifest = value;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module: manifest.module,
     version: manifest.version,
     digest: manifest.digest,
+    requiredModules: normalizedRequirements(manifest.requiredModules),
     files: sortedFileMap(manifest.files),
   };
 }
-export function createModuleManifest(root, module, version, resolveMode) {
-  if (module.length === 0) {
-    throw new Error("module must be a non-empty string");
+export function createModuleManifest(root, module, version, resolveMode, requiredModules) {
+  const nameError = moduleNameError(module);
+  if (nameError) {
+    throw new Error(nameError);
   }
   if (version.length === 0) {
     throw new Error("version must be a non-empty string");
+  }
+  const requirementsError = requiredModulesError(module, requiredModules);
+  if (requirementsError) {
+    throw new Error(requirementsError);
   }
   const files = Object.create(null);
   for (const entry of walkTree(root)) {
@@ -149,11 +212,13 @@ export function createModuleManifest(root, module, version, resolveMode) {
     files[path] = { sha256: hashBytes(readFileSync(file)), mode };
   }
   const sortedFiles = sortedFileMap(files);
+  const sortedRequirements = normalizedRequirements(requiredModules);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     module,
     version,
-    digest: digestFileMap(sortedFiles),
+    digest: digestModulePayload(sortedFiles, sortedRequirements),
+    requiredModules: sortedRequirements,
     files: sortedFiles,
   };
 }

@@ -27,8 +27,8 @@ test("install state rejects traversal and case aliases", () => {
   const HASH_A = `sha256:${"a".repeat(64)}` as const;
   const HASH_B = `sha256:${"b".repeat(64)}` as const;
   const bad = JSON.stringify({
-    schemaVersion: 1,
-    modules: { "deniz-process": { version: "0.2.0", digest: HASH_A } },
+    schemaVersion: 2,
+    modules: { "deniz-process": { version: "0.2.0", digest: HASH_A, requiredModules: [] } },
     files: {
       "skills/Alpha/SKILL.md": { module: "deniz-process", sha256: HASH_A, mode: "100644" },
       "skills/alpha/skill.md": { module: "deniz-process", sha256: HASH_B, mode: "100644" },
@@ -52,22 +52,24 @@ test("install state serialization is deterministic two-space JSON", () => {
       "commands/a.md": owned(),
     },
     modules: {
-      "deniz-zeta": { digest: HASH_B, version: "1.0.0" },
-      "deniz-process": { digest: HASH_A, version: "0.2.0" },
+      "deniz-zeta": { digest: HASH_B, version: "1.0.0", requiredModules: [] },
+      "deniz-process": { digest: HASH_A, version: "0.2.0", requiredModules: [] },
     },
-    schemaVersion: 1,
+    schemaVersion: 2,
   });
   const state = parseInstallState(raw, { caseInsensitive: false });
   const serialized = `{
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "modules": {
     "deniz-process": {
       "version": "0.2.0",
-      "digest": "${HASH_A}"
+      "digest": "${HASH_A}",
+      "requiredModules": []
     },
     "deniz-zeta": {
       "version": "1.0.0",
-      "digest": "${HASH_B}"
+      "digest": "${HASH_B}",
+      "requiredModules": []
     }
   },
   "files": {
@@ -91,8 +93,8 @@ test("install state serialization is deterministic two-space JSON", () => {
 test("state digest is stable over sorted Modules and files", () => {
   const first = parseInstallState(
     JSON.stringify({
-      schemaVersion: 1,
-      modules: { "deniz-process": { version: "0.2.0", digest: HASH_A } },
+      schemaVersion: 2,
+      modules: { "deniz-process": { version: "0.2.0", digest: HASH_A, requiredModules: [] } },
       files: {
         "skills/z/SKILL.md": owned(),
         "commands/a.md": owned(),
@@ -101,12 +103,12 @@ test("state digest is stable over sorted Modules and files", () => {
   );
   const second = parseInstallState(
     JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       files: {
         "commands/a.md": owned(),
         "skills/z/SKILL.md": owned(),
       },
-      modules: { "deniz-process": { digest: HASH_A, version: "0.2.0" } },
+      modules: { "deniz-process": { digest: HASH_A, version: "0.2.0", requiredModules: [] } },
     }),
   );
   assert.equal(stateDigest(first), stateDigest(second));
@@ -115,10 +117,10 @@ test("state digest is stable over sorted Modules and files", () => {
 test("Install-state serialization uses ordinal Module and path ordering", () => {
   const state = parseInstallState(
     JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       modules: {
-        "deniz-a": { version: "1.0.0", digest: HASH_A },
-        "deniz-Z": { version: "1.0.0", digest: HASH_B },
+        "deniz-a": { version: "1.0.0", digest: HASH_A, requiredModules: [] },
+        "deniz-Z": { version: "1.0.0", digest: HASH_B, requiredModules: [] },
       },
       files: {
         "commands/a.md": owned("deniz-a"),
@@ -153,7 +155,7 @@ test("loadInstallState requires a link-free metadata path and ordinary install.j
   const deniz = join(destination, ".deniz-skills");
   mkdirSync(deniz);
   const target = join(destination, "outside-install.json");
-  writeFileSync(target, JSON.stringify({ schemaVersion: 1, modules: {}, files: {} }));
+  writeFileSync(target, JSON.stringify({ schemaVersion: 2, modules: {}, files: {} }));
   try {
     symlinkSync(target, join(deniz, "install.json"), "file");
   } catch (error) {
@@ -186,12 +188,30 @@ test("empty OPENCODE_CONFIG_DIR is not a refusal", () => {
   );
 });
 
+test("requirements: state preserves requirements without assuming closure", () => {
+  const state = parseInstallState(
+    JSON.stringify({
+      schemaVersion: 2,
+      modules: { consumer: { version: "1.0.0", digest: HASH_A, requiredModules: ["z", "a"] } },
+      files: {},
+    }),
+  );
+  assert.deepEqual(state.modules.consumer?.requiredModules, ["a", "z"]);
+  const bytes = serializeInstallState(state);
+  assert.equal(stateDigest(state), hashBytes(bytes));
+  assert.deepEqual(parseInstallState(bytes), state);
+  assert.throws(
+    () => parseInstallState(JSON.stringify({ schemaVersion: 1, modules: {}, files: {} })),
+    /schemaVersion.*2/,
+  );
+});
+
 test("install state rejects an unknown schema version", () => {
   assert.throws(
     () =>
       parseInstallState(
         JSON.stringify({
-          schemaVersion: 2,
+          schemaVersion: 3,
           modules: {},
           files: {},
         }),
@@ -200,13 +220,20 @@ test("install state rejects an unknown schema version", () => {
   );
 });
 
+test("install state rejects schema version 1", () => {
+  assert.throws(
+    () => parseInstallState(JSON.stringify({ schemaVersion: 1, modules: {}, files: {} })),
+    /schemaVersion.*2/,
+  );
+});
+
 test("install state rejects a file whose Module is not selected", () => {
   assert.throws(
     () =>
       parseInstallState(
         JSON.stringify({
-          schemaVersion: 1,
-          modules: { "deniz-process": { version: "0.2.0", digest: HASH_A } },
+          schemaVersion: 2,
+          modules: { "deniz-process": { version: "0.2.0", digest: HASH_A, requiredModules: [] } },
           files: { "commands/a.md": owned("deniz-other") },
         }),
       ),
@@ -243,8 +270,8 @@ test("install state rejects a path outside the native tree", () => {
     () =>
       parseInstallState(
         JSON.stringify({
-          schemaVersion: 1,
-          modules: { "deniz-process": { version: "0.2.0", digest: HASH_A } },
+          schemaVersion: 2,
+          modules: { "deniz-process": { version: "0.2.0", digest: HASH_A, requiredModules: [] } },
           files: { "plugins/a.md": owned() },
         }),
       ),
@@ -380,8 +407,8 @@ test("case-insensitive install state rejects aliases even without traversal", ()
     () =>
       parseInstallState(
         JSON.stringify({
-          schemaVersion: 1,
-          modules: { "deniz-process": { version: "0.2.0", digest: HASH_A } },
+          schemaVersion: 2,
+          modules: { "deniz-process": { version: "0.2.0", digest: HASH_A, requiredModules: [] } },
           files: {
             "skills/Alpha/SKILL.md": owned(),
             "skills/alpha/skill.md": { module: "deniz-process", sha256: HASH_B, mode: "100644" },

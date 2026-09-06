@@ -3,7 +3,10 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { stringify } from "yaml";
 import { buildAll } from "./build.ts";
+import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.ts";
+import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 import { makeRepo, opencodeModulePath } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
@@ -567,8 +570,9 @@ test("linker: original-skill depends_on without a fact is stale", () => {
 test("linker: removing an original-skill target leaves a dangling fact", () => {
   const root = makeRepo();
   writeOwnTargetCase(root, "Load deniz-process:my-own.");
-  rmSync(join(root, "skills", "deniz-process", "my-own"), { recursive: true, force: true });
   buildAll(root);
+  rmSync(join(root, "plugins", "deniz-process", "skills", "my-own"), { recursive: true, force: true });
+  rmSync(join(root, "opencode", "deniz-process", "skills", "my-own"), { recursive: true, force: true });
   assert.ok(validateRepo(root).some((f) => f.message.includes("dangling reference")));
 });
 
@@ -1037,6 +1041,40 @@ test("module manifest: a dangling top-level symlink under opencode/ returns find
       (f) =>
         f.level === "error" && f.message.includes("must not contain symlinks") && f.message.includes("opencode/ghost"),
     ),
+    JSON.stringify(findings, null, 2),
+  );
+});
+
+test("module manifest: re-signed requiredModules still must match curation", () => {
+  const root = makeRepo();
+  const path = join(root, "curation", "deniz-process.yaml");
+  const consumer = loadManifest(path);
+  const alpha = consumer.items.find((item) => item.source === "sp/skills/alpha");
+  const delta = consumer.items.find((item) => item.source === "sp/skills/delta");
+  assert.ok(alpha && delta);
+  alpha.depends_on = ["provider"];
+  delta.exclude = true;
+  writeFileSync(path, stringify(consumer));
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha\n---\nUse superpowers:delta.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-provider.yaml"),
+    stringify({
+      plugin: { name: "deniz-provider", description: "Provider", version: "1.0.0" },
+      items: [{ source: "sp/skills/delta", name: "provider", invocation: "auto" }],
+    }),
+  );
+  buildAll(root);
+  const manifestPath = join(opencodeModulePath(root, "deniz-process"), "manifest.json");
+  const manifest = loadModuleManifest(manifestPath);
+  manifest.requiredModules = [];
+  manifest.digest = digestModulePayload(manifest.files, manifest.requiredModules);
+  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  const findings = validateRepo(root);
+  assert.ok(
+    findings.some((f) => f.level === "error" && f.message.includes("required Modules do not match curation")),
     JSON.stringify(findings, null, 2),
   );
 });

@@ -16,7 +16,7 @@ import { dirname, join } from "node:path";
 import { test } from "node:test";
 import {
   createModuleManifest,
-  digestFileMap,
+  digestModulePayload,
   hashBytes,
   type ModuleBundle,
   type ModuleManifest,
@@ -48,11 +48,18 @@ function stateWithOwnedCommand(
   bytes: string,
   version = "0.1.0",
   mode: "100644" | "100755" = "100644",
+  requiredModules: string[] = [],
 ): InstallState {
   const identity = { sha256: hashBytes(bytes), mode };
   return {
-    schemaVersion: 1,
-    modules: { [module]: { version, digest: digestFileMap({ [path]: identity }) } },
+    schemaVersion: 2,
+    modules: {
+      [module]: {
+        version,
+        digest: digestModulePayload({ [path]: identity }, requiredModules),
+        requiredModules: [...requiredModules],
+      },
+    },
     files: { [path]: { module, sha256: identity.sha256, mode: identity.mode } },
   };
 }
@@ -127,7 +134,7 @@ function makeInstallFixture(): {
   writeFileSync(join(bundleRoot, "commands", "alpha.md"), "new\n");
   const oldState = stateWithOwnedCommand("deniz-process", "commands/alpha.md", oldBytes);
   writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
-  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644", []);
   const observed = observeOwnedPaths(destination, oldState, manifest);
   const plan = requireFindingFree(
     planReconcile(oldState, { "deniz-process": manifest }, observed, {
@@ -189,10 +196,10 @@ function makeAddFixture(): {
   const target = join(destination, "commands", "alpha.md");
   mkdirSync(join(bundleRoot, "commands"), { recursive: true });
   writeFileSync(join(bundleRoot, "commands", "alpha.md"), "new\n");
-  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644", []);
   const plan = requireFindingFree(
     planReconcile(
-      { schemaVersion: 1, modules: {}, files: {} },
+      { schemaVersion: 2, modules: {}, files: {} },
       { "deniz-process": manifest },
       { "commands/alpha.md": { kind: "absent" } },
       { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
@@ -226,7 +233,7 @@ function makeChmodFixture(): {
   chmodSync(target, 0o644);
   const oldState = stateWithOwnedCommand("deniz-process", "skills/alpha/run.sh", bytes, "0.1.0", "100644");
   writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
-  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100755");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100755", []);
   const plan = requireFindingFree(
     planReconcile(oldState, { "deniz-process": manifest }, observeOwnedPaths(destination, oldState, manifest), {
       kind: "update",
@@ -865,15 +872,21 @@ function makeTwoFileFixture(): {
     "commands/beta.md": { sha256: hashBytes(oldBeta), mode: "100644" as const },
   };
   const oldState: InstallState = {
-    schemaVersion: 1,
-    modules: { "deniz-process": { version: "0.1.0", digest: digestFileMap(oldIdentities) } },
+    schemaVersion: 2,
+    modules: {
+      "deniz-process": {
+        version: "0.1.0",
+        digest: digestModulePayload(oldIdentities, []),
+        requiredModules: [],
+      },
+    },
     files: {
       "commands/alpha.md": { module: "deniz-process", ...oldIdentities["commands/alpha.md"] },
       "commands/beta.md": { module: "deniz-process", ...oldIdentities["commands/beta.md"] },
     },
   };
   writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
-  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644", []);
   const plan = requireFindingFree(
     planReconcile(oldState, { "deniz-process": manifest }, observeOwnedPaths(destination, oldState, manifest), {
       kind: "update",
@@ -1196,10 +1209,10 @@ test("rollback of an add removes directories created by this transaction", () =>
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   mkdirSync(join(bundleRoot, "skills", "alpha"), { recursive: true });
   writeFileSync(join(bundleRoot, "skills", "alpha", "SKILL.md"), "new\n");
-  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644", []);
   const plan = requireFindingFree(
     planReconcile(
-      { schemaVersion: 1, modules: {}, files: {} },
+      { schemaVersion: 2, modules: {}, files: {} },
       { "deniz-process": manifest },
       { "skills/alpha/SKILL.md": { kind: "absent" } },
       { kind: "install", modules: ["deniz-process"], all: false, platform: "posix" },
@@ -1250,20 +1263,28 @@ function makeDropMissingFixture(): {
     "commands/beta.md": fileIdentityOf(replacedOldBytes),
   };
   const oldState: InstallState = {
-    schemaVersion: 1,
-    modules: { "deniz-process": { version: "0.1.0", digest: digestFileMap(oldFiles) } },
+    schemaVersion: 2,
+    modules: {
+      "deniz-process": { version: "0.1.0", digest: digestModulePayload(oldFiles, []), requiredModules: [] },
+    },
     files: {
       "commands/alpha.md": { module: "deniz-process", ...oldFiles["commands/alpha.md"] },
       "commands/beta.md": { module: "deniz-process", ...oldFiles["commands/beta.md"] },
     },
   };
   writeFileSync(join(destination, ".deniz-skills", "install.json"), serializeInstallState(oldState));
-  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644");
+  const manifest = createModuleManifest(bundleRoot, "deniz-process", "0.2.0", () => "100644", []);
   const replacement = manifest.files["commands/beta.md"];
   assert.ok(replacement);
   const nextState: InstallState = {
-    schemaVersion: 1,
-    modules: { "deniz-process": { version: manifest.version, digest: manifest.digest } },
+    schemaVersion: 2,
+    modules: {
+      "deniz-process": {
+        version: manifest.version,
+        digest: manifest.digest,
+        requiredModules: [...manifest.requiredModules],
+      },
+    },
     files: { "commands/beta.md": { module: "deniz-process", ...replacement } },
   };
   const plan: Plan = {
@@ -2393,7 +2414,7 @@ test("rollback refuses semantically equal but non-exact old Install-state bytes 
 test("rollback refuses ambiguous add destination evidence and keeps the transaction", () => {
   const fixture = makeAddFixture();
   mkdirSync(fixture.target, { recursive: true });
-  const oldState: InstallState = { schemaVersion: 1, modules: {}, files: {} };
+  const oldState: InstallState = { schemaVersion: 2, modules: {}, files: {} };
   const operationIndex = fixture.plan.operations.findIndex((operation) => operation.kind === "add");
   const operation = fixture.plan.operations[operationIndex];
   assert.ok(operation && operation.kind === "add");

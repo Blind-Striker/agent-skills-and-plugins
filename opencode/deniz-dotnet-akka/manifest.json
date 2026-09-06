@@ -1,8 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "module": "deniz-dotnet-akka",
-  "version": "0.3.0",
-  "digest": "sha256:3f2fe3b1d3023075f30fe0ba6c335331f35c9641de406e24318956a9c96b047d",
+  "version": "0.3.1",
+  "digest": "sha256:c7d80c7e5456f65b312dc0c1a1e5fae0e870a5e50e90e5316e526d64983d57a3",
+  "requiredModules": [
+    "deniz-dotnet-aspire",
+    "deniz-dotnet-general"
+  ],
   "files": {
     "LICENSE": {
       "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",

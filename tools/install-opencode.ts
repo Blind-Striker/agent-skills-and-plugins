@@ -4,6 +4,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  findMissingModuleRequirements,
   loadModuleBundles,
   verifyModuleManifest,
   type ModuleBundle,
@@ -353,6 +354,9 @@ function loadVerifiedBundles(packageRoot: string, platform: InstallCliIo["platfo
     })) {
       findings.push(`${finding.code} ${name} ${finding.path}: ${finding.message}`);
     }
+  }
+  for (const missing of findMissingModuleRequirements(manifests)) {
+    findings.push(`${missing.module} requires ${missing.requiredModule}`);
   }
   return { bundles, manifests, findings };
 }
