@@ -178,7 +178,8 @@ The Codex IDE extension does not currently load Plugins, and this repository doe
 explicit and implicit invocation, manual suppression, cross-skill handoff, bundled references, an
 uninstalled negative control, and two generated-skill paths. The installed 117-skill catalog caused
 description-shortening warnings on every call, so the result is bounded evidence rather than a
-guarantee for every skill or model.
+guarantee for every skill or model. The public GitHub marketplace's add, list, install, upgrade, and
+cleanup path is also [measured](experiments/harness-invocation/records/2026-09-07-codex-remote-marketplace.md).
 
 ### OpenCode from this checkout
 

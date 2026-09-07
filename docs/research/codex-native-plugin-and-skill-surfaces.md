@@ -127,7 +127,8 @@ runtime support for the measured CLI/model combination, not a guarantee for ever
   contract requires implicit availability without forbidding a native explicit escape hatch.
 - Codex-plugin commands and agents should become skills for the first distributable baseline.
 - Plugin output can cover Codex CLI and the ChatGPT desktop app, but not the IDE extension.
-- Installed-cache structure, all-four-plugin installation, description shortening, explicit and
-  implicit invocation controls, manual suppression, cross-skill execution, bundled references, and
-  two generated-skill paths are measured on Codex CLI 0.153.4 with Luna. ChatGPT desktop, remote Git
-  marketplace upgrade, and standalone IDE skill transport remain separate experiment questions.
+- Installed-cache structure, all-four-plugin installation, public Git marketplace add/install/upgrade,
+  description shortening, explicit and implicit invocation controls, manual suppression,
+  cross-skill execution, bundled references, and two generated-skill paths are measured on Codex CLI
+  0.153.4 with Luna. ChatGPT desktop state sharing and standalone IDE skill transport remain separate
+  experiment questions.

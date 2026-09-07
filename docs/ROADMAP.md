@@ -48,13 +48,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Close the remaining Codex distribution experiments.** Deterministic Codex emission, native
+1. **Close the remaining Codex surface experiments.** Deterministic Codex emission, native
    manifests and marketplace, invocation policy, `$plugin:skill` localization, ledger projection,
-   validation, isolated CLI installation, and the bounded credentialed model panel are implemented.
+   validation, isolated CLI installation, public Git marketplace add/install/upgrade, and the
+   bounded credentialed model panel are implemented.
    The follow-up estate review resolved actual skill pointers through the shared authored pipeline;
-   a Codex-only body-patch seam is not justified. After a dedicated commit is available, exercise
-   add/install/upgrade from the public Git marketplace rather than the local checkout. Optionally
-   measure ChatGPT desktop discovery. Do not claim IDE Plugin or native custom-agent distribution.
+   a Codex-only body-patch seam is not justified. Optionally measure ChatGPT desktop discovery and
+   whether its custom-marketplace installation state is shared with CLI. Do not claim IDE Plugin or
+   native custom-agent distribution.
    The approved temporary design is
    [Codex-native output design](superpowers/specs/2026-09-06-codex-native-output-design.md), grounded
    in [Codex native plugin and skill surfaces](research/codex-native-plugin-and-skill-surfaces.md)
@@ -126,8 +127,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   model, or future catalog size.
 - **Codex distribution coverage is intentionally split:** native Plugins cover Codex CLI and Codex
   in ChatGPT desktop, not the Codex IDE extension. IDE coverage would need a separately owned
-  standalone-skill transport. Public OpenAI universal-directory submission and remote Git upgrade
-  remain unmeasured distribution work, not requirements for local marketplace installation.
+  standalone-skill transport. ChatGPT desktop state sharing and public OpenAI universal-directory
+  submission remain unmeasured distribution work, not requirements for CLI marketplace installation.
 - **Case-sensitive fact scan:** capitalized namespaced spellings can evade the lowercase scanner.
 - **Bare references are review-only:** ordinary names are candidates, not build state. Promote only
   load-bearing cases through an authored namespaced fact and matching dependency.
