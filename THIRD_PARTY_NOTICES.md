@@ -1,9 +1,10 @@
 # Third-party notices
 
 This repository curates and transforms material from the projects below. Each source is distributed
-under the MIT License. Generated Claude Code Plugins and OpenCode Module Bundles include the exact
-upstream license text for every source they use under `third_party/<source>/LICENSE`; the npm-format
-Package contains those files inside its Module Bundles.
+under the MIT License. Generated Claude Code Plugins, OpenCode Module Bundles, and Codex Plugins
+include the exact upstream license text for every source they use under
+`third_party/<source>/LICENSE`; the npm-format Package contains those files inside its OpenCode
+Module Bundles.
 
 | Source | Copyright holder | Upstream |
 |---|---|---|

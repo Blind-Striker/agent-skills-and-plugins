@@ -1,6 +1,6 @@
 # ADR-0007: Curation serves the curator's taste; control beats fidelity
 
-Date: 2026-08-02
+Date: 2026-09-07
 Status: Accepted
 
 ## Context
@@ -44,9 +44,9 @@ material, not a standard to track. Concretely:
   defined by [ADR-0008](0008-references-are-symbols.md) and [References and linking](../architecture/references-and-linking.md#one-grammar-three-evidence-tiers).
   The closure is surfaced at decision time; taking a package whole, cutting the edge, or rewiring it
   are all legitimate outcomes. Deciding an item in isolation is not.
-- **Both harnesses, every time.** An item's fate is decided for the Claude Code and OpenCode trees
-  at once — ADR-0006 resolves each axis per harness. Claude-first with OpenCode as an afterthought
-  is the named anti-pattern.
+- **All harnesses, every time.** An item's fate is decided for the Claude Code, OpenCode, and Codex
+  trees at once — ADR-0006 resolves each axis per harness. Treating any target as a later port is the
+  named anti-pattern.
 
 ## Consequences
 

@@ -85,13 +85,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    own-source marker. Validation must reject a directory with no declaration, a declaration with no
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
-   ledger cases in both harness trees.
+   ledger cases in all three harness trees.
 2. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
    bounded packet: pinned upstream body and bundled dependency closure, manifest reason, overlay or
-   patch plus lock evidence, and both emitted harness forms. Review trigger/overlap, body-intent
+   patch plus lock evidence, and all three emitted harness forms. Review trigger/overlap, body-intent
    preservation, and harness fit separately. Require `file:line` evidence, a concrete consequence,
    confidence, and one of `retain`, `narrow`, `reconsider`, or `ambiguous`; preserve disagreements.
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
