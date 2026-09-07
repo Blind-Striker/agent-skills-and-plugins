@@ -6,7 +6,8 @@ selections, or the recorded transformation decisions may still be useful to some
 
 Upstream skill repositories live as submodules in `external/`; curation manifests in
 `curation/*.yaml` select and transform what gets packaged into the `deniz-*` Claude Code Plugins in
-`plugins/` and same-named OpenCode Module Bundles in `opencode/`.
+`plugins/`, same-named OpenCode Module Bundles in `opencode/`, and same-named Codex Plugins in
+`codex/`.
 
 Working in this repo, human or agent, starts at [AGENTS.md](AGENTS.md): the contract and the map of
 where everything else lives.
@@ -30,7 +31,9 @@ remain beside the items in [`curation/deniz-process.yaml`](curation/deniz-proces
 Authored transformation inputs live in `curation/*.yaml` (what to take and how to customize it),
 `curation/attribution.json` (where redistributed sources and licenses come from), `overlays/`
 (patches or owned replacement files), and `skills/` (original skills). `npm run build` regenerates
-committed `plugins/`, `opencode/`, and `dist/` output; never edit those generated trees directly.
+committed `plugins/`, `opencode/`, `codex/`, and `dist/` output; never edit those generated trees
+directly. The Claude and Codex repository marketplaces are generated at
+`.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`.
 
 The generated `docs/inventory.md` is the scanner-visible catalog for the initialized upstream pins.
 It is evidence and a starting index for curation, not an absolute substitute for the upstream source
@@ -48,8 +51,9 @@ form a small compiler and installer pipeline:
 pinned upstream repos + original skills
   -> inventory + curator intent + patches/overlays
   -> preflight + transformation + reference localization/linking
-  -> Claude Code Plugins + OpenCode Module Bundles
-  -> transactional OpenCode Native-tree installation
+  -> common assembled items
+  -> Claude Code Plugins + OpenCode Module Bundles + Codex Plugins
+  -> native Plugin marketplaces or transactional OpenCode Native-tree installation
 ```
 
 - Every scanner-visible upstream item receives an explicit take, merge, transform, or exclude
@@ -58,14 +62,17 @@ pinned upstream repos + original skills
   invocation, or emitted in another supported artifact shape. Native commands and agents are kept;
   source skills can also become commands or agents.
 - `auto`, `manual`, and `both` are harness-neutral intent. Claude Code receives native invocation
-  flags; OpenCode receives a skill, a command, or both. Bundled manual skills retain their assets in a
-  non-discoverable parked body rather than losing them during command conversion.
+  flags; OpenCode receives a skill, a command, or both; Codex receives a skill, with a native
+  explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto` because
+  its native skill surface has no implicit-only posture. Bundled OpenCode manual skills retain their
+  assets in a non-discoverable parked body rather than losing them during command conversion.
 - Surgical patches, owned overlays, and declared multi-source merges are stamped against their
   upstream inputs. Reviewed upstream drift blocks generation until it is deliberately reconciled or
   re-blessed.
 - Neutral namespaced references are localized independently for each harness. The linker checks
   target existence, model/user reachability, two-way `depends_on` symmetry, and transformation-caused
-  path breakage.
+  path breakage. Codex receives native `$plugin:skill` references without losing the neutral
+  model-edge versus user-pointer distinction in the generated ledger.
 - Preflight aggregates source, identity, collision, conversion, and attribution failures before old
   generated output is deleted. The deterministic ledger makes invocation, shape, dependencies,
   dropped metadata, and emitted artifacts reviewable as data.
@@ -80,10 +87,11 @@ pinned upstream repos + original skills
 - `npm run sync` is a deliberate pin-move workflow that reports source deletion/rename, posture and
   frontmatter movement, merge-source drift, and candidate reference changes for human review.
 
-Current limitations are stated rather than hidden: reverse command/agent-to-skill conversion,
-per-harness body overlays, automatic Selection expansion, cross-version item/API compatibility, and
-runtime model behavior are not claimed. Checkout schema-2 planning does check that recorded required
-Modules are present in the Selection. See the linked architecture documents and
+Current limitations are stated rather than hidden: source command/agent-to-resolved-skill
+conversion, per-harness body overlays, automatic Selection expansion, cross-version item/API
+compatibility, and runtime model behavior are not claimed. Codex does adapt resolved commands and
+agents into skills while retaining their selected dependency closure. Checkout schema-2 planning
+checks that recorded required Modules are present in the Selection. See the linked architecture documents and
 [roadmap](docs/ROADMAP.md) for the exact proof boundaries.
 
 ## Sources and credits
@@ -95,8 +103,8 @@ Vincent, [Matt Pocock's skills](https://github.com/mattpocock/skills),
 [the .NET agent skills](https://github.com/dotnet/skills), and
 [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng.
 
-This repository's original work is MIT licensed. Each generated Plugin and Bundle carries its exact
-source-specific license texts. See [LICENSE](LICENSE) and
+This repository's original work is MIT licensed. Each generated Claude Plugin, OpenCode Bundle, and
+Codex Plugin carries its exact source-specific license texts. See [LICENSE](LICENSE) and
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 
 ## Setup
@@ -118,7 +126,7 @@ worktrees.
 
 | Command | Purpose |
 |---|---|
-| `npm run build` | Compile manifests + overlays + own skills into committed `plugins/`, `opencode/`, and installer `dist/` output |
+| `npm run build` | Compile manifests + overlays + own skills into committed `plugins/`, `opencode/`, `codex/`, marketplaces, and installer `dist/` output |
 | `npm run inventory` | Regenerate `docs/inventory.md` catalog |
 | `npm run eject -- <plugin> <name>` | Copy an item to `overlays/` for body editing |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
@@ -134,8 +142,8 @@ worktrees.
 Generated harness output is excluded from the general Biome pass, while `npm run build` formats the
 committed installer JavaScript in `dist/`; `biome.json` is authoritative for the exact exclusions.
 
-Build output is committed. CI rebuilds and fails if `plugins/`, `opencode/`, `dist/`,
-`.claude-plugin/`, `docs/inventory.md`, or `docs/ledger.json` differ from what is
+Build output is committed. CI rebuilds and fails if `plugins/`, `opencode/`, `codex/`, `dist/`,
+either marketplace, `docs/inventory.md`, or `docs/ledger.json` differs from what is
 checked in, so run `npm run build && npm run inventory` and commit the result
 with any curation change or submodule bump. The build compiles the installer to
 `dist/` and formats that committed JavaScript; consumers do not compile it.
@@ -148,6 +156,29 @@ change, yours or upstream's, shows up in review.
 Claude Code: `/plugin marketplace add Blind-Striker/agent-skills-and-plugins` then install `deniz-*`
 plugins. Once a `deniz-*` plugin covers an upstream source, uninstall the
 upstream plugin (avoid duplicate similar skills).
+
+### Codex from this repository marketplace
+
+Codex CLI and Codex in the ChatGPT desktop app support the generated repository marketplace. Add
+the Git marketplace, inspect the available entries, and install a same-named plugin; start a new CLI
+session before expecting newly installed skills to appear:
+
+```bash
+codex plugin marketplace add https://github.com/Blind-Striker/agent-skills-and-plugins --json
+codex plugin list --available --json
+codex plugin add deniz-process@deniz-skills --json
+```
+
+Each plugin contains only native Codex skills and its own `.codex-plugin/plugin.json`. Commands and
+agents selected by curation are adapted to skills rather than shipped in compatibility directories.
+The Codex IDE extension does not currently load Plugins, and this repository does not install native
+`.codex/agents/*.toml` custom agents. Isolated CLI marketplace installation of all four plugins is
+[measured](experiments/harness-invocation/records/2026-09-07-codex-plugin-structural.md). A separate
+[Luna panel](experiments/harness-invocation/records/2026-09-07-codex-plugin-behaviour.md) measures
+explicit and implicit invocation, manual suppression, cross-skill handoff, bundled references, an
+uninstalled negative control, and two generated-skill paths. The installed 117-skill catalog caused
+description-shortening warnings on every call, so the result is bounded evidence rather than a
+guarantee for every skill or model.
 
 ### OpenCode from this checkout
 

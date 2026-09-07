@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-09-06
+Date: 2026-09-07
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -10,8 +10,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Current State
 
-- The four current curation manifests emit matching Claude Code Plugins and OpenCode Module Bundles.
-  Checkout Module versions are Process 0.5.1, General 0.9.1, Akka 0.3.1, and Aspire 0.3.3. Their item
+- The four current curation manifests pass through one common assembly and emit matching Claude
+  Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
+  Checkout Module versions are Process 0.6.0, General 0.9.1, Akka 0.3.1, and Aspire 0.3.3. Their item
   posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.9.1 carries the current test-execution,
@@ -47,7 +48,18 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Iteration 2: dependency automation and original-skill declarations.** After the validation-only
+1. **Close the remaining Codex distribution experiments.** Deterministic Codex emission, native
+   manifests and marketplace, invocation policy, `$plugin:skill` localization, ledger projection,
+   validation, isolated CLI installation, and the bounded credentialed model panel are implemented.
+   The follow-up estate review resolved actual skill pointers through the shared authored pipeline;
+   a Codex-only body-patch seam is not justified. After a dedicated commit is available, exercise
+   add/install/upgrade from the public Git marketplace rather than the local checkout. Optionally
+   measure ChatGPT desktop discovery. Do not claim IDE Plugin or native custom-agent distribution.
+   The approved temporary design is
+   [Codex-native output design](superpowers/specs/2026-09-06-codex-native-output-design.md), grounded
+   in [Codex native plugin and skill surfaces](research/codex-native-plugin-and-skill-surfaces.md)
+   and the [generated-estate audit](research/codex-generated-estate-audit.md).
+2. **Iteration 2: dependency automation and original-skill declarations.** After the Codex milestone,
    feature, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
    the first feature. Selection/Ownership semantics, user approval for automatic changes, and version
@@ -79,7 +91,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in both harness trees.
-2. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -90,13 +102,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
    Run it after a body-ownership pass and before declaring a Module closed.
-3. **Write the invocation ADR only after more runtime evidence.** Namespaced body facts prove
-   deterministic existence and audience reachability once a source runs, but do not make it run.
-   Descriptions provide probabilistic selection pressure and can reach work with no explicit caller.
-   The current candidate rule is: load-bearing composition uses guarded body facts; opportunistic
-   passive knowledge can use honest descriptions; ceremonies need a human surface. Record it only
-   when the original-skill declaration and another bounded runtime sample confirm that this is the
-   durable dial. Evidence remains in
+4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+   required and forbidden initiation capabilities, but it does not claim that descriptions reliably
+   cause model selection. Namespaced body facts prove deterministic existence and audience
+   reachability once a source runs, but do not make it run. Descriptions provide probabilistic
+   selection pressure and can reach work with no explicit caller. The current candidate rule is:
+   load-bearing composition uses guarded body facts; opportunistic passive knowledge can use honest
+   descriptions; ceremonies need a human surface. Promote it to a durable decision only when the
+   original-skill declaration and another bounded runtime sample confirm the trade-off. Evidence
+   remains in
    [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md) and
    [skill-framework-landscape.md](research/skill-framework-landscape.md).
 
@@ -106,9 +120,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Plan presence-checks the final Selection and does not automatically add, cascade-remove, or
   range-resolve Modules. Cross-version item/API compatibility is not claimed. See
   [distribution and installation](architecture/distribution-and-installation.md#full-estate-versus-installed-selection).
-- **Same-name, different-kind reference maps are name-only:** a cross-kind duplicate can overwrite
-  target state or lose kind semantics. See
-  [references and linking](architecture/references-and-linking.md#proof-boundary-and-current-limits).
+- **Codex catalog pressure is real:** every call in the 117-skill Luna panel warned that descriptions
+  were shortened to fit the skills context budget. The tested explicit, implicit, manual, handoff,
+  reference, and generated-skill paths passed, but that bounded panel is not proof for every skill,
+  model, or future catalog size.
+- **Codex distribution coverage is intentionally split:** native Plugins cover Codex CLI and Codex
+  in ChatGPT desktop, not the Codex IDE extension. IDE coverage would need a separately owned
+  standalone-skill transport. Public OpenAI universal-directory submission and remote Git upgrade
+  remain unmeasured distribution work, not requirements for local marketplace installation.
 - **Case-sensitive fact scan:** capitalized namespaced spellings can evade the lowercase scanner.
 - **Bare references are review-only:** ordinary names are candidates, not build state. Promote only
   load-bearing cases through an authored namespaced fact and matching dependency.
@@ -162,7 +181,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Deferred
 
-Out of scope until there is a concrete need: OpenCode agent permission mapping; Codex, Cursor and
-Gemini outputs; automated or scheduled upstream sync; the Blazor and MAUI skill estates; specialist
+Out of scope until there is a concrete need: OpenCode agent permission mapping; Cursor and Gemini
+outputs; automated or scheduled upstream sync; the Blazor and MAUI skill estates; specialist
 mobile diagnostics; NuGet trusted-publishing guidance; and packaging this repository's documentation
 structure as an original skill.

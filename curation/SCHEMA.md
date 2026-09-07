@@ -27,8 +27,9 @@ the sources each Module actually uses, copies their license bytes directly from 
 keeps excluded-only sources out of that Module's notices.
 
 The repository's root `LICENSE` covers original work and modifications. It does not replace upstream
-terms. Root `THIRD_PARTY_NOTICES.md` credits the complete source estate; generated Plugin and Bundle
-notice packs are source-specific distribution output and must never be edited directly.
+terms. Root `THIRD_PARTY_NOTICES.md` credits the complete source estate; generated Claude Plugin,
+OpenCode Bundle, and Codex Plugin notice packs are source-specific distribution output and must
+never be edited directly.
 
 ## Choose the lowest-cost mechanism
 
@@ -53,9 +54,10 @@ needs a full-file overlay. For a conversion overlay, keep the upstream body file
 for a source skill, or the source command/agent filename); the build reads that one file.
 
 Every manifest must have a repository-unique `plugin.name`. Within a manifest, each non-excluded
-item must have a unique artifact-kind/output-name pair: two skills cannot both emit the same name,
-for example. The same output name in different artifact kinds (such as a skill and a command) is
-legal because those artifacts occupy different target-harness namespaces.
+item must have a unique artifact-kind/output-name pair. Codex emits every resolved kind into one
+plugin-local skill namespace, so output names must also be unique across kinds within a manifest;
+`skill:review` and `command:review` would collide as Codex skills and fail preflight. The same name
+may still exist in different plugins because Codex addresses it through the plugin namespace.
 
 Curating the same upstream source into more than one item is legal but ambiguous for references:
 the rewrite map is keyed by upstream address and the last manifest item wins. `validate` warns so
@@ -78,20 +80,22 @@ take ownership of the whole body merely to remove a file.
 
 ## `invocation` and `as` are orthogonal
 
-`invocation` says who pulls the trigger for an item emitted as a skill. `as` says what artifact the
-item becomes. One does not derive the other.
+`invocation` says which initiation capabilities an item requires or forbids. `as` says its resolved
+Claude/OpenCode artifact shape. One does not derive the other; Codex adapts every resolved kind to a
+skill and therefore still consumes invocation on an item resolved as a command or agent.
 
-| `invocation` | Claude Code output | OpenCode output |
-|---|---|---|
-| absent | preserve upstream skill posture | skill |
-| `auto` | model-only skill | skill |
-| `manual` | user-only skill | command |
-| `both` | skill available to both audiences | skill and command |
+| `invocation` | Capability intent | Claude Code skill output | OpenCode skill output | Codex output |
+|---|---|---|---|---|
+| absent | passthrough or target default | preserve upstream posture | skill | skill with target defaults |
+| `auto` | implicit required; explicit unspecified | model-only skill | skill | ordinary skill; explicit remains natively available |
+| `manual` | implicit forbidden; explicit required | user-only skill | command | skill with `allow_implicit_invocation: false` |
+| `both` | implicit and explicit required | skill available to both audiences | skill and command | ordinary skill |
 
 Absent is not a default value: it records no curation intent, so upstream Claude frontmatter passes
-through. Set `invocation` only on skill output; `validate` warns when it is combined with a command
-or agent shape. Use `as: command` or `as: agent` when the artifact itself must change regardless of
-trigger intent.
+through while Codex uses its native target default. Codex has no policy that preserves implicit
+selection while forbidding explicit invocation, so `auto` does not mean model-only there; this is a
+native capability resolution, not a silent approximation. Use `as: command` or `as: agent` when the
+Claude/OpenCode artifact itself must change regardless of trigger intent.
 
 ## Body ownership and merge sources
 

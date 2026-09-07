@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-09-06
+Date: 2026-09-07
 
 ## Responsibility
 
@@ -14,7 +14,8 @@ harness gets its own spelling is [ADR-0002](../adr/0002-multi-harness-output.md)
 
 [`tools/lib/refs.ts`](../../tools/lib/refs.ts) is the shared namespaced-reference scanner used by
 rewriting, validation, and ledger generation. Detection happens while identity is still explicit;
-OpenCode's final bare names cannot be parsed back into unambiguous symbols.
+OpenCode's final bare names and Codex's converged `$` spelling cannot be parsed back into the full
+neutral symbol semantics.
 
 ### Facts
 
@@ -25,8 +26,8 @@ uppercase/snake-case lookalikes rather than guessing.
 
 In an owned body, the spelling states the runtime audience:
 
-- a model-edge requires a target the model can reach in both generated harness trees;
-- a user-pointer requires a target the user can reach in both generated harness trees.
+- a model-edge requires a target the model can reach in every generated harness tree;
+- a user-pointer requires a target the user can reach in every generated harness tree.
 
 After localization, an own namespace is authoritative build state. A missing own target or an
 audience mismatch is an error. A recognized upstream namespace left unreplaced is a per-reference
@@ -68,12 +69,14 @@ name. A renamed item therefore changes the symbol target, not just its destinati
 Original skills add their authored `<plugin>:<top-level-directory>` identity to the same map, so a
 curated item can guard an original-skill target without inventing an upstream address. Claude Code
 receives `<plugin>:<output-name>` and preserves a pointer's leading slash; OpenCode receives the bare
-output name and preserves the slash. The map and in-place rewrite are
+output name and preserves the slash; Codex receives `$<plugin>:<output-name>` for both edge kinds.
+Codex rendering consumes a pointer's neutral leading slash instead of producing `/$...`; model and
+pointer remain separate semantic facts even though their final spelling converges. The map and in-place rewrite are
 [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts).
 
-Both trees are rewritten from their own pre-localized copies. OpenCode is not produced by stripping
-namespaces from already localized Claude text. Validation rejects any own output namespace that
-survives in `opencode/`.
+All three trees are rewritten from their own pre-localized copies. OpenCode and Codex are not
+produced by adapting already localized Claude text. Validation rejects any own output namespace
+that survives in `opencode/`, and rejects dangling, unrendered, or `/$` Codex references.
 
 Curating one upstream source more than once is currently last-write-wins in the source-address map.
 Validation warns with both outputs because every upstream fact for that source will localize to the
@@ -87,10 +90,11 @@ Markdown shipped by each non-excluded manifest item and enforces exact agreement
 an undeclared fact and a declaration with no shipped fact are both errors. User-pointers, paths, and
 candidates are not dependency declarations.
 
-For each fact, the linker checks the canonical namespaced Plugin body and asks whether the target is
-reachable in both emitted address spaces. Claude reachability comes from emitted invocation flags
-and artifact posture; OpenCode reachability comes from the existence of the corresponding skill or
-command. This is a generated-estate link, not a runtime call graph
+For each fact, the linker checks the canonical neutral kind and asks whether the target has the
+required audience surface. Claude reachability comes from emitted invocation flags and artifact
+posture; OpenCode reachability comes from the corresponding skill or command; Codex reachability
+comes from the skill plus its implicit policy, while explicit invocation remains available for every
+skill. This is a generated-estate link, not a runtime call graph
 ([`tools/validate.ts`](../../tools/validate.ts#L636-L740)).
 
 Reachability is not propensity. A green link proves that the intended audience has a mechanism to
@@ -101,17 +105,18 @@ in the committed [records](../../experiments/harness-invocation/records/README.m
 
 ## Ledger semantics
 
-`docs/ledger.json` is regenerated after both trees have their final reference spelling. Each
+`docs/ledger.json` is regenerated after all three trees have their final reference spelling. Each
 non-excluded manifest item has one key shaped
 `<plugin>/<resolved-output-kind>/<output-name>`. OpenCode expansion does not create an extra top-level
 entry: a skill resolved as `manual`, for example, remains under `/skill/` while its OpenCode artifact
 list records a command.
 
-Each entry projects the review-relevant state: source, declared invocation and body mode, merge-source
-addresses, declared dependencies, emitted artifact kinds, description, own fact edges in each
-harness spelling, emitted Claude boolean invocation flags, an item-level OpenCode dropped-key list,
-and parked files. OpenCode edges are respelled from the known namespaced facts rather than
-rediscovered from bare text ([`tools/lib/ledger.ts`](../../tools/lib/ledger.ts#L103-L105)).
+Each entry projects the review-relevant state: source, declared invocation and body mode,
+merge-source addresses, declared dependencies, emitted artifact kinds, description, own fact edges
+in each harness spelling, emitted Claude boolean invocation flags, OpenCode drops and parked files,
+and Codex identity, source/resolved/emitted kinds, material kind transformation, invocation
+capabilities, policy files, metadata drops, and body transformations. OpenCode and Codex edges are
+respelled from the known neutral facts rather than rediscovered from bare or converged final text.
 
 The ledger is deterministic but intentionally incomplete. It does not serialize complete emitted
 files, path-tier findings, candidates, overlay stamp filenames, or Module install dependencies.
@@ -123,15 +128,15 @@ by [Distribution and installation](distribution-and-installation.md).
 
 ## Proof boundary and current limits
 
-- `validate` links the complete generated Plugin/Module estate. An installer Selection is a later,
-  independent boundary. Full-estate linking does not prove that every subset is a valid Selection or
+- `validate` links the complete generated Claude Plugin, Codex Plugin, and OpenCode Module estate.
+  An installer Selection is a later, independent boundary. Full-estate linking does not prove that
+  every subset is a valid Selection or
   that selected Bundles are item/API compatible. The installer separately presence-checks recorded
   `requiredModules` against the Selection a request would produce; that is not automatic expansion
   and is owned by [Distribution and installation](distribution-and-installation.md).
-- Same output names in different artifact kinds are legal, but the current rewrite and linker target
-  maps use bare output name rather than kind-qualified identity. A same-name cross-kind case can
-  overwrite target state or lose the intended kind distinction. This is an implementation limit,
-  not a promise that kind never matters.
+- Same output names in different artifact kinds are rejected within one plugin because Codex flattens
+  every resolved kind into one skill namespace. Cross-plugin names remain qualified in Codex, while
+  OpenCode's global destination collision checks continue to apply independently.
 - Linker target state is name-only and records audience reachability rather than target kind. A
   `both` target can satisfy either audience edge, so a semantically wrong target kind may remain a
   human review concern even when linkage is green.
@@ -143,7 +148,7 @@ by [Distribution and installation](distribution-and-installation.md).
 - Bare-name composition can work at runtime while remaining deliberately unguarded. Its success does
   not make candidates authoritative after the fact.
 - Original skills under `skills/` are guarded edge targets: curated items can author their
-  `<plugin>:<directory>` fact, localize it for both harnesses, and declare the output name in
+  `<plugin>:<directory>` fact, localize it for all three harnesses, and declare the output name in
   `depends_on`. The derived-edge source scan still walks manifest items only, so references
   originating in an original skill are not scanned or declared
   ([`validateRepo`](../../tools/validate.ts#L670-L740)).

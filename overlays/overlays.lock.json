@@ -255,6 +255,13 @@
       "SKILL.md": "7a0b11f5f4fe9505ea5c7983c3083ba1bf754f69"
     }
   },
+  "deniz-process/improve-codebase-architecture": {
+    "source": "mattpocock-skills/skills/engineering/improve-codebase-architecture",
+    "files": {
+      "HTML-REPORT.md": "e39e8255b8797cf8257d014fb6658fb533f3a399",
+      "SKILL.md": "a578dd0a34ad0a8886abe7e7642b100106ba86d6"
+    }
+  },
   "deniz-process/requesting-code-review": {
     "source": "superpowers/skills/requesting-code-review",
     "files": {
@@ -272,6 +279,15 @@
     "source": "mattpocock-skills/skills/engineering/research",
     "files": {
       "SKILL.md": "fecee97e9457ba039678d2fcf1b1bc9fca78307d"
+    }
+  },
+  "deniz-process/setup-matt-pocock-skills": {
+    "source": "mattpocock-skills/skills/engineering/setup-matt-pocock-skills",
+    "files": {
+      "domain.md": "35249041162b1eed5b873d97fc430fb3e4adb18f",
+      "issue-tracker-github.md": "b258aeb3c44420a2464b72ba228b77b4b3abbaea",
+      "issue-tracker-gitlab.md": "251035a6d74b4af8d68f066b8d7f1cef90904570",
+      "issue-tracker-local.md": "0209a19af92c9c485cf3acc3d9e253171517ea17"
     }
   },
   "deniz-process/systematic-debugging": {
@@ -298,6 +314,25 @@
       }
     }
   },
+  "deniz-process/to-spec": {
+    "source": "mattpocock-skills/skills/engineering/to-spec",
+    "files": {
+      "SKILL.md": "3f52599ae2a4347aee5a07432c2707518e691a7f"
+    }
+  },
+  "deniz-process/to-tickets": {
+    "source": "mattpocock-skills/skills/engineering/to-tickets",
+    "files": {
+      "SKILL.md": "e868c831fcfb1e124e010bcdf84a429ec879160f"
+    }
+  },
+  "deniz-process/triage": {
+    "source": "mattpocock-skills/skills/engineering/triage",
+    "files": {
+      "AGENT-BRIEF.md": "1462fcd9e8cc21921158c296149dc05d9be39d20",
+      "SKILL.md": "37ddea1e3dcf8fb5be5b92e4e45f2c34b8e61d3e"
+    }
+  },
   "deniz-process/using-superpowers": {
     "source": "superpowers/skills/using-superpowers",
     "files": {
@@ -308,6 +343,12 @@
     "source": "mattpocock-skills/skills/productivity/wait-what",
     "files": {
       "SKILL.md": "f8854f1b4527bca90378baf5430557172136a1bf"
+    }
+  },
+  "deniz-process/wayfinder": {
+    "source": "mattpocock-skills/skills/engineering/wayfinder",
+    "files": {
+      "SKILL.md": "812805b760baf328db0ebdef6f3807e381f97016"
     }
   },
   "deniz-process/writing-skills": {

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Migrate Nullable References"
+  short_description: "Enable nullable reference types in a C# project and systemati..."
+  default_prompt: "Use $deniz-dotnet-general:migrate-nullable-references for this task."
+policy:
+  allow_implicit_invocation: false

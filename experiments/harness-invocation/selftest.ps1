@@ -450,6 +450,7 @@ Test-That "every runner still contains the parts that make it a runner" {
         "variants.ps1"      = @('$targets', 'opencode models', 'variants')
         "probe.ps1"         = @('--plugin-dir', '--add-dir', 'tool_use', 'stream-json')
         "ocprobe.ps1"       = @('--format', 'tool_use', 'step_finish')
+        "codex-matrix.ps1"  = @('CODEX_HOME', 'codex-probe-marketplace', 'gpt-5.6-luna', 'model_reasoning_effort', 'Invoke-CodexProcess', 'Invoke-CodexBehaviour', 'Get-CodexAgentText', 'cross-skill-handoff', 'bundled-reference', 'generated-implicit-large-catalog', 'plugin", "marketplace", "add', 'plugin", "remove', 'Kill($true)', 'WaitForExit($TimeoutSeconds * 1000)', 'realCodexPluginStateUnchanged', 'repositoryStateUnchanged')
         "lab.ps1"           = @('Start-ClaudeLab', 'Start-OpenCodeLab', 'Sync-Lab')
     }
     $bad = @()
@@ -493,6 +494,32 @@ Test-That "reference audit keeps global identities and scans both harness output
 }
 
 Write-Host "`n=== fixture ===" -ForegroundColor Cyan
+
+Test-That "the Codex fixture has invocation, handoff, reference, and negative controls" {
+    $fixture = Join-Path $PSScriptRoot "fixtures\codex-marketplace"
+    try {
+        $marketplace = Get-Content (Join-Path $fixture ".agents\plugins\marketplace.json") -Raw | ConvertFrom-Json
+    } catch {
+        return "Codex marketplace fixture is not valid JSON: $($_.Exception.Message)"
+    }
+    $pluginNames = @($marketplace.plugins | ForEach-Object { $_.name } | Sort-Object)
+    if (($pluginNames -join ",") -cne "codex-negative-control,codex-probe") {
+        return "unexpected fixture plugins: $($pluginNames -join ', ')"
+    }
+    $positive = Join-Path $fixture "plugins\codex-probe\skills"
+    $expected = @("codex-auto-zebra", "codex-both-lemur", "codex-handoff-ibis", "codex-manual-otter", "codex-reference-fox")
+    $actual = @(Get-ChildItem -LiteralPath $positive -Directory | ForEach-Object { $_.Name } | Sort-Object)
+    if (($actual -join ",") -cne ($expected -join ",")) { return "unexpected positive skills: $($actual -join ', ')" }
+    $policy = Get-Content (Join-Path $positive "codex-manual-otter\agents\openai.yaml") -Raw
+    if (-not $policy.Contains("allow_implicit_invocation: false")) { return "manual control lost its Codex policy" }
+    $handoff = Get-Content (Join-Path $positive "codex-handoff-ibis\SKILL.md") -Raw
+    if (-not $handoff.Contains('$codex-probe:codex-auto-zebra')) { return "cross-skill handoff lost its target" }
+    $reference = Join-Path $positive "codex-reference-fox\references\marker.md"
+    if (-not (Test-Path -LiteralPath $reference -PathType Leaf)) { return "bundled-reference marker is missing" }
+    $negative = Join-Path $fixture "plugins\codex-negative-control\skills\codex-negative-walrus\SKILL.md"
+    if (-not (Test-Path -LiteralPath $negative -PathType Leaf)) { return "negative-control skill is missing" }
+    $true
+}
 
 Test-That "the generator reproduces the recorded baseline" {
     $tmp = Join-Path ([IO.Path]::GetTempPath()) ("fixchk-" + [guid]::NewGuid().ToString("N"))
@@ -602,8 +629,10 @@ if ($SkipLab) {
         foreach ($m in @(
             @{ f = "matrix.ps1";        a = @{ DryRun = $true; Legs = @("grok"); Probes = @("P1") } }
             @{ f = "claude-matrix.ps1"; a = @{ DryRun = $true; Models = @("opus"); Repeats = 1 } }
-            @{ f = "intent-matrix.ps1"; a = @{ DryRun = $true; Harnesses = @("claude", "opencode"); ClaudeModels = @("opus"); OpenCodeLegs = @("grok"); Repeats = 1 } })) {
-            $out = Join-Path ([IO.Path]::GetTempPath()) ("dry-" + [guid]::NewGuid().ToString("N") + ".txt")
+            @{ f = "intent-matrix.ps1"; a = @{ DryRun = $true; Harnesses = @("claude", "opencode"); ClaudeModels = @("opus"); OpenCodeLegs = @("grok"); Repeats = 1 } }
+            @{ f = "codex-matrix.ps1";  a = @{ DryRun = $true; Behavioural = $true; GeneratedPlugins = $true; Repeats = 1 } })) {
+            $outRoot = if ($m.f -ceq "codex-matrix.ps1") { Get-LabRoot } else { [IO.Path]::GetTempPath() }
+            $out = Join-Path $outRoot ("dry-" + [guid]::NewGuid().ToString("N") + ".txt")
             # HASHTABLE splatting. An array splat binds positionally once a switch is in it, so
             # -Probes landed on -TimeoutMin; and passing @(...) as an ordinary expression hands the
             # whole array to the first parameter, which left -DryRun unbound and fired four real

@@ -1,0 +1,32 @@
+{
+  "name": "deniz-process",
+  "version": "0.6.0",
+  "description": "Deniz's curated process skills (brainstorming, planning, debugging)",
+  "author": {
+    "name": "Deniz İrgin",
+    "email": "1965259+Blind-Striker@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Blind-Striker/agent-skills-and-plugins#readme",
+  "repository": "https://github.com/Blind-Striker/agent-skills-and-plugins",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Deniz Process",
+    "shortDescription": "Deniz's curated process skills (brainstorming, planning, debugging)",
+    "longDescription": "Deniz's curated process skills (brainstorming, planning, debugging)",
+    "developerName": "Deniz İrgin",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Blind-Striker/agent-skills-and-plugins#readme",
+    "defaultPrompt": [
+      "Use Deniz Process skills for this task."
+    ]
+  }
+}

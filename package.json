@@ -1,7 +1,7 @@
 {
   "name": "deniz-agent-skills",
   "version": "0.3.0",
-  "description": "Personal, opinionated Claude Code Plugins and OpenCode Module Bundles",
+  "description": "Personal, opinionated Claude Code, OpenCode, and Codex skill distributions",
   "private": true,
   "license": "MIT",
   "author": {

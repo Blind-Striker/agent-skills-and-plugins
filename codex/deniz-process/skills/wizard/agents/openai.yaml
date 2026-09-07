@@ -1,0 +1,6 @@
+interface:
+  display_name: "Wizard"
+  short_description: "Generate an interactive bash wizard that walks a human throug..."
+  default_prompt: "Use $deniz-process:wizard for this task."
+policy:
+  allow_implicit_invocation: false

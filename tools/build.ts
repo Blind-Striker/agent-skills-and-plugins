@@ -1,7 +1,7 @@
 import {
   cpSync,
   existsSync,
-  lstatSync,
+  mkdtempSync,
   mkdirSync,
   readdirSync,
   readFileSync,
@@ -9,15 +9,27 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { type AssembledItem, assembleItems, overlayBodyFile } from "./lib/assemble.ts";
 import {
   loadAttributions,
   manifestAttributions,
   requireReadableRegularFile,
   writeDistributionNotices,
 } from "./lib/attribution.ts";
-import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
+import {
+  adaptCodexSkillDocument,
+  collectCodexEmissionProblems,
+  createCodexMarketplace,
+  createCodexPluginManifest,
+  createCodexSkillAgentManifest,
+  loadCodexPublisherMetadata,
+  serializeCodexJson,
+  serializeCodexSkillAgentManifest,
+} from "./lib/codex-plugin.ts";
+import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { OPENCODE_SKILL_KEYS, writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
@@ -25,7 +37,6 @@ import { createModuleManifest } from "./lib/opencode-bundle.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
-  applyPatch,
   checkPatch,
   driftedFiles,
   driftedMergeSources,
@@ -41,11 +52,10 @@ import {
   collectIdentityProblems,
   deriveModuleRequirements,
   isOmitted,
-  itemRelative,
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { buildRewriteMap, rewriteRefs } from "./lib/rewrite.ts";
+import { buildRewriteMap, type RefStyle, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export function buildAll(root: string): string[] {
@@ -79,72 +89,161 @@ export function buildAll(root: string): string[] {
   const moduleRequirements = deriveModuleRequirements(root, manifests, components, ownSkills);
   const claudeRewrite = buildRewriteMap(manifests, components, "claude", ownSkills);
   const opencodeRewrite = buildRewriteMap(manifests, components, "opencode", ownSkills);
+  const codexRewrite = buildRewriteMap(manifests, components, "codex", ownSkills);
 
-  rmSync(join(root, "plugins"), { recursive: true, force: true });
-  rmSync(join(root, "opencode"), { recursive: true, force: true });
-
-  for (const m of manifests) {
-    for (const item of m.items) {
-      emitItem(root, m, item, components, report);
+  // Assemble every authored item once before deleting any committed output. The staging directory
+  // is internal pipeline state: Claude Code and OpenCode consume the same resolved bodies, and a
+  // later Codex emitter joins at this boundary rather than resolving the estate a second time.
+  const stagingRoot = mkdtempSync(join(tmpdir(), "deniz-agent-skills-assembly-"));
+  try {
+    const assembled = assembleItems(root, stagingRoot, manifests, components, report);
+    const codexProblems = collectCodexEmissionProblems(root, manifests, assembled);
+    if (codexProblems.length) {
+      const header =
+        codexProblems.length > 1 ? `${codexProblems.length} invalid Codex emission identities, nothing deleted:\n` : "";
+      throw new Error(header + codexProblems.join("\n"));
     }
-    emitOwnSkills(root, m, report);
-    const pluginDir = join(root, "plugins", m.plugin.name);
-    writeDistributionNotices(root, pluginDir, notices.get(m.plugin.name) ?? []);
-    mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
-    writeFileSync(join(pluginDir, ".claude-plugin", "plugin.json"), `${JSON.stringify(m.plugin, null, 2)}\n`);
-  }
 
-  writeMarketplace(root, manifests);
-  // Output name -> stated intent. Own skills and items that state nothing are absent from the map,
-  // and an absent entry means "a plain skill", which is what OpenCode makes of silence anyway.
-  const invocations = new Map<string, NonNullable<CurationItem["invocation"]>>();
-  for (const m of manifests) {
-    for (const item of m.items) {
-      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
-      if (!item.exclude && item.invocation && outType === "skill") {
-        invocations.set(outName, item.invocation);
+    rmSync(join(root, "plugins"), { recursive: true, force: true });
+    rmSync(join(root, "opencode"), { recursive: true, force: true });
+    rmSync(join(root, "codex"), { recursive: true, force: true });
+    // `.agents/` may later contain authored repository configuration. Remove only this generator's
+    // owned file, never the broad tree.
+    rmSync(join(root, ".agents", "plugins", "marketplace.json"), { force: true });
+
+    for (const manifest of manifests) {
+      for (const item of assembled.filter((candidate) => candidate.plugin === manifest.plugin.name)) {
+        emitClaudeItem(root, item);
+      }
+      const pluginDir = join(root, "plugins", manifest.plugin.name);
+      writeDistributionNotices(root, pluginDir, notices.get(manifest.plugin.name) ?? []);
+      mkdirSync(join(pluginDir, ".claude-plugin"), { recursive: true });
+      writeFileSync(join(pluginDir, ".claude-plugin", "plugin.json"), `${JSON.stringify(manifest.plugin, null, 2)}\n`);
+    }
+
+    writeMarketplace(root, manifests);
+    // Every emitter consumes the same pre-localization assembly. Reference spelling remains a
+    // target decision and is applied only after the native artifact trees exist.
+    emitOpenCode(root, manifests, assembled, report);
+    for (const manifest of manifests) {
+      writeDistributionNotices(
+        root,
+        join(root, "opencode", manifest.plugin.name),
+        notices.get(manifest.plugin.name) ?? [],
+      );
+    }
+    const codexMetadataTransformations = emitCodex(root, manifests, assembled, notices, report);
+    rewriteTree(join(root, "plugins"), claudeRewrite);
+    rewriteTree(join(root, "opencode"), opencodeRewrite);
+    rewriteTree(join(root, "codex"), codexRewrite, "codex");
+    finalizeCodexSkillMetadata(root, assembled, codexMetadataTransformations, report);
+    // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
+    // excluded from the walk.
+    writeOpenCodeManifests(root, manifests, moduleRequirements);
+    writeLedger(root, manifests, components, assembled, codexMetadataTransformations);
+    return report;
+  } finally {
+    rmSync(stagingRoot, { recursive: true, force: true });
+  }
+}
+
+/** Emit the common assembled estate as native Codex Plugins with one flat skill namespace. */
+function emitCodex(
+  root: string,
+  manifests: CurationManifest[],
+  assembled: AssembledItem[],
+  notices: Map<string, ReturnType<typeof manifestAttributions>>,
+  report: string[],
+): Map<string, string[]> {
+  const metadataTransformations = new Map<string, string[]>();
+  const publisher = loadCodexPublisherMetadata(root);
+  for (const manifest of manifests) {
+    const pluginRoot = join(root, "codex", manifest.plugin.name);
+    for (const item of assembled
+      .filter((candidate) => candidate.plugin === manifest.plugin.name)
+      .sort((left, right) => left.outName.localeCompare(right.outName))) {
+      const destination = join(pluginRoot, "skills", item.outName);
+      cpSync(item.dir, destination, { recursive: true });
+      const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
+      const adapted = adaptCodexSkillDocument(item.outName, doc);
+      writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
+      if (adapted.dropped.length) {
+        report.push(`codex skill ${item.outName}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`);
+      }
+      for (const transformation of adapted.transformations) {
+        report.push(`codex skill ${item.outName}: ${transformation}`);
+      }
+      if (adapted.transformations.length) {
+        metadataTransformations.set(`${item.plugin}/${item.outName}`, adapted.transformations);
+      }
+
+      // Invocation policy is emitter-owned. Never inherit an upstream target's policy file: absent,
+      // auto, and both use Codex's ordinary implicit behavior; manual alone gets an explicit-only
+      // agent manifest. Other dependency files in agents/ remain part of the selected closure.
+      const agentsDir = join(destination, "agents");
+      rmSync(join(agentsDir, "openai.yaml"), { force: true });
+      if (existsSync(agentsDir) && !readdirSync(agentsDir).length) {
+        rmSync(agentsDir, { recursive: true, force: true });
+      }
+      const agentManifest = createCodexSkillAgentManifest(
+        item.plugin,
+        item.outName,
+        String(adapted.document.frontmatter.description),
+        item.item?.invocation,
+      );
+      if (agentManifest) {
+        mkdirSync(agentsDir, { recursive: true });
+        writeFileSync(join(agentsDir, "openai.yaml"), serializeCodexSkillAgentManifest(agentManifest));
       }
     }
+
+    writeDistributionNotices(root, pluginRoot, notices.get(manifest.plugin.name) ?? []);
+    mkdirSync(join(pluginRoot, ".codex-plugin"), { recursive: true });
+    writeFileSync(
+      join(pluginRoot, ".codex-plugin", "plugin.json"),
+      serializeCodexJson(createCodexPluginManifest(manifest, publisher)),
+    );
   }
-  // OpenCode is emitted from the PRISTINE plugin tree, before the Claude rewrite, so each tree can
-  // then be rewritten with the spelling its own harness resolves (ADR-0006 axis 3). Emitting after
-  // the rewrite is what left OpenCode carrying `<plugin>:<name>` references it cannot resolve.
-  emitOpenCode(root, invocations, report);
-  for (const m of manifests) {
-    writeDistributionNotices(root, join(root, "opencode", m.plugin.name), notices.get(m.plugin.name) ?? []);
-  }
-  rewriteTree(join(root, "plugins"), claudeRewrite);
-  rewriteTree(join(root, "opencode"), opencodeRewrite);
-  // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
-  // excluded from the walk.
-  writeOpenCodeManifests(root, manifests, moduleRequirements);
-  writeLedger(root, manifests, components);
-  return report;
+
+  const marketplacePath = join(root, ".agents", "plugins", "marketplace.json");
+  mkdirSync(join(root, ".agents", "plugins"), { recursive: true });
+  writeFileSync(marketplacePath, serializeCodexJson(createCodexMarketplace(manifests)));
+  return metadataTransformations;
 }
 
-/** The single file emitItem reads out of an overlay when the target is a command or an agent. */
-function overlayBodyFile(comp: ComponentInfo, item: CurationItem): string {
-  return comp.type === "skill" ? "SKILL.md" : basename(item.source);
-}
+/** Re-apply Codex metadata bounds after reference localization, which can lengthen descriptions. */
+function finalizeCodexSkillMetadata(
+  root: string,
+  assembled: AssembledItem[],
+  metadataTransformations: Map<string, string[]>,
+  report: string[],
+): void {
+  for (const item of assembled) {
+    const skillRoot = join(root, "codex", item.plugin, "skills", item.outName);
+    const skillPath = join(skillRoot, "SKILL.md");
+    const adapted = adaptCodexSkillDocument(item.outName, parseDoc(readFileSync(skillPath, "utf8")));
+    writeFileSync(skillPath, serializeDoc(adapted.document));
+    if (adapted.transformations.length) {
+      const key = `${item.plugin}/${item.outName}`;
+      const combined = [...(metadataTransformations.get(key) ?? []), ...adapted.transformations];
+      metadataTransformations.set(key, [...new Set(combined)]);
+      for (const transformation of adapted.transformations) {
+        report.push(`codex skill ${item.outName}: ${transformation}`);
+      }
+    }
 
-/**
- * Upstream files an item leaves behind. Applied to the copy of upstream, BEFORE any overlay or
- * patch, so `body:` describes edits to what survives rather than racing against a later deletion.
- * A directory is kept whenever anything under it is kept; emptied ones are pruned afterwards.
- */
-function omitFilter(srcRoot: string, item: CurationItem): (src: string) => boolean {
-  return (src) => {
-    const rel = itemRelative(srcRoot, src);
-    if (rel === "") {
-      return true;
+    const agentManifest = createCodexSkillAgentManifest(
+      item.plugin,
+      item.outName,
+      String(adapted.document.frontmatter.description),
+      item.item?.invocation,
+    );
+    if (agentManifest) {
+      const agentsDir = join(skillRoot, "agents");
+      mkdirSync(agentsDir, { recursive: true });
+      writeFileSync(join(agentsDir, "openai.yaml"), serializeCodexSkillAgentManifest(agentManifest));
     }
-    // A root-level skill can make a submodule's gitdir file part of the copied source tree. It
-    // contains a machine path and is repository metadata, never a runtime skill asset.
-    if (rel === ".git" || rel.startsWith(".git/")) {
-      return false;
-    }
-    return !item.omit?.length || !isOmitted(rel, item.omit);
-  };
+  }
 }
 
 /** The two Claude Code invocation keys, so a stated intent replaces whatever upstream said. */
@@ -166,18 +265,40 @@ function claudeInvocation(item: CurationItem): Record<string, unknown> {
   }
 }
 
-/** cpSync still creates a directory whose every child was filtered out; it should not survive. */
-function pruneEmptyDirs(dir: string): void {
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    if (!e.isDirectory()) {
-      continue;
-    }
-    const p = join(dir, e.name);
-    pruneEmptyDirs(p);
-    if (!readdirSync(p).length) {
-      rmSync(p, { recursive: true, force: true });
-    }
+/** Apply Claude-only invocation posture to a copy of the neutral assembled document. */
+function claudeDocument(assembled: AssembledItem): ParsedDoc {
+  const doc = parseDoc(readFileSync(join(assembled.dir, "SKILL.md"), "utf8"));
+  const item = assembled.item;
+  if (assembled.outType !== "skill" || !item?.invocation) {
+    return doc;
   }
+  const frontmatter = { ...doc.frontmatter };
+  for (const key of CLAUDE_INVOCATION_KEYS) {
+    delete frontmatter[key];
+  }
+  return {
+    frontmatter: { ...frontmatter, ...claudeInvocation(item), name: assembled.outName },
+    body: doc.body,
+  };
+}
+
+/** Emit one shared assembled item in Claude Code's native Plugin shape. */
+function emitClaudeItem(root: string, assembled: AssembledItem): void {
+  const pluginDir = join(root, "plugins", assembled.plugin);
+  if (assembled.outType === "skill") {
+    const destination = join(pluginDir, "skills", assembled.outName);
+    cpSync(assembled.dir, destination, { recursive: true });
+    // Original skills were byte-preserving copies before this refactor and remain so. Curated
+    // skills are serialized by assembly, then receive only Claude's invocation adaptation here.
+    if (!assembled.own) {
+      writeFileSync(join(destination, "SKILL.md"), serializeDoc(claudeDocument(assembled)));
+    }
+    return;
+  }
+
+  const kindDir = assembled.outType === "command" ? "commands" : "agents";
+  mkdirSync(join(pluginDir, kindDir), { recursive: true });
+  writeFileSync(join(pluginDir, kindDir, `${assembled.outName}.md`), readFileSync(join(assembled.dir, "SKILL.md")));
 }
 
 /**
@@ -340,120 +461,6 @@ function collectProblems(root: string, manifests: CurationManifest[], components
   return problems;
 }
 
-// cpSync copies a symlink as a symlink but resolves its target to an ABSOLUTE local path, so a
-// copied link is machine-specific and dangles in every other clone. Committed build output must be
-// plain files: skip links (a rejected directory link skips its subtree) and report every skip.
-function skipSymlinks(root: string, label: string, report: string[]): (src: string) => boolean {
-  return (src) => {
-    if (!lstatSync(src).isSymbolicLink()) {
-      return true;
-    }
-    const rel = relative(root, src).replaceAll("\\", "/");
-    report.push(`WARN ${label}: skipped symlink ${rel.startsWith("..") ? basename(src) : rel}`);
-    return false;
-  };
-}
-
-function emitItem(
-  root: string,
-  m: CurationManifest,
-  item: CurationItem,
-  components: ComponentInfo[],
-  report: string[],
-): void {
-  if (item.exclude) {
-    return;
-  }
-  const { comp, outName, outType, overlayDir } = resolveItem(root, m.plugin.name, item, components);
-  if (!comp) {
-    throw new Error(`${m.plugin.name}: source not found in external/: ${item.source}`);
-  }
-  const srcPath = join(root, "external", item.source);
-  const pluginDir = join(root, "plugins", m.plugin.name);
-
-  if (item.body && !existsSync(overlayDir)) {
-    throw new Error(
-      `${m.plugin.name}/${outName}: body is ${item.body} but overlays/${m.plugin.name}/${outName}/ is missing — run: npm run eject -- ${m.plugin.name} ${outName}`,
-    );
-  }
-
-  if (outType === "skill") {
-    if (comp.type !== "skill") {
-      throw new Error(`${item.source}: ${comp.type} -> skill conversion not supported`);
-    }
-    const destDir = join(pluginDir, "skills", outName);
-    const filter = skipSymlinks(root, `${m.plugin.name}/${outName}`, report);
-    const keep = omitFilter(srcPath, item);
-    cpSync(srcPath, destDir, { recursive: true, filter: (src) => filter(src) && keep(src) });
-    if (item.omit?.length) {
-      pruneEmptyDirs(destDir);
-    }
-    if (item.body === "overlay") {
-      cpSync(overlayDir, destDir, { recursive: true, force: true, filter });
-    } else if (item.body === "patch") {
-      // collectProblems already --check'd this against pristine upstream; a failure here means the
-      // copy above differs from what was checked, so report it rather than emit a half-patched item.
-      const err = applyPatch(destDir, join(overlayDir, PATCH_FILE));
-      if (err) {
-        throw new Error(`${m.plugin.name}/${outName}: ${PATCH_FILE} failed to apply:\n${err}`);
-      }
-    }
-    const skillMd = join(destDir, "SKILL.md");
-    const doc = parseDoc(readFileSync(skillMd, "utf8"));
-    const merged: Record<string, unknown> = { ...doc.frontmatter, ...item.frontmatter };
-    // A stated intent replaces whatever upstream said, so its keys go before one is written back.
-    // Absent states nothing, and upstream's own keys survive untouched (ADR-0005).
-    if (item.invocation) {
-      for (const k of CLAUDE_INVOCATION_KEYS) {
-        delete merged[k];
-      }
-    }
-    // forced name last: emitted dir names and the rewrite map both key on outName
-    doc.frontmatter = { ...merged, ...claudeInvocation(item), name: outName };
-    writeFileSync(skillMd, serializeDoc(doc));
-    report.push(`${m.plugin.name}: skill ${outName} <- ${item.source}${item.body === "overlay" ? " (overlay)" : ""}`);
-  } else {
-    const srcFile = comp.type === "skill" ? join(srcPath, "SKILL.md") : srcPath;
-    let doc = parseDoc(readFileSync(srcFile, "utf8"));
-    if (item.body === "overlay") {
-      doc = parseDoc(readFileSync(join(overlayDir, overlayBodyFile(comp, item)), "utf8"));
-    }
-    if (comp.type === "skill") {
-      const extras = readdirSync(srcPath).filter((f) => f !== "SKILL.md");
-      if (extras.length) {
-        report.push(`WARN ${m.plugin.name}/${outName}: dropped in skill->${outType} conversion: ${extras.join(", ")}`);
-      }
-    }
-    const base: Record<string, unknown> =
-      outType === "command"
-        ? { description: String(doc.frontmatter.description ?? "") }
-        : { name: outName, description: String(doc.frontmatter.description ?? "") };
-    const forcedName: Record<string, unknown> = outType === "agent" ? { name: outName } : {};
-    doc = { frontmatter: { ...base, ...item.frontmatter, ...forcedName }, body: doc.body };
-    const kindDir = outType === "command" ? "commands" : "agents";
-    mkdirSync(join(pluginDir, kindDir), { recursive: true });
-    writeFileSync(join(pluginDir, kindDir, `${outName}.md`), serializeDoc(doc));
-    report.push(`${m.plugin.name}: ${outType} ${outName} <- ${item.source}`);
-  }
-}
-
-function emitOwnSkills(root: string, m: CurationManifest, report: string[]): void {
-  const ownDir = join(root, "skills", m.plugin.name);
-  if (!existsSync(ownDir)) {
-    return;
-  }
-  for (const name of readdirSync(ownDir)) {
-    if (!statSync(join(ownDir, name)).isDirectory()) {
-      continue;
-    }
-    cpSync(join(ownDir, name), join(root, "plugins", m.plugin.name, "skills", name), {
-      recursive: true,
-      filter: skipSymlinks(root, `${m.plugin.name}/${name}`, report),
-    });
-    report.push(`${m.plugin.name}: skill ${name} <- skills/ (own)`);
-  }
-}
-
 function writeMarketplace(root: string, manifests: CurationManifest[]): void {
   const marketplace = {
     name: "deniz-skills",
@@ -468,16 +475,16 @@ function writeMarketplace(root: string, manifests: CurationManifest[]): void {
   writeFileSync(join(root, ".claude-plugin", "marketplace.json"), `${JSON.stringify(marketplace, null, 2)}\n`);
 }
 
-function rewriteTree(dir: string, map: Map<string, string>): void {
+function rewriteTree(dir: string, map: Map<string, string>, style: RefStyle = "claude"): void {
   if (!existsSync(dir)) {
     return;
   }
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
     if (e.isDirectory()) {
-      rewriteTree(p, map);
+      rewriteTree(p, map, style);
     } else if (e.name.endsWith(".md")) {
-      writeFileSync(p, rewriteRefs(readFileSync(p, "utf8"), map));
+      writeFileSync(p, rewriteRefs(readFileSync(p, "utf8"), map, style));
     }
   }
 }
@@ -501,24 +508,22 @@ function reportDropped(label: string, from: Record<string, unknown>, kept: Recor
  * root through XDG_CONFIG_HOME with the documented HOME fallback, and Markdown self-links in the
  * parked bundle are repointed to `BODY.md`.
  */
-function emitOpenCodeSkill(
-  root: string,
-  moduleRoot: string,
-  srcDir: string,
-  name: string,
-  invocation: NonNullable<CurationItem["invocation"]> | undefined,
-  report: string[],
-): void {
-  const filter = skipSymlinks(root, `opencode/${name}`, report);
+function emitOpenCodeSkill(moduleRoot: string, assembled: AssembledItem, report: string[]): void {
+  const srcDir = assembled.dir;
+  const name = assembled.outName;
+  const invocation = assembled.item?.invocation;
   const destSkill = join(moduleRoot, "skills", name);
   const wantsSkill = invocation !== "manual";
-  const doc = parseDoc(readFileSync(join(srcDir, "SKILL.md"), "utf8"));
+  // Preserve the exact pre-refactor OpenCode input: its drop reporting observed the pristine
+  // Claude-adapted document before reference localization. The body and dependency closure still
+  // come from common assembly; this pure view adds no target bytes to that shared state.
+  const doc = claudeDocument(assembled);
 
   cpSync(srcDir, destSkill, {
     recursive: true,
     // `manual` parks the assets but must not leave a SKILL.md, or the item would still be
     // model-reachable — which is the one thing `manual` exists to prevent.
-    filter: (src) => filter(src) && (wantsSkill || basename(src) !== "SKILL.md"),
+    filter: (src) => wantsSkill || basename(src) !== "SKILL.md",
   });
   if (wantsSkill) {
     // Adapt rather than mirror: OpenCode recognises a fixed set of skill keys and ignores the rest,
@@ -571,42 +576,38 @@ function emitOpenCodeSkill(
 // OpenCode reads SKILL.md natively, so skills copy verbatim; commands/agents keep only
 // the frontmatter OpenCode understands and every dropped key is reported (no silent loss).
 // Each plugin becomes one Module bundle: opencode/<plugin>/{skills,commands,agents,manifest.json}.
-function emitOpenCode(
-  root: string,
-  invocations: Map<string, NonNullable<CurationItem["invocation"]>>,
-  report: string[],
-): void {
-  const pluginsDir = join(root, "plugins");
-  if (!existsSync(pluginsDir)) {
-    return;
-  }
-  for (const plugin of readdirSync(pluginsDir)) {
-    const moduleRoot = join(root, "opencode", plugin);
-    const skillsDir = join(pluginsDir, plugin, "skills");
-    if (existsSync(skillsDir)) {
-      for (const name of readdirSync(skillsDir)) {
-        emitOpenCodeSkill(root, moduleRoot, join(skillsDir, name), name, invocations.get(name), report);
-      }
+function emitOpenCode(root: string, manifests: CurationManifest[], assembled: AssembledItem[], report: string[]): void {
+  for (const manifest of manifests) {
+    const moduleRoot = join(root, "opencode", manifest.plugin.name);
+    const pluginItems = assembled.filter((item) => item.plugin === manifest.plugin.name);
+    for (const item of pluginItems
+      .filter((candidate) => candidate.outType === "skill")
+      .sort((left, right) => left.outName.localeCompare(right.outName))) {
+      emitOpenCodeSkill(moduleRoot, item, report);
     }
-    for (const kind of ["commands", "agents"] as const) {
-      const dir = join(pluginsDir, plugin, kind);
-      if (!existsSync(dir)) {
+
+    for (const outKind of ["command", "agent"] as const) {
+      const kind = `${outKind}s`;
+      const kindItems = pluginItems
+        .filter((candidate) => candidate.outType === outKind)
+        .sort((left, right) => left.outName.localeCompare(right.outName));
+      if (!kindItems.length) {
         continue;
       }
       // `kind` is the output directory (OpenCode documents plural); `outKind` is the singular label
-      const outKind = kind === "commands" ? "command" : "agent";
       mkdirSync(join(moduleRoot, kind), { recursive: true });
-      for (const f of readdirSync(dir)) {
-        const doc = parseDoc(readFileSync(join(dir, f), "utf8"));
+      for (const item of kindItems) {
+        const filename = `${item.outName}.md`;
+        const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
         const kept: Record<string, unknown> = { description: doc.frontmatter.description };
         if (outKind === "agent") {
           kept.mode = "subagent";
         }
         const dropped = Object.keys(doc.frontmatter).filter((k) => k !== "description" && k !== "name");
         if (dropped.length) {
-          report.push(`opencode ${outKind} ${f}: dropped frontmatter keys: ${dropped.join(", ")}`);
+          report.push(`opencode ${outKind} ${filename}: dropped frontmatter keys: ${dropped.join(", ")}`);
         }
-        writeFileSync(join(moduleRoot, kind, f), serializeDoc({ frontmatter: kept, body: doc.body }));
+        writeFileSync(join(moduleRoot, kind, filename), serializeDoc({ frontmatter: kept, body: doc.body }));
       }
     }
   }

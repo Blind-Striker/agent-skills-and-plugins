@@ -23,6 +23,25 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-specialist",
+      "sourceKind": "agent",
+      "resolvedKind": "agent",
+      "emittedKind": "skill",
+      "kindTransformation": "agent->skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-hosting-actor-patterns": {
@@ -62,6 +81,28 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-hosting-actor-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:dependency-injection-patterns"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-aspire-configuration": {
@@ -113,6 +154,32 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-aspire-configuration",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-akka:akka-net-best-practices",
+          "$deniz-dotnet-akka:akka-net-management",
+          "$deniz-dotnet-akka:akka-net-testing-patterns",
+          "$deniz-dotnet-aspire:aspire-integration-testing",
+          "$deniz-dotnet-general:microsoft-extensions-configuration"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-best-practices": {
@@ -144,6 +211,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-best-practices",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-management": {
@@ -183,6 +270,28 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-management",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-akka:akka-net-aspire-configuration"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-akka/skill/akka-net-testing-patterns": {
@@ -214,6 +323,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-akka:akka-net-testing-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire": {
@@ -258,6 +387,30 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-init",
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-deployment": {
@@ -296,6 +449,28 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-deployment",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-init": {
@@ -337,6 +512,29 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-init",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-integration-testing": {
@@ -368,6 +566,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-integration-testing",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-monitoring": {
@@ -406,6 +624,28 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-monitoring",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-orchestration": {
@@ -447,6 +687,32 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-orchestration",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-init",
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "metadataTransformations": [
+        "description truncated to 1024 characters"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspire-service-defaults": {
@@ -478,6 +744,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-service-defaults",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-aspire/skill/aspireify": {
@@ -519,6 +805,32 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspireify",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-init",
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-orchestration"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "metadataTransformations": [
+        "description truncated to 1024 characters"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/agent/roslyn-incremental-generator-specialist": {
@@ -545,6 +857,25 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:roslyn-incremental-generator-specialist",
+      "sourceKind": "agent",
+      "resolvedKind": "agent",
+      "emittedKind": "skill",
+      "kindTransformation": "agent->skill",
+      "implicit": "target-default",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/analyzing-dotnet-performance": {
@@ -571,6 +902,24 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:analyzing-dotnet-performance",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/api-design": {
@@ -602,6 +951,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:api-design",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/binlog-failure-analysis": {
@@ -633,6 +1002,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:binlog-failure-analysis",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/binlog-generation": {
@@ -663,6 +1050,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:binlog-generation",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/build-parallelism": {
@@ -694,6 +1099,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:build-parallelism",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/build-perf-baseline": {
@@ -724,6 +1147,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:build-perf-baseline",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/build-perf-diagnostics": {
@@ -758,6 +1199,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:build-perf-diagnostics",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/check-bin-obj-clash": {
@@ -789,6 +1248,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:check-bin-obj-clash",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/code-testing-agent": {
@@ -832,6 +1309,28 @@
         "BODY.md",
         "unit-test-generation.prompt.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:code-testing-agent",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:writing-tunit-tests"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/configuring-opentelemetry-dotnet": {
@@ -862,6 +1361,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:configuring-opentelemetry-dotnet",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/convert-to-cpm": {
@@ -902,6 +1419,26 @@
         "references/report-template.md",
         "references/validation-and-errors.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:convert-to-cpm",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/copy-to-output-directory": {
@@ -932,6 +1469,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:copy-to-output-directory",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/coverage-analysis": {
@@ -963,6 +1518,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:coverage-analysis",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-concurrency-patterns": {
@@ -994,6 +1567,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-concurrency-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-nullable-reference-types": {
@@ -1031,6 +1624,29 @@
         "version"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-nullable-reference-types",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "$deniz-dotnet-general:migrate-nullable-references"
+        ]
+      },
+      "dropped": [
+        "tags",
+        "version"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/csharp-scripts": {
@@ -1061,6 +1677,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:csharp-scripts",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/database-performance": {
@@ -1097,6 +1731,27 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:database-performance",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable",
+        "tags"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dependency-injection-patterns": {
@@ -1128,6 +1783,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dependency-injection-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/detect-static-dependencies": {
@@ -1159,6 +1834,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:detect-static-dependencies",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/directory-build-organization": {
@@ -1189,6 +1882,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:directory-build-organization",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-aot-compat": {
@@ -1224,6 +1935,26 @@
         "BODY.md",
         "references/polyfills.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-aot-compat",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-devcert-trust": {
@@ -1260,6 +1991,28 @@
         "invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-devcert-trust",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-service-defaults"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-local-tools": {
@@ -1291,6 +2044,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-local-tools",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-pinvoke": {
@@ -1321,6 +2094,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-pinvoke",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-project-structure": {
@@ -1352,6 +2143,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-project-structure",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-slopwatch": {
@@ -1380,6 +2191,26 @@
         "invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-slopwatch",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-trace-collect": {
@@ -1420,6 +2251,26 @@
         "references/perfcollect.md",
         "references/perfview.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-trace-collect",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dotnet-webapi": {
@@ -1451,6 +2302,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-webapi",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/dump-collect": {
@@ -1488,6 +2357,26 @@
         "references/coreclr-dumps.md",
         "references/nativeaot-dumps.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dump-collect",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/efcore-patterns": {
@@ -1523,6 +2412,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:efcore-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/eval-performance": {
@@ -1554,6 +2463,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:eval-performance",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/extension-points": {
@@ -1584,6 +2511,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:extension-points",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/filter-syntax": {
@@ -1614,6 +2559,27 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:filter-syntax",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "user-invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/generate-testability-wrappers": {
@@ -1650,6 +2616,26 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:generate-testability-wrappers",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/ilspy-decompile": {
@@ -1681,6 +2667,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:ilspy-decompile",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/including-generated-files": {
@@ -1711,6 +2715,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:including-generated-files",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/incremental-build": {
@@ -1742,6 +2764,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:incremental-build",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/item-management": {
@@ -1772,6 +2812,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:item-management",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/microbenchmarking": {
@@ -1802,6 +2860,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:microbenchmarking",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/microsoft-extensions-configuration": {
@@ -1833,6 +2909,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:microsoft-extensions-configuration",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/migrate-nullable-references": {
@@ -1872,6 +2968,26 @@
         "references/nullable-attributes.md",
         "scripts/Get-NullableReadiness.ps1"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:migrate-nullable-references",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/migrate-static-to-wrapper": {
@@ -1905,6 +3021,26 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:migrate-static-to-wrapper",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/minimal-api-file-upload": {
@@ -1935,6 +3071,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:minimal-api-file-upload",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/modern-csharp-coding-standards": {
@@ -1966,6 +3120,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:modern-csharp-coding-standards",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/msbuild-antipatterns": {
@@ -1996,6 +3170,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:msbuild-antipatterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/msbuild-modernization": {
@@ -2026,6 +3218,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:msbuild-modernization",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/msbuild-server": {
@@ -2056,6 +3266,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:msbuild-server",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/mtp-hot-reload": {
@@ -2087,6 +3315,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:mtp-hot-reload",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/opentelemetry-net-instrumentation": {
@@ -2119,6 +3365,27 @@
         "version"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:opentelemetry-net-instrumentation",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "tags",
+        "version"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/package-management": {
@@ -2150,6 +3417,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:package-management",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/platform-detection": {
@@ -2180,6 +3467,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:platform-detection",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/playwright-blazor-testing": {
@@ -2211,6 +3516,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:playwright-blazor-testing",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/property-patterns": {
@@ -2241,6 +3566,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:property-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/r3-reactive-extensions": {
@@ -2272,6 +3615,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:r3-reactive-extensions",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/run-tests": {
@@ -2302,6 +3665,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:run-tests",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/serialization": {
@@ -2333,6 +3714,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:serialization",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/snapshot-testing": {
@@ -2365,6 +3766,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:snapshot-testing",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/target-authoring": {
@@ -2395,6 +3816,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:target-authoring",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/test-analysis-extensions": {
@@ -2426,6 +3865,27 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-analysis-extensions",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation",
+        "user-invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/test-anti-patterns": {
@@ -2457,6 +3917,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-anti-patterns",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/test-gap-analysis": {
@@ -2488,6 +3966,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-gap-analysis",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/testcontainers-integration-tests": {
@@ -2520,6 +4016,26 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:testcontainers-integration-tests",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/thread-abort-migration": {
@@ -2552,6 +4068,26 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:thread-abort-migration",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-dotnet-general/skill/vectorization": {
@@ -2582,6 +4118,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:vectorization",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/asd-ste100": {
@@ -2613,6 +4167,26 @@
         "version"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:asd-ste100",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "version"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/ask-deniz": {
@@ -2626,7 +4200,33 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "deniz-process:brainstorming",
+          "deniz-process:executing-plans",
+          "deniz-process:finishing-a-development-branch",
+          "deniz-process:grill-me",
+          "deniz-process:grill-with-docs",
+          "deniz-process:handoff",
+          "deniz-process:implement",
+          "deniz-process:improve-codebase-architecture",
+          "deniz-process:prototype",
+          "deniz-process:requesting-code-review",
+          "deniz-process:research",
+          "deniz-process:setup-matt-pocock-skills",
+          "deniz-process:subagent-driven-development",
+          "deniz-process:teach",
+          "deniz-process:to-questionnaire",
+          "deniz-process:to-spec",
+          "deniz-process:to-tickets",
+          "deniz-process:triage",
+          "deniz-process:using-superpowers",
+          "deniz-process:wait-what",
+          "deniz-process:wayfinder",
+          "deniz-process:wizard",
+          "deniz-process:writing-for-agents",
+          "deniz-process:writing-plans",
+          "deniz-process:writing-skills"
+        ]
       },
       "flags": {
         "disable-model-invocation": true
@@ -2638,7 +4238,33 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "brainstorming",
+          "executing-plans",
+          "finishing-a-development-branch",
+          "grill-me",
+          "grill-with-docs",
+          "handoff",
+          "implement",
+          "improve-codebase-architecture",
+          "prototype",
+          "requesting-code-review",
+          "research",
+          "setup-matt-pocock-skills",
+          "subagent-driven-development",
+          "teach",
+          "to-questionnaire",
+          "to-spec",
+          "to-tickets",
+          "triage",
+          "using-superpowers",
+          "wait-what",
+          "wayfinder",
+          "wizard",
+          "writing-for-agents",
+          "writing-plans",
+          "writing-skills"
+        ]
       },
       "dropped": [
         "disable-model-invocation",
@@ -2648,6 +4274,52 @@
         "BODY.md",
         "PHASE-BOUNDARIES.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:ask-deniz",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "$deniz-process:brainstorming",
+          "$deniz-process:executing-plans",
+          "$deniz-process:finishing-a-development-branch",
+          "$deniz-process:grill-me",
+          "$deniz-process:grill-with-docs",
+          "$deniz-process:handoff",
+          "$deniz-process:implement",
+          "$deniz-process:improve-codebase-architecture",
+          "$deniz-process:prototype",
+          "$deniz-process:requesting-code-review",
+          "$deniz-process:research",
+          "$deniz-process:setup-matt-pocock-skills",
+          "$deniz-process:subagent-driven-development",
+          "$deniz-process:teach",
+          "$deniz-process:to-questionnaire",
+          "$deniz-process:to-spec",
+          "$deniz-process:to-tickets",
+          "$deniz-process:triage",
+          "$deniz-process:using-superpowers",
+          "$deniz-process:wait-what",
+          "$deniz-process:wayfinder",
+          "$deniz-process:wizard",
+          "$deniz-process:writing-for-agents",
+          "$deniz-process:writing-plans",
+          "$deniz-process:writing-skills"
+        ]
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/brainstorming": {
@@ -2682,6 +4354,26 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:brainstorming",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:writing-plans"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/codebase-design": {
@@ -2712,6 +4404,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:codebase-design",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/dispatching-parallel-agents": {
@@ -2742,6 +4452,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:dispatching-parallel-agents",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/domain-modeling": {
@@ -2772,6 +4500,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:domain-modeling",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/executing-plans": {
@@ -2811,6 +4557,28 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:executing-plans",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:finishing-a-development-branch",
+          "$deniz-process:subagent-driven-development",
+          "$deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/finishing-a-development-branch": {
@@ -2837,6 +4605,24 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:finishing-a-development-branch",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/grill-me": {
@@ -2868,6 +4654,28 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:grill-me",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/grill-with-docs": {
@@ -2899,6 +4707,28 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:grill-with-docs",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/grilling": {
@@ -2929,6 +4759,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:grilling",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/handoff": {
@@ -2961,6 +4809,29 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:handoff",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "argument-hint",
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/implement": {
@@ -3003,18 +4874,49 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:implement",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:requesting-code-review",
+          "$deniz-process:test-driven-development"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/improve-codebase-architecture": {
     "source": "mattpocock-skills/skills/engineering/improve-codebase-architecture",
     "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "codebase-design"
+    ],
     "description": "Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:codebase-design"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3026,7 +4928,9 @@
         "command"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "codebase-design"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3037,6 +4941,30 @@
         "BODY.md",
         "HTML-REPORT.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:improve-codebase-architecture",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:codebase-design"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/prototype": {
@@ -3063,6 +4991,24 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:prototype",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/receiving-code-review": {
@@ -3093,6 +5039,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:receiving-code-review",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/requesting-code-review": {
@@ -3134,6 +5098,28 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:requesting-code-review",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:receiving-code-review"
+        ],
+        "pointer": [
+          "$deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/research": {
@@ -3168,6 +5154,26 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:research",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:dispatching-parallel-agents"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/resolving-merge-conflicts": {
@@ -3198,11 +5204,30 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:resolving-merge-conflicts",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/setup-matt-pocock-skills": {
     "source": "mattpocock-skills/skills/engineering/setup-matt-pocock-skills",
     "invocation": "manual",
+    "body": "patch",
     "description": "Configure this repo for the engineering skills: set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.",
     "claude": {
       "artifacts": [
@@ -3236,6 +5261,28 @@
         "issue-tracker-local.md",
         "triage-labels.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:setup-matt-pocock-skills",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/subagent-driven-development": {
@@ -3275,6 +5322,28 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:subagent-driven-development",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:finishing-a-development-branch",
+          "$deniz-process:requesting-code-review",
+          "$deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/systematic-debugging": {
@@ -3319,6 +5388,27 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:systematic-debugging",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:test-driven-development",
+          "$deniz-process:verification-before-completion"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/teach": {
@@ -3357,6 +5447,29 @@
         "MISSION-FORMAT.md",
         "RESOURCES-FORMAT.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:teach",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "argument-hint",
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/test-driven-development": {
@@ -3401,6 +5514,27 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:test-driven-development",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:requesting-code-review",
+          "$deniz-process:systematic-debugging"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/to-questionnaire": {
@@ -3432,11 +5566,34 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:to-questionnaire",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/to-spec": {
     "source": "mattpocock-skills/skills/engineering/to-spec",
     "invocation": "manual",
+    "body": "patch",
     "description": "Turn the current conversation into a spec and publish it to the project issue tracker: no interview, just synthesis of what you've already discussed.",
     "claude": {
       "artifacts": [
@@ -3444,7 +5601,9 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "deniz-process:setup-matt-pocock-skills"
+        ]
       },
       "flags": {
         "disable-model-invocation": true
@@ -3456,18 +5615,45 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "setup-matt-pocock-skills"
+        ]
       },
       "dropped": [
         "disable-model-invocation",
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:to-spec",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "$deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/to-tickets": {
     "source": "mattpocock-skills/skills/engineering/to-tickets",
     "invocation": "manual",
+    "body": "patch",
     "description": "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges, published to the configured tracker (edges as text in one file per ticket locally, or native blocking links on a real tracker).",
     "claude": {
       "artifacts": [
@@ -3475,7 +5661,9 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "deniz-process:setup-matt-pocock-skills"
+        ]
       },
       "flags": {
         "disable-model-invocation": true
@@ -3487,26 +5675,62 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "setup-matt-pocock-skills"
+        ]
       },
       "dropped": [
         "disable-model-invocation",
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:to-tickets",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "$deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/triage": {
     "source": "mattpocock-skills/skills/engineering/triage",
     "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "domain-modeling",
+      "grilling"
+    ],
     "description": "Move issues and external PRs through a state machine of triage roles, categorise, verify, grill if needed, and write agent-ready briefs.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling"
+        ],
+        "pointer": [
+          "deniz-process:setup-matt-pocock-skills"
+        ]
       },
       "flags": {
         "disable-model-invocation": true
@@ -3517,8 +5741,13 @@
         "command"
       ],
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "domain-modeling",
+          "grilling"
+        ],
+        "pointer": [
+          "setup-matt-pocock-skills"
+        ]
       },
       "dropped": [
         "disable-model-invocation",
@@ -3529,6 +5758,33 @@
         "BODY.md",
         "OUT-OF-SCOPE.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:triage",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:domain-modeling",
+          "$deniz-process:grilling"
+        ],
+        "pointer": [
+          "$deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/using-git-worktrees": {
@@ -3559,6 +5815,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:using-git-worktrees",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/using-superpowers": {
@@ -3601,6 +5875,29 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:using-superpowers",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:brainstorming",
+          "$deniz-process:systematic-debugging"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/verification-before-completion": {
@@ -3631,6 +5928,24 @@
         "user-invocable"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:verification-before-completion",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/wait-what": {
@@ -3670,11 +5985,36 @@
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:wait-what",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:asd-ste100"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/wayfinder": {
     "source": "mattpocock-skills/skills/engineering/wayfinder",
     "invocation": "manual",
+    "body": "patch",
     "description": "Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.",
     "claude": {
       "artifacts": [
@@ -3682,7 +6022,9 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "deniz-process:setup-matt-pocock-skills"
+        ]
       },
       "flags": {
         "disable-model-invocation": true
@@ -3694,13 +6036,39 @@
       ],
       "edges": {
         "model": [],
-        "pointer": []
+        "pointer": [
+          "setup-matt-pocock-skills"
+        ]
       },
       "dropped": [
         "disable-model-invocation",
         "name"
       ],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:wayfinder",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "$deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/wizard": {
@@ -3735,6 +6103,26 @@
         "BODY.md",
         "template.sh"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:wizard",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/writing-for-agents": {
@@ -3769,6 +6157,26 @@
         "BODY.md",
         "SKILL-MECHANICS.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:writing-for-agents",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/writing-plans": {
@@ -3808,6 +6216,28 @@
       },
       "dropped": [],
       "parked": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:writing-plans",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:executing-plans",
+          "$deniz-process:subagent-driven-development",
+          "$deniz-process:using-git-worktrees"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   },
   "deniz-process/skill/writing-skills": {
@@ -3858,6 +6288,29 @@
         "render-graphs.js",
         "testing-skills-with-subagents.md"
       ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:writing-skills",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:systematic-debugging",
+          "$deniz-process:test-driven-development"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
     }
   }
 }

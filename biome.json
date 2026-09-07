@@ -12,7 +12,9 @@
       "!external",
       "!plugins",
       "!opencode",
+      "!codex",
       "!.claude-plugin",
+      "!.agents/plugins/marketplace.json",
       "!docs/ledger.json",
       "!experiments/**/fixtures"
     ]

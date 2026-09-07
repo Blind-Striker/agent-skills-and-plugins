@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.5.1",
-  "digest": "sha256:5009aa5724801c22ce26cde00058071ae8883959f01f41b2efe02ee9931ee463",
+  "version": "0.6.0",
+  "digest": "sha256:aebb96f43196cc52ee1c3cf1778b463ff94fdd1d9e0a83c951559191eeb0399d",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -82,7 +82,7 @@
       "mode": "100644"
     },
     "commands/to-tickets.md": {
-      "sha256": "sha256:a1cbc713921ab0e455d33a76b36624a1e3d9219878febb1cba6eb3d0e21e6b4f",
+      "sha256": "sha256:8cfb7f8db1b6239b895c230a12714ad8c5eaa8d0e9f0f3dc7bf122a171fc72fd",
       "mode": "100644"
     },
     "commands/triage.md": {
@@ -134,11 +134,11 @@
       "mode": "100644"
     },
     "skills/ask-deniz/BODY.md": {
-      "sha256": "sha256:b76f7861455e4142079121ad9b9128a836119afc6fd64aa0a73ecfadb79f282b",
+      "sha256": "sha256:5a0b5436fe46fcd7323b71331f4d0024a7d8931d6190f92369c389fd73f58e15",
       "mode": "100644"
     },
     "skills/ask-deniz/PHASE-BOUNDARIES.md": {
-      "sha256": "sha256:10d6c5c49e29da65e2a43a14df9e6e184004cdc94a8a2b74757b4816509b8607",
+      "sha256": "sha256:73049fa470556ec27b3cd96f05cae3b471a390a773fc347bcbbd1c1d0df2f2ae",
       "mode": "100644"
     },
     "skills/brainstorming/SKILL.md": {
@@ -214,11 +214,11 @@
       "mode": "100644"
     },
     "skills/improve-codebase-architecture/BODY.md": {
-      "sha256": "sha256:010545252959bd6350ec60100a19cca36091938248687028e3435454c1466ba7",
+      "sha256": "sha256:d9cabea216c2bb89aaeca4b37a0cd5c1c8b7eb274c446cea5b874cb8fec38d9f",
       "mode": "100644"
     },
     "skills/improve-codebase-architecture/HTML-REPORT.md": {
-      "sha256": "sha256:581e8bb5a521e46bbda8ca7e19b15948bed882187108092ebb90c62513b77528",
+      "sha256": "sha256:ee924742821e9be00e48a87db1316626ac5c396374b4715219251bfd84e25371",
       "mode": "100644"
     },
     "skills/prototype/LOGIC.md": {
@@ -258,19 +258,19 @@
       "mode": "100644"
     },
     "skills/setup-matt-pocock-skills/domain.md": {
-      "sha256": "sha256:edc6d6131fdffc4b7135704f5262124fc43355c95f61b7399dc5a4db643e28ca",
+      "sha256": "sha256:af5705612c55b67cb76b2050a14b29df397dcb93739ce2c72a7fbe8fe87ace69",
       "mode": "100644"
     },
     "skills/setup-matt-pocock-skills/issue-tracker-github.md": {
-      "sha256": "sha256:afd6852a80185217bd28aa5cbe456bef1e85be25be7bd1fba382d5b8ee428325",
+      "sha256": "sha256:238f621ea6be6a2d79698eab01c9f9c240c53de8f4efb9b245beea28bf52cfab",
       "mode": "100644"
     },
     "skills/setup-matt-pocock-skills/issue-tracker-gitlab.md": {
-      "sha256": "sha256:ea175f73d193b3f55819c0ed9bbccf6ee0e70ad8f928e3d7607596c53380acd6",
+      "sha256": "sha256:92f58c36779c7a002b3a4bc3576cc7b2932e8ce1f69e7dcd7a184fde29cc914a",
       "mode": "100644"
     },
     "skills/setup-matt-pocock-skills/issue-tracker-local.md": {
-      "sha256": "sha256:7dcda20a2eb4bdc89b95d1143423c0691309921cadae3132e6424f371030506e",
+      "sha256": "sha256:e2206a12d7ea54e7b94cf6e7d64faa989de29ae34bcb8711e641f71360a28d7a",
       "mode": "100644"
     },
     "skills/setup-matt-pocock-skills/triage-labels.md": {
@@ -358,11 +358,11 @@
       "mode": "100644"
     },
     "skills/triage/AGENT-BRIEF.md": {
-      "sha256": "sha256:7f5f87fed3033df1b06e083c480f3e847b1fbb0647746b8a4c6a50f9f26ef44f",
+      "sha256": "sha256:9892ca43ea9b3ccfe3956dd68042171232398f69f503c8ed6800376a9c23a754",
       "mode": "100644"
     },
     "skills/triage/BODY.md": {
-      "sha256": "sha256:47f8e8c81708c8862eda6e41d5e6e4fb0767e225613f88ce5e847aeb279c1f97",
+      "sha256": "sha256:69fe6acc6225095b080be805d19d05db074b84fe3f88cb8627a25e857cf2e475",
       "mode": "100644"
     },
     "skills/triage/OUT-OF-SCOPE.md": {

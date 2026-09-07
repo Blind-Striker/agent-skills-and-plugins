@@ -1,0 +1,6 @@
+interface:
+  display_name: "Codex Reference Fox"
+  short_description: "Explicit-only bundled-reference resolution probe."
+  default_prompt: "Use $codex-probe:codex-reference-fox and return the bundled marker."
+policy:
+  allow_implicit_invocation: false

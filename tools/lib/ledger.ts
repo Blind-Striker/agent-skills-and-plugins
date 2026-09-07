@@ -1,5 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { AssembledItem } from "./assemble.ts";
+import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
 import type { CurationManifest } from "./manifest.ts";
 import { listFiles } from "./overlay.ts";
@@ -29,6 +31,21 @@ interface LedgerEntry {
   description: string;
   claude: HarnessState;
   opencode: HarnessState;
+  codex: {
+    artifacts: ["skill"];
+    identity: string;
+    sourceKind: string;
+    resolvedKind: string;
+    emittedKind: "skill";
+    kindTransformation?: string;
+    implicit: "enabled" | "disabled" | "target-default";
+    explicit: "available";
+    policyFiles: string[];
+    edges: Record<RefKind, string[]>;
+    dropped: string[];
+    metadataTransformations?: string[];
+    bodyTransformations: string[];
+  };
 }
 
 function sortedUnique(xs: string[]): string[] {
@@ -63,7 +80,13 @@ function edgesIn(files: string[], ownNs: Set<string>): Record<RefKind, string[]>
   return { model: sortedUnique(model), pointer: sortedUnique(pointer) };
 }
 
-export function writeLedger(root: string, manifests: CurationManifest[], components: ComponentInfo[]): void {
+export function writeLedger(
+  root: string,
+  manifests: CurationManifest[],
+  components: ComponentInfo[],
+  assembled: AssembledItem[],
+  codexMetadataTransformations: Map<string, string[]> = new Map(),
+): void {
   const ownNs = new Set(manifests.map((m) => m.plugin.name));
   const ledger: Record<string, LedgerEntry> = {};
   for (const m of manifests) {
@@ -98,6 +121,19 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
       const parkedDir = join(moduleRoot, "skills", outName);
       const parked = !existsSync(ocSkill) && existsSync(parkedDir) ? listFiles(parkedDir) : [];
       const doc = parseDoc(readFileSync(outType === "skill" ? join(claudeDir, "SKILL.md") : claudeDir, "utf8"));
+      const neutral = assembled.find(
+        (candidate) =>
+          candidate.plugin === m.plugin.name &&
+          candidate.source === item.source &&
+          candidate.outName === outName &&
+          candidate.outType === outType,
+      );
+      if (!neutral) {
+        throw new Error(`internal error: missing assembled item for ${ledgerId}`);
+      }
+      const neutralDoc = parseDoc(readFileSync(join(neutral.dir, "SKILL.md"), "utf8"));
+      const codexAdaptation = adaptCodexSkillDocument(outName, neutralDoc);
+      const codexInvocation = resolveCodexInvocation(item.invocation);
       const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);
       const claudeEdges = edgesIn(claudeFiles, ownNs);
       // OpenCode text is bare — respell the Claude facts through the known mapping instead of
@@ -129,6 +165,30 @@ export function writeLedger(root: string, manifests: CurationManifest[], compone
           edges: { model: respell(claudeEdges.model), pointer: respell(claudeEdges.pointer) },
           dropped: ocDropped,
           parked,
+        },
+        codex: {
+          artifacts: ["skill"],
+          identity: `${m.plugin.name}:${outName}`,
+          sourceKind: neutral.sourceType,
+          resolvedKind: outType,
+          emittedKind: "skill",
+          ...(outType !== "skill" ? { kindTransformation: `${outType}->skill` } : {}),
+          implicit: codexInvocation.implicit,
+          explicit: codexInvocation.explicit,
+          policyFiles: codexInvocation.agentManifest ? ["agents/openai.yaml"] : [],
+          edges: {
+            model: claudeEdges.model.map((address) => `$${address}`),
+            pointer: claudeEdges.pointer.map((address) => `$${address}`),
+          },
+          dropped: codexAdaptation.dropped,
+          ...((codexMetadataTransformations.get(`${m.plugin.name}/${outName}`) ?? codexAdaptation.transformations)
+            .length
+            ? {
+                metadataTransformations:
+                  codexMetadataTransformations.get(`${m.plugin.name}/${outName}`) ?? codexAdaptation.transformations,
+              }
+            : {}),
+          bodyTransformations: [],
         },
       };
       ledger[ledgerId] = entry;

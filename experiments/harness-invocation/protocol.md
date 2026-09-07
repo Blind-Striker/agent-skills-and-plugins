@@ -1,6 +1,6 @@
 # Harness probing
 
-Date: 2026-08-25
+Date: 2026-09-07
 
 This protocol owns the repeatable method for finding out what a harness actually does. Committed
 observations live in [`records/`](records/); research such as
@@ -27,6 +27,7 @@ things: fixture skills to probe with, the isolated harness homes, and a results 
   fixtures/          probe skills, tracked
   .claude-home/      CLAUDE_CONFIG_DIR      (gitignore — holds credentials)
   .opencode-home/    relocated HOME and XDG roots (gitignore)
+  codex-run-*/       isolated CODEX_HOME plus raw JSON (gitignore)
   installer-local/   fresh packed-package profile and npm cache (gitignore)
   installer-release/ fresh Release-package profile and npm cache (gitignore)
   RESULTS.md
@@ -45,6 +46,7 @@ The two harnesses isolate differently. Getting this wrong wastes a round.
 | Claude Code | `CLAUDE_CONFIG_DIR` | **replaces** the config root. Setting it is enough |
 | OpenCode | `OPENCODE_CONFIG_DIR` | only **adds** a search location — the global config and package cache still load |
 | OpenCode | `USERPROFILE` (Windows) | relocates what `opencode debug paths` *reports* — **not** what discovery *reads*. The global config mount follows `XDG_CONFIG_HOME`, falling back to the real profile; set both |
+| Codex | `CODEX_HOME` | replaces config, auth, plugin records, marketplace records, cache, and run-local temporary state for the CLI |
 
 Three OpenCode-specific traps, each of which cost a round:
 
@@ -193,6 +195,36 @@ On Windows, additionally record that the package and npm cache remained below th
 `OPENCODE_CONFIG_DIR` was absent, every resolved non-built-in skill was below the relocated XDG
 config root, and `debug paths` named only relocated roots. Sanitize absolute paths in the committed
 record; retain raw logs only in the external lab.
+
+### Codex native marketplace and plugin discovery
+
+Use [`codex-matrix.ps1`](codex-matrix.ps1) for the Codex leg. It creates a new `CODEX_HOME` below the
+external lab unless the operator supplies an already-created lab-contained home. Its tracked local
+marketplace carries nonsense positive and negative plugins plus `auto`, `manual`, and `both`
+invocation fixtures, a cross-skill handoff, and a bundled-reference probe.
+
+The credential-free structural path must exercise marketplace add/list, available-plugin listing,
+plugin add/list/remove, and all four generated plugins. Record the Codex version, exact plugin IDs,
+installed cache containment, native skill and manual-policy counts, repository status identity, and
+byte identity of the real profile's Codex plugin state. These observations prove distribution and
+installation structure, not model discovery.
+
+Run `-Behavioural` only when the isolated home already contains `auth.json` or `OPENAI_API_KEY` is
+present. The runner sends prompts through stdin to preserve literal `$plugin:skill` spelling and
+uses `codex exec --json --ephemeral --ignore-rules --approve-for-me`, with the disposable plugin
+cache passed through `--add-dir`. That grants reviewed workspace access only to the external-lab
+project and isolated plugin cache, which Codex must read to load full skill bodies and bundled
+references. The disposable `CODEX_HOME` supplies configuration isolation. Do not add
+`--ignore-user-config`: on Codex CLI 0.153.4 that flag also hides the isolated profile's installed
+plugins from skill discovery.
+Pin both `-Model` and `-ReasoningEffort`; the defaults are `gpt-5.6-luna` and `low`. Require a
+one-token liveness pass before the panel; pair the manual implicit negative with its explicit
+positive, and record repeated `auto` and `both` outcomes as propensity rather than a guarantee. With
+`-GeneratedPlugins`, keep the fixture installed while all four repository plugins load so the same
+nonsense controls measure catalog pressure, then probe one generated manual skill explicitly and
+one generated auto skill implicitly. Also require the installed cross-skill handoff, bundled
+reference, and uninstalled-plugin negative controls. Kill and record timeouts. Keep credentialed
+JSONL only in the external lab.
 
 ## Probe cheaply
 

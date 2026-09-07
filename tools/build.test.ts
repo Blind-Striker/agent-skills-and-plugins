@@ -7,9 +7,9 @@ import { buildAll } from "./build.ts";
 import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { loadModuleManifest, verifyModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
-import { stringify } from "yaml";
+import { parse as parseYaml, stringify } from "yaml";
 import { stampFiles, stampMergeFiles } from "./lib/overlay.ts";
-import { makeRepo, opencodeModulePath } from "./testutil.ts";
+import { codexPluginPath, makeRepo, opencodeModulePath } from "./testutil.ts";
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
@@ -103,6 +103,45 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 
+test("buildAll emits every resolved source kind as a native Codex skill", () => {
+  const root = makeRepo();
+
+  const report = buildAll(root);
+
+  const pluginRoot = codexPluginPath(root, "deniz-process");
+  for (const name of ["alpha", "deniz-beta", "beta-agent", "gamma", "delta", "my-own"]) {
+    const doc = parseDoc(readFileSync(join(pluginRoot, "skills", name, "SKILL.md"), "utf8"));
+    assert.equal(doc.frontmatter.name, name);
+    assert.equal(typeof doc.frontmatter.description, "string");
+    assert.deepEqual(Object.keys(doc.frontmatter), ["name", "description"]);
+  }
+  // A command/agent becomes a skill in Codex, so its selected source closure remains available.
+  assert.equal(
+    readFileSync(join(pluginRoot, "skills", "deniz-beta", "references", "notes.md"), "utf8"),
+    "extra asset\n",
+  );
+  assert.equal(
+    readFileSync(join(pluginRoot, "skills", "beta-agent", "references", "notes.md"), "utf8"),
+    "extra asset\n",
+  );
+  assert.ok(!existsSync(join(pluginRoot, "commands")));
+  assert.ok(!existsSync(join(pluginRoot, "agents")));
+  assert.ok(report.includes("codex skill beta-agent: dropped frontmatter keys: model"));
+
+  const plugin = JSON.parse(readFileSync(join(pluginRoot, ".codex-plugin", "plugin.json"), "utf8"));
+  assert.equal(plugin.name, "deniz-process");
+  assert.equal(plugin.skills, "./skills/");
+  assert.equal(plugin.repository, "https://example.test/repository");
+  assert.equal(plugin.interface.developerName, "Deniz İrgin");
+
+  const marketplace = JSON.parse(readFileSync(join(root, ".agents", "plugins", "marketplace.json"), "utf8"));
+  assert.deepEqual(
+    marketplace.plugins.map((entry: { name: string }) => entry.name),
+    ["deniz-process"],
+  );
+  assert.equal(marketplace.plugins[0].source.path, "./codex/deniz-process");
+});
+
 test("buildAll carries exact source licenses and notices in each distribution", () => {
   const root = makeRepo();
 
@@ -110,7 +149,8 @@ test("buildAll carries exact source licenses and notices in each distribution", 
 
   const pluginRoot = join(root, "plugins", "deniz-process");
   const moduleRoot = opencodeModulePath(root, "deniz-process");
-  for (const distributionRoot of [pluginRoot, moduleRoot]) {
+  const codexRoot = codexPluginPath(root, "deniz-process");
+  for (const distributionRoot of [pluginRoot, moduleRoot, codexRoot]) {
     assert.equal(readFileSync(join(distributionRoot, "LICENSE"), "utf8"), "repository license\n");
     assert.equal(readFileSync(join(distributionRoot, "third_party", "sp", "LICENSE"), "utf8"), "upstream license\n");
     const notices = readFileSync(join(distributionRoot, "THIRD_PARTY_NOTICES.md"), "utf8");
@@ -249,6 +289,10 @@ test("an empty module still gets a notice-only manifest", () => {
   assert.equal(manifest.version, "2.3.4");
   assert.deepEqual(Object.keys(manifest.files), ["LICENSE", "THIRD_PARTY_NOTICES.md"]);
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
+  const codexRoot = codexPluginPath(root, "empty-mod");
+  assert.ok(existsSync(join(codexRoot, ".codex-plugin", "plugin.json")));
+  assert.ok(existsSync(join(codexRoot, "LICENSE")));
+  assert.ok(existsSync(join(codexRoot, "THIRD_PARTY_NOTICES.md")));
 });
 
 // ADR-0006 axis 3. The OpenCode skill path was a verbatim copy of the Claude one, so Claude-only
@@ -286,6 +330,8 @@ test("the OpenCode skill path adapts rather than mirrors", () => {
   assert.match(claude.body, /deniz-process:beta/, "Claude addresses a plugin skill namespaced");
   assert.doesNotMatch(oc.body, /deniz-process:beta/, "that spelling is meaningless to OpenCode");
   assert.match(oc.body, /(^|[^:\w-])beta\b/, "OpenCode addresses a skill by its bare name");
+  const codex = parseDoc(readFileSync(codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"));
+  assert.match(codex.body, /\$deniz-process:beta/, "Codex uses its native plugin skill address");
 });
 
 // ADR-0005: one word per item says who pulls the trigger, and each emitter derives its own
@@ -354,6 +400,19 @@ test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
     !existsSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "BODY.md")),
     "both does not park a body",
   );
+
+  // Codex: every item is an explicitly addressable skill; manual alone disables implicit use.
+  const codexAgent = (name: string) => codexPluginPath(root, "deniz-process", "skills", name, "agents", "openai.yaml");
+  assert.ok(!existsSync(codexAgent("alpha")), "auto remains implicitly eligible without a policy file");
+  assert.ok(existsSync(codexAgent("beta")), "manual emits one explicit-only policy file");
+  assert.ok(!existsSync(codexAgent("delta")), "both remains implicitly eligible without a policy file");
+  assert.ok(!existsSync(codexAgent("gamma")), "absent preserves Codex's target default");
+  const betaPolicy = parseYaml(readFileSync(codexAgent("beta"), "utf8")) as {
+    interface: { default_prompt: string };
+    policy: { allow_implicit_invocation: boolean };
+  };
+  assert.equal(betaPolicy.policy.allow_implicit_invocation, false);
+  assert.match(betaPolicy.interface.default_prompt, /\$deniz-process:beta/);
 });
 
 test("a bundled manual command parks its body and points at the parked bundle", () => {
@@ -609,6 +668,7 @@ test("symlinks inside a curated skill are skipped, not copied", (t) => {
   assert.throws(() => lstatSync(copied), /ENOENT/);
   // the rest of the skill still copied — the filter must reject only the link
   assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")));
+  assert.throws(() => lstatSync(codexPluginPath(root, "deniz-process", "skills", "alpha", "fixtures")), /ENOENT/);
   assert.ok(
     report.includes("WARN deniz-process/alpha: skipped symlink external/sp/skills/alpha/fixtures"),
     `expected a skipped-symlink warning, got ${JSON.stringify(report, null, 2)}`,
@@ -721,6 +781,50 @@ test("a duplicate output identity within one plugin aborts the build", () => {
   assert.throws(() => buildAll(root), /duplicate output identity skill:shared.*sp\/skills\/beta.*sp\/skills\/delta/);
 });
 
+test("a flattened Codex namespace collision aborts before any generated output is deleted", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const sentinels = [
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+    codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+    join(root, ".agents", "plugins", "marketplace.json"),
+  ];
+  const before = sentinels.map((path) => readFileSync(path));
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+      "    as: command",
+      "    name: alpha",
+      "",
+    ].join("\n"),
+  );
+
+  assert.throws(() => buildAll(root), /flattened Codex skill collision.*skill.*command/);
+  for (const [index, path] of sentinels.entries()) {
+    assert.equal(readFileSync(path).equals(before[index] ?? Buffer.alloc(0)), true);
+  }
+});
+
+test("successful Codex marketplace generation preserves unrelated .agents content", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, ".agents"), { recursive: true });
+  const sentinel = join(root, ".agents", "AGENTS.md");
+  writeFileSync(sentinel, "authored repository agent configuration\n");
+
+  buildAll(root);
+
+  assert.equal(readFileSync(sentinel, "utf8"), "authored repository agent configuration\n");
+  assert.ok(existsSync(join(root, ".agents", "plugins", "marketplace.json")));
+});
+
 test("duplicate plugin.name values abort before deleting existing output", () => {
   const root = makeRepo();
   buildAll(root);
@@ -824,7 +928,7 @@ test("same OpenCode name in different artifact kinds remains legal across Module
   assert.ok(existsSync(opencodeModulePath(root, "deniz-other", "commands", "alpha.md")));
 });
 
-test("the same output name in different artifact kinds builds both and keeps both ledger entries", () => {
+test("the same output name in different artifact kinds is rejected by the flattened Codex namespace", () => {
   const root = makeRepo();
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
@@ -842,14 +946,10 @@ test("the same output name in different artifact kinds builds both and keeps bot
     ].join("\n")}\n`,
   );
 
-  buildAll(root);
-  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "shared", "SKILL.md")));
-  assert.ok(existsSync(join(root, "plugins", "deniz-process", "commands", "shared.md")));
-
-  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
-  assert.equal(ledger["deniz-process/skill/shared"].source, "sp/skills/delta");
-  assert.equal(ledger["deniz-process/command/shared"].source, "sp/skills/beta");
-  assert.equal("deniz-process/shared" in ledger, false);
+  assert.throws(
+    () => buildAll(root),
+    /flattened Codex skill collision.*command.*skill|flattened Codex skill collision.*skill.*command/,
+  );
 });
 
 test("an overlay directory missing the file the build reads aborts before deleting output", () => {

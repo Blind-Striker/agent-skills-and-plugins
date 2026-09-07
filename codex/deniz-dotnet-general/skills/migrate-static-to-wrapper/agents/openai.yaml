@@ -1,0 +1,6 @@
+interface:
+  display_name: "Migrate Static To Wrapper"
+  short_description: "Migrate C# static calls to a wrapper or built-in abstraction..."
+  default_prompt: "Use $deniz-dotnet-general:migrate-static-to-wrapper for this task."
+policy:
+  allow_implicit_invocation: false

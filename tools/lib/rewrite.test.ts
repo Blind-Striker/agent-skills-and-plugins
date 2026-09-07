@@ -74,6 +74,10 @@ test("original skill targets use Plugin-qualified Claude and bare OpenCode spell
     "deniz-process:my-own",
   );
   assert.equal(buildRewriteMap([manifest], components, "opencode", own).get("deniz-process:my-own"), "my-own");
+  assert.equal(
+    buildRewriteMap([manifest], components, "codex", own).get("deniz-process:my-own"),
+    "deniz-process:my-own",
+  );
 });
 
 test("an original skill rewrite key cannot overwrite another target", () => {
@@ -103,4 +107,36 @@ test("rewriteRefs stops at ref-token boundaries", () => {
   assert.equal(rewriteRefs("sp:foo-bar and sp:foobar and sp:foo", map), "sp:foo-bar and sp:foobar and p:foo");
   assert.equal(rewriteRefs("xsp:foo", map), "xsp:foo");
   assert.equal(rewriteRefs("(sp:foo).", map), "(p:foo).");
+});
+
+test("Codex renders model edges and user pointers as valid namespaced dollar references", () => {
+  const map = new Map([
+    ["superpowers:tdd", "deniz-process:test-driven-development"],
+    ["superpowers:brainstorming", "deniz-process:brainstorming"],
+  ]);
+  assert.equal(
+    rewriteRefs("Use superpowers:tdd, or tell the user to open /superpowers:brainstorming.", map, "codex"),
+    "Use $deniz-process:test-driven-development, or tell the user to open $deniz-process:brainstorming.",
+  );
+});
+
+test("Codex rewriting keeps token boundaries and literal dollar amounts", () => {
+  const map = new Map([["sp:foo", "plugin:renamed"]]);
+  assert.equal(
+    rewriteRefs("$25, sp:foo-bar, xsp:foo, and sp:foo.", map, "codex"),
+    "$25, sp:foo-bar, xsp:foo, and $plugin:renamed.",
+  );
+});
+
+test("Codex map preserves the owning plugin across cross-plugin targets and renames", () => {
+  const other: CurationManifest = {
+    plugin: { name: "deniz-other", description: "Other", version: "0.1.0" },
+    items: [{ source: "sp/skills/tdd", name: "renamed-tdd" }],
+  };
+  const map = buildRewriteMap([other], components, "codex");
+  assert.equal(rewriteRefs("Use superpowers:tdd.", map, "codex"), "Use $deniz-other:renamed-tdd.");
+});
+
+test("Codex leaves a dangling authored address visible for validation", () => {
+  assert.equal(rewriteRefs("Use upstream:missing.", new Map(), "codex"), "Use upstream:missing.");
 });

@@ -8,6 +8,11 @@ export function opencodeModulePath(root: string, module: string, ...parts: strin
   return join(root, "opencode", module, ...parts);
 }
 
+/** A file or directory inside one generated Codex Plugin: codex/<plugin>/<parts...>. */
+export function codexPluginPath(root: string, plugin: string, ...parts: string[]): string {
+  return join(root, "codex", plugin, ...parts);
+}
+
 export function makeRepo(): string {
   const root = mkdtempSync(join(tmpdir(), "build-"));
   // upstream submodule 'sp' with namespace 'superpowers'
@@ -73,6 +78,21 @@ export function makeRepo(): string {
     )}\n`,
   );
   writeFileSync(join(root, "LICENSE"), "repository license\n");
+  writeFileSync(
+    join(root, "package.json"),
+    `${JSON.stringify(
+      {
+        name: "test-skills",
+        version: "0.1.0",
+        author: { name: "Deniz İrgin", email: "deniz@example.test", url: "https://example.test/deniz" },
+        repository: { type: "git", url: "git+https://example.test/repository.git" },
+        homepage: "https://example.test/project",
+        license: "MIT",
+      },
+      null,
+      2,
+    )}\n`,
+  );
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
     `${[

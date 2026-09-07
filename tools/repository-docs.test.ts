@@ -7,7 +7,27 @@ const root = join(import.meta.dirname, "..");
 
 test("README build command names every committed generated tree", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
-  assert.match(readme, /`npm run build`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`dist\/`/);
+  assert.match(readme, /`npm run build`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`codex\/`[^\n]*`dist\/`/);
+});
+
+test("bootstrap and CI guard every generated Codex surface", () => {
+  const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
+  assert.match(agents, /Never hand-edit[^\n]*`external\/`[^\n]*`plugins\/`[^\n]*`opencode\/`[^\n]*`codex\/`/);
+  assert.match(agents, /\.agents\/plugins\/marketplace\.json/);
+
+  const workflow = readFileSync(join(root, ".github", "workflows", "validate.yml"), "utf8");
+  for (const path of ["plugins", "opencode", "codex", "dist", ".agents/plugins/marketplace.json"]) {
+    assert.match(workflow, new RegExp(`git add -A --[^\\n]*${path.replaceAll(".", "\\.")}`));
+  }
+});
+
+test("README states the Codex Plugin host boundary", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const codex = readme.slice(readme.indexOf("### Codex from this repository marketplace"));
+  assert.match(codex, /Codex CLI/);
+  assert.match(codex, /ChatGPT desktop app/);
+  assert.match(codex, /IDE extension does not currently load Plugins/);
+  assert.match(codex, /does not install native\s+`\.codex\/agents\/\*\.toml` custom agents/);
 });
 
 test("README verifies the current Release digest before package execution", () => {

@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-08-24
+Date: 2026-09-07
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field
@@ -23,9 +23,9 @@ Treat repository areas according to the action they permit:
 - `curation/`, `overlays/` and `overlays/overlays.lock.json`, original `skills/`, `tools/`, `docs/`,
   `experiments/`, and root public metadata such as `LICENSE` and `THIRD_PARTY_NOTICES.md` are authored
   inputs.
-- `plugins/`, `opencode/`, `dist/`, `.claude-plugin/marketplace.json`, `docs/inventory.md`, and
-  `docs/ledger.json` are generated review surfaces. Change their inputs and regenerate; never patch
-  them directly.
+- `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated
+  review surfaces. Change their inputs and regenerate; never patch them directly.
 
 The current compile and emission mechanics are described in
 [Transformation and emission](../architecture/transformation-and-emission.md). These boundaries are
@@ -43,7 +43,8 @@ Curation is a human judgement boundary. An agent may inventory, compare upstream
 references, identify harness constraints, and recommend an option. It must not silently decide an
 ambiguous item's trigger, shape, ownership, or module placement. Present the options and a
 recommendation to the curator, then encode the chosen intent and reason. Consider the Claude Code
-Plugin and OpenCode Module together for every item rather than treating one as a later port.
+Plugin, OpenCode Module, and Codex Plugin together for every item rather than treating one as a
+later port.
 
 ## Manifest and body-edit flow
 
@@ -90,7 +91,7 @@ inventory, reopen affected source bodies and manifests, and review any posture, 
 or patch impact.
 
 After a pin move, resolve overlay drift through the bless flow, make any newly required curation
-decisions with nearby reasons, regenerate both harness outputs, and run the generated-output gate in
+decisions with nearby reasons, regenerate all three harness outputs, and run the generated-output gate in
 [quality-gates.md](quality-gates.md#command-matrix). Complete its generated-output review before
 accepting the update.
 

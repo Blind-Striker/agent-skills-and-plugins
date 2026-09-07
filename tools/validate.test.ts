@@ -8,7 +8,7 @@ import { buildAll } from "./build.ts";
 import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
-import { makeRepo, opencodeModulePath } from "./testutil.ts";
+import { codexPluginPath, makeRepo, opencodeModulePath } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
@@ -226,7 +226,7 @@ test("duplicate plugin.name values are an error that lists both manifest paths",
   );
 });
 
-test("the same output name is legal for different artifact kinds", () => {
+test("the same output name in different artifact kinds is invalid after Codex flattening", () => {
   const root = makeRepo();
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
@@ -243,12 +243,7 @@ test("the same output name is legal for different artifact kinds", () => {
       "    as: command",
     ].join("\n")}\n`,
   );
-  buildAll(root);
-
-  const identityFindings = validateRepo(root).filter(
-    (f) => f.message.includes("duplicate output identity") || f.message.includes("duplicate plugin.name"),
-  );
-  assert.deepEqual(identityFindings, []);
+  assert.throws(() => buildAll(root), /flattened Codex skill collision/);
 });
 
 // marketplace.json is what a harness reads to find the plugins; a build that half-failed, or a
@@ -264,6 +259,138 @@ test("marketplace.json listing a plugin that is not built is an error", () => {
     ),
     `expected a marketplace mismatch error, got ${JSON.stringify(findings, null, 2)}`,
   );
+});
+
+test("Codex validation reports missing and extra plugin roots", () => {
+  const root = makeRepo();
+  buildAll(root);
+  rmSync(codexPluginPath(root, "deniz-process"), { recursive: true });
+  mkdirSync(codexPluginPath(root, "unexpected"), { recursive: true });
+
+  const findings = validateRepo(root);
+  assert.ok(findings.some((finding) => finding.message.includes("missing Codex Plugin root codex/deniz-process")));
+  assert.ok(findings.some((finding) => finding.message.includes("unexpected directory under codex/: unexpected")));
+});
+
+test("Codex validation rejects an escaping marketplace source path", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const path = join(root, ".agents", "plugins", "marketplace.json");
+  const marketplace = JSON.parse(readFileSync(path, "utf8"));
+  marketplace.plugins[0].source.path = "./../escape";
+  writeFileSync(path, `${JSON.stringify(marketplace, null, 2)}\n`);
+
+  const findings = validateRepo(root);
+  assert.ok(findings.some((finding) => finding.message.includes("escapes the repository root")));
+});
+
+test("Codex validation rejects manifest drift and unsupported skill frontmatter", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const pluginManifest = codexPluginPath(root, "deniz-process", ".codex-plugin", "plugin.json");
+  const plugin = JSON.parse(readFileSync(pluginManifest, "utf8"));
+  plugin.version = "9.9.9";
+  writeFileSync(pluginManifest, `${JSON.stringify(plugin, null, 2)}\n`);
+  const skill = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
+  writeFileSync(skill, readFileSync(skill, "utf8").replace("description:", "model: opus\ndescription:"));
+
+  const findings = validateRepo(root);
+  assert.ok(findings.some((finding) => finding.message.includes("plugin.json does not match curation")));
+  assert.ok(findings.some((finding) => finding.message.includes("unsupported frontmatter: model")));
+});
+
+test("Codex validation rejects a skill description beyond the native limit", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const skill = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
+  writeFileSync(
+    skill,
+    readFileSync(skill, "utf8").replace("description: Alpha curated", `description: ${"x".repeat(1025)}`),
+  );
+
+  const findings = validateRepo(root);
+  assert.ok(findings.some((finding) => finding.message.includes("description exceeds 1024 characters")));
+});
+
+test("Codex validation enforces the invocation policy matrix", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    invocation: auto",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+      "  - source: sp/skills/delta",
+      "    invocation: both",
+      "  - source: sp/skills/gamma",
+      "",
+    ].join("\n"),
+  );
+  buildAll(root);
+  const manualPolicy = readFileSync(
+    codexPluginPath(root, "deniz-process", "skills", "beta", "agents", "openai.yaml"),
+    "utf8",
+  );
+  rmSync(codexPluginPath(root, "deniz-process", "skills", "beta", "agents", "openai.yaml"));
+  for (const name of ["alpha", "delta", "gamma"]) {
+    const agents = codexPluginPath(root, "deniz-process", "skills", name, "agents");
+    mkdirSync(agents, { recursive: true });
+    writeFileSync(join(agents, "openai.yaml"), manualPolicy);
+  }
+
+  const messages = validateRepo(root).map((finding) => finding.message);
+  assert.ok(messages.some((message) => message.includes("beta/agents/openai.yaml is required for manual")));
+  for (const name of ["alpha", "delta", "gamma"]) {
+    assert.ok(messages.some((message) => message.includes(`${name}/agents/openai.yaml must be absent`)));
+  }
+});
+
+test("Codex validation rejects dangling and unrendered namespaced references", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const skill = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
+  writeFileSync(
+    skill,
+    `${readFileSync(skill, "utf8")}\nUse $deniz-process:missing, /$deniz-process:beta-agent, and deniz-process:beta-agent. Price: $25.\n`,
+  );
+
+  const messages = validateRepo(root).map((finding) => finding.message);
+  assert.ok(messages.some((message) => message.includes("dangling Codex reference $deniz-process:missing")));
+  assert.ok(messages.some((message) => message.includes("unrendered Codex reference deniz-process:beta-agent")));
+  assert.ok(messages.some((message) => message.includes("invalid Codex pointer spelling /$")));
+  assert.equal(
+    messages.some((message) => message.includes("$25")),
+    false,
+  );
+});
+
+test("Codex validation detects a same-plugin cross-kind flattening collision", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    [
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    name: shared",
+      "  - source: sp/skills/beta",
+      "    as: command",
+      "    name: Shared",
+      "",
+    ].join("\n"),
+  );
+
+  assert.ok(validateRepo(root).some((finding) => finding.message.includes("case-colliding flattened Codex skill")));
 });
 
 // A symlink can only reach plugins/ by hand or from a future build regression; either way the
@@ -357,9 +484,9 @@ test("a patch overlay holding a stranded working copy is a warning", () => {
   );
 });
 
-// ADR-0005: the field applies to items emitted as skills. An upstream command or agent is
-// user-invoked by nature, so stating an intent there describes nothing.
-test("invocation on a converted item is a warning", () => {
+// Codex flattens every resolved kind to a skill, so invocation remains meaningful even when the
+// Claude/OpenCode shape is a command or agent.
+test("invocation on a converted item controls the Codex skill without a dead-field warning", () => {
   const root = makeRepo();
   const manifest = join(root, "curation", "deniz-process.yaml");
   writeFileSync(
@@ -368,9 +495,15 @@ test("invocation on a converted item is a warning", () => {
   );
   buildAll(root);
   const findings = validateRepo(root);
-  assert.ok(
+  assert.equal(
     findings.some((f) => f.level === "warn" && f.message.includes("beta-agent") && f.message.includes("invocation")),
-    `expected an invocation-on-conversion warning, got ${JSON.stringify(findings, null, 2)}`,
+    false,
+  );
+  assert.ok(
+    readFileSync(
+      join(root, "codex", "deniz-process", "skills", "beta-agent", "agents", "openai.yaml"),
+      "utf8",
+    ).includes("allow_implicit_invocation: false"),
   );
 });
 
@@ -802,7 +935,7 @@ test("a relative path into a sibling item that no longer has the file is an erro
   const hits = validateRepo(root).filter(
     (f) => f.level === "error" && f.message.includes("../beta/references/notes.md"),
   );
-  assert.equal(hits.length, 2, `both trees, once each — ${JSON.stringify(hits, null, 2)}`);
+  assert.equal(hits.length, 3, `all three trees, once each — ${JSON.stringify(hits, null, 2)}`);
 });
 
 // The same link, sound in the skill tree, cannot resolve from a command sitting in another
@@ -862,8 +995,8 @@ test("a link to a file the build dropped is an error; a path upstream never had 
   const findings = validateRepo(root);
   assert.equal(
     findings.filter((f) => f.level === "error" && f.message.includes("references/notes.md")).length,
-    2,
-    `dropped by omit, in both trees — ${JSON.stringify(findings, null, 2)}`,
+    3,
+    `dropped by omit, in all three trees — ${JSON.stringify(findings, null, 2)}`,
   );
   for (const quiet of ["FORMS.md", "CONTEXT.md"]) {
     assert.equal(

@@ -1,11 +1,11 @@
 # Transformation and emission
 
-Date: 2026-09-06
+Date: 2026-09-07
 
 ## Responsibility
 
 This document owns the current compile-time mechanics: how authored inputs become separate Claude
-Code and OpenCode artifacts, where body ownership sits, and where compilation hands off to
+Code, OpenCode, and Codex artifacts, where body ownership sits, and where compilation hands off to
 installation and runtime. Distribution terms retain the precise meanings in
 [`CONTEXT.md`](../../CONTEXT.md); manifest grammar and authoring choices remain in
 [`curation/SCHEMA.md`](../../curation/SCHEMA.md).
@@ -22,11 +22,13 @@ rather than upstream fidelity.
 The product crosses three distinct phases:
 
 1. **Compile-time transformation.** `external/`, `curation/`, `overlays/`, and any original
-   `skills/` are resolved into committed Plugin and Bundle trees. Invocation, shape, frontmatter,
-   body ownership, reference spelling, and target fit are settled here.
+   `skills/` are resolved into committed Claude Plugin, OpenCode Bundle, and Codex Plugin trees.
+   Invocation, shape, frontmatter, body ownership, reference spelling, and target fit are settled
+   here.
 2. **Install-time composition.** The OpenCode installer verifies ready-made Bundles and composes the
    selected files into the global Native tree without parsing or adapting their content. Claude Code
-   installs the independently emitted Plugins through its marketplace. OpenCode composition is
+   installs the independently emitted Plugins through its marketplace, and Codex installs its own
+   Plugins through `.agents/plugins/marketplace.json`. OpenCode composition is
    owned by [Distribution and installation](distribution-and-installation.md).
 3. **Skill runtime.** A harness discovers or invokes the installed artifact, and its shipped
    instructions run. Work a skill performs in the consumer repository, including its own setup
@@ -40,12 +42,12 @@ phase reinterprets a skill after emission.
 - Upstream worktrees under `external/` are scanned but never authored into. Curation manifests,
   `curation/attribution.json`, overlays and their lock, original skills, and the root license and
   notice are the authored transformation layer.
-- `plugins/`, `opencode/`, `dist/`, `.claude-plugin/marketplace.json`, `docs/inventory.md`, and
-  `docs/ledger.json` are generated and committed. They are review surfaces and consumable output,
-  not edit surfaces.
-- One curation manifest produces one same-named Plugin and Module. The marketplace points at the
-  Plugin; the Bundle keeps the Module's `skills/`, `commands/`, and `agents/` paths separate until
-  installation.
+- `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
+  `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated and
+  committed. They are review surfaces and consumable output, not edit surfaces.
+- One curation manifest produces one same-named Claude Plugin, OpenCode Module, and Codex Plugin.
+  Each marketplace points at its native Plugin tree; the Bundle keeps the Module's `skills/`,
+  `commands/`, and `agents/` paths separate until installation.
 - A source skill is parsed and serialized even when no body override is present. The compiler does
   not promise byte identity with upstream; the Bundle's post-emission bytes establish the later
   installation identity.
@@ -68,8 +70,9 @@ skill-to-agent conversions work, but command-to-skill and agent-to-skill convers
 preflight. That is a current compiler limit, not a rule that upstream kind should govern curation.
 
 Identity preflight rejects duplicate `plugin.name` values, duplicate kind/name identities within one
-manifest, and cross-Module OpenCode destination collisions before generated output is deleted. The
-checks include OpenCode destinations claimed by original skills
+manifest, cross-Module OpenCode destination collisions, and same-plugin collisions in Codex's
+flattened skill namespace before generated output is deleted. The checks include destinations
+claimed by original skills
 ([`collectIdentityProblems`](../../tools/lib/resolve.ts#L103-L176), pre-delete call in
 [`buildAll`](../../tools/build.ts#L73-L77)). Validation separately reports when an original skill
 would be copied last and silently overwrite a curated skill of the same name in emitted output
@@ -85,40 +88,42 @@ The compiler assembles a body in this order:
    omission.
 4. Apply the shared full-file overlay or skill patch, then merge frontmatter and force the resolved
    output identity last.
-5. Copy original skills after curated manifest items, then write Plugin metadata and the marketplace.
+5. Add original skills to the same neutral assembly, then let each emitter write its own artifact
+   tree, metadata, and marketplace.
 
 Each non-excluded primary or merge source must have an entry in `curation/attribution.json`. After
 body assembly, the build copies the repository `LICENSE`, writes a source-specific
 `THIRD_PARTY_NOTICES.md`, and copies each used upstream license byte-for-byte under
-`third_party/<source>/LICENSE` in both the Plugin and Bundle. Bundle manifests hash these
-distribution files with the rest of the final Bundle.
+`third_party/<source>/LICENSE` in the Claude Plugin, OpenCode Bundle, and Codex Plugin. Bundle
+manifests hash these distribution files with the rest of the final Bundle.
 
-The fail-before-delete and emit order are explicit in
-[`buildAll`](../../tools/build.ts#L51-L123), with per-item assembly in
-[`emitItem`](../../tools/build.ts#L357-L438). Overlay hashes guard every upstream-backed file the
+The fail-before-delete and emit order are explicit in [`buildAll`](../../tools/build.ts), with
+per-item assembly in [`assembleItems`](../../tools/lib/assemble.ts). Overlay hashes guard every upstream-backed file the
 owned body uses, including declared merge inputs; additions with no upstream counterpart are not
 pretended to have an upstream stamp. This is review ownership, not a content dependency lock.
 
-There is one assembled body for both targets. `body: patch`, `body: overlay`, `omit`, and
-`merged_from` all act before harness emission. The repository does **not** currently express a
-Claude-only or OpenCode-only body overlay. When target fit requires irreconcilable prose, that is a
-named capability gap rather than permission to hand-edit one generated tree.
+There is one neutral assembled item for all three targets. It retains the full selected dependency
+closure even when the resolved Claude/OpenCode kind is a single-file command or agent. `body: patch`,
+`body: overlay`, `omit`, and `merged_from` all act once before harness emission. The internal
+temporary assembly is pipeline state, not a fourth output format, and no finalized target tree is
+another target's source. The repository does **not** currently express a per-target body overlay.
+When target fit requires irreconcilable prose, that is a named capability gap rather than permission
+to hand-edit one generated tree.
 
 ## Harness emission
 
-The two emitters make target decisions independently. The implementation reuses the pre-reference-
-rewrite Plugin staging tree as the common assembled input for OpenCode, but it emits OpenCode before
-Claude localization and then filters and rewrites each tree separately. Final Claude output is not
-mirrored into OpenCode. See the ordering comment and calls in
-[`buildAll`](../../tools/build.ts#L109-L121).
+The three emitters consume the same pre-localization assembly and make target decisions
+independently. They filter frontmatter, choose native artifact shape and invocation policy, and
+rewrite their own copies. Final Claude, OpenCode, or Codex output is never mirrored into another
+target. See [`buildAll`](../../tools/build.ts) and [`assembleItems`](../../tools/lib/assemble.ts).
 
 ### Claude Code
 
 A resolved skill remains one Plugin skill. If invocation is absent, upstream Claude invocation
 frontmatter passes through. A stated invocation replaces both Claude invocation keys: `auto` writes
 `user-invocable: false`, `manual` writes `disable-model-invocation: true`, and `both` writes neither.
-Commands and agents use their native Plugin paths; invocation on those shapes has no emitted meaning
-and validation warns.
+Commands and agents use their native Plugin paths. Invocation on those resolved shapes does not
+alter Claude output, although Codex consumes the same intent after adapting them to skills.
 
 The compiler forces a skill's frontmatter name to its output directory name and an agent's name to
 its output file identity. This keeps generated identity, localization, and review state aligned.
@@ -145,9 +150,30 @@ and the command contains the body directly. `both` likewise keeps the command bo
 than creating `BODY.md` ([`emitOpenCodeSkill`](../../tools/build.ts#L504-L569), focused assertion in
 [`tools/build.test.ts`](../../tools/build.test.ts#L346-L356)).
 
+### Codex
+
+Every resolved item becomes one native Codex skill under `codex/<plugin>/skills/<name>/`, including
+resolved commands and agents. The common assembly keeps their selected dependency files, while
+Codex frontmatter is filtered to `name`, `description`, `license`, `allowed-tools`, and `metadata`;
+all other keys are reported as drops. Final reference localization can lengthen a description, so
+the Codex emitter applies the native 1,024-character limit after localization, reports any
+truncation, and records it in the ledger's `metadataTransformations`. No compatibility `commands/`
+or `agents/` artifact directory is emitted and no custom-agent TOML is synthesized.
+
+An ordinary Codex skill is implicitly eligible and explicitly addressable. `manual` writes
+`agents/openai.yaml` with `policy.allow_implicit_invocation: false`; `auto` and `both` write no
+disabling policy. Absent invocation uses the Codex target default. Codex does not expose an
+implicit-only skill policy, so `auto` retains native explicit invocation without being mislabeled
+model-only.
+
+Each Codex Plugin has `.codex-plugin/plugin.json`, repository and source-specific distribution
+metadata, and one entry in `.agents/plugins/marketplace.json`. The repository marketplace is the
+native transport for Codex CLI and Codex in the ChatGPT desktop app. IDE Plugin loading and
+`.codex/agents/*.toml` distribution are outside this output.
+
 ## Finalization and handoff
 
-References are localized only after both artifact trees exist, independently for each address space.
+References are localized only after all three artifact trees exist, independently for each address space.
 Module manifests are then written over final OpenCode bytes. Compile-time `requiredModules` are
 derived from declared `depends_on` edges
 ([`deriveModuleRequirements`](../../tools/lib/resolve.ts#L52-L100)) and recorded by
@@ -163,14 +189,20 @@ to committed `dist/` JavaScript using
 
 ## Current limits
 
-- Per-harness body ownership is absent; one overlay or patch feeds both emitters.
-- Command/agent-to-skill conversion and non-empty `hooks.include` are rejected by the current build.
+- Per-harness body ownership is absent; one overlay or patch feeds all three emitters. The follow-up
+  [Codex estate audit](../research/codex-generated-estate-audit.md) classified slash-shaped text and
+  promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
+  localizes those facts, so no Codex-only body-patch seam is currently justified.
+- A source command or agent still cannot be resolved as a skill through `as:`. Codex's emitter-level
+  adaptation of already resolved commands and agents is supported and retains their closure.
+  Non-empty `hooks.include` remains rejected.
 - Bundle-less manual commands and `both` commands still carry an inline body. Skill-relative paths
   can cease to resolve from that command location; the linker reports the cases it can attribute to
   conversion rather than claiming the shape is universally portable.
 - Invocation absence deliberately preserves upstream Claude posture, so upstream posture changes can
   flow into output. The OpenCode side still resolves absence to a skill because OpenCode has no
-  equivalent upstream posture to preserve.
+  equivalent upstream posture to preserve; Codex emits a skill with its target-default policy and
+  does not translate upstream Claude flags.
 - The scanner discovers command and agent files only directly under `commands/` and `agents/`;
   grouped subdirectories are missed, while a `commands/` or `agents/` directory nested under a skill
   can be double-counted as a standalone component ([`scanSubmodule`](../../tools/lib/scan.ts#L69-L105)).

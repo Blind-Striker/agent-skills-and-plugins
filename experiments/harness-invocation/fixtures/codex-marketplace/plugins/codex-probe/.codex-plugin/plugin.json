@@ -1,0 +1,30 @@
+{
+  "name": "codex-probe",
+  "version": "1.0.0",
+  "description": "Isolated Codex plugin discovery and invocation probes.",
+  "author": {
+    "name": "Harness Probe"
+  },
+  "homepage": "https://example.invalid/codex-probe",
+  "repository": "https://example.invalid/codex-probe.git",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "probe"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Probe",
+    "shortDescription": "Isolated Codex plugin discovery probes.",
+    "longDescription": "Nonsense-trigger fixtures for isolated Codex discovery and invocation measurements.",
+    "developerName": "Harness Probe",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://example.invalid/codex-probe",
+    "defaultPrompt": [
+      "Use a Codex probe skill only when requested."
+    ]
+  }
+}

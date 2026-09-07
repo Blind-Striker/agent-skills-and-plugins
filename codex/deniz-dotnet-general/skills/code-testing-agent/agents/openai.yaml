@@ -1,0 +1,6 @@
+interface:
+  display_name: "Code Testing Agent"
+  short_description: "Generate or add unit tests for existing code, from one helper..."
+  default_prompt: "Use $deniz-dotnet-general:code-testing-agent for this task."
+policy:
+  allow_implicit_invocation: false

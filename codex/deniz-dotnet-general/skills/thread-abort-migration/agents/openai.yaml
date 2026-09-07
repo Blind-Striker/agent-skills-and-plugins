@@ -1,0 +1,6 @@
+interface:
+  display_name: "Thread Abort Migration"
+  short_description: "Guides migration of .NET Framework Thread.Abort usage to coop..."
+  default_prompt: "Use $deniz-dotnet-general:thread-abort-migration for this task."
+policy:
+  allow_implicit_invocation: false

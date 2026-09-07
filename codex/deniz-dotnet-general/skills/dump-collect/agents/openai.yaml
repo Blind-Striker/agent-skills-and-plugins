@@ -1,0 +1,6 @@
+interface:
+  display_name: "Dump Collect"
+  short_description: "Configure and collect crash dumps for modern .NET application..."
+  default_prompt: "Use $deniz-dotnet-general:dump-collect for this task."
+policy:
+  allow_implicit_invocation: false

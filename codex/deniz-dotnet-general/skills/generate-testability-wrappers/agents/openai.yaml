@@ -1,0 +1,6 @@
+interface:
+  display_name: "Generate Testability Wrappers"
+  short_description: "Generate C# testability abstractions and DI registration when..."
+  default_prompt: "Use $deniz-dotnet-general:generate-testability-wrappers for this task."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,30 @@
+{
+  "name": "codex-negative-control",
+  "version": "1.0.0",
+  "description": "Uninstalled negative control for isolated Codex discovery probes.",
+  "author": {
+    "name": "Harness Probe"
+  },
+  "homepage": "https://example.invalid/codex-negative-control",
+  "repository": "https://example.invalid/codex-negative-control.git",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "probe"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Codex Negative Control",
+    "shortDescription": "Uninstalled Codex discovery negative control.",
+    "longDescription": "An uninstalled plugin whose nonsense skill must not appear as installed.",
+    "developerName": "Harness Probe",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://example.invalid/codex-negative-control",
+    "defaultPrompt": [
+      "Do not install this negative-control plugin."
+    ]
+  }
+}

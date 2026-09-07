@@ -39,5 +39,5 @@ jobs:
       - run: npm run check:public-safety
       - name: Built output must be committed and fresh
         run: |
-          git add -A -- plugins opencode dist .claude-plugin docs/inventory.md docs/ledger.json
-          git diff --cached --exit-code -- plugins opencode dist .claude-plugin docs/inventory.md docs/ledger.json
+          git add -A -- plugins opencode codex dist .claude-plugin .agents/plugins/marketplace.json docs/inventory.md docs/ledger.json
+          git diff --cached --exit-code -- plugins opencode codex dist .claude-plugin .agents/plugins/marketplace.json docs/inventory.md docs/ledger.json

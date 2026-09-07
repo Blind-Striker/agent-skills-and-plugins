@@ -1,0 +1,56 @@
+{
+  "name": "deniz-skills",
+  "interface": {
+    "displayName": "Deniz Skills"
+  },
+  "plugins": [
+    {
+      "name": "deniz-dotnet-akka",
+      "source": {
+        "source": "local",
+        "path": "./codex/deniz-dotnet-akka"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "deniz-dotnet-aspire",
+      "source": {
+        "source": "local",
+        "path": "./codex/deniz-dotnet-aspire"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "deniz-dotnet-general",
+      "source": {
+        "source": "local",
+        "path": "./codex/deniz-dotnet-general"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "deniz-process",
+      "source": {
+        "source": "local",
+        "path": "./codex/deniz-process"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

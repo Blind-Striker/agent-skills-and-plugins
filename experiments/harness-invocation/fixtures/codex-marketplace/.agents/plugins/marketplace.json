@@ -1,0 +1,32 @@
+{
+  "name": "codex-probe-marketplace",
+  "interface": {
+    "displayName": "Codex Probe Marketplace"
+  },
+  "plugins": [
+    {
+      "name": "codex-negative-control",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-negative-control"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
+      "name": "codex-probe",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-probe"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

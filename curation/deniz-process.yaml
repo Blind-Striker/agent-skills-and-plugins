@@ -18,7 +18,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.5.1
+  version: 0.6.0
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -153,15 +153,20 @@ items:
   # --- mattpocock production chain (batch 2) ---
   - source: mattpocock-skills/skills/engineering/to-spec
     invocation: manual # upstream's own flag; conversation → spec ceremony
+    body: patch # make the missing-setup handoff a namespaced user pointer so each emitter renders its native syntax
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/to-tickets
     invocation: manual # upstream's own flag; spec → tracer-bullet tickets
+    body: patch # distinguish the explicit setup handoff from a prose mention of the configured tracker
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/triage
     invocation: manual # upstream's own flag; issue-tracker state machine
+    body: patch # replace host-specific Skill-tool prose and make setup/grilling handoffs deterministic
+    depends_on: [grilling, domain-modeling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/wayfinder
     invocation: manual # upstream's own flag; the heaviest ceremony — decision maps for foggy efforts
+    body: patch # localize the explicit setup prerequisite through the shared reference grammar
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/implement
     invocation: manual # upstream's own flag; the ceremony that opens an implementation run
@@ -174,6 +179,7 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/setup-matt-pocock-skills
     invocation: manual # curator's call: the wizard comes too — useful, harmless, pure runtime
+    body: patch # normalize references in the installed tracker/domain templates across harnesses
     omit: ["agents/**"]
   # --- mattpocock design & standalone (batch 2) ---
   - source: mattpocock-skills/skills/engineering/codebase-design
@@ -181,6 +187,8 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/improve-codebase-architecture
     invocation: manual # upstream's own flag; spare-moment architecture survey
+    body: patch # make the load-bearing codebase-design vocabulary edge harness-native
+    depends_on: [codebase-design]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/research
     invocation: both # curator's call: "şunu araştır" is as natural typed as model-delegated

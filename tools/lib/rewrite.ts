@@ -20,7 +20,7 @@ function addressOf(c: ComponentInfo): string {
  * flat namespace: it addresses a skill by its `name` alone, so the qualified form is not merely
  * redundant there, it resolves to nothing.
  */
-export type RefStyle = "claude" | "opencode";
+export type RefStyle = "claude" | "opencode" | "codex";
 
 export function buildRewriteMap(
   manifests: CurationManifest[],
@@ -62,7 +62,7 @@ export function buildRewriteMap(
  * longest-key-first ordering existed to prevent. Everything outside a replaced address is copied
  * byte-for-byte — a pointer's leading slash included, since it sits outside `address`.
  */
-export function rewriteRefs(content: string, map: Map<string, string>): string {
+export function rewriteRefs(content: string, map: Map<string, string>, style: RefStyle = "claude"): string {
   let out = "";
   let cut = 0;
   for (const ref of scanRefs(content)) {
@@ -70,7 +70,11 @@ export function rewriteRefs(content: string, map: Map<string, string>): string {
     if (value === undefined) {
       continue;
     }
-    out += content.slice(cut, ref.index) + value;
+    // The scanner positions a pointer after its leading slash. Codex renders both semantic edge
+    // kinds with `$`, so consume that slash instead of producing the invalid `/$plugin:skill`.
+    const start = style === "codex" && ref.kind === "pointer" ? ref.index - 1 : ref.index;
+    const rendered = style === "codex" ? `$${value}` : value;
+    out += content.slice(cut, start) + rendered;
     cut = ref.index + ref.address.length;
   }
   return out + content.slice(cut);

@@ -1,9 +1,20 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
+import { parse as parseYaml } from "yaml";
+import {
+  CODEX_SKILL_KEYS,
+  createCodexMarketplace,
+  createCodexPluginManifest,
+  createCodexSkillAgentManifest,
+  loadCodexPublisherMetadata,
+  MAX_CODEX_SKILL_DESCRIPTION_LENGTH,
+  resolveCodexRepositoryPath,
+} from "./lib/codex-plugin.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
-import { loadManifest } from "./lib/manifest.ts";
+import { type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import {
   findMissingModuleRequirements,
   loadModuleManifest,
@@ -13,7 +24,7 @@ import {
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
-import { extractRefs } from "./lib/refs.ts";
+import { extractRefs, scanRefs } from "./lib/refs.ts";
 import {
   collectIdentityProblems,
   deriveModuleRequirements,
@@ -205,15 +216,7 @@ export function validateRepo(root: string): Finding[] {
           message: `${m.plugin.name}/${outName}: item frontmatter.name is "${declared}" but ${fate} — use the item's own name: field to rename it`,
         });
       }
-      // 1c. invocation belongs to skill output. A command or an agent is user-invoked by nature
-      // (ADR-0005), so the field states an intent neither emitter has anywhere to put.
-      if (item.invocation && outType !== "skill") {
-        findings.push({
-          level: "warn",
-          message: `${m.plugin.name}/${outName}: invocation: ${item.invocation} has no effect on a ${outType} — the field applies to skill output only`,
-        });
-      }
-      // 1d. the manifest's own key beats a hand-written frontmatter override of the same thing,
+      // 1c. The manifest's own key beats a hand-written frontmatter override of the same thing,
       // silently, so the override is dead weight rather than a second opinion.
       for (const k of ["user-invocable", "disable-model-invocation"]) {
         if (item.invocation && item.frontmatter && k in item.frontmatter) {
@@ -372,7 +375,7 @@ export function validateRepo(root: string): Finding[] {
   // shipped script is not executable for anyone who installs the plugin. git's index is the only
   // place the bit survives such a checkout, so both sides are read from there. Untracked output is
   // skipped — it cannot be wrong yet, and it becomes visible the moment it is staged.
-  const ourModes = indexModes(root, ["plugins", "opencode"]);
+  const ourModes = indexModes(root, ["plugins", "opencode", "codex"]);
   const subModes = new Map<string, Map<string, string>>();
   for (const m of manifests) {
     for (const item of m.items) {
@@ -380,7 +383,7 @@ export function validateRepo(root: string): Finding[] {
         continue;
       }
       const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
-      if (!comp || outType !== "skill") {
+      if (!comp) {
         continue;
       }
       const [sub, ...rest] = item.source.split("/");
@@ -391,7 +394,7 @@ export function validateRepo(root: string): Finding[] {
         subModes.set(sub, indexModes(join(root, "external", sub), []));
       }
       const upstream = subModes.get(sub) ?? new Map();
-      const builtDir = join(pluginsDir, m.plugin.name, "skills", outName);
+      const builtDir = join(root, "codex", m.plugin.name, "skills", outName);
       if (!existsSync(builtDir)) {
         continue;
       }
@@ -400,10 +403,16 @@ export function validateRepo(root: string): Finding[] {
         if (upstream.get([...rest, rel].join("/")) !== "100755") {
           continue;
         }
-        for (const out of [
-          `plugins/${m.plugin.name}/skills/${outName}/${rel}`,
-          `opencode/${m.plugin.name}/skills/${outName}/${rel}`,
-        ]) {
+        const outputs = [
+          `codex/${m.plugin.name}/skills/${outName}/${rel}`,
+          ...(outType === "skill"
+            ? [
+                `plugins/${m.plugin.name}/skills/${outName}/${rel}`,
+                `opencode/${m.plugin.name}/skills/${outName}/${rel}`,
+              ]
+            : []),
+        ];
+        for (const out of outputs) {
           if (ourModes.has(out) && ourModes.get(out) !== "100755") {
             findings.push({
               level: "error",
@@ -468,7 +477,7 @@ export function validateRepo(root: string): Finding[] {
 
   // 3. portability: a copied symlink carries an absolute local target, so it dangles in every
   // other clone. Both trees, because both are committed.
-  for (const outDir of ["plugins", "opencode"]) {
+  for (const outDir of ["plugins", "opencode", "codex"]) {
     const dir = join(root, outDir);
     if (!existsSync(dir)) {
       continue;
@@ -810,7 +819,7 @@ export function validateRepo(root: string): Finding[] {
     if (tree === "plugins" && p[2] === "skills" && p[3]) {
       return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
     }
-    if (tree === "opencode" && p[2] === "skills" && p[3]) {
+    if ((tree === "opencode" || tree === "codex") && p[2] === "skills" && p[3]) {
       return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
     }
     const leaf = p.at(-1);
@@ -819,7 +828,7 @@ export function validateRepo(root: string): Finding[] {
   const inside = (parent: string, child: string): boolean =>
     child === parent || !relative(parent, child).startsWith("..");
 
-  for (const tree of ["plugins", "opencode"]) {
+  for (const tree of ["plugins", "opencode", "codex"]) {
     const treeRoot = join(root, tree);
     if (!existsSync(treeRoot)) {
       continue;
@@ -827,7 +836,9 @@ export function validateRepo(root: string): Finding[] {
     const skillsOf = (name: string): string[] =>
       tree === "plugins"
         ? readdirSync(join(root, "plugins")).map((p) => join(root, "plugins", p, "skills", name))
-        : moduleNames.map((module) => openCodeArtifact(root, module, "skills", name));
+        : tree === "opencode"
+          ? moduleNames.map((module) => openCodeArtifact(root, module, "skills", name))
+          : moduleNames.map((plugin) => join(root, "codex", plugin, "skills", name));
     for (const file of [...walk(treeRoot)].filter((f) => f.endsWith(".md"))) {
       const own = owningItem(tree, file);
       if (!own) {
@@ -891,6 +902,274 @@ export function validateRepo(root: string): Finding[] {
             : `${rel}: links to ${link}, which this build dropped from the item though ${own.name} still ships it upstream — an omit or a conversion took a file the body names`,
         });
       }
+    }
+  }
+
+  // Codex Plugin integrity. Unlike Claude's permissive marketplace projection, this is an owned
+  // generated contract: curation, plugin roots, manifests, skills, policies, and marketplace must
+  // agree exactly in both directions.
+  const codexRoot = join(root, "codex");
+  const expectedPlugins = new Set(moduleNames);
+  const actualCodexPlugins = existsSync(codexRoot)
+    ? readdirSync(codexRoot, { withFileTypes: true })
+        .filter((entry) => !entry.isSymbolicLink() && entry.isDirectory())
+        .map((entry) => entry.name)
+    : [];
+  for (const plugin of actualCodexPlugins) {
+    if (!expectedPlugins.has(plugin)) {
+      findings.push({ level: "error", message: `unexpected directory under codex/: ${plugin}` });
+    }
+  }
+  for (const plugin of moduleNames) {
+    if (!actualCodexPlugins.includes(plugin)) {
+      findings.push({ level: "error", message: `missing Codex Plugin root codex/${plugin}` });
+    }
+  }
+
+  let publisher: ReturnType<typeof loadCodexPublisherMetadata> | undefined;
+  try {
+    publisher = loadCodexPublisherMetadata(root);
+  } catch (error) {
+    findings.push({ level: "error", message: error instanceof Error ? error.message : String(error) });
+  }
+  const qualifiedCodexSkills = new Set<string>();
+  for (const m of manifests) {
+    const pluginRoot = join(codexRoot, m.plugin.name);
+    if (!existsSync(pluginRoot)) {
+      continue;
+    }
+    const pluginManifestPath = join(pluginRoot, ".codex-plugin", "plugin.json");
+    if (!existsSync(pluginManifestPath)) {
+      findings.push({ level: "error", message: `codex/${m.plugin.name}/.codex-plugin/plugin.json is missing` });
+    } else {
+      try {
+        const actual = JSON.parse(readFileSync(pluginManifestPath, "utf8")) as unknown;
+        if (publisher && !isDeepStrictEqual(actual, createCodexPluginManifest(m, publisher))) {
+          findings.push({
+            level: "error",
+            message: `codex/${m.plugin.name}/.codex-plugin/plugin.json does not match curation and repository metadata`,
+          });
+        }
+      } catch (error) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/.codex-plugin/plugin.json is invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+        });
+      }
+    }
+
+    const expectedSkills = new Map<string, { invocation: CurationManifest["items"][number]["invocation"] }>();
+    for (const item of m.items) {
+      if (item.exclude) {
+        continue;
+      }
+      const { outName } = resolveItem(root, m.plugin.name, item, components);
+      const folded = outName.toLowerCase();
+      if (expectedSkills.has(folded)) {
+        findings.push({
+          level: "error",
+          message: `${m.plugin.name}: duplicate or case-colliding flattened Codex skill ${outName}`,
+        });
+      } else {
+        expectedSkills.set(folded, { invocation: item.invocation });
+      }
+    }
+    const ownDir = join(root, "skills", m.plugin.name);
+    for (const name of existsSync(ownDir) ? readdirSync(ownDir) : []) {
+      if (!statSync(join(ownDir, name)).isDirectory()) {
+        continue;
+      }
+      const folded = name.toLowerCase();
+      if (expectedSkills.has(folded)) {
+        findings.push({
+          level: "error",
+          message: `${m.plugin.name}: duplicate or case-colliding flattened Codex skill ${name}`,
+        });
+      } else {
+        expectedSkills.set(folded, { invocation: undefined });
+      }
+    }
+
+    const skillsRoot = join(pluginRoot, "skills");
+    const actualSkills = existsSync(skillsRoot)
+      ? readdirSync(skillsRoot, { withFileTypes: true })
+          .filter((entry) => !entry.isSymbolicLink() && entry.isDirectory())
+          .map((entry) => entry.name)
+      : [];
+    const actualFolded = new Map<string, string>();
+    for (const name of actualSkills) {
+      const folded = name.toLowerCase();
+      const alias = actualFolded.get(folded);
+      if (alias) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/skills: case alias ${name} aliases ${alias}`,
+        });
+      } else {
+        actualFolded.set(folded, name);
+      }
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || name.length > 64) {
+        findings.push({ level: "error", message: `codex/${m.plugin.name}/skills/${name}: invalid Codex skill name` });
+      }
+      if (!expectedSkills.has(folded)) {
+        findings.push({ level: "error", message: `unexpected Codex skill codex/${m.plugin.name}/skills/${name}` });
+      }
+    }
+    for (const [folded] of expectedSkills) {
+      if (!actualFolded.has(folded)) {
+        findings.push({ level: "error", message: `missing Codex skill codex/${m.plugin.name}/skills/${folded}` });
+      }
+    }
+
+    for (const [folded, expected] of expectedSkills) {
+      const name = actualFolded.get(folded);
+      if (!name) {
+        continue;
+      }
+      qualifiedCodexSkills.add(`${m.plugin.name}:${name}`);
+      const skillRoot = join(skillsRoot, name);
+      const skillPath = join(skillRoot, "SKILL.md");
+      if (!existsSync(skillPath)) {
+        findings.push({ level: "error", message: `codex/${m.plugin.name}/skills/${name}/SKILL.md is missing` });
+        continue;
+      }
+      const doc = parseDoc(readFileSync(skillPath, "utf8"));
+      if (
+        doc.frontmatter.name !== name ||
+        typeof doc.frontmatter.description !== "string" ||
+        !doc.frontmatter.description
+      ) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/skills/${name}/SKILL.md must have matching name and non-empty description`,
+        });
+      }
+      if (
+        typeof doc.frontmatter.description === "string" &&
+        doc.frontmatter.description.length > MAX_CODEX_SKILL_DESCRIPTION_LENGTH
+      ) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/skills/${name}/SKILL.md description exceeds ${MAX_CODEX_SKILL_DESCRIPTION_LENGTH} characters`,
+        });
+      }
+      const unsupported = Object.keys(doc.frontmatter)
+        .filter((key) => !CODEX_SKILL_KEYS.has(key))
+        .sort();
+      if (unsupported.length) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/skills/${name}/SKILL.md has unsupported frontmatter: ${unsupported.join(", ")}`,
+        });
+      }
+
+      const policyPath = join(skillRoot, "agents", "openai.yaml");
+      const expectedPolicy = createCodexSkillAgentManifest(
+        m.plugin.name,
+        name,
+        String(doc.frontmatter.description ?? ""),
+        expected.invocation,
+      );
+      if (!expectedPolicy && existsSync(policyPath)) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/skills/${name}/agents/openai.yaml must be absent for ${expected.invocation ?? "target-default"} invocation`,
+        });
+      } else if (expectedPolicy && !existsSync(policyPath)) {
+        findings.push({
+          level: "error",
+          message: `codex/${m.plugin.name}/skills/${name}/agents/openai.yaml is required for manual invocation`,
+        });
+      } else if (expectedPolicy) {
+        try {
+          const actualPolicy = parseYaml(readFileSync(policyPath, "utf8")) as unknown;
+          if (!isDeepStrictEqual(actualPolicy, expectedPolicy)) {
+            findings.push({
+              level: "error",
+              message: `codex/${m.plugin.name}/skills/${name}/agents/openai.yaml does not match manual invocation policy`,
+            });
+          }
+        } catch (error) {
+          findings.push({
+            level: "error",
+            message: `codex/${m.plugin.name}/skills/${name}/agents/openai.yaml is invalid YAML: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      }
+    }
+  }
+
+  // Codex reference validation happens on native `$` tokens. Semantic model/pointer kinds remain
+  // owned by the neutral scan and ledger; both intentionally render to the same Codex spelling.
+  const codexRef = /\$([a-z][a-z0-9-]*):([a-z][a-z0-9-]*)/g;
+  for (const file of existsSync(codexRoot) ? [...walk(codexRoot)].filter((path) => path.endsWith(".md")) : []) {
+    const content = readFileSync(file, "utf8");
+    const rel = relative(root, file).replaceAll("\\", "/");
+    if (/\/\$[a-z][a-z0-9-]*:[a-z][a-z0-9-]*/.test(content)) {
+      findings.push({ level: "error", message: `${rel}: invalid Codex pointer spelling /$` });
+    }
+    for (const match of content.matchAll(codexRef)) {
+      const address = `${match[1]}:${match[2]}`;
+      if (!qualifiedCodexSkills.has(address)) {
+        findings.push({ level: "error", message: `${rel}: dangling Codex reference $${address}` });
+      }
+    }
+    for (const ref of scanRefs(content)) {
+      if ((ownNs.has(ref.ns) || upstreamNs.has(ref.ns)) && content[ref.index - 1] !== "$") {
+        findings.push({ level: "error", message: `${rel}: unrendered Codex reference ${ref.address}` });
+      }
+    }
+  }
+
+  for (const file of existsSync(codexRoot) ? walk(codexRoot) : []) {
+    const rel = relative(root, file).replaceAll("\\", "/");
+    if (/[<>:"|?*]/.test(basename(file))) {
+      findings.push({ level: "error", message: `${rel}: invalid character for Windows` });
+    }
+    if (rel.length > 200) {
+      findings.push({ level: "warn", message: `${rel}: path longer than 200 chars` });
+    }
+  }
+
+  const codexMarketplacePath = join(root, ".agents", "plugins", "marketplace.json");
+  if (!existsSync(codexMarketplacePath)) {
+    findings.push({ level: "error", message: ".agents/plugins/marketplace.json missing — run npm run build" });
+  } else {
+    try {
+      const marketplace = JSON.parse(readFileSync(codexMarketplacePath, "utf8")) as {
+        plugins?: Array<{ name?: string; source?: { path?: string } }>;
+      };
+      if (!isDeepStrictEqual(marketplace, createCodexMarketplace(manifests))) {
+        findings.push({
+          level: "error",
+          message: ".agents/plugins/marketplace.json does not match curation and Codex plugin roots",
+        });
+      }
+      for (const entry of marketplace.plugins ?? []) {
+        if (typeof entry.source?.path !== "string") {
+          findings.push({
+            level: "error",
+            message: `Codex marketplace entry ${entry.name ?? "<unnamed>"} has no source.path`,
+          });
+          continue;
+        }
+        try {
+          const destination = resolveCodexRepositoryPath(root, entry.source.path);
+          if (!existsSync(destination)) {
+            findings.push({
+              level: "error",
+              message: `Codex marketplace lists ${entry.name ?? "<unnamed>"} but ${entry.source.path} does not exist`,
+            });
+          }
+        } catch (error) {
+          findings.push({ level: "error", message: error instanceof Error ? error.message : String(error) });
+        }
+      }
+    } catch (error) {
+      findings.push({
+        level: "error",
+        message: `.agents/plugins/marketplace.json is invalid JSON: ${error instanceof Error ? error.message : String(error)}`,
+      });
     }
   }
 

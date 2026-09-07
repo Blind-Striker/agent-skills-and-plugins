@@ -1,6 +1,6 @@
 # ADR-0001: Submodule + manifest + overlay architecture
 
-Date: 2026-08-19
+Date: 2026-09-07
 Status: Accepted
 
 ## Context
@@ -16,9 +16,10 @@ The architecture has four pieces:
 
 1. **Upstreams are read-only git submodules** under `external/`. Pins move deliberately; local
    authorship never enters an upstream worktree.
-2. **One curation manifest per distribution pair** records inclusion, deliberate rejection,
+2. **One curation manifest per distribution set** records inclusion, deliberate rejection,
    metadata, naming, invocation, shape, dependency, omission, and body-ownership intent. Each
-   manifest produces one Claude Code Plugin and one same-named OpenCode Module. Its authoring
+   manifest produces one Claude Code Plugin, one same-named OpenCode Module, and one same-named
+   Codex Plugin. Its authoring
    guidance lives in [`curation/SCHEMA.md`](../../curation/SCHEMA.md), beside the manifests.
 3. **Body edits live in overlays**, either a surgical `body: patch` or owned replacement files under
    `body: overlay`. Both modes record content hashes in `overlays/overlays.lock.json`; changes to
@@ -27,10 +28,10 @@ The architecture has four pieces:
    other upstream items declares them with `merged_from`, and those inputs receive the same review
    protection. The current stamping and body-assembly mechanics are owned by
    [Transformation and emission](../architecture/transformation-and-emission.md).
-4. **Generated output is committed** under `plugins/`, `opencode/`, `dist/`,
-   `.claude-plugin/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json`. Generated
-   Plugin/Module trees, marketplace output, and the ledger are deterministic and CI freshness-checked
-   against clean regeneration. Each `opencode/<module>/` is a self-contained Bundle with deterministic
+4. **Generated output is committed** under `plugins/`, `opencode/`, `codex/`, `dist/`,
+   `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, `docs/inventory.md`, and
+   `docs/ledger.json`. Generated Plugin/Module trees, marketplace output, and the ledger are
+   deterministic and CI freshness-checked against clean regeneration. Each `opencode/<module>/` is a self-contained Bundle with deterministic
    identity and a manifest-backed byte-level review boundary. `dist/` is the build-emitted JavaScript
    installer and is formatted by the build; generated trees contain ordinary files rather than
    symlinks.

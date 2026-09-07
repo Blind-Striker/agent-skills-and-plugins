@@ -1,6 +1,6 @@
 # Distribution and installation
 
-Date: 2026-09-06
+Date: 2026-09-07
 
 ## Responsibility
 
@@ -13,8 +13,15 @@ records why generated Bundles and installer output are committed,
 than a runtime adapter, and [ADR-0004](../adr/0004-minimal-toolchain.md) records the consumer-side
 compilation and toolchain trade-offs.
 
-This installer is OpenCode-specific. Claude Code consumes the independently emitted Plugins through
-the repository marketplace; installing a Plugin neither selects nor installs its same-named Module.
+This installer is OpenCode-specific. Claude Code and Codex consume independently emitted native
+Plugins through separate repository marketplaces; installing either Plugin neither selects nor
+installs its same-named Module.
+
+Codex distribution does not use the npm-format OpenCode Package or this repository's transactional
+installer. `.agents/plugins/marketplace.json` points at `codex/<plugin>`, and native Codex marketplace
+and plugin commands own installation, update, and removal. The supported Plugin hosts for this
+milestone are Codex CLI and Codex in the ChatGPT desktop app; the IDE extension and native custom-
+agent profile transport are not included.
 
 ## Bundle and Package identity
 
@@ -44,7 +51,7 @@ pass ([`verifyModuleManifest`](../../tools/lib/opencode-bundle.ts#L354-L446)).
 The npm-format Package contains package metadata, README, the repository license and notices,
 committed `dist/` installer JavaScript, and every generated Bundle. Each Bundle also carries its
 source-specific notice and exact upstream license copies. The Package excludes TypeScript authoring
-sources, upstream worktrees, Plugin output, overlays, experiments, and other documentation. Focused
+sources, upstream worktrees, Claude and Codex Plugin output, overlays, experiments, and other documentation. Focused
 package tests require the packed installer, licenses and notices, and every Bundle file and manifest
 to match the committed emit byte-for-byte
 ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L996-L1057)). Consumers do
@@ -177,8 +184,9 @@ are in [`inspectRecovery`](../../tools/lib/opencode-install-apply.ts#L1469-L1545
 
 ## Full estate versus installed Selection
 
-Compilation and `validate` reason over the complete generated estate: every Plugin, Module, formal
-fact, and Bundle is present together. The installer, by contrast, still takes an explicit Selection
+Compilation and `validate` reason over the complete generated estate: every Claude Plugin, Codex
+Plugin, Module, formal fact, and Bundle is present together. The OpenCode installer, by contrast,
+still takes an explicit Selection
 rather than installing every Package Module. Schema-2 Module manifests and Install state record
 `requiredModules` with file identity. Plan refuses a final Selection that omits a Module another
 selected Module records as required. The installer does not consume `docs/ledger.json` or treat

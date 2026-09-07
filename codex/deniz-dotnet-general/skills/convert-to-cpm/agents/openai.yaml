@@ -1,0 +1,6 @@
+interface:
+  display_name: "Convert To Cpm"
+  short_description: "Convert .NET projects and solutions (.sln, .slnx) to NuGet Ce..."
+  default_prompt: "Use $deniz-dotnet-general:convert-to-cpm for this task."
+policy:
+  allow_implicit_invocation: false

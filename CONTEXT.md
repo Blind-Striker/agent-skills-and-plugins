@@ -6,13 +6,19 @@ Personal multi-harness skill marketplace: curated items are transformed into har
 
 ### Distribution
 
-**Plugin**:
+**Claude Plugin**:
 The Claude Code packaging unit of exactly one curation manifest. It shares its name with its Module.
-_Avoid_: module (for Claude output), package, bundle
+_Avoid_: plugin (when the target is ambiguous), module, package, bundle
+
+**Codex Plugin**:
+The Codex-native packaging unit of exactly one curation manifest, emitted under `codex/` and listed
+in the repository Codex marketplace. It shares its name with the Claude Plugin and Module but has
+its own manifest, skill namespace, and installation surface.
+_Avoid_: Claude Plugin, module, package, bundle
 
 **Module**:
 The installable OpenCode distribution of exactly one curation manifest. It is one-to-one with a
-Plugin and is not an OpenCode namespace.
+Claude Plugin and Codex Plugin and is not an OpenCode namespace.
 _Avoid_: plugin (for OpenCode output), package, bundle
 
 **Bundle**:

@@ -32,6 +32,19 @@ test("the build writes a deterministic ledger describing each item's resolved st
   assert.deepEqual(alpha.claude.edges.model, ["deniz-process:beta"]);
   assert.deepEqual(alpha.opencode.edges.model, ["beta"]);
   assert.deepEqual(alpha.dependsOn, ["beta"]); // the manifest's declaration, beside the derived edges
+  assert.deepEqual(alpha.codex, {
+    artifacts: ["skill"],
+    identity: "deniz-process:alpha",
+    sourceKind: "skill",
+    resolvedKind: "skill",
+    emittedKind: "skill",
+    implicit: "enabled",
+    explicit: "available",
+    policyFiles: [],
+    edges: { model: ["$deniz-process:beta"], pointer: [] },
+    dropped: [],
+    bodyTransformations: [],
+  });
 
   const beta = ledger["deniz-process/skill/beta"];
   assert.deepEqual(beta.claude.artifacts, ["skill"]); // Claude: manual is still a skill, flagged
@@ -40,11 +53,28 @@ test("the build writes a deterministic ledger describing each item's resolved st
   assert.deepEqual(beta.opencode.artifacts, ["command"]); // OpenCode: manual is a command, no skill
   assert.deepEqual(alpha.opencode.dropped, ["user-invocable"]); // auto's Claude flag has no OpenCode home
   assert.deepEqual(beta.opencode.dropped, ["disable-model-invocation", "name"]); // command keeps description only
+  assert.equal(beta.codex.implicit, "disabled");
+  assert.equal(beta.codex.explicit, "available");
+  assert.deepEqual(beta.codex.policyFiles, ["agents/openai.yaml"]);
 
   // determinism: a second build produces byte-identical content
   const first = readFileSync(join(root, "docs", "ledger.json"), "utf8");
   buildAll(root);
   assert.equal(readFileSync(join(root, "docs", "ledger.json"), "utf8"), first);
+});
+
+test("the ledger records Codex kind transformation and neutral-source metadata drops", () => {
+  const root = makeRepo();
+
+  buildAll(root);
+
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  const agent = ledger["deniz-process/agent/beta-agent"];
+  assert.equal(agent.codex.sourceKind, "skill");
+  assert.equal(agent.codex.resolvedKind, "agent");
+  assert.equal(agent.codex.emittedKind, "skill");
+  assert.equal(agent.codex.kindTransformation, "agent->skill");
+  assert.deepEqual(agent.codex.dropped, ["model"]);
 });
 
 test("the ledger records only boolean invocation flags from emitted Claude skills", () => {

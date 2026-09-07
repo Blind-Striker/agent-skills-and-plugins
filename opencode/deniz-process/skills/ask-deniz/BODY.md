@@ -5,9 +5,9 @@ You don't remember every skill, so ask.
 A **flow** is a path through the skills. Most work travels one **main flow**, two **on-ramps** merge
 onto it, and everything else is standalone or a vocabulary layer running underneath.
 
-Two spellings below, and the difference decides what you can type. **`/thing`** you invoke yourself.
-**`thing`** in plain backticks you cannot: it reaches you by matching the situation, or another
-skill pulls it in.
+Two forms below mark who starts the workflow. A **bold skill pointer** is an explicit action you
+invoke yourself. A plain skill name reaches the model by matching the situation, or another skill
+pulls it in. The generated package renders explicit pointers in each harness's native syntax.
 
 ## The main flow: idea → ship
 
@@ -38,7 +38,7 @@ what to do about it and makes you say yes. On small work you will often only wan
 
 **`/to-spec`** turns the thread into a spec → **`/to-tickets`** splits it into tracer-bullet tickets
 with blocking edges → **`/implement`** builds one ticket at a time, clearing context between them.
-`/implement` drives the test-first loop and the review itself; you do not need to invoke those.
+The `implement` skill drives the test-first loop and the review itself; you do not need to invoke those.
 
 **The heavy ladder**, when the work is multi-session or several people's worth:
 
@@ -73,7 +73,7 @@ arrives when you are writing a behaviour rather than because you typed it. Reach
 A starting situation that generates work, then merges onto the main flow.
 
 - **Bugs and requests piling up** → **`/triage`**. It moves incoming issues through triage roles and
-  produces agent-ready ones. Only for issues **you didn't create**: what `/to-tickets` produced is
+  produces agent-ready ones. Only for issues **you didn't create**: what `to-tickets` produced is
   already agent-ready, so don't triage it.
 
 - **Something's broken** → `systematic-debugging`. Model-reachable, because the trigger is the
@@ -84,7 +84,7 @@ A starting situation that generates work, then merges onto the main flow.
 - **A huge, foggy effort** — greenfield, or a build too big to see the end of → **`/wayfinder`**.
   The most demanding flow here. It charts a shared map of decision tickets and resolves them one at
   a time, producing **decisions, not deliverables**, until the way is clear. Then it hands off: join
-  the main flow at `/to-spec` or `/brainstorming`, depending on which ladder the cleared work wants.
+  the main flow at `to-spec` or `brainstorming`, depending on which ladder the cleared work wants.
   Never reach for it on a well-scoped feature.
 
 - **A merge went sideways** → `resolving-merge-conflicts`. Model-reachable; the conflict is the
@@ -102,7 +102,7 @@ Two model-reachable references that run *beneath* the other skills, each the sin
 for its words. You get them by naming the confusion, not by typing a command.
 
 - `domain-modeling` sharpens the project's **domain** language: challenge a fuzzy term, resolve one
-  word doing three jobs, record a hard-to-reverse decision as an ADR. It is what `/grill-with-docs`
+  word doing three jobs, record a hard-to-reverse decision as an ADR. It is what `grill-with-docs`
   drives to keep `CONTEXT.md` a clean glossary.
 - `codebase-design` is the deep-module vocabulary — module, interface, depth, seam, adapter,
   leverage, locality — for designing a module's **shape**: a lot of behaviour behind a small
@@ -135,7 +135,7 @@ decision in this whole map:
 
 - **Continue**: stay put. Costs nothing, loses nothing.
 - **Clear the window** when nothing here matters to what's next — `/clear` in Claude Code, `/new` in
-  OpenCode.
+  OpenCode, or start a new Codex chat or CLI session.
 - **`/handoff`** writes a portable markdown file. Narrow: a new harness, a new directory, a
   colleague, or forking a side task mid-phase. What it buys is portability.
 - **Subagent**: send a tightly-scoped task to its own window and get a report back.

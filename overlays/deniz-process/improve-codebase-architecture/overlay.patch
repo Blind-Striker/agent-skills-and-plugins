@@ -1,0 +1,73 @@
+diff --git a/HTML-REPORT.md b/HTML-REPORT.md
+index e39e825..3778536 100644
+--- a/HTML-REPORT.md
++++ b/HTML-REPORT.md
+@@ -34,17 +34,17 @@ The architectural review is rendered as a single self-contained HTML file in the
+ ```
+ 
+ ## Header
+ 
+ Repo name, date, and a compact legend: solid box = module, dashed line = seam, red arrow = leakage, thick dark box = deep module. No introduction paragraph. Straight into the candidates.
+ 
+ ## Candidate card
+ 
+-The diagrams carry the weight. Prose is sparse, plain, and uses the glossary terms (from the `/codebase-design` skill) without ceremony.
++The diagrams carry the weight. Prose is sparse, plain, and uses the glossary terms from the `mattpocock-skills:codebase-design` skill without ceremony.
+ 
+ Each candidate is one `<article>`:
+ 
+ - **Title**: short, names the deepening (e.g. "Collapse the Order intake pipeline").
+ - **Badge row**: recommendation strength (`Strong` = emerald, `Worth exploring` = amber, `Speculative` = slate), plus a tag for the dependency category (`in-process`, `local-substitutable`, `ports & adapters`, `mock`).
+ - **Files**: monospaced list, `font-mono text-sm`.
+ - **Before / After diagram**: the centrepiece. Two columns, side by side. See patterns below.
+ - **Problem**: one sentence. What hurts.
+@@ -100,24 +100,24 @@ Before: a tree of function calls rendered as nested boxes. After: the same tree
+ - The only scripts are the Tailwind CDN and the Mermaid ESM import. The report is otherwise static: no app code, no interactivity beyond Mermaid's own rendering.
+ 
+ ## Top recommendation section
+ 
+ One larger card. Candidate name, one sentence on why, anchor link to its card. That's it.
+ 
+ ## Tone
+ 
+-Plain English, concise, but the architectural nouns and verbs come straight from the `/codebase-design` skill. Concision is not an excuse to drift.
++Plain English, concise, but the architectural nouns and verbs come straight from the `mattpocock-skills:codebase-design` skill. Concision is not an excuse to drift.
+ 
+ **Use exactly:** module, interface, implementation, depth, deep, shallow, seam, adapter, leverage, locality.
+ 
+ **Never substitute:** component, service, unit (for module) · API, signature (for interface) · boundary (for seam) · layer, wrapper (for module, when you mean module).
+ 
+ **Phrasings that fit the style:**
+ 
+ - "Order intake module is shallow: interface nearly matches the implementation."
+ - "Pricing leaks across the seam."
+ - "Deepen: one interface, one place to test."
+ - "Two adapters justify the seam: HTTP in prod, in-memory in tests."
+ 
+ **Wins bullets** name the gain in glossary terms: *"locality: bugs concentrate in one module"*, *"leverage: one interface, N call sites"*, *"interface shrinks; implementation absorbs the wrappers"*. Don't write *"easier to maintain"* or *"cleaner code"*, because those terms aren't in the glossary and don't earn their place.
+ 
+-No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the `/codebase-design` glossary, reach for one that is before inventing a new one.
++No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the `mattpocock-skills:codebase-design` glossary, reach for one that is before inventing a new one.
+diff --git a/SKILL.md b/SKILL.md
+index a578dd0..fb416ff 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -46,17 +46,17 @@ For each candidate, render a card with:
+ - **Problem**: why the current architecture is causing friction
+ - **Solution**: plain English description of what would change
+ - **Benefits**: explained in terms of locality and leverage, and how tests would improve
+ - **Before / After diagram**: side-by-side, custom-drawn, illustrating the shallowness and the deepening
+ - **Recommendation strength**: one of `Strong`, `Worth exploring`, `Speculative`, rendered as a badge
+ 
+ End the report with a **Top recommendation** section: which candidate you'd tackle first and why.
+ 
+-**Use CONTEXT.md vocabulary for the domain, and the `/codebase-design` vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module," not "the FooBarHandler," and not "the Order service."
++**Use CONTEXT.md vocabulary for the domain, and the `mattpocock-skills:codebase-design` vocabulary for the architecture.** If `CONTEXT.md` defines "Order," talk about "the Order intake module," not "the FooBarHandler," and not "the Order service."
+ 
+ **ADR conflicts**: if a candidate contradicts an existing ADR, only surface it when the friction is real enough to warrant revisiting the ADR. Mark it clearly in the card (e.g. a warning callout: _"contradicts ADR-0007, but worth reopening because…"_). Don't list every theoretical refactor an ADR forbids.
+ 
+ See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
+ 
+ Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
+ 
+ ### 3. Grilling loop
