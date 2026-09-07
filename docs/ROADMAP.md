@@ -45,23 +45,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - Aspire CLI, TypeScript, testing, and package examples remain intentionally upstream-owned. Build,
   generation, and linking do not prove every example in a consumer environment; this is an accepted
   public limitation, not a claim to repair by silently forking the bodies.
+- Codex CLI and a fresh Codex app-server share the default same-machine Codex plugin profile in both
+  directions. The public Git marketplace and Process 0.6.0 were installed from each surface,
+  discovered and executed from the other, then removed with byte-identical configuration recovery.
+  This does not claim visual Desktop UI behavior, hot reload in an existing chat, or account-level
+  cross-device synchronization; exact evidence lives in the
+  [state-sharing record](../experiments/harness-invocation/records/2026-09-07-codex-desktop-cli-plugin-sharing.md).
 
 ## Next Up
 
-1. **Close the remaining Codex surface experiments.** Deterministic Codex emission, native
-   manifests and marketplace, invocation policy, `$plugin:skill` localization, ledger projection,
-   validation, isolated CLI installation, public Git marketplace add/install/upgrade, and the
-   bounded credentialed model panel are implemented.
-   The follow-up estate review resolved actual skill pointers through the shared authored pipeline;
-   a Codex-only body-patch seam is not justified. Optionally measure ChatGPT desktop discovery and
-   whether its custom-marketplace installation state is shared with CLI. Do not claim IDE Plugin or
-   native custom-agent distribution.
-   The approved temporary design is
-   [Codex-native output design](superpowers/specs/2026-09-06-codex-native-output-design.md), grounded
-   in [Codex native plugin and skill surfaces](research/codex-native-plugin-and-skill-surfaces.md)
-   and the [generated-estate audit](research/codex-generated-estate-audit.md).
-2. **Iteration 2: dependency automation and original-skill declarations.** After the Codex milestone,
-   feature, address automatic dependency installation, cascade remove, version-range resolution, and
+1. **Iteration 2: dependency automation and original-skill declarations.** Now that the Codex
+   milestone is complete, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
    the first feature. Selection/Ownership semantics, user approval for automatic changes, and version
    constraint/conflict policy must be designed in that iteration rather than assumed by the first.
@@ -92,7 +86,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in both harness trees.
-3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+2. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -103,7 +97,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
    Run it after a body-ownership pass and before declaring a Module closed.
-4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -127,8 +121,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   model, or future catalog size.
 - **Codex distribution coverage is intentionally split:** native Plugins cover Codex CLI and Codex
   in ChatGPT desktop, not the Codex IDE extension. IDE coverage would need a separately owned
-  standalone-skill transport. ChatGPT desktop state sharing and public OpenAI universal-directory
-  submission remain unmeasured distribution work, not requirements for CLI marketplace installation.
+  standalone-skill transport. Same-machine CLI/app-server custom-marketplace state sharing is
+  measured; visual Desktop UI behavior, cross-device synchronization, and public OpenAI
+  universal-directory submission remain separate distribution work, not requirements for repository
+  marketplace installation.
 - **Case-sensitive fact scan:** capitalized namespaced spellings can evade the lowercase scanner.
 - **Bare references are review-only:** ordinary names are candidates, not build state. Promote only
   load-bearing cases through an authored namespaced fact and matching dependency.

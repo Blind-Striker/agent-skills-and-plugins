@@ -13,10 +13,14 @@ The findings below use official OpenAI documentation fetched on 2026-09-06 and 2
 CLI introspection of `codex-cli 0.153.4`, the isolated credential-free structural run recorded as
 [`codex-plugin-structural-2026-09-07`](../../experiments/harness-invocation/records/2026-09-07-codex-plugin-structural.md),
 and the later Luna panel recorded as
-[`codex-plugin-behaviour-2026-09-07`](../../experiments/harness-invocation/records/2026-09-07-codex-plugin-behaviour.md).
-The two runs installed both a nonsense-control fixture and all four generated plugins without
+[`codex-plugin-behaviour-2026-09-07`](../../experiments/harness-invocation/records/2026-09-07-codex-plugin-behaviour.md),
+plus the same-machine state-sharing run recorded as
+[`codex-desktop-cli-plugin-sharing-2026-09-07`](../../experiments/harness-invocation/records/2026-09-07-codex-desktop-cli-plugin-sharing.md).
+The isolated structural and behavioral runs installed both a nonsense-control fixture and all four generated plugins without
 modifying the real Codex plugin state or repository. CLI invocation and discovery are measured;
-ChatGPT desktop discovery remains unmeasured.
+the later sharing run deliberately used and then byte-restored the real profile. It measures fresh
+app-server discovery and installation in both directions with CLI, not visual Desktop UI behavior
+or cross-device synchronization.
 
 Official sources:
 
@@ -53,6 +57,11 @@ a local marketplace and installed all four generated repository plugins.
 - Codex CLI can add a Git or local marketplace directly. Installed plugin skills become available in
   a new CLI session. The ChatGPT desktop app installs marketplace plugins into a Codex cache rather
   than loading the marketplace source directory in place.
+- On the measured Windows host, CLI and a fresh Codex app-server used the same default Codex home.
+  A CLI-installed custom Git marketplace and plugin appeared in app-server `plugin/installed` and
+  `skills/list`; after cleanup, app-server `marketplace/add` and `plugin/install` produced state that
+  a new CLI process listed and executed. This is same-machine local-profile sharing, not proof of
+  account-level or cross-device synchronization.
 - On the measured CLI, local installation materialized all 117 generated `SKILL.md` files and 27
   manual `agents/openai.yaml` files below the isolated plugin cache. This is structural evidence;
   individual skill advertisement and execution still require a model run.
@@ -130,5 +139,6 @@ runtime support for the measured CLI/model combination, not a guarantee for ever
 - Installed-cache structure, all-four-plugin installation, public Git marketplace add/install/upgrade,
   description shortening, explicit and implicit invocation controls, manual suppression,
   cross-skill execution, bundled references, and two generated-skill paths are measured on Codex CLI
-  0.153.4 with Luna. ChatGPT desktop state sharing and standalone IDE skill transport remain separate
-  experiment questions.
+  0.153.4 with Luna. Same-machine CLI/app-server marketplace and plugin-state sharing is also
+  measured in both directions. Visual Desktop UI behavior, cross-device synchronization, and
+  standalone IDE skill transport remain separate questions.

@@ -180,6 +180,10 @@ uninstalled negative control, and two generated-skill paths. The installed 117-s
 description-shortening warnings on every call, so the result is bounded evidence rather than a
 guarantee for every skill or model. The public GitHub marketplace's add, list, install, upgrade, and
 cleanup path is also [measured](experiments/harness-invocation/records/2026-09-07-codex-remote-marketplace.md).
+On one Windows machine, the default Codex profile also shared that custom Git marketplace and
+plugin state in both directions between CLI and a fresh app-server; the
+[desktop-backend/CLI record](experiments/harness-invocation/records/2026-09-07-codex-desktop-cli-plugin-sharing.md)
+does not claim cross-device synchronization or visual Desktop UI behavior.
 
 ### OpenCode from this checkout
 
