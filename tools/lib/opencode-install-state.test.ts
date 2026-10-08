@@ -38,10 +38,15 @@ test("install state rejects traversal and case aliases", () => {
   assert.throws(() => parseInstallState(bad, { caseInsensitive: true }), /case alias|traversal/);
 });
 
-test("OPENCODE_CONFIG_DIR is refused", () => {
+test("a non-empty absolute OPENCODE_CONFIG_DIR is the Destination", () => {
+  const dir = resolve("/tmp/oc-root");
+  assert.equal(resolveDestination({ XDG_CONFIG_HOME: "/xdg", OPENCODE_CONFIG_DIR: dir }, join("/home", "test")), dir);
+});
+
+test("a relative OPENCODE_CONFIG_DIR is refused", () => {
   assert.throws(
-    () => resolveDestination({ HOME: "/tmp/test-home", OPENCODE_CONFIG_DIR: "/tmp/other" }),
-    /OPENCODE_CONFIG_DIR/,
+    () => resolveDestination({ OPENCODE_CONFIG_DIR: "oc" }, join("/home", "test")),
+    /must be an absolute path/,
   );
 });
 
@@ -166,24 +171,31 @@ test("loadInstallState requires a link-free metadata path and ordinary install.j
   assert.throws(() => loadInstallState(destination), /ordinary file|symlink|junction/i);
 });
 
-test("XDG_CONFIG_HOME takes precedence over HOME", () => {
+test("XDG_CONFIG_HOME takes precedence over the home directory", () => {
   assert.equal(
-    resolveDestination({ XDG_CONFIG_HOME: join("/xdg", "config"), HOME: join("/home", "test") }),
+    resolveDestination({ XDG_CONFIG_HOME: join("/xdg", "config") }, join("/home", "test")),
     join("/xdg", "config", "opencode"),
   );
 });
 
-test("HOME falls back to ~/.config/opencode", () => {
-  assert.equal(resolveDestination({ HOME: join("/home", "test") }), join("/home", "test", ".config", "opencode"));
+test("the home directory falls back to <home>/.config/opencode", () => {
+  assert.equal(resolveDestination({}, join("/home", "test")), join("/home", "test", ".config", "opencode"));
 });
 
-test("missing HOME is an error when XDG_CONFIG_HOME is unset", () => {
-  assert.throws(() => resolveDestination({}), /HOME/);
+test("env HOME never overrides the home directory argument", () => {
+  assert.equal(
+    resolveDestination({ HOME: join("/elsewhere", "shell-home") }, join("/home", "test")),
+    join("/home", "test", ".config", "opencode"),
+  );
+});
+
+test("a missing home directory is an error when XDG_CONFIG_HOME is unset", () => {
+  assert.throws(() => resolveDestination({ HOME: join("/home", "test") }), /home directory is not known/);
 });
 
 test("empty OPENCODE_CONFIG_DIR is not a refusal", () => {
   assert.equal(
-    resolveDestination({ HOME: join("/home", "test"), OPENCODE_CONFIG_DIR: "" }),
+    resolveDestination({ OPENCODE_CONFIG_DIR: "" }, join("/home", "test")),
     join("/home", "test", ".config", "opencode"),
   );
 });

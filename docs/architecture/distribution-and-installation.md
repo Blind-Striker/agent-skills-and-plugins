@@ -87,7 +87,7 @@ source-specific notice and exact upstream license copies. The Package excludes T
 sources, upstream worktrees, Claude and Codex Plugin output, overlays, experiments, and other documentation. Focused
 package tests require the packed installer, licenses and notices, and every Bundle file and manifest
 to match the committed emit byte-for-byte
-([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L996-L1057)). Consumers do
+([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L1046-L1107)). Consumers do
 not compile the installer.
 
 Remote delivery uses that exact tarball as a GitHub Release asset, not an npm publication or Git
@@ -129,7 +129,7 @@ discovery root is resolved by OpenCode's own precedence, outside Ownership.
 The resulting Native tree is therefore a composition of already transformed Bundle Native payloads,
 not a copy of Bundle distribution metadata. The
 packed-bin integration test compares its paths, bytes, Install state, and status output with the
-checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L1075-L1148)).
+checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.test.ts#L1125-L1198)).
 
 ## Destination, Selection, and Ownership
 
@@ -138,11 +138,15 @@ The installer resolves exactly one global Destination, the global config root Op
 config home is set, otherwise `<home>/.config/opencode`. In OpenCode 2 `OPENCODE_CONFIG_DIR`
 replaces the global root rather than adding a second one
 (`anomalyco/opencode@0fd7e28 packages/util/src/global.ts:79`), so the installer honors it as the
-Destination. There is no project-local target. OpenCode may discover artifacts through other
-locations, including project `.opencode` directories found by its ancestor walk and the always-on
-compatibility roots `~/.claude/skills` and `~/.agents/skills`; that harness capability does not make
-those locations supported installer Destinations
-([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L504-L516)).
+Destination. The installer refuses a relative `OPENCODE_CONFIG_DIR`, because it cannot know the
+working directory of the OpenCode process that will read it. `<home>` is `os.homedir()` only, the
+same home source OpenCode 2 uses; the installer never reads `HOME` or `USERPROFILE` directly, so a
+shell that sets `HOME` to another folder (Git Bash on Windows does) cannot move the Destination away
+from the root OpenCode reads. There is no project-local target. OpenCode may discover artifacts
+through other locations, including project `.opencode` directories found by its ancestor walk and
+the always-on compatibility roots `~/.claude/skills` and `~/.agents/skills`; that harness capability
+does not make those locations supported installer Destinations
+([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L504-L522)).
 
 The installer resolves the Destination from its own environment. By default the OpenCode 2 CLI talks
 to a long-lived managed background service that keeps the environment it started with, so the

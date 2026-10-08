@@ -11,7 +11,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -27,6 +27,7 @@ import {
   type ObservedPath,
 } from "./lib/opencode-install-state.ts";
 import {
+  defaultIo,
   isDirectEntryPoint,
   parseInstallArgs,
   renderPlan,
@@ -468,15 +469,64 @@ test("dependency: Apply does not reuse a previously valid printed Plan", async (
   assert.ok(readFileSync(statePath).equals(before));
 });
 
-test("OPENCODE_CONFIG_DIR is refused", async () => {
+test("OPENCODE_CONFIG_DIR is the Destination when it is set", async () => {
   const fixture = makeCliFixture();
-  const result = await runInstallCli(["status"], {
+  const configDir = mkdtempSync(join(tmpdir(), "cli-opencode-config-dir-"));
+  const result = await runInstallCli(["install", "--all", "--yes"], {
     ...fixture.io,
-    env: { ...fixture.io.env, OPENCODE_CONFIG_DIR: join(tmpdir(), "other-opencode") },
+    env: { ...fixture.io.env, OPENCODE_CONFIG_DIR: configDir },
+  });
+  assert.equal(result.exitCode, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(existsSync(join(configDir, ".deniz-skills", "install.json")), true);
+  assert.equal(existsSync(join(configDir, "skills", "alpha", "SKILL.md")), true);
+  assert.equal(existsSync(fixture.destination), false);
+});
+
+test("a relative OPENCODE_CONFIG_DIR is refused before any write", async () => {
+  const fixture = makeCliFixture();
+  const result = await runInstallCli(["install", "--all", "--yes"], {
+    ...fixture.io,
+    env: { ...fixture.io.env, OPENCODE_CONFIG_DIR: "relative-opencode" },
   });
   assert.notEqual(result.exitCode, 0);
-  assert.match(result.stderr, /OPENCODE_CONFIG_DIR/);
+  assert.match(result.stderr, /OPENCODE_CONFIG_DIR must be an absolute path/);
   assert.equal(existsSync(fixture.destination), false);
+});
+
+test("the fallback Destination uses io.home, never env HOME or USERPROFILE", async () => {
+  const fixture = makeCliFixture();
+  const shellHome = mkdtempSync(join(tmpdir(), "cli-shell-home-"));
+  const env: NodeJS.ProcessEnv = { ...fixture.io.env, HOME: shellHome, USERPROFILE: shellHome };
+  delete env.XDG_CONFIG_HOME;
+  const result = await runInstallCli(["install", "--all", "--yes"], { ...fixture.io, env });
+  assert.equal(result.exitCode, 0, `${result.stdout}${result.stderr}`);
+  assert.equal(existsSync(join(fixture.io.home, ".config", "opencode", ".deniz-skills", "install.json")), true);
+  assert.equal(existsSync(join(shellHome, ".config")), false);
+});
+
+test("the default io derives home from os.homedir() only", () => {
+  // os.homedir() reads USERPROFILE on Windows and HOME (then the passwd entry) on POSIX, so a
+  // decoy in the other variable must not reach the Destination.
+  const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+  const decoy = join(tmpdir(), "decoy-home");
+  try {
+    if (process.platform === "win32") {
+      process.env.HOME = decoy;
+    } else {
+      delete process.env.HOME;
+      process.env.USERPROFILE = decoy;
+    }
+    assert.equal(defaultIo().home, homedir());
+    assert.notEqual(defaultIo().home, decoy);
+  } finally {
+    for (const [name, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete process.env[name];
+      } else {
+        process.env[name] = value;
+      }
+    }
+  }
 });
 
 test("Recovery Apply performs Recovery only and exits", async () => {
