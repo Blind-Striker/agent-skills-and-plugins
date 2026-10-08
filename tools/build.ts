@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, join, relative, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type AssembledItem, assembleItems, overlayBodyFile } from "./lib/assemble.ts";
 import {
@@ -42,6 +42,7 @@ import {
   collectOpenCodeEmissionProblems,
   openCodeBundlePath,
   openCodeId,
+  openCodeSkillIds,
 } from "./lib/opencode-target.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
@@ -64,7 +65,13 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { buildRewriteMap, type RefStyle, type RewriteTarget, rewriteRefs } from "./lib/rewrite.ts";
+import {
+  buildRewriteMap,
+  type RefStyle,
+  type RewriteTarget,
+  rewriteOpenCodeSiblingClimbs,
+  rewriteRefs,
+} from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export function buildAll(root: string): string[] {
@@ -149,7 +156,7 @@ export function buildAll(root: string): string[] {
     }
     const codexMetadataTransformations = emitCodex(root, manifests, assembled, notices, report);
     rewriteTree(join(root, "plugins"), rewriteMap, "claude");
-    rewriteTree(join(root, "opencode"), rewriteMap, "opencode");
+    rewriteOpenCodeTree(root, manifests, rewriteMap, openCodeSkillIds(assembled));
     rewriteTree(join(root, "codex"), rewriteMap, "codex");
     finalizeCodexSkillMetadata(root, assembled, codexMetadataTransformations, report);
     // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
@@ -505,6 +512,51 @@ function rewriteTree(dir: string, map: Map<string, RewriteTarget>, style: RefSty
 }
 
 /**
+ * OpenCode 2 reference spelling (spec §7): every Markdown file in a Module gets the dotted-ID
+ * rendering, and files inside `skills/<id>/` also get their sibling climbs re-rooted onto the ID
+ * folders, measured from the file's depth below its own skill folder. Everything outside `skills/`
+ * (`commands/`, `agents/`, distribution notices) gets only the rendering: no climb from there lands
+ * on the shared skills directory.
+ */
+function rewriteOpenCodeTree(
+  root: string,
+  manifests: CurationManifest[],
+  map: Map<string, RewriteTarget>,
+  skillIds: Map<string, string>,
+): void {
+  for (const manifest of manifests) {
+    const moduleRoot = join(root, "opencode", manifest.plugin.name);
+    if (!existsSync(moduleRoot)) {
+      continue;
+    }
+    for (const entry of readdirSync(moduleRoot, { withFileTypes: true })) {
+      const path = join(moduleRoot, entry.name);
+      if (entry.isDirectory() && entry.name !== "skills") {
+        rewriteTree(path, map, "opencode");
+      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        writeFileSync(path, rewriteRefs(readFileSync(path, "utf8"), map, "opencode"));
+      }
+    }
+    const skillsRoot = join(moduleRoot, "skills");
+    if (!existsSync(skillsRoot)) {
+      continue;
+    }
+    for (const folder of readdirSync(skillsRoot, { withFileTypes: true })) {
+      if (!folder.isDirectory()) {
+        continue;
+      }
+      const skillFolder = join(skillsRoot, folder.name);
+      for (const file of listFiles(skillFolder).filter((path) => path.endsWith(".md"))) {
+        const path = join(skillFolder, file);
+        const depth = relative(skillFolder, dirname(path)).split(sep).filter(Boolean).length;
+        const text = rewriteRefs(readFileSync(path, "utf8"), map, "opencode");
+        writeFileSync(path, rewriteOpenCodeSiblingClimbs(text, depth, skillIds));
+      }
+    }
+  }
+}
+
+/**
  * OpenCode 2: one artifact per item at its `<plugin>.<name>` ID, read from the neutral assembled
  * document. Invocation is frontmatter only (ADR-0005): a hidden skill carries
  * `metadata.opencode/autoinvoke: false`, and no item changes shape because of its invocation. Each
@@ -550,8 +602,8 @@ function emitOpenCode(root: string, manifests: CurationManifest[], assembled: As
 }
 
 /**
- * One manifest per curated Module, written only after `rewriteTree` so every hash covers the final
- * bytes. Every manifest gets written — an items: [] Module still has to name itself — and modes
+ * One manifest per curated Module, written only after the reference rewrite so every hash covers
+ * the final bytes. Every manifest gets written — an items: [] Module still has to name itself — and modes
  * split by provenance: a copied skill file under `skills/<module>.<name>/` carries the Git index mode
  * of its committed `plugins/<module>/skills/<name>/` counterpart (that is where an upstream 100755
  * lands in the repo), while build-generated documents — commands, agents, distribution notices,

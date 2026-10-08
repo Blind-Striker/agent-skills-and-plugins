@@ -1,5 +1,6 @@
 import { basename } from "node:path";
 import type { ComponentType, CurationManifest } from "./manifest.ts";
+import { openCodeId } from "./opencode-target.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
 import { scanRefs } from "./refs.ts";
 import type { ComponentInfo } from "./scan.ts";
@@ -16,9 +17,8 @@ function addressOf(c: ComponentInfo): string {
  * How the target harness spells a reference to one of our own components. One map serves every
  * output tree: its value is the resolved target, and each style below renders that target.
  *
- * Claude Code addresses a plugin skill as `<plugin>:<name>`; Codex as `$<plugin>:<name>`. The
- * `opencode` style still renders the bare output `name`, unchanged from the OpenCode 1 emitter,
- * until the OpenCode 2 renderer replaces it.
+ * Claude Code addresses a plugin skill as `<plugin>:<name>`; Codex as `$<plugin>:<name>`; OpenCode 2
+ * as the dotted ID `<plugin>.<name>`, which contains no `:` and so cannot be re-detected by the scan.
  */
 export type RefStyle = "claude" | "opencode" | "codex";
 
@@ -73,8 +73,16 @@ function render(target: RewriteTarget, style: RefStyle): string {
     case "codex":
       return `$${target.plugin}:${target.name}`;
     case "opencode":
-      return target.name;
+      return openCodeId(target.plugin, target.name);
   }
+}
+
+/** OpenCode 2's user pointer: `/<id>` runs a command; `@<id>` mentions a skill or an agent. */
+function renderPointer(target: RewriteTarget, style: RefStyle): string {
+  if (style === "opencode") {
+    return `${target.kind === "command" ? "/" : "@"}${render(target, style)}`;
+  }
+  return render(target, style);
 }
 
 /**
@@ -93,10 +101,41 @@ export function rewriteRefs(content: string, map: Map<string, RewriteTarget>, st
       continue;
     }
     // The scanner positions a pointer after its leading slash. Codex renders both semantic edge
-    // kinds with `$`, so consume that slash instead of producing the invalid `/$plugin:skill`.
-    const start = style === "codex" && ref.kind === "pointer" ? ref.index - 1 : ref.index;
-    out += content.slice(cut, start) + render(target, style);
+    // kinds with `$`, so consume that slash instead of producing the invalid `/$plugin:skill`;
+    // OpenCode consumes it too and renders its own prefix, which depends on the target kind.
+    const pointer = ref.kind === "pointer";
+    const start = pointer && style !== "claude" ? ref.index - 1 : ref.index;
+    const rendered = pointer && style !== "claude" ? renderPointer(target, style) : render(target, style);
+    out += content.slice(cut, start) + rendered;
     cut = ref.index + ref.address.length;
   }
   return out + content.slice(cut);
+}
+
+/** `../` runs followed by one portable name segment and a `/`: a relative climb into a sibling folder. */
+const CLIMB = /((?:\.\.\/)+)([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/)/g;
+
+/**
+ * OpenCode 2 installs every skill folder under its ID, so a relative climb that names a sibling by its
+ * bare folder name would land on nothing. A climb is respelled only when its `../` count lands exactly
+ * on the shared `skills/` directory (`depthBelowSkillFolder + 1`) and the segment is an emitted skill;
+ * a climb that starts inside a longer path, has the wrong depth, or names anything else is left for
+ * the linker to judge. A climb into the item's own folder is respelled too: that folder is renamed.
+ */
+export function rewriteOpenCodeSiblingClimbs(
+  content: string,
+  depthBelowSkillFolder: number,
+  skillIds: Map<string, string>,
+): string {
+  return content.replace(CLIMB, (match: string, climb: string, name: string, offset: number) => {
+    const before = offset > 0 ? (content[offset - 1] as string) : "";
+    if (before && /[A-Za-z0-9._/-]/.test(before)) {
+      return match;
+    }
+    if (climb.length / 3 !== depthBelowSkillFolder + 1) {
+      return match;
+    }
+    const id = skillIds.get(name);
+    return id === undefined ? match : `${climb}${id}`;
+  });
 }

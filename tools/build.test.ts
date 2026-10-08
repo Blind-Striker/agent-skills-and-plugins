@@ -56,11 +56,11 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.ok(existsSync(opencodeIdPath(root, "deniz-process", "skill", "my-own", "SKILL.md")));
   const cmd = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "command", "deniz-beta"), "utf8"));
   assert.equal(cmd.frontmatter.description, "Beta overlay");
-  // each tree carries the reference spelling its own harness resolves: OpenCode has no plugin
-  // concept, so the qualified form would resolve to nothing there
+  // each tree carries the reference spelling its own harness resolves: OpenCode 2 addresses an
+  // artifact by its dotted `<plugin>.<name>` ID, so the colon form would resolve to nothing there
   const alpha = readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8");
   assert.doesNotMatch(alpha, /deniz-process:beta-agent/);
-  assert.match(alpha, /(^|[^:\w-])beta-agent\b/);
+  assert.match(alpha, /Use deniz-process\.beta-agent next\./);
   assert.match(
     readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
     /deniz-process:beta-agent/,
@@ -194,7 +194,7 @@ test("a curated item localizes a guarded original-skill target in both harnesses
   );
   assert.match(
     readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8"),
-    /Load my-own\./,
+    /Load deniz-process\.my-own\./,
   );
 });
 
@@ -1012,7 +1012,37 @@ test("pointer spellings rewrite in both trees", () => {
   const claude = readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8");
   const oc = readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8");
   assert.match(claude, /\/deniz-process:beta/);
-  assert.match(oc, /suggest \/beta to the user/);
+  assert.match(oc, /suggest @deniz-process\.beta to the user/);
+});
+
+test("an OpenCode skill's sibling link points at the sibling's ID folder", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "references", "notes.md"),
+    "See [beta](../../beta/SKILL.md).\n",
+  );
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: A\n---\n\nSee [delta](../delta/SKILL.md).\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/beta\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  assert.match(
+    readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8"),
+    /\(\.\.\/deniz-process\.delta\/SKILL\.md\)/,
+  );
+  assert.match(
+    readFileSync(opencodeIdPath(root, "deniz-process", "skill", "delta", "references", "notes.md"), "utf8"),
+    /\(\.\.\/\.\.\/deniz-process\.beta\/SKILL\.md\)/,
+  );
+  assert.match(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    /\(\.\.\/delta\/SKILL\.md\)/,
+    "Claude unchanged",
+  );
 });
 
 // One address computation: an upstream agent file carries a double extension, and references spell

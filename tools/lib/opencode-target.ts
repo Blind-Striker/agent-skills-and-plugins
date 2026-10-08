@@ -172,3 +172,15 @@ export function collectOpenCodeEmissionProblems(manifests: CurationManifest[], a
   }
   return problems;
 }
+
+/**
+ * Every emitted skill's bare output name -> its OpenCode ID, across all Modules and original skills.
+ * The identity preflight already made bare output names repository-unique, so the key is unambiguous.
+ */
+export function openCodeSkillIds(assembled: AssembledItem[]): Map<string, string> {
+  return new Map(
+    assembled
+      .filter((item) => item.outType === "skill")
+      .map((item) => [item.outName, openCodeId(item.plugin, item.outName)]),
+  );
+}

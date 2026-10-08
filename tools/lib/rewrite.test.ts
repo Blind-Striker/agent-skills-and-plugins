@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CurationManifest } from "./manifest.ts";
-import { buildRewriteMap, type RewriteTarget, rewriteRefs } from "./rewrite.ts";
+import { buildRewriteMap, type RewriteTarget, rewriteOpenCodeSiblingClimbs, rewriteRefs } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 const comp = (over: Partial<ComponentInfo>): ComponentInfo => ({
@@ -49,12 +49,59 @@ test("map records the resolved target kind", () => {
   assert.equal(buildRewriteMap([m], components).get("superpowers:brainstorming")?.kind, "command");
 });
 
-test("one map renders all three styles; OpenCode stays bare in this checkpoint", () => {
+test("one map renders all three styles", () => {
   const map = buildRewriteMap([manifest], components, own);
   const text = "Use superpowers:brainstorming, then /deniz-process:my-own.";
   assert.equal(rewriteRefs(text, map, "claude"), "Use deniz-process:brainstorming, then /deniz-process:my-own.");
   assert.equal(rewriteRefs(text, map, "codex"), "Use $deniz-process:brainstorming, then $deniz-process:my-own.");
-  assert.equal(rewriteRefs(text, map, "opencode"), "Use brainstorming, then /my-own.");
+  assert.equal(rewriteRefs(text, map, "opencode"), "Use deniz-process.brainstorming, then @deniz-process.my-own.");
+});
+
+test("OpenCode renders dotted IDs and picks the pointer prefix by target kind", () => {
+  const m: CurationManifest = {
+    plugin: { name: "deniz-process", description: "d", version: "0.1.0" },
+    items: [{ source: "sp/skills/brainstorming" }, { source: "sp/skills/tdd", as: "command", name: "handoff" }],
+  };
+  const map = buildRewriteMap([m], components, own);
+  assert.equal(
+    rewriteRefs(
+      "Use superpowers:brainstorming. Open /superpowers:brainstorming or /superpowers:tdd or /deniz-process:my-own.",
+      map,
+      "opencode",
+    ),
+    "Use deniz-process.brainstorming. Open @deniz-process.brainstorming or /deniz-process.handoff or @deniz-process.my-own.",
+  );
+});
+
+test("sibling climbs are respelled only when they land on the shared skills directory", () => {
+  const ids = new Map([
+    ["aspireify", "deniz-dotnet-aspire.aspireify"],
+    ["requesting-code-review", "deniz-process.requesting-code-review"],
+  ]);
+  assert.equal(
+    rewriteOpenCodeSiblingClimbs("[a](../aspireify/SKILL.md)", 0, ids),
+    "[a](../deniz-dotnet-aspire.aspireify/SKILL.md)",
+  );
+  assert.equal(
+    rewriteOpenCodeSiblingClimbs("[a](../../aspireify/SKILL.md)", 1, ids),
+    "[a](../../deniz-dotnet-aspire.aspireify/SKILL.md)",
+  );
+  assert.equal(
+    rewriteOpenCodeSiblingClimbs("[a](../../aspireify/SKILL.md)", 0, ids),
+    "[a](../../aspireify/SKILL.md)",
+    "wrong depth",
+  );
+  assert.equal(
+    rewriteOpenCodeSiblingClimbs('"Dispatch (../requesting-code-review/code-reviewer.md)"', 0, ids),
+    '"Dispatch (../deniz-process.requesting-code-review/code-reviewer.md)"',
+    "prose climb",
+  );
+  assert.equal(
+    rewriteOpenCodeSiblingClimbs('AddCSharpApp("api", "../src/Api")', 1, ids),
+    'AddCSharpApp("api", "../src/Api")',
+    "not an emitted skill",
+  );
+  assert.equal(rewriteOpenCodeSiblingClimbs("x/../aspireify/y", 0, ids), "x/../aspireify/y", "inside a longer path");
 });
 
 // Claude Code addresses a plugin skill by its DIRECTORY name, not by the frontmatter name — and
@@ -88,7 +135,7 @@ test("commands and agents are addressed by file name without the extension", () 
   assert.deepEqual(map.get("superpowers:do-it"), { plugin: "deniz-process", name: "fancy-name", kind: "command" });
 });
 
-test("original skill targets use Plugin-qualified Claude and bare OpenCode spellings", () => {
+test("original skill targets resolve to their Plugin and output name", () => {
   assert.deepEqual(buildRewriteMap([manifest], components, own).get("deniz-process:my-own"), {
     plugin: "deniz-process",
     name: "my-own",
