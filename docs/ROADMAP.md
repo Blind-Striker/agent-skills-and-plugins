@@ -76,13 +76,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       load-bearing bare skill-tool handles in Process bodies (for example `Skill tool with
       "grilling"` in `grill-me`, `grill-with-docs`, `wayfinder`, and
       `improve-codebase-architecture`; targets `grilling`, `domain-modeling`, `research`,
-      `codebase-design`, and `prototype`) to namespaced facts with matching `depends_on`; resolve
-      the two manual-ID leaks (`csharp-nullable-reference-types` names
-      `migrate-nullable-references`, and `requesting-code-review` names
-      `setup-matt-pocock-skills`); and refresh reasons written against OpenCode 1 plus comments that
-      describe only two harnesses. Every curation decision is the curator's. Until this pass lands,
-      `npm run validate` reports those handles and leaks as errors, so the OpenCode 2 branch merges
-      to `master` only after it.
+      `codebase-design`, and `prototype`) to namespaced facts with matching `depends_on`; and
+      refresh reasons written against OpenCode 1 plus comments that describe only two harnesses.
+      Every curation decision is the curator's. Until this pass lands, `npm run validate` reports
+      those handles as errors, so the OpenCode 2 branch merges to `master` only after it.
    2. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
       OpenCode 1 CLI matrices). Port only a discovery check against an isolated `opencode serve`
       HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are marked
@@ -165,11 +162,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in all three harness trees.
 
-   Two consequences need a curator decision when this lands. The example's `test-driven-development`
+   One consequence needs a curator decision when this lands. The example's `test-driven-development`
    edge targets a Process item, so it would add a General -> Process `requiredModules` edge; General
-   requires only Aspire today. And `generate-testability-wrappers` is `manual`, so under the OpenCode
-   manual-ID leak rule an `auto` original skill cannot render that route as a namespaced OpenCode
-   pointer; the OpenCode rendering of that route must be decided.
+   requires only Aspire today.
 4. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest

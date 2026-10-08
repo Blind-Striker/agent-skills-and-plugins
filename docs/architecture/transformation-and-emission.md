@@ -169,12 +169,10 @@ exactly one skill folder, whatever its invocation, and nothing under `commands/`
   model-only, so the user can also attach it with `@<plugin>.<name>`; that explicit path is a native
   capability `auto` leaves unspecified, as in Codex.
 - `manual` emits the same skill with `metadata: {"opencode/autoinvoke": false}` merged into any
-  metadata the document already carries. In OpenCode this means **unadvertised, not forbidden**: the
+  metadata the document already carries. As in Codex, this means **not offered to the model**: the
   model is not offered the skill, the user attaches it with `@<plugin>.<name>` or the `/skills`
   dialog, and the skill tool can still load the registered ID if the model learns it. The accepted
-  rationale is in [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md); the compensating
-  manual-ID leak rule is owned by
-  [References and linking](references-and-linking.md#opencode-id-checks).
+  rationale is in [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md).
 - `both` emits one plain skill, advertised and attachable, with no duplicate command.
 - Absent invocation passes upstream posture through. An upstream `disable-model-invocation: true`
   is rendered with the same `opencode/autoinvoke: false` metadata key, not passed through, because
@@ -255,9 +253,7 @@ to committed `dist/` JavaScript using
 - Per-harness body ownership is absent; one overlay or patch feeds all three emitters. The follow-up
   [Codex estate audit](../research/codex-generated-estate-audit.md) classified slash-shaped text and
   promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
-  localizes those facts, so no Codex-only body-patch seam is currently justified. The same common
-  layer carries OpenCode's constraints: a fact that the OpenCode manual-ID leak rule forbids must
-  leave the shared body, because no OpenCode-only body exists to hold the difference.
+  localizes those facts, so no Codex-only body-patch seam is currently justified.
 - A source command or agent still cannot be resolved as a skill through `as:`. Codex's emitter-level
   adaptation of already resolved commands and agents is supported and retains their closure.
   Non-empty `hooks.include` remains rejected.
@@ -266,8 +262,7 @@ to committed `dist/` JavaScript using
   that cost is the per-item `as:` decision. The path check that covers this case is described in
   [References and linking](references-and-linking.md#paths).
 - On OpenCode, `manual` hides a skill from the model's list but cannot stop the skill tool from
-  loading a registered ID. The leak rule covers this repository's shipped text only; text from
-  outside the estate that names a `manual` ID is beyond it
+  loading a registered ID that text names
   ([ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md)).
 - Invocation absence deliberately preserves upstream Claude posture, so upstream posture changes can
   flow into output. OpenCode renders an upstream `disable-model-invocation: true` through its native

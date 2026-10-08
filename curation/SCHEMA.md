@@ -111,11 +111,10 @@ native capability resolution, not a silent approximation.
 
 OpenCode 2 has no skill-level switch that forbids a model-initiated load: its native key only keeps
 the skill out of the list the model is offered, and the skill tool can still load a registered ID.
-There, `manual` therefore means unadvertised, not forbidden
-([ADR-0005](../docs/adr/0005-invocation-intent-in-the-manifest.md)). The compensating authoring rule
-is that model-reachable text must not name a `manual` item's OpenCode ID; `validate` enforces the
-[manual-ID leak rule](../docs/architecture/references-and-linking.md#opencode-id-checks) owned by
-References and linking.
+On Codex and OpenCode 2 alike, `manual` therefore means not offered to the model, with the user
+invoking it explicitly; Claude Code alone blocks model invocation
+([ADR-0005](../docs/adr/0005-invocation-intent-in-the-manifest.md)). Text may name a `manual` item's
+ID, for example to point the user at it.
 
 Invocation never changes artifact shape. Use `as: command` or `as: agent` when the Claude/OpenCode
 artifact itself must change regardless of trigger intent. `as: command` is the per-item escape hatch

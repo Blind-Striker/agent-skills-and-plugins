@@ -1096,7 +1096,7 @@ git add tools/validate.ts tools/validate.test.ts
 git commit -m "feat: check OpenCode 2 paths and reachability"
 ```
 
-### Task 10: Validator — OpenCode ID, handle, leak, and shape checks (O1–O6)
+### Task 10: Validator — OpenCode ID, handle, and shape checks (O1, O2, O4–O6)
 
 **Files:**
 - Modify: `tools/validate.ts` (new section after L4), `tools/validate.test.ts`
@@ -1179,15 +1179,6 @@ test("O2: a bare skill-tool handle fails; a promoted one passes", () => {
   assert.ok(!promoted.some((m) => m.includes("skill-tool handle")), promoted.join("\n"));
 });
 
-test("O3: model-reachable text must not name a manual item", () => {
-  const items = (alphaPosture: string[]) => ["  - source: sp/skills/alpha", ...alphaPosture, "  - source: sp/skills/beta", "    invocation: manual"];
-  const leak = "model-reachable text names manual item deniz-process.beta";
-  assert.ok(ocErrors("Tell the user /superpowers:beta.", items(["    invocation: auto"])).some((m) => m.includes(leak)));
-  assert.ok(ocErrors("Tell the user /superpowers:beta.", items([])).some((m) => m.includes(leak)), "absent counts as reachable");
-  assert.ok(!ocErrors("Tell the user /superpowers:beta.", items(["    invocation: manual"])).some((m) => m.includes(leak)));
-  assert.ok(ocErrors("Tell the user /superpowers:beta.", items(["    as: agent"])).some((m) => m.includes(leak)), "agents are reachable");
-});
-
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
   const errors = ocErrors("Body.", ["  - source: sp/skills/alpha", "  - source: sp/skills/beta", "    as: agent"], (root) => {
     const skills = opencodeModulePath(root, "deniz-process", "skills");
@@ -1228,15 +1219,15 @@ const HANDLE = /Skill tool(?: twice,)? (?:with|for) ("[^"\n]+"(?:,? (?:and|or) "
   The negative lookahead does not exclude `.`, so a standalone `deniz-process.yaml` in prose is a
   token, and O1 reports it unless `yaml` is an emitted name; that is the intended signal. A path
   such as `curation/deniz-process.yaml` is not a token, because the character before its `/` is a
-  letter. No committed output contains a `<plugin>.` token today (measured at `9442efa`). Run O1–O6 over every `opencode/**/*.md` file and the agent and skill folders as spec §9
-  defines; the leak set uses `openCodeIndex` invocations, not the hide key.
+  letter. No committed output contains a `<plugin>.` token today (measured at `9442efa`). Run O1, O2, and O4–O6 over every `opencode/**/*.md` file and the agent and skill folders as
+  spec §9 defines.
 
 - [ ] **Step 4: Run tests.** PASS; five tooling commands.
 - [ ] **Step 5: Commit.**
 
 ```bash
 git add tools/validate.ts tools/validate.test.ts
-git commit -m "feat: validate OpenCode 2 IDs, handles, manual leaks, and shapes"
+git commit -m "feat: validate OpenCode 2 IDs, handles, and shapes"
 ```
 
 ### Task 11: Installer Destination
@@ -1312,7 +1303,7 @@ npm run validate
 
   Expected: the first five exit 0; `build` and `inventory` exit 0; `validate` exits nonzero with
   exactly the curation-owned findings of the decision packet (Appendix A2: 16 O2 handle findings on
-  12 lines; Appendix A3: 2 O3 leak findings) and no other new error. Any other finding is a defect
+  12 lines) and no other new error. Any other finding is a defect
   in Tasks 2–11: stop and fix it there. Rerun `npm test` after `build`: the pack tests in
   `tools/install-opencode.test.ts` (around line 998) read the committed `opencode/` and `dist/`, so
   the first run, in CI order, still saw the stale trees.
@@ -1680,7 +1671,7 @@ npm run install:opencode -- status
 | `tools/build.ts:501` comment "the dial is which artifact exists" | Task 6 Step 4 |
 | `tools/validate.ts:895` comment about parked files | Task 9 Step 3 |
 | Research note file name vs topic-name rule | Done before Task 1 (renamed to `opencode-2-target.md`) |
-| Writer questions: absent DMI, leak vs Iteration 2, empty `OPENCODE_CONFIG_DIR`, `license`/`compatibility` | Spec Q1–Q4; Q3 measured in Task 15 Step 4 |
+| Writer questions: absent DMI, Iteration 2 example, empty `OPENCODE_CONFIG_DIR`, `license`/`compatibility` | Spec Q1–Q4; Q3 measured in Task 15 Step 4 |
 | `docs/adr/README.md` supersede wording vs in-place revisions | No change (align report: not a conflict) |
 
 ## Stop conditions
@@ -1689,7 +1680,7 @@ Stop and return to the curator instead of guessing when:
 
 - regeneration changes any byte under `plugins/`, `codex/`, either marketplace, or
   `docs/inventory.md` before Task 13;
-- `validate` after Task 12 reports anything beyond Appendix A2 and A3;
+- `validate` after Task 12 reports anything beyond Appendix A2;
 - a measured OpenCode 2 behavior contradicts the research note (hiding key, dotted IDs, `@` attach,
   `OPENCODE_CONFIG_DIR` as the root);
 - the Windows bulk-Apply measurement terminates the service;
@@ -1789,25 +1780,16 @@ Questions: promote all 16? Codex renders a promoted handle as `"$deniz-process:g
 per-harness body seam)? Not detected by O2 and left as prose: `handoff/SKILL.md:11` and
 `wayfinder/SKILL.md:126` "call the Skill tool for whichever skills".
 
-### A3. Manual-ID leaks that O3 will report
+### A3. User pointers to `manual` items
 
-| File:line | Source posture | Text | Target |
-|---|---|---|---|
-| `deniz-dotnet-general/skills/csharp-nullable-reference-types/SKILL.md:24` | auto | `/deniz-dotnet-general:migrate-nullable-references`; do not perform that migration through this skill. | manual |
-| `deniz-process/skills/requesting-code-review/SKILL.md:65` | both | to open `/deniz-process:setup-matt-pocock-skills` rather than guessing at a tracker. | manual |
-
-Questions: per line, change the pointer to bare prose (candidate tier, unchecked), remove it, or
-change the target's posture.
+The pointers in `csharp-nullable-reference-types` (to `migrate-nullable-references`) and
+`requesting-code-review` (to `setup-matt-pocock-skills`) stay as validated user pointers.
 
 ### A4. Related text the rules do not check (for information)
 
 - Path climb into a manual item: `deniz-process/skills/executing-plans/SKILL.md:15` (`both`) names
   `../using-superpowers/references/`; `using-superpowers` is `manual` and omits `references/**`, so
   the path is already dead in every harness (spec Q5).
-- Bare manual names in model-reachable text (candidate tier): `detect-static-dependencies` names
-  `generate-testability-wrappers` and `migrate-static-to-wrapper` (lines 11, 12, 38, 40, 181);
-  `writing-tunit-tests` (original skill) names `generate-testability-wrappers` (line 21). Other
-  hits (`implement`, `handoff`, `triage`, `wizard`) are ordinary words.
 - Absent items with an upstream `disable-model-invocation: true`: none.
 
 ### A5. Module versions and Release version (gate G7)

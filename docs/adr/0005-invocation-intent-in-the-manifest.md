@@ -36,14 +36,14 @@ must not offer the item for implicit model selection and must provide an explici
 requires both paths. A capability marked unspecified may remain available when that is the target's
 native artifact surface.
 
-On OpenCode 2, `manual` means **unadvertised, not forbidden**. The item stays one skill. The native
-setting keeps it out of the skill list the model is offered, and the user attaches it explicitly. If
-the model learns the ID some other way, the skill tool can still load it. This weaker meaning is
-accepted, and a rule on the shipped estate compensates for it: no OpenCode artifact the model can
-reach on its own may contain the OpenCode ID of a `manual` item, either as a model edge or as a user
-pointer. The text of a `manual` item may still point the user at another `manual` item, because the
-user started it. `auto` and `both` both emit one advertised skill that the user can also attach;
-`both` adds no separate command.
+On Codex and OpenCode 2, `manual` means the same thing: the item is **not offered to the model** for
+implicit selection, and the user invokes it explicitly. Codex sets `allow_implicit_invocation:
+false`; OpenCode 2 keeps the item one skill, its native setting keeps it out of the skill list the
+model is offered, and the user attaches it. If the model learns the ID some other way, the OpenCode
+skill tool can still load it. Claude Code is stricter: `disable-model-invocation` blocks model
+invocation. This meaning is accepted as it is on every harness, so shipped text may name a `manual`
+item's ID, for example to point the user at it. `auto` and `both` both emit one advertised skill
+that the user can also attach; `both` adds no separate command.
 
 **Absent is not a fourth value with a default meaning.** An item that says nothing is an item that
 states no intent, and upstream's own invocation posture passes through: Claude Code keeps the
@@ -87,11 +87,10 @@ could also remove the explicit path `manual` requires.
   on OpenCode 2 and Codex, whose native skills are always explicitly addressable. The result still
   satisfies both declarations because `auto` leaves that capability unspecified; target projections
   must show the resolved surface rather than imply a universal model-only guarantee.
-- On OpenCode, the `manual` boundary is only as strong as the leak rule and the absence of outside
-  text that names the ID. A user, project file, or third-party skill that names a `manual` ID can
-  still lead the model to load it. The rule also constrains authoring: model-reachable text cannot
-  point the user at a `manual` item's OpenCode ID. Reconsider this when OpenCode can deny model
-  loading of one skill from the skill file itself.
+- On Codex and OpenCode, `manual` withholds the item from implicit selection but does not deny a
+  load: text that names a `manual` item, shipped or from the user, a project file, or a third-party
+  skill, can still lead the model to it. No validation or plugin enforcement compensates for this.
+  Reconsider it when OpenCode can deny model loading of one skill from the skill file itself.
 - These OpenCode meanings hold on OpenCode 2 only. The accepted degradation under OpenCode 1, where
   `manual` skills become model-visible, is a consequence of [ADR-0002](0002-multi-harness-output.md).
 - A `manual` item stays a skill on OpenCode, so its body, assets, and skill-relative paths resolve

@@ -8,8 +8,8 @@ This document owns the current reference model from an assembled body through lo
 linking, dependency declarations, and ledger review. It does not define curation fields; authoring
 syntax remains in [`curation/SCHEMA.md`](../../curation/SCHEMA.md). The reason strings are treated as
 symbols and checked in tiers is [ADR-0008](../adr/0008-references-are-symbols.md); the reason each
-harness gets its own spelling is [ADR-0002](../adr/0002-multi-harness-output.md); the reason
-OpenCode `manual` needs a leak rule is [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md).
+harness gets its own spelling is [ADR-0002](../adr/0002-multi-harness-output.md); what `manual`
+means on each harness is [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md).
 
 This document states the decided OpenCode 2 reference model. Where the implementation has not
 caught up, the gap and its responsible files are tracked in
@@ -117,12 +117,6 @@ last item; the warning is not a proof that the ambiguity is harmless.
   because every OpenCode ID carries its Module. Such a handle is load-bearing for the model, so it is
   authored as a namespaced fact with a matching `depends_on` entry, and OpenCode renders it as
   `<plugin>.<name>`.
-- **No manual ID leaks to the model.** No OpenCode artifact the model can reach on its own may
-  contain the OpenCode ID of a `manual` item, either as a model-edge or as a user-pointer. The
-  model-reachable artifacts are the skills of `auto`, `both`, and invocation-absent items, and every
-  agent. The text of a user-initiated artifact, a `manual` skill or a command, may still point the
-  user at another `manual` item. An OpenCode `manual` skill is unadvertised but still loadable by
-  ID, so this rule keeps the ID out of text the model reads unprompted.
 
 These checks walk the whole `opencode/` tree, so they also cover text that originates in original
 skills.
@@ -197,8 +191,6 @@ installation state have their own manifests and are owned by
   deliberately unguarded. Its success does not make candidates authoritative after the fact. In
   OpenCode a bare name matches none of this repository's IDs; only the quoted skill-tool handle form
   is checked.
-- The manual-ID leak rule matches rendered OpenCode IDs. A bare name of a `manual` item in
-  model-reachable prose is candidate-tier text and is not checked.
 - Original skills under `skills/` are guarded edge targets: curated items can author their
   `<plugin>:<directory>` fact, localize it for all three harnesses, and declare the output name in
   `depends_on`. The derived-edge source scan still walks manifest items only, so references

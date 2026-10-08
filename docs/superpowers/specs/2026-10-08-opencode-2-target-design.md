@@ -24,7 +24,7 @@ their owners are:
 | Portable-name rule, repository-wide bare-name uniqueness, skill-tool handle authoring | [`curation/SCHEMA.md`](../../../curation/SCHEMA.md) |
 | Destination, schema-1 one-off migration, Release pins, Windows bulk-Apply gate | [Distribution and installation](../../architecture/distribution-and-installation.md) |
 | Why OpenCode output is namespaced and native | [ADR-0002](../../adr/0002-multi-harness-output.md) |
-| Why OpenCode `manual` means unadvertised, not forbidden | [ADR-0005](../../adr/0005-invocation-intent-in-the-manifest.md) |
+| Why `manual` means not offered to the model on Codex and OpenCode 2 | [ADR-0005](../../adr/0005-invocation-intent-in-the-manifest.md) |
 | Why references are symbols checked in tiers | [ADR-0008](../../adr/0008-references-are-symbols.md) |
 | Upstream evidence | [OpenCode 2 as the OpenCode target](../../research/opencode-2-target.md) |
 
@@ -52,8 +52,7 @@ implementation plan is
 - Render every own reference in OpenCode spelling, including the `@`/`/` pointer prefix and
   relative sibling climbs.
 - Check the new rules deterministically: portable names, bare-name uniqueness across kinds,
-  rendered-ID resolution, skill-tool handles, the manual-ID leak rule, phantom skills, skill `name`,
-  and agent keys.
+  rendered-ID resolution, skill-tool handles, phantom skills, skill `name`, and agent keys.
 - Record the OpenCode 2 projection in the ledger.
 - Use `OPENCODE_CONFIG_DIR` as the installer Destination when it is set and non-empty.
 - Retire every OpenCode 1 shape, check, test, and probe.
@@ -345,12 +344,6 @@ Checks:
   `twice, for "x" and "y"`, `for "x"`). Other phrasings are not detected; that is a stated limit,
   not a claim of completeness. Message:
   `<file>:<line>: skill-tool handle "<handle>" is not an emitted OpenCode skill ID — author it as a namespaced fact with a matching depends_on`.
-- **O3 manual-ID leak.** For every Markdown file inside a model-reachable artifact (a skill folder
-  whose item invocation is `auto`, `both`, or absent, including original skills, and every agent
-  file), every O1 token whose target item's invocation is `manual` is an error, whatever its
-  prefix. `manual` skill folders and command files are exempt. Message:
-  `<file>:<line>: model-reachable text names manual item <id>`. The set is decided by curation
-  intent, not by the hide key, as canon states.
 - **O4 phantom skills.** Under each `opencode/<m>/skills/`: any `.md` file directly in `skills/`,
   and any `SKILL.md` below `skills/<id>/` other than `skills/<id>/SKILL.md`, is an error.
 - **O5 skill identity.** Each `skills/<id>/SKILL.md` has frontmatter `name` equal to `<id>`, and
@@ -402,7 +395,7 @@ if (nonEmpty(env.XDG_CONFIG_HOME)) return join(env.XDG_CONFIG_HOME, "opencode");
 | `tools/lib/rewrite.test.ts` | object map values (every test that reads a value, passes `style` as the third argument, or hand-builds a string map); OpenCode model, `@`, `/` rendering; sibling climbs by depth; Claude and Codex unchanged |
 | `tools/lib/resolve` tests in `tools/build.test.ts` | portable names, cross-kind duplicate names, original-skill duplicates |
 | `tools/build.test.ts` | replace the park/stub/duplicate tests (`invocation sets the Claude flags and picks the OpenCode artifact`, `a bundled manual command parks...`, `a bundle-less manual conversion...`, `both preserves...`, `manual bundle links repoint...`, `only a manual conversion reports parked files`, `same OpenCode name in different artifact kinds...`) with ID-path tests; mode translation; agent keys |
-| `tools/validate.test.ts` | O1–O6, linker causes, L6 test (741) and converted-command warning test (944) removed, path rules across Modules, identity messages (170, 775) |
+| `tools/validate.test.ts` | O1, O2, O4–O6, linker causes, L6 test (741) and converted-command warning test (944) removed, path rules across Modules, identity messages (170, 775) |
 | `tools/lib/ledger.test.ts` | new `opencode` projection, no `parked` |
 | `tools/lib/opencode-install-state.test.ts`, `tools/install-opencode.test.ts` | `OPENCODE_CONFIG_DIR` used, relative refused, empty falls through |
 | `tools/repository-docs.test.ts` | retarget the `lab.ps1` assertion when the OpenCode lab is ported; Release pins at the Release step only |
@@ -417,24 +410,23 @@ if (nonEmpty(env.XDG_CONFIG_HOME)) return join(env.XDG_CONFIG_HOME, "opencode");
 - `plugins/`, `codex/`, `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`,
   `docs/inventory.md`: no change.
 - `npm run validate` reports exactly the curation-owned findings listed in the plan's decision
-  packet (16 skill-tool handles on 12 lines, 2 manual-ID leaks) and nothing else new. Those
-  findings clear only through the curation pass.
+  packet (16 skill-tool handles on 12 lines) and nothing else new. Those findings clear only
+  through the curation pass.
 
 ## Merge sequencing
 
-O2 and O3 fail on the current curation, and only the curator can clear them. Recommendation: steps
-2 and 3 share one branch; it merges to `master` only when `npm run validate` is clean, so `master`
-CI never sees the known findings. The rejected alternative is landing O2 and O3 as warnings first
-and raising them to errors later, which leaves a window in which a new leak passes CI.
+O2 fails on the current curation, and only the curator can clear it. Recommendation: steps 2 and 3
+share one branch; it merges to `master` only when `npm run validate` is clean, so `master` CI never
+sees the known findings. The rejected alternative is landing O2 as a warning first and raising it to
+an error later, which leaves a window in which a new unresolvable handle passes CI.
 
 ## Edge cases
 
 - **Metadata merge.** Covered in section 2: absent `metadata`, mapping `metadata`, non-mapping
   `metadata` (preflight stop), upstream hide key under `auto`/`both` (removed), upstream hide key
   under absent (kept), empty mapping after removal (deleted).
-- **Absent item with upstream DMI.** Hidden through the metadata key, counted as model-reachable for
-  O3, and its ID is not protected by O3. The estate has no such item at `9442efa` (no absent ledger
-  item carries a Claude invocation flag). See Q1.
+- **Absent item with upstream DMI.** Hidden through the metadata key. The estate has no such item at
+  `9442efa` (no absent ledger item carries a Claude invocation flag). See Q1.
 - **Exec-bit translation.** Section 5. A Windows checkout reads modes from the Git index, so the
   translation must be tested with a staged `100755` counterpart.
 - **Relative sibling links.** Section 7. Depth-checked, own folder included, commands and agents
@@ -444,10 +436,6 @@ and raising them to errors later, which leaves a window in which a new leak pass
 - **Phantom guard.** O4. `skills/deniz-dotnet-general/NOTICE.md` in the authored original-skill root
   is not copied into output (`ownSkillIdentities` lists directories only); O4 would catch it if that
   changed.
-- **Leak-rule scope.** O3 checks rendered ID tokens only. A bare manual name in model-reachable text
-  is candidate tier and unchecked; a path climb into a manual item's folder is a path, not an ID
-  token. Current instance: `executing-plans` (`both`) says `../using-superpowers/references/`, and
-  `using-superpowers` is `manual` (and omits `references/**`). See Q5.
 - **Skill-tool handles.** O2 accepts only an emitted skill ID; an agent or command ID in a handle is
   an error. Codex renders a promoted handle as `"$deniz-process:grilling"`, which Codex has no skill
   tool for; the wording is a curation question in the packet.
@@ -458,19 +446,21 @@ and raising them to errors later, which leaves a window in which a new leak pass
 
 These are not settled by D1–D7. Each has a recommendation; none is decided by this document.
 
-- **Q1. Absent items with upstream DMI.** Recommend: keep canon as is (model-reachable for O3, ID
-  unprotected) and revisit only if such an item appears; add a build report line so one cannot
-  appear unnoticed.
-- **Q2. Leak rule vs the Iteration 2 example.** Recommend: defer to Iteration 2; nothing in this
-  plan touches `writing-tunit-tests` text.
+- **Q1. Absent items with upstream DMI.** Recommend: keep canon as is and revisit only if such an
+  item appears; add a build report line so one cannot appear unnoticed.
+- **Q2. Iteration 2 example.** Resolved by canon, not a curator question: text may name a `manual`
+  item's ID, so the example's `generate-testability-wrappers` user-pointer needs no special OpenCode
+  rendering.
 - **Q3. Empty `OPENCODE_CONFIG_DIR` on POSIX.** Recommend: measure on the Linux host (plan
   measurement task); keep D5's "set and non-empty" unless the measurement shows OpenCode uses an
   empty root.
 - **Q4. `license` and `compatibility` in OpenCode skills.** Resolved by canon, not a curator question:
   OpenCode 2 ignores both, and ADR-0002/ADR-0006 forbid silently emitting keys a target ignores, so
   they are dropped and reported (Task 5).
-- **Q5. Path climbs into a `manual` item.** Recommend: leave O3 to ID tokens as canon states and
-  handle the one `executing-plans` line in the curation pass.
+- **Q5. Path climbs into a `manual` item.** Resolved by canon, not a curator question: a `manual`
+  item may be named, so the climb raises no invocation concern. The one `executing-plans` line,
+  `../using-superpowers/references/`, points into a folder whose `references/**` is omitted; that
+  is a path matter for the curation pass.
 - **Q6. Home source for the fallback Destination.** The installer uses `HOME`, then `USERPROFILE`,
   then `os.homedir()`; OpenCode 2 uses `os.homedir()` (`OPENCODE_TEST_HOME` aside). Options:
   (A) keep the installer order; (B) use `os.homedir()` only. Recommend B, because the Destination

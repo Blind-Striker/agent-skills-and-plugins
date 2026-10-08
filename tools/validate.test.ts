@@ -1329,30 +1329,6 @@ test("O2: a bare skill-tool handle fails; a promoted one passes", () => {
   assert.ok(!promoted.some((m) => m.includes("skill-tool handle")), promoted.join("\n"));
 });
 
-test("O3: model-reachable text must not name a manual item", () => {
-  const items = (alphaPosture: string[]) => [
-    "  - source: sp/skills/alpha",
-    ...alphaPosture,
-    "  - source: sp/skills/beta",
-    "    invocation: manual",
-  ];
-  const leak = "model-reachable text names manual item deniz-process.beta";
-  assert.ok(
-    ocErrors("Tell the user /superpowers:beta.", items(["    invocation: auto"])).some((m) => m.includes(leak)),
-  );
-  assert.ok(
-    ocErrors("Tell the user /superpowers:beta.", items([])).some((m) => m.includes(leak)),
-    "absent counts as reachable",
-  );
-  assert.ok(
-    !ocErrors("Tell the user /superpowers:beta.", items(["    invocation: manual"])).some((m) => m.includes(leak)),
-  );
-  assert.ok(
-    ocErrors("Tell the user /superpowers:beta.", items(["    as: agent"])).some((m) => m.includes(leak)),
-    "agents are reachable",
-  );
-});
-
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
   const errors = ocErrors(
     "Body.",

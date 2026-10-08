@@ -68,10 +68,10 @@ separate transformation concern owned by
 - Linking proves resolvability and audience reachability, not whether a model will traverse an edge
   or follow its discipline. Reachability is not propensity; runtime behavior is measured under the
   [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
-- Reachability is only as strong as the harness's own boundary. An OpenCode `manual` skill is
-  unadvertised, not unloadable, so linking also carries the compensating rule that
-  [ADR-0005](0005-invocation-intent-in-the-manifest.md) names: model-reachable OpenCode text must
-  not contain a `manual` item's ID.
+- Reachability is only as strong as the harness's own boundary. A Codex or OpenCode `manual` skill
+  is not offered to the model, but it is not unloadable;
+  [ADR-0005](0005-invocation-intent-in-the-manifest.md) accepts that meaning without a compensating
+  rule.
 - Candidate prose remains a deliberate blind spot. A body patch does not promote it merely by
   contact: its corpus convention persists until an author deliberately changes the spelling into a
   model-edge fact and declares it. In OpenCode a bare name is not an artifact ID, so a load-bearing

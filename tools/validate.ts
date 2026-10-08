@@ -168,14 +168,13 @@ interface OpenCodeIndexEntry {
   plugin: string;
   name: string;
   kind: ComponentType;
-  invocation?: string;
   hidden: boolean;
 }
 
 /**
  * Every emitted OpenCode artifact, keyed by its `<plugin>.<name>` ID: curated items at their resolved
- * kind, plus original skills (no invocation). `hidden` reads the emitted SKILL.md, so it reflects the
- * hide key as shipped rather than as curation intends it.
+ * kind, plus original skills. `hidden` reads the emitted SKILL.md, so it reflects the hide key as
+ * shipped rather than as curation intends it.
  */
 function openCodeIndex(
   root: string,
@@ -183,7 +182,7 @@ function openCodeIndex(
   components: ComponentInfo[],
 ): Map<string, OpenCodeIndexEntry> {
   const index = new Map<string, OpenCodeIndexEntry>();
-  const add = (plugin: string, name: string, kind: ComponentType, invocation: string | undefined): void => {
+  const add = (plugin: string, name: string, kind: ComponentType): void => {
     const artifact = openCodeArtifact(root, plugin, `${kind}s`, name);
     const file = kind === "skill" ? join(artifact, "SKILL.md") : artifact;
     if (!existsSync(file)) {
@@ -195,7 +194,7 @@ function openCodeIndex(
       metadata !== null &&
       !Array.isArray(metadata) &&
       (metadata as Record<string, unknown>)[OPENCODE_HIDE_KEY] === false;
-    index.set(openCodeId(plugin, name), { plugin, name, kind, ...(invocation ? { invocation } : {}), hidden });
+    index.set(openCodeId(plugin, name), { plugin, name, kind, hidden });
   };
   for (const m of manifests) {
     for (const item of m.items) {
@@ -203,11 +202,11 @@ function openCodeIndex(
         continue;
       }
       const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
-      add(m.plugin.name, outName, outType, item.invocation);
+      add(m.plugin.name, outName, outType);
     }
   }
   for (const own of ownSkillIdentities(root, manifests)) {
-    add(own.plugin, own.name, "skill", undefined);
+    add(own.plugin, own.name, "skill");
   }
   return index;
 }
@@ -886,24 +885,9 @@ export function validateRepo(root: string): Finding[] {
   const kindLabel = { "": "item", "@": "skill or agent", "/": "command" } as const;
   const prefixFits = (prefix: OpenCodeIdToken["prefix"], kind: ComponentType): boolean =>
     prefix === "" || (prefix === "@" ? kind === "skill" || kind === "agent" : kind === "command");
-  // O3's model-reachable set is curation intent, not the hide key: a skill folder whose item is
-  // auto, both, or absent (original skills included), and every agent. Manual skills and commands
-  // are exempt.
-  const modelReachable = (file: string): boolean => {
-    const [, kindDir, artifact] = relative(ocDir, file).replaceAll("\\", "/").split("/");
-    if (kindDir === "agents") {
-      return true;
-    }
-    if (kindDir !== "skills" || !artifact) {
-      return false;
-    }
-    const entry = ocIndex.get(artifact);
-    return entry?.kind === "skill" && entry.invocation !== "manual";
-  };
   for (const file of existsSync(ocDir) ? [...walk(ocDir)].filter((f) => f.endsWith(".md")) : []) {
     const rel = relative(root, file).replaceAll("\\", "/");
     const text = readFileSync(file, "utf8");
-    const reachable = modelReachable(file);
     // O1: every rendered ID names an emitted artifact whose kind its prefix can address.
     for (const token of scanOpenCodeIds(text, moduleNames)) {
       const entry = ocIndex.get(token.id);
@@ -911,14 +895,6 @@ export function validateRepo(root: string): Finding[] {
         findings.push({
           level: "error",
           message: `${rel}:${token.line}: rendered OpenCode ID ${token.prefix}${token.id} does not name an emitted ${kindLabel[token.prefix]}`,
-        });
-        continue;
-      }
-      // O3: model-reachable text must not name a manual item, whatever the prefix.
-      if (reachable && entry.invocation === "manual") {
-        findings.push({
-          level: "error",
-          message: `${rel}:${token.line}: model-reachable text names manual item ${token.id}`,
         });
       }
     }
