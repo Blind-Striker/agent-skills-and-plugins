@@ -436,16 +436,18 @@ export function loadInstallState(destination, options = {}) {
 }
 export function resolveDestination(env, home) {
   if (nonEmpty(env.OPENCODE_CONFIG_DIR)) {
-    throw new Error("OPENCODE_CONFIG_DIR is set; unset it or do not use this installer");
+    if (!isAbsolute(env.OPENCODE_CONFIG_DIR)) {
+      throw new Error("OPENCODE_CONFIG_DIR must be an absolute path");
+    }
+    return env.OPENCODE_CONFIG_DIR;
   }
   if (nonEmpty(env.XDG_CONFIG_HOME)) {
     return join(env.XDG_CONFIG_HOME, "opencode");
   }
-  const resolvedHome = nonEmpty(env.HOME) ? env.HOME : home;
-  if (!nonEmpty(resolvedHome)) {
-    throw new Error("HOME is not set");
+  if (!nonEmpty(home)) {
+    throw new Error("home directory is not known; set XDG_CONFIG_HOME or OPENCODE_CONFIG_DIR");
   }
-  return join(resolvedHome, ".config", "opencode");
+  return join(home, ".config", "opencode");
 }
 function isLinkLike(stat) {
   return stat.isSymbolicLink();

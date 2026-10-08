@@ -160,8 +160,9 @@ is not part of it. Each item emits one OpenCode artifact of its resolved kind, s
 
 Each entry projects the review-relevant state: source, declared invocation and body mode,
 merge-source addresses, declared dependencies, emitted artifact kinds, description, own fact edges
-in each harness spelling, emitted Claude boolean invocation flags, OpenCode drops,
-and Codex identity, source/resolved/emitted kinds, material kind transformation, invocation
+in each harness spelling, emitted Claude boolean invocation flags, OpenCode identity
+(`<plugin>.<name>`), whether an OpenCode skill is advertised to the model (`advertised`, false when
+it carries the hiding key), OpenCode drops and metadata transformations, and Codex identity, source/resolved/emitted kinds, material kind transformation, invocation
 capabilities, policy files, metadata drops, and body transformations. OpenCode and Codex edges are
 respelled from the known neutral facts rather than rediscovered from final text.
 

@@ -15,14 +15,12 @@
       "artifacts": [
         "agent"
       ],
+      "identity": "deniz-dotnet-akka.akka-net-specialist",
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "name"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -70,17 +68,17 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-akka.akka-hosting-actor-patterns",
+      "advertised": true,
       "edges": {
         "model": [
-          "dependency-injection-patterns"
+          "deniz-dotnet-general.dependency-injection-patterns"
         ],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -139,21 +137,21 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-akka.akka-net-aspire-configuration",
+      "advertised": true,
       "edges": {
         "model": [
-          "akka-net-best-practices",
-          "akka-net-management",
-          "akka-net-testing-patterns",
-          "aspire-integration-testing",
-          "microsoft-extensions-configuration"
+          "deniz-dotnet-akka.akka-net-best-practices",
+          "deniz-dotnet-akka.akka-net-management",
+          "deniz-dotnet-akka.akka-net-testing-patterns",
+          "deniz-dotnet-aspire.aspire-integration-testing",
+          "deniz-dotnet-general.microsoft-extensions-configuration"
         ],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -202,15 +200,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-akka.akka-net-best-practices",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -259,17 +257,17 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-akka.akka-net-management",
+      "advertised": true,
       "edges": {
         "model": [
-          "akka-net-aspire-configuration"
+          "deniz-dotnet-akka.akka-net-aspire-configuration"
         ],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -314,15 +312,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-akka.akka-net-testing-patterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -375,18 +373,21 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-deployment",
-          "aspire-init",
-          "aspire-monitoring",
-          "aspire-orchestration",
-          "aspireify"
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-init",
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -439,16 +440,19 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire-deployment",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-monitoring",
-          "aspire-orchestration",
-          "aspireify"
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -501,17 +505,20 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire-init",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-deployment",
-          "aspire-monitoring",
-          "aspire-orchestration",
-          "aspireify"
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -557,15 +564,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire-integration-testing",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -614,16 +621,19 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire-monitoring",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-deployment",
-          "aspire-orchestration",
-          "aspireify"
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -676,17 +686,20 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire-orchestration",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-deployment",
-          "aspire-init",
-          "aspire-monitoring",
-          "aspireify"
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-init",
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -735,15 +748,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspire-service-defaults",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -794,17 +807,20 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-aspire.aspireify",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-deployment",
-          "aspire-init",
-          "aspire-monitoring",
-          "aspire-orchestration"
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-init",
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-orchestration"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -849,14 +865,12 @@
       "artifacts": [
         "agent"
       ],
+      "identity": "deniz-dotnet-general.roslyn-incremental-generator-specialist",
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "name"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -893,15 +907,17 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.analyzing-dotnet-performance",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": [
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -942,15 +958,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.api-design",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -994,14 +1010,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.binlog-failure-analysis",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1042,14 +1059,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.binlog-generation",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1091,14 +1109,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.build-parallelism",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1139,14 +1158,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.build-perf-baseline",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1191,14 +1211,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.build-perf-diagnostics",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1240,14 +1261,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.check-bin-obj-clash",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1292,22 +1314,18 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.code-testing-agent",
+      "advertised": false,
       "edges": {
         "model": [
-          "writing-tunit-tests"
+          "deniz-dotnet-general.writing-tunit-tests"
         ],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "unit-test-generation.prompt.md"
+        "license"
       ]
     },
     "codex": {
@@ -1353,14 +1371,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.configuring-opentelemetry-dotnet",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1399,25 +1418,16 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.convert-to-cpm",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "references/audit-complexities.md",
-        "references/baseline-comparison.md",
-        "references/directory-packages-props.md",
-        "references/msbuild-property-handling.md",
-        "references/report-template.md",
-        "references/validation-and-errors.md"
+        "license"
       ]
     },
     "codex": {
@@ -1461,14 +1471,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.copy-to-output-directory",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1510,14 +1521,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.coverage-analysis",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1558,15 +1570,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.csharp-concurrency-patterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1612,18 +1624,18 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.csharp-nullable-reference-types",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": [
-          "migrate-nullable-references"
+          "@deniz-dotnet-general.migrate-nullable-references"
         ]
       },
       "dropped": [
         "tags",
-        "user-invocable",
         "version"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1669,14 +1681,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.csharp-scripts",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1721,16 +1734,16 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.database-performance",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
         "invocable",
-        "tags",
-        "user-invocable"
-      ],
-      "parked": []
+        "tags"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1774,15 +1787,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.dependency-injection-patterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1826,14 +1839,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.detect-static-dependencies",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1874,14 +1888,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.directory-build-organization",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -1920,20 +1935,16 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-aot-compat",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "references/polyfills.md"
+        "license"
       ]
     },
     "codex": {
@@ -1978,19 +1989,19 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-devcert-trust",
+      "advertised": true,
       "edges": {
         "model": [
-          "aspire-service-defaults"
+          "deniz-dotnet-aspire.aspire-service-defaults"
         ],
         "pointer": []
       },
       "dropped": [
         "invocable"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2035,15 +2046,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-local-tools",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2086,14 +2097,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-pinvoke",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2134,15 +2146,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-project-structure",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2180,17 +2192,17 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-slopwatch",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
         "invocable"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2232,24 +2244,16 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-trace-collect",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "references/dotnet-monitor.md",
-        "references/dotnet-trace-collect-linux.md",
-        "references/dotnet-trace-collect.md",
-        "references/perfcollect.md",
-        "references/perfview.md"
+        "license"
       ]
     },
     "codex": {
@@ -2294,14 +2298,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.dotnet-webapi",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2340,22 +2345,16 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.dump-collect",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "references/container-dumps.md",
-        "references/coreclr-dumps.md",
-        "references/nativeaot-dumps.md"
+        "license"
       ]
     },
     "codex": {
@@ -2403,15 +2402,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.efcore-patterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2455,14 +2454,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.eval-performance",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2503,14 +2503,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.extension-points",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2551,14 +2552,17 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.filter-syntax",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
+        "disable-model-invocation",
+        "license",
         "user-invocable"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2604,18 +2608,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.generate-testability-wrappers",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2658,15 +2661,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.ilspy-decompile",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "allowed-tools",
-        "user-invocable"
-      ],
-      "parked": []
+        "allowed-tools"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2707,14 +2710,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.including-generated-files",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2756,14 +2760,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.incremental-build",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2804,14 +2809,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.item-management",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2852,14 +2858,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.microbenchmarking",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2900,15 +2907,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.microsoft-extensions-configuration",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -2949,24 +2956,16 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.migrate-nullable-references",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "references/aspnet-core.md",
-        "references/breaking-changes.md",
-        "references/ef-core.md",
-        "references/nullable-attributes.md",
-        "scripts/Get-NullableReadiness.ps1"
+        "license"
       ]
     },
     "codex": {
@@ -3009,18 +3008,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.migrate-static-to-wrapper",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3063,14 +3061,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.minimal-api-file-upload",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3111,15 +3110,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.modern-csharp-coding-standards",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3162,14 +3161,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.msbuild-antipatterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3210,14 +3210,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.msbuild-modernization",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3258,14 +3259,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.msbuild-server",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3307,14 +3309,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.mtp-hot-reload",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3355,16 +3358,16 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.opentelemetry-net-instrumentation",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
         "tags",
-        "user-invocable",
         "version"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3408,15 +3411,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.package-management",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3459,14 +3462,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.platform-detection",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3507,15 +3511,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.playwright-blazor-testing",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3558,14 +3562,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.property-patterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3606,15 +3611,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.r3-reactive-extensions",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3657,14 +3662,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.run-tests",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3705,15 +3711,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.serialization",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3757,15 +3763,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.snapshot-testing",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3808,14 +3814,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.target-authoring",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3857,14 +3864,17 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.test-analysis-extensions",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
+        "disable-model-invocation",
+        "license",
         "user-invocable"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3909,14 +3919,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.test-anti-patterns",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -3958,14 +3969,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.test-gap-analysis",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4007,15 +4019,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.testcontainers-integration-tests",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "user-invocable"
-      ],
-      "parked": []
+        "invocable"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4056,18 +4068,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-dotnet-general.thread-abort-migration",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "license",
-        "name"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4110,14 +4121,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-dotnet-general.vectorization",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+        "license"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4158,15 +4170,15 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.asd-ste100",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "user-invocable",
         "version"
-      ],
-      "parked": []
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4234,46 +4246,41 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.ask-deniz",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": [
-          "brainstorming",
-          "executing-plans",
-          "finishing-a-development-branch",
-          "grill-me",
-          "grill-with-docs",
-          "handoff",
-          "implement",
-          "improve-codebase-architecture",
-          "prototype",
-          "requesting-code-review",
-          "research",
-          "setup-matt-pocock-skills",
-          "subagent-driven-development",
-          "teach",
-          "to-questionnaire",
-          "to-spec",
-          "to-tickets",
-          "triage",
-          "using-superpowers",
-          "wait-what",
-          "wayfinder",
-          "wizard",
-          "writing-for-agents",
-          "writing-plans",
-          "writing-skills"
+          "@deniz-process.brainstorming",
+          "@deniz-process.executing-plans",
+          "@deniz-process.finishing-a-development-branch",
+          "@deniz-process.grill-me",
+          "@deniz-process.grill-with-docs",
+          "@deniz-process.handoff",
+          "@deniz-process.implement",
+          "@deniz-process.improve-codebase-architecture",
+          "@deniz-process.prototype",
+          "@deniz-process.requesting-code-review",
+          "@deniz-process.research",
+          "@deniz-process.setup-matt-pocock-skills",
+          "@deniz-process.subagent-driven-development",
+          "@deniz-process.teach",
+          "@deniz-process.to-questionnaire",
+          "@deniz-process.to-spec",
+          "@deniz-process.to-tickets",
+          "@deniz-process.triage",
+          "@deniz-process.using-superpowers",
+          "@deniz-process.wait-what",
+          "@deniz-process.wayfinder",
+          "@deniz-process.wizard",
+          "@deniz-process.writing-for-agents",
+          "@deniz-process.writing-plans",
+          "@deniz-process.writing-skills"
         ]
       },
-      "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "PHASE-BOUNDARIES.md"
-      ]
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4343,17 +4350,17 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.brainstorming",
+      "advertised": true,
       "edges": {
         "model": [
-          "writing-plans"
+          "deniz-process.writing-plans"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4396,14 +4403,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.codebase-design",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4444,14 +4450,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.dispatching-parallel-agents",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4492,14 +4497,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.domain-modeling",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4544,19 +4548,19 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.executing-plans",
+      "advertised": true,
       "edges": {
         "model": [
-          "finishing-a-development-branch",
-          "subagent-driven-development",
-          "using-git-worktrees"
+          "deniz-process.finishing-a-development-branch",
+          "deniz-process.subagent-driven-development",
+          "deniz-process.using-git-worktrees"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4596,15 +4600,15 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.finishing-a-development-branch",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4643,17 +4647,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.grill-me",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4696,17 +4700,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.grill-with-docs",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4751,14 +4755,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.grilling",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -4797,18 +4800,18 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.handoff",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
         "argument-hint",
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4860,20 +4863,20 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.implement",
+      "advertised": false,
       "edges": {
         "model": [
-          "requesting-code-review",
-          "test-driven-development"
+          "deniz-process.requesting-code-review",
+          "deniz-process.test-driven-development"
         ],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -4925,21 +4928,18 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.improve-codebase-architecture",
+      "advertised": false,
       "edges": {
         "model": [
-          "codebase-design"
+          "deniz-process.codebase-design"
         ],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "HTML-REPORT.md"
+        "disable-model-invocation"
       ]
     },
     "codex": {
@@ -4982,15 +4982,15 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.prototype",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5031,14 +5031,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.receiving-code-review",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5085,19 +5084,19 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.requesting-code-review",
+      "advertised": true,
       "edges": {
         "model": [
-          "receiving-code-review"
+          "deniz-process.receiving-code-review"
         ],
         "pointer": [
-          "setup-matt-pocock-skills"
+          "@deniz-process.setup-matt-pocock-skills"
         ]
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5143,17 +5142,17 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.research",
+      "advertised": true,
       "edges": {
         "model": [
-          "dispatching-parallel-agents"
+          "deniz-process.dispatching-parallel-agents"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5196,14 +5195,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.resolving-merge-conflicts",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5243,23 +5241,16 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.setup-matt-pocock-skills",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "domain.md",
-        "issue-tracker-github.md",
-        "issue-tracker-gitlab.md",
-        "issue-tracker-local.md",
-        "triage-labels.md"
+        "disable-model-invocation"
       ]
     },
     "codex": {
@@ -5309,19 +5300,19 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.subagent-driven-development",
+      "advertised": true,
       "edges": {
         "model": [
-          "finishing-a-development-branch",
-          "requesting-code-review",
-          "using-git-worktrees"
+          "deniz-process.finishing-a-development-branch",
+          "deniz-process.requesting-code-review",
+          "deniz-process.using-git-worktrees"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5377,17 +5368,16 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.systematic-debugging",
+      "advertised": true,
       "edges": {
         "model": [
-          "test-driven-development",
-          "verification-before-completion"
+          "deniz-process.test-driven-development",
+          "deniz-process.verification-before-completion"
         ],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5429,23 +5419,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.teach",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
         "argument-hint",
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "GLOSSARY-FORMAT.md",
-        "LEARNING-RECORD-FORMAT.md",
-        "MISSION-FORMAT.md",
-        "RESOURCES-FORMAT.md"
+        "disable-model-invocation"
       ]
     },
     "codex": {
@@ -5503,17 +5487,16 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.test-driven-development",
+      "advertised": true,
       "edges": {
         "model": [
-          "requesting-code-review",
-          "systematic-debugging"
+          "deniz-process.requesting-code-review",
+          "deniz-process.systematic-debugging"
         ],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5555,17 +5538,17 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.to-questionnaire",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -5611,19 +5594,19 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.to-spec",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": [
-          "setup-matt-pocock-skills"
+          "@deniz-process.setup-matt-pocock-skills"
         ]
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -5671,19 +5654,19 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.to-tickets",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": [
-          "setup-matt-pocock-skills"
+          "@deniz-process.setup-matt-pocock-skills"
         ]
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -5738,25 +5721,21 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.triage",
+      "advertised": false,
       "edges": {
         "model": [
-          "domain-modeling",
-          "grilling"
+          "deniz-process.domain-modeling",
+          "deniz-process.grilling"
         ],
         "pointer": [
-          "setup-matt-pocock-skills"
+          "@deniz-process.setup-matt-pocock-skills"
         ]
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "AGENT-BRIEF.md",
-        "BODY.md",
-        "OUT-OF-SCOPE.md"
+        "disable-model-invocation"
       ]
     },
     "codex": {
@@ -5807,14 +5786,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.using-git-worktrees",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5861,20 +5839,18 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.using-superpowers",
+      "advertised": false,
       "edges": {
         "model": [
-          "brainstorming",
-          "systematic-debugging"
+          "deniz-process.brainstorming",
+          "deniz-process.systematic-debugging"
         ],
         "pointer": []
       },
-      "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5920,14 +5896,13 @@
       "artifacts": [
         "skill"
       ],
+      "identity": "deniz-process.verification-before-completion",
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "user-invocable"
-      ],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -5972,19 +5947,19 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.wait-what",
+      "advertised": false,
       "edges": {
         "model": [
-          "asd-ste100"
+          "deniz-process.asd-ste100"
         ],
         "pointer": []
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -6032,19 +6007,19 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.wayfinder",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": [
-          "setup-matt-pocock-skills"
+          "@deniz-process.setup-matt-pocock-skills"
         ]
       },
       "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": []
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
@@ -6089,20 +6064,15 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.wizard",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "template.sh"
-      ]
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -6143,20 +6113,15 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.writing-for-agents",
+      "advertised": false,
       "edges": {
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "SKILL-MECHANICS.md"
-      ]
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -6203,19 +6168,19 @@
     },
     "opencode": {
       "artifacts": [
-        "skill",
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.writing-plans",
+      "advertised": true,
       "edges": {
         "model": [
-          "executing-plans",
-          "subagent-driven-development",
-          "using-git-worktrees"
+          "deniz-process.executing-plans",
+          "deniz-process.subagent-driven-development",
+          "deniz-process.using-git-worktrees"
         ],
         "pointer": []
       },
-      "dropped": [],
-      "parked": []
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -6266,28 +6231,18 @@
     },
     "opencode": {
       "artifacts": [
-        "command"
+        "skill"
       ],
+      "identity": "deniz-process.writing-skills",
+      "advertised": false,
       "edges": {
         "model": [
-          "systematic-debugging",
-          "test-driven-development"
+          "deniz-process.systematic-debugging",
+          "deniz-process.test-driven-development"
         ],
         "pointer": []
       },
-      "dropped": [
-        "disable-model-invocation",
-        "name"
-      ],
-      "parked": [
-        "BODY.md",
-        "anthropic-best-practices.md",
-        "examples/CLAUDE_MD_TESTING.md",
-        "graphviz-conventions.dot",
-        "persuasion-principles.md",
-        "render-graphs.js",
-        "testing-skills-with-subagents.md"
-      ]
+      "dropped": []
     },
     "codex": {
       "artifacts": [

@@ -18,11 +18,12 @@ const ACTIONS = new Set(["install", "update", "remove", "status"]);
 function uniqueSorted(names) {
   return [...new Set(names)].sort(ordinalCompare);
 }
-function defaultIo() {
+export function defaultIo() {
   return {
     packageRoot: join(dirname(fileURLToPath(import.meta.url)), ".."),
     env: process.env,
-    home: process.env.HOME ?? process.env.USERPROFILE ?? homedir(),
+    // The same home source OpenCode 2 uses for its global config root.
+    home: homedir(),
     platform: process.platform === "win32" ? "windows" : "posix",
   };
 }

@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.9.1",
-  "digest": "sha256:af9f5595afc68035cad633567be03f6c49fce32f3ade2309164a7e9c64361a01",
+  "digest": "sha256:da835450bdbc692241e6ea7908469a2e5a5d246d031105451498b025357f02a2",
   "requiredModules": [
     "deniz-dotnet-aspire"
   ],
@@ -15,612 +15,576 @@
       "sha256": "sha256:8ee59d89bd176d262589a76d81a06cd7fc33721a993c60afde77cd893048fa3c",
       "mode": "100644"
     },
-    "agents/roslyn-incremental-generator-specialist.md": {
+    "agents/deniz-dotnet-general.roslyn-incremental-generator-specialist.md": {
       "sha256": "sha256:0d1e8f0ad9d05403fae8b2bfa1a08c1ac85ca37927e481d9e6ac5d6295460e5f",
       "mode": "100644"
     },
-    "commands/analyzing-dotnet-performance.md": {
-      "sha256": "sha256:145abab2bb1d0e91fd127800e89d0a594f7e1e9148fb0eb2ece972eeea818910",
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/SKILL.md": {
+      "sha256": "sha256:4c2cc2bed46c9be8cf00e3c169dbab2f0e0095765e66d50145d46222b4dafe05",
       "mode": "100644"
     },
-    "commands/code-testing-agent.md": {
-      "sha256": "sha256:b58d60f03ae7ba81a2fdf3579cb537d289a23d4e2f155187509d306ad28784e2",
-      "mode": "100644"
-    },
-    "commands/convert-to-cpm.md": {
-      "sha256": "sha256:33f66220495ffda89e73c71bf7526fd5bdb75d1dfe403342d240d643e2e72d7d",
-      "mode": "100644"
-    },
-    "commands/dotnet-aot-compat.md": {
-      "sha256": "sha256:5272f82e1691fca788d5e8ae0243d48f96b2d6cf5d4000cc20985e53ae04ef99",
-      "mode": "100644"
-    },
-    "commands/dotnet-devcert-trust.md": {
-      "sha256": "sha256:8aeb350efa8654953c835b33084c82a8baddca1a5699acce5ffc2a55adfad3d5",
-      "mode": "100644"
-    },
-    "commands/dotnet-slopwatch.md": {
-      "sha256": "sha256:3f1d4ad2b9cb8489d552485e0ff75045d7e04bd76b69381a36c58433fe63e0fb",
-      "mode": "100644"
-    },
-    "commands/dotnet-trace-collect.md": {
-      "sha256": "sha256:6466b1eb41b5336004193a5443994c6c1fdea4776f527a23b93865e1e5d243f2",
-      "mode": "100644"
-    },
-    "commands/dump-collect.md": {
-      "sha256": "sha256:94cff239ed86e2233c4f20a9f6c9a557834b6e4e2ebae55028bd4408c6767fee",
-      "mode": "100644"
-    },
-    "commands/generate-testability-wrappers.md": {
-      "sha256": "sha256:e087e78000a56eb4a65e78614061f0e1b65f1d8df7e3a798b43ff233a233d724",
-      "mode": "100644"
-    },
-    "commands/migrate-nullable-references.md": {
-      "sha256": "sha256:0c132fbca3041383546dc8507b8cb4e5980ea22f39763da0b7206c9af08db04b",
-      "mode": "100644"
-    },
-    "commands/migrate-static-to-wrapper.md": {
-      "sha256": "sha256:9fb2e9aeedb02cf4a5dfbddfa7558e0f61ad60fca75c8ef843205682a4673f99",
-      "mode": "100644"
-    },
-    "commands/thread-abort-migration.md": {
-      "sha256": "sha256:de70ef5a68a03fc055e05d5da47d52e44b723a1ecb5030831aeeff4c95aba336",
-      "mode": "100644"
-    },
-    "skills/analyzing-dotnet-performance/SKILL.md": {
-      "sha256": "sha256:c452f4dba460157df6efcaf072658cd146de4c8617fef0e96dfa9f5255bfd7b7",
-      "mode": "100644"
-    },
-    "skills/analyzing-dotnet-performance/references/async-patterns.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/async-patterns.md": {
       "sha256": "sha256:18e881ff7fbddbaf8e1da84cd46f182fa81c2c2c070915286e2aba671fcd3be7",
       "mode": "100644"
     },
-    "skills/analyzing-dotnet-performance/references/collections-and-linq.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/collections-and-linq.md": {
       "sha256": "sha256:6911129ce735bd7c232ab75fd93fe5c4c0e6ddef911c0062ae974b33c76eeddf",
       "mode": "100644"
     },
-    "skills/analyzing-dotnet-performance/references/critical-patterns.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/critical-patterns.md": {
       "sha256": "sha256:ac17e1301a2f997a1be552d8efc5210b9b3c1ca30c71a5d60ed6f7d03d2e8290",
       "mode": "100644"
     },
-    "skills/analyzing-dotnet-performance/references/io-and-serialization.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/io-and-serialization.md": {
       "sha256": "sha256:a9cb85c2bbfdce1059cc8e4c102d728728b79b8cb0c1d6091076bf79bca05c89",
       "mode": "100644"
     },
-    "skills/analyzing-dotnet-performance/references/memory-and-strings.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/memory-and-strings.md": {
       "sha256": "sha256:917ea09f0496a59a15fe5abe2cea7b6ac38cf8d85e19b730bb497d35eb387d59",
       "mode": "100644"
     },
-    "skills/analyzing-dotnet-performance/references/regex-patterns.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/regex-patterns.md": {
       "sha256": "sha256:cfbd9bb1a4596b8acc537ed4a58d939237441e8716d5c747175cd8bc3b840a62",
       "mode": "100644"
     },
-    "skills/analyzing-dotnet-performance/references/structural-patterns.md": {
+    "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/structural-patterns.md": {
       "sha256": "sha256:ee75e7da219e1d5fcc91c728babe9978793be97e37e01a78b51cc47316ecf170",
       "mode": "100644"
     },
-    "skills/api-design/SKILL.md": {
-      "sha256": "sha256:32228eb6fa0ef52ae51d3adf819f14265b945f14548a2b8877e12f5b9c5c1fde",
+    "skills/deniz-dotnet-general.api-design/SKILL.md": {
+      "sha256": "sha256:f3c8f5bf13dc4788d516180c00c590b366572572f71aed9231b982b12ba98378",
       "mode": "100644"
     },
-    "skills/binlog-failure-analysis/SKILL.md": {
-      "sha256": "sha256:6ddfcf850b8ede53582c78e59db4c6867cbc96eb1430204759ba5146765493b3",
+    "skills/deniz-dotnet-general.binlog-failure-analysis/SKILL.md": {
+      "sha256": "sha256:14a14df78bee35223ac27bc32841731c2ba195d0293f2fb2cc5abe9d43f2c431",
       "mode": "100644"
     },
-    "skills/binlog-generation/SKILL.md": {
-      "sha256": "sha256:f687a85e3bef92c3f5dcf45d113c929fef415677589d9643805b04404efb1dc3",
+    "skills/deniz-dotnet-general.binlog-generation/SKILL.md": {
+      "sha256": "sha256:f0fbd940233e89284cbf5eb215a73828405ac9756c548633bb46ff7d9dc8ae10",
       "mode": "100644"
     },
-    "skills/build-parallelism/SKILL.md": {
-      "sha256": "sha256:00a9cf4510c0ba94628ad92f78fe15e17777f30d859ec571b850f862d7e88199",
+    "skills/deniz-dotnet-general.build-parallelism/SKILL.md": {
+      "sha256": "sha256:adc302071391eb6a8a95cd6021d30dc53a7db630f876181b5041c13b7cf09247",
       "mode": "100644"
     },
-    "skills/build-perf-baseline/SKILL.md": {
-      "sha256": "sha256:5a72ea4e38f0d21bfd8836cd862f507bf284becef7cf3b7c23b8b205ce2e0c17",
+    "skills/deniz-dotnet-general.build-perf-baseline/SKILL.md": {
+      "sha256": "sha256:c228cff3c4e355e8071ddd48944d851806b8b0e7e225320efeeb4a24b59e2e8d",
       "mode": "100644"
     },
-    "skills/build-perf-diagnostics/SKILL.md": {
-      "sha256": "sha256:1d5bd1199a71d5af8c325e7e925151bdd2506c39379fe4c7faac094b28e11488",
+    "skills/deniz-dotnet-general.build-perf-diagnostics/SKILL.md": {
+      "sha256": "sha256:fbc9e0c692e37b5bf55e6518e5bf2abd6dbd91f93f54ba3b6bd0dafb9c8f8193",
       "mode": "100644"
     },
-    "skills/check-bin-obj-clash/SKILL.md": {
-      "sha256": "sha256:4577033c786b42d99c60481ba878fbee1391c11cc4debc8353a1dc7a2fd8b6fa",
+    "skills/deniz-dotnet-general.check-bin-obj-clash/SKILL.md": {
+      "sha256": "sha256:5e71d017a3499bb3ef84b62b3289753a8c3dddd90e23e2af89fc59052936aee4",
       "mode": "100644"
     },
-    "skills/code-testing-agent/BODY.md": {
-      "sha256": "sha256:8fc153587e83cd30871ac3157ebb55e61c01f03f974a96aceada17d0b344a07e",
+    "skills/deniz-dotnet-general.code-testing-agent/SKILL.md": {
+      "sha256": "sha256:f50266a217e5ecaf1f3ba381c643cf6db0681bfd58a82fcdd4c876fa57356153",
       "mode": "100644"
     },
-    "skills/code-testing-agent/unit-test-generation.prompt.md": {
+    "skills/deniz-dotnet-general.code-testing-agent/unit-test-generation.prompt.md": {
       "sha256": "sha256:1fb179e5380aa6a26069a67771bffd6068a8fed7d75a02b8b242472fe1134def",
       "mode": "100644"
     },
-    "skills/configuring-opentelemetry-dotnet/SKILL.md": {
-      "sha256": "sha256:d662505b69df5f335486209d5a6e6b5ffa0ffabe29ab30f3555698a547d9e621",
+    "skills/deniz-dotnet-general.configuring-opentelemetry-dotnet/SKILL.md": {
+      "sha256": "sha256:0c49a8741d3ab6fc9269a93b9a053bef5242ee341cc2b80049b71d8ec950c5c3",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/BODY.md": {
-      "sha256": "sha256:85d207c5c7d223e530741627da28377ffcd3d6f0b6bb8f211f27233491420f5a",
+    "skills/deniz-dotnet-general.convert-to-cpm/SKILL.md": {
+      "sha256": "sha256:294d357abccaa2183fbb4e3ca68590b590885ab3f5b4df2cf7dc05b51bf30745",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/references/audit-complexities.md": {
+    "skills/deniz-dotnet-general.convert-to-cpm/references/audit-complexities.md": {
       "sha256": "sha256:7b6cdb3479d575bcab29d01e08712dde928eca47c47d56870b6cefa653d1a837",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/references/baseline-comparison.md": {
+    "skills/deniz-dotnet-general.convert-to-cpm/references/baseline-comparison.md": {
       "sha256": "sha256:9defb15f72a7dcaca41856ff5181be98f07972d06dd8d9a4c2d51069337ad3fb",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/references/directory-packages-props.md": {
+    "skills/deniz-dotnet-general.convert-to-cpm/references/directory-packages-props.md": {
       "sha256": "sha256:eb6f9cfa3f79ee25df548b30729d2fcd3faa4fb905372cfcbd80ae7da70a61b2",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/references/msbuild-property-handling.md": {
+    "skills/deniz-dotnet-general.convert-to-cpm/references/msbuild-property-handling.md": {
       "sha256": "sha256:dd4cf1528b16589b73369afbec6f1dbf4fbff8d1cbb52c0108b3b3cfc4a326c8",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/references/report-template.md": {
+    "skills/deniz-dotnet-general.convert-to-cpm/references/report-template.md": {
       "sha256": "sha256:3dd5a11d62dfc39d270a9fb24a4c13790b05adf31aaf06717a3584a8523752e5",
       "mode": "100644"
     },
-    "skills/convert-to-cpm/references/validation-and-errors.md": {
+    "skills/deniz-dotnet-general.convert-to-cpm/references/validation-and-errors.md": {
       "sha256": "sha256:553c7674f04978a6e08f486156319c7c76a5a733d31c4a72b26be8946a4c5ccf",
       "mode": "100644"
     },
-    "skills/copy-to-output-directory/SKILL.md": {
-      "sha256": "sha256:d808d58a0f54bb6849af6bf1e01a4196acd4ec6fe0782c6ec25a60ef881a2101",
+    "skills/deniz-dotnet-general.copy-to-output-directory/SKILL.md": {
+      "sha256": "sha256:b4655801ddae5f61b29863ed56172fdc9a679096c8a030c9102509c6319ca01e",
       "mode": "100644"
     },
-    "skills/coverage-analysis/SKILL.md": {
-      "sha256": "sha256:66cb21004789e93b67a5ed97a445399ee051ce588a8318dd0fac9e6432c1f1d4",
+    "skills/deniz-dotnet-general.coverage-analysis/SKILL.md": {
+      "sha256": "sha256:73ee7871e866315838b64dc8c34b21876e2d976479111bff68eba9c3ed33cb4f",
       "mode": "100644"
     },
-    "skills/coverage-analysis/references/guidelines.md": {
+    "skills/deniz-dotnet-general.coverage-analysis/references/guidelines.md": {
       "sha256": "sha256:1482e2cd12389047c7f1aa6e1c4420967aafc430b25156d9246b1147fedfe071",
       "mode": "100644"
     },
-    "skills/coverage-analysis/references/output-format.md": {
+    "skills/deniz-dotnet-general.coverage-analysis/references/output-format.md": {
       "sha256": "sha256:6731a634c278988f9b9c0c83defb3dfe8574176b9ad34a74ce9207069db8ce75",
       "mode": "100644"
     },
-    "skills/coverage-analysis/references/report-generation.md": {
+    "skills/deniz-dotnet-general.coverage-analysis/references/report-generation.md": {
       "sha256": "sha256:f2583a688de77f950bc18446913531f603ca528839b35c3c394a77981eafd7bb",
       "mode": "100644"
     },
-    "skills/coverage-analysis/references/setup-discovery.md": {
+    "skills/deniz-dotnet-general.coverage-analysis/references/setup-discovery.md": {
       "sha256": "sha256:4a943c7bba9f392fc8241740d9770f6afa52bb1bba2627954dd85396551c83c9",
       "mode": "100644"
     },
-    "skills/coverage-analysis/references/test-execution.md": {
+    "skills/deniz-dotnet-general.coverage-analysis/references/test-execution.md": {
       "sha256": "sha256:0eb1b6ffc08dfac34a75c0effca13d9d749b56837deb883cdb5c0c799a8c9e9a",
       "mode": "100644"
     },
-    "skills/coverage-analysis/scripts/Compute-CrapScores.ps1": {
+    "skills/deniz-dotnet-general.coverage-analysis/scripts/Compute-CrapScores.ps1": {
       "sha256": "sha256:5c43c1dedbd464500eab3380cf142176bd288d8652ae0aeba45d7fedf830f526",
       "mode": "100644"
     },
-    "skills/coverage-analysis/scripts/Extract-MethodCoverage.ps1": {
+    "skills/deniz-dotnet-general.coverage-analysis/scripts/Extract-MethodCoverage.ps1": {
       "sha256": "sha256:37b3c6377dd5f654f2a0b88ceaeb4c77d8798134cbb0c9584532e7b2835f6f5b",
       "mode": "100644"
     },
-    "skills/csharp-concurrency-patterns/SKILL.md": {
-      "sha256": "sha256:34fe170f22ab7f6d2f23112cf0c75a0d7b99ace803f2e21149eb02a9209aecab",
+    "skills/deniz-dotnet-general.csharp-concurrency-patterns/SKILL.md": {
+      "sha256": "sha256:0be86ff3d03917cf52b4f7db284cb0ca5f02dd03e8240172a22d57d89fa45ce0",
       "mode": "100644"
     },
-    "skills/csharp-concurrency-patterns/advanced-concurrency.md": {
+    "skills/deniz-dotnet-general.csharp-concurrency-patterns/advanced-concurrency.md": {
       "sha256": "sha256:658e53ba44100a90ab92ebbe0e9027e0968f3d7e8ff096b083bdcaa87911c6a7",
       "mode": "100644"
     },
-    "skills/csharp-nullable-reference-types/SKILL.md": {
-      "sha256": "sha256:c7a4b68127b6b0a695412d68521c758aec1802153fb282f3eadd29b5dbb8214c",
+    "skills/deniz-dotnet-general.csharp-nullable-reference-types/SKILL.md": {
+      "sha256": "sha256:33443165b42c23559dc1f6acb2431f392147d512235bfd6946e568b4e377c462",
       "mode": "100644"
     },
-    "skills/csharp-nullable-reference-types/nullable-attributes-reference.md": {
+    "skills/deniz-dotnet-general.csharp-nullable-reference-types/nullable-attributes-reference.md": {
       "sha256": "sha256:7227f7c94e2fcc383475dca6979da078def5b51678a9ac33d65f607ed1418e2a",
       "mode": "100644"
     },
-    "skills/csharp-scripts/SKILL.md": {
-      "sha256": "sha256:c309bfef97a8a59eadd7b0a31544da7cca5cd602fbf1d10613d4807ba0124a9e",
+    "skills/deniz-dotnet-general.csharp-scripts/SKILL.md": {
+      "sha256": "sha256:04068fe776bb8247f862a5fc32b7c0da966107d83fd3311dbfcf4e8433437619",
       "mode": "100644"
     },
-    "skills/database-performance/SKILL.md": {
-      "sha256": "sha256:91494f44d59869172dd98f893e02112255caa126ded605de1f91f3dca2550025",
+    "skills/deniz-dotnet-general.database-performance/SKILL.md": {
+      "sha256": "sha256:139a5bcaec784e251e87ea613725ab774812ce307e6fb6fa6f0c4cb59b7a3f0d",
       "mode": "100644"
     },
-    "skills/dependency-injection-patterns/SKILL.md": {
-      "sha256": "sha256:2188054fd60385a24e14c0d6e90204d35f33abbe4f28a12bcd4b0300f4588938",
+    "skills/deniz-dotnet-general.dependency-injection-patterns/SKILL.md": {
+      "sha256": "sha256:528e17e5a4ffd7f3363ccb017ca5ab0585cc7ca9ea99a4f069083455e840df37",
       "mode": "100644"
     },
-    "skills/dependency-injection-patterns/advanced-patterns.md": {
+    "skills/deniz-dotnet-general.dependency-injection-patterns/advanced-patterns.md": {
       "sha256": "sha256:cee068bb058b6cd809b29d7356babd404b9bee78960be33b111cbe53a39f770b",
       "mode": "100644"
     },
-    "skills/detect-static-dependencies/SKILL.md": {
-      "sha256": "sha256:b36556b434d33d630ddcfca9bbc1161452514a964f0f16223ffd7e1259e83041",
+    "skills/deniz-dotnet-general.detect-static-dependencies/SKILL.md": {
+      "sha256": "sha256:ca30336ef3d71ac15afa977bfe6e4f7308e349910e8af59db6fd556405615adc",
       "mode": "100644"
     },
-    "skills/directory-build-organization/SKILL.md": {
-      "sha256": "sha256:086463f196da5b68cc5c1c1abed4bc1e748115fbc24e6220e6400d3d667e7309",
+    "skills/deniz-dotnet-general.directory-build-organization/SKILL.md": {
+      "sha256": "sha256:ee1dc5cef64b46d9e900e07ff05d6a166d3db9e09720ba869e4acfb47562ffa1",
       "mode": "100644"
     },
-    "skills/directory-build-organization/references/common-patterns.md": {
+    "skills/deniz-dotnet-general.directory-build-organization/references/common-patterns.md": {
       "sha256": "sha256:6e651cb87034e162e8a966228cbf837612e434c564fd7f9928d38ef44a12e7f3",
       "mode": "100644"
     },
-    "skills/directory-build-organization/references/multi-level-examples.md": {
+    "skills/deniz-dotnet-general.directory-build-organization/references/multi-level-examples.md": {
       "sha256": "sha256:6120bf2b385eb2cf348c66173bb27ade493d570db8c497881cc8319f448c820a",
       "mode": "100644"
     },
-    "skills/directory-build-organization/references/targetframework-props-pitfall.md": {
+    "skills/deniz-dotnet-general.directory-build-organization/references/targetframework-props-pitfall.md": {
       "sha256": "sha256:a5f0b84a3138e5fdf1fdf103268493006756a1c86312952926f3a10c3e5dd738",
       "mode": "100644"
     },
-    "skills/dotnet-aot-compat/BODY.md": {
-      "sha256": "sha256:06a8d3bd7a9078d214893ba6e160aeeda76a7602f29e957fb52ddcabff2e4850",
+    "skills/deniz-dotnet-general.dotnet-aot-compat/SKILL.md": {
+      "sha256": "sha256:2b76d65f440f9056c12d3767bac934e2c4b4f801cf78b7d8f5a4f8ba0da36787",
       "mode": "100644"
     },
-    "skills/dotnet-aot-compat/references/polyfills.md": {
+    "skills/deniz-dotnet-general.dotnet-aot-compat/references/polyfills.md": {
       "sha256": "sha256:d60c955f0fc16fc0d90ac34242e7e14ac2c773a5405c2f53850dbe795b8fa31f",
       "mode": "100644"
     },
-    "skills/dotnet-devcert-trust/SKILL.md": {
-      "sha256": "sha256:1cca082691d52848dfc7836733eff4649d52882960cccffe26c78f30a2eaead2",
+    "skills/deniz-dotnet-general.dotnet-devcert-trust/SKILL.md": {
+      "sha256": "sha256:426011920f39fe0ae5dc76bafc6b4a1c23aae6d2a0e4334567022342503fa088",
       "mode": "100644"
     },
-    "skills/dotnet-local-tools/SKILL.md": {
-      "sha256": "sha256:be840739bd858c8febf765e528ae7c5c055f19a7c6d6c2a3287772401be9ad4d",
+    "skills/deniz-dotnet-general.dotnet-local-tools/SKILL.md": {
+      "sha256": "sha256:88a394e1c39b24e8430d541418d946b5d7bbf8dbc68327094c77ba757b5abcf8",
       "mode": "100644"
     },
-    "skills/dotnet-pinvoke/SKILL.md": {
-      "sha256": "sha256:fe994298f869766d0d9ae02b65f47f42da784860657d7ccb7fbfcca8b04341e6",
+    "skills/deniz-dotnet-general.dotnet-pinvoke/SKILL.md": {
+      "sha256": "sha256:205e958fc0e758361eca34a9cbec551a0c3306d27e7c0f73a12a40fb6b074688",
       "mode": "100644"
     },
-    "skills/dotnet-pinvoke/references/diagnostics.md": {
+    "skills/deniz-dotnet-general.dotnet-pinvoke/references/diagnostics.md": {
       "sha256": "sha256:5c3596bc66f89a20dc1216d133fda6cdcf3af951e8ce41bc35c4fc90861528a7",
       "mode": "100644"
     },
-    "skills/dotnet-pinvoke/references/type-mapping.md": {
+    "skills/deniz-dotnet-general.dotnet-pinvoke/references/type-mapping.md": {
       "sha256": "sha256:b8987c9264dc44704dbfdcfe8071f702c7d976cf3aabb6b686850df600c36d7c",
       "mode": "100644"
     },
-    "skills/dotnet-project-structure/SKILL.md": {
-      "sha256": "sha256:5d71d5570cbdbe2146d99534cdaf98e9b16e89a72cbdc996600be18d635b0447",
+    "skills/deniz-dotnet-general.dotnet-project-structure/SKILL.md": {
+      "sha256": "sha256:8bda540aec93b87cda51e49020e5de2c1772d4dc42c020033b39293ff707357f",
       "mode": "100644"
     },
-    "skills/dotnet-slopwatch/SKILL.md": {
-      "sha256": "sha256:528c3b5c8d35ff51f6699c79d37d2e1371adf64966ee68cd1d3880bf01fe1047",
+    "skills/deniz-dotnet-general.dotnet-slopwatch/SKILL.md": {
+      "sha256": "sha256:62b2f88228c07b1629d560d7315aa87f7899d0c04326a6e0c493055822c12158",
       "mode": "100644"
     },
-    "skills/dotnet-trace-collect/BODY.md": {
-      "sha256": "sha256:ebcfcf18e4531e07e06720821f252817a8898aa7fe08730178e12066dba90cfb",
+    "skills/deniz-dotnet-general.dotnet-trace-collect/SKILL.md": {
+      "sha256": "sha256:8adc2db03fb5e0a820a8b60ecc71b930ad5cd8adbe85ccdd0dac7bf4137ef0ba",
       "mode": "100644"
     },
-    "skills/dotnet-trace-collect/references/dotnet-monitor.md": {
+    "skills/deniz-dotnet-general.dotnet-trace-collect/references/dotnet-monitor.md": {
       "sha256": "sha256:726655946aac6f654c58cb3a92e37b9e1b0b4b7c2d990cd9bdfd1e54912882dd",
       "mode": "100644"
     },
-    "skills/dotnet-trace-collect/references/dotnet-trace-collect-linux.md": {
+    "skills/deniz-dotnet-general.dotnet-trace-collect/references/dotnet-trace-collect-linux.md": {
       "sha256": "sha256:fcb65d649219958c61e6070f4278caaac07e75a418328976bed7bddc77ef24af",
       "mode": "100644"
     },
-    "skills/dotnet-trace-collect/references/dotnet-trace-collect.md": {
+    "skills/deniz-dotnet-general.dotnet-trace-collect/references/dotnet-trace-collect.md": {
       "sha256": "sha256:c47af38a982c1184cf43eafed795260c9872a85f09718d7b51095b7f22afbe6d",
       "mode": "100644"
     },
-    "skills/dotnet-trace-collect/references/perfcollect.md": {
+    "skills/deniz-dotnet-general.dotnet-trace-collect/references/perfcollect.md": {
       "sha256": "sha256:5b5de0486d84ff2e1b86be7de04631a2a3b32d55ca0bb2a3c2c636c0d167943a",
       "mode": "100644"
     },
-    "skills/dotnet-trace-collect/references/perfview.md": {
+    "skills/deniz-dotnet-general.dotnet-trace-collect/references/perfview.md": {
       "sha256": "sha256:687e63e324a2f9c2afd59147e0b0907adba40d954950b923f590eeebc2d38f4e",
       "mode": "100644"
     },
-    "skills/dotnet-webapi/SKILL.md": {
-      "sha256": "sha256:88c7bf50e08d1d0b92a3e965fd9923ff9f0373b09f66d6ce7952afea107fc2c2",
+    "skills/deniz-dotnet-general.dotnet-webapi/SKILL.md": {
+      "sha256": "sha256:61f6c936b28b0fa5dacb3cf0365c25c3e8fb9db2b440c21c28cbb71d8b28e549",
       "mode": "100644"
     },
-    "skills/dump-collect/BODY.md": {
-      "sha256": "sha256:fe2e827049ba7be528050aab154ca4745ae523d2ea4735098d74dadf488b3fc6",
+    "skills/deniz-dotnet-general.dump-collect/SKILL.md": {
+      "sha256": "sha256:411fdfefeab4b6244979f182af56bf83770cd6872c2ec54a0e0326a611711c7b",
       "mode": "100644"
     },
-    "skills/dump-collect/references/container-dumps.md": {
+    "skills/deniz-dotnet-general.dump-collect/references/container-dumps.md": {
       "sha256": "sha256:e8f1bad53e928efa41caa6855b7022062e30f11b96fdf9ded37526e03b86f5e3",
       "mode": "100644"
     },
-    "skills/dump-collect/references/coreclr-dumps.md": {
+    "skills/deniz-dotnet-general.dump-collect/references/coreclr-dumps.md": {
       "sha256": "sha256:180c6b4ab82f2d27b85b751e309bf0aa445fde68ddc0c6a507b51999f02cf195",
       "mode": "100644"
     },
-    "skills/dump-collect/references/nativeaot-dumps.md": {
+    "skills/deniz-dotnet-general.dump-collect/references/nativeaot-dumps.md": {
       "sha256": "sha256:63bda7821ce96ad27e343b93fdf46eb31d2209ba66c387f669062909e3d532a0",
       "mode": "100644"
     },
-    "skills/efcore-patterns/SKILL.md": {
-      "sha256": "sha256:f6e233eeedded8232095e2a7daa8ca60e56edf3b3dc1584e0d30242f89d400ce",
+    "skills/deniz-dotnet-general.efcore-patterns/SKILL.md": {
+      "sha256": "sha256:71df924db1e51fed9e279d0274165f826bc00062cc00a4492ed3e3318252b5e8",
       "mode": "100644"
     },
-    "skills/eval-performance/SKILL.md": {
-      "sha256": "sha256:08c4dfa1aaa2da3faf77433319c6003475ae8c07c651537fb2ada557e5c2c8bb",
+    "skills/deniz-dotnet-general.eval-performance/SKILL.md": {
+      "sha256": "sha256:e43423265ac27db31d0441ea002e4d4b62dfa94883be92960c5ea76ac4b4d886",
       "mode": "100644"
     },
-    "skills/extension-points/SKILL.md": {
-      "sha256": "sha256:eb7148387572c4ace3b9dfdd4a3ba3f583f42beecdccf958b1b002edfc23410b",
+    "skills/deniz-dotnet-general.extension-points/SKILL.md": {
+      "sha256": "sha256:b7c92b4029c1e09c2a81b059b14eee31c01e484b36d9ca621c128a08e25661f9",
       "mode": "100644"
     },
-    "skills/filter-syntax/SKILL.md": {
-      "sha256": "sha256:9529b227962ebedb0ee42a30282a2f87cb8efc877963b3c7062aea5ef19bc255",
+    "skills/deniz-dotnet-general.filter-syntax/SKILL.md": {
+      "sha256": "sha256:b7ebe94c6b0226d439bf5c115b93b527e0d35f6625cf20b835574ef0e3b9634b",
       "mode": "100644"
     },
-    "skills/ilspy-decompile/SKILL.md": {
-      "sha256": "sha256:492423b1bf86abb5f6c456bc454365ea7a7f15626faea7fd98561a939552e9cf",
+    "skills/deniz-dotnet-general.generate-testability-wrappers/SKILL.md": {
+      "sha256": "sha256:42afe2e6612d14e6c49122172acdd040feb1a303854e796076bac235f193396f",
       "mode": "100644"
     },
-    "skills/including-generated-files/SKILL.md": {
-      "sha256": "sha256:b4be09ee9ad1296821b09b40ba84cfb704b20eebf48210831891e6ce29a50803",
+    "skills/deniz-dotnet-general.ilspy-decompile/SKILL.md": {
+      "sha256": "sha256:102eb1f8814c3a227f74a442c394f9c6f9f00b740b2a8daebb648e60a60861c7",
       "mode": "100644"
     },
-    "skills/incremental-build/SKILL.md": {
-      "sha256": "sha256:63a62d368ef96094ea87b6215dcb1ad3a8f505cd3a763a4440be991ee548a360",
+    "skills/deniz-dotnet-general.including-generated-files/SKILL.md": {
+      "sha256": "sha256:39d910dbc80b7157b99ecda52334e1a3bfa3cf7f5573e6d270f9e296b5a2b954",
       "mode": "100644"
     },
-    "skills/item-management/SKILL.md": {
-      "sha256": "sha256:65c07dbbcd4163356a5858d5c490539d6f142e3794e3a9ac00ba1ff31801b2b9",
+    "skills/deniz-dotnet-general.incremental-build/SKILL.md": {
+      "sha256": "sha256:a6d78e8d50bdecf7ccb51b40e0db8dd1ad1805d4e19b218e2edc84184c9d9df8",
       "mode": "100644"
     },
-    "skills/microbenchmarking/SKILL.md": {
-      "sha256": "sha256:045ba699c3c14f617f5b6bd9eb5d4ba1768aa8b2e53fa9d23e362e444d051b8d",
+    "skills/deniz-dotnet-general.item-management/SKILL.md": {
+      "sha256": "sha256:7a3a72bf1f26fe5fac56f0aef332fa6a2f7c05b84c9101ff12942ba0e35d34cc",
       "mode": "100644"
     },
-    "skills/microbenchmarking/references/bdn-internals-and-tuning.md": {
+    "skills/deniz-dotnet-general.microbenchmarking/SKILL.md": {
+      "sha256": "sha256:5d7f67d742c750dd48832329ed14bb86aa5c8def02d005244402a0f4e7dc73cd",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.microbenchmarking/references/bdn-internals-and-tuning.md": {
       "sha256": "sha256:213842a5ced85bbdd5db4d7f6de4c3bdd231367b292f7c994a504960e32c83f0",
       "mode": "100644"
     },
-    "skills/microbenchmarking/references/comparison-strategies.md": {
+    "skills/deniz-dotnet-general.microbenchmarking/references/comparison-strategies.md": {
       "sha256": "sha256:cdbc8e7d4b9b2c9eeb1dbc1a7ceaee5b3cb453d041211bf30fc93b150c4fecf7",
       "mode": "100644"
     },
-    "skills/microbenchmarking/references/diagnosers-and-exporters.md": {
+    "skills/deniz-dotnet-general.microbenchmarking/references/diagnosers-and-exporters.md": {
       "sha256": "sha256:9410eb556b83af2a63bdb593a791077a4a070210df569887f6265d9ecd825b14",
       "mode": "100644"
     },
-    "skills/microbenchmarking/references/project-setup-and-running.md": {
+    "skills/deniz-dotnet-general.microbenchmarking/references/project-setup-and-running.md": {
       "sha256": "sha256:dd6866d218be83e84e772b9bda17d1d8261da4a8318d6b098faffe71b95bfcdf",
       "mode": "100644"
     },
-    "skills/microbenchmarking/references/writing-benchmarks.md": {
+    "skills/deniz-dotnet-general.microbenchmarking/references/writing-benchmarks.md": {
       "sha256": "sha256:00279137333ae46cec081a3b85d53858cec9a7565beddf902e15a6f7abe81f09",
       "mode": "100644"
     },
-    "skills/microsoft-extensions-configuration/SKILL.md": {
-      "sha256": "sha256:fdf9b987e016947208ec647a1bbe8923c0e61bdaa6f5a5f4e8dbf469ec068daf",
+    "skills/deniz-dotnet-general.microsoft-extensions-configuration/SKILL.md": {
+      "sha256": "sha256:c6e462eb26207b45bff19101a22bef3a4506a9ff45bb0275444e532622aa0048",
       "mode": "100644"
     },
-    "skills/microsoft-extensions-configuration/advanced-patterns.md": {
+    "skills/deniz-dotnet-general.microsoft-extensions-configuration/advanced-patterns.md": {
       "sha256": "sha256:eda59eb9c7e7226df77b5fec4ef268e33698bdb27cc3c3c591f4b8795b048d26",
       "mode": "100644"
     },
-    "skills/migrate-nullable-references/BODY.md": {
-      "sha256": "sha256:c7657b3e8ae3fc3944e2d61fe05cf0ec0d9ed81b7c8fd30c1aee095ef265cae1",
+    "skills/deniz-dotnet-general.migrate-nullable-references/SKILL.md": {
+      "sha256": "sha256:b4a288138a8bf9bf45513bc97af1a81f8e2278a8c9baf0eb7fa790a1411e8c7f",
       "mode": "100644"
     },
-    "skills/migrate-nullable-references/references/aspnet-core.md": {
+    "skills/deniz-dotnet-general.migrate-nullable-references/references/aspnet-core.md": {
       "sha256": "sha256:5db76c4148b682aac61f7e6349276a833b042a5284c7f625fef65dbbdd9a65d7",
       "mode": "100644"
     },
-    "skills/migrate-nullable-references/references/breaking-changes.md": {
+    "skills/deniz-dotnet-general.migrate-nullable-references/references/breaking-changes.md": {
       "sha256": "sha256:f46fa6d6b2eb3c3cc6b4f1a826c1e3668502fd73d7215e03b4ef171e45bcf692",
       "mode": "100644"
     },
-    "skills/migrate-nullable-references/references/ef-core.md": {
+    "skills/deniz-dotnet-general.migrate-nullable-references/references/ef-core.md": {
       "sha256": "sha256:98ef960c73c820925d9d6fb6801e65b15a12b4b9f3dcb5ececc5ccc6778b1ff1",
       "mode": "100644"
     },
-    "skills/migrate-nullable-references/references/nullable-attributes.md": {
+    "skills/deniz-dotnet-general.migrate-nullable-references/references/nullable-attributes.md": {
       "sha256": "sha256:81a71f6bc0997ba44956fce3de28b61ebf6ad6fbc32cf5cca2efe2ceabc9cb7b",
       "mode": "100644"
     },
-    "skills/migrate-nullable-references/scripts/Get-NullableReadiness.ps1": {
+    "skills/deniz-dotnet-general.migrate-nullable-references/scripts/Get-NullableReadiness.ps1": {
       "sha256": "sha256:61a5540f17c00b3da4d97dbbe82df85c2ccc1c580795586afe6af002d21493e6",
       "mode": "100644"
     },
-    "skills/minimal-api-file-upload/SKILL.md": {
-      "sha256": "sha256:18232bea3b8bdfdc6b9cc3a2081e193b923150431b90d7c033f57943a96af21e",
+    "skills/deniz-dotnet-general.migrate-static-to-wrapper/SKILL.md": {
+      "sha256": "sha256:a6b5ebb73f68affe9425e761545061e515bed415b2e97910bf04be1cd233b11f",
       "mode": "100644"
     },
-    "skills/modern-csharp-coding-standards/SKILL.md": {
-      "sha256": "sha256:6e1f441b21044ddd7b70fc2638cba164f8fff8dc6be5f5d8c0e45931cb99167a",
+    "skills/deniz-dotnet-general.minimal-api-file-upload/SKILL.md": {
+      "sha256": "sha256:d59af47a1dd83db6baa4b2dd6e8f8bcff9a24956852122d7e495111eb8b5571d",
       "mode": "100644"
     },
-    "skills/modern-csharp-coding-standards/anti-patterns-and-reflection.md": {
+    "skills/deniz-dotnet-general.modern-csharp-coding-standards/SKILL.md": {
+      "sha256": "sha256:135863332e5621d69b5268973e39e1984016a793e8ad654ebbe0ade7a701151f",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.modern-csharp-coding-standards/anti-patterns-and-reflection.md": {
       "sha256": "sha256:6dfc0904421bdded9cc83fe155bcddf2bc1babf72889fd9b8ec697f6c2a64429",
       "mode": "100644"
     },
-    "skills/modern-csharp-coding-standards/composition-and-error-handling.md": {
+    "skills/deniz-dotnet-general.modern-csharp-coding-standards/composition-and-error-handling.md": {
       "sha256": "sha256:4b0033c32b581a7ed98523a4137429b5ef653960e3bfc4be1a12575b58ace652",
       "mode": "100644"
     },
-    "skills/modern-csharp-coding-standards/performance-and-api-design.md": {
+    "skills/deniz-dotnet-general.modern-csharp-coding-standards/performance-and-api-design.md": {
       "sha256": "sha256:579c5c798eb68e70f80a863bdf70b0db6f427f981789de621335e7fff17c1557",
       "mode": "100644"
     },
-    "skills/modern-csharp-coding-standards/value-objects-and-patterns.md": {
+    "skills/deniz-dotnet-general.modern-csharp-coding-standards/value-objects-and-patterns.md": {
       "sha256": "sha256:8c27d3f8b6a4c07635016bd6726caa1f929b62a8c0975884ce475270ebee0e76",
       "mode": "100644"
     },
-    "skills/msbuild-antipatterns/SKILL.md": {
-      "sha256": "sha256:7c10b35174d5a782209143698295eada79d42d01e29685a866a7e7d696bdf6b0",
+    "skills/deniz-dotnet-general.msbuild-antipatterns/SKILL.md": {
+      "sha256": "sha256:7f205265b5df1ce18fc574ce2929840a00f9ff0da7ef4aceff4ac8548fc11f08",
       "mode": "100644"
     },
-    "skills/msbuild-antipatterns/references/additional-antipatterns.md": {
+    "skills/deniz-dotnet-general.msbuild-antipatterns/references/additional-antipatterns.md": {
       "sha256": "sha256:4a62a12ba5173eb5c3d8b66e2ec4a9f0248e815aacd065664175b6db72adb6d9",
       "mode": "100644"
     },
-    "skills/msbuild-antipatterns/references/incremental-build-inputs-outputs.md": {
+    "skills/deniz-dotnet-general.msbuild-antipatterns/references/incremental-build-inputs-outputs.md": {
       "sha256": "sha256:006a123ea16f95aeb216ae9e2a59be48fc82f15e66ecccdbb92fdcf03b05fdc4",
       "mode": "100644"
     },
-    "skills/msbuild-antipatterns/references/private-assets.md": {
+    "skills/deniz-dotnet-general.msbuild-antipatterns/references/private-assets.md": {
       "sha256": "sha256:1e678c0ef9667d9df92ff71ca12737ac3a4ed26050d73e5197a2478356e0b4f5",
       "mode": "100644"
     },
-    "skills/msbuild-modernization/SKILL.md": {
-      "sha256": "sha256:b3969c16496a6a2ec4e5fadab1cd654c185fb9826efdece735244149380a6185",
+    "skills/deniz-dotnet-general.msbuild-modernization/SKILL.md": {
+      "sha256": "sha256:5cbfcaa89e9dd639c30ed1b9c0508e68220314af64ecca89f9a4b2c1c0e381c8",
       "mode": "100644"
     },
-    "skills/msbuild-server/SKILL.md": {
-      "sha256": "sha256:4b316d058591ee30acf6c39c74ca51d872f1a00fbf7c5136a42eda5cba88fbf3",
+    "skills/deniz-dotnet-general.msbuild-server/SKILL.md": {
+      "sha256": "sha256:f529bf85bf3f4bafe00df710e4a19e3c89f6c28cfff4b7acba782fa7c01482f1",
       "mode": "100644"
     },
-    "skills/mtp-hot-reload/SKILL.md": {
-      "sha256": "sha256:936ef6e0e64c1e744f4d9b4de6749a2b29c01b833315c978c930522e3ba65ffc",
+    "skills/deniz-dotnet-general.mtp-hot-reload/SKILL.md": {
+      "sha256": "sha256:397d1785906088ae97b9709ae615ee9770c669ca8e237dd998fab2474410b9af",
       "mode": "100644"
     },
-    "skills/opentelemetry-net-instrumentation/SKILL.md": {
-      "sha256": "sha256:39667f0d80eb5b8f5e49d399ee29f987c2b747d04ec2f3e11ee1b6ae9b0b29a6",
+    "skills/deniz-dotnet-general.opentelemetry-net-instrumentation/SKILL.md": {
+      "sha256": "sha256:1e383660e0e31f1b41c19924bfaf60af5ebf673fa11031939f163b032f1764eb",
       "mode": "100644"
     },
-    "skills/opentelemetry-net-instrumentation/metrics-and-instruments-reference.md": {
+    "skills/deniz-dotnet-general.opentelemetry-net-instrumentation/metrics-and-instruments-reference.md": {
       "sha256": "sha256:adeac10db48213a291a843f66e613ded3d98c6d88a490dbc324ec40ebf14c06c",
       "mode": "100644"
     },
-    "skills/opentelemetry-net-instrumentation/sdk-resources-and-logs-reference.md": {
+    "skills/deniz-dotnet-general.opentelemetry-net-instrumentation/sdk-resources-and-logs-reference.md": {
       "sha256": "sha256:81859cc6b1c6468c5754ef486a2c0bc8e0683db30989d0992e5bd2f474a40efa",
       "mode": "100644"
     },
-    "skills/opentelemetry-net-instrumentation/traces-and-propagation-reference.md": {
+    "skills/deniz-dotnet-general.opentelemetry-net-instrumentation/traces-and-propagation-reference.md": {
       "sha256": "sha256:aef2b17ac091dfdee54d04ffcdc425cd2d6d299b653e3979ea97df0bb2d4426d",
       "mode": "100644"
     },
-    "skills/package-management/SKILL.md": {
-      "sha256": "sha256:f2a893349786c9c8f191729b3a85786066010469ddd6e6a2f73ed3cf6ba4b0b1",
+    "skills/deniz-dotnet-general.package-management/SKILL.md": {
+      "sha256": "sha256:2e73eb47906492954a78dcc5bdbe97a2948e00bdfe1e110c53ffbd00eec37fa2",
       "mode": "100644"
     },
-    "skills/platform-detection/SKILL.md": {
-      "sha256": "sha256:34b36e323974b04cad67ff2d9de58cdb1c6cc6df01ed6e2364046aac23cc0173",
+    "skills/deniz-dotnet-general.platform-detection/SKILL.md": {
+      "sha256": "sha256:172041a3c5cf966cceeac4233a743a64e1633c7daf8e33e8de01b6d6e0b5e4fa",
       "mode": "100644"
     },
-    "skills/platform-detection/references/command-mode.md": {
+    "skills/deniz-dotnet-general.platform-detection/references/command-mode.md": {
       "sha256": "sha256:08e276dcafe6bd5bfbaab435065ca24a5800a4eae3ffd7fc15daa1e81354bbc4",
       "mode": "100644"
     },
-    "skills/playwright-blazor-testing/SKILL.md": {
-      "sha256": "sha256:c635b6cc8cf964ffda91f042bc9a6a7708e37be17d617578625ed1562659bb87",
+    "skills/deniz-dotnet-general.playwright-blazor-testing/SKILL.md": {
+      "sha256": "sha256:da12991d97111f900a0fbae5ac07d77d1ff69c8d9b0e8474a9f6ea7951634ba2",
       "mode": "100644"
     },
-    "skills/property-patterns/SKILL.md": {
-      "sha256": "sha256:50e5c010e8901e57aecbb0a7edc0e89aac1bf799ce3d5b860202216e934a4d6b",
+    "skills/deniz-dotnet-general.property-patterns/SKILL.md": {
+      "sha256": "sha256:9ad71587d94b3034c14b5e83f7c207ef6a36d54e7d9602e696533b69da273981",
       "mode": "100644"
     },
-    "skills/r3-reactive-extensions/SKILL.md": {
-      "sha256": "sha256:c5c4d8875b14b73e8cb0202f057ff6fe646c1a108b48b324a7b6358bfce157d6",
+    "skills/deniz-dotnet-general.r3-reactive-extensions/SKILL.md": {
+      "sha256": "sha256:6e19c2822521234e688643fed820f65a3d735f3ce0a7ed635e3065c4d2cdec3c",
       "mode": "100644"
     },
-    "skills/r3-reactive-extensions/async-and-integration-patterns.md": {
+    "skills/deniz-dotnet-general.r3-reactive-extensions/async-and-integration-patterns.md": {
       "sha256": "sha256:f2dfcc6864b305b29bc4b4b67fbd5b94f98489ee985e347885bc53ad0341144f",
       "mode": "100644"
     },
-    "skills/r3-reactive-extensions/rx-net-differences.md": {
+    "skills/deniz-dotnet-general.r3-reactive-extensions/rx-net-differences.md": {
       "sha256": "sha256:971746a2eb7a3974f0acb44b56e396ea3271263e5f6b6aabf71816fd7bdfbcc2",
       "mode": "100644"
     },
-    "skills/r3-reactive-extensions/scheduling-and-concurrency.md": {
+    "skills/deniz-dotnet-general.r3-reactive-extensions/scheduling-and-concurrency.md": {
       "sha256": "sha256:f55818d4d053b6ab79c658dc81f6265d35e19cdac3c160a154698a508ff7b0ac",
       "mode": "100644"
     },
-    "skills/run-tests/SKILL.md": {
-      "sha256": "sha256:ef8a8372939671eda92f40aa83317af4aed0b197cab28cac4ee87ce620a66c05",
+    "skills/deniz-dotnet-general.run-tests/SKILL.md": {
+      "sha256": "sha256:371dade02103c39e4e2d0ead9a91ad10b145fa2750c99dc817c3eff88c8ae358",
       "mode": "100644"
     },
-    "skills/serialization/SKILL.md": {
-      "sha256": "sha256:2209c43f7db531997cbea2efc1039ee5ef539bf0dd832fd5f260d09a69e7f0da",
+    "skills/deniz-dotnet-general.serialization/SKILL.md": {
+      "sha256": "sha256:454d835af0f2e508008a4b681367d6fbf7a55ba90e84b252ad41b74eb90482ef",
       "mode": "100644"
     },
-    "skills/snapshot-testing/SKILL.md": {
-      "sha256": "sha256:b764fd3656a0108d637111271ef8ba28583985e7b62966f28d133be629cac78d",
+    "skills/deniz-dotnet-general.snapshot-testing/SKILL.md": {
+      "sha256": "sha256:febc2f3afd588dc95c8f7a90e57eccd370b40836de7a7bcc54327cc2cd7e4de2",
       "mode": "100644"
     },
-    "skills/target-authoring/SKILL.md": {
-      "sha256": "sha256:019edc501ba7fea9dad01ce73c795f136fea973d514c3045655cc5c805b45e5a",
+    "skills/deniz-dotnet-general.target-authoring/SKILL.md": {
+      "sha256": "sha256:8788121811275c7244e70bc1e5148cfed3db23b04da3443e59a3ed42dec5e490",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/SKILL.md": {
-      "sha256": "sha256:96527076eab5df007b0ff209054ae1274f2bd47c704e9492e503b3b2cc7e35ee",
+    "skills/deniz-dotnet-general.test-analysis-extensions/SKILL.md": {
+      "sha256": "sha256:99d0ed71046217d24104c0c34355a7a08cfc5518883bf15f29d3c0544ecc55d5",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/cpp.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/cpp.md": {
       "sha256": "sha256:26ec8a3dad12036c526da70f5bd8a2887f228afd2e199b0a10eb83cc57f21332",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/dotnet.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/dotnet.md": {
       "sha256": "sha256:5fa814b5ad9645df4740a09fa29b41f118d5b9dd6eb62dc5783e14c5d07e1c60",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/go.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/go.md": {
       "sha256": "sha256:2f76311d7740b38ae7ab42e63ee9c4ad0235438d31892faea0bdcba21b960a51",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/java.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/java.md": {
       "sha256": "sha256:466e973cd61f80e538e1789c20cf6fda4210eb541af45c454dae462c43cf8f0e",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/kotlin.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/kotlin.md": {
       "sha256": "sha256:943f54329dd4284571fb673a8747a8862a5e943819a97c249c10a734ec52ebc2",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/powershell.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/powershell.md": {
       "sha256": "sha256:a0b3608aead3cc5ff7b3b0122ce1dfd8bba674b565b7c3a0c6bb78c9fee1e6b1",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/python.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/python.md": {
       "sha256": "sha256:0df25cbaabe3379ea7abf22b630114f3851dc5a8c2e5b21950a4e9cee734a40a",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/ruby.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/ruby.md": {
       "sha256": "sha256:1acb07e2e2de94578de6aa0e22f93f65f20a44d83d202a5d5cf7ca03888c29bb",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/rust.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/rust.md": {
       "sha256": "sha256:dc5c9e304502903dd7b9e313581bf5545852adb9ba5b253217650131d88645c6",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/swift.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/swift.md": {
       "sha256": "sha256:4344d2c6469dcec8aa26eaf72a9936605dd97162268a0dffeec6fd077fb35a8a",
       "mode": "100644"
     },
-    "skills/test-analysis-extensions/extensions/typescript.md": {
+    "skills/deniz-dotnet-general.test-analysis-extensions/extensions/typescript.md": {
       "sha256": "sha256:4bbaa6555050fc94197dbbd3ce30e69935d6a1db821dce664d1df9dc379f2bc9",
       "mode": "100644"
     },
-    "skills/test-anti-patterns/SKILL.md": {
-      "sha256": "sha256:2b30dcfbbcbd3be6dd6dd3d16455fbc959713be0df8dea5ba54936e56f5c5d13",
+    "skills/deniz-dotnet-general.test-anti-patterns/SKILL.md": {
+      "sha256": "sha256:3c5e572a3528725540b9ac104ad6ab897bd30a3a70c95b3a655862202c667a40",
       "mode": "100644"
     },
-    "skills/test-gap-analysis/SKILL.md": {
-      "sha256": "sha256:2fd40a17d70fa0b43281e582bb4f72ded9573d166818d8f2a783e6220a0155ed",
+    "skills/deniz-dotnet-general.test-gap-analysis/SKILL.md": {
+      "sha256": "sha256:ee885dfae75f053703f449a9c4ea4e2879840e1ad53dc6df3b7160dad2acaba8",
       "mode": "100644"
     },
-    "skills/test-gap-analysis/references/mutation-catalog.md": {
+    "skills/deniz-dotnet-general.test-gap-analysis/references/mutation-catalog.md": {
       "sha256": "sha256:a7b31dcd2ae1641f29f33fab720721b27f416f2379ae531c33d409740003482d",
       "mode": "100644"
     },
-    "skills/testcontainers-integration-tests/SKILL.md": {
-      "sha256": "sha256:2c20411c1d65227e494a3ecad24bc6d937eb7d2df58064a9a9a057b21bb3f592",
+    "skills/deniz-dotnet-general.testcontainers-integration-tests/SKILL.md": {
+      "sha256": "sha256:ff22cea61e9a293053312f46a204441b595fb5e5d6e7951ee9476587afccb5b4",
       "mode": "100644"
     },
-    "skills/testcontainers-integration-tests/database-patterns.md": {
+    "skills/deniz-dotnet-general.testcontainers-integration-tests/database-patterns.md": {
       "sha256": "sha256:7e1ecc683f21d7832a644da28d52df6f08a573e99c081fe9066fc09ac7c38a08",
       "mode": "100644"
     },
-    "skills/testcontainers-integration-tests/infrastructure-patterns.md": {
+    "skills/deniz-dotnet-general.testcontainers-integration-tests/infrastructure-patterns.md": {
       "sha256": "sha256:846865de531a6c518105c673a62eacfe352a37711c2f6cd95081cd4b239b3814",
       "mode": "100644"
     },
-    "skills/vectorization/SKILL.md": {
-      "sha256": "sha256:5937ee231b6dc6cbdf938a23078929dbb47f0ce5188867f38419e67e6943df7c",
+    "skills/deniz-dotnet-general.thread-abort-migration/SKILL.md": {
+      "sha256": "sha256:b250e259ee17bfb9d0a74978933d09fe3ce0d02e445614da6278fa19508442ff",
       "mode": "100644"
     },
-    "skills/writing-tunit-tests/SKILL.md": {
-      "sha256": "sha256:72b223ea2468f4d5ed5468a48eef7b6a0379220c98c2a1419b5fac50c38ab07b",
+    "skills/deniz-dotnet-general.vectorization/SKILL.md": {
+      "sha256": "sha256:b14fcc0fe76f23662479af9d95970bce4e059409bc308e00abc49e27fab7c7a4",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.writing-tunit-tests/SKILL.md": {
+      "sha256": "sha256:07f951f5fd090eee543edfd1173f359e21283f731d03c9b9f2898e251b60e1bf",
       "mode": "100644"
     },
     "third_party/dotnet-agent-skills/LICENSE": {

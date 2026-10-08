@@ -21,11 +21,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   the invocation mapping and `<plugin>.<name>` IDs in
   [transformation and emission](architecture/transformation-and-emission.md#opencode), and their rationale in
   [ADR-0002](adr/0002-multi-harness-output.md) and
-  [ADR-0005](adr/0005-invocation-intent-in-the-manifest.md). The checkout does not implement them
-  yet: emission, rewriting, validation, the ledger, the installer Destination, and the OpenCode
-  experiment scripts still produce or check OpenCode 1 shapes, and the committed `opencode/` tree is
-  OpenCode 1 output (38 commands, including global-root stubs and both-duplicates, and parked
-  `BODY.md` folders under bare names). The responsible files are listed under
+  [ADR-0005](adr/0005-invocation-intent-in-the-manifest.md). The checkout implements them in
+  emission, reference rewriting, validation, the ledger, and the installer Destination, and the
+  committed `opencode/` tree is OpenCode 2 output: one skill folder per skill item under its
+  `<plugin>.<name>` ID, `manual` skills hidden with `opencode/autoinvoke: false`, namespaced
+  agents, and no stubs, `both` duplicate commands, inline manual commands, or parked `BODY.md`
+  files. The OpenCode experiment
+  scripts still use OpenCode 1 shapes; the responsible files are listed under
   [Known Gaps](#known-gaps).
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.9.1 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
@@ -69,21 +71,19 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 1. **OpenCode 2 migration.** The canon, dated research, spec, and plan come first; the steps below
    run in this order, and each starts on the curator's word.
-   1. **Compiler, validator, and installer.** Close the OpenCode 2 implementation gap below:
-      namespaced emission, the manual metadata key, removal of parks, stubs, and duplicate commands,
-      native-only agent keys, the OpenCode reference and sibling-link rewrite, the neutral
-      portable-name manifest rule, the new validation rules (manual-ID leak, skill-tool handle and
-      rendered-ID resolution, phantom-skill guard, agent frontmatter), retirement of the park and
-      stub checks, ledger probes, and the `OPENCODE_CONFIG_DIR` Destination.
-   2. **Curation pass under OpenCode 2.** Review the 27 `manual` and 11 `both` items: decide which
+   1. **Curation pass under OpenCode 2.** Review the 27 `manual` and 11 `both` items: decide which
       argument-shaped items, such as `handoff` and `teach`, become `as: command`; promote the 12
       load-bearing bare skill-tool handles in Process bodies (for example `Skill tool with
       "grilling"` in `grill-me`, `grill-with-docs`, `wayfinder`, and
       `improve-codebase-architecture`; targets `grilling`, `domain-modeling`, `research`,
-      `codebase-design`, and `prototype`) to namespaced facts with matching `depends_on`; and refresh
-      reasons written against OpenCode 1 plus comments that describe only two harnesses. Every
-      curation decision is the curator's.
-   3. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
+      `codebase-design`, and `prototype`) to namespaced facts with matching `depends_on`; resolve
+      the two manual-ID leaks (`csharp-nullable-reference-types` names
+      `migrate-nullable-references`, and `requesting-code-review` names
+      `setup-matt-pocock-skills`); and refresh reasons written against OpenCode 1 plus comments that
+      describe only two harnesses. Every curation decision is the curator's. Until this pass lands,
+      `npm run validate` reports those handles and leaks as errors, so the OpenCode 2 branch merges
+      to `master` only after it.
+   2. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
       OpenCode 1 CLI matrices). Port only a discovery check against an isolated `opencode serve`
       HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are marked
       experimental) and one LLM record proving that a manual skill is unadvertised, `@`-attachable,
@@ -91,7 +91,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       `OPENCODE_CONFIG_DIR` replaces the global root, a managed background service needs
       `--standalone` or an isolated `serve`, `OPENCODE_DISABLE_PROJECT_CONFIG` skips the ancestor
       walk, and `~/.claude/skills` and `~/.agents/skills` are always-on compatibility roots.
-   4. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
+   3. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
       Windows profile as
       [distribution and installation](architecture/distribution-and-installation.md#target-opencode-runtime)
       requires. Migrate the two real profiles (a Windows workstation and a Linux host, both on
@@ -195,41 +195,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
-- **OpenCode 2 emission is not implemented:** `emitOpenCodeSkill` and `emitOpenCode` in
-  `tools/build.ts` still emit bare `skills/<name>/` and `commands/<name>.md` paths, park manual
-  bodies as `BODY.md` behind global-root stub commands, add duplicate commands for `both` and inline
-  commands for manual items, write no namespaced `name` and no `opencode/autoinvoke` metadata, do not
-  map an upstream `disable-model-invocation` to that key, and keep the `license` and `compatibility`
-  skill keys that OpenCode 2 ignores.
-  `writeOpenCodeManifests` looks up modes through `plugins/<plugin>/<path>`, so renamed namespaced
-  paths would miss it and the seven executable Process files would fall back to 100644.
-- **OpenCode 2 references are not rewritten:** the `opencode` style of `rewriteRefs` in
-  `tools/lib/rewrite.ts` renders a bare `<name>`, not `<plugin>.<name>`, `@<plugin>.<name>`, or
-  `/<plugin>.<name>`, and no pass rewrites relative `../<name>/` sibling links to
-  `../<plugin>.<name>/`.
-- **OpenCode 2 identity and validation are not implemented:** `claimOpenCodeDestination` in
-  `collectIdentityProblems` (`tools/lib/resolve.ts`) claims only `command:<name>` for manual items
-  and keys OpenCode collisions per kind on bare names, so the repository-wide bare-name check across
-  kinds is absent: a skill and an agent with one bare name in different Modules pass preflight, and
-  only a declared model-edge to that name fails, in `deriveModuleRequirements`. The portable-name
-  rule is enforced only as a side effect of `CODEX_NAME` in `tools/lib/codex-plugin.ts`. In
-  `tools/validate.ts`, the `openCodeArtifact`
-  helper and the linker mapping resolve bare paths, the L6 parked-file check and the converted-command
-  and parked-bundle warnings still run, and the manual-ID leak, skill-tool handle and rendered-ID
-  resolution, phantom-skill, and native agent-key checks are absent.
-- **OpenCode 2 ledger probes are not implemented:** `writeLedger` in `tools/lib/ledger.ts` probes
-  bare OpenCode skill, command, and agent paths and records a `parked` file list. The path
-  collection script in `docs/agents/reference-audit-playbook.md` reads the same bare paths and
-  `entry.opencode.parked`, and changes with the ledger.
-- **OpenCode 2 Destination is not implemented:** `resolveDestination` in
-  `tools/lib/opencode-install-state.ts`, used by `tools/install-opencode.ts`, still refuses a
-  non-empty `OPENCODE_CONFIG_DIR` instead of using it as the global root. Its `<home>` fallback also
-  needs a decision: `tools/install-opencode.ts` derives home from `HOME`, then `USERPROFILE`, then
-  `os.homedir()`, while OpenCode 2 uses `os.homedir()`, so on Windows with a `HOME` that differs
-  from the profile folder and no XDG variable the two can resolve different config roots.
-- **OpenCode 1 tests and probes remain:** `tools/build.test.ts`, `tools/validate.test.ts`,
-  `tools/lib/rewrite.test.ts`, `tools/lib/ledger.test.ts`, and `tools/repository-docs.test.ts`
-  assert bare paths or the park and stub shapes. In `experiments/harness-invocation/`,
+- **OpenCode 1 tests and probes remain:** `tools/repository-docs.test.ts` still asserts the
+  OpenCode 1 lab's `lab.ps1` text, which moves with the lab port, and the `installer-v0.3.0` pins
+  listed below. In `experiments/harness-invocation/`,
   `stub-command-smoke.ps1` and the OpenCode legs of `common.ps1`, `lab.ps1`, the matrix and variant
   scripts, `ocprobe.ps1`, `verify.ps1`, and `selftest.ps1` rely on OpenCode 1 behavior such as
   `opencode debug skill`, an additive `OPENCODE_CONFIG_DIR`, and the installer's refusal of it. The
@@ -282,9 +250,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `teach`. Remove this entry when the emission lands and that pass is decided.
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
-- **Parked-path regex interpolation is unescaped:** current kebab-case output names are safe, but
-  `tools/validate.ts` should escape a name before constructing the expression. The OpenCode 2
-  emission retires the parked-path check that builds it; remove this entry when that lands.
 - **Original-skill declarations are absent:** `manual`/`both` posture and outgoing edge-source scans
   remain unavailable until the declaration surface above exists.
 - **Clean-fixture debt is filtered by finding name:** split the fixture so tests prove those findings

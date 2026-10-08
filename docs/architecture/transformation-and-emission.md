@@ -184,10 +184,12 @@ exactly one skill folder, whatever its invocation, and nothing under `commands/`
 
 A stated `auto` or `both` replaces upstream posture and writes no hiding key. An OpenCode skill
 keeps only `name`, `description`, and `metadata`, with any hiding key
-merged into `metadata` (`OPENCODE_SKILL_KEYS` in [`tools/lib/ledger.ts`](../../tools/lib/ledger.ts));
+merged into `metadata` (`OPENCODE_SKILL_KEYS` in
+[`tools/lib/opencode-target.ts`](../../tools/lib/opencode-target.ts));
 every other key, including `license` and `compatibility`, which the OpenCode 2 skill parser does not
 read, is reported by the build rather than silently carried into a target that ignores it
-([`emitOpenCodeSkill`](../../tools/build.ts)).
+([`adaptOpenCodeSkillDocument`](../../tools/lib/opencode-target.ts), called by
+[`emitOpenCode`](../../tools/build.ts)).
 
 **Commands and agents come only from `as:`.** An explicit `as: command` is the per-item escape hatch
 for an item that needs `/name` and `$ARGUMENTS`; it emits `commands/<plugin>.<name>.md`, which keeps
@@ -199,12 +201,14 @@ is not `#rrggbb`, without a warning. Every dropped key other than the forced `na
 ([`emitOpenCode`](../../tools/build.ts)). Invocation on a resolved command or agent does not alter
 OpenCode output.
 
-**Shape checks.** `validate` rejects two Bundle shapes OpenCode 2 would misread:
+**Shape checks.** `validate` rejects three Bundle shapes OpenCode 2 would misread:
 
 - a phantom skill: a `.md` file directly under `skills/`, or a `SKILL.md` anywhere below
   `skills/<id>/` other than that folder's own. OpenCode 2 scans skill roots with
   `{*.md,**/SKILL.md}` and registers every match as a skill
   (`packages/core/src/config/plugin/skill.ts:121` at `anomalyco/opencode@0fd7e28`);
+- a skill whose folder is not an ID `<plugin>.<name>` of its own Module, or whose `SKILL.md`
+  frontmatter `name` differs from that folder ID, which would break the `name` = ID rule above;
 - an agent file whose frontmatter holds a key that is not native to OpenCode 2, or a `color` that is
   not `#rrggbb`.
 
