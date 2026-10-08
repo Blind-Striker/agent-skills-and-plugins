@@ -8,7 +8,7 @@ import { buildAll } from "./build.ts";
 import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
-import { codexPluginPath, makeRepo, opencodeModulePath } from "./testutil.ts";
+import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath } from "./testutil.ts";
 import { validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
@@ -598,7 +598,7 @@ test("curation footguns are warnings on a clean build", () => {
   );
 });
 
-test("linker: a model-edge to a manual target is an error in both trees", () => {
+test("linker: a model-edge to a manual target is an error, named by its Claude cause first", () => {
   const root = makeRepo();
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
@@ -638,7 +638,7 @@ test("linker: a pointer to a model-only target is an error", () => {
       "items:",
       "  - source: sp/skills/alpha",
       "  - source: sp/skills/beta",
-      "    invocation: auto", // OpenCode gets no command for beta -> nothing for a user to type
+      "    invocation: auto", // user-invocable: false in Claude; the error comes from Claude alone
     ].join("\n")}\n`,
   );
   buildAll(root);
@@ -647,6 +647,80 @@ test("linker: a pointer to a model-only target is an error", () => {
     findings.some((f) => f.level === "error" && f.message.includes("pointer to a target the user cannot reach")),
     JSON.stringify(findings, null, 2),
   );
+});
+
+// A manual target is already unreachable through Claude, whose cause the linker names first; only an
+// absent item whose upstream carries the hide key is Claude-reachable but OpenCode-hidden.
+test("linker: a model-edge to an OpenCode-hidden skill names the hide key", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\n\nUse superpowers:delta next.\n",
+  );
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: Delta upstream\nmetadata:\n  opencode/autoinvoke: false\n---\n\nDelta body.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n    depends_on: [delta]\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  const errors = validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+  assert.ok(
+    errors.some((m) =>
+      m.includes(
+        "model-edge to a target the model cannot reach: delta (hidden from the OpenCode model (opencode/autoinvoke))",
+      ),
+    ),
+    errors.join("\n"),
+  );
+});
+
+test("linker: a pointer to an auto skill is an error only through Claude", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\nSuggest /superpowers:beta to the user.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/beta\n    invocation: auto\n",
+  );
+  buildAll(root);
+  const errors = validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+  assert.ok(
+    errors.some((m) => m.includes("user-invocable: false in the Claude tree")),
+    errors.join("\n"),
+  );
+  assert.ok(!errors.some((m) => m.includes("no OpenCode artifact")), "OpenCode users can attach any skill");
+});
+
+test("path rules: an OpenCode climb into another Module resolves through the installed layout", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\n---\nSee [delta](../delta/SKILL.md).\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: O\n  version: 0.1.0\nitems:\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  assert.match(
+    readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8"),
+    /\(\.\.\/deniz-other\.delta\/SKILL\.md\)/,
+  );
+  const r1 = validateRepo(root).filter((f) => f.message.includes("does not resolve in opencode/"));
+  assert.deepEqual(r1, [], "the installed layout shares one skills/ directory across Modules");
 });
 
 test("linker: depends_on is enforced in both directions", () => {
@@ -708,7 +782,7 @@ test("linker: removing an original-skill target leaves a dangling fact", () => {
   writeOwnTargetCase(root, "Load deniz-process:my-own.");
   buildAll(root);
   rmSync(join(root, "plugins", "deniz-process", "skills", "my-own"), { recursive: true, force: true });
-  rmSync(join(root, "opencode", "deniz-process", "skills", "my-own"), { recursive: true, force: true });
+  rmSync(opencodeIdPath(root, "deniz-process", "skill", "my-own"), { recursive: true, force: true });
   assert.ok(validateRepo(root).some((f) => f.message.includes("dangling reference")));
 });
 
@@ -717,8 +791,8 @@ test("linker: an output namespace leaking into opencode/ is an error", () => {
   buildAll(root);
   // simulate the historical bug: a hand-authored output-space reference surviving into opencode
   writeFileSync(
-    opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
-    "---\nname: alpha\ndescription: x\n---\nUse the deniz-process:beta skill.\n",
+    opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
+    "---\nname: deniz-process.alpha\ndescription: x\n---\nUse the deniz-process:beta skill.\n",
   );
   const findings = validateRepo(root);
   assert.ok(
@@ -737,40 +811,6 @@ test("linker: a dangling namespaced reference is an error", () => {
   const findings = validateRepo(root);
   assert.ok(
     findings.some((f) => f.level === "error" && f.message.includes("dangling reference")),
-    JSON.stringify(findings, null, 2),
-  );
-});
-
-test("linker: a parked manual BODY naming a missing parked file is an error", () => {
-  const root = makeRepo();
-  writeFileSync(join(root, "external", "sp", "skills", "beta", "notes.md"), "bundled\n");
-  writeFileSync(
-    join(root, "external", "sp", "skills", "beta", "SKILL.md"),
-    "---\nname: beta\ndescription: Beta upstream\n---\nRead skills/beta/other.md first.\n",
-  );
-  writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/beta",
-      "    invocation: manual",
-    ].join("\n")}\n`,
-  );
-  buildAll(root);
-  const findings = validateRepo(root);
-  const parkedPathFindings = findings.filter((f) => f.message.includes("which is not among the parked files"));
-  assert.equal(parkedPathFindings.length, 1, JSON.stringify(findings, null, 2));
-  assert.ok(
-    parkedPathFindings.some(
-      (f) =>
-        f.level === "error" &&
-        f.message.includes("opencode/deniz-process/skills/beta/BODY.md") &&
-        f.message.includes("skills/beta/other.md"),
-    ),
     JSON.stringify(findings, null, 2),
   );
 });
@@ -938,42 +978,9 @@ test("a relative path into a sibling item that no longer has the file is an erro
     ].join("\n")}\n`,
   );
   buildAll(root);
-  const hits = validateRepo(root).filter(
-    (f) => f.level === "error" && f.message.includes("../beta/references/notes.md"),
-  );
+  // OpenCode respells the climb onto the ID folder (../deniz-process.beta/...), so match the tail.
+  const hits = validateRepo(root).filter((f) => f.level === "error" && f.message.includes("beta/references/notes.md"));
   assert.equal(hits.length, 3, `all three trees, once each — ${JSON.stringify(hits, null, 2)}`);
-});
-
-// The same link, sound in the skill tree, cannot resolve from a command sitting in another
-// directory. That is the conversion's doing, not the reference's, and the right spelling waits on
-// a parked mount-point decision — so it is named rather than failed.
-test("a sibling path that resolves from the skill copy but not the command copy is a warning", () => {
-  const root = makeRepo();
-  writeFileSync(
-    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
-    "---\nname: alpha\ndescription: Alpha upstream\n---\n\nSee [notes](../beta/references/notes.md).\n",
-  );
-  writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/alpha",
-      "    invocation: both", // skill AND command in OpenCode — same body, two locations
-      "  - source: sp/skills/beta",
-    ].join("\n")}\n`,
-  );
-  buildAll(root);
-  const findings = validateRepo(root).filter((f) => f.message.includes("../beta/references/notes.md"));
-  assert.deepEqual(
-    findings.map((f) => f.level),
-    ["warn"],
-    `the skill copy resolves, so only the command copy speaks — ${JSON.stringify(findings, null, 2)}`,
-  );
-  assert.match(findings[0]?.message ?? "", /converted command/);
 });
 
 // R2 (L8): the noise this rule exists to not make. Upstream bodies are full of illustrative paths
@@ -1046,15 +1053,14 @@ test("a merged_from files entry naming a file the source lacks is a warning", ()
 test("module manifest: a tampered file is a hash mismatch", () => {
   const root = makeRepo();
   buildAll(root);
-  const moduleRoot = opencodeModulePath(root, "deniz-process");
-  writeFileSync(join(moduleRoot, "skills", "alpha", "SKILL.md"), "tampered\n");
+  writeFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "tampered\n");
   assert.ok(validateRepo(root).some((f) => f.level === "error" && f.message.includes("hash mismatch")));
 });
 
 test("module manifest: a missing listed file is an error", () => {
   const root = makeRepo();
   buildAll(root);
-  rmSync(join(opencodeModulePath(root, "deniz-process"), "skills", "alpha", "SKILL.md"));
+  rmSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"));
   assert.ok(validateRepo(root).some((f) => f.level === "error" && f.message.includes("missing")));
 });
 

@@ -14,13 +14,14 @@ import {
 } from "./lib/codex-plugin.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
-import { type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { type ComponentType, type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import {
   findMissingModuleRequirements,
   loadModuleManifest,
   verifyModuleManifest,
   type ModuleManifest,
 } from "./lib/opencode-bundle.ts";
+import { OPENCODE_HIDE_KEY, openCodeBundlePath, openCodeId, splitOpenCodeId } from "./lib/opencode-target.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
@@ -33,7 +34,7 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { scanSubmodule } from "./lib/scan.ts";
+import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
   level: "error" | "warn";
@@ -149,9 +150,58 @@ function openCodeModuleRoot(root: string, module: string): string {
 }
 
 function openCodeArtifact(root: string, module: string, kind: "skills" | "commands" | "agents", name: string): string {
-  return kind === "skills"
-    ? join(openCodeModuleRoot(root, module), "skills", name)
-    : join(openCodeModuleRoot(root, module), kind, `${name}.md`);
+  return join(
+    openCodeModuleRoot(root, module),
+    openCodeBundlePath(kind === "skills" ? "skill" : kind === "commands" ? "command" : "agent", module, name),
+  );
+}
+
+interface OpenCodeIndexEntry {
+  plugin: string;
+  name: string;
+  kind: ComponentType;
+  invocation?: string;
+  hidden: boolean;
+}
+
+/**
+ * Every emitted OpenCode artifact, keyed by its `<plugin>.<name>` ID: curated items at their resolved
+ * kind, plus original skills (no invocation). `hidden` reads the emitted SKILL.md, so it reflects the
+ * hide key as shipped rather than as curation intends it.
+ */
+function openCodeIndex(
+  root: string,
+  manifests: CurationManifest[],
+  components: ComponentInfo[],
+): Map<string, OpenCodeIndexEntry> {
+  const index = new Map<string, OpenCodeIndexEntry>();
+  const add = (plugin: string, name: string, kind: ComponentType, invocation: string | undefined): void => {
+    const artifact = openCodeArtifact(root, plugin, `${kind}s`, name);
+    const file = kind === "skill" ? join(artifact, "SKILL.md") : artifact;
+    if (!existsSync(file)) {
+      return;
+    }
+    const metadata = kind === "skill" ? parseDoc(readFileSync(file, "utf8")).frontmatter.metadata : undefined;
+    const hidden =
+      typeof metadata === "object" &&
+      metadata !== null &&
+      !Array.isArray(metadata) &&
+      (metadata as Record<string, unknown>)[OPENCODE_HIDE_KEY] === false;
+    index.set(openCodeId(plugin, name), { plugin, name, kind, ...(invocation ? { invocation } : {}), hidden });
+  };
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude) {
+        continue;
+      }
+      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
+      add(m.plugin.name, outName, outType, item.invocation);
+    }
+  }
+  for (const own of ownSkillIdentities(root, manifests)) {
+    add(own.plugin, own.name, "skill", undefined);
+  }
+  return index;
 }
 
 export function validateRepo(root: string): Finding[] {
@@ -408,7 +458,7 @@ export function validateRepo(root: string): Finding[] {
           ...(outType === "skill"
             ? [
                 `plugins/${m.plugin.name}/skills/${outName}/${rel}`,
-                `opencode/${m.plugin.name}/skills/${outName}/${rel}`,
+                `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}/${rel}`,
               ]
             : []),
         ];
@@ -491,8 +541,9 @@ export function validateRepo(root: string): Finding[] {
   }
 
   // 4. leftover upstream references — plugins/ only. opencode/ is rendered from the same bodies, so
-  // scanning both reported every leftover twice; the OpenCode tree's own address space is checked
-  // by the linker below (L4), where a namespace is a leak rather than a missing rewrite. The scan is
+  // scanning both reported every leftover twice; the OpenCode tree speaks dotted `<plugin>.<name>`
+  // IDs, so a surviving `namespace:name` there is a leak the linker reports (L4), not a missing
+  // rewrite. The scan is
   // the shared one: a leftover is by definition something the rewrite did not take, so the two must
   // agree on what a reference is, or this reports text no rewrite could ever have touched.
   const unknownRefs = new Map<string, { count: number; files: Set<string> }>();
@@ -643,13 +694,23 @@ export function validateRepo(root: string): Finding[] {
   }
 
   // 4b. reference linking (ADR-0008). plugins/ carries the canonical namespaced text; opencode/ is
-  // derived from it, so facts are read once and each tree is checked in its own address space.
+  // derived from it, so facts are read once and each target's reach is checked in both harnesses.
+  // OpenCode 2 gives every item one artifact at its ID whatever its invocation: the model reaches a
+  // skill unless it carries the hide key, and a user can attach any skill or agent or run a command.
+  const ocIndex = openCodeIndex(root, manifests, components);
   interface TargetState {
     modelReachClaude: boolean;
     userReachClaude: boolean;
-    ocSkill: boolean;
-    ocCommand: boolean;
+    ocModel: boolean;
+    ocUser: boolean;
+    ocKind?: ComponentType;
   }
+  const ocState = (plugin: string, name: string): Pick<TargetState, "ocModel" | "ocUser" | "ocKind"> => {
+    const entry = ocIndex.get(openCodeId(plugin, name));
+    return entry
+      ? { ocModel: entry.kind === "skill" && !entry.hidden, ocUser: true, ocKind: entry.kind }
+      : { ocModel: false, ocUser: false };
+  };
   const targetState = new Map<string, TargetState>();
   for (const plugin of existsSync(pluginsDir) ? readdirSync(pluginsDir) : []) {
     const skillsDir = join(pluginsDir, plugin, "skills");
@@ -658,8 +719,7 @@ export function validateRepo(root: string): Finding[] {
       targetState.set(name, {
         modelReachClaude: doc.frontmatter["disable-model-invocation"] !== true,
         userReachClaude: doc.frontmatter["user-invocable"] !== false,
-        ocSkill: existsSync(join(openCodeArtifact(root, plugin, "skills", name), "SKILL.md")),
-        ocCommand: existsSync(openCodeArtifact(root, plugin, "commands", name)),
+        ...ocState(plugin, name),
       });
     }
     for (const kind of ["commands", "agents"] as const) {
@@ -669,12 +729,17 @@ export function validateRepo(root: string): Finding[] {
         targetState.set(name, {
           modelReachClaude: kind === "commands", // agents are dispatched, not skill-invoked
           userReachClaude: true,
-          ocSkill: false,
-          ocCommand: existsSync(openCodeArtifact(root, plugin, "commands", name)),
+          ...ocState(plugin, name),
         });
       }
     }
   }
+  const ocModelCause = (t: TargetState): string =>
+    !t.ocUser
+      ? "no OpenCode artifact"
+      : t.ocKind === "skill"
+        ? `hidden from the OpenCode model (${OPENCODE_HIDE_KEY})`
+        : `an OpenCode ${t.ocKind ?? "artifact"}, not a skill`;
 
   for (const m of manifests) {
     for (const item of m.items) {
@@ -708,19 +773,15 @@ export function validateRepo(root: string): Finding[] {
           }
           if (ref.kind === "model") {
             derived.add(ref.name);
-            if (!t.modelReachClaude || !t.ocSkill) {
-              const cause = !t.modelReachClaude
-                ? "disable-model-invocation in the Claude tree"
-                : "no opencode/skills entry";
+            if (!t.modelReachClaude || !t.ocModel) {
+              const cause = !t.modelReachClaude ? "disable-model-invocation in the Claude tree" : ocModelCause(t);
               findings.push({
                 level: "error",
                 message: `${rel}: model-edge to a target the model cannot reach: ${ref.name} (${cause}) — make the target auto/both, or spell the reference /${ref.address} if the human is the audience`,
               });
             }
-          } else if (!t.userReachClaude || !t.ocCommand) {
-            const cause = !t.userReachClaude
-              ? "user-invocable: false in the Claude tree"
-              : "no opencode/commands entry";
+          } else if (!t.userReachClaude || !t.ocUser) {
+            const cause = !t.userReachClaude ? "user-invocable: false in the Claude tree" : "no OpenCode artifact";
             findings.push({
               level: "error",
               message: `${rel}: pointer to a target the user cannot reach: ${ref.name} (${cause}) — make the target manual/both, or drop the slash if the model is the audience`,
@@ -748,7 +809,7 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // L4: output namespaces must never reach the OpenCode tree — it has no plugin concept.
+  // L4: output namespaces must never reach the OpenCode tree — it addresses items by dotted ID.
   for (const file of existsSync(ocDir) ? [...walk(ocDir)].filter((f) => f.endsWith(".md")) : []) {
     for (const ref of extractRefs(readFileSync(file, "utf8"))) {
       if (ownNs.has(ref.ns)) {
@@ -756,35 +817,6 @@ export function validateRepo(root: string): Finding[] {
           level: "error",
           message: `${relative(root, file).replaceAll("\\", "/")}: output namespace leaked into opencode/: ${ref.address}`,
         });
-      }
-    }
-  }
-
-  // L6: a command or parked body naming a parked file that is not there (omitted, renamed) ships a dead path.
-  for (const module of moduleNames) {
-    const cmdsDir = join(openCodeModuleRoot(root, module), "commands");
-    for (const f of existsSync(cmdsDir) ? readdirSync(cmdsDir) : []) {
-      const name = basename(f, ".md");
-      const parkedDir = openCodeArtifact(root, module, "skills", name);
-      if (!existsSync(parkedDir)) {
-        continue;
-      }
-      const parkedFiles = new Set(listFiles(parkedDir));
-      const sources = [join(cmdsDir, f), join(parkedDir, "BODY.md")].filter(existsSync);
-      const hits = sources.flatMap((source) =>
-        [...readFileSync(source, "utf8").matchAll(new RegExp(`skills/${name}/([A-Za-z0-9._/-]+)`, "g"))].map((hit) => ({
-          source,
-          hit,
-        })),
-      );
-      for (const { source, hit } of hits) {
-        const target = (hit[1] as string).replace(/[).,:;'"]+$/, "");
-        if (!parkedFiles.has(target)) {
-          findings.push({
-            level: "error",
-            message: `${relative(root, source).replaceAll("\\", "/")}: references skills/${name}/${target}, which is not among the parked files`,
-          });
-        }
       }
     }
   }
@@ -798,7 +830,6 @@ export function validateRepo(root: string): Finding[] {
   // narrowing question: could OUR transformation have broken this?
   interface EmittedItem {
     upstream: string;
-    manual: boolean;
   }
   const emitted = new Map<string, EmittedItem>();
   for (const m of manifests) {
@@ -808,23 +839,41 @@ export function validateRepo(root: string): Finding[] {
       }
       const { comp, outName } = resolveItem(root, m.plugin.name, item, components);
       if (comp) {
-        emitted.set(outName, { upstream: upstreamBase(root, item, comp), manual: item.invocation === "manual" });
+        emitted.set(outName, { upstream: upstreamBase(root, item, comp) });
       }
     }
   }
   // A skill is a directory and owns everything under it; a command or an agent is one file and
-  // owns nothing, so its same-directory links are the parked-bundle case the build already reports.
+  // owns nothing, so it has no same-directory files for a link to name. OpenCode spells each folder
+  // and file as `<plugin>.<name>`; the owner is always reported by its bare name.
+  const bareName = (tree: string, segment: string): string =>
+    tree === "opencode" ? (splitOpenCodeId(segment, moduleNames)?.name ?? segment) : segment;
   const owningItem = (tree: string, file: string): { name: string; dir: string | null } | null => {
     const p = relative(root, file).replaceAll("\\", "/").split("/");
-    if (tree === "plugins" && p[2] === "skills" && p[3]) {
-      return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
-    }
-    if ((tree === "opencode" || tree === "codex") && p[2] === "skills" && p[3]) {
-      return { name: p[3], dir: join(root, ...p.slice(0, 4)) };
+    if (p[2] === "skills" && p[3]) {
+      return { name: bareName(tree, p[3]), dir: join(root, ...p.slice(0, 4)) };
     }
     const leaf = p.at(-1);
-    return leaf?.endsWith(".md") ? { name: basename(leaf, ".md"), dir: null } : null;
+    return leaf?.endsWith(".md") ? { name: bareName(tree, basename(leaf, ".md")), dir: null } : null;
   };
+  // The installed OpenCode layout shares one skills/ directory across Modules, so a climb out of
+  // opencode/<m>/skills/<id>/ into <m2>.<x>/ lands in Module m2's folder, not in m's.
+  const reRootOpenCode = (abs: string): string => {
+    const [module, skills, folder, ...rest] = relative(join(root, "opencode"), abs).replaceAll("\\", "/").split("/");
+    if (!module || skills !== "skills" || !folder) {
+      return abs;
+    }
+    const owner = splitOpenCodeId(folder, moduleNames)?.plugin;
+    return owner && owner !== module ? join(openCodeModuleRoot(root, owner), "skills", folder, ...rest) : abs;
+  };
+  const ownerModule = new Map<string, string>();
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (!item.exclude) {
+        ownerModule.set(resolveItem(root, m.plugin.name, item, components).outName, m.plugin.name);
+      }
+    }
+  }
   const inside = (parent: string, child: string): boolean =>
     child === parent || !relative(parent, child).startsWith("..");
 
@@ -833,12 +882,16 @@ export function validateRepo(root: string): Finding[] {
     if (!existsSync(treeRoot)) {
       continue;
     }
-    const skillsOf = (name: string): string[] =>
-      tree === "plugins"
-        ? readdirSync(join(root, "plugins")).map((p) => join(root, "plugins", p, "skills", name))
-        : tree === "opencode"
-          ? moduleNames.map((module) => openCodeArtifact(root, module, "skills", name))
-          : moduleNames.map((plugin) => join(root, "codex", plugin, "skills", name));
+    const skillsOf = (name: string): string[] => {
+      if (tree === "plugins") {
+        return readdirSync(join(root, "plugins")).map((p) => join(root, "plugins", p, "skills", name));
+      }
+      if (tree === "opencode") {
+        const owner = ownerModule.get(name);
+        return owner ? [openCodeArtifact(root, owner, "skills", name)] : [];
+      }
+      return moduleNames.map((plugin) => join(root, "codex", plugin, "skills", name));
+    };
     for (const file of [...walk(treeRoot)].filter((f) => f.endsWith(".md"))) {
       const own = owningItem(tree, file);
       if (!own) {
@@ -846,7 +899,8 @@ export function validateRepo(root: string): Finding[] {
       }
       const rel = relative(root, file).replaceAll("\\", "/");
       for (const link of linkTargets(readFileSync(file, "utf8"))) {
-        const abs = resolve(dirname(file), link);
+        const resolved = resolve(dirname(file), link);
+        const abs = tree === "opencode" ? reRootOpenCode(resolved) : resolved;
         if (existsSync(abs)) {
           continue;
         }
@@ -855,28 +909,21 @@ export function validateRepo(root: string): Finding[] {
         // of the skill tree, so `../other/` no longer points at anything). Renaming, excluding or
         // omitting the target breaks these silently, and a merge does all three.
         // `../<item>/` is structurally "climb out of my directory into a sibling item's" — the
-        // layout both trees have. Requiring the climb is what keeps ordinary words out: an item
+        // layout every tree has. Requiring the climb is what keeps ordinary words out: an item
         // called `research` matches `../research/x.md` and never `docs/research/x.md`. The target
-        // is NOT required to exist first; a target that vanished entirely (excluded, or a husk
-        // the emitter removed) is the loudest version of this failure, not an exemption from it.
-        const climb = /^(?:\.\.\/)+([^/]+)\//.exec(link)?.[1];
+        // is NOT required to exist first; a target that vanished entirely (excluded, or omitted)
+        // is the loudest version of this failure, not an exemption from it. An OpenCode climb names
+        // the ID folder, so its segment is read back to the bare name.
+        const climbSegment = /^(?:\.\.\/)+([^/]+)\//.exec(link)?.[1];
+        const climb = climbSegment === undefined ? undefined : bareName(tree, climbSegment);
         const claimed = climb && climb !== own.name && emitted.has(climb) ? climb : undefined;
         const landsInOther = [...emitted.keys()]
           .filter((n) => n !== own.name)
           .some((n) => skillsOf(n).some((d) => existsSync(d) && inside(d, abs)));
         if (claimed || landsInOther) {
-          // A command is one file in a different directory, so a path written for a skill tree
-          // cannot resolve from it — and no single spelling serves both copies of a `both` item.
-          // Where the SKILL copy resolves the very same link, the reference is sound and the
-          // conversion is what broke it; the right spelling depends on which mount point the
-          // install supports, which is a parked decision (ROADMAP), so this is named, not failed.
-          const skillCopy = own.dir === null ? (skillsOf(own.name).find(existsSync) ?? null) : null;
-          const soundInSkillTree = skillCopy !== null && existsSync(resolve(skillCopy, link));
           findings.push({
-            level: soundInSkillTree ? "warn" : "error",
-            message: soundInSkillTree
-              ? `${rel}: relative reference ${link} resolves from skills/${own.name}/ but not from a converted command — the conversion moved the body out of the skill tree`
-              : `${rel}: relative reference ${link} does not resolve in ${tree}/ — the target item was renamed, excluded, omitted, or is unreachable from this artifact's location`,
+            level: "error",
+            message: `${rel}: relative reference ${link} does not resolve in ${tree}/ — the target item was renamed, excluded, omitted, or is unreachable from this artifact's location`,
           });
           continue;
         }
@@ -891,15 +938,11 @@ export function validateRepo(root: string): Finding[] {
         if (!info || !existsSync(join(info.upstream, within))) {
           continue;
         }
-        // `manual` deliberately withholds the OpenCode SKILL.md so the model cannot reach the item
-        // (ADR-0005). The parked file's link is dead all the same, and only an emitter decision
-        // fixes it — so it is named rather than treated as a mistake.
-        const designed = tree === "opencode" && within === "SKILL.md" && info.manual;
+        // Every tree ships each skill's own SKILL.md (OpenCode 2 hides a manual skill through
+        // frontmatter rather than withholding the file), so a dead own-folder link is always ours.
         findings.push({
-          level: designed ? "warn" : "error",
-          message: designed
-            ? `${rel}: links to ${link}, which manual withholds from this tree — the parked bundle keeps a dead link to its own SKILL.md`
-            : `${rel}: links to ${link}, which this build dropped from the item though ${own.name} still ships it upstream — an omit or a conversion took a file the body names`,
+          level: "error",
+          message: `${rel}: links to ${link}, which this build dropped from the item though ${own.name} still ships it upstream — an omit or a conversion took a file the body names`,
         });
       }
     }
