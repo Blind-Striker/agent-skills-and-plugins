@@ -2,7 +2,7 @@ import { basename } from "node:path";
 import type { ComponentType, CurationManifest } from "./manifest.ts";
 import { openCodeId } from "./opencode-target.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
-import { scanRefs } from "./refs.ts";
+import { scanPathClaims, scanRefs } from "./refs.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 // How a harness ADDRESSES the component upstream, which is what its references spell out: a skill by
@@ -112,30 +112,27 @@ export function rewriteRefs(content: string, map: Map<string, RewriteTarget>, st
   return out + content.slice(cut);
 }
 
-/** `../` runs followed by one portable name segment and a `/`: a relative climb into a sibling folder. */
-const CLIMB = /((?:\.\.\/)+)([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/)/g;
-
 /**
  * OpenCode 2 installs every skill folder under its ID, so a relative climb that names a sibling by its
- * bare folder name would land on nothing. A climb is respelled only when its `../` count lands exactly
- * on the shared `skills/` directory (`depthBelowSkillFolder + 1`) and the segment is an emitted skill;
- * a climb that starts inside a longer path, has the wrong depth, or names anything else is left for
- * the linker to judge. A climb into the item's own folder is respelled too: that folder is renamed.
+ * bare folder name would land on nothing. A climb is respelled only when `scanPathClaims` returns it
+ * (its `../` count lands exactly on the shared `skills/` directory and it does not start inside a
+ * longer path) and its segment is an emitted skill's bare name; anything else is left for the linker
+ * to judge. A climb into the item's own folder is respelled too: that folder is renamed.
  */
 export function rewriteOpenCodeSiblingClimbs(
   content: string,
   depthBelowSkillFolder: number,
   skillIds: Map<string, string>,
 ): string {
-  return content.replace(CLIMB, (match: string, climb: string, name: string, offset: number) => {
-    const before = offset > 0 ? (content[offset - 1] as string) : "";
-    if (before && /[A-Za-z0-9._/-]/.test(before)) {
-      return match;
+  let out = "";
+  let cut = 0;
+  for (const claim of scanPathClaims(content, depthBelowSkillFolder)) {
+    const id = skillIds.get(claim.segment);
+    if (id === undefined) {
+      continue;
     }
-    if (climb.length / 3 !== depthBelowSkillFolder + 1) {
-      return match;
-    }
-    const id = skillIds.get(name);
-    return id === undefined ? match : `${climb}${id}`;
-  });
+    out += content.slice(cut, claim.segmentIndex) + id;
+    cut = claim.segmentIndex + claim.segment.length;
+  }
+  return out + content.slice(cut);
 }

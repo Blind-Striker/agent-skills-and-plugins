@@ -81,3 +81,55 @@ export function candidateHits(content: string, names: Iterable<string>): string[
   }
   return hits.sort();
 }
+
+/** A relative path the linker can attribute: a climb onto the shared skills directory, or (W0.7) an item root. */
+export interface PathClaim {
+  kind: "climb" | "item-root";
+  /** Where the claim starts: the first `../` of a climb. */
+  index: number;
+  /** Where `segment` starts, so a rewrite can respell it in place. */
+  segmentIndex: number;
+  segment: string;
+  path: string;
+}
+
+// A portable name, or the `<plugin>.<name>` ID an OpenCode segment carries after respelling, so the
+// validator reads every tree with one grammar. The rewrite looks up bare names only.
+const SEGMENT = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)?`;
+/** `../` runs followed by one segment and a `/`: a relative climb into a sibling folder. */
+const CLIMB = new RegExp(String.raw`((?:\.\.\/)+)(${SEGMENT})(?=\/)`, "g");
+const PATH_TAIL = /^\/[^\s"'`)\]]*/;
+/** What continues a path, so a climb preceded by one of these starts inside a longer path. */
+const CONTINUES_PATH = /[A-Za-z0-9._/-]/;
+
+function claimPath(content: string, start: number, afterSegment: number): string {
+  const path = content.slice(start, afterSegment) + (PATH_TAIL.exec(content.slice(afterSegment))?.[0] ?? "");
+  return path.endsWith(".") ? path.slice(0, -1) : path;
+}
+
+/**
+ * Every relative path in `content` the linker can attribute, in the order written. A climb is a
+ * claim only when its `../` count lands exactly on the shared `skills/` directory
+ * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path; the path runs to the
+ * first space, quote, backtick, or closing bracket, minus one sentence-ending dot.
+ */
+export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[] {
+  const out: PathClaim[] = [];
+  for (const m of content.matchAll(CLIMB)) {
+    const before = m.index > 0 ? (content[m.index - 1] as string) : "";
+    const climb = m[1] as string;
+    const segment = m[2] as string;
+    if ((before && CONTINUES_PATH.test(before)) || climb.length / 3 !== depthBelowSkillFolder + 1) {
+      continue;
+    }
+    const segmentIndex = m.index + climb.length;
+    out.push({
+      kind: "climb",
+      index: m.index,
+      segmentIndex,
+      segment,
+      path: claimPath(content, m.index, segmentIndex + segment.length),
+    });
+  }
+  return out;
+}

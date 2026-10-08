@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { candidateHits, extractRefs, scanRefs } from "./refs.ts";
+import { candidateHits, extractRefs, scanPathClaims, scanRefs } from "./refs.ts";
 
 test("extractRefs finds namespaced references and classifies their kind by the leading slash", () => {
   const body = [
@@ -89,4 +89,22 @@ test("candidateHits matches known names as standalone words only", () => {
 
 test("candidateHits returns nothing when no name appears", () => {
   assert.deepEqual(candidateHits("nothing here", ["tdd"]), []);
+});
+
+test("landing climbs are path claims only at the depth that reaches the skills directory", () => {
+  const claims = (t: string, d: number) => scanPathClaims(t, d).map((c) => `${c.kind}:${c.segment}:${c.path}`);
+  assert.deepEqual(claims("[a](../aspireify/SKILL.md)", 0), ["climb:aspireify:../aspireify/SKILL.md"]);
+  assert.deepEqual(claims("[a](../../aspireify/SKILL.md)", 1), ["climb:aspireify:../../aspireify/SKILL.md"]);
+  assert.deepEqual(claims("[a](../../aspireify/SKILL.md)", 0), [], "wrong depth");
+  assert.deepEqual(claims("x/../aspireify/y", 0), [], "inside a longer path");
+  assert.deepEqual(claims('AddCSharpApp("api", "../Api")', 0), [], "uppercase is illustrative");
+  assert.deepEqual(claims("see `../using-superpowers/references/`.", 0), [
+    "climb:using-superpowers:../using-superpowers/references/",
+  ]);
+  assert.deepEqual(claims("read ../beta/notes.md.", 0), ["climb:beta:../beta/notes.md"], "one trailing dot dropped");
+  assert.deepEqual(
+    claims("[a](../deniz-process.beta/SKILL.md)", 0),
+    ["climb:deniz-process.beta:../deniz-process.beta/SKILL.md"],
+    "a respelled OpenCode ID is read back, so P can judge the OpenCode tree",
+  );
 });
