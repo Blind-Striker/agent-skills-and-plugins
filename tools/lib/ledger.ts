@@ -4,13 +4,11 @@ import type { AssembledItem } from "./assemble.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
 import type { CurationManifest } from "./manifest.ts";
+import { OPENCODE_SKILL_KEYS } from "./opencode-target.ts";
 import { listFiles } from "./overlay.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
 import { resolveItem } from "./resolve.ts";
 import type { ComponentInfo } from "./scan.ts";
-
-/** Skill frontmatter OpenCode recognises (moved here from build.ts — build imports it back). */
-export const OPENCODE_SKILL_KEYS = new Set(["name", "description", "license", "compatibility", "metadata"]);
 
 interface HarnessState {
   artifacts: string[];

@@ -3,6 +3,7 @@ import { isAbsolute, resolve, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { parseDoc, type ParsedDoc } from "./frontmatter.ts";
 import type { CurationItem, CurationManifest } from "./manifest.ts";
+import { PORTABLE_NAME } from "./resolve.ts";
 
 export const CODEX_MARKETPLACE_NAME = "deniz-skills";
 export const CODEX_MARKETPLACE_DISPLAY_NAME = "Deniz Skills";
@@ -251,11 +252,10 @@ export function resolveCodexRepositoryPath(root: string, value: string): string 
 }
 
 const WINDOWS_RESERVED_NAME = /^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
-const CODEX_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 function nameProblems(kind: "plugin" | "skill", name: string, label: string): string[] {
   const problems: string[] = [];
-  if (!CODEX_NAME.test(name)) {
+  if (!PORTABLE_NAME.test(name)) {
     problems.push(`${label}: Codex ${kind} name must use lowercase letters, digits, and single hyphens: ${name}`);
   }
   const hasControlCharacter = [...name].some((character) => (character.codePointAt(0) ?? 0) < 32);

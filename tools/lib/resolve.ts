@@ -6,6 +6,9 @@ import type { OwnSkillIdentity } from "./own-skills.ts";
 import type { ComponentInfo } from "./scan.ts";
 import { ordinalCompare } from "./order.ts";
 
+/** Lowercase letters and digits in single-hyphen-separated runs: the name rule every harness shares. */
+export const PORTABLE_NAME = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
 /**
  * What a manifest item becomes: its upstream component, its output name and type, and where its
  * overlay would live. Derived in exactly one place because it used to be derived in three —

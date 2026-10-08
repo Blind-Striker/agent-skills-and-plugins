@@ -31,9 +31,10 @@ import {
 } from "./lib/codex-plugin.ts";
 import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
-import { OPENCODE_SKILL_KEYS, writeLedger } from "./lib/ledger.ts";
+import { writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
+import { OPENCODE_SKILL_KEYS } from "./lib/opencode-target.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
