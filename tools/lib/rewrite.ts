@@ -173,13 +173,15 @@ export function localize(content: string, map: Map<string, RewriteTarget>, style
 }
 
 /**
- * OpenCode 2 installs every skill folder under its ID, so a relative climb that names a sibling by its
- * bare folder name would land on nothing. A climb is respelled only when `scanPathClaims` returns it
- * (its `../` count lands exactly on the shared `skills/` directory and it does not start inside a
- * longer path) and its segment is an emitted skill's bare name; anything else is left for the linker
- * to judge. A climb into the item's own folder is respelled too: that folder is renamed.
+ * OpenCode 2 installs every skill folder under its ID, so a path that names a sibling by its bare
+ * folder name would land on nothing. A path is respelled only when `scanPathClaims` returns it — a
+ * climb whose `../` count lands exactly on the shared `skills/` directory, or an item-root
+ * `skills/<name>/` path, neither starting inside a longer path — and its segment is an emitted
+ * skill's bare name; anything else is left for the linker to judge. A path into the item's own
+ * folder is respelled too: that folder is renamed. The text may be any bundled file, not only
+ * Markdown.
  */
-export function rewriteOpenCodeSiblingClimbs(
+export function rewriteOpenCodePaths(
   content: string,
   depthBelowSkillFolder: number,
   skillIds: Map<string, string>,
@@ -195,4 +197,9 @@ export function rewriteOpenCodeSiblingClimbs(
     cut = claim.segmentIndex + claim.segment.length;
   }
   return out + content.slice(cut);
+}
+
+/** A file the path respelling may read: no NUL byte, and bytes that survive a UTF-8 round trip. */
+export function isBundledText(bytes: Buffer): boolean {
+  return !bytes.includes(0) && Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes);
 }

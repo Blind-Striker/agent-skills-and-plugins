@@ -1045,6 +1045,48 @@ test("an OpenCode skill's sibling link points at the sibling's ID folder", () =>
   );
 });
 
+test("OpenCode respells sibling paths in scripts and item-root paths, and keeps binaries and modes", () => {
+  const root = makeRepo();
+  const alpha = join(root, "external", "sp", "skills", "alpha");
+  mkdirSync(join(alpha, "scripts"), { recursive: true });
+  writeFileSync(
+    join(alpha, "SKILL.md"),
+    "---\nname: alpha\ndescription: A\n---\n\nRead `skills/beta/references/notes.md`.\n",
+  );
+  writeFileSync(join(alpha, "scripts", "run.sh"), "#!/bin/sh\ncat ../../beta/references/notes.md\n");
+  chmodSync(join(alpha, "scripts", "run.sh"), 0o755);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00]), Buffer.from("../beta/")]);
+  writeFileSync(join(alpha, "logo.png"), png);
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/beta\n",
+  );
+  buildAll(root);
+  execFileSync("git", ["init", "-q", "."], { cwd: root });
+  execFileSync("git", ["add", "plugins"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["update-index", "--chmod=+x", "plugins/deniz-process/skills/alpha/scripts/run.sh"], {
+    cwd: root,
+    stdio: "ignore",
+  });
+  buildAll(root);
+  const oc = (...parts: string[]) => opencodeIdPath(root, "deniz-process", "skill", "alpha", ...parts);
+  assert.equal(
+    readFileSync(oc("scripts", "run.sh"), "utf8"),
+    "#!/bin/sh\ncat ../../deniz-process.beta/references/notes.md\n",
+  );
+  assert.match(readFileSync(oc("SKILL.md"), "utf8"), /`skills\/deniz-process\.beta\/references\/notes\.md`/);
+  assert.deepEqual(readFileSync(oc("logo.png")), png, "a binary is never rewritten");
+  assert.equal(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "scripts", "run.sh"), "utf8"),
+    "#!/bin/sh\ncat ../../beta/references/notes.md\n",
+    "Claude keeps the bare folder name",
+  );
+  const moduleRoot = opencodeModulePath(root, "deniz-process");
+  const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
+  assert.equal(manifest.files["skills/deniz-process.alpha/scripts/run.sh"].mode, "100755");
+  assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
+});
+
 // One address computation: an upstream agent file carries a double extension, and references spell
 // the bare name — so stripping only `.md` keyed the map on `ns:zeta.agent`, which nothing references.
 test("an upstream agent named zeta.agent.md is addressed as ns:zeta", () => {

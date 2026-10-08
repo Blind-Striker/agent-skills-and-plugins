@@ -67,10 +67,11 @@ import {
 } from "./lib/resolve.ts";
 import {
   buildRewriteMap,
+  isBundledText,
   localize,
   type RefStyle,
   type RewriteTarget,
-  rewriteOpenCodeSiblingClimbs,
+  rewriteOpenCodePaths,
 } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -512,11 +513,15 @@ function rewriteTree(dir: string, map: Map<string, RewriteTarget>, style: RefSty
 }
 
 /**
- * OpenCode 2 reference spelling (spec §7): every Markdown file in a Module gets the harness phrasing
- * and the dotted-ID rendering, and files inside `skills/<id>/` also get their sibling climbs
- * re-rooted onto the ID folders, measured from the file's depth below its own skill folder.
- * Everything outside `skills/` (`commands/`, `agents/`, distribution notices) gets only the phrasing
- * and the rendering: no climb from there lands on the shared skills directory.
+ * OpenCode 2 reference spelling (spec §7, §14): every Markdown file in a Module gets the harness
+ * phrasing and the dotted-ID rendering. Inside `skills/<id>/`, every file is walked: a Markdown file
+ * gets the phrasing and rendering, then its sibling climbs and item-root `skills/<name>/` paths
+ * re-rooted onto the ID folders (climbs measured from the file's depth below its own skill folder);
+ * any other file that `isBundledText` accepts (a script, a template) gets only the path respelling;
+ * a binary is never read as text. A file is written only when its text changed, and the Module
+ * manifest keeps taking modes from the Claude counterpart, so a respelled `100755` script keeps its
+ * mode. Everything outside `skills/` (`commands/`, `agents/`, distribution notices) gets only the
+ * phrasing and the rendering: no climb from there lands on the shared skills directory.
  */
 function rewriteOpenCodeTree(
   root: string,
@@ -546,11 +551,19 @@ function rewriteOpenCodeTree(
         continue;
       }
       const skillFolder = join(skillsRoot, folder.name);
-      for (const file of listFiles(skillFolder).filter((path) => path.endsWith(".md"))) {
+      for (const file of listFiles(skillFolder)) {
         const path = join(skillFolder, file);
+        const bytes = readFileSync(path);
+        if (!isBundledText(bytes)) {
+          continue;
+        }
         const depth = relative(skillFolder, dirname(path)).split(sep).filter(Boolean).length;
-        const text = localize(readFileSync(path, "utf8"), map, "opencode");
-        writeFileSync(path, rewriteOpenCodeSiblingClimbs(text, depth, skillIds));
+        const before = bytes.toString("utf8");
+        const text = path.endsWith(".md") ? localize(before, map, "opencode") : before;
+        const after = rewriteOpenCodePaths(text, depth, skillIds);
+        if (after !== before) {
+          writeFileSync(path, after); // only on change: an unchanged script is not touched
+        }
       }
     }
   }

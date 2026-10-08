@@ -117,6 +117,26 @@ test("landing climbs are path claims only at the depth that reaches the skills d
   );
 });
 
+test("item-root paths are claims unless they continue a longer path", () => {
+  const claims = (t: string) =>
+    scanPathClaims(t, 0)
+      .filter((c) => c.kind === "item-root")
+      .map((c) => `${c.segment}:${c.path}`);
+  assert.deepEqual(claims("read `skills/brainstorming/visual-companion.md`"), [
+    "brainstorming:skills/brainstorming/visual-companion.md",
+  ]);
+  assert.deepEqual(claims("see skills/brainstorming/visual-companion.md."), [
+    "brainstorming:skills/brainstorming/visual-companion.md",
+  ]);
+  assert.deepEqual(
+    claims(".agents/skills/aspireify/SKILL.md ~/.claude/skills/x/ a/skills/z/ ~skills/y/ $skills/w/"),
+    [],
+  );
+  assert.deepEqual(claims("`skills/deniz-process.brainstorming/visual-companion.md`"), [
+    "deniz-process.brainstorming:skills/deniz-process.brainstorming/visual-companion.md",
+  ]);
+});
+
 test("skill-tool calls: three forms, four verbs, payloads located", () => {
   const forms = (t: string) =>
     scanSkillToolCalls(t).map(

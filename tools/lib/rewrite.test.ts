@@ -4,10 +4,11 @@ import type { CurationManifest } from "./manifest.ts";
 import {
   buildRewriteMap,
   claudeOnlyVocabulary,
+  isBundledText,
   localize,
   type RewriteTarget,
   renderHarnessPhrasing,
-  rewriteOpenCodeSiblingClimbs,
+  rewriteOpenCodePaths,
   rewriteRefs,
 } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
@@ -87,29 +88,55 @@ test("sibling climbs are respelled only when they land on the shared skills dire
     ["requesting-code-review", "deniz-process.requesting-code-review"],
   ]);
   assert.equal(
-    rewriteOpenCodeSiblingClimbs("[a](../aspireify/SKILL.md)", 0, ids),
+    rewriteOpenCodePaths("[a](../aspireify/SKILL.md)", 0, ids),
     "[a](../deniz-dotnet-aspire.aspireify/SKILL.md)",
   );
   assert.equal(
-    rewriteOpenCodeSiblingClimbs("[a](../../aspireify/SKILL.md)", 1, ids),
+    rewriteOpenCodePaths("[a](../../aspireify/SKILL.md)", 1, ids),
     "[a](../../deniz-dotnet-aspire.aspireify/SKILL.md)",
   );
   assert.equal(
-    rewriteOpenCodeSiblingClimbs("[a](../../aspireify/SKILL.md)", 0, ids),
+    rewriteOpenCodePaths("[a](../../aspireify/SKILL.md)", 0, ids),
     "[a](../../aspireify/SKILL.md)",
     "wrong depth",
   );
   assert.equal(
-    rewriteOpenCodeSiblingClimbs('"Dispatch (../requesting-code-review/code-reviewer.md)"', 0, ids),
+    rewriteOpenCodePaths('"Dispatch (../requesting-code-review/code-reviewer.md)"', 0, ids),
     '"Dispatch (../deniz-process.requesting-code-review/code-reviewer.md)"',
     "prose climb",
   );
   assert.equal(
-    rewriteOpenCodeSiblingClimbs('AddCSharpApp("api", "../src/Api")', 1, ids),
+    rewriteOpenCodePaths('AddCSharpApp("api", "../src/Api")', 1, ids),
     'AddCSharpApp("api", "../src/Api")',
     "not an emitted skill",
   );
-  assert.equal(rewriteOpenCodeSiblingClimbs("x/../aspireify/y", 0, ids), "x/../aspireify/y", "inside a longer path");
+  assert.equal(rewriteOpenCodePaths("x/../aspireify/y", 0, ids), "x/../aspireify/y", "inside a longer path");
+});
+
+test("OpenCode path respelling covers item-root paths and climbs in any text", () => {
+  const ids = new Map([
+    ["brainstorming", "deniz-process.brainstorming"],
+    ["beta", "deniz-process.beta"],
+  ]);
+  assert.equal(
+    rewriteOpenCodePaths("`skills/brainstorming/visual-companion.md`", 0, ids),
+    "`skills/deniz-process.brainstorming/visual-companion.md`",
+  );
+  assert.equal(rewriteOpenCodePaths("cat ../../beta/notes.md", 1, ids), "cat ../../deniz-process.beta/notes.md");
+  assert.equal(
+    rewriteOpenCodePaths('cat "$(dirname "$0")/../../beta/notes.md"', 1, ids),
+    'cat "$(dirname "$0")/../../beta/notes.md"',
+    "inside a longer path",
+  );
+  assert.equal(rewriteOpenCodePaths("skills/testing/x.md", 0, ids), "skills/testing/x.md", "not an emitted skill");
+  const respelled = "`skills/deniz-process.beta/x.md` and ../deniz-process.beta/y.md";
+  assert.equal(rewriteOpenCodePaths(respelled, 0, ids), respelled, "an ID segment is already respelled");
+});
+
+test("bundled text has no NUL byte and survives a UTF-8 round trip", () => {
+  assert.equal(isBundledText(Buffer.from("#!/bin/sh\necho ok\n")), true);
+  assert.equal(isBundledText(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00])), false);
+  assert.equal(isBundledText(Buffer.from([0x63, 0xff, 0x0a])), false);
 });
 
 // Claude Code addresses a plugin skill by its DIRECTORY name, not by the frontmatter name — and

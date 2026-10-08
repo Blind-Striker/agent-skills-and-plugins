@@ -82,7 +82,7 @@ export function candidateHits(content: string, names: Iterable<string>): string[
   return hits.sort();
 }
 
-/** A relative path the linker can attribute: a climb onto the shared skills directory, or (W0.7) an item root. */
+/** A relative path the linker can attribute: a climb onto the shared skills directory, or an item root. */
 export interface PathClaim {
   kind: "climb" | "item-root";
   /** Where the claim starts: the first `../` of a climb. */
@@ -101,6 +101,10 @@ const CLIMB = new RegExp(String.raw`((?:\.\.\/)+)(${SEGMENT})(?=\/)`, "g");
 const PATH_TAIL = /^\/[^\s"'`)\]]*/;
 /** What continues a path, so a climb preceded by one of these starts inside a longer path. */
 const CONTINUES_PATH = /[A-Za-z0-9._/-]/;
+/** `skills/` then one segment and a `/`: a path rooted at an item folder, as a harness installs it. */
+const ITEM_ROOT = new RegExp(String.raw`skills\/(${SEGMENT})(?=\/)`, "g");
+/** What continues an item-root path: also `~` and `$`, so a home or variable prefix is a longer path. */
+const CONTINUES_ITEM_ROOT = /[A-Za-z0-9._/~$-]/;
 
 function claimPath(content: string, start: number, afterSegment: number): string {
   const path = content.slice(start, afterSegment) + (PATH_TAIL.exec(content.slice(afterSegment))?.[0] ?? "");
@@ -110,8 +114,10 @@ function claimPath(content: string, start: number, afterSegment: number): string
 /**
  * Every relative path in `content` the linker can attribute, in the order written. A climb is a
  * claim only when its `../` count lands exactly on the shared `skills/` directory
- * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path; the path runs to the
- * first space, quote, backtick, or closing bracket, minus one sentence-ending dot.
+ * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path. An item-root path
+ * (`skills/<segment>/`) is a claim when it does not continue a longer path, a home directory, or a
+ * variable. Either path runs to the first space, quote, backtick, or closing bracket, minus one
+ * sentence-ending dot.
  */
 export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[] {
   const out: PathClaim[] = [];
@@ -131,7 +137,22 @@ export function scanPathClaims(content: string, depthBelowSkillFolder: number): 
       path: claimPath(content, m.index, segmentIndex + segment.length),
     });
   }
-  return out;
+  for (const m of content.matchAll(ITEM_ROOT)) {
+    const before = m.index > 0 ? (content[m.index - 1] as string) : "";
+    if (before && CONTINUES_ITEM_ROOT.test(before)) {
+      continue;
+    }
+    const segment = m[1] as string;
+    const segmentIndex = m.index + "skills/".length;
+    out.push({
+      kind: "item-root",
+      index: m.index,
+      segmentIndex,
+      segment,
+      path: claimPath(content, m.index, segmentIndex + segment.length),
+    });
+  }
+  return out.sort((a, b) => a.index - b.index);
 }
 
 export interface SkillToolCall {
