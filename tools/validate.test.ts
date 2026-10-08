@@ -1404,3 +1404,83 @@ test("H2–H4: an excluded name is reported as not emitted", () => {
     errors.join("\n"),
   );
 });
+
+test("P: a landing climb fails closed, and a path into a manual folder fails", () => {
+  const errors = ocErrors("See `../beta/references/` and `../gone/x.md` and `../delta/references/notes.md`.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    invocation: manual",
+    '    omit: ["references/**"]',
+    "  - source: sp/skills/delta",
+  ]);
+  const spelled = {
+    plugins: "../beta/references/",
+    opencode: "../deniz-process.beta/references/",
+    codex: "../beta/references/",
+  };
+  for (const [tree, path] of Object.entries(spelled)) {
+    assert.ok(
+      errors.some((m) => m.includes(`sibling path ${path} does not resolve in ${tree}/`)),
+      `${tree}\n${errors.join("\n")}`,
+    );
+    assert.ok(
+      errors.some((m) => m.includes(`sibling path ../gone/x.md does not resolve in ${tree}/`)),
+      tree,
+    );
+  }
+  assert.equal(errors.filter((m) => m.includes("lands in manual item beta's folder")).length, 3);
+  assert.ok(!errors.some((m) => m.includes("references/notes.md")), "a resolving climb passes");
+});
+
+test("P: an item-root path resolves in every tree once OpenCode respells it", () => {
+  const errors = ocErrors("Read `skills/delta/references/notes.md` and `skills/delta/missing.md`.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/delta",
+  ]);
+  assert.ok(
+    !errors.some(
+      (m) => m.includes("skills/delta/references/notes.md") || m.includes("deniz-process.delta/references/notes.md"),
+    ),
+    errors.join("\n"),
+  );
+  assert.equal(errors.filter((m) => m.includes("missing.md does not resolve")).length, 3);
+});
+
+test("P: a script's landing climb fails closed like a Markdown one", () => {
+  const root = makeRepo();
+  const scripts = join(root, "external", "sp", "skills", "alpha", "scripts");
+  mkdirSync(scripts, { recursive: true });
+  writeFileSync(join(scripts, "run.sh"), "#!/bin/sh\ncat ../../gone/x.md ../../delta/references/notes.md\n");
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  const errors = validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+  for (const tree of ["plugins", "opencode", "codex"]) {
+    assert.ok(
+      errors.some((m) => m.includes(`scripts/run.sh:2: sibling path ../../gone/x.md does not resolve in ${tree}/`)),
+      `${tree}\n${errors.join("\n")}`,
+    );
+  }
+  assert.ok(!errors.some((m) => m.includes("delta/references/notes.md")), "a resolving script climb passes");
+});
+
+test("P: a Markdown link that is no claim still may not land in a manual folder", () => {
+  // `./../beta/` starts inside a longer path, so it is no landing climb; R1 reads it as a link.
+  const errors = ocErrors("See [beta](./../beta/SKILL.md).", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    invocation: manual",
+  ]);
+  for (const tree of ["plugins", "codex"]) {
+    assert.ok(
+      errors.some(
+        (m) => m.startsWith(`${tree}/`) && m.includes("path ./../beta/SKILL.md lands in manual item beta's folder"),
+      ),
+      `${tree}\n${errors.join("\n")}`,
+    );
+  }
+});

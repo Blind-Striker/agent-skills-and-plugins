@@ -1,5 +1,5 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join, relative, resolve } from "node:path";
+import { basename, dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
@@ -32,7 +32,14 @@ import {
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
-import { extractRefs, scanHandoffs, scanRefs, scanSkillToolCalls, straySkillToolMentions } from "./lib/refs.ts";
+import {
+  extractRefs,
+  scanHandoffs,
+  scanPathClaims,
+  scanRefs,
+  scanSkillToolCalls,
+  straySkillToolMentions,
+} from "./lib/refs.ts";
 import {
   collectIdentityProblems,
   deriveModuleRequirements,
@@ -42,7 +49,7 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { addressOf, claudeOnlyVocabulary } from "./lib/rewrite.ts";
+import { addressOf, claudeOnlyVocabulary, isBundledText } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -1074,6 +1081,16 @@ export function validateRepo(root: string): Finding[] {
   }
   const inside = (parent: string, child: string): boolean =>
     child === parent || !relative(parent, child).startsWith("..");
+  // A Claude skill with disable-model-invocation. An agent is also unreachable by the Claude model,
+  // but it owns no folder in Claude Code or OpenCode, and Codex emits it as an ordinary skill folder.
+  const manualItem = (name: string): boolean => {
+    const t = targetState.get(name);
+    return t !== undefined && !t.modelReachClaude && t.ocKind === "skill";
+  };
+  const manualMessage = (at: string, path: string, name: string): string =>
+    `${at}: path ${path} lands in manual item ${name}'s folder — a path is a read that bypasses Claude's model-invocation block; point the human with /ns:${name} instead`;
+  const landed = (abs: string, path: string): boolean =>
+    existsSync(abs) && (!path.endsWith("/") || statSync(abs).isDirectory());
 
   for (const tree of ["plugins", "opencode", "codex"]) {
     const treeRoot = join(root, tree);
@@ -1090,15 +1107,67 @@ export function validateRepo(root: string): Finding[] {
       }
       return moduleNames.map((plugin) => join(root, "codex", plugin, "skills", name));
     };
+    // P — path claims (references-and-linking.md "Paths"), read from every bundled text file in a
+    // skill folder, scripts included. A landing climb fails closed: a climb onto the shared skills
+    // directory has no illustrative reading. An item-root path is judged only when it names an
+    // estate item. Neither may land in another manual item's folder.
+    for (const unit of readdirSync(treeRoot)) {
+      const skillsRoot = join(treeRoot, unit, "skills");
+      for (const folder of existsSync(skillsRoot) ? readdirSync(skillsRoot) : []) {
+        const skillFolder = join(skillsRoot, folder);
+        if (!statSync(skillFolder).isDirectory()) {
+          continue;
+        }
+        const ownName = bareName(tree, folder);
+        for (const file of listFiles(skillFolder).map((f) => join(skillFolder, f))) {
+          const bytes = readFileSync(file);
+          if (!isBundledText(bytes)) {
+            continue;
+          }
+          const text = bytes.toString("utf8");
+          const depth = relative(skillFolder, dirname(file)).split(sep).filter(Boolean).length;
+          const rel = relative(root, file).replaceAll("\\", "/");
+          for (const claim of scanPathClaims(text, depth)) {
+            const at = `${rel}:${text.slice(0, claim.index).split("\n").length}`;
+            const name = bareName(tree, claim.segment);
+            if (name !== ownName && manualItem(name)) {
+              findings.push({ level: "error", message: manualMessage(at, claim.path, name) });
+            }
+            const base =
+              claim.kind === "climb" ? resolve(dirname(file), claim.path) : resolve(join(treeRoot, unit), claim.path);
+            const abs = tree === "opencode" ? reRootOpenCode(base) : base;
+            if (claim.kind === "climb" && !landed(abs, claim.path)) {
+              findings.push({
+                level: "error",
+                message: `${at}: sibling path ${claim.path} does not resolve in ${tree}/ — the target item was renamed, excluded, omitted, or never existed`,
+              });
+            } else if (claim.kind === "item-root" && estateNames.has(name) && !landed(abs, claim.path)) {
+              findings.push({ level: "error", message: `${at}: item path ${claim.path} does not resolve in ${tree}/` });
+            }
+          }
+        }
+      }
+    }
     for (const file of [...walk(treeRoot)].filter((f) => f.endsWith(".md"))) {
       const own = owningItem(tree, file);
       if (!own) {
         continue;
       }
       const rel = relative(root, file).replaceAll("\\", "/");
+      const depth = own.dir ? relative(own.dir, dirname(file)).split(sep).filter(Boolean).length : 0;
       for (const link of linkTargets(readFileSync(file, "utf8"))) {
+        // A landing climb is a path claim, and P above already judged it.
+        if (own.dir && scanPathClaims(link, depth).some((c) => c.kind === "climb" && c.index === 0)) {
+          continue;
+        }
         const resolved = resolve(dirname(file), link);
         const abs = tree === "opencode" ? reRootOpenCode(resolved) : resolved;
+        const manual = [...emitted.keys()].find(
+          (n) => n !== own.name && manualItem(n) && skillsOf(n).some((d) => existsSync(d) && inside(d, abs)),
+        );
+        if (manual) {
+          findings.push({ level: "error", message: manualMessage(rel, link, manual) });
+        }
         if (existsSync(abs)) {
           continue;
         }
