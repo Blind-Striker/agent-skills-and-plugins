@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import type { CurationManifest } from "./manifest.ts";
+import type { ComponentType, CurationManifest } from "./manifest.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
 import { scanRefs } from "./refs.ts";
 import type { ComponentInfo } from "./scan.ts";
@@ -13,23 +13,29 @@ function addressOf(c: ComponentInfo): string {
 }
 
 /**
- * How the target harness spells a reference to one of our own components — the other half of the
- * rewrite, and the reason there is one map per output tree rather than one shared map.
+ * How the target harness spells a reference to one of our own components. One map serves every
+ * output tree: its value is the resolved target, and each style below renders that target.
  *
- * Claude Code addresses a plugin skill as `<plugin>:<name>`. OpenCode has no plugin concept and a
- * flat namespace: it addresses a skill by its `name` alone, so the qualified form is not merely
- * redundant there, it resolves to nothing.
+ * Claude Code addresses a plugin skill as `<plugin>:<name>`; Codex as `$<plugin>:<name>`. The
+ * `opencode` style still renders the bare output `name`, unchanged from the OpenCode 1 emitter,
+ * until the OpenCode 2 renderer replaces it.
  */
 export type RefStyle = "claude" | "opencode" | "codex";
+
+/** The resolved output a reference points at: owning Plugin, output name, and output kind. */
+export interface RewriteTarget {
+  plugin: string;
+  name: string;
+  kind: ComponentType;
+}
 
 export function buildRewriteMap(
   manifests: CurationManifest[],
   components: ComponentInfo[],
-  style: RefStyle = "claude",
   ownSkills: OwnSkillIdentity[] = [],
-): Map<string, string> {
+): Map<string, RewriteTarget> {
   const bySource = new Map(components.map((c) => [c.sourcePath, c]));
-  const map = new Map<string, string>();
+  const map = new Map<string, RewriteTarget>();
   for (const m of manifests) {
     for (const item of m.items) {
       if (item.exclude) {
@@ -39,20 +45,36 @@ export function buildRewriteMap(
       if (!c) {
         continue;
       }
-      // The value is our own output name, which build.ts forces onto the emitted dir/file name.
-      const outName = item.name ?? c.name;
-      map.set(`${c.namespace}:${addressOf(c)}`, style === "opencode" ? outName : `${m.plugin.name}:${outName}`);
+      // The name is our own output name, which build.ts forces onto the emitted dir/file name.
+      map.set(`${c.namespace}:${addressOf(c)}`, {
+        plugin: m.plugin.name,
+        name: item.name ?? c.name,
+        kind: item.as ?? c.type,
+      });
     }
   }
   for (const own of ownSkills) {
-    const value = style === "opencode" ? own.name : own.address;
+    const value: RewriteTarget = { plugin: own.plugin, name: own.name, kind: "skill" };
     const existing = map.get(own.address);
-    if (existing !== undefined && existing !== value) {
-      throw new Error(`reference identity ${own.address} resolves to both ${existing} and ${value}`);
+    if (existing && (existing.plugin !== value.plugin || existing.name !== value.name)) {
+      throw new Error(
+        `reference identity ${own.address} resolves to both ${existing.plugin}:${existing.name} and ${own.address}`,
+      );
     }
     map.set(own.address, value);
   }
   return map;
+}
+
+function render(target: RewriteTarget, style: RefStyle): string {
+  switch (style) {
+    case "claude":
+      return `${target.plugin}:${target.name}`;
+    case "codex":
+      return `$${target.plugin}:${target.name}`;
+    case "opencode":
+      return target.name;
+  }
 }
 
 /**
@@ -62,19 +84,18 @@ export function buildRewriteMap(
  * longest-key-first ordering existed to prevent. Everything outside a replaced address is copied
  * byte-for-byte — a pointer's leading slash included, since it sits outside `address`.
  */
-export function rewriteRefs(content: string, map: Map<string, string>, style: RefStyle = "claude"): string {
+export function rewriteRefs(content: string, map: Map<string, RewriteTarget>, style: RefStyle = "claude"): string {
   let out = "";
   let cut = 0;
   for (const ref of scanRefs(content)) {
-    const value = map.get(ref.address);
-    if (value === undefined) {
+    const target = map.get(ref.address);
+    if (target === undefined) {
       continue;
     }
     // The scanner positions a pointer after its leading slash. Codex renders both semantic edge
     // kinds with `$`, so consume that slash instead of producing the invalid `/$plugin:skill`.
     const start = style === "codex" && ref.kind === "pointer" ? ref.index - 1 : ref.index;
-    const rendered = style === "codex" ? `$${value}` : value;
-    out += content.slice(cut, start) + rendered;
+    out += content.slice(cut, start) + render(target, style);
     cut = ref.index + ref.address.length;
   }
   return out + content.slice(cut);

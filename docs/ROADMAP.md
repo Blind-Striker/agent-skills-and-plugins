@@ -203,7 +203,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   skill keys that OpenCode 2 ignores.
   `writeOpenCodeManifests` looks up modes through `plugins/<plugin>/<path>`, so renamed namespaced
   paths would miss it and the seven executable Process files would fall back to 100644.
-- **OpenCode 2 references are not rewritten:** the OpenCode style of `buildRewriteMap` in
+- **OpenCode 2 references are not rewritten:** the `opencode` style of `rewriteRefs` in
   `tools/lib/rewrite.ts` renders a bare `<name>`, not `<plugin>.<name>`, `@<plugin>.<name>`, or
   `/<plugin>.<name>`, and no pass rewrites relative `../<name>/` sibling links to
   `../<plugin>.<name>/`.

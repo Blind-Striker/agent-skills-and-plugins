@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CurationManifest } from "./manifest.ts";
-import { buildRewriteMap, rewriteRefs } from "./rewrite.ts";
+import { buildRewriteMap, type RewriteTarget, rewriteRefs } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 const comp = (over: Partial<ComponentInfo>): ComponentInfo => ({
@@ -32,9 +32,29 @@ const own = [{ plugin: "deniz-process", name: "my-own", address: "deniz-process:
 
 test("map covers included items with renames, skips excluded", () => {
   const map = buildRewriteMap([manifest], components);
-  assert.equal(map.get("superpowers:brainstorming"), "deniz-process:brainstorming");
-  assert.equal(map.get("superpowers:tdd"), "deniz-process:deniz-tdd");
+  assert.deepEqual(map.get("superpowers:brainstorming"), {
+    plugin: "deniz-process",
+    name: "brainstorming",
+    kind: "skill",
+  });
+  assert.deepEqual(map.get("superpowers:tdd"), { plugin: "deniz-process", name: "deniz-tdd", kind: "skill" });
   assert.equal(map.has("superpowers:dropped"), false);
+});
+
+test("map records the resolved target kind", () => {
+  const m: CurationManifest = {
+    plugin: { name: "deniz-process", description: "d", version: "0.1.0" },
+    items: [{ source: "sp/skills/brainstorming", as: "command" }],
+  };
+  assert.equal(buildRewriteMap([m], components).get("superpowers:brainstorming")?.kind, "command");
+});
+
+test("one map renders all three styles; OpenCode stays bare in this checkpoint", () => {
+  const map = buildRewriteMap([manifest], components, own);
+  const text = "Use superpowers:brainstorming, then /deniz-process:my-own.";
+  assert.equal(rewriteRefs(text, map, "claude"), "Use deniz-process:brainstorming, then /deniz-process:my-own.");
+  assert.equal(rewriteRefs(text, map, "codex"), "Use $deniz-process:brainstorming, then $deniz-process:my-own.");
+  assert.equal(rewriteRefs(text, map, "opencode"), "Use brainstorming, then /my-own.");
 });
 
 // Claude Code addresses a plugin skill by its DIRECTORY name, not by the frontmatter name — and
@@ -51,7 +71,7 @@ test("map keys on the upstream address, not the frontmatter name", () => {
     ],
     [comp({ name: "fancy-name", sourcePath: "sp/skills/dir-name" })],
   );
-  assert.equal(map.get("superpowers:dir-name"), "deniz-process:fancy-name");
+  assert.deepEqual(map.get("superpowers:dir-name"), { plugin: "deniz-process", name: "fancy-name", kind: "skill" });
   assert.equal(map.has("superpowers:fancy-name"), false);
 });
 
@@ -65,19 +85,15 @@ test("commands and agents are addressed by file name without the extension", () 
     ],
     [comp({ type: "command", name: "fancy-name", sourcePath: "sp/commands/do-it.md" })],
   );
-  assert.equal(map.get("superpowers:do-it"), "deniz-process:fancy-name");
+  assert.deepEqual(map.get("superpowers:do-it"), { plugin: "deniz-process", name: "fancy-name", kind: "command" });
 });
 
 test("original skill targets use Plugin-qualified Claude and bare OpenCode spellings", () => {
-  assert.equal(
-    buildRewriteMap([manifest], components, "claude", own).get("deniz-process:my-own"),
-    "deniz-process:my-own",
-  );
-  assert.equal(buildRewriteMap([manifest], components, "opencode", own).get("deniz-process:my-own"), "my-own");
-  assert.equal(
-    buildRewriteMap([manifest], components, "codex", own).get("deniz-process:my-own"),
-    "deniz-process:my-own",
-  );
+  assert.deepEqual(buildRewriteMap([manifest], components, own).get("deniz-process:my-own"), {
+    plugin: "deniz-process",
+    name: "my-own",
+    kind: "skill",
+  });
 });
 
 test("an original skill rewrite key cannot overwrite another target", () => {
@@ -87,15 +103,15 @@ test("an original skill rewrite key cannot overwrite another target", () => {
     items: [{ source: "sp/skills/my-own", name: "other-target" }],
   };
   assert.throws(
-    () => buildRewriteMap([collisionManifest], colliding, "claude", own),
+    () => buildRewriteMap([collisionManifest], colliding, own),
     /reference identity deniz-process:my-own.*deniz-process:other-target.*deniz-process:my-own/,
   );
 });
 
 test("rewriteRefs replaces longest keys first", () => {
-  const map = new Map([
-    ["sp:foo", "p:foo"],
-    ["sp:foo-bar", "p:foo-bar"],
+  const map = new Map<string, RewriteTarget>([
+    ["sp:foo", { plugin: "p", name: "foo", kind: "skill" }],
+    ["sp:foo-bar", { plugin: "p", name: "foo-bar", kind: "skill" }],
   ]);
   assert.equal(rewriteRefs("use sp:foo-bar then sp:foo", map), "use p:foo-bar then p:foo");
 });
@@ -103,16 +119,16 @@ test("rewriteRefs replaces longest keys first", () => {
 // `sp:foo-bar` is a different component that happens to start with a curated one's name. Rewriting
 // its prefix produced `p:foo-bar`, a reference to a skill that was never curated.
 test("rewriteRefs stops at ref-token boundaries", () => {
-  const map = new Map([["sp:foo", "p:foo"]]);
+  const map = new Map<string, RewriteTarget>([["sp:foo", { plugin: "p", name: "foo", kind: "skill" }]]);
   assert.equal(rewriteRefs("sp:foo-bar and sp:foobar and sp:foo", map), "sp:foo-bar and sp:foobar and p:foo");
   assert.equal(rewriteRefs("xsp:foo", map), "xsp:foo");
   assert.equal(rewriteRefs("(sp:foo).", map), "(p:foo).");
 });
 
 test("Codex renders model edges and user pointers as valid namespaced dollar references", () => {
-  const map = new Map([
-    ["superpowers:tdd", "deniz-process:test-driven-development"],
-    ["superpowers:brainstorming", "deniz-process:brainstorming"],
+  const map = new Map<string, RewriteTarget>([
+    ["superpowers:tdd", { plugin: "deniz-process", name: "test-driven-development", kind: "skill" }],
+    ["superpowers:brainstorming", { plugin: "deniz-process", name: "brainstorming", kind: "skill" }],
   ]);
   assert.equal(
     rewriteRefs("Use superpowers:tdd, or tell the user to open /superpowers:brainstorming.", map, "codex"),
@@ -121,7 +137,7 @@ test("Codex renders model edges and user pointers as valid namespaced dollar ref
 });
 
 test("Codex rewriting keeps token boundaries and literal dollar amounts", () => {
-  const map = new Map([["sp:foo", "plugin:renamed"]]);
+  const map = new Map<string, RewriteTarget>([["sp:foo", { plugin: "plugin", name: "renamed", kind: "skill" }]]);
   assert.equal(
     rewriteRefs("$25, sp:foo-bar, xsp:foo, and sp:foo.", map, "codex"),
     "$25, sp:foo-bar, xsp:foo, and $plugin:renamed.",
@@ -133,7 +149,7 @@ test("Codex map preserves the owning plugin across cross-plugin targets and rena
     plugin: { name: "deniz-other", description: "Other", version: "0.1.0" },
     items: [{ source: "sp/skills/tdd", name: "renamed-tdd" }],
   };
-  const map = buildRewriteMap([other], components, "codex");
+  const map = buildRewriteMap([other], components);
   assert.equal(rewriteRefs("Use superpowers:tdd.", map, "codex"), "Use $deniz-other:renamed-tdd.");
 });
 

@@ -56,7 +56,7 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { buildRewriteMap, type RefStyle, rewriteRefs } from "./lib/rewrite.ts";
+import { buildRewriteMap, type RefStyle, type RewriteTarget, rewriteRefs } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export function buildAll(root: string): string[] {
@@ -88,9 +88,7 @@ export function buildAll(root: string): string[] {
   }
   const ownSkills = ownSkillIdentities(root, manifests);
   const moduleRequirements = deriveModuleRequirements(root, manifests, components, ownSkills);
-  const claudeRewrite = buildRewriteMap(manifests, components, "claude", ownSkills);
-  const opencodeRewrite = buildRewriteMap(manifests, components, "opencode", ownSkills);
-  const codexRewrite = buildRewriteMap(manifests, components, "codex", ownSkills);
+  const rewriteMap = buildRewriteMap(manifests, components, ownSkills);
 
   // Assemble every authored item once before deleting any committed output. The staging directory
   // is internal pipeline state: Claude Code and OpenCode consume the same resolved bodies, and a
@@ -134,9 +132,9 @@ export function buildAll(root: string): string[] {
       );
     }
     const codexMetadataTransformations = emitCodex(root, manifests, assembled, notices, report);
-    rewriteTree(join(root, "plugins"), claudeRewrite);
-    rewriteTree(join(root, "opencode"), opencodeRewrite);
-    rewriteTree(join(root, "codex"), codexRewrite, "codex");
+    rewriteTree(join(root, "plugins"), rewriteMap, "claude");
+    rewriteTree(join(root, "opencode"), rewriteMap, "opencode");
+    rewriteTree(join(root, "codex"), rewriteMap, "codex");
     finalizeCodexSkillMetadata(root, assembled, codexMetadataTransformations, report);
     // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
     // excluded from the walk.
@@ -476,7 +474,7 @@ function writeMarketplace(root: string, manifests: CurationManifest[]): void {
   writeFileSync(join(root, ".claude-plugin", "marketplace.json"), `${JSON.stringify(marketplace, null, 2)}\n`);
 }
 
-function rewriteTree(dir: string, map: Map<string, string>, style: RefStyle = "claude"): void {
+function rewriteTree(dir: string, map: Map<string, RewriteTarget>, style: RefStyle): void {
   if (!existsSync(dir)) {
     return;
   }
