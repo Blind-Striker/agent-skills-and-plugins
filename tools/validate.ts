@@ -32,7 +32,7 @@ import {
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
-import { extractRefs, scanRefs } from "./lib/refs.ts";
+import { extractRefs, scanRefs, scanSkillToolCalls, straySkillToolMentions } from "./lib/refs.ts";
 import {
   collectIdentityProblems,
   deriveModuleRequirements,
@@ -42,6 +42,7 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
+import { claudeOnlyVocabulary } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -248,21 +249,7 @@ export function scanOpenCodeIds(text: string, plugins: string[]): OpenCodeIdToke
   return out;
 }
 
-// The three measured skill-tool phrasings: `with "x"`, `twice, for "x" and "y"`, `for "x"`, in the
-// upstream spelling or the OpenCode rendering (the `skill` tool). Other phrasings are not detected;
-// that is a stated limit, not a claim of completeness.
-const SKILL_TOOL_HANDLE = /`?Skill`? tool(?: twice,)? (?:with|for) ("[^"\n]+"(?:,? (?:and|or) "[^"\n]+")*)/gi;
-
-/** Quoted skill-tool handles on one line, in order. */
-export function skillToolHandles(line: string): string[] {
-  const out: string[] = [];
-  for (const m of line.matchAll(SKILL_TOOL_HANDLE)) {
-    for (const q of (m[1] as string).matchAll(/"([^"\n]+)"/g)) {
-      out.push(q[1] as string);
-    }
-  }
-  return out;
-}
+const lineOf = (text: string, index: number): number => text.slice(0, index).split("\n").length;
 
 export function validateRepo(root: string): Finding[] {
   requireSubmodules(root);
@@ -869,6 +856,32 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
+  // H1: the skill-tool call is a handoff template (references-and-linking.md). Checked once, on the
+  // canonical tree, where a handle still carries its namespace; the linker and O1 then check the target.
+  for (const file of existsSync(pluginsDir) ? [...walk(pluginsDir)].filter((f) => f.endsWith(".md")) : []) {
+    const rel = relative(root, file).replaceAll("\\", "/");
+    const text = readFileSync(file, "utf8");
+    for (const call of scanSkillToolCalls(text)) {
+      for (const payload of call.payloads) {
+        const refs = scanRefs(payload.text);
+        const ref = refs[0];
+        const fact = refs.length === 1 && ref?.kind === "model" && ref.address === payload.text && ownNs.has(ref.ns);
+        if (!fact) {
+          findings.push({
+            level: "error",
+            message: `${rel}:${lineOf(text, payload.index)}: skill-tool handle "${payload.text}" is not a namespaced fact — author it as "ns:${payload.text}" with a matching depends_on`,
+          });
+        }
+      }
+    }
+    for (const index of straySkillToolMentions(text)) {
+      findings.push({
+        level: "error",
+        message: `${rel}:${lineOf(text, index)}: "skill tool" outside a recognized skill-tool call — reword it into a form in curation/SCHEMA.md Dependencies`,
+      });
+    }
+  }
+
   // L4: output namespaces must never reach the OpenCode tree — it addresses items by dotted ID.
   for (const file of existsSync(ocDir) ? [...walk(ocDir)].filter((f) => f.endsWith(".md")) : []) {
     for (const ref of extractRefs(readFileSync(file, "utf8"))) {
@@ -881,8 +894,23 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // O1, O2, O4–O6: the OpenCode tree addresses items by dotted ID, so every rendered ID, every
-  // skill-tool handle, and every artifact's shape is checked against what was actually emitted.
+  // V: Claude Code tool words must not reach a harness that has no such tool.
+  for (const tree of ["opencode", "codex"] as const) {
+    const dir = join(root, tree);
+    for (const file of existsSync(dir) ? [...walk(dir)].filter((f) => f.endsWith(".md")) : []) {
+      const rel = relative(root, file).replaceAll("\\", "/");
+      const text = readFileSync(file, "utf8");
+      for (const hit of claudeOnlyVocabulary(text)) {
+        findings.push({
+          level: "error",
+          message: `${rel}:${lineOf(text, hit.index)}: Claude-only vocabulary "${hit.match}" in ${tree}/ — reword it into a form the harness phrasing renders (curation/SCHEMA.md Dependencies)`,
+        });
+      }
+    }
+  }
+
+  // O1, O4–O6: the OpenCode tree addresses items by dotted ID, so every rendered ID and every
+  // artifact's shape is checked against what was actually emitted.
   const kindLabel = { "": "item", "@": "skill or agent", "/": "command" } as const;
   const prefixFits = (prefix: OpenCodeIdToken["prefix"], kind: ComponentType): boolean =>
     prefix === "" || (prefix === "@" ? kind === "skill" || kind === "agent" : kind === "command");
@@ -897,17 +925,6 @@ export function validateRepo(root: string): Finding[] {
           level: "error",
           message: `${rel}:${token.line}: rendered OpenCode ID ${token.prefix}${token.id} does not name an emitted ${kindLabel[token.prefix]}`,
         });
-      }
-    }
-    // O2: a skill-tool handle is only callable when it is an emitted OpenCode skill ID.
-    for (const [index, line] of text.split("\n").entries()) {
-      for (const handle of skillToolHandles(line)) {
-        if (ocIndex.get(handle)?.kind !== "skill") {
-          findings.push({
-            level: "error",
-            message: `${rel}:${index + 1}: skill-tool handle "${handle}" is not an emitted OpenCode skill ID — author it as a namespaced fact with a matching depends_on`,
-          });
-        }
       }
     }
   }

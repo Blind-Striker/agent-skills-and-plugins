@@ -9,7 +9,7 @@ import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.t
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath } from "./testutil.ts";
-import { scanOpenCodeIds, skillToolHandles, validateRepo } from "./validate.ts";
+import { scanOpenCodeIds, validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
 // model-edge at an AGENT — an edge the model cannot traverse, and undeclared besides. That debt is
@@ -1236,25 +1236,6 @@ test("rendered OpenCode IDs are tokens, not path segments", () => {
   assert.deepEqual(ids("deniz-process.a_b"), []);
 });
 
-test("skill-tool handles cover the three measured forms", () => {
-  assert.deepEqual(skillToolHandles('Call the Skill tool with "deniz-process.grilling".'), ["deniz-process.grilling"]);
-  assert.deepEqual(skillToolHandles('Call the `skill` tool with "deniz-process.grilling".'), [
-    "deniz-process.grilling",
-  ]);
-  assert.deepEqual(skillToolHandles('Call the Skill tool twice, for "grilling" and "domain-modeling".'), [
-    "grilling",
-    "domain-modeling",
-  ]);
-  assert.deepEqual(skillToolHandles('a subagent that calls the Skill tool with "research". Use when'), ["research"]);
-  assert.deepEqual(skillToolHandles("call the Skill tool for whichever skills the block names"), []);
-  assert.deepEqual(
-    skillToolHandles(
-      'Call the Skill tool with "codebase-design" for the vocabulary ("the interface is the test surface")',
-    ),
-    ["codebase-design"],
-  );
-});
-
 /** alpha carries `body`; extra manifest lines follow the alpha item. Returns error messages. */
 function ocErrors(body: string, items: string[], mutate?: (root: string) => void): string[] {
   const root = makeRepo();
@@ -1311,17 +1292,19 @@ test("O1: rendered IDs must resolve with a prefix that matches the target kind",
   );
 });
 
-test("O2: a bare skill-tool handle fails; a promoted one passes", () => {
-  const bare = ocErrors('Call the Skill tool with "beta".', [
+test("H1: a skill-tool handle must be a namespaced fact; stray skill-tool prose fails", () => {
+  const bareItems = [
     "  - source: sp/skills/alpha",
     "    invocation: manual",
     "  - source: sp/skills/beta",
     "    invocation: auto",
-  ]);
+  ];
+  const bare = ocErrors('Call the Skill tool with "beta".', bareItems);
   assert.ok(
-    bare.some((m) => m.includes('skill-tool handle "beta" is not an emitted OpenCode skill ID')),
+    bare.some((m) => m.includes('skill-tool handle "beta" is not a namespaced fact')),
     bare.join("\n"),
   );
+  assert.ok(!bare.some((m) => m.includes("Claude-only vocabulary")), "a recognized call renders, so it never leaks");
   const promoted = ocErrors('Call the Skill tool with "superpowers:beta".', [
     "  - source: sp/skills/alpha",
     "    invocation: manual",
@@ -1329,7 +1312,33 @@ test("O2: a bare skill-tool handle fails; a promoted one passes", () => {
     "  - source: sp/skills/beta",
     "    invocation: auto",
   ]);
-  assert.ok(!promoted.some((m) => m.includes("skill-tool handle")), promoted.join("\n"));
+  assert.ok(
+    !promoted.some((m) => m.includes("skill-tool") || m.includes("Claude-only vocabulary")),
+    promoted.join("\n"),
+  );
+  const stray = ocErrors("Use the Skill tool to load beta.", bareItems);
+  assert.ok(
+    stray.some((m) => m.includes('"skill tool" outside a recognized skill-tool call')),
+    stray.join("\n"),
+  );
+  assert.equal(
+    stray.filter((m) => m.includes('Claude-only vocabulary "Skill tool"')).length,
+    2,
+    "opencode/ and codex/",
+  );
+});
+
+test("V: Claude-only dispatch words in a generated tree are errors", () => {
+  const errors = ocErrors("Body.", ["  - source: sp/skills/alpha"], (root) => {
+    const file = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
+    writeFileSync(file, `${readFileSync(file, "utf8")}\nUse the Task tool with subagent_type set.\n`);
+  });
+  for (const word of ["Task tool", "subagent_type"]) {
+    assert.ok(
+      errors.some((m) => m.includes(`Claude-only vocabulary "${word}" in codex/`)),
+      errors.join("\n"),
+    );
+  }
 });
 
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
