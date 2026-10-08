@@ -1397,7 +1397,8 @@ git status --short -- $GEN   # expected: no output
 - **Tooling gate.** Each tooling task ends with the five tooling commands (Checkpoints); every
   command exits 0 and `npm test` reports `# fail 0`. `npm run validate` is not part of that gate:
   it is red from W0.5 until W0.12, with exactly the findings W0.9 fixes.
-- **Behavior-neutral step.** W0.1 only moves grammar; its build output must be byte-identical.
+- **Behavior-neutral step.** W0.1 moves the climb grammar and lets its segment read an OpenCode ID,
+  which no rewrite looks up; its build output must be byte-identical.
 - **Curation layer.** Comments carry the why beside the item and no names or dates. A new patch uses
   the two-pass `eject --patch`. Extending an existing patch re-cuts it, because `--force` deletes
   the old patch before it lays a pristine working copy:
@@ -1439,6 +1440,9 @@ test("landing climbs are path claims only at the depth that reaches the skills d
     "climb:using-superpowers:../using-superpowers/references/",
   ]);
   assert.deepEqual(claims("read ../beta/notes.md.", 0), ["climb:beta:../beta/notes.md"], "one trailing dot dropped");
+  assert.deepEqual(claims("[a](../deniz-process.beta/SKILL.md)", 0), [
+    "climb:deniz-process.beta:../deniz-process.beta/SKILL.md",
+  ], "a respelled OpenCode ID is read back, so P can judge the OpenCode tree");
 });
 ```
 
@@ -1456,7 +1460,10 @@ export interface PathClaim {
   path: string;
 }
 
-const CLIMB = /((?:\.\.\/)+)([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/)/g;
+// A portable name, or the `<plugin>.<name>` ID an OpenCode segment carries after respelling, so the
+// validator reads every tree with one grammar. The rewrite looks up bare names only.
+const SEGMENT = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)?`;
+const CLIMB = new RegExp(String.raw`((?:\.\.\/)+)(${SEGMENT})(?=\/)`, "g");
 const PATH_TAIL = /^\/[^\s"'`)\]]*/;
 const CONTINUES_PATH = /[A-Za-z0-9._/-]/;
 
@@ -1501,7 +1508,9 @@ export function rewriteOpenCodeSiblingClimbs(content: string, depthBelowSkillFol
 
 - [ ] **Step 4: Run tests.** `node --test tools/lib/refs.test.ts tools/lib/rewrite.test.ts` -> PASS;
   the existing "sibling climbs are respelled only when they land on the shared skills directory"
-  test passes unchanged.
+  test passes unchanged. The ID form of `SEGMENT` is the one grammar change: the old `CLIMB` never
+  matched `../<plugin>.<name>/`, and the new scan matches it but finds no bare-name key for it, so
+  the rewrite output is the same.
 - [ ] **Step 5: Prove behavior neutrality.**
 
 ```bash
@@ -2092,6 +2101,9 @@ test("item-root paths are claims unless they continue a longer path", () => {
   assert.deepEqual(claims("read `skills/brainstorming/visual-companion.md`"), ["brainstorming:skills/brainstorming/visual-companion.md"]);
   assert.deepEqual(claims("see skills/brainstorming/visual-companion.md."), ["brainstorming:skills/brainstorming/visual-companion.md"]);
   assert.deepEqual(claims(".agents/skills/aspireify/SKILL.md ~/.claude/skills/x/ a/skills/z/ ~skills/y/ $skills/w/"), []);
+  assert.deepEqual(claims("`skills/deniz-process.brainstorming/visual-companion.md`"), [
+    "deniz-process.brainstorming:skills/deniz-process.brainstorming/visual-companion.md",
+  ]);
 });
 ```
 
@@ -2105,6 +2117,8 @@ test("OpenCode path respelling covers item-root paths and climbs in any text", (
   assert.equal(rewriteOpenCodePaths("cat ../../beta/notes.md", 1, ids), "cat ../../deniz-process.beta/notes.md");
   assert.equal(rewriteOpenCodePaths('cat "$(dirname "$0")/../../beta/notes.md"', 1, ids), 'cat "$(dirname "$0")/../../beta/notes.md"', "inside a longer path");
   assert.equal(rewriteOpenCodePaths("skills/testing/x.md", 0, ids), "skills/testing/x.md", "not an emitted skill");
+  const respelled = "`skills/deniz-process.beta/x.md` and ../deniz-process.beta/y.md";
+  assert.equal(rewriteOpenCodePaths(respelled, 0, ids), respelled, "an ID segment is already respelled");
 });
 
 test("bundled text has no NUL byte and survives a UTF-8 round trip", () => {
@@ -2156,7 +2170,7 @@ test("OpenCode respells sibling paths in scripts and item-root paths, and keeps 
 - [ ] **Step 3: Implement.** In `scanPathClaims`, after the climb loop:
 
 ```ts
-const ITEM_ROOT = /skills\/([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/)/g;
+const ITEM_ROOT = new RegExp(String.raw`skills\/(${SEGMENT})(?=\/)`, "g");
 const CONTINUES_ITEM_ROOT = /[A-Za-z0-9._/~$-]/;
 
 for (const m of content.matchAll(ITEM_ROOT)) {
@@ -2247,6 +2261,23 @@ test("P: an item-root path resolves in every tree once OpenCode respells it", ()
   assert.ok(!errors.some((m) => m.includes("skills/delta/references/notes.md") || m.includes("deniz-process.delta/references/notes.md")), errors.join("\n"));
   assert.equal(errors.filter((m) => m.includes("missing.md does not resolve")).length, 3);
 });
+
+test("P: a script's landing climb fails closed like a Markdown one", () => {
+  const root = makeRepo();
+  const scripts = join(root, "external", "sp", "skills", "alpha", "scripts");
+  mkdirSync(scripts, { recursive: true });
+  writeFileSync(join(scripts, "run.sh"), "#!/bin/sh\ncat ../../gone/x.md ../../delta/references/notes.md\n");
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  const errors = validateRepo(root).filter((f) => f.level === "error").map((f) => f.message);
+  for (const tree of ["plugins", "opencode", "codex"]) {
+    assert.ok(errors.some((m) => m.includes(`scripts/run.sh:2: sibling path ../../gone/x.md does not resolve in ${tree}/`)), `${tree}\n${errors.join("\n")}`);
+  }
+  assert.ok(!errors.some((m) => m.includes("delta/references/notes.md")), "a resolving script climb passes");
+});
 ```
 
 - [ ] **Step 2: Run to verify failure.** `node --test tools/validate.test.ts` -> FAIL.
@@ -2254,7 +2285,12 @@ test("P: an item-root path resolves in every tree once OpenCode respells it", ()
   `for (const tree of ["plugins", "opencode", "codex"])` loop, before the Markdown-link loop:
 
 ```ts
-const manualItem = (name: string): boolean => targetState.get(name)?.modelReachClaude === false;
+// A Claude skill with disable-model-invocation. An agent is also unreachable by the Claude model,
+// but it owns no folder in Claude Code or OpenCode, and Codex emits it as an ordinary skill folder.
+const manualItem = (name: string): boolean => {
+  const t = targetState.get(name);
+  return t !== undefined && !t.modelReachClaude && t.ocKind === "skill";
+};
 const landed = (abs: string, path: string): boolean => existsSync(abs) && (!path.endsWith("/") || statSync(abs).isDirectory());
 for (const unit of readdirSync(treeRoot)) {
   const skillsRoot = join(treeRoot, unit, "skills");
@@ -2311,6 +2347,7 @@ git commit -m "feat: fail closed on unresolved path claims and paths into manual
 - [ ] **Step 1: Build and validate the real repository.**
 
 ```bash
+SCRATCH=$(mktemp -d)
 npm run build
 npm run validate > "$SCRATCH/w0-red.txt"; tail -1 "$SCRATCH/w0-red.txt"
 grep -c 'skill-tool handle' "$SCRATCH/w0-red.txt"
@@ -2330,8 +2367,8 @@ grep -cE 'Claude-only vocabulary|outside a recognized|item path|which this estat
   `skills/deniz-process.brainstorming/visual-companion.md`;
   `codex/deniz-process/skills/requesting-code-review/SKILL.md` says "dispatch a subagent" and "two
   subagent calls"; `opencode/deniz-process/skills/deniz-process.dispatching-parallel-agents/SKILL.md`
-  says `Subagent (general):`; `codex/deniz-process/skills/handoff/SKILL.md` ends its line 11 with
-  "should invoke.".
+  says `Subagent (general):`; `codex/deniz-process/skills/handoff/SKILL.md` ends its line 9 (line 11 in
+  `plugins/`; Codex frontmatter is shorter) with "should invoke.".
 - [ ] **Step 3: Restore the generated paths** (phase rules). `git status --short` prints nothing.
 
 ### Task W0.10: Promote the 16 Process skill-tool handles
@@ -2482,6 +2519,12 @@ git commit -m "curate: promote the General and Aspire load-bearing handoffs"
   Proposed wording, which the curator confirms before the cut: `description: Writing documents an
   agent consumes. Use when designing or rewording a skill, an AGENTS.md or CLAUDE.md, or an agent
   prompt for how reliably an agent follows it — not for routine content edits to those files.`
+  Mechanism: `curation/SCHEMA.md` puts a metadata change on the `frontmatter:` rung, which has no
+  upstream-staleness guard (ROADMAP Known Gaps, "Frontmatter override staleness"). This step takes
+  one rung higher on purpose, a patch whose lock stamp stops the build when upstream rewrites the
+  description, so no new unguarded override is added. The curator confirms the mechanism with the
+  wording; the alternative is `frontmatter: description:` with no overlay and no lock entry, and
+  then W0.14 expects six new patches, not seven.
   Manifest:
 
 ```yaml
@@ -2994,8 +3037,8 @@ The pointers in `csharp-nullable-reference-types` (to `migrate-nullable-referenc
 
 Every Module's OpenCode bytes change (paths, digests). Checkout versions: Process 0.6.0, General
 0.9.1, Akka 0.3.1, Aspire 0.3.3. A `plugin.version` bump also changes the Claude and Codex Plugin
-manifests and marketplaces. Question: bump which Modules, to what? Package version: recommend
-`0.4.0` (spec Q9).
+manifests; neither marketplace carries a version. Question: bump which Modules, to what? Package
+version: recommend `0.4.0` (spec Q9).
 
 ### A6. Comments and reasons written against OpenCode 1 or two harnesses
 

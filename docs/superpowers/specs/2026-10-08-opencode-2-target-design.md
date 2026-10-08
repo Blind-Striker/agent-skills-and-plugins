@@ -597,6 +597,12 @@ Measured at `7c1f642` over `plugins/` (probe of exactly this grammar; a line is 
 | H3 load | `aspire-init/references/init-workflow.md:126` (aspireify, "Re-invoke"); `code-testing-agent:187` (test-gap-analysis, test-anti-patterns); `run-tests:36, 173` (filter-syntax), `:64` (platform-detection); `test-gap-analysis:43` and `references/mutation-catalog.md:31` (test-analysis-extensions; the verb ends the line before) |
 | H4 route | `ask-deniz:86` (systematic-debugging), `:97` (resolving-merge-conflicts). Silent: Aspire arrows naming `azure-diagnostics`, `docker`, `kubectl` |
 
+"See" references in the same cluster match no template and stay candidates, as canon states:
+`mtp-hot-reload:131` ("see the `filter-syntax` skill for full details") and
+`check-bin-obj-clash:326` ("See the `binlog-generation` skill's … section"). The evidence for break
+(c) cited the first of them; W0 neither promotes nor checks it, so the curator confirms that (c)
+ends at the template forms.
+
 ### 14. Path integrity (X3)
 
 **Grammar** (`tools/lib/refs.ts`; the `CLIMB` regex moves here from `rewrite.ts`):
@@ -613,9 +619,15 @@ export interface PathClaim {
 export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[];
 ```
 
-- Landing climb: `((?:\.\./)+)([a-z0-9]+(?:-[a-z0-9]+)*)(?=/)`, no `[A-Za-z0-9._/-]` before it, and
+- Segment: `[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)?`, a portable name or an
+  OpenCode ID. The ID form lets P read the OpenCode tree after respelling; without it, every
+  respelled climb and item-root path there would be invisible to P, including the
+  `executing-plans` climb (measured at `7c1f642`: the ID form adds 37 claims, all in `opencode/`,
+  none in `plugins/` or `codex/`). The rewrite looks up bare names only, so an ID segment is left
+  as written and the W0.1 build stays byte-identical.
+- Landing climb: `((?:\.\./)+)(<segment>)(?=/)`, no `[A-Za-z0-9._/-]` before it, and
   `../` count = depth + 1.
-- Item-root: `skills/([a-z0-9]+(?:-[a-z0-9]+)*)/`, no `[A-Za-z0-9._/~$-]` before it.
+- Item-root: `skills/(<segment>)/`, no `[A-Za-z0-9._/~$-]` before it.
 
 **Text files** (`tools/lib/rewrite.ts`): `isBundledText(bytes: Buffer): boolean` is true when the
 bytes hold no NUL and `Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes)`.
@@ -636,9 +648,11 @@ folder in `plugins/`, `opencode/`, and `codex/`; the segment is read back with `
 - P2 item-root: when the bare segment is an estate name, the path must exist under the tree's skills
   root (`plugins/<p>/`, `codex/<p>/`, or `opencode/<m>/` then `reRootOpenCode`):
   `<file>:<line>: item path <path> does not resolve in <tree>/`.
-- P3 manual folder: a claim whose bare segment names another item with
-  `modelReachClaude === false` in the linker's `targetState`, and a Markdown link that resolves into
-  such an item's folder:
+- P3 manual folder: a claim whose bare segment names another item whose `targetState` entry has
+  `modelReachClaude === false` and `ocKind === "skill"` (a Claude skill with
+  `disable-model-invocation`; an agent also has `modelReachClaude === false` but is no manual
+  folder, and Codex emits it as a skill folder), and a Markdown link that resolves into such an
+  item's folder:
   `<file>:<line>: path <path> lands in manual item <name>'s folder — a path is a read that bypasses Claude's model-invocation block; point the human with /ns:<name> instead`.
 - R1 skips a Markdown link that is a landing climb, because P judged it; R1's other branches and R2
   stay.

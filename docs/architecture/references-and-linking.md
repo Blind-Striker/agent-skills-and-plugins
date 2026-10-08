@@ -57,11 +57,13 @@ Markdown link targets are read from Markdown files. Two **path claims** are read
 text file in a skill folder, Markdown or not, so scripts are included. A bundled text file is one
 with no NUL byte whose bytes survive a UTF-8 round trip; any other file is binary and is never read
 or rewritten. A claim's path runs to the next whitespace, quote, backtick, `)`, or `]`, with one
-trailing `.` dropped, and neither claim may continue a longer path.
+trailing `.` dropped, and neither claim may continue a longer path. A `<segment>` is a portable
+lowercase name or an OpenCode ID `<plugin>.<name>`, so the OpenCode tree's respelled claims are read
+back with the same grammar and judged by the bare name the ID carries.
 
 - A **landing climb** is `(../)+<segment>/` whose `../` count equals the file's depth below its skill
-  folder plus one, so it lands on the shared `skills/` directory, with a portable lowercase segment
-  and no character from `[A-Za-z0-9._/-]` before it. It fails closed: its full path must resolve in
+  folder plus one, so it lands on the shared `skills/` directory, with no character from
+  `[A-Za-z0-9._/-]` before it. It fails closed: its full path must resolve in
   that tree whatever the segment names, because a climb onto the skills directory has no
   illustrative reading. Uppercase segments such as `../Api` are not claims.
 - An **item-root path** is `skills/<segment>/` with no character from `[A-Za-z0-9._/~$-]` before
@@ -70,8 +72,9 @@ trailing `.` dropped, and neither claim may continue a longer path.
   its segment is an estate name (see [Handoff templates](#handoff-templates)); an authoring example
   such as `skills/testing/` names nothing and stays prose.
 
-No path, whether a claim or a Markdown link, may land in the folder of another item whose Claude
-output carries `disable-model-invocation: true`. A path is a read, so it would let the model read a
+No path, whether a claim or a Markdown link, may land in the folder of another skill whose Claude
+output carries `disable-model-invocation: true`; an agent is not such an item, even where Codex
+emits it as a skill folder. A path is a read, so it would let the model read a
 body that Claude forbids it to load. Point the human at such an item with a `/ns:name`
 user-pointer. An item's own folder is exempt.
 
@@ -310,7 +313,8 @@ installation state have their own manifests and are owned by
 - Relative-path checks are attribution-aware, not a general Markdown link checker. A silent path may
   still be wrong upstream, and a broken path in an `as: command` body may still require a body or
   shape decision. Path claims are read only in skill folders; a command or agent file carries no
-  claim, and a script path that resolves against the process working directory rather than the
-  file is not a claim.
+  claim. A claim's depth is measured from the file that holds it, so a script climb that the shell
+  resolves against its working directory is still judged and respelled as if it resolved against
+  the file; no bundled non-Markdown file holds a claim at the current pins.
 - The linker proves symbol existence and audience reachability, not model behavior. Runtime samples
   remain version-, model-, prompt-, and repetition-bounded evidence rather than deterministic rates.
