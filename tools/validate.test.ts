@@ -1238,6 +1238,9 @@ test("rendered OpenCode IDs are tokens, not path segments", () => {
 
 test("skill-tool handles cover the three measured forms", () => {
   assert.deepEqual(skillToolHandles('Call the Skill tool with "deniz-process.grilling".'), ["deniz-process.grilling"]);
+  assert.deepEqual(skillToolHandles('Call the `skill` tool with "deniz-process.grilling".'), [
+    "deniz-process.grilling",
+  ]);
   assert.deepEqual(skillToolHandles('Call the Skill tool twice, for "grilling" and "domain-modeling".'), [
     "grilling",
     "domain-modeling",

@@ -1294,3 +1294,29 @@ test("buildAll emits requiredModules for a guarded cross-Module edge", () => {
   assert.throws(() => buildAll(root), /unknown.*missing/);
   assert.ok(existsSync(previouslyGenerated), "previous build output must survive an aborted build");
 });
+
+test("each harness renders the skill-tool call and dispatch words in its own words", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    '---\nname: alpha\ndescription: A\n---\n\nCall the Skill tool with "superpowers:delta".\n\nSubagent (general-purpose):\n',
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n    depends_on: [delta]\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  const read = (path: string) => readFileSync(path, "utf8");
+  assert.match(
+    read(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")),
+    /Call the Skill tool with "deniz-process:delta"\.\n\nSubagent \(general-purpose\):/,
+  );
+  assert.match(
+    read(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md")),
+    /Call the `skill` tool with "deniz-process\.delta"\.\n\nSubagent \(general\):/,
+  );
+  assert.match(
+    read(codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md")),
+    /Invoke `\$deniz-process:delta`\.\n\nSubagent:/,
+  );
+});

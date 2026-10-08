@@ -248,9 +248,10 @@ export function scanOpenCodeIds(text: string, plugins: string[]): OpenCodeIdToke
   return out;
 }
 
-// The three measured skill-tool phrasings: `with "x"`, `twice, for "x" and "y"`, `for "x"`. Other
-// phrasings are not detected; that is a stated limit, not a claim of completeness.
-const SKILL_TOOL_HANDLE = /Skill tool(?: twice,)? (?:with|for) ("[^"\n]+"(?:,? (?:and|or) "[^"\n]+")*)/gi;
+// The three measured skill-tool phrasings: `with "x"`, `twice, for "x" and "y"`, `for "x"`, in the
+// upstream spelling or the OpenCode rendering (the `skill` tool). Other phrasings are not detected;
+// that is a stated limit, not a claim of completeness.
+const SKILL_TOOL_HANDLE = /`?Skill`? tool(?: twice,)? (?:with|for) ("[^"\n]+"(?:,? (?:and|or) "[^"\n]+")*)/gi;
 
 /** Quoted skill-tool handles on one line, in order. */
 export function skillToolHandles(line: string): string[] {

@@ -67,10 +67,10 @@ import {
 } from "./lib/resolve.ts";
 import {
   buildRewriteMap,
+  localize,
   type RefStyle,
   type RewriteTarget,
   rewriteOpenCodeSiblingClimbs,
-  rewriteRefs,
 } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
@@ -506,17 +506,17 @@ function rewriteTree(dir: string, map: Map<string, RewriteTarget>, style: RefSty
     if (e.isDirectory()) {
       rewriteTree(p, map, style);
     } else if (e.name.endsWith(".md")) {
-      writeFileSync(p, rewriteRefs(readFileSync(p, "utf8"), map, style));
+      writeFileSync(p, localize(readFileSync(p, "utf8"), map, style));
     }
   }
 }
 
 /**
- * OpenCode 2 reference spelling (spec §7): every Markdown file in a Module gets the dotted-ID
- * rendering, and files inside `skills/<id>/` also get their sibling climbs re-rooted onto the ID
- * folders, measured from the file's depth below its own skill folder. Everything outside `skills/`
- * (`commands/`, `agents/`, distribution notices) gets only the rendering: no climb from there lands
- * on the shared skills directory.
+ * OpenCode 2 reference spelling (spec §7): every Markdown file in a Module gets the harness phrasing
+ * and the dotted-ID rendering, and files inside `skills/<id>/` also get their sibling climbs
+ * re-rooted onto the ID folders, measured from the file's depth below its own skill folder.
+ * Everything outside `skills/` (`commands/`, `agents/`, distribution notices) gets only the phrasing
+ * and the rendering: no climb from there lands on the shared skills directory.
  */
 function rewriteOpenCodeTree(
   root: string,
@@ -534,7 +534,7 @@ function rewriteOpenCodeTree(
       if (entry.isDirectory() && entry.name !== "skills") {
         rewriteTree(path, map, "opencode");
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        writeFileSync(path, rewriteRefs(readFileSync(path, "utf8"), map, "opencode"));
+        writeFileSync(path, localize(readFileSync(path, "utf8"), map, "opencode"));
       }
     }
     const skillsRoot = join(moduleRoot, "skills");
@@ -549,7 +549,7 @@ function rewriteOpenCodeTree(
       for (const file of listFiles(skillFolder).filter((path) => path.endsWith(".md"))) {
         const path = join(skillFolder, file);
         const depth = relative(skillFolder, dirname(path)).split(sep).filter(Boolean).length;
-        const text = rewriteRefs(readFileSync(path, "utf8"), map, "opencode");
+        const text = localize(readFileSync(path, "utf8"), map, "opencode");
         writeFileSync(path, rewriteOpenCodeSiblingClimbs(text, depth, skillIds));
       }
     }
