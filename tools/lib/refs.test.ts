@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { candidateHits, extractRefs, scanPathClaims, scanRefs } from "./refs.ts";
+import {
+  candidateHits,
+  extractRefs,
+  scanPathClaims,
+  scanRefs,
+  scanSkillToolCalls,
+  straySkillToolMentions,
+} from "./refs.ts";
 
 test("extractRefs finds namespaced references and classifies their kind by the leading slash", () => {
   const body = [
@@ -107,4 +114,34 @@ test("landing climbs are path claims only at the depth that reaches the skills d
     ["climb:deniz-process.beta:../deniz-process.beta/SKILL.md"],
     "a respelled OpenCode ID is read back, so P can judge the OpenCode tree",
   );
+});
+
+test("skill-tool calls: three forms, four verbs, payloads located", () => {
+  const forms = (t: string) =>
+    scanSkillToolCalls(t).map(
+      (c) =>
+        `${c.verb}|${c.form}|${c.payloads.map((p) => `${p.text}@${p.index}`).join(",")}|${t.slice(c.index, c.end)}`,
+    );
+  assert.deepEqual(forms('Call the Skill tool with "mattpocock-skills:grilling".'), [
+    'Call|with|mattpocock-skills:grilling@26|Call the Skill tool with "mattpocock-skills:grilling"',
+  ]);
+  assert.deepEqual(forms('Always call the Skill tool twice, for "a" and "b", to pin'), [
+    'call|twice|a@39,b@47|call the Skill tool twice, for "a" and "b"',
+  ]);
+  assert.deepEqual(forms('a subagent that calls the Skill tool with "research". Use'), [
+    'calls|with|research@43|calls the Skill tool with "research"',
+  ]);
+  assert.deepEqual(forms('by calling the Skill tool with "prototype". Links'), [
+    'calling|with|prototype@32|calling the Skill tool with "prototype"',
+  ]);
+  assert.deepEqual(forms("should call the Skill tool for."), ["call|generic||call the Skill tool for"]);
+  assert.deepEqual(forms("call the Skill tool for whichever skills"), ["call|generic||call the Skill tool for"]);
+  assert.deepEqual(forms('call the Skill tool for "x"'), [], "a single for-handle is not a form");
+  assert.deepEqual(forms("call the Skill tool format"), []);
+});
+
+test("a skill-tool mention outside a recognized call is stray", () => {
+  assert.deepEqual(straySkillToolMentions('Call the Skill tool with "a:b". call the Skill tool for.'), []);
+  const text = 'Invoke the Skill tool on "x". Use the skill tool.';
+  assert.deepEqual(straySkillToolMentions(text), [text.indexOf("Skill tool"), text.indexOf("skill tool.")]);
 });

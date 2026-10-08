@@ -133,3 +133,50 @@ export function scanPathClaims(content: string, depthBelowSkillFolder: number): 
   }
   return out;
 }
+
+export interface SkillToolCall {
+  /** Start of the verb. */
+  index: number;
+  /** One past the span. */
+  end: number;
+  verb: "Call" | "call" | "calls" | "calling";
+  form: "with" | "twice" | "generic";
+  /** Quoted handles, quotes excluded; `index` is the payload's first character. */
+  payloads: { index: number; text: string }[];
+}
+
+// The skill-tool call template (references-and-linking.md "Handoff templates"). Closed on purpose:
+// a sentence outside these three forms is a stray mention, which validate rejects.
+const SKILL_TOOL_CALL =
+  /\b(Call|call|calls|calling) the Skill tool(?: with "([^"\n]*)"| twice, for "([^"\n]*)" and "([^"\n]*)"| for(?![A-Za-z]| "))/g;
+const SKILL_TOOL_MENTION = /\bskill tool/gi;
+
+/** Every skill-tool call span in `content`, in the order written. */
+export function scanSkillToolCalls(content: string): SkillToolCall[] {
+  const out: SkillToolCall[] = [];
+  for (const m of content.matchAll(SKILL_TOOL_CALL)) {
+    const texts = m[2] !== undefined ? [m[2]] : m[3] !== undefined ? [m[3], m[4] as string] : [];
+    let from = m.index;
+    const payloads = texts.map((text) => {
+      const index = content.indexOf(`"${text}"`, from) + 1;
+      from = index + text.length + 1;
+      return { index, text };
+    });
+    out.push({
+      index: m.index,
+      end: m.index + m[0].length,
+      verb: m[1] as SkillToolCall["verb"],
+      form: m[2] !== undefined ? "with" : m[3] !== undefined ? "twice" : "generic",
+      payloads,
+    });
+  }
+  return out;
+}
+
+/** Indexes of every case-insensitive `skill tool` that no call span covers. */
+export function straySkillToolMentions(content: string): number[] {
+  const spans = scanSkillToolCalls(content);
+  return [...content.matchAll(SKILL_TOOL_MENTION)]
+    .map((m) => m.index)
+    .filter((index) => !spans.some((s) => index >= s.index && index < s.end));
+}
