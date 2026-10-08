@@ -64,13 +64,9 @@ for (const [key, entry] of Object.entries(ledger)) {
   taken.add(name);
   for (const artifact of entry.opencode.artifacts) {
     const path = artifact === "skill"
-      ? `${opencodeRoot}/skills/${name}`
-      : `${opencodeRoot}/${artifact}s/${name}.md`;
+      ? `${opencodeRoot}/skills/${plugin}.${name}`
+      : `${opencodeRoot}/${artifact}s/${plugin}.${name}.md`;
     if (existsSync(path)) paths.add(path);
-  }
-  const parkedPath = `${opencodeRoot}/skills/${name}`;
-  if (entry.opencode.parked.length && existsSync(parkedPath)) {
-    paths.add(parkedPath);
   }
 }
 
@@ -81,7 +77,7 @@ if (existsSync(ownRoot)) {
     if (!existsSync(emitted)) continue;
     const name = String(parseDoc(readFileSync(emitted, "utf8")).frontmatter.name ?? dir.name);
     taken.add(name);
-    const opencodePath = `${opencodeRoot}/skills/${name}`;
+    const opencodePath = `${opencodeRoot}/skills/${plugin}.${name}`;
     if (existsSync(opencodePath)) paths.add(opencodePath);
   }
 }

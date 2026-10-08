@@ -3,9 +3,16 @@ import { join } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
-import type { CurationManifest } from "./manifest.ts";
-import { OPENCODE_SKILL_KEYS } from "./opencode-target.ts";
+import type { ComponentType, CurationManifest } from "./manifest.ts";
+import {
+  adaptOpenCodeAgentDocument,
+  adaptOpenCodeCommandDocument,
+  adaptOpenCodeSkillDocument,
+  openCodeBundlePath,
+  openCodeId,
+} from "./opencode-target.ts";
 import { listFiles } from "./overlay.ts";
+import { ownSkillIdentities } from "./own-skills.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
 import { resolveItem } from "./resolve.ts";
 import type { ComponentInfo } from "./scan.ts";
@@ -17,8 +24,16 @@ interface HarnessState {
     "user-invocable"?: boolean;
     "disable-model-invocation"?: boolean;
   };
-  dropped?: string[];
-  parked?: string[];
+}
+/** OpenCode 2 projection: one artifact per item at its `<plugin>.<name>` ID path (spec section 8). */
+interface OpenCodeState {
+  artifacts: ComponentType[];
+  identity: string;
+  /** Skills only: false when the emitted document carries the hide key. */
+  advertised?: boolean;
+  edges: Record<RefKind, string[]>;
+  dropped: string[];
+  metadataTransformations?: string[];
 }
 interface LedgerEntry {
   source: string;
@@ -28,7 +43,7 @@ interface LedgerEntry {
   dependsOn?: string[];
   description: string;
   claude: HarnessState;
-  opencode: HarnessState;
+  opencode: OpenCodeState;
   codex: {
     artifacts: ["skill"];
     identity: string;
@@ -86,6 +101,20 @@ export function writeLedger(
   codexMetadataTransformations: Map<string, string[]> = new Map(),
 ): void {
   const ownNs = new Set(manifests.map((m) => m.plugin.name));
+  // Claude address `<plugin>:<name>` -> resolved output kind, over every curated item and original
+  // skill, so an edge's OpenCode pointer prefix comes from the target's kind, not from parsing output.
+  const kindOf = new Map<string, ComponentType>();
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (!item.exclude) {
+        const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
+        kindOf.set(`${m.plugin.name}:${outName}`, outType);
+      }
+    }
+  }
+  for (const own of ownSkillIdentities(root, manifests)) {
+    kindOf.set(own.address, "skill");
+  }
   const ledger: Record<string, LedgerEntry> = {};
   for (const m of manifests) {
     for (const item of m.items) {
@@ -108,16 +137,10 @@ export function writeLedger(
               .map((f) => join(claudeDir, f))
           : [claudeDir];
       const moduleRoot = join(root, "opencode", m.plugin.name);
-      const ocSkill = join(moduleRoot, "skills", outName, "SKILL.md");
-      const ocCommand = join(moduleRoot, "commands", `${outName}.md`);
-      const ocAgent = join(moduleRoot, "agents", `${outName}.md`);
-      const ocArtifacts = [
-        ...(existsSync(ocSkill) ? ["skill"] : []),
-        ...(existsSync(ocCommand) ? ["command"] : []),
-        ...(existsSync(ocAgent) ? ["agent"] : []),
-      ];
-      const parkedDir = join(moduleRoot, "skills", outName);
-      const parked = !existsSync(ocSkill) && existsSync(parkedDir) ? listFiles(parkedDir) : [];
+      const ocArtifacts = (["skill", "command", "agent"] as const).filter((kind) => {
+        const path = join(moduleRoot, openCodeBundlePath(kind, m.plugin.name, outName));
+        return existsSync(kind === "skill" ? join(path, "SKILL.md") : path);
+      });
       const doc = parseDoc(readFileSync(outType === "skill" ? join(claudeDir, "SKILL.md") : claudeDir, "utf8"));
       const neutral = assembled.find(
         (candidate) =>
@@ -134,20 +157,23 @@ export function writeLedger(
       const codexInvocation = resolveCodexInvocation(item.invocation);
       const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);
       const claudeEdges = edgesIn(claudeFiles, ownNs);
-      // OpenCode text is bare — respell the Claude facts through the known mapping instead of
-      // parsing bare words back (ADR-0008: detection never runs on rendered output).
-      const respell = (xs: string[]) => xs.map((a) => a.split(":")[1] as string).sort();
-      // Mirrors each emitter's drop policy, derived from output alone: an emitted skill keeps the
-      // recognised keys; a command/agent keeps description (+ its forced fields).
-      const ocDropped = existsSync(ocSkill)
-        ? Object.keys(doc.frontmatter)
-            .filter((k) => !OPENCODE_SKILL_KEYS.has(k))
-            .sort()
-        : ocArtifacts.length
-          ? Object.keys(doc.frontmatter)
-              .filter((k) => k !== "description")
-              .sort()
-          : [];
+      // OpenCode text is dotted — respell the Claude facts through the known mapping instead of
+      // parsing rendered text back (ADR-0008: detection never runs on rendered output).
+      const ocId = (address: string) => {
+        const [plugin, name] = address.split(":") as [string, string];
+        return openCodeId(plugin, name);
+      };
+      const ocPointer = (address: string) => `${kindOf.get(address) === "command" ? "/" : "@"}${ocId(address)}`;
+      // The emitter's own adaptation on the same neutral document, so drops and the hide decision
+      // cannot drift from what was written.
+      const identity = openCodeId(m.plugin.name, outName);
+      const ocSkill =
+        outType === "skill" ? adaptOpenCodeSkillDocument(identity, neutralDoc, item.invocation) : undefined;
+      const ocDropped =
+        ocSkill?.dropped ??
+        (outType === "command" ? adaptOpenCodeCommandDocument(neutralDoc) : adaptOpenCodeAgentDocument(neutralDoc))
+          .dropped;
+      const ocTransformations = ocSkill?.transformations ?? [];
       const entry: LedgerEntry = {
         source: item.source,
         ...(item.invocation ? { invocation: item.invocation } : {}),
@@ -160,9 +186,14 @@ export function writeLedger(
         claude: { artifacts: [outType], edges: claudeEdges, ...(claudeFlags ? { flags: claudeFlags } : {}) },
         opencode: {
           artifacts: ocArtifacts,
-          edges: { model: respell(claudeEdges.model), pointer: respell(claudeEdges.pointer) },
+          identity,
+          ...(ocSkill ? { advertised: ocSkill.advertised } : {}),
+          edges: {
+            model: sortedUnique(claudeEdges.model.map(ocId)),
+            pointer: sortedUnique(claudeEdges.pointer.map(ocPointer)),
+          },
           dropped: ocDropped,
-          parked,
+          ...(ocTransformations.length ? { metadataTransformations: ocTransformations } : {}),
         },
         codex: {
           artifacts: ["skill"],

@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "../build.ts";
-import { makeRepo, opencodeModulePath } from "../testutil.ts";
+import { makeRepo, opencodeIdPath } from "../testutil.ts";
 
 test("the build writes a deterministic ledger describing each item's resolved state per harness", () => {
   const root = makeRepo();
@@ -30,7 +30,13 @@ test("the build writes a deterministic ledger describing each item's resolved st
   assert.equal(alpha.invocation, "auto");
   assert.deepEqual(alpha.claude.artifacts, ["skill"]);
   assert.deepEqual(alpha.claude.edges.model, ["deniz-process:beta"]);
-  assert.deepEqual(alpha.opencode.edges.model, ["beta"]);
+  assert.deepEqual(alpha.opencode, {
+    artifacts: ["skill"],
+    identity: "deniz-process.alpha",
+    advertised: true,
+    edges: { model: ["deniz-process.beta"], pointer: [] },
+    dropped: [],
+  });
   assert.deepEqual(alpha.dependsOn, ["beta"]); // the manifest's declaration, beside the derived edges
   assert.deepEqual(alpha.codex, {
     artifacts: ["skill"],
@@ -48,11 +54,16 @@ test("the build writes a deterministic ledger describing each item's resolved st
 
   const beta = ledger["deniz-process/skill/beta"];
   assert.deepEqual(beta.claude.artifacts, ["skill"]); // Claude: manual is still a skill, flagged
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "commands", "beta.md")));
-  assert.ok(!existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "SKILL.md")));
-  assert.deepEqual(beta.opencode.artifacts, ["command"]); // OpenCode: manual is a command, no skill
-  assert.deepEqual(alpha.opencode.dropped, ["user-invocable"]); // auto's Claude flag has no OpenCode home
-  assert.deepEqual(beta.opencode.dropped, ["disable-model-invocation", "name"]); // command keeps description only
+  assert.ok(existsSync(opencodeIdPath(root, "deniz-process", "skill", "beta", "SKILL.md")));
+  assert.ok(!existsSync(opencodeIdPath(root, "deniz-process", "command", "beta")));
+  // OpenCode 2: manual stays a skill at its ID path and is hidden, not reshaped into a command.
+  assert.deepEqual(beta.opencode, {
+    artifacts: ["skill"],
+    identity: "deniz-process.beta",
+    advertised: false,
+    edges: { model: [], pointer: [] },
+    dropped: [],
+  });
   assert.equal(beta.codex.implicit, "disabled");
   assert.equal(beta.codex.explicit, "available");
   assert.deepEqual(beta.codex.policyFiles, ["agents/openai.yaml"]);
@@ -61,6 +72,40 @@ test("the build writes a deterministic ledger describing each item's resolved st
   const first = readFileSync(join(root, "docs", "ledger.json"), "utf8");
   buildAll(root);
   assert.equal(readFileSync(join(root, "docs", "ledger.json"), "utf8"), first);
+});
+
+test("the ledger projects OpenCode 2 identity, advertisement, and dotted edges", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: A\n---\n\nUse superpowers:delta. Tell the user /superpowers:beta.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: P",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    invocation: manual",
+      "    depends_on: [delta]",
+      "  - source: sp/skills/beta",
+      "    invocation: both",
+      "  - source: sp/skills/delta",
+      "    invocation: auto",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  const alpha = ledger["deniz-process/skill/alpha"].opencode;
+  assert.deepEqual(alpha.artifacts, ["skill"]);
+  assert.equal(alpha.identity, "deniz-process.alpha");
+  assert.equal(alpha.advertised, false);
+  assert.deepEqual(alpha.edges, { model: ["deniz-process.delta"], pointer: ["@deniz-process.beta"] });
+  assert.equal("parked" in alpha, false);
+  assert.equal(ledger["deniz-process/skill/delta"].opencode.advertised, true);
 });
 
 test("the ledger records Codex kind transformation and neutral-source metadata drops", () => {
