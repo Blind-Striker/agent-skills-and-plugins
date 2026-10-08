@@ -1,6 +1,6 @@
 # Reference-audit playbook
 
-Date: 2026-08-19
+Date: 2026-10-08
 
 A repeatable sweep over **emitted output** for reference problems the deterministic gates cannot
 decide. [References and linking](../architecture/references-and-linking.md) owns the current
@@ -171,7 +171,7 @@ Find-Candidates $sets.taken $sets.paths
 Ignore a source artifact matching its own name unless the text actually invokes itself. For each
 remaining true hit, answer:
 
-1. **Audience coherence.** A `/name` pointer to an `auto` target advertises a command that does not exist. Model-invocation prose pointing to a `manual` target asks the model to load an undiscoverable skill.
+1. **Audience coherence.** A `/name` pointer to an `auto` target advertises a command that does not exist, and in OpenCode no skill target is a `/` command at all. Model-invocation prose pointing to a `manual` target asks the model to load a skill it is not offered; in OpenCode the skill tool can still load that ID, so a namespaced `manual` ID in model-reachable text also breaks the [manual-ID leak rule](../architecture/references-and-linking.md#opencode-id-checks).
 2. **Load bearing.** Would the source malfunction if the target were renamed or cut? A trigger whose body says only to run X is load-bearing; a see-also entry usually is not.
 3. **Guard path.** Body ownership is separate from reference authority. A patch or overlay does not promote a bare candidate merely by contact; preserve the corpus's convention unless the curator deliberately authors a namespaced fact and matching `depends_on` in the same change. If the body is untouched, report it; do not patch solely to add a guard. The accumulation trigger for any future `expects` mechanism lives in `docs/ROADMAP.md`.
 

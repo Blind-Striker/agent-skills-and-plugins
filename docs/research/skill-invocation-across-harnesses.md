@@ -12,6 +12,9 @@ Date: 2026-08-18
 > item-specific posture belongs in `curation/*.yaml` and the generated
 > [`docs/ledger.json`](../ledger.json); the protocol and linked records own the repeatable method and
 > committed observations.
+>
+> The OpenCode findings below are OpenCode 1.18.x evidence; the OpenCode 2 evidence is in
+> [OpenCode 2 as the OpenCode target](opencode-2-target.md).
 
 Who decided that a skill ran — the model, or the person at the keyboard — was a per-harness
 mechanism, and the two targeted harnesses disagreed deeply enough that the same curation intent

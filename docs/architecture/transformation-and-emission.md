@@ -1,6 +1,6 @@
 # Transformation and emission
 
-Date: 2026-09-07
+Date: 2026-10-08
 
 ## Responsibility
 
@@ -16,6 +16,9 @@ separate harness-native output, [ADR-0005](../adr/0005-invocation-intent-in-the-
 the neutral invocation dial, and [ADR-0006](../adr/0006-output-is-a-transformation.md) with
 [ADR-0007](../adr/0007-control-beats-fidelity.md) explains why the result is judged by curated intent
 rather than upstream fidelity.
+
+This document states the decided OpenCode 2 emission. Where the implementation has not caught up,
+the gap and its responsible files are tracked in [`docs/ROADMAP.md`](../ROADMAP.md#known-gaps).
 
 ## The three phases
 
@@ -57,8 +60,8 @@ phase reinterprets a skill after emission.
 Name resolution follows `item.name` -> scanned component name -> source basename; kind resolution
 follows `item.as` -> scanned component type -> `skill`. **The scanned source type is therefore the
 default when `as:` is absent, never a binding authority.** An explicit shape can replace it. The
-current resolver is [`resolveItem`](../../tools/lib/resolve.ts#L26-L43), while the scanner's
-source-kind classification is [`scanSubmodule`](../../tools/lib/scan.ts#L69-L105).
+current resolver is [`resolveItem`](../../tools/lib/resolve.ts), while the scanner's
+source-kind classification is [`scanSubmodule`](../../tools/lib/scan.ts#L69-L106).
 
 A submodule whose only skill lives at its repository root uses the submodule name as its source
 address and namespace fallback; its `SKILL.md` remains the component document. Upstream `.git`
@@ -69,14 +72,19 @@ Current implementation support is narrower than the design dial: skill-to-comman
 skill-to-agent conversions work, but command-to-skill and agent-to-skill conversions stop in
 preflight. That is a current compiler limit, not a rule that upstream kind should govern curation.
 
-Identity preflight rejects duplicate `plugin.name` values, duplicate kind/name identities within one
-manifest, cross-Module OpenCode destination collisions, and same-plugin collisions in Codex's
-flattened skill namespace before generated output is deleted. The checks include destinations
-claimed by original skills
-([`collectIdentityProblems`](../../tools/lib/resolve.ts#L103-L176), pre-delete call in
-[`buildAll`](../../tools/build.ts#L73-L77)). Validation separately reports when an original skill
-would be copied last and silently overwrite a curated skill of the same name in emitted output
-([`tools/validate.ts`](../../tools/validate.ts#L260-L268)).
+Identity preflight runs before generated output is deleted. It rejects duplicate `plugin.name`
+values, a name that breaks the portable-name rule, duplicate kind/name identities within one
+manifest, same-plugin collisions in Codex's flattened skill namespace, and a bare output name
+claimed twice anywhere in the repository, whatever its kind and including names claimed by
+original skills. The naming and uniqueness rules themselves, and why bare names stay unique, are
+owned by [`curation/SCHEMA.md`](../../curation/SCHEMA.md). Every OpenCode ID carries its Module, so
+OpenCode destinations cannot collide across Modules; the repository-wide bare-name check is what
+protects the bare-name keys of `depends_on`, the linker, and `requiredModules` derivation. The checks
+are [`collectIdentityProblems`](../../tools/lib/resolve.ts), reached through `collectProblems`, and
+[`collectCodexEmissionProblems`](../../tools/lib/codex-plugin.ts), both called by
+[`buildAll`](../../tools/build.ts) ahead of the delete. Validation separately reports when an
+original skill would be copied last and silently overwrite a curated skill of the same name in
+emitted output (check L7 in [`validateRepo`](../../tools/validate.ts)).
 
 The compiler assembles a body in this order:
 
@@ -87,7 +95,7 @@ The compiler assembles a body in this order:
 3. Copy the source while omitting declared paths and skipping symlinks; prune directories emptied by
    omission.
 4. Apply the shared full-file overlay or skill patch, then merge frontmatter and force the resolved
-   output identity last.
+   output identity last ([`normalizePrimary`](../../tools/lib/assemble.ts)).
 5. Add original skills to the same neutral assembly, then let each emitter write its own artifact
    tree, metadata, and marketplace.
 
@@ -130,25 +138,75 @@ its output file identity. This keeps generated identity, localization, and revie
 
 ### OpenCode
 
-OpenCode skills keep only its recognized skill frontmatter. Commands keep their description; agents
-keep their description and receive `mode: subagent`. Every dropped frontmatter key is reported by
-the build rather than silently carried into a target that ignores it
-([`emitOpenCode`](../../tools/build.ts#L574-L613)).
+The OpenCode emitter writes OpenCode 2 output. The shapes below need OpenCode 2 at v2.0.4 or later:
+that release is the first in which skills are no longer slash commands, and the hiding key used for
+`manual` works from v2.0.0. The runtime target, the measured version, and the unsupported OpenCode 1
+line are owned by
+[Distribution and installation](distribution-and-installation.md#target-opencode-runtime).
 
-For items whose resolved shape is a skill, invocation selects OpenCode artifacts:
+**Identity and paths.** Every OpenCode ID is `<plugin>.<name>`; the naming rule is owned by
+[`curation/SCHEMA.md`](../../curation/SCHEMA.md). The Bundle places each artifact under that ID:
 
-- absent or `auto` emits a skill;
-- `manual` emits a command and withholds `SKILL.md`;
-- `both` emits both a skill and a command.
+| Resolved shape | Bundle path | User invocation |
+|---|---|---|
+| skill | `skills/<plugin>.<name>/SKILL.md`, with the item's surviving files below that folder | `@<plugin>.<name>`, or the `/skills` dialog |
+| command | `commands/<plugin>.<name>.md` | `/<plugin>.<name>` |
+| agent | `agents/<plugin>.<name>.md` | `@<plugin>.<name>` |
 
-A bundled `manual` item parks the parsed body as `skills/<name>/BODY.md` beside its surviving assets;
-the directory has no `SKILL.md` and is not a discoverable skill. Its command is a short,
-**global-only** stub: it resolves `$XDG_CONFIG_HOME/opencode`, with the normal `~/.config/opencode`
-fallback, then reads the parked body and forwards `$ARGUMENTS`. It does not name or support a
-project-local `.opencode` path. If no bundled file survives besides `SKILL.md`, no park is emitted
-and the command contains the body directly. `both` likewise keeps the command body inline rather
-than creating `BODY.md` ([`emitOpenCodeSkill`](../../tools/build.ts#L504-L569), focused assertion in
-[`tools/build.test.ts`](../../tools/build.test.ts#L346-L356)).
+OpenCode 2 derives a skill ID only from the skill's leaf folder name, so the namespace must sit in
+that folder name; a nested `skills/<plugin>/<name>/SKILL.md` would register the bare `<name>`
+(`packages/core/src/config/plugin/skill-file.ts:45-48` at `anomalyco/opencode@0fd7e28`). A command
+or agent name comes from its file path. A skill's frontmatter `name` is forced to the same
+namespaced ID: OpenCode treats `name` as a display label and shows the model both the ID and the
+label, so a bare label would lead the model to call an ID that does not exist. The rendered
+reference spelling, including the rewrite of relative sibling-item paths to these folder names, is
+owned by [References and linking](references-and-linking.md#localization).
+
+**Invocation selects frontmatter, never shape.** An item whose resolved shape is a skill emits
+exactly one skill folder, whatever its invocation, and nothing under `commands/`:
+
+- `auto` emits a skill that is advertised to the model. OpenCode 2 has no switch that makes a skill
+  model-only, so the user can also attach it with `@<plugin>.<name>`; that explicit path is a native
+  capability `auto` leaves unspecified, as in Codex.
+- `manual` emits the same skill with `metadata: {"opencode/autoinvoke": false}` merged into any
+  metadata the document already carries. In OpenCode this means **unadvertised, not forbidden**: the
+  model is not offered the skill, the user attaches it with `@<plugin>.<name>` or the `/skills`
+  dialog, and the skill tool can still load the registered ID if the model learns it. The accepted
+  rationale is in [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md); the compensating
+  manual-ID leak rule is owned by
+  [References and linking](references-and-linking.md#opencode-id-checks).
+- `both` emits one plain skill, advertised and attachable, with no duplicate command.
+- Absent invocation passes upstream posture through. An upstream `disable-model-invocation: true`
+  is rendered with the same `opencode/autoinvoke: false` metadata key, not passed through, because
+  OpenCode 2 honors `disable-model-invocation` only from v2.0.23 and the metadata key keeps the
+  v2.0.4 floor. An upstream key with no OpenCode equivalent, such as `user-invocable`, is dropped and
+  reported.
+
+A stated `auto` or `both` replaces upstream posture and writes no hiding key. An OpenCode skill
+keeps only `name`, `description`, and `metadata`, with any hiding key
+merged into `metadata` (`OPENCODE_SKILL_KEYS` in [`tools/lib/ledger.ts`](../../tools/lib/ledger.ts));
+every other key, including `license` and `compatibility`, which the OpenCode 2 skill parser does not
+read, is reported by the build rather than silently carried into a target that ignores it
+([`emitOpenCodeSkill`](../../tools/build.ts)).
+
+**Commands and agents come only from `as:`.** An explicit `as: command` is the per-item escape hatch
+for an item that needs `/name` and `$ARGUMENTS`; it emits `commands/<plugin>.<name>.md`, which keeps
+only `description`. `as: agent` emits `agents/<plugin>.<name>.md` with only the native OpenCode 2
+keys the emitter writes, `description` and `mode: subagent`. An agent never receives `name`:
+OpenCode 2 sends any agent file with a non-native key, `name` included, through its OpenCode 1
+compatibility migrator, and it drops an agent with an invalid native value, such as a `color` that
+is not `#rrggbb`, without a warning. Every dropped key other than the forced `name` is reported
+([`emitOpenCode`](../../tools/build.ts)). Invocation on a resolved command or agent does not alter
+OpenCode output.
+
+**Shape checks.** `validate` rejects two Bundle shapes OpenCode 2 would misread:
+
+- a phantom skill: a `.md` file directly under `skills/`, or a `SKILL.md` anywhere below
+  `skills/<id>/` other than that folder's own. OpenCode 2 scans skill roots with
+  `{*.md,**/SKILL.md}` and registers every match as a skill
+  (`packages/core/src/config/plugin/skill.ts:121` at `anomalyco/opencode@0fd7e28`);
+- an agent file whose frontmatter holds a key that is not native to OpenCode 2, or a `color` that is
+  not `#rrggbb`.
 
 ### Codex
 
@@ -173,11 +231,12 @@ native transport for Codex CLI and Codex in the ChatGPT desktop app. IDE Plugin 
 
 ## Finalization and handoff
 
-References are localized only after all three artifact trees exist, independently for each address space.
+References, including OpenCode's relative sibling-item paths, are localized only after all three
+artifact trees exist, independently for each address space.
 Module manifests are then written over final OpenCode bytes. Compile-time `requiredModules` are
 derived from declared `depends_on` edges
-([`deriveModuleRequirements`](../../tools/lib/resolve.ts#L52-L100)) and recorded by
-[`writeOpenCodeManifests`](../../tools/build.ts#L622-L649). The ledger is written last from the
+([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
+[`writeOpenCodeManifests`](../../tools/build.ts). The ledger is written last from the
 resolved output. The installer reads those emitted lists; it does not re-derive them. The separate
 reference contract is
 [References and linking](references-and-linking.md).
@@ -192,30 +251,44 @@ to committed `dist/` JavaScript using
 - Per-harness body ownership is absent; one overlay or patch feeds all three emitters. The follow-up
   [Codex estate audit](../research/codex-generated-estate-audit.md) classified slash-shaped text and
   promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
-  localizes those facts, so no Codex-only body-patch seam is currently justified.
+  localizes those facts, so no Codex-only body-patch seam is currently justified. The same common
+  layer carries OpenCode's constraints: a fact that the OpenCode manual-ID leak rule forbids must
+  leave the shared body, because no OpenCode-only body exists to hold the difference.
 - A source command or agent still cannot be resolved as a skill through `as:`. Codex's emitter-level
   adaptation of already resolved commands and agents is supported and retains their closure.
   Non-empty `hooks.include` remains rejected.
-- Bundle-less manual commands and `both` commands still carry an inline body. Skill-relative paths
-  can cease to resolve from that command location; the linker reports the cases it can attribute to
-  conversion rather than claiming the shape is universally portable.
+- An item resolved `as: command` is a single file in Claude Code and OpenCode. Skill-relative paths
+  in its body can cease to resolve from that command location; whether the command surface is worth
+  that cost is the per-item `as:` decision. The path check that covers this case is described in
+  [References and linking](references-and-linking.md#paths).
+- On OpenCode, `manual` hides a skill from the model's list but cannot stop the skill tool from
+  loading a registered ID. The leak rule covers this repository's shipped text only; text from
+  outside the estate that names a `manual` ID is beyond it
+  ([ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md)).
 - Invocation absence deliberately preserves upstream Claude posture, so upstream posture changes can
-  flow into output. The OpenCode side still resolves absence to a skill because OpenCode has no
-  equivalent upstream posture to preserve; Codex emits a skill with its target-default policy and
-  does not translate upstream Claude flags.
+  flow into output. OpenCode renders an upstream `disable-model-invocation: true` through its native
+  hiding key, while an upstream `user-invocable: false` has no OpenCode equivalent and is dropped and
+  reported; Codex emits a skill with its target-default policy and does not translate upstream
+  Claude flags.
+- OpenCode 2's TUI fuzzy ranking lists a namespaced `@<plugin>.<name>` below a bare third-party skill
+  of the same `<name>`; typing the Module prefix selects this repository's artifact.
+- OpenCode 2 loads `AGENTS.md` and never `CLAUDE.md`. A shipped instruction that writes or relies on
+  `CLAUDE.md` does not reach OpenCode; that is a per-item curation question, not an emitter
+  transformation.
 - The scanner discovers command and agent files only directly under `commands/` and `agents/`;
   grouped subdirectories are missed, while a `commands/` or `agents/` directory nested under a skill
-  can be double-counted as a standalone component ([`scanSubmodule`](../../tools/lib/scan.ts#L69-L105)).
+  can be double-counted as a standalone component ([`scanSubmodule`](../../tools/lib/scan.ts#L69-L106)).
 - Overlay locks hash file content, not executable mode, so a mode-only upstream change does not force
-  a re-bless ([`blobSha`](../../tools/lib/overlay.ts#L38-L46),
+  a re-bless ([`blobSha`](../../tools/lib/overlay.ts#L44-L46),
   [`stampFiles`](../../tools/lib/overlay.ts#L155-L164)).
 - Patch application cannot touch a path at or beyond a symlink: `git apply` rejects those paths while
-  emitted copies skip symlinks ([`gitApply`](../../tools/lib/overlay.ts#L100-L149),
-  [`skipSymlinks`](../../tools/build.ts#L346-L354)).
-- Manifest `frontmatter:` overrides have no upstream-staleness guard. They merge into the emitted
+  emitted copies skip symlinks ([`gitApply`](../../tools/lib/overlay.ts#L110-L140),
+  [`skipSymlinks`](../../tools/lib/assemble.ts)).
+- Manifest `frontmatter:` overrides have no upstream-staleness guard. They merge into the assembled
   document after body assembly, so an upstream rewrite does not make an old override drift
-  ([`emitItem`](../../tools/build.ts#L403-L413)). `npm run sync` reports an override whose item's
-  `SKILL.md` moved, which is a prompt to reread the body — not a stamp, and nothing stops the build.
+  ([`normalizePrimary`](../../tools/lib/assemble.ts)). `npm run sync` reports an override whose
+  item's `SKILL.md` moved, which is a prompt to reread the body — not a stamp, and nothing stops the
+  build.
 - Ledger projection semantics and limits are owned by
   [References and linking](references-and-linking.md#ledger-semantics).
 - A build report proves what was emitted or dropped. It does not prove that a harness will select a

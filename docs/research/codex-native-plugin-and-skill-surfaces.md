@@ -3,9 +3,10 @@
 Date: 2026-09-07
 
 This note records the Codex capabilities that constrain a third repository emitter. It is dated
-evidence and design input, not current repository policy. The proposed policy lives temporarily in
-the Codex design specification and, once accepted, belongs in the existing ADR and architecture
-owners.
+evidence and design input, not current repository policy. The accepted invocation decision is
+[ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md); the current Codex mapping lives in
+[`curation/SCHEMA.md`](../../curation/SCHEMA.md) and
+[Transformation and emission](../architecture/transformation-and-emission.md#codex).
 
 ## Evidence boundary
 

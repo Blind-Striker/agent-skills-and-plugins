@@ -1,11 +1,17 @@
 # Skills cheatsheet: which skill, when
 
-Date: 2026-08-24
+Date: 2026-10-08
 
 Convenience routing map for the four curated Modules. This is not an authorship claim or a new
 methodology: it describes how upstream work is selected, combined, renamed, and invoked in this
 personal collection. Item posture and transformation reasons remain canonical in
 [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json).
+
+The tables use bare output names. Each harness addresses a name inside its Module: Claude Code as
+`/deniz-process:brainstorming`, Codex as `$deniz-process:brainstorming`, and OpenCode as
+`@deniz-process.brainstorming` for a skill or agent, with `/<plugin>.<name>` only for an item
+emitted as a command. Each target's identity rules live in
+[Harness emission](architecture/transformation-and-emission.md#harness-emission).
 
 ## Where the material comes from
 

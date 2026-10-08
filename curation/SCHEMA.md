@@ -48,16 +48,28 @@ body ownership adds review cost whenever upstream moves.
 | Own replacement files | `body: overlay` | Replaced upstream files are hash-stamped; later upstream improvements do not flow into owned files |
 
 Use item-level `name:`, not `frontmatter.name`; the build forces output identity after frontmatter
-overrides. Use `body:` only with an overlay directory created by `npm run eject -- <plugin> <item>`
-(`--patch` for a patch). A patch applies only to skill-shaped output; a command or agent conversion
-needs a full-file overlay. For a conversion overlay, keep the upstream body filename (`SKILL.md`
-for a source skill, or the source command/agent filename); the build reads that one file.
+overrides (in OpenCode, a skill's `name` is its namespaced ID). Use `body:` only with an overlay
+directory created by `npm run eject -- <plugin> <item>` (`--patch` for a patch). A patch applies
+only to skill-shaped output; a command or agent conversion needs a full-file overlay. For a
+conversion overlay, keep the upstream body filename (`SKILL.md` for a source skill, or the source
+command/agent filename); the build reads that one file.
 
-Every manifest must have a repository-unique `plugin.name`. Within a manifest, each non-excluded
-item must have a unique artifact-kind/output-name pair. Codex emits every resolved kind into one
-plugin-local skill namespace, so output names must also be unique across kinds within a manifest;
-`skill:review` and `command:review` would collide as Codex skills and fail preflight. The same name
-may still exist in different plugins because Codex addresses it through the plugin namespace.
+Every manifest must have a repository-unique `plugin.name`. Plugin names and output names follow one
+portable-name rule for every harness: lowercase letters and digits in single-hyphen-separated runs
+(`^[a-z0-9]+(-[a-z0-9]+)*$`), so no `.`, `_`, `:`, or doubled hyphen. Within a manifest, each
+non-excluded item must have a unique artifact-kind/output-name pair. Codex emits every resolved kind
+into one plugin-local skill namespace, so output names must also be unique across kinds within a
+manifest; `skill:review` and `command:review` would collide as Codex skills and fail preflight.
+Across manifests, a bare output name must be unique in the whole repository, whatever its kind:
+`depends_on`, the linker, and `requiredModules` derivation identify a target by its bare name.
+
+Each harness qualifies the bare name with its plugin. Claude Code and Codex address an item through
+their plugin namespace. OpenCode has no plugin concept, so every OpenCode ID is `<plugin>.<name>`:
+`skills/deniz-process.brainstorming/SKILL.md` is attached as `@deniz-process.brainstorming`, and a
+command `commands/deniz-process.handoff.md` runs as `/deniz-process.handoff`. The portable-name rule
+keeps that dotted ID one-to-one with its plugin and name. The emitted paths are owned by
+[Transformation and emission](../docs/architecture/transformation-and-emission.md); reference
+rendering is owned by [References and linking](../docs/architecture/references-and-linking.md).
 
 Curating the same upstream source into more than one item is legal but ambiguous for references:
 the rewrite map is keyed by upstream address and the last manifest item wins. `validate` warns so
@@ -84,18 +96,32 @@ take ownership of the whole body merely to remove a file.
 Claude/OpenCode artifact shape. One does not derive the other; Codex adapts every resolved kind to a
 skill and therefore still consumes invocation on an item resolved as a command or agent.
 
-| `invocation` | Capability intent | Claude Code skill output | OpenCode skill output | Codex output |
+| `invocation` | Capability intent | Claude Code skill output | OpenCode 2 skill output | Codex output |
 |---|---|---|---|---|
-| absent | passthrough or target default | preserve upstream posture | skill | skill with target defaults |
-| `auto` | implicit required; explicit unspecified | model-only skill | skill | ordinary skill; explicit remains natively available |
-| `manual` | implicit forbidden; explicit required | user-only skill | command | skill with `allow_implicit_invocation: false` |
-| `both` | implicit and explicit required | skill available to both audiences | skill and command | ordinary skill |
+| absent | passthrough or target default | preserve upstream posture | skill; an upstream `disable-model-invocation: true` becomes `metadata: {"opencode/autoinvoke": false}` | skill with target defaults |
+| `auto` | implicit required; explicit unspecified | model-only skill | advertised skill; explicit `@` attach remains natively available | ordinary skill; explicit remains natively available |
+| `manual` | implicit forbidden; explicit required | user-only skill | unadvertised skill with `metadata: {"opencode/autoinvoke": false}`; the user attaches it with `@` | skill with `allow_implicit_invocation: false` |
+| `both` | implicit and explicit required | skill available to both audiences | one advertised skill the user can attach with `@`; no command | ordinary skill |
 
 Absent is not a default value: it records no curation intent, so upstream Claude frontmatter passes
-through while Codex uses its native target default. Codex has no policy that preserves implicit
+through, OpenCode renders an upstream `disable-model-invocation: true` with its native key, and Codex
+uses its native target default. Neither Codex nor OpenCode 2 has a policy that preserves implicit
 selection while forbidding explicit invocation, so `auto` does not mean model-only there; this is a
-native capability resolution, not a silent approximation. Use `as: command` or `as: agent` when the
-Claude/OpenCode artifact itself must change regardless of trigger intent.
+native capability resolution, not a silent approximation.
+
+OpenCode 2 has no skill-level switch that forbids a model-initiated load: its native key only keeps
+the skill out of the list the model is offered, and the skill tool can still load a registered ID.
+There, `manual` therefore means unadvertised, not forbidden
+([ADR-0005](../docs/adr/0005-invocation-intent-in-the-manifest.md)). The compensating authoring rule
+is that model-reachable text must not name a `manual` item's OpenCode ID; `validate` enforces the
+[manual-ID leak rule](../docs/architecture/references-and-linking.md#opencode-id-checks) owned by
+References and linking.
+
+Invocation never changes artifact shape. Use `as: command` or `as: agent` when the Claude/OpenCode
+artifact itself must change regardless of trigger intent. `as: command` is the per-item escape hatch
+for an item that truly needs a command surface, a `/<plugin>.<name>` entry in OpenCode that takes
+`$ARGUMENTS`; its body then lives in one command file, so skill-relative paths in it may stop
+resolving.
 
 ## Body ownership and merge sources
 
@@ -125,7 +151,12 @@ have no upstream counterpart, so they remain outside that set.
 
 `depends_on:` lists output names reached by model-edge facts in the shipped body. Author those facts
 in neutral upstream spelling (`namespace:name`); use `/namespace:name` when the body points the human
-at a user surface. Current localization, linking, reachability, path, candidate, and ledger mechanics
-live in [References and linking](../docs/architecture/references-and-linking.md). The reason for the
-symbol tiers and two-way declaration trade-off is
-[ADR-0008](../docs/adr/0008-references-are-symbols.md).
+at a user surface. Each emitter renders the fact in its own harness's spelling.
+
+A body line that tells the model to load another skill by a quoted handle, such as
+`Skill tool with "grilling"`, is a load-bearing model edge. Author that handle as a namespaced fact
+with a matching `depends_on` entry; a bare handle names an ID that does not exist in OpenCode, where
+every ID is qualified. Current per-harness spelling, localization, linking, reachability, path,
+candidate, and ledger mechanics, including the OpenCode ID checks, live in
+[References and linking](../docs/architecture/references-and-linking.md). The reason for the symbol
+tiers and two-way declaration trade-off is [ADR-0008](../docs/adr/0008-references-are-symbols.md).

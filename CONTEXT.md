@@ -18,8 +18,15 @@ _Avoid_: Claude Plugin, module, package, bundle
 
 **Module**:
 The installable OpenCode distribution of exactly one curation manifest. It is one-to-one with a
-Claude Plugin and Codex Plugin and is not an OpenCode namespace.
+Claude Plugin and Codex Plugin, and its name is the namespace of every OpenCode ID it emits.
 _Avoid_: plugin (for OpenCode output), package, bundle
+
+**OpenCode ID**:
+The name OpenCode registers for one emitted skill, command, or agent: `<plugin>.<name>`, the Module
+name and the item's output name joined by `.`, for example `deniz-process.brainstorming`. It is the
+skill folder name or the command or agent file name without `.md`, and users type it after `@` or
+`/`.
+_Avoid_: bare name, namespaced reference, `ns:name` (the neutral reference spelling)
 
 **Bundle**:
 The build-produced on-disk payload of one Module: its manifest and every file the Module emits.
@@ -96,12 +103,15 @@ Selection or Ownership changes.
 _Avoid_: uninstall, clean, purge
 
 **Destination**:
-The global OpenCode config root (`$XDG_CONFIG_HOME/opencode`, with OpenCode's normal home fallback).
-Ownership paths are relative to it.
+The global OpenCode config root: `OPENCODE_CONFIG_DIR` when it is set and non-empty, because
+OpenCode 2 then uses it in place of the global root; otherwise `$XDG_CONFIG_HOME/opencode`;
+otherwise `<home>/.config/opencode`. Ownership paths are relative to it.
 _Avoid_: module directory, package tree, config dir
 
 **Native tree**:
-The flattened skills, commands, and agents layout OpenCode reads at the Destination.
+The flat layout OpenCode 2 reads at the Destination: `skills/<id>/SKILL.md`, `commands/<id>.md`, and
+`agents/<id>.md`, where each `<id>` is an OpenCode ID. Artifacts of every selected Module sit side by
+side in it.
 _Avoid_: module directory, bundle layout, plugin tree
 
 **Module manifest**:

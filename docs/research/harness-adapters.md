@@ -8,6 +8,9 @@ Date: 2026-08-18
 > composition mechanics live in
 > [Distribution and installation](../architecture/distribution-and-installation.md), and runnable
 > consumption instructions live in the root [README](../../README.md).
+>
+> The OpenCode findings below are OpenCode 1.18.x evidence; the OpenCode 2 evidence is in
+> [OpenCode 2 as the OpenCode target](opencode-2-target.md).
 
 ## Claude Code
 

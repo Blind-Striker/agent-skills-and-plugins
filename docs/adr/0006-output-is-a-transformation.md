@@ -36,7 +36,8 @@ harness's conventions must arrive at the other as something that harness underst
 emitter's job, never the reader's, and it covers at least:
 
 - **Cross-references** spelled the way the target harness resolves them — Claude Code's
-  `<plugin>:<name>` namespacing is meaningless to OpenCode, which reaches skills by bare name.
+  `<plugin>:<name>` namespacing is meaningless to OpenCode, which reaches this repository's skills
+  by their `<plugin>.<name>` folder IDs.
 - **Frontmatter** filtered to what the target recognises, with every dropped key reported.
 - **Body content** where the targets cannot be reconciled mechanically.
 
@@ -57,8 +58,7 @@ not in every authoring decision. This forbids shortcuts that bypass an axis:
   absent is compatible with the axis; treating that kind as unoverrideable authority would remove
   axis 2. Curation may override the default with `as:`.
 - **Treating invocation as a Claude Code frontmatter concern.** It is the primary axis; OpenCode can
-  express it by choosing a different artifact, while Codex can express part of it through native
-  skill policy.
+  express part of it through native skill metadata, and Codex through native skill policy.
 - **Emitting a key the target harness ignores, silently.** Unrecognised frontmatter reaching an
   output tree is a reportable drop, not a harmless passenger.
 - **Answering "the harness cannot express this" with passthrough.** Adapting an item that does not

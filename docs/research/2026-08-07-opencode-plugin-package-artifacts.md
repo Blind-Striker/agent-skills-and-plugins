@@ -26,6 +26,9 @@ mutated. Questions not established by that evidence session are identified in th
 > [Distribution and installation](../architecture/distribution-and-installation.md). The root
 > [README](../../README.md) owns the runnable consumption recipe; experiment records own observed
 > installation evidence.
+>
+> The findings below are OpenCode 1.18.x evidence; the OpenCode 2 plugin and distribution evidence
+> is in [OpenCode 2 as the OpenCode target](opencode-2-target.md).
 
 ## Direct answer
 

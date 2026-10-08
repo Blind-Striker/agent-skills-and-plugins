@@ -1,17 +1,21 @@
 # Distribution and installation
 
-Date: 2026-09-07
+Date: 2026-10-08
 
 ## Responsibility
 
 This document owns the mechanics after OpenCode emission: Bundle identity, Package contents and
-transport, global Native-tree composition, and the Selection/Ownership/Plan/Apply/Recovery lifecycle.
+transport, global Native-tree composition, the OpenCode runtime the installed tree targets, and the
+Selection/Ownership/Plan/Apply/Recovery lifecycle.
 Capitalized terms keep their definitions in [`CONTEXT.md`](../../CONTEXT.md); this document describes
 how the implementation composes them. [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md)
 records why generated Bundles and installer output are committed,
 [ADR-0002](../adr/0002-multi-harness-output.md) records why OpenCode receives native files rather
 than a runtime adapter, and [ADR-0004](../adr/0004-minimal-toolchain.md) records the consumer-side
 compilation and toolchain trade-offs.
+
+This document states the decided OpenCode 2 behavior. Where the implementation has not caught up,
+the gap and its responsible files are tracked in [`docs/ROADMAP.md`](../ROADMAP.md#known-gaps).
 
 This installer is OpenCode-specific. Claude Code and Codex consume independently emitted native
 Plugins through separate repository marketplaces; installing either Plugin neither selects nor
@@ -22,6 +26,32 @@ installer. `.agents/plugins/marketplace.json` points at `codex/<plugin>`, and na
 and plugin commands own installation, update, and removal. The supported Plugin hosts for this
 milestone are Codex CLI and Codex in the ChatGPT desktop app; the IDE extension and native custom-
 agent profile transport are not included.
+
+## Target OpenCode runtime
+
+Installed Bundles target OpenCode 2 only. The floor is v2.0.4, the first release in which skills are
+no longer slash commands (upstream commit `199aabe9e2`, first contained in tag `v2.0.4`); the
+measured reference is v2.0.23 (`anomalyco/opencode@0fd7e2829449b052abf0078666669302923d77af`).
+OpenCode 2 ships as the npm package `@opencode/cli` with the binary `opencode`, and it is a parallel
+opt-in line while OpenCode's default install channels still deliver OpenCode 1. OpenCode 1 (v1.18.x)
+is not supported and there is no compatibility layer: the same output installed under OpenCode 1
+degrades, because OpenCode 1 ignores the manual-skill metadata and exposes every skill as a slash
+command. The installer does not check the OpenCode version. The emitted shapes that set this floor
+are owned by [Transformation and emission](transformation-and-emission.md).
+
+OpenCode 2 watches its config folders, so Native-tree changes need no restart: on v2.0.23 a newly
+written skill appeared in the running service's `/api/skill` list within about two seconds, and a
+newly written command appeared in `/api/command` without a restart. Changed and removed files and
+agents were not measured. A running
+service can therefore observe a partly applied tree while Apply moves files. Apply's transaction
+protects Install state and Recovery, not what the harness sees between two file moves.
+
+Bulk changes carry an open upstream risk on Windows:
+[`anomalyco/opencode#47505`](https://github.com/anomalyco/opencode/issues/47505) reports that a bulk
+update of global skills terminated the shared OpenCode 2 service, with a second report on v2.0.16.
+Before the next Release, a bulk Apply plus prune against a running, isolated OpenCode 2 service on
+Windows must be measured and recorded. Until that record exists, the effect of a large Apply on a
+running Windows service is unmeasured.
 
 ## Bundle and Package identity
 
@@ -39,8 +69,11 @@ implemented in
 [`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
 
 Checkout Bundles and Install state are schema 2. The still-public Release Package
-`installer-v0.3.0` is a schema-1 historical source snapshot; its download and digest recipe is
-unchanged. There is no compatibility reader between the two formats.
+`installer-v0.3.0` is a schema-1 historical source snapshot whose Bundles carry OpenCode-1-shaped
+output; its download and digest recipe is unchanged until the next Release replaces it. There is no
+compatibility reader between the two formats: the installer has no schema-1 reader, and it rejects a
+schema-1 Install state instead of converting it
+([`parseInstallState`](../../tools/lib/opencode-install-state.ts)).
 
 Bundle verification rejects missing, extra, tampered, or linked files and checks the recorded mode
 on POSIX. Repository validation also runs the case-insensitive alias checks, requires exactly the
@@ -62,7 +95,12 @@ package install. The Release is versioned but not immutable: the tag and target 
 intended source point, while the repository-recorded Package SHA-256 detects replacement or
 corruption but does not prevent an authorized re-upload. A runnable recipe is published only after a
 current asset passes the release gate; the root [`README.md`](../../README.md#opencode-from-a-release-package)
-owns consumer instructions.
+owns consumer instructions. Those instructions describe the published Release, so they change only
+in the release step. A new Release moves the `package.json` version, which names the Package asset,
+and updates the recipe pins guarded by
+[`tools/repository-docs.test.ts`](../../tools/repository-docs.test.ts) in the same change. The next
+Release also requires the Windows bulk-Apply measurement described under
+[Target OpenCode runtime](#target-opencode-runtime).
 
 ## Byte-preserving composition
 
@@ -76,6 +114,18 @@ and intended mode, and places them at the same relative path in the Destination.
 participates in matching and is applied; on Windows the intended mode remains recorded while byte
 identity is the enforced filesystem comparison.
 
+Every Native-tree path already carries its Module's OpenCode namespace, because the emitter names
+each artifact `<module>.<name>`: `skills/<module>.<name>/SKILL.md` with its bundled files below that
+folder, `commands/<module>.<name>.md`, and `agents/<module>.<name>.md`. The installer places these
+paths verbatim and never renames them. OpenCode 2 derives a skill ID from the skill's leaf folder
+name, so the folder name is the ID a user attaches with `@<module>.<name>`. The emitter owns the
+naming and the rule that a Bundle carries no `.md` file directly under `skills/` and no nested
+`SKILL.md`, which OpenCode 2 would also register as skills
+([Transformation and emission](transformation-and-emission.md)). Because each path starts with its
+own Module name, two Modules of one Package do not claim the same Native path; the double-claim and
+Collision findings still guard the Destination. An artifact with the same ID in another OpenCode
+discovery root is resolved by OpenCode's own precedence, outside Ownership.
+
 The resulting Native tree is therefore a composition of already transformed Bundle Native payloads,
 not a copy of Bundle distribution metadata. The
 packed-bin integration test compares its paths, bytes, Install state, and status output with the
@@ -83,11 +133,21 @@ checkout CLI ([`tools/install-opencode.test.ts`](../../tools/install-opencode.te
 
 ## Destination, Selection, and Ownership
 
-The installer resolves exactly one global Destination: `$XDG_CONFIG_HOME/opencode` when XDG config
-home is set, otherwise `$HOME/.config/opencode`. A non-empty `OPENCODE_CONFIG_DIR` is refused, and
-there is no project-local target. OpenCode may discover artifacts through other locations; that
-harness capability does not make those locations supported installer Destinations
+The installer resolves exactly one global Destination, the global config root OpenCode 2 reads:
+`OPENCODE_CONFIG_DIR` when it is set and non-empty, otherwise `$XDG_CONFIG_HOME/opencode` when XDG
+config home is set, otherwise `<home>/.config/opencode`. In OpenCode 2 `OPENCODE_CONFIG_DIR`
+replaces the global root rather than adding a second one
+(`anomalyco/opencode@0fd7e28 packages/util/src/global.ts:79`), so the installer honors it as the
+Destination. There is no project-local target. OpenCode may discover artifacts through other
+locations, including project `.opencode` directories found by its ancestor walk and the always-on
+compatibility roots `~/.claude/skills` and `~/.agents/skills`; that harness capability does not make
+those locations supported installer Destinations
 ([`resolveDestination`](../../tools/lib/opencode-install-state.ts#L504-L516)).
+
+The installer resolves the Destination from its own environment. By default the OpenCode 2 CLI talks
+to a long-lived managed background service that keeps the environment it started with, so the
+installed tree reaches that service only when the service's config root is the same directory. The
+installer does not inspect or restart the service.
 
 Install state lives at `<Destination>/.deniz-skills/install.json`. Checkout state uses
 `schemaVersion: 2`. It persists Selection and one Ownership claim per managed Native-tree path,
@@ -95,7 +155,20 @@ including the responsible Module, hash, and mode. Each selected Module also reco
 digest, and required Modules. Selection is read from this state, never inferred from files present on
 disk. Deleting the state does not turn owned files into a supported fresh install; it loses the
 ownership evidence needed to distinguish them from Unowned paths. The journal envelope remains
-schema 1; its old/new state evidence now contains schema-2 Install state.
+schema 1; its old/new state evidence now contains schema-2 Install state. OpenCode 2 discovers
+content in its config root through named directories such as `skills/`, `commands/`, `agents/`,
+`modes/`, and `plugins/` (at `anomalyco/opencode@0fd7e28`:
+`packages/core/src/config/plugin/skill.ts:85-88`, `packages/core/src/config/plugin/command.ts:144`,
+`packages/core/src/config/plugin/agent.ts:21-24`, and
+`packages/core/src/plugin/source-directory.ts:7-33`). `.deniz-skills/` is not one of them, so
+OpenCode 2 does not read it as content.
+
+A Destination that still holds schema-1 Install state is not a supported starting point. The
+curator's two real profiles that hold such state are migrated once by a manual procedure: remove
+their Modules with the schema-1 installer, remove the then-empty schema-1 state, and install
+schema-2 output. That procedure is a one-off recorded in a dated experiment record under
+[`experiments/harness-invocation/records/`](../../experiments/harness-invocation/records/README.md),
+not a supported product path, and the installer gains no migration or schema-1 import for it.
 
 Only paths under `skills/`, `commands/`, or `agents/` can be owned. Destination, metadata, and managed
 ancestors must be ordinary directories and managed leaves ordinary files; symlinks and junctions are
@@ -201,16 +274,21 @@ version-range resolution remain out of scope. The durable symbol-side proof boun
 
 ## Other current limits
 
-- The installer has no force, reset, legacy-takeover, project-local, `OPENCODE_CONFIG_DIR` target, or
-  JSON configuration mutation path. Existing files and lost ownership state require manual
-  resolution.
+- The installer has no force, reset, legacy-takeover, schema-1 import, project-local, or JSON
+  configuration mutation path. Existing files and lost ownership state require manual resolution.
+- The repository-owned installer and file Bundles are the only OpenCode distribution path. The
+  installer does not use an OpenCode 2 plugin package, the `skills` config array or HTTP skill
+  catalogs, or the shared `~/.agents/skills` root. It emits no `skill` permission rules, because
+  those would need configuration mutation. OpenCode agent permission mapping stays deferred in
+  [`docs/ROADMAP.md`](../ROADMAP.md#deferred).
 - The CLI verifies every Package Bundle before any action, even when the request names only one
   Module, and rejects a Package whose required Module names are absent. Plan then refuses an
   incomplete Selection. Neither step automatically adds Modules.
 - Release hash verification detects changed Package bytes; it cannot make a mutable Release asset
   immutable.
-- Committed tests and the installer experiment establish Plan/Apply behavior, byte equality, and
-  Native discovery for the measured environment. They do not establish that a model follows every
-  parked-body stub or whether a global Native-tree body read prompts a human for permission; the
-  [current installer record](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md#explicitly-unmeasured)
-  keeps those runtime observations explicitly unmeasured.
+- Committed tests establish Plan/Apply behavior and byte equality. The
+  [installer record](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md#explicitly-unmeasured)
+  measured Native discovery on OpenCode 1.18.18, which is no longer a supported runtime. OpenCode 2
+  discovery of the installed tree, the manual-skill posture, the Windows bulk-Apply behavior above,
+  and whether a read of a bundled support file from the global Native tree prompts a human for
+  permission are not yet measured.
