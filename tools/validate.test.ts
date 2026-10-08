@@ -9,7 +9,7 @@ import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.t
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath } from "./testutil.ts";
-import { validateRepo } from "./validate.ts";
+import { scanOpenCodeIds, skillToolHandles, validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
 // model-edge at an AGENT — an edge the model cannot traverse, and undeclared besides. That debt is
@@ -1222,4 +1222,165 @@ test("module manifest: re-signed requiredModules still must match curation", () 
     findings.some((f) => f.level === "error" && f.message.includes("required Modules do not match curation")),
     JSON.stringify(findings, null, 2),
   );
+});
+
+test("rendered OpenCode IDs are tokens, not path segments", () => {
+  const plugins = ["deniz-process"];
+  const ids = (t: string) => scanOpenCodeIds(t, plugins).map((x) => `${x.prefix}${x.id}`);
+  assert.deepEqual(ids("Use deniz-process.grilling, @deniz-process.handoff or /deniz-process.wizard."), [
+    "deniz-process.grilling",
+    "@deniz-process.handoff",
+    "/deniz-process.wizard",
+  ]);
+  assert.deepEqual(ids("See ../deniz-process.prototype/SKILL.md and x/deniz-process.y and deniz-process.yaml/"), []);
+  assert.deepEqual(ids("deniz-process.a_b"), []);
+});
+
+test("skill-tool handles cover the three measured forms", () => {
+  assert.deepEqual(skillToolHandles('Call the Skill tool with "deniz-process.grilling".'), ["deniz-process.grilling"]);
+  assert.deepEqual(skillToolHandles('Call the Skill tool twice, for "grilling" and "domain-modeling".'), [
+    "grilling",
+    "domain-modeling",
+  ]);
+  assert.deepEqual(skillToolHandles('a subagent that calls the Skill tool with "research". Use when'), ["research"]);
+  assert.deepEqual(skillToolHandles("call the Skill tool for whichever skills the block names"), []);
+  assert.deepEqual(
+    skillToolHandles(
+      'Call the Skill tool with "codebase-design" for the vocabulary ("the interface is the test surface")',
+    ),
+    ["codebase-design"],
+  );
+});
+
+/** alpha carries `body`; extra manifest lines follow the alpha item. Returns error messages. */
+function ocErrors(body: string, items: string[], mutate?: (root: string) => void): string[] {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    `---\nname: alpha\ndescription: A\n---\n${body}\n`,
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${["plugin:", "  name: deniz-process", "  description: P", "  version: 0.1.0", "items:", ...items].join("\n")}\n`,
+  );
+  buildAll(root);
+  mutate?.(root);
+  return validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+}
+
+test("O1: rendered IDs must resolve with a prefix that matches the target kind", () => {
+  // beta as the makeRepo overlay command deniz-beta: a conversion needs a full-file overlay
+  const errors = ocErrors(
+    "Open /superpowers:beta.",
+    [
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+      "    as: command",
+      "    name: deniz-beta",
+      "    body: overlay",
+    ],
+    (root) => {
+      const file = opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md");
+      assert.match(readFileSync(file, "utf8"), /Open \/deniz-process\.deniz-beta\./);
+      writeFileSync(
+        file,
+        `${readFileSync(file, "utf8")}\nSee @deniz-process.nope and @deniz-process.deniz-beta and /deniz-process.alpha.\n`,
+      );
+    },
+  );
+  assert.ok(
+    errors.some((m) => m.includes("rendered OpenCode ID @deniz-process.nope does not name an emitted")),
+    errors.join("\n"),
+  );
+  assert.ok(
+    errors.some((m) => m.includes("rendered OpenCode ID @deniz-process.deniz-beta")),
+    "a command needs /",
+  );
+  assert.ok(
+    errors.some((m) => m.includes("rendered OpenCode ID /deniz-process.alpha")),
+    "a skill needs @",
+  );
+  assert.ok(
+    !errors.some((m) => m.includes("rendered OpenCode ID /deniz-process.deniz-beta")),
+    "the rendered command pointer resolves",
+  );
+});
+
+test("O2: a bare skill-tool handle fails; a promoted one passes", () => {
+  const bare = ocErrors('Call the Skill tool with "beta".', [
+    "  - source: sp/skills/alpha",
+    "    invocation: manual",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(
+    bare.some((m) => m.includes('skill-tool handle "beta" is not an emitted OpenCode skill ID')),
+    bare.join("\n"),
+  );
+  const promoted = ocErrors('Call the Skill tool with "superpowers:beta".', [
+    "  - source: sp/skills/alpha",
+    "    invocation: manual",
+    "    depends_on: [beta]",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(!promoted.some((m) => m.includes("skill-tool handle")), promoted.join("\n"));
+});
+
+test("O3: model-reachable text must not name a manual item", () => {
+  const items = (alphaPosture: string[]) => [
+    "  - source: sp/skills/alpha",
+    ...alphaPosture,
+    "  - source: sp/skills/beta",
+    "    invocation: manual",
+  ];
+  const leak = "model-reachable text names manual item deniz-process.beta";
+  assert.ok(
+    ocErrors("Tell the user /superpowers:beta.", items(["    invocation: auto"])).some((m) => m.includes(leak)),
+  );
+  assert.ok(
+    ocErrors("Tell the user /superpowers:beta.", items([])).some((m) => m.includes(leak)),
+    "absent counts as reachable",
+  );
+  assert.ok(
+    !ocErrors("Tell the user /superpowers:beta.", items(["    invocation: manual"])).some((m) => m.includes(leak)),
+  );
+  assert.ok(
+    ocErrors("Tell the user /superpowers:beta.", items(["    as: agent"])).some((m) => m.includes(leak)),
+    "agents are reachable",
+  );
+});
+
+test("O4–O6: phantom skills, skill name, and agent keys", () => {
+  const errors = ocErrors(
+    "Body.",
+    ["  - source: sp/skills/alpha", "  - source: sp/skills/beta", "    as: agent"],
+    (root) => {
+      const skills = opencodeModulePath(root, "deniz-process", "skills");
+      writeFileSync(join(skills, "stray.md"), "---\nname: stray\ndescription: S\n---\n");
+      mkdirSync(join(skills, "deniz-process.alpha", "nested"), { recursive: true });
+      writeFileSync(join(skills, "deniz-process.alpha", "nested", "SKILL.md"), "---\nname: n\ndescription: N\n---\n");
+      const skill = join(skills, "deniz-process.alpha", "SKILL.md");
+      writeFileSync(skill, readFileSync(skill, "utf8").replace("name: deniz-process.alpha", "name: alpha"));
+      const agent = opencodeIdPath(root, "deniz-process", "agent", "beta");
+      writeFileSync(
+        agent,
+        readFileSync(agent, "utf8").replace("mode: subagent", "mode: subagent\nname: x\ncolor: info"),
+      );
+    },
+  );
+  for (const expected of [
+    "skills/stray.md",
+    "nested/SKILL.md",
+    "name alpha does not equal",
+    "agent key name",
+    "color info",
+  ]) {
+    assert.ok(
+      errors.some((m) => m.includes(expected)),
+      `${expected}\n${errors.join("\n")}`,
+    );
+  }
 });

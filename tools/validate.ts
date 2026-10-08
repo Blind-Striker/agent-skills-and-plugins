@@ -21,7 +21,14 @@ import {
   verifyModuleManifest,
   type ModuleManifest,
 } from "./lib/opencode-bundle.ts";
-import { OPENCODE_HIDE_KEY, openCodeBundlePath, openCodeId, splitOpenCodeId } from "./lib/opencode-target.ts";
+import {
+  OPENCODE_AGENT_COLOR,
+  OPENCODE_AGENT_KEYS,
+  OPENCODE_HIDE_KEY,
+  openCodeBundlePath,
+  openCodeId,
+  splitOpenCodeId,
+} from "./lib/opencode-target.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
@@ -31,6 +38,7 @@ import {
   deriveModuleRequirements,
   isOmitted,
   itemRelative,
+  PORTABLE_NAME,
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
@@ -202,6 +210,58 @@ function openCodeIndex(
     add(own.plugin, own.name, "skill", undefined);
   }
   return index;
+}
+
+export interface OpenCodeIdToken {
+  prefix: "" | "@" | "/";
+  id: string;
+  line: number;
+}
+
+// The characters that make a candidate token part of a larger word or path rather than a rendered
+// ID: a "/" prefix only counts after a non-path character, and an unprefixed or "@" token must not
+// continue a word, a path, or a mention.
+const BEFORE_SLASH_PATH = /[A-Za-z0-9._/-]/;
+const BEFORE_TOKEN = /[A-Za-z0-9._/@-]/;
+
+/**
+ * Rendered OpenCode IDs (`<plugin>.<name>`, optionally `@`- or `/`-prefixed) in `text`. A token that
+ * continues into `/` is a path segment and is left to the path rules; so is one preceded by a path
+ * character. A trailing `.` does not end the token's eligibility, so a standalone
+ * `deniz-process.yaml` in prose is a token on purpose.
+ */
+export function scanOpenCodeIds(text: string, plugins: string[]): OpenCodeIdToken[] {
+  if (plugins.length === 0) {
+    return [];
+  }
+  const alternation = plugins.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const token = new RegExp(`([@/]?)((?:${alternation})\\.[a-z0-9]+(?:-[a-z0-9]+)*)(?![A-Za-z0-9_/-])`, "g");
+  const out: OpenCodeIdToken[] = [];
+  for (const m of text.matchAll(token)) {
+    const prefix = (m[1] ?? "") as OpenCodeIdToken["prefix"];
+    const id = m[2] as string;
+    const before = m.index > 0 ? (text[m.index - 1] as string) : "";
+    if (before && (prefix === "/" ? BEFORE_SLASH_PATH : BEFORE_TOKEN).test(before)) {
+      continue;
+    }
+    out.push({ prefix, id, line: text.slice(0, m.index).split("\n").length });
+  }
+  return out;
+}
+
+// The three measured skill-tool phrasings: `with "x"`, `twice, for "x" and "y"`, `for "x"`. Other
+// phrasings are not detected; that is a stated limit, not a claim of completeness.
+const SKILL_TOOL_HANDLE = /Skill tool(?: twice,)? (?:with|for) ("[^"\n]+"(?:,? (?:and|or) "[^"\n]+")*)/gi;
+
+/** Quoted skill-tool handles on one line, in order. */
+export function skillToolHandles(line: string): string[] {
+  const out: string[] = [];
+  for (const m of line.matchAll(SKILL_TOOL_HANDLE)) {
+    for (const q of (m[1] as string).matchAll(/"([^"\n]+)"/g)) {
+      out.push(q[1] as string);
+    }
+  }
+  return out;
 }
 
 export function validateRepo(root: string): Finding[] {
@@ -817,6 +877,122 @@ export function validateRepo(root: string): Finding[] {
           level: "error",
           message: `${relative(root, file).replaceAll("\\", "/")}: output namespace leaked into opencode/: ${ref.address}`,
         });
+      }
+    }
+  }
+
+  // O1–O6: the OpenCode tree addresses items by dotted ID, so every rendered ID, every skill-tool
+  // handle, and every artifact's shape is checked against what was actually emitted.
+  const kindLabel = { "": "item", "@": "skill or agent", "/": "command" } as const;
+  const prefixFits = (prefix: OpenCodeIdToken["prefix"], kind: ComponentType): boolean =>
+    prefix === "" || (prefix === "@" ? kind === "skill" || kind === "agent" : kind === "command");
+  // O3's model-reachable set is curation intent, not the hide key: a skill folder whose item is
+  // auto, both, or absent (original skills included), and every agent. Manual skills and commands
+  // are exempt.
+  const modelReachable = (file: string): boolean => {
+    const [, kindDir, artifact] = relative(ocDir, file).replaceAll("\\", "/").split("/");
+    if (kindDir === "agents") {
+      return true;
+    }
+    if (kindDir !== "skills" || !artifact) {
+      return false;
+    }
+    const entry = ocIndex.get(artifact);
+    return entry?.kind === "skill" && entry.invocation !== "manual";
+  };
+  for (const file of existsSync(ocDir) ? [...walk(ocDir)].filter((f) => f.endsWith(".md")) : []) {
+    const rel = relative(root, file).replaceAll("\\", "/");
+    const text = readFileSync(file, "utf8");
+    const reachable = modelReachable(file);
+    // O1: every rendered ID names an emitted artifact whose kind its prefix can address.
+    for (const token of scanOpenCodeIds(text, moduleNames)) {
+      const entry = ocIndex.get(token.id);
+      if (!entry || !prefixFits(token.prefix, entry.kind)) {
+        findings.push({
+          level: "error",
+          message: `${rel}:${token.line}: rendered OpenCode ID ${token.prefix}${token.id} does not name an emitted ${kindLabel[token.prefix]}`,
+        });
+        continue;
+      }
+      // O3: model-reachable text must not name a manual item, whatever the prefix.
+      if (reachable && entry.invocation === "manual") {
+        findings.push({
+          level: "error",
+          message: `${rel}:${token.line}: model-reachable text names manual item ${token.id}`,
+        });
+      }
+    }
+    // O2: a skill-tool handle is only callable when it is an emitted OpenCode skill ID.
+    for (const [index, line] of text.split("\n").entries()) {
+      for (const handle of skillToolHandles(line)) {
+        if (ocIndex.get(handle)?.kind !== "skill") {
+          findings.push({
+            level: "error",
+            message: `${rel}:${index + 1}: skill-tool handle "${handle}" is not an emitted OpenCode skill ID — author it as a namespaced fact with a matching depends_on`,
+          });
+        }
+      }
+    }
+  }
+  for (const module of moduleNames) {
+    const skillsDir = join(openCodeModuleRoot(root, module), "skills");
+    if (existsSync(skillsDir) && statSync(skillsDir).isDirectory()) {
+      for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
+        const at = `opencode/${module}/skills/${entry.name}`;
+        // O4: OpenCode discovers skills/*.md and every nested SKILL.md, so either is a phantom skill.
+        if (!entry.isDirectory()) {
+          if (entry.name.endsWith(".md")) {
+            findings.push({
+              level: "error",
+              message: `${at}: phantom OpenCode skill: a Markdown file directly under skills/`,
+            });
+          }
+          continue;
+        }
+        const folder = join(skillsDir, entry.name);
+        for (const nested of walk(folder)) {
+          const within = relative(folder, nested).replaceAll("\\", "/");
+          if (basename(nested) === "SKILL.md" && within !== "SKILL.md") {
+            findings.push({
+              level: "error",
+              message: `${at}/${within}: phantom OpenCode skill: a SKILL.md below the skill folder`,
+            });
+          }
+        }
+        // O5: the folder is an ID of its own Module, and the skill's name is that ID.
+        const bare = entry.name.startsWith(`${module}.`) ? entry.name.slice(module.length + 1) : undefined;
+        if (bare === undefined || !PORTABLE_NAME.test(bare)) {
+          findings.push({
+            level: "error",
+            message: `${at}: skill folder ${entry.name} is not an OpenCode ID of Module ${module}`,
+          });
+        }
+        const skillFile = join(folder, "SKILL.md");
+        if (existsSync(skillFile)) {
+          const name = parseDoc(readFileSync(skillFile, "utf8")).frontmatter.name;
+          if (name !== entry.name) {
+            findings.push({
+              level: "error",
+              message: `${at}/SKILL.md: skill name ${String(name)} does not equal its ID ${entry.name}`,
+            });
+          }
+        }
+      }
+    }
+    // O6: agents carry only native OpenCode 2 keys; any other key routes the file through the
+    // OpenCode 1 migrator, and a non-hex color is rejected outright.
+    const agentsDir = join(openCodeModuleRoot(root, module), "agents");
+    for (const f of existsSync(agentsDir) ? readdirSync(agentsDir).filter((n) => n.endsWith(".md")) : []) {
+      const at = `opencode/${module}/agents/${f}`;
+      const frontmatter = parseDoc(readFileSync(join(agentsDir, f), "utf8")).frontmatter;
+      for (const key of Object.keys(frontmatter)) {
+        if (!OPENCODE_AGENT_KEYS.has(key)) {
+          findings.push({ level: "error", message: `${at}: non-native OpenCode agent key ${key}` });
+        }
+      }
+      const color = frontmatter.color;
+      if (color !== undefined && (typeof color !== "string" || !OPENCODE_AGENT_COLOR.test(color))) {
+        findings.push({ level: "error", message: `${at}: OpenCode agent color ${String(color)} is not #rrggbb` });
       }
     }
   }
