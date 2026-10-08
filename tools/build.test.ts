@@ -841,7 +841,7 @@ test("duplicate plugin.name values abort before deleting existing output", () =>
   assert.ok(existsSync(alpha), "previous build output must survive a duplicate plugin.name");
 });
 
-test("cross-Module OpenCode destination collisions abort before deleting existing output", () => {
+test("cross-Module output name collisions abort before deleting existing output", () => {
   const root = makeRepo();
   buildAll(root);
   const existing = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
@@ -853,12 +853,12 @@ test("cross-Module OpenCode destination collisions abort before deleting existin
 
   assert.throws(
     () => buildAll(root),
-    /OpenCode destination skill:alpha.*deniz-(?:other.*deniz-process|process.*deniz-other)/i,
+    /duplicate output name alpha from deniz-other \(sp\/skills\/alpha\) and deniz-process \(sp\/skills\/alpha\)/,
   );
   assert.equal(readFileSync(existing).equals(before), true, "previous generated output must survive rejected build");
 });
 
-test("own skills participate in cross-Module OpenCode destination preflight", () => {
+test("own skills participate in the repository-wide output name preflight", () => {
   const root = makeRepo();
   buildAll(root);
   const existing = join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md");
@@ -869,7 +869,10 @@ test("own skills participate in cross-Module OpenCode destination preflight", ()
     "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems: []\n",
   );
 
-  assert.throws(() => buildAll(root), /OpenCode destination skill:alpha.*skills\/deniz-other\/alpha/i);
+  assert.throws(
+    () => buildAll(root),
+    /duplicate output name alpha from deniz-other \(skills\/deniz-other\/alpha\) and deniz-process \(sp\/skills\/alpha\)/,
+  );
   assert.ok(existsSync(existing), "previous generated output must survive rejected own-skill collision");
 });
 
@@ -905,27 +908,39 @@ test("an original-skill rewrite identity conflict aborts before deleting existin
   assert.equal(readFileSync(existing).equals(before), true, "previous generated output must survive the conflict");
 });
 
-test("same OpenCode name in different artifact kinds remains legal across Modules", () => {
+test("a bare output name claimed by two kinds across Modules aborts before deleting output", () => {
   const root = makeRepo();
+  buildAll(root);
   writeFileSync(
     join(root, "curation", "deniz-other.yaml"),
-    [
-      "plugin:",
-      "  name: deniz-other",
-      "  description: Other",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/beta",
-      "    as: command",
-      "    name: alpha",
-      "",
-    ].join("\n"),
+    "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems:\n  - source: sp/skills/delta\n    as: agent\n    name: alpha\n",
   );
+  // manifests load in file-name order, so deniz-other claims first
+  assert.throws(
+    () => buildAll(root),
+    /duplicate output name alpha from deniz-other \(sp\/skills\/delta\) and deniz-process \(sp\/skills\/alpha\)/,
+  );
+  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "manifest.json")), "nothing was deleted");
+});
 
-  buildAll(root);
+test("a non-portable output name aborts in preflight for every harness", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n    name: alpha.beta\n",
+  );
+  assert.throws(() => buildAll(root), /output name alpha\.beta is not portable/);
+});
 
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md")));
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-other", "commands", "alpha.md")));
+test("an original skill shares the repository-wide bare-name claim", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "skills", "deniz-other", "delta"), { recursive: true });
+  writeFileSync(join(root, "skills", "deniz-other", "delta", "SKILL.md"), "---\nname: delta\ndescription: D\n---\n");
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems: []\n",
+  );
+  assert.throws(() => buildAll(root), /duplicate output name delta/);
 });
 
 test("the same output name in different artifact kinds is rejected by the flattened Codex namespace", () => {

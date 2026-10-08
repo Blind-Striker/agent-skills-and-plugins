@@ -173,7 +173,10 @@ test("duplicate output name across plugins is rejected by build preflight", () =
     join(root, "curation", "deniz-other.yaml"),
     "plugin:\n  name: deniz-other\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n",
   );
-  assert.throws(() => buildAll(root), /duplicate OpenCode destination skill:alpha/);
+  assert.throws(
+    () => buildAll(root),
+    /duplicate output name alpha from deniz-other \(sp\/skills\/alpha\) and deniz-process \(sp\/skills\/alpha\)/,
+  );
 });
 
 test("duplicate output identity within one plugin is an error", () => {
@@ -779,7 +782,10 @@ test("an own skill colliding with a curated item is rejected by build preflight"
     join(root, "skills", "deniz-process", "alpha", "SKILL.md"),
     "---\nname: alpha\ndescription: own\n---\nOwn.\n",
   );
-  assert.throws(() => buildAll(root), /duplicate OpenCode destination skill:alpha.*skills\/deniz-process\/alpha/);
+  assert.throws(
+    () => buildAll(root),
+    /duplicate output name alpha from deniz-process \(sp\/skills\/alpha\) and deniz-process \(skills\/deniz-process\/alpha\)/,
+  );
 });
 
 test("provenance: a name or a date in a manifest comment is an error; a description keeps its branding", () => {

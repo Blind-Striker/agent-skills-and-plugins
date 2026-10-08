@@ -102,7 +102,13 @@ export function deriveModuleRequirements(
   return result;
 }
 
-/** Manifest identities that would overwrite one another before generated-tree checks can see them. */
+/**
+ * Manifest identities that would overwrite one another before generated-tree checks can see them,
+ * and names some harness cannot spell. Every plugin name, output name, and original-skill directory
+ * must be portable, and a bare output name belongs to one claimant across the repository, whatever
+ * its kind. Two curated items of the same Module are left to their existing owners: the per-manifest
+ * `duplicate output identity` check for one kind and the Codex flattening preflight for two kinds.
+ */
 export function collectIdentityProblems(
   root: string,
   manifests: CurationManifest[],
@@ -114,18 +120,23 @@ export function collectIdentityProblems(
     .map((f) => `curation/${f}`);
   const problems: string[] = [];
   const pluginPaths = new Map<string, string>();
-  const openCodeDestinations = new Map<string, { module: string; source: string }>();
+  const nameClaims = new Map<string, { module: string; source: string; curated: boolean }>();
 
-  const claimOpenCodeDestination = (kind: ComponentType, name: string, module: string, source: string): void => {
-    const identity = `${kind}:${name}`;
-    const earlier = openCodeDestinations.get(identity);
-    if (earlier) {
-      problems.push(
-        `duplicate OpenCode destination ${identity} from ${earlier.module} (${earlier.source}) and ${module} (${source})`,
-      );
+  const claimName = (name: string, module: string, source: string, curated: boolean): void => {
+    const earlier = nameClaims.get(name);
+    if (!earlier) {
+      nameClaims.set(name, { module, source, curated });
       return;
     }
-    openCodeDestinations.set(identity, { module, source });
+    if (earlier.curated && curated && earlier.module === module) {
+      return;
+    }
+    problems.push(`duplicate output name ${name} from ${earlier.module} (${earlier.source}) and ${module} (${source})`);
+  };
+  const checkPortable = (manifestPath: string, plugin: string, name: string): void => {
+    if (!PORTABLE_NAME.test(name)) {
+      problems.push(`${manifestPath}: ${plugin}: output name ${name} is not portable (${PORTABLE_NAME.source})`);
+    }
   };
 
   for (const [index, manifest] of manifests.entries()) {
@@ -135,6 +146,9 @@ export function collectIdentityProblems(
       problems.push(`duplicate plugin.name ${manifest.plugin.name} in ${earlierPath} and ${manifestPath}`);
     } else {
       pluginPaths.set(manifest.plugin.name, manifestPath);
+    }
+    if (!PORTABLE_NAME.test(manifest.plugin.name)) {
+      problems.push(`${manifestPath}: plugin name ${manifest.plugin.name} is not portable (${PORTABLE_NAME.source})`);
     }
 
     const sourcesByIdentity = new Map<string, string>();
@@ -152,24 +166,16 @@ export function collectIdentityProblems(
       } else {
         sourcesByIdentity.set(identity, item.source);
       }
-
-      if (outType !== "skill") {
-        claimOpenCodeDestination(outType, outName, manifest.plugin.name, item.source);
-      } else if (item.invocation === "manual") {
-        claimOpenCodeDestination("command", outName, manifest.plugin.name, item.source);
-      } else if (item.invocation === "both") {
-        claimOpenCodeDestination("skill", outName, manifest.plugin.name, item.source);
-        claimOpenCodeDestination("command", outName, manifest.plugin.name, item.source);
-      } else {
-        claimOpenCodeDestination("skill", outName, manifest.plugin.name, item.source);
-      }
+      checkPortable(manifestPath, manifest.plugin.name, outName);
+      claimName(outName, manifest.plugin.name, item.source, true);
     }
 
     const ownRoot = join(root, "skills", manifest.plugin.name);
     if (existsSync(ownRoot)) {
       for (const name of readdirSync(ownRoot).sort(ordinalCompare)) {
         if (statSync(join(ownRoot, name)).isDirectory()) {
-          claimOpenCodeDestination("skill", name, manifest.plugin.name, `skills/${manifest.plugin.name}/${name}`);
+          checkPortable(manifestPath, manifest.plugin.name, name);
+          claimName(name, manifest.plugin.name, `skills/${manifest.plugin.name}/${name}`, false);
         }
       }
     }
