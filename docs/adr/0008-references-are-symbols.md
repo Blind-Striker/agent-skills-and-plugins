@@ -69,7 +69,7 @@ separate transformation concern owned by
   or follow its discipline. Reachability is not propensity; runtime behavior is measured under the
   [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
 - Reachability is only as strong as the harness's own boundary. A Codex or OpenCode `manual` skill
-  is not offered to the model, but it is not unloadable;
+  is not offered to the model, and nothing documented makes it unloadable;
   [ADR-0005](0005-invocation-intent-in-the-manifest.md) accepts that meaning without a compensating
   rule.
 - Candidate prose remains a deliberate blind spot. A body patch does not promote it merely by

@@ -77,7 +77,7 @@ Answer these before the task that needs them. Recommendations are in spec "Open 
 | `tools/build.ts`, `tools/build.test.ts` | OpenCode emitter, OpenCode rewrite pass, manifest modes | 3, 6, 7 |
 | `tools/lib/ledger.ts`, `tools/lib/ledger.test.ts` | OpenCode projection | 2, 8 |
 | `docs/agents/reference-audit-playbook.md` | path collection script | 8 |
-| `tools/validate.ts`, `tools/validate.test.ts` | retirements, linker state, path rules, O1–O6 | 9, 10 |
+| `tools/validate.ts`, `tools/validate.test.ts` | retirements, linker state, path rules, O1, O2, O4–O6 | 9, 10 |
 | `tools/lib/opencode-install-state.ts` (+ test), `tools/install-opencode.ts` (+ test) | Destination | 11 |
 | `tools/testutil.ts` | `opencodeId` helper for fixtures | 6 |
 | generated trees, `dist/`, `docs/ledger.json` | regenerated only | 12, 13 |
@@ -1529,7 +1529,7 @@ git commit -m "test: port OpenCode experiments to OpenCode 2"
   1. the model's skill list (`/api/skill` plus the session's system skill list) omits the manual ID;
   2. the user attaches `@deniz-fixture.zorblat` and the body is loaded;
   3. when the prompt names `deniz-fixture.zorblat`, the model calls the skill tool with that exact
-     ID and the load succeeds (the "unadvertised, not forbidden" boundary).
+     ID and the load succeeds (not offered to the model, but still loadable).
 - [ ] **Step 3: Record** with `kind: model-panel`, `fixture_sha`, `harness_name: opencode`,
   `harness_version`, `runner_revision`, the per-attempt table, and sanitized event excerpts (tier 2,
   required because the claim backs ADR-0005's OpenCode meaning).

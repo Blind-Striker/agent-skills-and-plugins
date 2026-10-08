@@ -880,8 +880,8 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // O1–O6: the OpenCode tree addresses items by dotted ID, so every rendered ID, every skill-tool
-  // handle, and every artifact's shape is checked against what was actually emitted.
+  // O1, O2, O4–O6: the OpenCode tree addresses items by dotted ID, so every rendered ID, every
+  // skill-tool handle, and every artifact's shape is checked against what was actually emitted.
   const kindLabel = { "": "item", "@": "skill or agent", "/": "command" } as const;
   const prefixFits = (prefix: OpenCodeIdToken["prefix"], kind: ComponentType): boolean =>
     prefix === "" || (prefix === "@" ? kind === "skill" || kind === "agent" : kind === "command");
