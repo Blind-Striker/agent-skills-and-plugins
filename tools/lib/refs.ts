@@ -180,3 +180,47 @@ export function straySkillToolMentions(content: string): number[] {
     .map((m) => m.index)
     .filter((index) => !spans.some((s) => index >= s.index && index < s.end));
 }
+
+/** A bare backticked name in a load-bearing handoff template (references-and-linking.md "Handoff templates"). */
+export interface Handoff {
+  template: "imperative" | "load" | "route";
+  name: string;
+  /** The name's opening backtick. */
+  index: number;
+}
+
+// A backticked portable name: a fact carries a colon, so it never matches.
+const NAME = String.raw`\x60([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\x60`;
+// A sentence stops at . ; : ! ? |, a blank line, or a newline that opens a list, table, heading, or quote.
+const SENTENCE = String.raw`(?:[^.;:!?|\n]|\n(?![ \t]*(?:\n|[-*+>#|]|\d+\.)))*?`;
+const IMPERATIVE = new RegExp(
+  String.raw`\b(?:Load|load|Use|use|Follow|follow|Invoke|invoke|Call|call)\b${SENTENCE}${NAME}\s+skill\b`,
+  "g",
+);
+const LOAD = new RegExp(String.raw`\b(?:Load|load|Invoke|invoke)\s+${NAME}`, "g");
+const LIST_TAIL = new RegExp(String.raw`^(?:,\s*|\s+and\s+|\s+or\s+)${NAME}`);
+const ROUTE = new RegExp(String.raw`→\s*\*{0,2}${NAME}`, "g");
+
+/** Bare backticked names in the load-bearing handoff templates, in the order written, one hit per name. */
+export function scanHandoffs(content: string): Handoff[] {
+  const out: Handoff[] = [];
+  const at = (start: number, matched: string, name: string): number => start + matched.lastIndexOf(`\`${name}\``);
+  for (const m of content.matchAll(IMPERATIVE)) {
+    out.push({ template: "imperative", name: m[1] as string, index: at(m.index, m[0], m[1] as string) });
+  }
+  for (const m of content.matchAll(LOAD)) {
+    out.push({ template: "load", name: m[1] as string, index: at(m.index, m[0], m[1] as string) });
+    let cursor = m.index + m[0].length;
+    for (let t = LIST_TAIL.exec(content.slice(cursor)); t; t = LIST_TAIL.exec(content.slice(cursor))) {
+      out.push({ template: "load", name: t[1] as string, index: at(cursor, t[0], t[1] as string) });
+      cursor += t[0].length;
+    }
+  }
+  for (const m of content.matchAll(ROUTE)) {
+    out.push({ template: "route", name: m[1] as string, index: at(m.index, m[0], m[1] as string) });
+  }
+  // Two templates can claim one name ("Load `x` skill"): keep the first pushed, which sorts stably first.
+  return out
+    .sort((a, b) => a.index - b.index)
+    .filter((hit, i, all) => all.findIndex((other) => other.index === hit.index) === i);
+}

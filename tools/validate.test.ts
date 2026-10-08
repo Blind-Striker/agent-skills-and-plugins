@@ -1372,3 +1372,35 @@ test("O4–O6: phantom skills, skill name, and agent keys", () => {
     );
   }
 });
+
+test("H2–H4: a bare estate name in a handoff template fails; a fact and an outside name pass", () => {
+  const bare = ocErrors("Load `beta` first. Use the `docker` skill.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(
+    bare.some((m) => m.includes("load-bearing handoff names `beta` bare")),
+    bare.join("\n"),
+  );
+  assert.ok(!bare.some((m) => m.includes("`docker`")), "outside the estate");
+  const promoted = ocErrors("Load `superpowers:beta` first.", [
+    "  - source: sp/skills/alpha",
+    "    depends_on: [beta]",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(!promoted.some((m) => m.includes("load-bearing handoff")), promoted.join("\n"));
+});
+
+test("H2–H4: an excluded name is reported as not emitted", () => {
+  const errors = ocErrors("Use the `beta` skill.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    exclude: true",
+  ]);
+  assert.ok(
+    errors.some((m) => m.includes("names `beta`, which this estate does not emit")),
+    errors.join("\n"),
+  );
+});

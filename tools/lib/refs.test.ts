@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   candidateHits,
   extractRefs,
+  scanHandoffs,
   scanPathClaims,
   scanRefs,
   scanSkillToolCalls,
@@ -144,4 +145,27 @@ test("a skill-tool mention outside a recognized call is stray", () => {
   assert.deepEqual(straySkillToolMentions('Call the Skill tool with "a:b". call the Skill tool for.'), []);
   const text = 'Invoke the Skill tool on "x". Use the skill tool.';
   assert.deepEqual(straySkillToolMentions(text), [text.indexOf("Skill tool"), text.indexOf("skill tool.")]);
+});
+
+test("handoff templates find bare backticked names in load-bearing forms", () => {
+  const hits = (t: string) => scanHandoffs(t).map((h) => `${h.template}:${h.name}`);
+  assert.deepEqual(hits("Use the `binlog-generation` skill to generate a log."), ["imperative:binlog-generation"]);
+  assert.deepEqual(hits("Follow the complete procedure in the `platform-detection`\nskill. Read props."), [
+    "imperative:platform-detection",
+  ]);
+  assert.deepEqual(hits("Load `filter-syntax` only when filtered."), ["load:filter-syntax"]);
+  assert.deepEqual(hits("invoke `test-gap-analysis` and `test-anti-patterns` when available"), [
+    "load:test-gap-analysis",
+    "load:test-anti-patterns",
+  ]);
+  assert.deepEqual(hits("Re-invoke `aspireify`; confirm the path"), ["load:aspireify"]);
+  assert.deepEqual(hits("- **A merge went sideways** → `resolving-merge-conflicts`."), [
+    "route:resolving-merge-conflicts",
+  ]);
+  assert.deepEqual(hits("Load `x` skill first."), ["imperative:x"], "one hit when two templates overlap");
+  assert.deepEqual(hits("Use the `dotnet-msbuild:binlog-generation` skill."), [], "a fact never matches");
+  assert.deepEqual(hits("see the `filter-syntax` skill for details"), [], "a reference stays a candidate");
+  assert.deepEqual(hits("- running tests (use `run-tests`)"), [], "a routing hint without 'skill'");
+  assert.deepEqual(hits("Use the following\n- the `grilling` skill"), [], "a list item ends the sentence");
+  assert.deepEqual(hits("Use it. The `grilling` skill drives it."), [], "a period ends the sentence");
 });

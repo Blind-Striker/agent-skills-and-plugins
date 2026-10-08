@@ -32,7 +32,7 @@ import {
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
-import { extractRefs, scanRefs, scanSkillToolCalls, straySkillToolMentions } from "./lib/refs.ts";
+import { extractRefs, scanHandoffs, scanRefs, scanSkillToolCalls, straySkillToolMentions } from "./lib/refs.ts";
 import {
   collectIdentityProblems,
   deriveModuleRequirements,
@@ -42,7 +42,7 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { claudeOnlyVocabulary } from "./lib/rewrite.ts";
+import { addressOf, claudeOnlyVocabulary } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 
 export interface Finding {
@@ -781,6 +781,21 @@ export function validateRepo(root: string): Finding[] {
       }
     }
   }
+  // The handoff universe (references-and-linking.md "Handoff templates"): every scanned upstream
+  // address and frontmatter name, every manifest output name (excluded included), every original skill.
+  const estateNames = new Set<string>();
+  for (const c of components) {
+    estateNames.add(addressOf(c));
+    estateNames.add(c.name);
+  }
+  for (const m of manifests) {
+    for (const item of m.items) {
+      estateNames.add(resolveItem(root, m.plugin.name, item, components).outName);
+    }
+  }
+  for (const own of ownSkills) {
+    estateNames.add(own.name);
+  }
   const ocModelCause = (t: TargetState): string =>
     !t.ocUser
       ? "no OpenCode artifact"
@@ -878,6 +893,19 @@ export function validateRepo(root: string): Finding[] {
       findings.push({
         level: "error",
         message: `${rel}:${lineOf(text, index)}: "skill tool" outside a recognized skill-tool call — reword it into a form in curation/SCHEMA.md Dependencies`,
+      });
+    }
+    // H2–H4: the imperative, direct-load, and route templates. A name outside the estate is silent.
+    for (const hit of scanHandoffs(text)) {
+      if (!estateNames.has(hit.name)) {
+        continue;
+      }
+      const at = `${rel}:${lineOf(text, hit.index)}`;
+      findings.push({
+        level: "error",
+        message: targetState.has(hit.name)
+          ? `${at}: load-bearing handoff names \`${hit.name}\` bare — author it as ns:${hit.name} with depends_on, or /ns:${hit.name} if the human is the audience`
+          : `${at}: load-bearing handoff names \`${hit.name}\`, which this estate does not emit — reroute or remove it`,
       });
     }
   }

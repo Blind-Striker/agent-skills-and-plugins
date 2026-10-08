@@ -9,7 +9,7 @@ import type { ComponentInfo } from "./scan.ts";
 // its directory name, a command or agent by its file name. The frontmatter `name` is not the address
 // and diverges from it in 32 of the 223 upstream components, so keying on it missed the real refs.
 // `<name>.agent.md` is a double extension, not part of the address — references spell the bare name.
-function addressOf(c: ComponentInfo): string {
+export function addressOf(c: ComponentInfo): string {
   return c.type === "skill" ? basename(c.sourcePath) : basename(c.sourcePath, ".md").replace(/\.agent$/, "");
 }
 
