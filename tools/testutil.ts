@@ -8,6 +8,20 @@ export function opencodeModulePath(root: string, module: string, ...parts: strin
   return join(root, "opencode", module, ...parts);
 }
 
+/** An OpenCode artifact at its namespaced Bundle path: skills/<m>.<name>/..., commands|agents/<m>.<name>.md. */
+export function opencodeIdPath(
+  root: string,
+  module: string,
+  kind: "skill" | "command" | "agent",
+  name: string,
+  ...rest: string[]
+): string {
+  const id = `${module}.${name}`;
+  return kind === "skill"
+    ? join(root, "opencode", module, "skills", id, ...rest)
+    : join(root, "opencode", module, `${kind}s`, `${id}.md`);
+}
+
 /** A file or directory inside one generated Codex Plugin: codex/<plugin>/<parts...>. */
 export function codexPluginPath(root: string, plugin: string, ...parts: string[]): string {
   return join(root, "codex", plugin, ...parts);

@@ -4,12 +4,12 @@ import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, syml
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
-import { parseDoc, serializeDoc } from "./lib/frontmatter.ts";
+import { parseDoc } from "./lib/frontmatter.ts";
 import { loadModuleManifest, verifyModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { parse as parseYaml, stringify } from "yaml";
 import { stampFiles, stampMergeFiles } from "./lib/overlay.ts";
-import { codexPluginPath, makeRepo, opencodeModulePath } from "./testutil.ts";
+import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath } from "./testutil.ts";
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
@@ -52,13 +52,13 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   const report = buildAll(root);
   // each Module is one OpenCode bundle: skills/, commands/, agents/ — all plural — plus its manifest
   const moduleRoot = opencodeModulePath(root, "deniz-process");
-  assert.ok(existsSync(join(moduleRoot, "skills", "alpha", "SKILL.md")));
-  assert.ok(existsSync(join(moduleRoot, "skills", "my-own", "SKILL.md")));
-  const cmd = parseDoc(readFileSync(join(moduleRoot, "commands", "deniz-beta.md"), "utf8"));
+  assert.ok(existsSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md")));
+  assert.ok(existsSync(opencodeIdPath(root, "deniz-process", "skill", "my-own", "SKILL.md")));
+  const cmd = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "command", "deniz-beta"), "utf8"));
   assert.equal(cmd.frontmatter.description, "Beta overlay");
   // each tree carries the reference spelling its own harness resolves: OpenCode has no plugin
   // concept, so the qualified form would resolve to nothing there
-  const alpha = readFileSync(join(moduleRoot, "skills", "alpha", "SKILL.md"), "utf8");
+  const alpha = readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8");
   assert.doesNotMatch(alpha, /deniz-process:beta-agent/);
   assert.match(alpha, /(^|[^:\w-])beta-agent\b/);
   assert.match(
@@ -75,11 +75,11 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.equal(agent.frontmatter.description, "Beta upstream");
 
   // opencode side keeps description + mode only; model is dropped and reported, never silently lost
-  const ocAgent = parseDoc(readFileSync(join(moduleRoot, "agents", "beta-agent.md"), "utf8"));
+  const ocAgent = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "agent", "beta-agent"), "utf8"));
   assert.equal(ocAgent.frontmatter.mode, "subagent");
   assert.equal(ocAgent.frontmatter.description, "Beta upstream");
   assert.equal("model" in ocAgent.frontmatter, false);
-  assert.ok(report.includes("opencode agent beta-agent.md: dropped frontmatter keys: model"));
+  assert.ok(report.includes("opencode agent deniz-process.beta-agent: dropped frontmatter keys: model"));
 
   // one deterministic manifest per Module: named after the plugin, versioned from curation, hashing
   // the final bytes of every file — itself excluded
@@ -89,13 +89,13 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
   assert.equal(manifest.module, "deniz-process");
   assert.equal(manifest.version, "0.1.0");
   for (const path of [
-    "skills/alpha/SKILL.md",
-    "skills/my-own/SKILL.md",
-    "skills/gamma/SKILL.md",
-    "skills/delta/SKILL.md",
-    "skills/delta/references/notes.md",
-    "commands/deniz-beta.md",
-    "agents/beta-agent.md",
+    "skills/deniz-process.alpha/SKILL.md",
+    "skills/deniz-process.my-own/SKILL.md",
+    "skills/deniz-process.gamma/SKILL.md",
+    "skills/deniz-process.delta/SKILL.md",
+    "skills/deniz-process.delta/references/notes.md",
+    "commands/deniz-process.deniz-beta.md",
+    "agents/deniz-process.beta-agent.md",
   ]) {
     assert.ok(path in manifest.files, `manifest lists ${path}`);
   }
@@ -193,7 +193,7 @@ test("a curated item localizes a guarded original-skill target in both harnesses
     /deniz-process:my-own/,
   );
   assert.match(
-    readFileSync(opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8"),
     /Load my-own\./,
   );
 });
@@ -238,9 +238,9 @@ test("a root-level source never emits submodule git metadata", () => {
 });
 
 // A copied skill support file keeps the Git index mode of its committed plugins/MODULE counterpart,
-// so an executable bit already guarded in generated output survives packaging. Build-generated
-// documents — commands, agents, parked BODY.md — stay 100644 even when a plugin counterpart is
-// staged executable. The source carries the exec bit too, so the copied output matches the
+// found by translating the Bundle's ID folder back to the plugin's bare folder, so an executable bit
+// already guarded in generated output survives packaging. Build-generated documents — commands and
+// agents — stay 100644 even when a plugin counterpart is staged executable. The source carries the exec bit too, so the copied output matches the
 // manifest's intended mode on POSIX as well (fs.cpSync chmods the destination to the source mode);
 // on Windows the verifier skips the observed-mode check.
 test("module manifests inherit executable modes from the plugin tree", () => {
@@ -266,10 +266,14 @@ test("module manifests inherit executable modes from the plugin tree", () => {
   buildAll(root);
   const moduleRoot = opencodeModulePath(root, "deniz-process");
   const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
-  assert.equal(manifest.files["skills/my-own/run.sh"].mode, "100755", "the plugin counterpart's mode travels");
-  assert.equal(manifest.files["skills/alpha/SKILL.md"].mode, "100644");
+  assert.equal(
+    manifest.files["skills/deniz-process.my-own/run.sh"].mode,
+    "100755",
+    "the plugin counterpart's mode travels",
+  );
+  assert.equal(manifest.files["skills/deniz-process.alpha/SKILL.md"].mode, "100644");
   // generated documents never inherit an executable bit, index or not
-  assert.equal(manifest.files["commands/deniz-beta.md"].mode, "100644");
+  assert.equal(manifest.files["commands/deniz-process.deniz-beta.md"].mode, "100644");
   assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
 });
 
@@ -301,6 +305,10 @@ test("an empty module still gets a notice-only manifest", () => {
 test("the OpenCode skill path adapts rather than mirrors", () => {
   const root = makeRepo();
   writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: Alpha upstream\nlicense: MIT\n---\n\nUse superpowers:beta next.\n",
+  );
+  writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
     `${[
       "plugin:",
@@ -316,13 +324,14 @@ test("the OpenCode skill path adapts rather than mirrors", () => {
   const report = buildAll(root);
 
   const claude = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"));
-  const oc = parseDoc(readFileSync(opencodeModulePath(root, "deniz-process", "commands", "alpha.md"), "utf8"));
+  const oc = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8"));
 
-  // Claude keeps its own dial; OpenCode has no use for it and must not be handed it
+  // Claude keeps its own dial; OpenCode adapts the neutral document, so it is never handed Claude's
   assert.equal(claude.frontmatter["disable-model-invocation"], true);
   assert.equal("disable-model-invocation" in oc.frontmatter, false, "Claude-only keys must not travel");
+  assert.deepEqual(oc.frontmatter.metadata, { "opencode/autoinvoke": false }, "OpenCode renders its own hide key");
   assert.ok(
-    report.some((l) => l.includes("alpha") && l.includes("disable-model-invocation")),
+    report.includes("opencode skill deniz-process.alpha: dropped frontmatter keys: license"),
     `every dropped key is reported, never silently lost — got ${JSON.stringify(report, null, 2)}`,
   );
 
@@ -335,8 +344,8 @@ test("the OpenCode skill path adapts rather than mirrors", () => {
 });
 
 // ADR-0005: one word per item says who pulls the trigger, and each emitter derives its own
-// mechanism — a frontmatter flag in Claude Code, a choice of artifact in OpenCode.
-test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
+// mechanism — a frontmatter flag in Claude Code, the metadata hide key in OpenCode 2.
+test("invocation sets the Claude flags and the OpenCode frontmatter", () => {
   const root = makeRepo();
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
@@ -374,32 +383,21 @@ test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
   assert.equal("user-invocable" in delta, false, "both sets neither key");
   assert.equal("disable-model-invocation" in delta, false);
 
-  // OpenCode: the dial is which artifact exists, inside the Module bundle
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md")));
-  assert.ok(!existsSync(opencodeModulePath(root, "deniz-process", "commands", "alpha.md")), "auto is model-only");
-
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "commands", "beta.md")), "manual is a command");
+  // OpenCode 2: invocation selects frontmatter, never shape.
+  const oc = (name: string) =>
+    parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "skill", name, "SKILL.md"), "utf8")).frontmatter;
+  assert.equal(oc("alpha").name, "deniz-process.alpha");
+  assert.equal("metadata" in oc("alpha"), false, "auto is advertised");
+  assert.deepEqual(oc("beta").metadata, { "opencode/autoinvoke": false }, "manual is unadvertised");
   assert.ok(
-    !existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "SKILL.md")),
-    "a manual item must not also be a model-reachable skill",
+    existsSync(opencodeIdPath(root, "deniz-process", "skill", "beta", "references", "notes.md")),
+    "manual keeps its bundle",
   );
-  // ...but its bundled files still need a home the command body can point at, and a directory
-  // with no SKILL.md is ignored by OpenCode's discovery — measured, see the research note.
-  assert.ok(
-    existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "references", "notes.md")),
-    "bundled files are parked where the command can reach them",
-  );
-  assert.ok(
-    existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "BODY.md")),
-    "bundled manual beta parks its body beside the bundle",
-  );
-
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "SKILL.md")), "both emits a skill");
-  assert.ok(existsSync(opencodeModulePath(root, "deniz-process", "commands", "delta.md")), "both emits a command too");
-  assert.ok(
-    !existsSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "BODY.md")),
-    "both does not park a body",
-  );
+  assert.equal("metadata" in oc("delta"), false, "both is one plain skill");
+  assert.equal("metadata" in oc("gamma"), false, "absent with no upstream DMI is advertised");
+  assert.ok(!existsSync(opencodeModulePath(root, "deniz-process", "commands")), "no command without as: command");
+  assert.ok(!existsSync(opencodeIdPath(root, "deniz-process", "skill", "beta", "BODY.md")), "no parked body");
+  assert.ok(!existsSync(opencodeModulePath(root, "deniz-process", "skills", "alpha")), "no bare folder");
 
   // Codex: every item is an explicitly addressable skill; manual alone disables implicit use.
   const codexAgent = (name: string) => codexPluginPath(root, "deniz-process", "skills", name, "agents", "openai.yaml");
@@ -415,200 +413,39 @@ test("invocation sets the Claude flags and picks the OpenCode artifact", () => {
   assert.match(betaPolicy.interface.default_prompt, /\$deniz-process:beta/);
 });
 
-test("a bundled manual command parks its body and points at the parked bundle", () => {
+test("as: command and as: agent are the only non-skill OpenCode shapes", () => {
   const root = makeRepo();
-  writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/beta",
-      "    invocation: manual",
-    ].join("\n")}\n`,
-  );
   const report = buildAll(root);
-
-  const bodyPath = opencodeModulePath(root, "deniz-process", "skills", "beta", "BODY.md");
-  assert.ok(existsSync(bodyPath), "the full body is parked beside its bundle");
+  const cmd = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "command", "deniz-beta"), "utf8"));
+  assert.deepEqual(cmd.frontmatter, { description: "Beta overlay" });
+  // a command is one file: the selected closure stays in Claude and Codex, and the cost is reported
   assert.ok(
-    !existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "SKILL.md")),
-    "manual stays undiscoverable",
+    report.includes("opencode command deniz-process.deniz-beta: bundled files not emitted: references/notes.md"),
   );
-
-  const upstream = parseDoc(readFileSync(join(root, "external", "sp", "skills", "beta", "SKILL.md"), "utf8"));
-  assert.equal(readFileSync(bodyPath, "utf8"), upstream.body, "BODY.md is the complete parsed skill body");
-
-  const command = parseDoc(readFileSync(opencodeModulePath(root, "deniz-process", "commands", "beta.md"), "utf8"));
-  // the stub keeps the installed spelling: Module directories are package layout only
-  const expectedStub = [
-    "Resolve the global OpenCode configuration root as `$XDG_CONFIG_HOME/opencode` when `$XDG_CONFIG_HOME` is set; otherwise use `~/.config/opencode`.",
-    "Read `skills/beta/BODY.md` under that global root before doing anything else.",
-    "Follow that file as this command's full instructions.",
-    "",
-    "Arguments: $ARGUMENTS",
-  ].join("\n");
-  assert.equal(command.body.trim(), expectedStub);
-  assert.doesNotMatch(command.body, /project-local|\.opencode\//);
-  assert.doesNotMatch(
-    command.body,
-    /@(?:\.opencode|~\/\.config)/,
-    "the path is prose, not a project-root-only @ reference",
-  );
-  assert.ok(!command.body.includes(upstream.body.trim()), "the command does not paste the full ceremony");
-
-  const parking = report.filter((line) => line.includes("beta") && line.includes("parked"));
-  assert.equal(parking.length, 1, `expected one beta parking report, got ${JSON.stringify(report)}`);
-  const parkingLine = parking[0] as string;
-  assert.match(parkingLine, /body parked at skills\/beta\/BODY\.md/);
-  assert.match(parkingLine, /\([^)]*references\/notes\.md[^)]*\)/);
-  assert.doesNotMatch(parkingLine, /^WARN/);
-  assert.doesNotMatch(parkingLine, /not rewritten/);
-  assert.doesNotMatch(parkingLine, /\([^)]*BODY\.md[^)]*\)/);
+  const agent = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "agent", "beta-agent"), "utf8"));
+  assert.deepEqual(agent.frontmatter, { description: "Beta upstream", mode: "subagent" });
+  assert.ok(report.includes("opencode agent deniz-process.beta-agent: dropped frontmatter keys: model"));
+  const own = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "skill", "my-own", "SKILL.md"), "utf8"));
+  assert.equal(own.frontmatter.name, "deniz-process.my-own", "original skills get the ID too");
 });
 
-test("a bundle-less manual conversion preserves the pre-wave command and leaves no parking husk", () => {
+test("an upstream DMI on an absent item renders the hide key and reports it", () => {
   const root = makeRepo();
-  const upstream = parseDoc(readFileSync(join(root, "external", "sp", "skills", "beta", "SKILL.md"), "utf8"));
-  rmSync(join(root, "external", "sp", "skills", "beta", "references"), { recursive: true, force: true });
   writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/beta",
-      "    invocation: manual",
-    ].join("\n")}\n`,
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: Delta upstream\ndisable-model-invocation: true\n---\n\nDelta body.\n",
   );
-  const expectedCommand = serializeDoc({
-    frontmatter: { description: upstream.frontmatter.description },
-    body: upstream.body,
-  });
   const report = buildAll(root);
-
-  assert.equal(readFileSync(opencodeModulePath(root, "deniz-process", "commands", "beta.md"), "utf8"), expectedCommand);
+  const fm = parseDoc(
+    readFileSync(opencodeIdPath(root, "deniz-process", "skill", "delta", "SKILL.md"), "utf8"),
+  ).frontmatter;
+  assert.deepEqual(fm.metadata, { "opencode/autoinvoke": false });
+  assert.equal("disable-model-invocation" in fm, false);
   assert.ok(
-    !existsSync(opencodeModulePath(root, "deniz-process", "skills", "beta")),
-    "bundle-less manual leaves no skill directory",
+    report.includes(
+      "opencode skill deniz-process.delta: disable-model-invocation: true -> metadata.opencode/autoinvoke: false",
+    ),
   );
-  assert.equal(
-    report.some((line) => line.includes("beta") && line.includes("parked")),
-    false,
-    "no parking report is emitted",
-  );
-});
-
-test("both preserves the pre-wave skill and command documents without a parked body", () => {
-  const root = makeRepo();
-  const upstream = parseDoc(readFileSync(join(root, "external", "sp", "skills", "delta", "SKILL.md"), "utf8"));
-  writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/delta",
-      "    invocation: both",
-    ].join("\n")}\n`,
-  );
-  const expectedSkill = serializeDoc(upstream);
-  const expectedCommand = serializeDoc({
-    frontmatter: { description: upstream.frontmatter.description },
-    body: upstream.body,
-  });
-  const report = buildAll(root);
-
-  assert.equal(
-    readFileSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "SKILL.md"), "utf8"),
-    expectedSkill,
-  );
-  assert.equal(
-    readFileSync(opencodeModulePath(root, "deniz-process", "commands", "delta.md"), "utf8"),
-    expectedCommand,
-  );
-  assert.ok(
-    !existsSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "BODY.md")),
-    "both does not emit BODY.md",
-  );
-  assert.equal(
-    report.some((line) => line.includes("delta") && line.includes("parked")),
-    false,
-    "no parking report is emitted",
-  );
-});
-
-test("manual bundle links repoint to BODY.md at every relative depth", () => {
-  const root = makeRepo();
-  const betaDir = join(root, "external", "sp", "skills", "beta");
-  writeFileSync(join(betaDir, "SKILL.md"), `${readFileSync(join(betaDir, "SKILL.md"), "utf8")}[body-self](SKILL.md)\n`);
-  writeFileSync(join(betaDir, "README.md"), "[dot](./SKILL.md)\n");
-  writeFileSync(join(betaDir, "references", "notes.md"), "[parent](../SKILL.md)\n");
-  mkdirSync(join(betaDir, "references", "nested"), { recursive: true });
-  writeFileSync(join(betaDir, "references", "nested", "deep.md"), "[deep](../../SKILL.md)\n");
-  writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/beta",
-      "    invocation: manual",
-    ].join("\n")}\n`,
-  );
-  buildAll(root);
-
-  const body = readFileSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "BODY.md"), "utf8");
-  const readme = readFileSync(opencodeModulePath(root, "deniz-process", "skills", "beta", "README.md"), "utf8");
-  const notes = readFileSync(
-    opencodeModulePath(root, "deniz-process", "skills", "beta", "references", "notes.md"),
-    "utf8",
-  );
-  const deep = readFileSync(
-    opencodeModulePath(root, "deniz-process", "skills", "beta", "references", "nested", "deep.md"),
-    "utf8",
-  );
-  assert.match(body, /BODY\.md/);
-  assert.match(readme, /\.\/BODY\.md/);
-  assert.match(notes, /\.\.\/BODY\.md/);
-  assert.match(deep, /\.\.\/\.\.\/BODY\.md/);
-  for (const content of [body, readme, notes, deep]) {
-    assert.doesNotMatch(content, /SKILL\.md/);
-  }
-});
-
-// Parking is the price of `manual`, and only `manual` pays it. Reporting it for `both` — whose
-// directory is a live skill with its own SKILL.md — made most of this warning class false, which
-// costs the build report the thing it exists for (ADR-0002: no silent loss, hence no fake loss).
-test("only a manual conversion reports parked files", () => {
-  const root = makeRepo();
-  writeFileSync(
-    join(root, "curation", "deniz-process.yaml"),
-    `${[
-      "plugin:",
-      "  name: deniz-process",
-      "  description: Process skills",
-      "  version: 0.1.0",
-      "items:",
-      "  - source: sp/skills/beta", // bundles references/notes.md
-      "    invocation: manual",
-      "  - source: sp/skills/delta", // bundles references/notes.md too
-      "    invocation: both",
-    ].join("\n")}\n`,
-  );
-  const report = buildAll(root);
-  const parked = (name: string) => report.filter((l) => l.includes("parked") && l.includes(name));
-  assert.equal(parked("beta").length, 1, `manual loses its skill shape and must say so — ${JSON.stringify(report)}`);
-  assert.match(parked("beta")[0] as string, /body parked at skills\/beta\/BODY\.md/);
-  assert.deepEqual(parked("delta"), [], "both keeps a discoverable skill — nothing is parked");
 });
 
 // Author-facing files travel with upstream skills — creation logs, pressure tests, fixtures. Until
@@ -635,7 +472,7 @@ test("omit drops matching files from a curated skill", () => {
   // an emptied directory is not left behind as a husk
   assert.ok(!existsSync(join(dest, "references")), "emptied directory is pruned");
   // the OpenCode mirror is emitted from plugins/, so it inherits the omission
-  assert.ok(!existsSync(opencodeModulePath(root, "deniz-process", "skills", "delta", "references")));
+  assert.ok(!existsSync(opencodeIdPath(root, "deniz-process", "skill", "delta", "references")));
 });
 
 // Omitting a file the patch edits would leave the patch nothing to land on. git apply would say so,
@@ -786,7 +623,7 @@ test("a flattened Codex namespace collision aborts before any generated output i
   buildAll(root);
   const sentinels = [
     join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
-    opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+    opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
     codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
     join(root, ".agents", "plugins", "marketplace.json"),
   ];
@@ -1173,7 +1010,7 @@ test("pointer spellings rewrite in both trees", () => {
   );
   buildAll(root);
   const claude = readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8");
-  const oc = readFileSync(opencodeModulePath(root, "deniz-process", "skills", "alpha", "SKILL.md"), "utf8");
+  const oc = readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8");
   assert.match(claude, /\/deniz-process:beta/);
   assert.match(oc, /suggest \/beta to the user/);
 });

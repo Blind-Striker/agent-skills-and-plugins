@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { dirname, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type AssembledItem, assembleItems, overlayBodyFile } from "./lib/assemble.ts";
 import {
@@ -34,7 +34,15 @@ import { indexModes } from "./lib/git.ts";
 import { writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
-import { OPENCODE_SKILL_KEYS } from "./lib/opencode-target.ts";
+import {
+  adaptOpenCodeAgentDocument,
+  adaptOpenCodeCommandDocument,
+  adaptOpenCodeSkillDocument,
+  claudeCounterpartPath,
+  collectOpenCodeEmissionProblems,
+  openCodeBundlePath,
+  openCodeId,
+} from "./lib/opencode-target.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
@@ -101,6 +109,14 @@ export function buildAll(root: string): string[] {
       const header =
         codexProblems.length > 1 ? `${codexProblems.length} invalid Codex emission identities, nothing deleted:\n` : "";
       throw new Error(header + codexProblems.join("\n"));
+    }
+    const openCodeProblems = collectOpenCodeEmissionProblems(manifests, assembled);
+    if (openCodeProblems.length) {
+      const header =
+        openCodeProblems.length > 1
+          ? `${openCodeProblems.length} invalid OpenCode emission documents, nothing deleted:\n`
+          : "";
+      throw new Error(header + openCodeProblems.join("\n"));
     }
 
     rmSync(join(root, "plugins"), { recursive: true, force: true });
@@ -488,125 +504,46 @@ function rewriteTree(dir: string, map: Map<string, RewriteTarget>, style: RefSty
   }
 }
 
-/** No silent loss (ADR-0002): whatever the target harness cannot represent is named in the report. */
-function reportDropped(label: string, from: Record<string, unknown>, kept: Record<string, unknown>, report: string[]) {
-  const dropped = Object.keys(from).filter((k) => !(k in kept));
-  if (dropped.length) {
-    report.push(`${label}: dropped frontmatter keys: ${dropped.join(", ")}`);
-  }
-}
-
 /**
- * OpenCode's half of ADR-0005: the dial is which artifact exists, because its skills are model-only
- * by construction and a command is its only user-invocable surface.
- *
- * `manual` therefore emits a command and no skill — but a command is a single file, and the bundled
- * files a skill directory carries would have nowhere to live. Bundled manual items park their parsed
- * body as non-discoverable `BODY.md` under `skills/<name>/`, which OpenCode's discovery ignores
- * (measured; see the research note). The installer is global-only, so commands resolve the global
- * root through XDG_CONFIG_HOME with the documented HOME fallback, and Markdown self-links in the
- * parked bundle are repointed to `BODY.md`.
+ * OpenCode 2: one artifact per item at its `<plugin>.<name>` ID, read from the neutral assembled
+ * document. Invocation is frontmatter only (ADR-0005): a hidden skill carries
+ * `metadata.opencode/autoinvoke: false`, and no item changes shape because of its invocation. Each
+ * plugin becomes one Module Bundle: opencode/<plugin>/{skills,commands,agents,manifest.json}.
  */
-function emitOpenCodeSkill(moduleRoot: string, assembled: AssembledItem, report: string[]): void {
-  const srcDir = assembled.dir;
-  const name = assembled.outName;
-  const invocation = assembled.item?.invocation;
-  const destSkill = join(moduleRoot, "skills", name);
-  const wantsSkill = invocation !== "manual";
-  // Preserve the exact pre-refactor OpenCode input: its drop reporting observed the pristine
-  // Claude-adapted document before reference localization. The body and dependency closure still
-  // come from common assembly; this pure view adds no target bytes to that shared state.
-  const doc = claudeDocument(assembled);
-
-  cpSync(srcDir, destSkill, {
-    recursive: true,
-    // `manual` parks the assets but must not leave a SKILL.md, or the item would still be
-    // model-reachable — which is the one thing `manual` exists to prevent.
-    filter: (src) => wantsSkill || basename(src) !== "SKILL.md",
-  });
-  if (wantsSkill) {
-    // Adapt rather than mirror: OpenCode recognises a fixed set of skill keys and ignores the rest,
-    // so a Claude-only key reaching this tree is dead metadata. Dropping it silently is the failure
-    // ADR-0002 exists to prevent, so the drop is reported instead.
-    const kept = Object.fromEntries(Object.entries(doc.frontmatter).filter(([k]) => OPENCODE_SKILL_KEYS.has(k)));
-    reportDropped(`opencode skill ${name}`, doc.frontmatter, kept, report);
-    writeFileSync(join(destSkill, "SKILL.md"), serializeDoc({ frontmatter: kept, body: doc.body }));
-  } else if (!readdirSync(destSkill).length) {
-    rmSync(destSkill, { recursive: true, force: true }); // nothing was bundled; leave no husk
-  }
-
-  const bundledManual = !wantsSkill && existsSync(destSkill);
-  if (bundledManual) {
-    writeFileSync(join(destSkill, "BODY.md"), doc.body);
-    for (const file of listFiles(destSkill).filter((f) => f.endsWith(".md"))) {
-      const path = join(destSkill, file);
-      const body = readFileSync(path, "utf8").replaceAll(
-        /(\]\((?:(?:\.\.\/)+|\.\/)?)SKILL\.md(?=[)#?\s])/g,
-        "$1BODY.md",
-      );
-      writeFileSync(path, body);
-    }
-  }
-
-  if (invocation !== "manual" && invocation !== "both") {
-    return;
-  }
-  const command = { description: doc.frontmatter.description };
-  reportDropped(`opencode command ${name}`, doc.frontmatter, command, report);
-  const commandBody = bundledManual
-    ? [
-        // The Module directory is distribution layout only; after installation the body resolves
-        // from the OpenCode configuration root, so the stub keeps the installed spelling.
-        "Resolve the global OpenCode configuration root as `$XDG_CONFIG_HOME/opencode` when `$XDG_CONFIG_HOME` is set; otherwise use `~/.config/opencode`.",
-        `Read \`skills/${name}/BODY.md\` under that global root before doing anything else.`,
-        `Follow that file as this command's full instructions.`,
-        "",
-        `Arguments: $ARGUMENTS`,
-      ].join("\n")
-    : doc.body;
-  mkdirSync(join(moduleRoot, "commands"), { recursive: true });
-  writeFileSync(join(moduleRoot, "commands", `${name}.md`), serializeDoc({ frontmatter: command, body: commandBody }));
-  const parked = bundledManual ? listFiles(destSkill).filter((f) => f !== "BODY.md") : [];
-  if (bundledManual) {
-    report.push(`opencode command ${name}: body parked at skills/${name}/BODY.md (bundle: ${parked.join(", ")})`);
-  }
-}
-
-// OpenCode reads SKILL.md natively, so skills copy verbatim; commands/agents keep only
-// the frontmatter OpenCode understands and every dropped key is reported (no silent loss).
-// Each plugin becomes one Module bundle: opencode/<plugin>/{skills,commands,agents,manifest.json}.
 function emitOpenCode(root: string, manifests: CurationManifest[], assembled: AssembledItem[], report: string[]): void {
   for (const manifest of manifests) {
-    const moduleRoot = join(root, "opencode", manifest.plugin.name);
-    const pluginItems = assembled.filter((item) => item.plugin === manifest.plugin.name);
-    for (const item of pluginItems
-      .filter((candidate) => candidate.outType === "skill")
+    const module = manifest.plugin.name;
+    const moduleRoot = join(root, "opencode", module);
+    for (const item of assembled
+      .filter((candidate) => candidate.plugin === module)
       .sort((left, right) => left.outName.localeCompare(right.outName))) {
-      emitOpenCodeSkill(moduleRoot, item, report);
-    }
-
-    for (const outKind of ["command", "agent"] as const) {
-      const kind = `${outKind}s`;
-      const kindItems = pluginItems
-        .filter((candidate) => candidate.outType === outKind)
-        .sort((left, right) => left.outName.localeCompare(right.outName));
-      if (!kindItems.length) {
+      const id = openCodeId(module, item.outName);
+      const neutral = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
+      const destination = join(moduleRoot, openCodeBundlePath(item.outType, module, item.outName));
+      if (item.outType === "skill") {
+        cpSync(item.dir, destination, { recursive: true });
+        const adapted = adaptOpenCodeSkillDocument(id, neutral, item.item?.invocation);
+        writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
+        if (adapted.dropped.length) {
+          report.push(`opencode skill ${id}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`);
+        }
+        for (const transformation of adapted.transformations) {
+          report.push(`opencode skill ${id}: ${transformation}`);
+        }
         continue;
       }
-      // `kind` is the output directory (OpenCode documents plural); `outKind` is the singular label
-      mkdirSync(join(moduleRoot, kind), { recursive: true });
-      for (const item of kindItems) {
-        const filename = `${item.outName}.md`;
-        const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
-        const kept: Record<string, unknown> = { description: doc.frontmatter.description };
-        if (outKind === "agent") {
-          kept.mode = "subagent";
-        }
-        const dropped = Object.keys(doc.frontmatter).filter((k) => k !== "description" && k !== "name");
-        if (dropped.length) {
-          report.push(`opencode ${outKind} ${filename}: dropped frontmatter keys: ${dropped.join(", ")}`);
-        }
-        writeFileSync(join(moduleRoot, kind, filename), serializeDoc({ frontmatter: kept, body: doc.body }));
+      const adapted =
+        item.outType === "command" ? adaptOpenCodeCommandDocument(neutral) : adaptOpenCodeAgentDocument(neutral);
+      mkdirSync(dirname(destination), { recursive: true });
+      writeFileSync(destination, serializeDoc(adapted.document));
+      if (adapted.dropped.length) {
+        report.push(`opencode ${item.outType} ${id}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`);
+      }
+      // A command is a single file, so the selected closure has nowhere to live in OpenCode; it stays
+      // in Claude and Codex, and the cost of the `as: command` choice is named (ADR-0002).
+      const bundled = listFiles(item.dir).filter((file) => file !== "SKILL.md");
+      if (item.outType === "command" && bundled.length) {
+        report.push(`opencode command ${id}: bundled files not emitted: ${bundled.join(", ")}`);
       }
     }
   }
@@ -615,9 +552,10 @@ function emitOpenCode(root: string, manifests: CurationManifest[], assembled: As
 /**
  * One manifest per curated Module, written only after `rewriteTree` so every hash covers the final
  * bytes. Every manifest gets written — an items: [] Module still has to name itself — and modes
- * split by provenance: copied skill files may carry their committed plugins/MODULE Git index mode
- * (that is where an upstream 100755 lands in the repo), while build-generated documents — commands,
- * agents, parked BODY.md, anything with no plugin counterpart — are always 100644.
+ * split by provenance: a copied skill file under `skills/<module>.<name>/` carries the Git index mode
+ * of its committed `plugins/<module>/skills/<name>/` counterpart (that is where an upstream 100755
+ * lands in the repo), while build-generated documents — commands, agents, distribution notices,
+ * anything with no plugin counterpart — are always 100644.
  */
 function writeOpenCodeManifests(
   root: string,
@@ -637,10 +575,8 @@ function writeOpenCodeManifests(
       m.plugin.name,
       m.plugin.version,
       (path) => {
-        if (path.startsWith("commands/") || path.startsWith("agents/") || path.endsWith("/BODY.md")) {
-          return "100644";
-        }
-        return pluginModes.get(`plugins/${m.plugin.name}/${path}`) ?? "100644";
+        const counterpart = claudeCounterpartPath(m.plugin.name, path);
+        return counterpart === undefined ? "100644" : (pluginModes.get(counterpart) ?? "100644");
       },
       requiredModules,
     );
