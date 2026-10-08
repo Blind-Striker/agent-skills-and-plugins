@@ -114,7 +114,8 @@ the skill out of the list the model is offered, and the skill tool can still loa
 On Codex and OpenCode 2 alike, `manual` therefore means not offered to the model, with the user
 invoking it explicitly; Claude Code alone blocks model invocation
 ([ADR-0005](../docs/adr/0005-invocation-intent-in-the-manifest.md)). Text may name a `manual` item's
-ID, for example to point the user at it.
+ID, for example to point the user at it, but a relative path may not land in its folder
+([Dependencies](#dependencies)).
 
 Invocation never changes artifact shape. Use `as: command` or `as: agent` when the Claude/OpenCode
 artifact itself must change regardless of trigger intent. `as: command` is the per-item escape hatch
@@ -152,10 +153,26 @@ have no upstream counterpart, so they remain outside that set.
 in neutral upstream spelling (`namespace:name`); use `/namespace:name` when the body points the human
 at a user surface. Each emitter renders the fact in its own harness's spelling.
 
-A body line that tells the model to load another skill by a quoted handle, such as
-`Skill tool with "grilling"`, is a load-bearing model edge. Author that handle as a namespaced fact
-with a matching `depends_on` entry; a bare handle names an ID that does not exist in OpenCode, where
-every ID is qualified. Current per-harness spelling, localization, linking, reachability, path,
-candidate, and ledger mechanics, including the OpenCode ID checks, live in
+A body line that tells the model to load another skill is a load-bearing model edge. Author its
+target as a namespaced fact with a matching `depends_on` entry; a bare name names an ID that does
+not exist in OpenCode, where every ID is qualified. `validate` rejects a bare name in these forms:
+
+- The skill-tool call, written in upstream's Claude words: `Call the Skill tool with "ns:name"`,
+  `call the Skill tool twice, for "ns:a" and "ns:b"`, or the generic `call the Skill tool for`,
+  with the verb `Call`, `call`, `calls`, or `calling`. The build renders the whole sentence in each
+  harness's own words. Any other sentence that mentions the skill tool fails, so reword it into one
+  of these forms.
+- An imperative that names the skill: `Load`, `Use`, `Follow`, `Invoke`, or `Call` ... the
+  `` `ns:name` `` skill; `Load` or `Invoke` `` `ns:name` ``; and a `→` `` `ns:name` `` route.
+
+A "see the `name` skill" reference or a routing hint without the word `skill` stays candidate
+prose. Write subagent dispatch in upstream's Claude words as well, `Subagent (general-purpose)`, a
+`` `general-purpose` `` subagent, or `` `Agent` `` calls, and never another harness's tool name; the
+build renders them for each harness. A relative path may climb into a sibling item (`../name/...`)
+or name an item root (`skills/name/...`) only when that item is not `manual`; point the human at a
+`manual` item with `/ns:name` instead.
+
+Current per-harness spelling, phrasing, localization, linking, reachability, path, candidate, and
+ledger mechanics, including the OpenCode ID and harness vocabulary checks, live in
 [References and linking](../docs/architecture/references-and-linking.md). The reason for the symbol
 tiers and two-way declaration trade-off is [ADR-0008](../docs/adr/0008-references-are-symbols.md).

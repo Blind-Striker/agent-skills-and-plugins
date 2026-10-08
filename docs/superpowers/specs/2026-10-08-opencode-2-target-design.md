@@ -1,6 +1,6 @@
 # OpenCode 2 target design
 
-Date: 2026-10-08
+Date: 2026-10-09
 
 Status: Proposed
 
@@ -338,7 +338,8 @@ Checks:
 - **O1 rendered IDs resolve.** Every token names an emitted ID. `@` requires a skill or agent
   target; `/` requires a command target. Message:
   `<file>:<line>: rendered OpenCode ID <token> does not name an emitted <kind>`.
-- **O2 skill-tool handles resolve.** In every `opencode/` Markdown line, each quoted handle captured
+- **O2 skill-tool handles resolve** (retired in W0 by the skill-tool call template on the canonical
+  tree, section 13). In every `opencode/` Markdown line, each quoted handle captured
   by `/Skill tool(?: twice,)? (?:with|for) ("[^"\n]+"(?:,? (?:and|or) "[^"\n]+")*)/gi` must equal an
   emitted OpenCode skill ID. This pattern covers the three measured forms (`with "x"`,
   `twice, for "x" and "y"`, `for "x"`). Other phrasings are not detected; that is a stated limit,
@@ -413,12 +414,310 @@ if (nonEmpty(env.XDG_CONFIG_HOME)) return join(env.XDG_CONFIG_HOME, "opencode");
   packet (16 skill-tool handles on 12 lines) and nothing else new. Those findings clear only
   through the curation pass.
 
+## W0 correctness
+
+A green `validate` after step 2 did not mean OpenCode 2 worked: six runtime breaks remained at the
+current pins. The curator decided on 2026-10-08 to close them on this branch before the merge,
+with the smallest mechanism that keeps each one from returning silently. Canon now states the
+rules: [References and linking](../../architecture/references-and-linking.md) (harness phrasing,
+handoff templates, harness vocabulary check, path claims), [ADR-0008](../../adr/0008-references-are-symbols.md)
+(why), and [`curation/SCHEMA.md`](../../../curation/SCHEMA.md#dependencies) (authoring). This
+section is the execution design; the plan's Phase B2 is its task list.
+
+### Curator decisions (settled 2026-10-08)
+
+1. **X1, per-harness load rendering.** A load-bearing "load this skill" sentence is written
+   natively per harness: Claude `Skill tool` plus `deniz-process:x`, OpenCode 2 `skill` tool plus
+   `deniz-process.x`, Codex `$deniz-process:x` with Codex wording. Its second consumer is the
+   Claude-only subagent-dispatch vocabulary.
+2. **Close the six breaks before the merge**, all at the current pins, no submodule moves:
+   (a) `brainstorming` names `skills/brainstorming/visual-companion.md`, whose OpenCode folder is
+   `deniz-process.brainstorming`; (b) `executing-plans` names the omitted
+   `../using-superpowers/references/`; (c) load-bearing bare handoffs in the dotnet-test cluster and
+   `check-bin-obj-clash`; (d) `ask-deniz`'s bare route to `resolving-merge-conflicts`, made a
+   checked fact so its later upstream deletion is caught; (e) generic Skill-tool prose in `handoff`
+   and `wayfinder`; (f) Claude-only dispatch words in OpenCode. Plus the 16 bare skill-tool handles.
+3. **X2 and X3**, only as much as makes (a)–(f) impossible to reintroduce silently.
+4. **`writing-for-agents`**: narrower description, `invocation: both`, reason beside the item.
+5. **`teach` and `handoff` stay skills**; every `manual` and `both` item stays a skill (no
+   `as: command`).
+6. **Module versions**, minor everywhere: Process 0.6.0 → 0.7.0, General 0.9.1 → 0.10.0,
+   Akka 0.3.1 → 0.4.0, Aspire 0.3.3 → 0.4.0. Canon check
+   ([workflow](../../engineering/workflow.md#bump-the-module-version-with-the-bytes)): Process changes
+   `invocation` and `depends_on`, General changes `depends_on`, and every Module's OpenCode artifact
+   names moved in step 2, which is a rename of the surface. Nothing in W0 lowers or raises a level.
+7. **Stale comments** (plan Appendix A6) are refreshed, and the ROADMAP's "12 handles" becomes "12
+   lines, 16 handles".
+
+### Design judgement
+
+Three designs were scored on correctness in all three harnesses, checkability, minimality, author
+ergonomics, and risk (1–5 each):
+
+| Design | Correct | Checkable | Minimal | Ergonomic | Risk | Total |
+|---|---|---|---|---|---|---|
+| Phrase templates over upstream wording, no new syntax | 4 | 4 | 4 | 5 | 4 | **21** |
+| Explicit `{{@load ns:x}}` constructs, `retired:` manifest key, ledger `bareHandoffs` | 4 | 5 | 2 | 2 | 3 | 16 |
+| Frames over upstream wording, wider clause-start detection, ledger `bodyTransformations` | 4 | 4 | 3 | 5 | 3 | 19 |
+
+The phrase-template design wins. Grafted from the others:
+
+- the OpenCode sentence names the backticked `` `skill` `` tool, and O2 retires: the payload rule on
+  the canonical tree, the linker, and O1 already prove every handle, so one rule owns it;
+- a harness vocabulary check on `opencode/` and `codex/`, whose patterns live beside the
+  rendering tables, with a test that every non-Claude rendering passes them;
+- every skill-tool call span renders whatever its payload, so a bare handle is reported once, on the
+  canonical tree, and not again as leaked vocabulary;
+- Codex dispatch wording names no tool and no agent type, because neither is recorded in this
+  repository's research;
+- one path scanner in `refs.ts`, moved behavior-neutrally first; a text-file test that also requires
+  a lossless UTF-8 round trip; the manual-folder rule judged from the Claude tree's
+  `disable-model-invocation`, the state the linker already reads, and applied to Markdown links too.
+
+Rejected: a body marker and reserved sigil; a `retired:` manifest key (sync infrastructure owns
+deletions); ledger projections of heuristic hits; detecting ``Use `x` `` without the word `skill`
+(13 routing hints in when-not-to-use lists that canon keeps as candidates); a single-handle
+`for "x"` form (absent from the estate, so it fails closed); a separate "bare name in OpenCode
+path" rule (the fail-closed resolution already reports it); `Subagent (default)` for Codex (agent
+type not in repository research).
+
+### 12. Harness phrasing (X1)
+
+**Grammar** (`tools/lib/refs.ts`, the one owner for rewriting and validation):
+
+```ts
+export interface SkillToolCall {
+  index: number;                 // start of the verb
+  end: number;                   // one past the span
+  verb: "Call" | "call" | "calls" | "calling";
+  form: "with" | "twice" | "generic";
+  payloads: { index: number; text: string }[]; // quoted handles, quotes excluded
+}
+export function scanSkillToolCalls(content: string): SkillToolCall[];
+/** Indexes of every case-insensitive `skill tool` that no call span covers. */
+export function straySkillToolMentions(content: string): number[];
+
+const SKILL_TOOL_CALL =
+  /\b(Call|call|calls|calling) the Skill tool(?: with "([^"\n]*)"| twice, for "([^"\n]*)" and "([^"\n]*)"| for(?![A-Za-z]| "))/g;
+const SKILL_TOOL_MENTION = /\bskill tool/gi;
+```
+
+**Rendering** (`tools/lib/rewrite.ts`):
+
+```ts
+export function renderHarnessPhrasing(content: string, style: RefStyle): string; // claude: identity
+export function localize(content: string, map: Map<string, RewriteTarget>, style: RefStyle): string;
+// = rewriteRefs(renderHarnessPhrasing(content, style), map, style)
+export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[];
+export function claudeOnlyVocabulary(content: string): { index: number; match: string }[];
+```
+
+- Skill-tool call spans render first, then the dispatch table, then `rewriteRefs` renders the facts,
+  which the phrasing step leaves neutral. A span renders whatever its payload is; the payload rule
+  belongs to validation (section 13).
+- OpenCode: inside each span, `the Skill tool` becomes ``the `skill` tool``; verbs and quoted
+  payloads stay.
+- Codex: the verb maps `Call`→`Invoke`, `call`→`invoke`, `calls`→`invokes`,
+  `calling`→`invoking`. `with "p"` becomes `` <Verb> `p` ``; `twice, for "p" and "q"` becomes
+  `` <Verb> `p` and `q` ``; the generic form becomes `<Verb>` alone. `rewriteRefs` then renders a
+  fact inside the backticks as `$plugin:name`.
+- Dispatch table, matched exactly, for OpenCode and Codex:
+
+| Pattern | OpenCode 2 | Codex |
+|---|---|---|
+| `/Subagent \(general-purpose\)/g` | `Subagent (general)` | `Subagent` |
+| ``/`general-purpose`(\s+)subagent/g`` | `` `general`$1subagent `` | `subagent` |
+| ``/`Agent`( calls?)\b/g`` | `` `subagent`$1 `` | `subagent$1` |
+
+- `CLAUDE_ONLY_VOCABULARY`: `/\bskill tool/gi`, `/Subagent \(general-purpose\)/g`,
+  ``/`general-purpose`/g``, `/\bgeneral-purpose\s+(?:sub)?agent\b/g`, ``/`Agent`/g``,
+  `/\bAgent tool\b/g`, `/\bTask tool\b/g`, `/\bsubagent_type\b/g`. Measured on `opencode/` and
+  `codex/` at `7c1f642`: the only hits are the 13 Skill-tool lines and the 11 dispatch lines per tree;
+  the two prose uses of "general-purpose" do not match.
+- **Build.** `rewriteTree` (Claude and Codex) and `rewriteOpenCodeTree` call `localize` where they
+  call `rewriteRefs` today, on Markdown only. The ledger does not change: edges still come from the
+  neutral facts.
+
+Rendered at the current pins (after curation promotes the handles):
+
+| Site | OpenCode 2 | Codex |
+|---|---|---|
+| `grill-me:7` | ``Call the `skill` tool with "deniz-process.grilling".`` | ``Invoke `$deniz-process:grilling`.`` |
+| `wayfinder:79` | ``…a subagent that calls the `skill` tool with "deniz-process.research".`` | ``…a subagent that invokes `$deniz-process:research`.`` |
+| `wayfinder:126` | ``…call the `skill` tool for whichever skills the `## Notes` block names. If in doubt, call the `skill` tool twice, for "deniz-process.grilling" and "deniz-process.domain-modeling".`` | ``…invoke whichever skills the `## Notes` block names. If in doubt, invoke `$deniz-process:grilling` and `$deniz-process:domain-modeling`.`` |
+| `handoff:11` | ``…the next agent should call the `skill` tool for.`` | `…the next agent should invoke.` |
+| `requesting-code-review/SKILL.md:84-85` | ``dispatch a `general`↵subagent`` | `dispatch a subagent` |
+| `requesting-code-review/SKILL.md:91` | ``two `subagent` calls`` | `two subagent calls` |
+| 9 prompt-template labels | `Subagent (general):` | `Subagent:` |
+
+### 13. Handoff templates and the vocabulary check (X2)
+
+**Grammar** (`tools/lib/refs.ts`):
+
+```ts
+export interface Handoff { template: "imperative" | "load" | "route"; name: string; index: number }
+export function scanHandoffs(content: string): Handoff[]; // index = the name's opening backtick
+
+const NAME = String.raw`\x60([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\x60`;
+const SENTENCE = String.raw`(?:[^.;:!?|\n]|\n(?![ \t]*(?:\n|[-*+>#|]|\d+\.)))*?`;
+const IMPERATIVE = new RegExp(String.raw`\b(?:Load|load|Use|use|Follow|follow|Invoke|invoke|Call|call)\b${SENTENCE}${NAME}\s+skill\b`, "g");
+const LOAD = new RegExp(String.raw`\b(?:Load|load|Invoke|invoke)\s+${NAME}`, "g");
+const LIST_TAIL = new RegExp(String.raw`^(?:,\s*|\s+and\s+|\s+or\s+)${NAME}`); // repeated after a LOAD hit
+const ROUTE = new RegExp(String.raw`→\s*\*{0,2}${NAME}`, "g");
+```
+
+**Check** (`tools/validate.ts`, new section after the linker, over every Markdown file in
+`plugins/`, where facts carry their own-namespace spelling):
+
+- H1 skill-tool call. For each span, each payload must be exactly one `scanRefs` model fact whose
+  address is the whole payload and whose namespace is an own Module; otherwise
+  `<file>:<line>: skill-tool handle "<p>" is not a namespaced fact — author it as "ns:<p>" with a matching depends_on`.
+  For each `straySkillToolMentions` index:
+  `<file>:<line>: "skill tool" outside a recognized skill-tool call — reword it into a form in curation/SCHEMA.md Dependencies`.
+- H2–H4 for each `scanHandoffs` hit whose name is an estate name:
+  `<file>:<line>: load-bearing handoff names \`<name>\` bare — author it as ns:<name> with depends_on, or /ns:<name> if the human is the audience`;
+  when the name is not emitted (not a linker target):
+  `<file>:<line>: load-bearing handoff names \`<name>\`, which this estate does not emit — reroute or remove it`.
+- Estate names: `addressOf(c)` and `c.name` for every scanned component (export `addressOf` from
+  `rewrite.ts`), `resolveItem(...).outName` for every manifest item including excluded ones, and
+  every `ownSkillIdentities` name. Emitted names are the linker's `targetState` keys.
+- O2 retires: `SKILL_TOOL_HANDLE`, `skillToolHandles`, and its loop leave `tools/validate.ts`; the
+  phrasing tests in `tools/lib/refs.test.ts` absorb its unit test.
+- V harness vocabulary: every Markdown file under `opencode/` and `codex/`, each
+  `claudeOnlyVocabulary` hit:
+  `<file>:<line>: Claude-only vocabulary "<match>" in <tree>/ — reword it into a form the harness phrasing renders (curation/SCHEMA.md Dependencies)`.
+
+Measured at `7c1f642` over `plugins/` (probe of exactly this grammar; a line is the line of the name):
+
+| Template | Hits |
+|---|---|
+| H1 payload | 16 handles on 12 lines: `grill-me:7`; `grill-with-docs:8` (2); `improve-codebase-architecture:14, 65, 67, 72`; `wayfinder:79, 80, 81` (2), `113` (2), `117, 126` (2) |
+| H1 stray | none: `handoff:11` and `wayfinder:126` match the generic form |
+| H2 imperative | `build-perf-baseline:398` (build-perf-diagnostics); `check-bin-obj-clash:47` (binlog-generation); `code-testing-agent:60` (run-tests); `msbuild-antipatterns/references/additional-antipatterns.md:187, 245` (check-bin-obj-clash); `mtp-hot-reload:60` (platform-detection, split by a newline); `test-anti-patterns:20, 53` (test-analysis-extensions). Silent: `aspire-orchestration:133` and `references/agent-workflows.md:96` (`dotnet-inspect`, outside the estate) |
+| H3 load | `aspire-init/references/init-workflow.md:126` (aspireify, "Re-invoke"); `code-testing-agent:187` (test-gap-analysis, test-anti-patterns); `run-tests:36, 173` (filter-syntax), `:64` (platform-detection); `test-gap-analysis:43` and `references/mutation-catalog.md:31` (test-analysis-extensions; the verb ends the line before) |
+| H4 route | `ask-deniz:86` (systematic-debugging), `:97` (resolving-merge-conflicts). Silent: Aspire arrows naming `azure-diagnostics`, `docker`, `kubectl` |
+
+### 14. Path integrity (X3)
+
+**Grammar** (`tools/lib/refs.ts`; the `CLIMB` regex moves here from `rewrite.ts`):
+
+```ts
+export interface PathClaim {
+  kind: "climb" | "item-root";
+  index: number;        // first character of the claim
+  segmentIndex: number; // first character of the segment
+  segment: string;
+  path: string;         // read to whitespace, quote, backtick, ")" or "]"; one trailing "." dropped
+}
+/** Landing climbs (needs depth) and item-root paths. */
+export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[];
+```
+
+- Landing climb: `((?:\.\./)+)([a-z0-9]+(?:-[a-z0-9]+)*)(?=/)`, no `[A-Za-z0-9._/-]` before it, and
+  `../` count = depth + 1.
+- Item-root: `skills/([a-z0-9]+(?:-[a-z0-9]+)*)/`, no `[A-Za-z0-9._/~$-]` before it.
+
+**Text files** (`tools/lib/rewrite.ts`): `isBundledText(bytes: Buffer): boolean` is true when the
+bytes hold no NUL and `Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes)`.
+
+**Build.** `rewriteOpenCodePaths(content, depthBelowSkillFolder, skillIds)` replaces
+`rewriteOpenCodeSiblingClimbs`: both claim kinds whose segment is a key of `skillIds` get the ID
+segment. `rewriteOpenCodeTree` walks every file of every `skills/<id>/`: a `.md` file gets
+`localize` then `rewriteOpenCodePaths`; any other file that `isBundledText` accepts gets only
+`rewriteOpenCodePaths`; a file is written only when its text changed. The Module manifest keeps
+taking modes from the Claude counterpart, so a respelled `100755` script keeps its mode.
+
+**Check** (`tools/validate.ts`, rule P in the L8 section, every bundled text file of every skill
+folder in `plugins/`, `opencode/`, and `codex/`; the segment is read back with `bareName`):
+
+- P1 fail closed: a landing climb's full path must exist (OpenCode through `reRootOpenCode`; a
+  trailing `/` needs a directory):
+  `<file>:<line>: sibling path <path> does not resolve in <tree>/ — the target item was renamed, excluded, omitted, or never existed`.
+- P2 item-root: when the bare segment is an estate name, the path must exist under the tree's skills
+  root (`plugins/<p>/`, `codex/<p>/`, or `opencode/<m>/` then `reRootOpenCode`):
+  `<file>:<line>: item path <path> does not resolve in <tree>/`.
+- P3 manual folder: a claim whose bare segment names another item with
+  `modelReachClaude === false` in the linker's `targetState`, and a Markdown link that resolves into
+  such an item's folder:
+  `<file>:<line>: path <path> lands in manual item <name>'s folder — a path is a read that bypasses Claude's model-invocation block; point the human with /ns:<name> instead`.
+- R1 skips a Markdown link that is a landing climb, because P judged it; R1's other branches and R2
+  stay.
+
+Measured at `7c1f642`: every landing climb resolves except `executing-plans:15`
+`../using-superpowers/references/` (P1 and P3, in all three trees); `brainstorming:252`
+`skills/brainstorming/visual-companion.md` resolves in Claude and Codex and fails P2 in OpenCode
+until the respelling lands; `writing-skills` `skills/path/` and `skills/testing/` name no estate
+item; no Markdown link lands in a manual item's folder; no non-Markdown bundled file holds a claim.
+
+### 15. W0 curation application
+
+All edits at the current pins, through the existing mechanisms. A new patch uses the two-pass
+`eject --patch`. Extending a patch re-cuts it: save the old patch, run
+`eject --patch --force` (which deletes the old patch and lays a pristine working copy), reapply the
+old patch with `git apply`, add the new edit, run `eject --patch` again. A full overlay
+(`ask-deniz`) is edited in place; its lock stamps upstream bytes, not overlay text, so no re-bless.
+Namespaces are the scanned plugin names: `mattpocock-skills`, `superpowers`, `dotnet-test`,
+`dotnet-msbuild`, `aspire`.
+
+| Item (Module) | Mechanism | Edit | `depends_on` after |
+|---|---|---|---|
+| grill-me (Process) | new patch | `:7` `"grilling"` → `"mattpocock-skills:grilling"` | [grilling] |
+| grill-with-docs (Process) | new patch | `:8` both handles namespaced | [domain-modeling, grilling] |
+| improve-codebase-architecture (Process) | extend patch | `:14`, `:72` codebase-design; `:65` grilling; `:67` domain-modeling | [codebase-design, domain-modeling, grilling] |
+| wayfinder (Process) | extend patch | `:79`, `:117` research; `:80` prototype; `:81`, `:113`, `:126` grilling + domain-modeling | [domain-modeling, grilling, prototype, research] |
+| executing-plans (Process) | new patch | `:15` drop "; see the per-platform tool refs in `../using-superpowers/references/`" | unchanged |
+| ask-deniz (Process) | overlay edit | overlay `:84` → `` `superpowers:systematic-debugging` ``; `:95` → `` `mattpocock-skills:resolving-merge-conflicts` `` | [resolving-merge-conflicts, systematic-debugging] |
+| writing-for-agents (Process) | new patch + `invocation: both` | SKILL.md frontmatter `description` narrowed | none |
+| run-tests (General) | new patch | `:36`, `:173` `` `dotnet-test:filter-syntax` ``; `:64` `` `dotnet-test:platform-detection` `` | [filter-syntax, platform-detection] |
+| mtp-hot-reload (General) | extend patch | `:60` `` `dotnet-test:platform-detection` `` | [platform-detection] |
+| check-bin-obj-clash (General) | extend patch | `:47` `` `dotnet-msbuild:binlog-generation` `` | [binlog-generation] |
+| test-anti-patterns (General) | extend patch | `:20`, `:53` `` `dotnet-test:test-analysis-extensions` `` | [test-analysis-extensions] |
+| test-gap-analysis (General) | extend patch, new target `references/mutation-catalog.md` | `:42-43` and catalog `:30-31` `` `dotnet-test:test-analysis-extensions` `` | [test-analysis-extensions] |
+| code-testing-agent (General) | extend patch | `:60` `` `dotnet-test:run-tests` ``; `:187` `` `dotnet-test:test-gap-analysis` `` and `` `dotnet-test:test-anti-patterns` `` | [run-tests, test-anti-patterns, test-gap-analysis, writing-tunit-tests] |
+| build-perf-baseline (General) | new patch | `:398` `` `dotnet-msbuild:build-perf-diagnostics` `` | [build-perf-diagnostics] |
+| msbuild-antipatterns (General) | new patch on `references/additional-antipatterns.md` | `:187`, `:245` `` `dotnet-msbuild:check-bin-obj-clash` `` | [check-bin-obj-clash] |
+| aspire-init (Aspire) | extend patch (`references/init-workflow.md` already a target) | `:126` `` Re-invoke `aspire:aspireify` `` | unchanged |
+
+Line numbers are `plugins/` lines at `7c1f642`; an overlay or upstream line can differ by the
+frontmatter. Every target is `auto` or `both`, so each new fact is model-reachable; a `manual`
+source may hold model edges. No edit crosses a Module, so `requiredModules` do not change.
+Breaks (a), (e), and (f) need no curation: X3 respells (a), X1 renders (e) and (f).
+
+Comments and reasons (no names or dates in the curation layer): the why beside every changed item;
+the General header's reference-posture paragraph (load forms are facts, "see" mentions stay
+candidates); `test-anti-patterns`' "sibling references preserve the upstream bare style";
+`test-gap-analysis`' "the bundled mutation catalog flows by copy"; `writing-for-agents` (both, so
+retro can load it later; the narrowed trigger keeps routine canon edits from firing it; it no
+longer shares `writing-skills`' manual posture); `teach` and `handoff` (stay skills); Appendix A6:
+`curation/deniz-dotnet-akka.yaml` agent comment, `curation/deniz-dotnet-aspire.yaml` "both
+harnesses", `analyzing-dotnet-performance` reason, `writing-skills` husk sentence.
+
+### 16. W0 generated-output expectation
+
+- `plugins/`: the promoted facts in Claude spelling, the `executing-plans` clause gone,
+  `writing-for-agents` without `disable-model-invocation` and with its new description, and four
+  `plugin.json` versions. No phrasing change: Claude rendering is identity.
+- `codex/`: the same facts, the rendered skill-tool sentences and dispatch words, `writing-for-agents`
+  without its `allow_implicit_invocation: false` policy, versions.
+- `opencode/`: the same, plus `skills/deniz-process.brainstorming/visual-companion.md`, 26 hidden
+  skills (27 minus `writing-for-agents`), and the four `manifest.json` versions and digests.
+- `docs/ledger.json`: the new `depends_on` and model edges in all three spellings, `body: patch` on
+  the newly patched items, and `writing-for-agents`' invocation, flags, advertisement, Codex policy,
+  and description. Any other ledger change is a defect.
+- `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and `docs/inventory.md`:
+  no change. Neither marketplace carries a version, and the inventory reads upstream sources.
+- `npm run validate` exits 0, and a second build plus inventory produces a byte-identical diff.
+
 ## Merge sequencing
 
 O2 fails on the current curation, and only the curator can clear it. Recommendation: steps 2 and 3
 share one branch; it merges to `master` only when `npm run validate` is clean, so `master` CI never
 sees the known findings. The rejected alternative is landing O2 as a warning first and raising it to
 an error later, which leaves a window in which a new unresolvable handle passes CI.
+
+The curator extended this rule on 2026-10-08: the branch also closes the six OpenCode 2 runtime
+breaks of section W0 before it merges, so the merge waits for the W0 regeneration task and a clean
+`npm run validate`.
 
 ## Edge cases
 
@@ -436,9 +735,10 @@ an error later, which leaves a window in which a new unresolvable handle passes 
 - **Phantom guard.** O4. `skills/deniz-dotnet-general/NOTICE.md` in the authored original-skill root
   is not copied into output (`ownSkillIdentities` lists directories only); O4 would catch it if that
   changed.
-- **Skill-tool handles.** O2 accepts only an emitted skill ID; an agent or command ID in a handle is
-  an error. Codex renders a promoted handle as `"$deniz-process:grilling"`, which Codex has no skill
-  tool for; the wording is a curation question in the packet.
+- **Skill-tool handles.** O2 accepted only an emitted skill ID; an agent or command ID in a handle
+  was an error. Codex rendered a promoted handle as `"$deniz-process:grilling"`, which Codex has no
+  skill tool for. W0 settles both: the handle is a fact checked on the canonical tree, the linker
+  and O1 check its target, and the whole sentence renders per harness (sections 12 and 13).
 - **`OPENCODE_CONFIG_DIR` empty vs unset.** Section 10.
 - **Fuzzy ranking and `AGENTS.md`.** Runtime limits already in canon; nothing to implement.
 
@@ -457,10 +757,11 @@ These are not settled by D1–D7. Each has a recommendation; none is decided by 
 - **Q4. `license` and `compatibility` in OpenCode skills.** Resolved by canon, not a curator question:
   OpenCode 2 ignores both, and ADR-0002/ADR-0006 forbid silently emitting keys a target ignores, so
   they are dropped and reported (Task 5).
-- **Q5. Path climbs into a `manual` item.** Resolved by canon, not a curator question: a `manual`
-  item may be named, so the climb raises no invocation concern. The one `executing-plans` line,
-  `../using-superpowers/references/`, points into a folder whose `references/**` is omitted; that
-  is a path matter for the curation pass.
+- **Q5. Path climbs into a `manual` item.** Resolved by canon, not a curator question. A `manual`
+  item may be named, but a path into its folder is a read that bypasses Claude's model-invocation
+  block, so W0 makes it an error (section 14). The one `executing-plans` line,
+  `../using-superpowers/references/`, points into a folder whose `references/**` is omitted and
+  whose item is `manual`; W0 drops the clause with a body patch (section 15).
 - **Q6. Home source for the fallback Destination.** The installer uses `HOME`, then `USERPROFILE`,
   then `os.homedir()`; OpenCode 2 uses `os.homedir()` (`OPENCODE_TEST_HOME` aside). Options:
   (A) keep the installer order; (B) use `os.homedir()` only. Recommend B, because the Destination

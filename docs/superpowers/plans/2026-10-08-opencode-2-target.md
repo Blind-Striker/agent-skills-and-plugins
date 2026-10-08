@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use deniz-process:subagent-driven-development (recommended) or deniz-process:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-Date: 2026-10-08
+Date: 2026-10-09
 
 **Goal:** Make the checkout emit, check, ledger, and install OpenCode 2 output as current canon
 states, then prepare the curation pass, produce the measurement records, migrate the two real
@@ -38,8 +38,9 @@ as "spec §N".
   `<home>/.config/opencode`. Install state stays schema 2; no schema-1 reader.
 - `plugins/`, `codex/`, `.claude-plugin/marketplace.json`, `.agents/plugins/marketplace.json`, and
   `docs/inventory.md` must be byte-identical before and after step 2 (Tasks 2 to 12) and step 4
-  (Tasks 14 to 17). Step 3 (Task 13) changes them only where a curator decision lands (a body patch,
-  a posture, a Module version).
+  (Tasks 14 to 17). Step 3 (Phase B2) changes `plugins/` and `codex/` only where W0 rendering or a
+  curator decision lands (harness phrasing, a promoted fact, a body patch, a posture, a Module
+  version); neither marketplace nor `docs/inventory.md` changes.
 - Never hand-edit `external/`, `plugins/`, `opencode/`, `codex/`, `dist/`, either marketplace,
   `docs/inventory.md`, or `docs/ledger.json`.
 - Every curation decision (posture, `as:`, body patch, `depends_on`, reasons, comments, Module
@@ -61,9 +62,9 @@ Answer these before the task that needs them. Recommendations are in spec "Open 
 | G2 (Q8) | Steps 2 and 3 on one branch, merged only when `validate` is clean? | Task 2 |
 | G3 (Q6) | Fallback home: keep `HOME` -> `USERPROFILE` -> `os.homedir()`, or `os.homedir()` only? | Task 11 |
 | G4 (Q7) | Refuse a relative `OPENCODE_CONFIG_DIR`? | Task 11 |
-| G5 | Every item in the curation decision packet | Task 13 |
+| G5 | Every item in the curation decision packet (settled 2026-10-08; spec "W0 correctness") | W0.10–W0.13 |
 | G6 | Go for each real-profile migration, per machine | Task 18 |
-| G7 (Q9, Q10) | Release version and tag; Module version bumps | Tasks 13, 19 |
+| G7 (Q9, Q10) | Release version and tag; Module version bumps (bumps settled 2026-10-08) | W0.13, Task 19 |
 
 ## File structure
 
@@ -73,15 +74,17 @@ Answer these before the task that needs them. Recommendations are in spec "Open 
 | `tools/lib/opencode-target.test.ts` (new) | Pure tests for the above | 2, 5 |
 | `tools/lib/resolve.ts` | `PORTABLE_NAME`, identity preflight | 2, 4 |
 | `tools/lib/codex-plugin.ts` | imports `PORTABLE_NAME` | 2 |
-| `tools/lib/rewrite.ts`, `tools/lib/rewrite.test.ts` | target-valued map, three renderers, sibling climbs | 3, 7 |
-| `tools/build.ts`, `tools/build.test.ts` | OpenCode emitter, OpenCode rewrite pass, manifest modes | 3, 6, 7 |
+| `tools/lib/refs.ts`, `tools/lib/refs.test.ts` | path claims, skill-tool call spans, handoff templates | W0.1, W0.2, W0.6, W0.7 |
+| `tools/lib/rewrite.ts`, `tools/lib/rewrite.test.ts` | target-valued map, three renderers, sibling climbs; harness phrasing, `localize`, Claude-only vocabulary, path respelling, `isBundledText` | 3, 7, W0.1, W0.3, W0.6, W0.7 |
+| `tools/build.ts`, `tools/build.test.ts` | OpenCode emitter, OpenCode rewrite pass, manifest modes; `localize` wiring, text-file path respelling | 3, 6, 7, W0.4, W0.7 |
 | `tools/lib/ledger.ts`, `tools/lib/ledger.test.ts` | OpenCode projection | 2, 8 |
 | `docs/agents/reference-audit-playbook.md` | path collection script | 8 |
-| `tools/validate.ts`, `tools/validate.test.ts` | retirements, linker state, path rules, O1, O2, O4–O6 | 9, 10 |
+| `tools/validate.ts`, `tools/validate.test.ts` | retirements, linker state, path rules, O1, O2, O4–O6; H1–H4, V, P (O2 retired) | 9, 10, W0.5, W0.6, W0.8 |
 | `tools/lib/opencode-install-state.ts` (+ test), `tools/install-opencode.ts` (+ test) | Destination | 11 |
 | `tools/testutil.ts` | `opencodeId` helper for fixtures | 6 |
-| generated trees, `dist/`, `docs/ledger.json` | regenerated only | 12, 13 |
-| `docs/ROADMAP.md`, architecture docs | gap removal and canon touch-ups at closeouts | 12, 20 |
+| `curation/*.yaml`, `overlays/**`, `overlays/overlays.lock.json` | W0 curation application | W0.10–W0.13 |
+| generated trees, `dist/`, `docs/ledger.json` | regenerated only | 12, W0.14 |
+| `docs/ROADMAP.md`, architecture docs | gap removal and canon touch-ups at closeouts | 12, W0.14, 20 |
 | `experiments/harness-invocation/**` | retire OpenCode 1 probes, port discovery check, records | 14–18 |
 | `tools/repository-docs.test.ts` | lab assertion retarget; Release pins | 14, 19 |
 | `README.md`, `package.json`, `package-lock.json` | Release step only | 19 |
@@ -1368,40 +1371,1227 @@ git commit -m "build: regenerate OpenCode 2 output"
 
 ---
 
+## Phase B2: W0 correctness (step 3)
+
+The curator settled the W0 decisions on 2026-10-08; they are spec "W0 correctness", decisions 1–7,
+and they answer Appendix A. Canon already states the rules
+([References and linking](../../architecture/references-and-linking.md): harness phrasing, handoff
+templates, harness vocabulary check, path claims; [ADR-0008](../../adr/0008-references-are-symbols.md);
+[`curation/SCHEMA.md`](../../../curation/SCHEMA.md#dependencies)); the spec sections 12–16 are the
+execution design. Phase B2 replaces Task 13.
+
+Rules for this phase:
+
+- **Order.** W0.1–W0.8 are tooling, W0.9 measures, W0.10–W0.13 are curation, W0.14 is the only
+  regeneration, W0.15 merges. Each task starts on the curator's word, and nothing is pushed.
+- **Generated trees are regenerated only in W0.14.** Any earlier task may run `npm run build` to
+  inspect output, but before it commits, the generated paths must be back at `HEAD`:
+
+```bash
+GEN="plugins opencode codex dist .claude-plugin .agents/plugins/marketplace.json docs/inventory.md docs/ledger.json"
+git restore --source=HEAD --worktree -- $GEN
+git clean -fdq -- plugins opencode codex dist
+git status --short -- $GEN   # expected: no output
+```
+
+- **Tooling gate.** Each tooling task ends with the five tooling commands (Checkpoints); every
+  command exits 0 and `npm test` reports `# fail 0`. `npm run validate` is not part of that gate:
+  it is red from W0.5 until W0.12, with exactly the findings W0.9 fixes.
+- **Behavior-neutral step.** W0.1 only moves grammar; its build output must be byte-identical.
+- **Curation layer.** Comments carry the why beside the item and no names or dates. A new patch uses
+  the two-pass `eject --patch`. Extending an existing patch re-cuts it, because `--force` deletes
+  the old patch before it lays a pristine working copy:
+
+```bash
+SCRATCH=$(mktemp -d)
+cp overlays/<plugin>/<item>/overlay.patch "$SCRATCH/<item>.patch"
+npm run eject -- <plugin> <item> --patch --force      # pristine upstream working copy
+git apply -p1 --directory=overlays/<plugin>/<item> "$SCRATCH/<item>.patch"
+# make the new edit in the working copy
+npm run eject -- <plugin> <item> --patch              # cut, verify, stamp the lock
+```
+
+  A full overlay (`ask-deniz`) is edited in place; its lock stamps upstream bytes, not overlay text,
+  so it needs no re-bless.
+- **Commits** end with a blank line and the session's `Co-Authored-By` trailer.
+
+### Task W0.1: Move the sibling-climb grammar into `refs.ts` (behavior-neutral)
+
+**Files:**
+- Modify: `tools/lib/refs.ts`, `tools/lib/refs.test.ts`, `tools/lib/rewrite.ts` (`CLIMB`,
+  `rewriteOpenCodeSiblingClimbs`)
+
+**Interfaces:**
+- Produces: `PathClaim` and `scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[]`
+  in `tools/lib/refs.ts` (landing climbs only in this task; W0.7 adds item-root claims).
+
+- [ ] **Step 1: Write the failing test** in `tools/lib/refs.test.ts`:
+
+```ts
+test("landing climbs are path claims only at the depth that reaches the skills directory", () => {
+  const claims = (t: string, d: number) => scanPathClaims(t, d).map((c) => `${c.kind}:${c.segment}:${c.path}`);
+  assert.deepEqual(claims("[a](../aspireify/SKILL.md)", 0), ["climb:aspireify:../aspireify/SKILL.md"]);
+  assert.deepEqual(claims("[a](../../aspireify/SKILL.md)", 1), ["climb:aspireify:../../aspireify/SKILL.md"]);
+  assert.deepEqual(claims("[a](../../aspireify/SKILL.md)", 0), [], "wrong depth");
+  assert.deepEqual(claims("x/../aspireify/y", 0), [], "inside a longer path");
+  assert.deepEqual(claims('AddCSharpApp("api", "../Api")', 0), [], "uppercase is illustrative");
+  assert.deepEqual(claims("see `../using-superpowers/references/`.", 0), [
+    "climb:using-superpowers:../using-superpowers/references/",
+  ]);
+  assert.deepEqual(claims("read ../beta/notes.md.", 0), ["climb:beta:../beta/notes.md"], "one trailing dot dropped");
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/lib/refs.test.ts` -> FAIL
+  (`scanPathClaims` is not exported).
+- [ ] **Step 3: Implement.** In `tools/lib/refs.ts`:
+
+```ts
+/** A relative path the linker can attribute: a climb onto the shared skills directory, or (W0.7) an item root. */
+export interface PathClaim {
+  kind: "climb" | "item-root";
+  index: number;
+  segmentIndex: number;
+  segment: string;
+  path: string;
+}
+
+const CLIMB = /((?:\.\.\/)+)([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/)/g;
+const PATH_TAIL = /^\/[^\s"'`)\]]*/;
+const CONTINUES_PATH = /[A-Za-z0-9._/-]/;
+
+function claimPath(content: string, start: number, afterSegment: number): string {
+  const path = content.slice(start, afterSegment) + (PATH_TAIL.exec(content.slice(afterSegment))?.[0] ?? "");
+  return path.endsWith(".") ? path.slice(0, -1) : path;
+}
+
+export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[] {
+  const out: PathClaim[] = [];
+  for (const m of content.matchAll(CLIMB)) {
+    const before = m.index > 0 ? (content[m.index - 1] as string) : "";
+    const climb = m[1] as string;
+    const segment = m[2] as string;
+    if ((before && CONTINUES_PATH.test(before)) || climb.length / 3 !== depthBelowSkillFolder + 1) {
+      continue;
+    }
+    const segmentIndex = m.index + climb.length;
+    out.push({ kind: "climb", index: m.index, segmentIndex, segment, path: claimPath(content, m.index, segmentIndex + segment.length) });
+  }
+  return out;
+}
+```
+
+  In `tools/lib/rewrite.ts`, delete `CLIMB` and rebuild `rewriteOpenCodeSiblingClimbs` on the scan:
+
+```ts
+export function rewriteOpenCodeSiblingClimbs(content: string, depthBelowSkillFolder: number, skillIds: Map<string, string>): string {
+  let out = "";
+  let cut = 0;
+  for (const claim of scanPathClaims(content, depthBelowSkillFolder)) {
+    const id = skillIds.get(claim.segment);
+    if (id === undefined) {
+      continue;
+    }
+    out += content.slice(cut, claim.segmentIndex) + id;
+    cut = claim.segmentIndex + claim.segment.length;
+  }
+  return out + content.slice(cut);
+}
+```
+
+- [ ] **Step 4: Run tests.** `node --test tools/lib/refs.test.ts tools/lib/rewrite.test.ts` -> PASS;
+  the existing "sibling climbs are respelled only when they land on the shared skills directory"
+  test passes unchanged.
+- [ ] **Step 5: Prove behavior neutrality.**
+
+```bash
+npm run build
+git diff --exit-code -- $GEN
+```
+
+  Expected: no output, exit 0.
+- [ ] **Step 6:** the five tooling commands.
+- [ ] **Step 7: Commit.**
+
+```bash
+git add tools/lib/refs.ts tools/lib/refs.test.ts tools/lib/rewrite.ts
+git commit -m "refactor: move the sibling-climb grammar into refs.ts"
+```
+
+### Task W0.2: Skill-tool call grammar
+
+**Files:**
+- Modify: `tools/lib/refs.ts`, `tools/lib/refs.test.ts`
+
+**Interfaces:**
+- Produces: `SkillToolCall`, `scanSkillToolCalls(content: string): SkillToolCall[]`,
+  `straySkillToolMentions(content: string): number[]` (spec section 12).
+
+- [ ] **Step 1: Write the failing tests** in `tools/lib/refs.test.ts`:
+
+```ts
+test("skill-tool calls: three forms, four verbs, payloads located", () => {
+  const forms = (t: string) =>
+    scanSkillToolCalls(t).map(
+      (c) => `${c.verb}|${c.form}|${c.payloads.map((p) => `${p.text}@${p.index}`).join(",")}|${t.slice(c.index, c.end)}`,
+    );
+  assert.deepEqual(forms('Call the Skill tool with "mattpocock-skills:grilling".'), [
+    'Call|with|mattpocock-skills:grilling@26|Call the Skill tool with "mattpocock-skills:grilling"',
+  ]);
+  assert.deepEqual(forms('Always call the Skill tool twice, for "a" and "b", to pin'), [
+    'call|twice|a@39,b@47|call the Skill tool twice, for "a" and "b"',
+  ]);
+  assert.deepEqual(forms('a subagent that calls the Skill tool with "research". Use'), [
+    'calls|with|research@43|calls the Skill tool with "research"',
+  ]);
+  assert.deepEqual(forms('by calling the Skill tool with "prototype". Links'), [
+    'calling|with|prototype@32|calling the Skill tool with "prototype"',
+  ]);
+  assert.deepEqual(forms("should call the Skill tool for."), ["call|generic||call the Skill tool for"]);
+  assert.deepEqual(forms("call the Skill tool for whichever skills"), ["call|generic||call the Skill tool for"]);
+  assert.deepEqual(forms('call the Skill tool for "x"'), [], "a single for-handle is not a form");
+  assert.deepEqual(forms("call the Skill tool format"), []);
+});
+
+test("a skill-tool mention outside a recognized call is stray", () => {
+  assert.deepEqual(straySkillToolMentions('Call the Skill tool with "a:b". call the Skill tool for.'), []);
+  const text = 'Invoke the Skill tool on "x". Use the skill tool.';
+  assert.deepEqual(straySkillToolMentions(text), [text.indexOf("Skill tool"), text.indexOf("skill tool.")]);
+});
+```
+
+  The `@` offsets are the payload's first character inside the quotes; recompute them with
+  `indexOf` if a literal changes.
+- [ ] **Step 2: Run to verify failure.** `node --test tools/lib/refs.test.ts` -> FAIL (exports missing).
+- [ ] **Step 3: Implement** in `tools/lib/refs.ts`:
+
+```ts
+export interface SkillToolCall {
+  index: number;
+  end: number;
+  verb: "Call" | "call" | "calls" | "calling";
+  form: "with" | "twice" | "generic";
+  payloads: { index: number; text: string }[];
+}
+
+// The skill-tool call template (references-and-linking.md "Handoff templates"). Closed on purpose:
+// a sentence outside these three forms is a stray mention, which validate rejects.
+const SKILL_TOOL_CALL =
+  /\b(Call|call|calls|calling) the Skill tool(?: with "([^"\n]*)"| twice, for "([^"\n]*)" and "([^"\n]*)"| for(?![A-Za-z]| "))/g;
+const SKILL_TOOL_MENTION = /\bskill tool/gi;
+
+export function scanSkillToolCalls(content: string): SkillToolCall[] {
+  const out: SkillToolCall[] = [];
+  for (const m of content.matchAll(SKILL_TOOL_CALL)) {
+    const texts = m[2] !== undefined ? [m[2]] : m[3] !== undefined ? [m[3], m[4] as string] : [];
+    let from = m.index;
+    const payloads = texts.map((text) => {
+      const index = content.indexOf(`"${text}"`, from) + 1;
+      from = index + text.length + 1;
+      return { index, text };
+    });
+    out.push({
+      index: m.index,
+      end: m.index + m[0].length,
+      verb: m[1] as SkillToolCall["verb"],
+      form: m[2] !== undefined ? "with" : m[3] !== undefined ? "twice" : "generic",
+      payloads,
+    });
+  }
+  return out;
+}
+
+export function straySkillToolMentions(content: string): number[] {
+  const spans = scanSkillToolCalls(content);
+  return [...content.matchAll(SKILL_TOOL_MENTION)]
+    .map((m) => m.index)
+    .filter((index) => !spans.some((s) => index >= s.index && index < s.end));
+}
+```
+
+- [ ] **Step 4: Run tests.** `node --test tools/lib/refs.test.ts` -> PASS; then the five tooling commands.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/lib/refs.ts tools/lib/refs.test.ts
+git commit -m "feat: scan skill-tool call spans in refs.ts"
+```
+
+### Task W0.3: Harness phrasing renderer (pure)
+
+**Files:**
+- Modify: `tools/lib/rewrite.ts`, `tools/lib/rewrite.test.ts`
+
+**Interfaces:**
+- Consumes: `scanSkillToolCalls` (W0.2).
+- Produces: `renderHarnessPhrasing(content, style)`, `localize(content, map, style)`,
+  `CLAUDE_ONLY_VOCABULARY`, `claudeOnlyVocabulary(content): { index: number; match: string }[]`.
+
+- [ ] **Step 1: Write the failing tests** in `tools/lib/rewrite.test.ts` (import the four new
+  exports):
+
+```ts
+const PHRASES = [
+  'Call the Skill tool with "sp:a".',
+  'Always call the Skill tool twice, for "sp:a" and "sp:b".',
+  'a subagent that calls the Skill tool with "sp:a". By calling the Skill tool with "sp:b".',
+  "naming which skills the next agent should call the Skill tool for.",
+  "Subagent (general-purpose):",
+  "dispatch a `general-purpose`\nsubagent. Then send one message with two `Agent` calls, one `Agent` call",
+].join("\n");
+
+test("harness phrasing: Claude Code is identity", () => {
+  assert.equal(renderHarnessPhrasing(PHRASES, "claude"), PHRASES);
+});
+
+test("harness phrasing: OpenCode names its skill and subagent tools", () => {
+  assert.equal(
+    renderHarnessPhrasing(PHRASES, "opencode"),
+    [
+      'Call the `skill` tool with "sp:a".',
+      'Always call the `skill` tool twice, for "sp:a" and "sp:b".',
+      'a subagent that calls the `skill` tool with "sp:a". By calling the `skill` tool with "sp:b".',
+      "naming which skills the next agent should call the `skill` tool for.",
+      "Subagent (general):",
+      "dispatch a `general`\nsubagent. Then send one message with two `subagent` calls, one `subagent` call",
+    ].join("\n"),
+  );
+});
+
+test("harness phrasing: Codex invokes and names no subagent tool or type", () => {
+  assert.equal(
+    renderHarnessPhrasing(PHRASES, "codex"),
+    [
+      "Invoke `sp:a`.",
+      "Always invoke `sp:a` and `sp:b`.",
+      "a subagent that invokes `sp:a`. By invoking `sp:b`.",
+      "naming which skills the next agent should invoke.",
+      "Subagent:",
+      "dispatch a subagent. Then send one message with two subagent calls, one subagent call",
+    ].join("\n"),
+  );
+});
+
+test("localize renders the facts after the phrasing", () => {
+  const map = buildRewriteMap([manifest], components);
+  const line = 'Call the Skill tool with "superpowers:brainstorming".';
+  assert.equal(localize(line, map, "claude"), 'Call the Skill tool with "deniz-process:brainstorming".');
+  assert.equal(localize(line, map, "opencode"), 'Call the `skill` tool with "deniz-process.brainstorming".');
+  assert.equal(localize(line, map, "codex"), "Invoke `$deniz-process:brainstorming`.");
+});
+
+test("every non-Claude rendering is free of Claude-only vocabulary", () => {
+  assert.deepEqual(
+    claudeOnlyVocabulary(PHRASES).map((hit) => hit.match).sort(),
+    ["Skill tool", "Skill tool", "Skill tool", "Skill tool", "Skill tool", "Subagent (general-purpose)", "`Agent`", "`Agent`", "`general-purpose`"].sort(),
+  );
+  for (const style of ["opencode", "codex"] as const) {
+    assert.deepEqual(claudeOnlyVocabulary(renderHarnessPhrasing(PHRASES, style)), [], style);
+  }
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/lib/rewrite.test.ts` -> FAIL (exports missing).
+- [ ] **Step 3: Implement** in `tools/lib/rewrite.ts` (import `scanSkillToolCalls` and
+  `SkillToolCall` from `./refs.ts`):
+
+```ts
+const CODEX_VERB = { Call: "Invoke", call: "invoke", calls: "invokes", calling: "invoking" } as const;
+
+// Closed dispatch table (references-and-linking.md "Harness phrasing"). Codex names no subagent tool
+// or agent type: neither is recorded in this repository's research.
+const DISPATCH: { pattern: RegExp; opencode: string; codex: string }[] = [
+  { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
+  { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
+  { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1" },
+];
+
+/** Claude Code tool words that must not survive in an OpenCode or Codex tree. */
+export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
+  /\bskill tool/gi,
+  /Subagent \(general-purpose\)/g,
+  /`general-purpose`/g,
+  /\bgeneral-purpose\s+(?:sub)?agent\b/g,
+  /`Agent`/g,
+  /\bAgent tool\b/g,
+  /\bTask tool\b/g,
+  /\bsubagent_type\b/g,
+];
+
+export function claudeOnlyVocabulary(content: string): { index: number; match: string }[] {
+  return CLAUDE_ONLY_VOCABULARY.flatMap((re) => [...content.matchAll(re)].map((m) => ({ index: m.index, match: m[0] }))).sort(
+    (a, b) => a.index - b.index,
+  );
+}
+
+function renderCall(content: string, call: SkillToolCall, style: "opencode" | "codex"): string {
+  const span = content.slice(call.index, call.end);
+  if (style === "opencode") {
+    return span.replace("the Skill tool", "the `skill` tool");
+  }
+  const verb = CODEX_VERB[call.verb];
+  return call.payloads.length ? `${verb} ${call.payloads.map((p) => `\`${p.text}\``).join(" and ")}` : verb;
+}
+
+/** Renders the skill-tool call and dispatch words for one harness; facts stay neutral. */
+export function renderHarnessPhrasing(content: string, style: RefStyle): string {
+  if (style === "claude") {
+    return content;
+  }
+  let out = "";
+  let cut = 0;
+  for (const call of scanSkillToolCalls(content)) {
+    out += content.slice(cut, call.index) + renderCall(content, call, style);
+    cut = call.end;
+  }
+  out += content.slice(cut);
+  for (const row of DISPATCH) {
+    out = out.replace(row.pattern, row[style]);
+  }
+  return out;
+}
+
+/** Harness phrasing first, then the facts it left neutral. */
+export function localize(content: string, map: Map<string, RewriteTarget>, style: RefStyle): string {
+  return rewriteRefs(renderHarnessPhrasing(content, style), map, style);
+}
+```
+
+- [ ] **Step 4: Run tests.** `node --test tools/lib/rewrite.test.ts` -> PASS; then the five tooling commands.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/lib/rewrite.ts tools/lib/rewrite.test.ts
+git commit -m "feat: render skill-tool calls and dispatch words per harness"
+```
+
+### Task W0.4: Localize harness phrasing in every tree
+
+**Files:**
+- Modify: `tools/build.ts` (`rewriteTree`, `rewriteOpenCodeTree`: the three `rewriteRefs` call
+  sites), `tools/build.test.ts`
+
+- [ ] **Step 1: Write the failing test** in `tools/build.test.ts`:
+
+```ts
+test("each harness renders the skill-tool call and dispatch words in its own words", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    '---\nname: alpha\ndescription: A\n---\n\nCall the Skill tool with "superpowers:delta".\n\nSubagent (general-purpose):\n',
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n    depends_on: [delta]\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  const read = (path: string) => readFileSync(path, "utf8");
+  assert.match(
+    read(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")),
+    /Call the Skill tool with "deniz-process:delta"\.\n\nSubagent \(general-purpose\):/,
+  );
+  assert.match(
+    read(opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md")),
+    /Call the `skill` tool with "deniz-process\.delta"\.\n\nSubagent \(general\):/,
+  );
+  assert.match(
+    read(codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md")),
+    /Invoke `\$deniz-process:delta`\.\n\nSubagent:/,
+  );
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/build.test.ts` -> FAIL (the OpenCode and
+  Codex assertions; Claude already passes).
+- [ ] **Step 3: Implement.** In `tools/build.ts`, import `localize` and call it where
+  `rewriteTree` and `rewriteOpenCodeTree` call `rewriteRefs` today (Markdown only; the skill-folder
+  loop keeps applying `rewriteOpenCodeSiblingClimbs` after it). Update the `rewriteOpenCodeTree` doc
+  comment: Markdown gets harness phrasing and the dotted-ID rendering.
+- [ ] **Step 4: Run tests.** `node --test tools/build.test.ts` -> PASS; then the five tooling
+  commands. Restore the generated paths if you built the real repository.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/build.ts tools/build.test.ts
+git commit -m "feat: localize harness phrasing in every tree"
+```
+
+### Task W0.5: Validator — skill-tool payload rule replaces O2; harness vocabulary check
+
+**Files:**
+- Modify: `tools/validate.ts` (delete `SKILL_TOOL_HANDLE`, `skillToolHandles`, and the O2 loop in
+  the O1/O2 section; add H1 after the linker section and V after L4), `tools/validate.test.ts`
+  (delete the tests "skill-tool handles cover the three measured forms" and "O2: a bare skill-tool
+  handle fails; a promoted one passes", drop `skillToolHandles` from the import)
+
+**Interfaces:**
+- Consumes: `scanSkillToolCalls`, `straySkillToolMentions`, `scanRefs` (`refs.ts`);
+  `claudeOnlyVocabulary` (`rewrite.ts`); the existing `ownNs`, `walk`, `pluginsDir`, `ocDir`.
+- Produces: the H1 and V messages of spec section 13.
+
+- [ ] **Step 1: Write the failing tests** in `tools/validate.test.ts` (the existing `ocErrors`
+  helper builds the fixture and returns error messages):
+
+```ts
+test("H1: a skill-tool handle must be a namespaced fact; stray skill-tool prose fails", () => {
+  const bareItems = ["  - source: sp/skills/alpha", "    invocation: manual", "  - source: sp/skills/beta", "    invocation: auto"];
+  const bare = ocErrors('Call the Skill tool with "beta".', bareItems);
+  assert.ok(bare.some((m) => m.includes('skill-tool handle "beta" is not a namespaced fact')), bare.join("\n"));
+  assert.ok(!bare.some((m) => m.includes("Claude-only vocabulary")), "a recognized call renders, so it never leaks");
+  const promoted = ocErrors('Call the Skill tool with "superpowers:beta".', [
+    "  - source: sp/skills/alpha",
+    "    invocation: manual",
+    "    depends_on: [beta]",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(!promoted.some((m) => m.includes("skill-tool") || m.includes("Claude-only vocabulary")), promoted.join("\n"));
+  const stray = ocErrors("Use the Skill tool to load beta.", bareItems);
+  assert.ok(stray.some((m) => m.includes('"skill tool" outside a recognized skill-tool call')), stray.join("\n"));
+  assert.equal(stray.filter((m) => m.includes('Claude-only vocabulary "Skill tool"')).length, 2, "opencode/ and codex/");
+});
+
+test("V: Claude-only dispatch words in a generated tree are errors", () => {
+  const errors = ocErrors("Body.", ["  - source: sp/skills/alpha"], (root) => {
+    const file = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
+    writeFileSync(file, `${readFileSync(file, "utf8")}\nUse the Task tool with subagent_type set.\n`);
+  });
+  for (const word of ["Task tool", "subagent_type"]) {
+    assert.ok(errors.some((m) => m.includes(`Claude-only vocabulary "${word}" in codex/`)), errors.join("\n"));
+  }
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/validate.test.ts` -> FAIL (old O2
+  message, no H1 or V messages).
+- [ ] **Step 3: Implement** in `tools/validate.ts`:
+
+```ts
+const lineOf = (text: string, index: number): number => text.slice(0, index).split("\n").length;
+
+// H1: the skill-tool call is a handoff template (references-and-linking.md). Checked once, on the
+// canonical tree, where a handle still carries its namespace; the linker and O1 then check the target.
+for (const file of existsSync(pluginsDir) ? [...walk(pluginsDir)].filter((f) => f.endsWith(".md")) : []) {
+  const rel = relative(root, file).replaceAll("\\", "/");
+  const text = readFileSync(file, "utf8");
+  for (const call of scanSkillToolCalls(text)) {
+    for (const payload of call.payloads) {
+      const refs = scanRefs(payload.text);
+      const ref = refs[0];
+      const fact = refs.length === 1 && ref?.kind === "model" && ref.address === payload.text && ownNs.has(ref.ns);
+      if (!fact) {
+        findings.push({
+          level: "error",
+          message: `${rel}:${lineOf(text, payload.index)}: skill-tool handle "${payload.text}" is not a namespaced fact — author it as "ns:${payload.text}" with a matching depends_on`,
+        });
+      }
+    }
+  }
+  for (const index of straySkillToolMentions(text)) {
+    findings.push({
+      level: "error",
+      message: `${rel}:${lineOf(text, index)}: "skill tool" outside a recognized skill-tool call — reword it into a form in curation/SCHEMA.md Dependencies`,
+    });
+  }
+}
+
+// V: Claude Code tool words must not reach a harness that has no such tool.
+for (const tree of ["opencode", "codex"] as const) {
+  const dir = join(root, tree);
+  for (const file of existsSync(dir) ? [...walk(dir)].filter((f) => f.endsWith(".md")) : []) {
+    const rel = relative(root, file).replaceAll("\\", "/");
+    const text = readFileSync(file, "utf8");
+    for (const hit of claudeOnlyVocabulary(text)) {
+      findings.push({
+        level: "error",
+        message: `${rel}:${lineOf(text, hit.index)}: Claude-only vocabulary "${hit.match}" in ${tree}/ — reword it into a form the harness phrasing renders (curation/SCHEMA.md Dependencies)`,
+      });
+    }
+  }
+}
+```
+
+  Rename the O1/O2 section comment to O1 and the O4–O6 heading accordingly.
+- [ ] **Step 4: Run tests.** `node --test tools/validate.test.ts` -> PASS; then the five tooling
+  commands.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/validate.ts tools/validate.test.ts
+git commit -m "feat: check skill-tool handles on the canonical tree and Claude-only words elsewhere"
+```
+
+### Task W0.6: Handoff templates
+
+**Files:**
+- Modify: `tools/lib/refs.ts`, `tools/lib/refs.test.ts`, `tools/lib/rewrite.ts` (export
+  `addressOf`), `tools/validate.ts` (estate names and H2–H4 beside H1), `tools/validate.test.ts`
+
+**Interfaces:**
+- Produces: `Handoff`, `scanHandoffs(content: string): Handoff[]`; `estateNames` in
+  `validateRepo` (reused by W0.8).
+
+- [ ] **Step 1: Write the failing tests.** In `tools/lib/refs.test.ts`:
+
+```ts
+test("handoff templates find bare backticked names in load-bearing forms", () => {
+  const hits = (t: string) => scanHandoffs(t).map((h) => `${h.template}:${h.name}`);
+  assert.deepEqual(hits("Use the `binlog-generation` skill to generate a log."), ["imperative:binlog-generation"]);
+  assert.deepEqual(hits("Follow the complete procedure in the `platform-detection`\nskill. Read props."), [
+    "imperative:platform-detection",
+  ]);
+  assert.deepEqual(hits("Load `filter-syntax` only when filtered."), ["load:filter-syntax"]);
+  assert.deepEqual(hits("invoke `test-gap-analysis` and `test-anti-patterns` when available"), [
+    "load:test-gap-analysis",
+    "load:test-anti-patterns",
+  ]);
+  assert.deepEqual(hits("Re-invoke `aspireify`; confirm the path"), ["load:aspireify"]);
+  assert.deepEqual(hits("- **A merge went sideways** → `resolving-merge-conflicts`."), ["route:resolving-merge-conflicts"]);
+  assert.deepEqual(hits("Load `x` skill first."), ["imperative:x"], "one hit when two templates overlap");
+  assert.deepEqual(hits("Use the `dotnet-msbuild:binlog-generation` skill."), [], "a fact never matches");
+  assert.deepEqual(hits("see the `filter-syntax` skill for details"), [], "a reference stays a candidate");
+  assert.deepEqual(hits("- running tests (use `run-tests`)"), [], "a routing hint without 'skill'");
+  assert.deepEqual(hits("Use the following\n- the `grilling` skill"), [], "a list item ends the sentence");
+  assert.deepEqual(hits("Use it. The `grilling` skill drives it."), [], "a period ends the sentence");
+});
+```
+
+  In `tools/validate.test.ts`:
+
+```ts
+test("H2–H4: a bare estate name in a handoff template fails; a fact and an outside name pass", () => {
+  const bare = ocErrors("Load `beta` first. Use the `docker` skill.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(bare.some((m) => m.includes("load-bearing handoff names `beta` bare")), bare.join("\n"));
+  assert.ok(!bare.some((m) => m.includes("`docker`")), "outside the estate");
+  const promoted = ocErrors("Load `superpowers:beta` first.", [
+    "  - source: sp/skills/alpha",
+    "    depends_on: [beta]",
+    "  - source: sp/skills/beta",
+    "    invocation: auto",
+  ]);
+  assert.ok(!promoted.some((m) => m.includes("load-bearing handoff")), promoted.join("\n"));
+});
+
+test("H2–H4: an excluded name is reported as not emitted", () => {
+  const errors = ocErrors("Use the `beta` skill.", ["  - source: sp/skills/alpha", "  - source: sp/skills/beta", "    exclude: true"]);
+  assert.ok(errors.some((m) => m.includes("names `beta`, which this estate does not emit")), errors.join("\n"));
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/lib/refs.test.ts tools/validate.test.ts`
+  -> FAIL.
+- [ ] **Step 3: Implement.** In `tools/lib/refs.ts`:
+
+```ts
+export interface Handoff {
+  template: "imperative" | "load" | "route";
+  name: string;
+  index: number;
+}
+
+const NAME = String.raw`\x60([a-z][a-z0-9]*(?:-[a-z0-9]+)*)\x60`;
+// A sentence stops at . ; : ! ? |, a blank line, or a newline that opens a list, table, heading, or quote.
+const SENTENCE = String.raw`(?:[^.;:!?|\n]|\n(?![ \t]*(?:\n|[-*+>#|]|\d+\.)))*?`;
+const IMPERATIVE = new RegExp(String.raw`\b(?:Load|load|Use|use|Follow|follow|Invoke|invoke|Call|call)\b${SENTENCE}${NAME}\s+skill\b`, "g");
+const LOAD = new RegExp(String.raw`\b(?:Load|load|Invoke|invoke)\s+${NAME}`, "g");
+const LIST_TAIL = new RegExp(String.raw`^(?:,\s*|\s+and\s+|\s+or\s+)${NAME}`);
+const ROUTE = new RegExp(String.raw`→\s*\*{0,2}${NAME}`, "g");
+
+/** Bare backticked names in the load-bearing handoff templates; `index` is the name's opening backtick. */
+export function scanHandoffs(content: string): Handoff[] {
+  const out: Handoff[] = [];
+  const at = (start: number, matched: string, name: string): number => start + matched.lastIndexOf(`\`${name}\``);
+  for (const m of content.matchAll(IMPERATIVE)) {
+    out.push({ template: "imperative", name: m[1] as string, index: at(m.index, m[0], m[1] as string) });
+  }
+  for (const m of content.matchAll(LOAD)) {
+    out.push({ template: "load", name: m[1] as string, index: at(m.index, m[0], m[1] as string) });
+    let cursor = m.index + m[0].length;
+    for (let t = LIST_TAIL.exec(content.slice(cursor)); t; t = LIST_TAIL.exec(content.slice(cursor))) {
+      out.push({ template: "load", name: t[1] as string, index: at(cursor, t[0], t[1] as string) });
+      cursor += t[0].length;
+    }
+  }
+  for (const m of content.matchAll(ROUTE)) {
+    out.push({ template: "route", name: m[1] as string, index: at(m.index, m[0], m[1] as string) });
+  }
+  return out
+    .sort((a, b) => a.index - b.index)
+    .filter((hit, i, all) => all.findIndex((other) => other.index === hit.index) === i);
+}
+```
+
+  In `tools/lib/rewrite.ts`, export `addressOf`. In `tools/validate.ts`, after `targetState` is
+  built, add:
+
+```ts
+// The handoff universe (references-and-linking.md "Handoff templates"): every scanned upstream
+// address and frontmatter name, every manifest output name (excluded included), every original skill.
+const estateNames = new Set<string>();
+for (const c of components) {
+  estateNames.add(addressOf(c));
+  estateNames.add(c.name);
+}
+for (const m of manifests) {
+  for (const item of m.items) {
+    estateNames.add(resolveItem(root, m.plugin.name, item, components).outName);
+  }
+}
+for (const own of ownSkillIdentities(root, manifests)) {
+  estateNames.add(own.name);
+}
+```
+
+  and, in the H1 file loop:
+
+```ts
+for (const hit of scanHandoffs(text)) {
+  if (!estateNames.has(hit.name)) {
+    continue;
+  }
+  const at = `${rel}:${lineOf(text, hit.index)}`;
+  findings.push({
+    level: "error",
+    message: targetState.has(hit.name)
+      ? `${at}: load-bearing handoff names \`${hit.name}\` bare — author it as ns:${hit.name} with depends_on, or /ns:${hit.name} if the human is the audience`
+      : `${at}: load-bearing handoff names \`${hit.name}\`, which this estate does not emit — reroute or remove it`,
+  });
+}
+```
+
+- [ ] **Step 4: Run tests.** `node --test tools/lib/refs.test.ts tools/validate.test.ts` -> PASS;
+  then the five tooling commands.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/lib/refs.ts tools/lib/refs.test.ts tools/lib/rewrite.ts tools/validate.ts tools/validate.test.ts
+git commit -m "feat: reject bare names in load-bearing handoff templates"
+```
+
+### Task W0.7: Item-root claims, bundled text files, and OpenCode path respelling
+
+**Files:**
+- Modify: `tools/lib/refs.ts` (`scanPathClaims` gains item-root claims), `tools/lib/refs.test.ts`,
+  `tools/lib/rewrite.ts` (`isBundledText`; `rewriteOpenCodePaths` replaces
+  `rewriteOpenCodeSiblingClimbs`), `tools/lib/rewrite.test.ts`, `tools/build.ts`
+  (`rewriteOpenCodeTree` walks every file of a skill folder), `tools/build.test.ts`
+
+**Interfaces:**
+- Produces: `isBundledText(bytes: Buffer): boolean`;
+  `rewriteOpenCodePaths(content: string, depthBelowSkillFolder: number, skillIds: Map<string, string>): string`.
+
+- [ ] **Step 1: Write the failing tests.** In `tools/lib/refs.test.ts`:
+
+```ts
+test("item-root paths are claims unless they continue a longer path", () => {
+  const claims = (t: string) => scanPathClaims(t, 0).filter((c) => c.kind === "item-root").map((c) => `${c.segment}:${c.path}`);
+  assert.deepEqual(claims("read `skills/brainstorming/visual-companion.md`"), ["brainstorming:skills/brainstorming/visual-companion.md"]);
+  assert.deepEqual(claims("see skills/brainstorming/visual-companion.md."), ["brainstorming:skills/brainstorming/visual-companion.md"]);
+  assert.deepEqual(claims(".agents/skills/aspireify/SKILL.md ~/.claude/skills/x/ a/skills/z/ ~skills/y/ $skills/w/"), []);
+});
+```
+
+  In `tools/lib/rewrite.test.ts` (rename `rewriteOpenCodeSiblingClimbs` to `rewriteOpenCodePaths` in
+  the import and the existing climb test, then add):
+
+```ts
+test("OpenCode path respelling covers item-root paths and climbs in any text", () => {
+  const ids = new Map([["brainstorming", "deniz-process.brainstorming"], ["beta", "deniz-process.beta"]]);
+  assert.equal(rewriteOpenCodePaths("`skills/brainstorming/visual-companion.md`", 0, ids), "`skills/deniz-process.brainstorming/visual-companion.md`");
+  assert.equal(rewriteOpenCodePaths("cat ../../beta/notes.md", 1, ids), "cat ../../deniz-process.beta/notes.md");
+  assert.equal(rewriteOpenCodePaths('cat "$(dirname "$0")/../../beta/notes.md"', 1, ids), 'cat "$(dirname "$0")/../../beta/notes.md"', "inside a longer path");
+  assert.equal(rewriteOpenCodePaths("skills/testing/x.md", 0, ids), "skills/testing/x.md", "not an emitted skill");
+});
+
+test("bundled text has no NUL byte and survives a UTF-8 round trip", () => {
+  assert.equal(isBundledText(Buffer.from("#!/bin/sh\necho ok\n")), true);
+  assert.equal(isBundledText(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00])), false);
+  assert.equal(isBundledText(Buffer.from([0x63, 0xff, 0x0a])), false);
+});
+```
+
+  In `tools/build.test.ts`:
+
+```ts
+test("OpenCode respells sibling paths in scripts and item-root paths, and keeps binaries and modes", () => {
+  const root = makeRepo();
+  const alpha = join(root, "external", "sp", "skills", "alpha");
+  mkdirSync(join(alpha, "scripts"), { recursive: true });
+  writeFileSync(join(alpha, "SKILL.md"), "---\nname: alpha\ndescription: A\n---\n\nRead `skills/beta/references/notes.md`.\n");
+  writeFileSync(join(alpha, "scripts", "run.sh"), "#!/bin/sh\ncat ../../beta/references/notes.md\n");
+  chmodSync(join(alpha, "scripts", "run.sh"), 0o755);
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00]), Buffer.from("../beta/")]);
+  writeFileSync(join(alpha, "logo.png"), png);
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/beta\n",
+  );
+  buildAll(root);
+  execFileSync("git", ["init", "-q", "."], { cwd: root });
+  execFileSync("git", ["add", "plugins"], { cwd: root, stdio: "ignore" });
+  execFileSync("git", ["update-index", "--chmod=+x", "plugins/deniz-process/skills/alpha/scripts/run.sh"], { cwd: root, stdio: "ignore" });
+  buildAll(root);
+  const oc = (...parts: string[]) => opencodeIdPath(root, "deniz-process", "skill", "alpha", ...parts);
+  assert.equal(readFileSync(oc("scripts", "run.sh"), "utf8"), "#!/bin/sh\ncat ../../deniz-process.beta/references/notes.md\n");
+  assert.match(readFileSync(oc("SKILL.md"), "utf8"), /`skills\/deniz-process\.beta\/references\/notes\.md`/);
+  assert.deepEqual(readFileSync(oc("logo.png")), png, "a binary is never rewritten");
+  assert.equal(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "scripts", "run.sh"), "utf8"),
+    "#!/bin/sh\ncat ../../beta/references/notes.md\n",
+    "Claude keeps the bare folder name",
+  );
+  const moduleRoot = opencodeModulePath(root, "deniz-process");
+  const manifest = JSON.parse(readFileSync(join(moduleRoot, "manifest.json"), "utf8"));
+  assert.equal(manifest.files["skills/deniz-process.alpha/scripts/run.sh"].mode, "100755");
+  assert.deepEqual(verifyModuleManifest(moduleRoot, manifest), []);
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/lib/refs.test.ts tools/lib/rewrite.test.ts tools/build.test.ts`
+  -> FAIL.
+- [ ] **Step 3: Implement.** In `scanPathClaims`, after the climb loop:
+
+```ts
+const ITEM_ROOT = /skills\/([a-z0-9]+(?:-[a-z0-9]+)*)(?=\/)/g;
+const CONTINUES_ITEM_ROOT = /[A-Za-z0-9._/~$-]/;
+
+for (const m of content.matchAll(ITEM_ROOT)) {
+  const before = m.index > 0 ? (content[m.index - 1] as string) : "";
+  if (before && CONTINUES_ITEM_ROOT.test(before)) {
+    continue;
+  }
+  const segment = m[1] as string;
+  const segmentIndex = m.index + "skills/".length;
+  out.push({ kind: "item-root", index: m.index, segmentIndex, segment, path: claimPath(content, m.index, segmentIndex + segment.length) });
+}
+return out.sort((a, b) => a.index - b.index);
+```
+
+  In `tools/lib/rewrite.ts`, rename `rewriteOpenCodeSiblingClimbs` to `rewriteOpenCodePaths` (the
+  W0.1 splice loop already covers both kinds) and add:
+
+```ts
+/** A file the path respelling may read: no NUL byte, and bytes that survive a UTF-8 round trip. */
+export function isBundledText(bytes: Buffer): boolean {
+  return !bytes.includes(0) && Buffer.from(bytes.toString("utf8"), "utf8").equals(bytes);
+}
+```
+
+  In `tools/build.ts` `rewriteOpenCodeTree`, replace the skill-folder loop body:
+
+```ts
+for (const file of listFiles(skillFolder)) {
+  const path = join(skillFolder, file);
+  const bytes = readFileSync(path);
+  if (!isBundledText(bytes)) {
+    continue;
+  }
+  const depth = relative(skillFolder, dirname(path)).split(sep).filter(Boolean).length;
+  const before = bytes.toString("utf8");
+  const text = path.endsWith(".md") ? localize(before, map, "opencode") : before;
+  const after = rewriteOpenCodePaths(text, depth, skillIds);
+  if (after !== before) {
+    writeFileSync(path, after); // only on change: an unchanged script is not touched
+  }
+}
+```
+
+  Update the function's doc comment (spec section 14).
+- [ ] **Step 4: Run tests.** The three files -> PASS; then the five tooling commands.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/lib/refs.ts tools/lib/refs.test.ts tools/lib/rewrite.ts tools/lib/rewrite.test.ts tools/build.ts tools/build.test.ts
+git commit -m "feat: respell OpenCode item-root paths and sibling climbs in every bundled text file"
+```
+
+### Task W0.8: Validator — path-claim rule P
+
+**Files:**
+- Modify: `tools/validate.ts` (L8 section: rule P; R1 skips landing climbs and gains the
+  manual-folder check), `tools/validate.test.ts`
+
+**Interfaces:**
+- Consumes: `scanPathClaims`, `isBundledText`, `estateNames` (W0.6), `targetState`, `bareName`,
+  `reRootOpenCode`, `skillsOf`, `inside`, `listFiles`.
+
+- [ ] **Step 1: Write the failing test** in `tools/validate.test.ts`:
+
+```ts
+test("P: a landing climb fails closed, and a path into a manual folder fails", () => {
+  const errors = ocErrors("See `../beta/references/` and `../gone/x.md` and `../delta/references/notes.md`.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    invocation: manual",
+    '    omit: ["references/**"]',
+    "  - source: sp/skills/delta",
+  ]);
+  const spelled = { plugins: "../beta/references/", opencode: "../deniz-process.beta/references/", codex: "../beta/references/" };
+  for (const [tree, path] of Object.entries(spelled)) {
+    assert.ok(errors.some((m) => m.includes(`sibling path ${path} does not resolve in ${tree}/`)), `${tree}\n${errors.join("\n")}`);
+    assert.ok(errors.some((m) => m.includes(`sibling path ../gone/x.md does not resolve in ${tree}/`)), tree);
+  }
+  assert.equal(errors.filter((m) => m.includes("lands in manual item beta's folder")).length, 3);
+  assert.ok(!errors.some((m) => m.includes("references/notes.md")), "a resolving climb passes");
+});
+
+test("P: an item-root path resolves in every tree once OpenCode respells it", () => {
+  const errors = ocErrors("Read `skills/delta/references/notes.md` and `skills/delta/missing.md`.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/delta",
+  ]);
+  assert.ok(!errors.some((m) => m.includes("skills/delta/references/notes.md") || m.includes("deniz-process.delta/references/notes.md")), errors.join("\n"));
+  assert.equal(errors.filter((m) => m.includes("missing.md does not resolve")).length, 3);
+});
+```
+
+- [ ] **Step 2: Run to verify failure.** `node --test tools/validate.test.ts` -> FAIL.
+- [ ] **Step 3: Implement** in the L8 section of `tools/validate.ts`, inside the existing
+  `for (const tree of ["plugins", "opencode", "codex"])` loop, before the Markdown-link loop:
+
+```ts
+const manualItem = (name: string): boolean => targetState.get(name)?.modelReachClaude === false;
+const landed = (abs: string, path: string): boolean => existsSync(abs) && (!path.endsWith("/") || statSync(abs).isDirectory());
+for (const unit of readdirSync(treeRoot)) {
+  const skillsRoot = join(treeRoot, unit, "skills");
+  for (const folder of existsSync(skillsRoot) ? readdirSync(skillsRoot) : []) {
+    const skillFolder = join(skillsRoot, folder);
+    if (!statSync(skillFolder).isDirectory()) {
+      continue;
+    }
+    const ownName = bareName(tree, folder);
+    for (const file of listFiles(skillFolder).map((f) => join(skillFolder, f))) {
+      const bytes = readFileSync(file);
+      if (!isBundledText(bytes)) {
+        continue;
+      }
+      const text = bytes.toString("utf8");
+      const depth = relative(skillFolder, dirname(file)).split(sep).filter(Boolean).length;
+      const rel = relative(root, file).replaceAll("\\", "/");
+      for (const claim of scanPathClaims(text, depth)) {
+        const at = `${rel}:${text.slice(0, claim.index).split("\n").length}`;
+        const name = bareName(tree, claim.segment);
+        if (name !== ownName && manualItem(name)) {
+          findings.push({ level: "error", message: `${at}: path ${claim.path} lands in manual item ${name}'s folder — a path is a read that bypasses Claude's model-invocation block; point the human with /ns:${name} instead` });
+        }
+        const base = claim.kind === "climb" ? resolve(dirname(file), claim.path) : resolve(join(treeRoot, unit), claim.path);
+        const abs = tree === "opencode" ? reRootOpenCode(base) : base;
+        if (claim.kind === "climb" && !landed(abs, claim.path)) {
+          findings.push({ level: "error", message: `${at}: sibling path ${claim.path} does not resolve in ${tree}/ — the target item was renamed, excluded, omitted, or never existed` });
+        } else if (claim.kind === "item-root" && estateNames.has(name) && !landed(abs, claim.path)) {
+          findings.push({ level: "error", message: `${at}: item path ${claim.path} does not resolve in ${tree}/` });
+        }
+      }
+    }
+  }
+}
+```
+
+  In the Markdown-link loop: compute the file's depth below `own.dir`, skip a link for which
+  `scanPathClaims(link, depth)` returns a climb at index 0 (P judged it), and before
+  `if (existsSync(abs)) continue;` report a link that resolves inside `skillsOf(n)` of another
+  emitted item `n` with `manualItem(n)`, using the same "lands in manual item" message. Import
+  `sep` from `node:path` and `listFiles` already comes from `./lib/overlay.ts`.
+- [ ] **Step 4: Run tests.** `node --test tools/validate.test.ts` -> PASS, including the existing
+  "a relative path into a sibling item that no longer has the file is an error" test (three
+  findings, now from P). Then the five tooling commands.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add tools/validate.ts tools/validate.test.ts
+git commit -m "feat: fail closed on unresolved path claims and paths into manual items"
+```
+
+### Task W0.9: Measure the curation-owned findings (no commit)
+
+- [ ] **Step 1: Build and validate the real repository.**
+
+```bash
+npm run build
+npm run validate > "$SCRATCH/w0-red.txt"; tail -1 "$SCRATCH/w0-red.txt"
+grep -c 'skill-tool handle' "$SCRATCH/w0-red.txt"
+grep -c 'load-bearing handoff names' "$SCRATCH/w0-red.txt"
+grep -c 'sibling path .*using-superpowers/references/ does not resolve' "$SCRATCH/w0-red.txt"
+grep -c "lands in manual item using-superpowers's folder" "$SCRATCH/w0-red.txt"
+grep -cE 'Claude-only vocabulary|outside a recognized|item path|which this estate does not emit' "$SCRATCH/w0-red.txt"
+```
+
+  Expected, in order: `40 error(s), 1 warning(s)` (the warning is the existing
+  `elements-of-style` namespace); `16`; `18`; `3`; `3`; `0`. The 16 handle findings and the 18
+  handoff findings are exactly the H1 and H2–H4 rows of spec section 13 (`plugins/` paths and
+  lines). Any other finding is a defect in W0.2–W0.8, or a hit the spec did not measure: stop and
+  report it to the curator.
+- [ ] **Step 2: Spot-check the rendered text** (not committed):
+  `opencode/deniz-process/skills/deniz-process.brainstorming/SKILL.md` names
+  `skills/deniz-process.brainstorming/visual-companion.md`;
+  `codex/deniz-process/skills/requesting-code-review/SKILL.md` says "dispatch a subagent" and "two
+  subagent calls"; `opencode/deniz-process/skills/deniz-process.dispatching-parallel-agents/SKILL.md`
+  says `Subagent (general):`; `codex/deniz-process/skills/handoff/SKILL.md` ends its line 11 with
+  "should invoke.".
+- [ ] **Step 3: Restore the generated paths** (phase rules). `git status --short` prints nothing.
+
+### Task W0.10: Promote the 16 Process skill-tool handles
+
+**Files:**
+- Modify: `curation/deniz-process.yaml`; `overlays/deniz-process/{grill-me,grill-with-docs}/overlay.patch`
+  (new), `overlays/deniz-process/{improve-codebase-architecture,wayfinder}/overlay.patch` (re-cut),
+  `overlays/overlays.lock.json`
+
+- [ ] **Step 1:** `npm run inventory`, then reread the four upstream bodies under
+  `external/mattpocock-skills/skills/` and their bundled files (AGENTS.md rule).
+- [ ] **Step 2: New patches.** For `grill-me` and `grill-with-docs`: `npm run eject -- deniz-process
+  <item> --patch`, edit the working copy's `SKILL.md`, run the same command again.
+  - grill-me: `Call the Skill tool with "grilling".` → `Call the Skill tool with "mattpocock-skills:grilling".`
+  - grill-with-docs: `Call the Skill tool twice, for "grilling" and "domain-modeling".` →
+    `Call the Skill tool twice, for "mattpocock-skills:grilling" and "mattpocock-skills:domain-modeling".`
+- [ ] **Step 3: Re-cut the two existing patches** (phase rules). In each working copy's `SKILL.md`,
+  namespace every skill-tool handle with `mattpocock-skills:` and touch nothing else:
+  - improve-codebase-architecture: the two `"codebase-design"` handles (`- Call the Skill tool
+    with ...` in the vocabulary bullet and the "explore alternative interfaces" bullet),
+    `"grilling"` ("Once the user picks a candidate"), `"domain-modeling"` ("Side effects happen
+    inline").
+  - wayfinder: `"research"` (Research bullet; "Fire the research subagents"), `"prototype"`
+    (Prototype bullet), and `"grilling"` and `"domain-modeling"` in the three twice-forms (Grilling
+    bullet, "Name the destination", "If in doubt").
+  Check the working copy before cutting: `grep -nE 'Skill tool[^"]*"[a-z][a-z0-9-]*"' <SKILL.md>`
+  prints nothing.
+- [ ] **Step 4: Manifest** (`curation/deniz-process.yaml`):
+
+```yaml
+  - source: mattpocock-skills/skills/productivity/grill-me
+    invocation: manual # 7-line trigger whose whole body is "Run a /grilling session" — the composition pattern's cleanest example
+    body: patch # namespaces the grilling handle, so each harness renders a skill-tool sentence it can follow
+    depends_on: [grilling]
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/grill-with-docs
+    invocation: manual # stateful grill (CONTEXT.md + ADRs); entry point, drags domain-modeling (taken)
+    body: patch # namespaces both handles, so each harness renders a skill-tool sentence it can follow
+    depends_on: [domain-modeling, grilling]
+    omit: ["agents/**"]
+```
+
+  improve-codebase-architecture: `body: patch # make the load-bearing codebase-design, grilling,
+  and domain-modeling edges harness-native` and `depends_on: [codebase-design, domain-modeling,
+  grilling]`. wayfinder: `body: patch # localize the explicit setup prerequisite and the research,
+  prototype, grilling, and domain-modeling handles through the shared reference grammar` and
+  `depends_on: [domain-modeling, grilling, prototype, research]`.
+- [ ] **Step 5: Verify.** `npm run build && npm run validate`: last line `24 error(s), 1 warning(s)`;
+  `grep -c 'skill-tool handle'` on the output -> 0; no `undeclared dependency` or `stale depends_on`.
+  Restore the generated paths.
+- [ ] **Step 6: Commit.**
+
+```bash
+git add curation/deniz-process.yaml overlays/deniz-process overlays/overlays.lock.json
+git commit -m "curate: promote the Process skill-tool handles to facts"
+```
+
+### Task W0.11: Close the Process path and route breaks
+
+**Files:**
+- Modify: `curation/deniz-process.yaml`, `overlays/deniz-process/executing-plans/overlay.patch`
+  (new), `overlays/deniz-process/ask-deniz/SKILL.md`, `overlays/overlays.lock.json`
+
+- [ ] **Step 1:** Reread `external/superpowers/skills/executing-plans/SKILL.md`,
+  `external/mattpocock-skills/skills/engineering/ask-matt/SKILL.md`, and the current overlay.
+- [ ] **Step 2: executing-plans (new patch).** In the working copy, change
+  `Codex CLI, Codex App, Copilot CLI, and Gemini CLI all qualify; see the per-platform tool refs in \`../using-superpowers/references/\`)`
+  to `Codex CLI, Codex App, Copilot CLI, and Gemini CLI all qualify)`. Cut it. Manifest:
+
+```yaml
+  - source: superpowers/skills/executing-plans
+    invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain
+    body: patch # drops the per-platform tool-ref clause: using-superpowers omits references/** and is manual, so the path was dead in every tree and would read a manual body
+    depends_on: [finishing-a-development-branch, subagent-driven-development, using-git-worktrees]
+```
+
+- [ ] **Step 3: ask-deniz (overlay edit, no re-bless).** In
+  `overlays/deniz-process/ask-deniz/SKILL.md`: `- **Something's broken** → \`systematic-debugging\`.`
+  becomes `` → `superpowers:systematic-debugging`. ``, and `- **A merge went sideways** →
+  \`resolving-merge-conflicts\`.` becomes `` → `mattpocock-skills:resolving-merge-conflicts`. ``.
+  Manifest: add `depends_on: [resolving-merge-conflicts, systematic-debugging] # both routes are
+  model-reachable facts, so a target deleted upstream fails as a dangling reference`.
+- [ ] **Step 4: Verify.** `npm run build && npm run validate`: last line `16 error(s), 1 warning(s)`,
+  every one a `load-bearing handoff names` finding in General or Aspire. Restore the generated paths.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add curation/deniz-process.yaml overlays/deniz-process overlays/overlays.lock.json
+git commit -m "curate: drop executing-plans' dead path and make ask-deniz's routes facts"
+```
+
+### Task W0.12: Promote the General and Aspire load-bearing handoffs
+
+**Files:**
+- Modify: `curation/deniz-dotnet-general.yaml`, `curation/deniz-dotnet-aspire.yaml`;
+  new patches `overlays/deniz-dotnet-general/{run-tests,build-perf-baseline,msbuild-antipatterns}/overlay.patch`;
+  re-cut `overlays/deniz-dotnet-general/{mtp-hot-reload,check-bin-obj-clash,test-anti-patterns,test-gap-analysis,code-testing-agent}/overlay.patch`
+  and `overlays/deniz-dotnet-aspire/aspire-init/overlay.patch`; `overlays/overlays.lock.json`
+
+- [ ] **Step 1:** `npm run inventory`; reread each upstream body below and its bundled files under
+  `external/dotnet-agent-skills/plugins/` and `external/aspire-skills/skills/aspire-init/`.
+- [ ] **Step 2: Edits** (namespaces: `dotnet-test`, `dotnet-msbuild`, `aspire`; change only the
+  backticked name):
+
+| Item | Mechanism | Text → change | `depends_on` after |
+|---|---|---|---|
+| run-tests | new patch | `` Load `filter-syntax` `` (routing table row and "only when the request is filtered") → `` `dotnet-test:filter-syntax` ``; `` Load `platform-detection` only when `` → `` `dotnet-test:platform-detection` `` | [filter-syntax, platform-detection] |
+| build-perf-baseline | new patch | ``Then use the `build-perf-diagnostics` skill`` → `` `dotnet-msbuild:build-perf-diagnostics` `` | [build-perf-diagnostics] |
+| msbuild-antipatterns | new patch, target `references/additional-antipatterns.md` | both ``Use the `check-bin-obj-clash` skill`` → `` `dotnet-msbuild:check-bin-obj-clash` `` | [check-bin-obj-clash] |
+| mtp-hot-reload | re-cut | ``in the `platform-detection` `` (before the line-wrapped `skill`) → `` `dotnet-test:platform-detection` `` | [platform-detection] |
+| check-bin-obj-clash | re-cut | ``Use the `binlog-generation` skill`` → `` `dotnet-msbuild:binlog-generation` `` | [binlog-generation] |
+| test-anti-patterns | re-cut | both ``Call the `test-analysis-extensions` skill`` → `` `dotnet-test:test-analysis-extensions` `` | [test-analysis-extensions] |
+| test-gap-analysis | re-cut, new target `references/mutation-catalog.md` | SKILL.md ``Invoke`` + `` `test-analysis-extensions` `` and the catalog's ``invoke`` + `` `test-analysis-extensions` `` → `` `dotnet-test:test-analysis-extensions` `` | [test-analysis-extensions] |
+| code-testing-agent | re-cut | ``(use the `run-tests` skill)`` → `` `dotnet-test:run-tests` ``; ``invoke `test-gap-analysis` and `test-anti-patterns` `` → `` `dotnet-test:test-gap-analysis` `` and `` `dotnet-test:test-anti-patterns` `` | [run-tests, test-anti-patterns, test-gap-analysis, writing-tunit-tests] |
+| aspire-init | re-cut (`references/init-workflow.md` is already a target) | ``Re-invoke `aspireify` `` → ``Re-invoke `aspire:aspireify` `` | unchanged |
+
+- [ ] **Step 3: Comments** (`curation/deniz-dotnet-general.yaml`):
+  - Header "Reference posture" paragraph: after "...declared with exact `depends_on`." add "A load
+    form (``Load `x` ``, ``Use the `x` skill``, ``Invoke `x` ``) is a handoff template, so it is
+    authored as a namespaced fact with its `depends_on`; a "see" mention stays a candidate."
+  - run-tests: `body: patch # namespaces its filter-syntax and platform-detection loads so every harness renders a loadable ID`.
+  - build-perf-baseline: `body: patch # namespaces its build-perf-diagnostics handoff`.
+  - msbuild-antipatterns: `body: patch # the reference file's two check-bin-obj-clash handoffs become namespaced facts`.
+  - mtp-hot-reload, check-bin-obj-clash, code-testing-agent: append to the existing `body: patch`
+    reason "; its load instruction for <target> is a namespaced fact".
+  - test-anti-patterns: replace "sibling references preserve the upstream bare style" with "its two
+    test-analysis-extensions loads are namespaced facts".
+  - test-gap-analysis: replace "dead redirects stay out while the bundled mutation catalog flows by
+    copy" with "dead redirects stay out; SKILL.md and the bundled mutation catalog load
+    test-analysis-extensions through a namespaced fact".
+- [ ] **Step 4: Verify.** `npm run build && npm run validate`: last line `0 error(s), 1 warning(s)`.
+  Restore the generated paths.
+- [ ] **Step 5: Commit.**
+
+```bash
+git add curation overlays
+git commit -m "curate: promote the General and Aspire load-bearing handoffs"
+```
+
+### Task W0.13: writing-for-agents, item shapes, stale comments, Module versions
+
+**Files:**
+- Modify: `curation/deniz-process.yaml`, `curation/deniz-dotnet-general.yaml`,
+  `curation/deniz-dotnet-akka.yaml`, `curation/deniz-dotnet-aspire.yaml`,
+  `overlays/deniz-process/writing-for-agents/overlay.patch` (new), `overlays/overlays.lock.json`
+
+- [ ] **Step 1: writing-for-agents (new patch).** Change only the frontmatter `description` line.
+  Proposed wording, which the curator confirms before the cut: `description: Writing documents an
+  agent consumes. Use when designing or rewording a skill, an AGENTS.md or CLAUDE.md, or an agent
+  prompt for how reliably an agent follows it — not for routine content edits to those files.`
+  Manifest:
+
+```yaml
+  - source: mattpocock-skills/skills/productivity/writing-for-agents
+    invocation: both # curator's call now, not upstream's flag: upstream deleted writing-great-skills,
+    # rewrote it under this name, broadened it from skills to any agent-consumed document, and dropped
+    # its disable-model-invocation. Both, so a skill body can load it (retro's prescription step does
+    # once retro is taken). Its upstream trigger fired on "modifying AGENTS.md or CLAUDE.md", which is
+    # ordinary canon work in this repo, so the patched description narrows it to designing or
+    # rewording such documents. Still the complement, not the substitute, of writing-skills: that one
+    # is a TDD-for-skills testing methodology opened by hand, this one is the design vocabulary.
+    body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build
+    omit: ["agents/**"]
+```
+
+- [ ] **Step 2: teach and handoff stay skills.**
+  - handoff: `invocation: manual # small, dependency-free, immediately useful session bridge. Stays a skill, not as: command: OpenCode 2 attaches it with @ like every manual item, and its argument-hint stays advisory`.
+  - teach: `invocation: manual # upstream's own flag; stateful learning workspace, wanted around. Stays a skill, not as: command: upstream ships /teach as a skill body, and a command would drop its four *-FORMAT.md files in OpenCode`.
+- [ ] **Step 3: Appendix A6 comments.**
+  - `curation/deniz-dotnet-akka.yaml` (akka-net-specialist): "Native diagnostic agent in both
+    harnesses;" → "Native diagnostic agent in Claude Code and OpenCode 2, and a skill in Codex;".
+  - `curation/deniz-dotnet-aspire.yaml` (aspire): "in both harnesses" → "in every harness".
+  - `curation/deniz-dotnet-general.yaml` (analyzing-dotnet-performance): "forced-manual would hide it
+    from the model structurally (Claude) and wall-paste its body (OpenCode)" → "forced-manual would
+    block the model from loading it in Claude Code and stop offering it to the model in OpenCode 2
+    and Codex". Posture stays `both`.
+  - `curation/deniz-process.yaml` (writing-skills patch reason): delete "In OpenCode the omit left
+    that item with no bundle at all, so the emitter dropped the husk and the target directory does
+    not exist either."
+- [ ] **Step 4: Module versions** (`plugin.version`): Process `0.7.0`, General `0.10.0`, Akka
+  `0.4.0`, Aspire `0.4.0` (spec decision 6).
+- [ ] **Step 5: Verify.** `npm run build && npm run validate` -> `0 error(s), 1 warning(s)`;
+  `grep -rl "opencode/autoinvoke: false" opencode | wc -l` -> 26. `npm run validate`'s provenance
+  rule reports no curator name or date in the new comments. Restore the generated paths.
+- [ ] **Step 6: Commit.**
+
+```bash
+git add curation overlays
+git commit -m "curate: settle writing-for-agents, item shapes, stale comments, and Module versions"
+```
+
+### Task W0.14: Regenerate, review all three trees, prove idempotence
+
+**Files:**
+- Regenerate: `plugins/`, `opencode/`, `codex/`, `docs/ledger.json` (and prove no change elsewhere)
+- Modify: `docs/ROADMAP.md`, and `docs/architecture/references-and-linking.md` only if an
+  implemented detail differs from canon
+
+- [ ] **Step 1: Generated-output gate.** The five tooling commands, then `npm run build`,
+  `npm run inventory`, `npm run validate`, then `npm test` again (the pack tests read the committed
+  trees). Expected: every command exits 0; `validate` prints `0 error(s), 1 warning(s)`.
+- [ ] **Step 2: Unmoved surfaces.**
+  `git diff --exit-code -- dist .claude-plugin .agents/plugins/marketplace.json docs/inventory.md`
+  -> no output.
+- [ ] **Step 3: Semantic review of all three trees.** Run each, write the counts in the commit body:
+
+```bash
+grep -rn "Skill tool" plugins | wc -l                                   # 13, identity
+grep -rnE 'Skill tool[^"]*"[a-z][a-z0-9-]*"' plugins                    # nothing: every handle is a fact
+grep -rn "Subagent (general-purpose)" plugins | wc -l                   # 9, identity
+grep -rni "skill tool" opencode codex | grep -v '`skill` tool'          # nothing
+grep -rn '`skill` tool' opencode | wc -l                                # 13
+grep -rn "Subagent (general)" opencode | wc -l                          # 9
+grep -rn "Subagent:" codex | wc -l                                      # 9
+grep -rn 'Invoke `\$deniz-process:grilling`' codex/deniz-process/skills/grill-me/SKILL.md   # 1
+grep -rn "skills/deniz-process.brainstorming/visual-companion.md" opencode | wc -l          # 1
+grep -rn "using-superpowers/references" plugins opencode codex                              # nothing
+grep -rl "opencode/autoinvoke: false" opencode | wc -l                  # 26
+find opencode -path "*/skills/*" -name SKILL.md | wc -l                 # 115
+ls codex/deniz-process/skills/writing-for-agents/agents/openai.yaml     # absent
+grep -h '"version"' plugins/*/.claude-plugin/plugin.json codex/*/.codex-plugin/plugin.json opencode/*/manifest.json
+```
+
+  The versions are 0.4.0 (Akka), 0.4.0 (Aspire), 0.10.0 (General), 0.7.0 (Process) in each tree.
+  Then read every changed hunk in `git diff -- plugins opencode codex`: each rendered skill-tool
+  sentence, dispatch line, and promoted handoff must read as grammatical, native text in its
+  harness. The ledger diff (`git diff docs/ledger.json`) may show only the spec section 16 changes:
+  `depends_on` and model edges for the items in spec section 15, `body` for the seven new patches,
+  and `writing-for-agents`' invocation, flags, advertisement, Codex policy, and description.
+  Anything else is a defect.
+- [ ] **Step 4: Idempotence** as in Task 12 Step 4: `cmp` prints nothing.
+- [ ] **Step 5: Close W0 state in `docs/ROADMAP.md`.** Delete the Known Gaps entries "W0 rendering
+  and checks are canon but not implemented" and "Curation comments describe OpenCode 1 or two
+  harnesses". In Current State, update the Module versions (Process 0.7.0, General 0.10.0, Akka
+  0.4.0, Aspire 0.4.0) in the estate bullet and in the General, Aspire, and Process sentences that
+  name a version. Remove the finished W0 sub-step from Next Up item 1 and renumber. Move the Date.
+  Compare the implemented names and messages with `references-and-linking.md` and correct canon
+  where it drifted.
+- [ ] **Step 6: Commit.**
+
+```bash
+git add plugins opencode codex docs/ledger.json docs/ROADMAP.md docs/architecture
+git commit -m "build: regenerate W0 output"
+```
+
+### Task W0.15: Merge
+
+- [ ] **Step 1:** With `npm run validate` at 0 errors on the branch head and the curator's word,
+  merge `opencode-2-target` into `master` per gate G2. Pushing is a separate curator decision.
+
+---
+
 ## Phase C: Curation pass (step 3)
 
 ### Task 13: Present the decision packet and apply only the curator's decisions
 
-**Files:**
-- Modify (curator decisions only): `curation/*.yaml`, `overlays/**`, `overlays/overlays.lock.json`
-- Regenerate: all generated trees
-- Modify: `docs/ROADMAP.md` ("Converted command paths", "Curation comments describe OpenCode 1",
-  the curation sub-step of Next Up item 1)
-
-- [ ] **Step 1: Run `npm run inventory`** and re-read each affected upstream body and dependency
-  closure (AGENTS.md rule) before presenting the packet.
-- [ ] **Step 2: Present Appendix A (A1–A6) to the curator.** Record each answer beside the item in
-  `curation/*.yaml` as a why-comment. Do not pre-fill answers.
-- [ ] **Step 3: Apply each decision through the lowest-cost mechanism** (`curation/SCHEMA.md`):
-  `as: command`, `invocation`, `depends_on`, a body patch through the two-pass ceremony in
-  `docs/engineering/workflow.md` (`npm run eject -- <plugin> <item> --patch`, edit the working copy,
-  rerun the same command to cut `overlay.patch`, then set the manifest to use the patch; items that
-  already carry a patch, such as `wayfinder` and `improve-codebase-architecture`, extend theirs),
-  and comment rewrites.
-- [ ] **Step 4: Run the generated-output gate** (Task 12 Step 1). Expected: `validate` exits 0.
-  Expected changes now reach `plugins/` and `codex/` too, wherever a body patch or a version bump
-  lands; review all three trees.
-- [ ] **Step 5: Idempotence** as in Task 12 Step 4.
-- [ ] **Step 6: Update ROADMAP**: remove "Curation comments describe OpenCode 1 or two harnesses";
-  resolve "Converted command paths" per the `as: command` decisions (remove it if no `as: command`
-  item has bundled files; otherwise keep it and name the item); remove the finished curation
-  sub-step from Next Up item 1.
-- [ ] **Step 7: Commit, then merge** the branch to `master` per gate G2 only with `validate` clean.
-
-```bash
-git add curation overlays plugins opencode codex dist .claude-plugin .agents/plugins/marketplace.json docs
-git commit -m "curate: OpenCode 2 curation pass"
-```
+Replaced by Phase B2. The curator answered Appendix A on 2026-10-08 (spec "W0 correctness",
+decisions 1–7): no `as: command`, every `manual` and `both` item stays a skill, `writing-for-agents`
+becomes `both`, the 16 handles are promoted, A6 comments are refreshed, and every Module takes a
+minor bump. W0.10–W0.13 apply the decisions, W0.14 regenerates, and W0.15 merges.
 
 ---
 
@@ -1631,7 +2821,7 @@ npm run install:opencode -- status
 - [ ] **Step 5: Update README**: the capability bullet (OpenCode receives one artifact per item at
   its `<plugin>.<name>` ID, a skill unless curation chose `as: command` or `as: agent`; `manual`
   skills hidden by `opencode/autoinvoke`; `@` attach; no parked bodies; describe the estate the
-  Task 13 decisions produced), the
+  W0 curation in Phase B2 produced), the
   Release recipe (tag, asset, digest), and replace "refuses alternate config-dir mounts" with the
   `OPENCODE_CONFIG_DIR` Destination rule and the OpenCode 2 floor. Put the real digest into the test
   constant. Run `npm test` -> PASS.
@@ -1665,9 +2855,9 @@ npm run install:opencode -- status
 | `README.md` lines 64-68: OpenCode "receives a skill, a command, or both"; parked bodies | Task 19 Step 5 |
 | `README.md` line 256: installer "refuses alternate config-dir mounts" | Task 19 Step 5 |
 | `experiments/harness-invocation/protocol.md` lines 13, 47, 57, 92, 98, 121, 135, 173, 188 and `runbook.md`: additive `OPENCODE_CONFIG_DIR`, the refusal, `BODY.md` checks | Task 14 |
-| "both harnesses" comments: `curation/deniz-dotnet-akka.yaml:31`, `curation/deniz-dotnet-aspire.yaml:13` | Task 13 (A6) |
-| OpenCode wall-paste reason: `curation/deniz-dotnet-general.yaml:220` | Task 13 (A6) |
-| OpenCode husk reason: `curation/deniz-process.yaml:293` | Task 13 (A6) |
+| "both harnesses" comments: `curation/deniz-dotnet-akka.yaml:31`, `curation/deniz-dotnet-aspire.yaml:13` | W0.13 (A6) |
+| OpenCode wall-paste reason: `curation/deniz-dotnet-general.yaml:220` | W0.13 (A6) |
+| OpenCode husk reason: `curation/deniz-process.yaml:293` | W0.13 (A6) |
 | `tools/build.ts:501` comment "the dial is which artifact exists" | Task 6 Step 4 |
 | `tools/validate.ts:895` comment about parked files | Task 9 Step 3 |
 | Research note file name vs topic-name rule | Done before Task 1 (renamed to `opencode-2-target.md`) |
@@ -1679,8 +2869,11 @@ npm run install:opencode -- status
 Stop and return to the curator instead of guessing when:
 
 - regeneration changes any byte under `plugins/`, `codex/`, either marketplace, or
-  `docs/inventory.md` before Task 13;
-- `validate` after Task 12 reports anything beyond Appendix A2;
+  `docs/inventory.md` before Phase B2, or W0.1 changes any generated byte;
+- `validate` after Task 12 reports anything beyond Appendix A2, or W0.9 reports anything beyond the
+  40 findings it lists;
+- a W0 curation task meets a handoff, path, or wording choice that spec section 15 does not settle;
+- W0.14 shows a ledger change outside spec section 16, or the idempotence `cmp` prints anything;
 - a measured OpenCode 2 behavior contradicts the research note (hiding key, dotted IDs, `@` attach,
   `OPENCODE_CONFIG_DIR` as the root);
 - the Windows bulk-Apply measurement terminates the service;
@@ -1691,7 +2884,8 @@ Stop and return to the curator instead of guessing when:
 
 ## Appendix A: Curation decision packet (for Task 13; data measured at `9442efa`)
 
-Nothing below is decided. Each line is a question for the curator.
+The curator answered this packet on 2026-10-08 (spec "W0 correctness", decisions 1–7); Phase B2
+applies the answers. The questions below are kept as the record of what was asked.
 
 ### A1. The 27 `manual` and 11 `both` items
 
@@ -1780,6 +2974,9 @@ Questions: promote all 16? Codex renders a promoted handle as `"$deniz-process:g
 per-harness body seam)? Not detected by O2 and left as prose: `handoff/SKILL.md:11` and
 `wayfinder/SKILL.md:126` "call the Skill tool for whichever skills".
 
+Answered: promote all 16 (W0.10), and render the whole skill-tool sentence per harness, generic
+form included (spec section 12).
+
 ### A3. User pointers to `manual` items
 
 The pointers in `csharp-nullable-reference-types` (to `migrate-nullable-references`) and
@@ -1789,7 +2986,8 @@ The pointers in `csharp-nullable-reference-types` (to `migrate-nullable-referenc
 
 - Path climb into a manual item: `deniz-process/skills/executing-plans/SKILL.md:15` (`both`) names
   `../using-superpowers/references/`; `using-superpowers` is `manual` and omits `references/**`, so
-  the path is already dead in every harness (spec Q5).
+  the path is already dead in every harness (spec Q5). Answered: a path into a manual folder is now
+  an error, and W0.11 drops the clause.
 - Absent items with an upstream `disable-model-invocation: true`: none.
 
 ### A5. Module versions and Release version (gate G7)

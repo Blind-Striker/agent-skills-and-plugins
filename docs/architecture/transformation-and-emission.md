@@ -1,6 +1,6 @@
 # Transformation and emission
 
-Date: 2026-10-08
+Date: 2026-10-09
 
 ## Responsibility
 
@@ -115,8 +115,12 @@ closure even when the resolved Claude/OpenCode kind is a single-file command or 
 `body: overlay`, `omit`, and `merged_from` all act once before harness emission. The internal
 temporary assembly is pipeline state, not a fourth output format, and no finalized target tree is
 another target's source. The repository does **not** currently express a per-target body overlay.
-When target fit requires irreconcilable prose, that is a named capability gap rather than permission
-to hand-edit one generated tree.
+The one per-target prose seam is localization's closed harness phrasing: the skill-tool call
+sentence and the subagent-dispatch words are rendered for each harness from upstream's Claude
+wording, and nothing else is reworded
+([References and linking](references-and-linking.md#harness-phrasing)). When target fit requires
+irreconcilable prose beyond that table, that is a named capability gap rather than permission to
+hand-edit one generated tree.
 
 ## Harness emission
 
@@ -159,8 +163,9 @@ that folder name; a nested `skills/<plugin>/<name>/SKILL.md` would register the 
 or agent name comes from its file path. A skill's frontmatter `name` is forced to the same
 namespaced ID: OpenCode treats `name` as a display label and shows the model both the ID and the
 label, so a bare label would lead the model to call an ID that does not exist. The rendered
-reference spelling, including the rewrite of relative sibling-item paths to these folder names, is
-owned by [References and linking](references-and-linking.md#localization).
+reference spelling, including the rewrite of sibling-item climbs and item-root `skills/<name>/`
+paths to these folder names in every bundled text file, is owned by
+[References and linking](references-and-linking.md#localization).
 
 **Invocation selects frontmatter, never shape.** An item whose resolved shape is a skill emits
 exactly one skill folder, whatever its invocation, and nothing under `commands/`:
@@ -233,8 +238,10 @@ native transport for Codex CLI and Codex in the ChatGPT desktop app. IDE Plugin 
 
 ## Finalization and handoff
 
-References, including OpenCode's relative sibling-item paths, are localized only after all three
-artifact trees exist, independently for each address space.
+References, harness phrasing, and OpenCode's sibling-item and item-root paths are localized only
+after all three artifact trees exist, independently for each address space. Facts and phrasing are
+rendered in Markdown; OpenCode path respelling also covers every other bundled text file of a skill
+folder and rewrites a file only when its bytes change.
 Module manifests are then written over final OpenCode bytes. Compile-time `requiredModules` are
 derived from declared `depends_on` edges
 ([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
@@ -253,7 +260,9 @@ to committed `dist/` JavaScript using
 - Per-harness body ownership is absent; one overlay or patch feeds all three emitters. The follow-up
   [Codex estate audit](../research/codex-generated-estate-audit.md) classified slash-shaped text and
   promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
-  localizes those facts, so no Codex-only body-patch seam is currently justified.
+  localizes those facts, so no Codex-only body-patch seam is currently justified. The harness
+  phrasing table is emitter localization of a closed set of sentences, not per-harness body
+  ownership.
 - A source command or agent still cannot be resolved as a skill through `as:`. Codex's emitter-level
   adaptation of already resolved commands and agents is supported and retains their closure.
   Non-empty `hooks.include` remains rejected.

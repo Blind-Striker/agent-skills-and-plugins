@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-10-08
+Date: 2026-10-09
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -71,15 +71,21 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 1. **OpenCode 2 migration.** The canon, dated research, spec, and plan come first; the steps below
    run in this order, and each starts on the curator's word.
-   1. **Curation pass under OpenCode 2.** Review the 27 `manual` and 11 `both` items: decide which
-      argument-shaped items, such as `handoff` and `teach`, become `as: command`; promote the 12
-      load-bearing bare skill-tool handles in Process bodies (for example `Skill tool with
-      "grilling"` in `grill-me`, `grill-with-docs`, `wayfinder`, and
-      `improve-codebase-architecture`; targets `grilling`, `domain-modeling`, `research`,
-      `codebase-design`, and `prototype`) to namespaced facts with matching `depends_on`; and
-      refresh reasons written against OpenCode 1 plus comments that describe only two harnesses.
-      Every curation decision is the curator's. Until this pass lands, `npm run validate` reports
-      those handles as errors, so the OpenCode 2 branch merges to `master` only after it.
+   1. **W0: OpenCode 2 correctness and the curation pass.** The curator settled the W0 decisions on
+      2026-10-08; the plan's Phase B2 records them and its tasks. Build the per-harness rendering of
+      the skill-tool call and subagent-dispatch words, the handoff-template and harness-vocabulary
+      checks, and path integrity outside Markdown links
+      ([references and linking](architecture/references-and-linking.md)). Then, at the current
+      pins: promote the 12 lines carrying 16 bare skill-tool handles in Process bodies (`grill-me`,
+      `grill-with-docs`, `wayfinder`, and `improve-codebase-architecture`; targets `grilling`,
+      `domain-modeling`, `research`, `codebase-design`, and `prototype`) and the bare handoffs the
+      templates find in General, Aspire, and `ask-deniz` to namespaced facts with matching
+      `depends_on`; drop `executing-plans`' dead path into `using-superpowers`; make
+      `writing-for-agents` `both` with a narrower description; keep every `manual` and `both` item a
+      skill, with no `as: command`; refresh reasons written against OpenCode 1 plus comments that
+      describe only two harnesses; and bump every Module's minor version. Until this lands,
+      `npm run validate` reports the curation-owned findings, so the OpenCode 2 branch merges to
+      `master` only after it.
    2. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
       OpenCode 1 CLI matrices). Port only a discovery check against an isolated `opencode serve`
       HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are marked
@@ -203,6 +209,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   alternate config-dir mounts), the `package.json` version 0.3.0, and the
   `tools/repository-docs.test.ts` pins describe `installer-v0.3.0`; they change only at the next
   Release step.
+- **W0 rendering and checks are canon but not implemented:** harness phrasing, the handoff
+  templates, the harness vocabulary check, and path claims are stated in
+  [references and linking](architecture/references-and-linking.md) but absent from
+  `tools/lib/refs.ts`, `tools/lib/rewrite.ts` (no `localize`; climbs respelled only in Markdown),
+  `tools/build.ts` (`rewriteTree`, `rewriteOpenCodeTree`), and `tools/validate.ts`, which still runs
+  the OpenCode-only skill-tool handle rule (`skillToolHandles`, O2) and reads paths only from
+  Markdown links. The OpenCode tree therefore still names `skills/brainstorming/` and Claude-only
+  dispatch words, and Codex still renders a skill-tool handle inside a Skill-tool sentence. The
+  plan's Phase B2 closes this before the merge.
 - **Curation comments describe OpenCode 1 or two harnesses:** for example the "both harnesses"
   comments in `curation/deniz-dotnet-akka.yaml` and `curation/deniz-dotnet-aspire.yaml`, the
   `analyzing-dotnet-performance` reason in `curation/deniz-dotnet-general.yaml`, and the
@@ -230,19 +245,24 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   universal-directory submission remain separate distribution work, not requirements for repository
   marketplace installation.
 - **Case-sensitive fact scan:** capitalized namespaced spellings can evade the lowercase scanner.
-- **Bare references are review-only:** ordinary names are candidates, not build state. Promote only
-  load-bearing cases through an authored namespaced fact and matching dependency.
+- **Bare references outside the handoff templates are review-only:** ordinary names, "see the `x`
+  skill" references, routing hints without the word `skill`, unbackticked imperatives (for example
+  `brainstorming`'s "the writing-plans skill"), and "Hand off to `x`" (`aspire-init` to
+  `aspireify`) are candidates, not build state. Promote load-bearing cases through an authored
+  namespaced fact and matching dependency; the sync wave that recuts the item is the natural point.
+- **Deleted names leave the handoff universe:** a name deleted upstream at a pin move stays an
+  estate name only while its manifest item lists it, but `validate` rejects a manifest source that
+  no longer exists, even an excluded one (`tools/validate.ts`, section 1). Deciding how a deletion
+  stays recorded is shared sync infrastructure that must land before the first pin move that
+  deletes a taken source (`mattpocock-skills`, `dotnet/skills`); until then a new bare mention of a
+  deleted name is not caught, while a promoted fact still fails as a dangling reference.
+- **Harness phrasing is thinly measured:** one Codex run followed a body
+  ``Invoke `$plugin:skill` `` handoff; no run covers the rendered OpenCode skill-tool sentence, the
+  `Subagent (general)` dispatch label, or the tool-free Codex dispatch wording. No Codex subagent
+  tool or agent type is recorded in repository research, so Codex wording names neither.
 - **Optional writing-style reference remains external:** `brainstorming` names
   `elements-of-style:writing-clearly-and-concisely` when available, but that namespace is not curated
   here; validation keeps the unresolved optional route visible.
-- **An `expects` guard remains deferred:** add manifest-side protection for bare-name expectations
-  only if load-bearing bare references accumulate; today's isolated cases do not justify another
-  grammar surface.
-- **Converted command paths:** a body copied to an additional command location can retain a
-  skill-relative path that no longer resolves there. The OpenCode 2 emission removes the implicit
-  conversions (stubs, both-duplicates, inline manual commands) and retires this warning class; it
-  can return only if the curation pass gives `as: command` to a skill with bundled files, such as
-  `teach`. Remove this entry when the emission lands and that pass is decided.
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
 - **Original-skill declarations are absent:** `manual`/`both` posture and outgoing edge-source scans
