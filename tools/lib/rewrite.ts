@@ -2,7 +2,7 @@ import { basename } from "node:path";
 import type { ComponentType, CurationManifest } from "./manifest.ts";
 import { openCodeId } from "./opencode-target.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
-import { scanPathClaims, scanRefs } from "./refs.ts";
+import { type SkillToolCall, scanPathClaims, scanRefs, scanSkillToolCalls } from "./refs.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 // How a harness ADDRESSES the component upstream, which is what its references spell out: a skill by
@@ -110,6 +110,66 @@ export function rewriteRefs(content: string, map: Map<string, RewriteTarget>, st
     cut = ref.index + ref.address.length;
   }
   return out + content.slice(cut);
+}
+
+const CODEX_VERB = { Call: "Invoke", call: "invoke", calls: "invokes", calling: "invoking" } as const;
+
+// Closed dispatch table (references-and-linking.md "Harness phrasing"). Codex names no subagent tool
+// or agent type: neither is recorded in this repository's research.
+const DISPATCH: { pattern: RegExp; opencode: string; codex: string }[] = [
+  { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
+  { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
+  { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1" },
+];
+
+/** Claude Code tool words that must not survive in an OpenCode or Codex tree. */
+export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
+  /\bskill tool/gi,
+  /Subagent \(general-purpose\)/g,
+  /`general-purpose`/g,
+  /\bgeneral-purpose\s+(?:sub)?agent\b/g,
+  /`Agent`/g,
+  /\bAgent tool\b/g,
+  /\bTask tool\b/g,
+  /\bsubagent_type\b/g,
+];
+
+export function claudeOnlyVocabulary(content: string): { index: number; match: string }[] {
+  return CLAUDE_ONLY_VOCABULARY.flatMap((re) =>
+    [...content.matchAll(re)].map((m) => ({ index: m.index, match: m[0] })),
+  ).sort((a, b) => a.index - b.index);
+}
+
+function renderCall(content: string, call: SkillToolCall, style: "opencode" | "codex"): string {
+  const span = content.slice(call.index, call.end);
+  if (style === "opencode") {
+    return span.replace("the Skill tool", "the `skill` tool");
+  }
+  const verb = CODEX_VERB[call.verb];
+  return call.payloads.length ? `${verb} ${call.payloads.map((p) => `\`${p.text}\``).join(" and ")}` : verb;
+}
+
+/** Renders the skill-tool call and dispatch words for one harness; facts stay neutral. */
+export function renderHarnessPhrasing(content: string, style: RefStyle): string {
+  if (style === "claude") {
+    return content;
+  }
+  let out = "";
+  let cut = 0;
+  for (const call of scanSkillToolCalls(content)) {
+    out += content.slice(cut, call.index) + renderCall(content, call, style);
+    cut = call.end;
+  }
+  out += content.slice(cut);
+  for (const row of DISPATCH) {
+    out = out.replace(row.pattern, row[style]);
+  }
+  return out;
+}
+
+/** Harness phrasing first, then the facts it left neutral. */
+export function localize(content: string, map: Map<string, RewriteTarget>, style: RefStyle): string {
+  return rewriteRefs(renderHarnessPhrasing(content, style), map, style);
 }
 
 /**

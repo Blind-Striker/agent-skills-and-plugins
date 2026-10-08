@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { CurationManifest } from "./manifest.ts";
-import { buildRewriteMap, type RewriteTarget, rewriteOpenCodeSiblingClimbs, rewriteRefs } from "./rewrite.ts";
+import {
+  buildRewriteMap,
+  claudeOnlyVocabulary,
+  localize,
+  type RewriteTarget,
+  renderHarnessPhrasing,
+  rewriteOpenCodeSiblingClimbs,
+  rewriteRefs,
+} from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 const comp = (over: Partial<ComponentInfo>): ComponentInfo => ({
@@ -202,4 +210,75 @@ test("Codex map preserves the owning plugin across cross-plugin targets and rena
 
 test("Codex leaves a dangling authored address visible for validation", () => {
   assert.equal(rewriteRefs("Use upstream:missing.", new Map(), "codex"), "Use upstream:missing.");
+});
+
+const PHRASES = [
+  'Call the Skill tool with "sp:a".',
+  'Always call the Skill tool twice, for "sp:a" and "sp:b".',
+  'a subagent that calls the Skill tool with "sp:a". By calling the Skill tool with "sp:b".',
+  "naming which skills the next agent should call the Skill tool for.",
+  "Subagent (general-purpose):",
+  "dispatch a `general-purpose`\nsubagent. Then send one message with two `Agent` calls, one `Agent` call",
+].join("\n");
+
+test("harness phrasing: Claude Code is identity", () => {
+  assert.equal(renderHarnessPhrasing(PHRASES, "claude"), PHRASES);
+});
+
+test("harness phrasing: OpenCode names its skill and subagent tools", () => {
+  assert.equal(
+    renderHarnessPhrasing(PHRASES, "opencode"),
+    [
+      'Call the `skill` tool with "sp:a".',
+      'Always call the `skill` tool twice, for "sp:a" and "sp:b".',
+      'a subagent that calls the `skill` tool with "sp:a". By calling the `skill` tool with "sp:b".',
+      "naming which skills the next agent should call the `skill` tool for.",
+      "Subagent (general):",
+      "dispatch a `general`\nsubagent. Then send one message with two `subagent` calls, one `subagent` call",
+    ].join("\n"),
+  );
+});
+
+test("harness phrasing: Codex invokes and names no subagent tool or type", () => {
+  assert.equal(
+    renderHarnessPhrasing(PHRASES, "codex"),
+    [
+      "Invoke `sp:a`.",
+      "Always invoke `sp:a` and `sp:b`.",
+      "a subagent that invokes `sp:a`. By invoking `sp:b`.",
+      "naming which skills the next agent should invoke.",
+      "Subagent:",
+      "dispatch a subagent. Then send one message with two subagent calls, one subagent call",
+    ].join("\n"),
+  );
+});
+
+test("localize renders the facts after the phrasing", () => {
+  const map = buildRewriteMap([manifest], components);
+  const line = 'Call the Skill tool with "superpowers:brainstorming".';
+  assert.equal(localize(line, map, "claude"), 'Call the Skill tool with "deniz-process:brainstorming".');
+  assert.equal(localize(line, map, "opencode"), 'Call the `skill` tool with "deniz-process.brainstorming".');
+  assert.equal(localize(line, map, "codex"), "Invoke `$deniz-process:brainstorming`.");
+});
+
+test("every non-Claude rendering is free of Claude-only vocabulary", () => {
+  assert.deepEqual(
+    claudeOnlyVocabulary(PHRASES)
+      .map((hit) => hit.match)
+      .sort(),
+    [
+      "Skill tool",
+      "Skill tool",
+      "Skill tool",
+      "Skill tool",
+      "Skill tool",
+      "Subagent (general-purpose)",
+      "`Agent`",
+      "`Agent`",
+      "`general-purpose`",
+    ].sort(),
+  );
+  for (const style of ["opencode", "codex"] as const) {
+    assert.deepEqual(claudeOnlyVocabulary(renderHarnessPhrasing(PHRASES, style)), [], style);
+  }
 });
