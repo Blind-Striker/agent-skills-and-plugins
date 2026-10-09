@@ -72,9 +72,9 @@ patch and regenerate. Shape limits and merge-source declaration rules remain in 
 and the command's own diagnostics.
 
 A cut refuses, and writes nothing, while the working copy holds replay residue: an added `.rej`
-file, or an added line that starts with a conflict marker (`<<<<<<< `, `||||||| `, or `>>>>>>> `).
-It checks the new patch before it replaces the old one, so a refused cut leaves both the working
-copy and `overlay.patch` untouched.
+file, or an added line that is a diff3 conflict marker (seven `<`, `|`, or `>`, then a space or the
+line end). It checks the new patch before it replaces the old one, so a refused cut leaves both the
+working copy and `overlay.patch` untouched.
 
 To change an existing patch, or to carry it onto a moved upstream, reopen it instead of starting
 over:
@@ -104,8 +104,10 @@ The command exits non-zero while any conflict, reject, or deleted target remains
 rebase. Resolve every conflict, delete each `.rej`, and review the working copy before cutting. A
 clean replay is textual, not semantic: whether the old edits still serve the item's intent at the new
 upstream is the curator's review. The cut stamps the primary and every declared merge source, and
-that stamp is the review record of the rebase, so no bless follows it. `--patch --force` remains the
-way to discard the old patch and start again from pristine upstream.
+that stamp is the review record of the rebase, so no bless follows it. When upstream already carries
+every edit, the working copy equals upstream and the cut refuses: the patch has nothing left to own,
+so delete the overlay directory, its lock entry, and the item's `body: patch`. `--patch --force`
+remains the way to discard the old patch and start again from pristine upstream.
 
 An upstream move under an existing overlay or patch is a review event, not a hash-update chore. Run:
 

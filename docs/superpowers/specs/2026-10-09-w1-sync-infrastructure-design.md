@@ -94,9 +94,9 @@ build, an implicit replay on `--patch`). The chosen design takes:
 | D1 Flag | Explicit `--patch --rebase` | Implicit replay when `--patch` meets an existing patch: it changes the meaning of a command the curator already uses, and the curator named `--rebase` |
 | D2 Replay unit | One file at a time: `--check`, then `--3way`, then `--reject`, then the whole chunk to `<file>.rej` | Whole-patch `--3way`: one deleted target (`code-testing-agent`) aborts every file |
 | D3 Old patch | Stays in place until the cut; the cut skips it, and writes the new patch only after it checks | Deleting it at replay time, or overwriting it before the check (today's cut deletes the file it just wrote when the check fails, which during a rebase would be the old patch) |
-| D4 Git isolation | One environment for every git call in the overlay plumbing: `GIT_CONFIG_NOSYSTEM=1`, inherited `GIT_DIR`-family variables removed, `-c core.autocrlf=false -c core.eol=lf -c core.longpaths=true -c apply.whitespace=nowarn`, seed attributes `* -text`, absolute alternates | Inheriting the caller's environment: a hook-launched eject would init or add into the real repository |
+| D4 Git isolation | One environment for every git call in the overlay plumbing: `GIT_CONFIG_NOSYSTEM=1`, inherited `GIT_DIR`-family variables removed, `-c core.autocrlf=false -c core.eol=lf -c core.longpaths=true -c apply.whitespace=nowarn`, seed attributes `* -text`, a forced seed `add`, absolute alternates | Inheriting the caller's environment: a hook-launched eject would init or add into the real repository |
 | D5 Modes | No mode code; a POSIX test pins that replay and cut keep `100755` | A chmod-restore step: §2 shows git keeps the mode |
-| D6 Residue guard | Every cut refuses an added `*.rej` path and any added line matching `^\+(<{7}\|\|{7}\|>{7})( \|$)` | Checking `=======` too: it is a Markdown setext underline |
+| D6 Residue guard | Every cut refuses an added `*.rej` path and any added line that is a diff3 marker: seven `<`, `\|`, or `>`, then a space or the line end (`^\+(<{7}\|\|{7}\|>{7})( \|$)`) | Checking `=======` too: it is a Markdown setext underline |
 | D7 Bless | `--bless` runs `checkPatch` first and refuses a non-applying patch even with `--yes` | Stamping a patch the build cannot apply (today) |
 | D8 Merge sources | The rebase prints the same drift and diffs as `--bless`; the cut stamps the primary and every declared merge source | A replay mechanism for merge sources: a patch lands only on the primary |
 | D9 Drift predicate | `fileStamp(path)`: blob SHA for a regular file, `null` for anything else; stamping and both drift scans use it | Separate `existsSync` checks per site (today) |
@@ -127,8 +127,8 @@ Refusals, each exit 1, nothing written:
 | `--rebase` without `--patch` | `--rebase reopens an overlay.patch: npm run eject -- <p> <n> --patch --rebase` |
 | `--rebase` with `--force` | `--rebase keeps the old edits and --force discards them — pass one` |
 | Item output is not a skill | the existing "applies to skill output only" refusal |
-| No `overlay.patch`, overlay directory holds files | `overlays/<p>/<n>/ is a full-file overlay — review upstream with: npm run eject -- <p> <n> --bless` |
-| No `overlay.patch`, no overlay | `Nothing to rebase: overlays/<p>/<n>/overlay.patch does not exist — start a patch with: npm run eject -- <p> <n> --patch` |
+| No `overlay.patch`, and the item says `body: overlay` | `overlays/<p>/<n>/ is a full-file overlay — review upstream with: npm run eject -- <p> <n> --bless` |
+| No `overlay.patch`, any other item | `Nothing to rebase: overlays/<p>/<n>/overlay.patch does not exist — start a patch with: npm run eject -- <p> <n> --patch` |
 | A working copy already exists | `overlays/<p>/<n>/ already holds a working copy — cut it with: npm run eject -- <p> <n> --patch, or delete its files (overlay.patch stays) to replay again` |
 
 `--patch` without `--rebase` on an existing patch keeps refusing, with the message
@@ -144,7 +144,8 @@ Refusals, each exit 1, nothing written:
    root `.git`).
 3. `replayPatch(work, base, oldPatchText)` in `tools/lib/overlay.ts`:
    - `git init -q`; write `.git/info/attributes` = `* -text`; `git config merge.conflictStyle diff3`;
-     `git add -A`, all under the isolated environment.
+     `git add -A --force` (no ignore rule may keep a file out of the index that `--3way` reads), all
+     under the isolated environment.
    - Split the old patch at column-0 `diff --git ` lines (`splitPatch`). For each chunk, with
      target = its `+++ b/` path, else its `--- a/` path, else the `diff --git a/` path:
      1. `git apply --check` passes: apply it; status `applied`.
@@ -184,6 +185,10 @@ replay is textual; the curator still judges intent.
   marker line. Non-empty: refuse before writing, naming each file; working copy and old patch stay.
 - Write the new patch to a temporary file, `checkPatch(base, tmp)`, and only then write it to
   `overlay.patch`, delete the working copy, and `stamp()`.
+- An empty cut while `overlay.patch` exists means upstream already carries every edit (a rebase
+  merged them all away). The build would keep naming the rebase, so the cut refuses with
+  `Upstream already carries every edit in overlays/<p>/<n>/overlay.patch — nothing is left to patch. Delete overlays/<p>/<n>/, its <p>/<n> entry in overlays/overlays.lock.json, and body: patch on the item.`
+  An empty cut without `overlay.patch` keeps today's "No edits found" refusal.
 
 ### `--bless`
 
@@ -266,7 +271,9 @@ export function everListedNames(root: string): string[];
   `everListedNames(root)`.
 - A comment in `writeLedger` cross-references the regex, because a format change must move both.
 - Limit: a shallow or archived checkout knows fewer names; a name upstream deleted before any
-  ledger listed it is unknown. CI's `validate` job uses `fetch-depth: 0`.
+  ledger listed it is unknown; and only output names are kept, so a taken item renamed with
+  `name:` (today only `ask-matt` -> `ask-deniz`) keeps its output name, not its upstream one. CI's
+  `validate` job uses `fetch-depth: 0`.
 - Measured effect at `6a32ef0`: the 10 extra names have no mention in the three trees; the plan
   proves validate's findings are unchanged.
 
@@ -293,7 +300,8 @@ and only its `overlay.ts` line anchors move, which the closeout task refreshes.
 
 - Generated output byte-identical after the full generated-output row and its idempotence rerun.
 - `npm run validate` output identical to the baseline captured before the first task.
-- An unchanged working copy recuts to a byte-identical patch; the lock is unchanged by W1 itself.
+- An unchanged working copy recuts to a byte-identical patch (plan W1.11 R0); the lock is unchanged
+  by W1 itself.
 - The real submodule pins (`git submodule status`) are unchanged at the end.
 - A dry run against a temporary scratchpad checkout of `aspire-skills` at `da1230c` shows
   `aspire-orchestration` replaying clean and recutting with identical `+`/`-` lines, and
@@ -309,4 +317,5 @@ and only its `overlay.ts` line anchors move, which the closeout task refreshes.
 - `git apply --3way` tries a direct apply first; no misplaced hunk was seen in 81 files, which is
   evidence, not proof. If one appears, the per-file step switches to `git merge-file`.
 - The ledger-history universe depends on history depth and on the ledger's two-space key format.
-- A deliberately authored line starting `<<<<<<< ` is refused by the cut.
+- A deliberately authored line that is seven `<`, `|`, or `>` followed by a space or the line end
+  (a seven-deep Markdown quote, for example) is refused by the cut.

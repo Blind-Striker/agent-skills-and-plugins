@@ -29,13 +29,25 @@ cited as "spec §N". Canon owners: [`workflow.md`](../../engineering/workflow.md
   the baseline. Fetch only inside the scratchpad clones.
 - Never hand-edit `external/`, `plugins/`, `opencode/`, `codex/`, `dist/`, either marketplace,
   `docs/inventory.md`, or `docs/ledger.json`.
-- Generated output must be byte-identical after every task; `npm run validate` output must equal
-  the W1.1 baseline after W1.4, after W1.6, and at the end.
+- Generated output must be byte-identical after every task, and `npm run validate` output must
+  equal the W1.1 baseline after every task. Every W1 task changes a module that the build or
+  validate loads (`overlay.ts` and `assemble.ts` sit on the build path), so the quality-gates
+  matrix requires the generated-output row each time, not only the tooling row.
 - Every task is red, then green, then one commit. Behavior-neutral tasks (W1.2) prove neutrality
   with the existing suite and change no assertion.
-- Per-commit gate (tooling row of `docs/engineering/quality-gates.md`): `npm test`,
-  `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run check:public-safety`. Each
-  must exit 0; `npm test` ends with `ℹ fail 0`.
+- Per-commit gate ("full gate" below), the tooling row and then the generated-output row of
+  `docs/engineering/quality-gates.md`: `npm test`, `npm run typecheck`, `npm run lint`,
+  `npm run format:check`, `npm run check:public-safety`, each exiting 0 with `npm test` ending in
+  `ℹ fail 0`; then
+
+```bash
+npm run build && npm run inventory
+git status --porcelain -- plugins opencode codex dist .claude-plugin .agents/plugins/marketplace.json docs/inventory.md docs/ledger.json
+node tools/validate.ts > "$SP/w1-validate-now.txt" 2>&1; echo "exit=$?" >> "$SP/w1-validate-now.txt"
+diff "$SP/w1-validate0.txt" "$SP/w1-validate-now.txt" && echo VALIDATE-IDENTICAL
+```
+
+  The `git status` line prints nothing and the diff prints `VALIDATE-IDENTICAL`.
 - Commit messages end with a blank line, then
   `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. Write them with `git commit -F -` and
   a heredoc.
@@ -47,8 +59,8 @@ cited as "spec §N". Canon owners: [`workflow.md`](../../engineering/workflow.md
 
 The curator-approved direction fixes the choices; the spec §3 table records why each alternative
 lost. Two accepted risks need no further decision: a rebase cut stamps merge-source drift after the
-replay printed it (spec §11), and a deliberately authored line starting `<<<<<<< ` is refused by the
-cut.
+replay printed it (spec §11), and a deliberately authored line that is a diff3 marker (seven `<`,
+`|`, or `>`, then a space or the line end) is refused by the cut.
 
 ## File structure
 
@@ -60,6 +72,7 @@ cut.
 | `tools/eject.ts`, `tools/eject.test.ts` | W1.2, W1.3, W1.7, W1.8, W1.9, W1.11 |
 | `tools/build.ts`, `tools/build.test.ts` | W1.5, W1.7 |
 | `tools/lib/assemble.ts` | W1.5, W1.7 |
+| `tools/lib/assemble.test.ts` | W1.7 |
 | `tools/sync.ts`, `tools/sync.test.ts` | W1.5, W1.6, W1.7 |
 | `tools/validate.ts`, `tools/validate.test.ts` | W1.4, W1.5, W1.6 |
 | `tools/lib/manifest.ts` | W1.5 |
@@ -244,9 +257,8 @@ test("P: a claim followed by , ; or : resolves", () => {
 - [ ] **Step 3: Implement** `claimPath`'s return as
   `return /[.,;:]$/.test(path) ? path.slice(0, -1) : path;` and update the `scanPathClaims` doc
   comment ("minus one trailing `.`, `,`, `;`, or `:`").
-- [ ] **Step 4:** PASS; full gate; then `npm run build && npm run inventory && node tools/validate.ts > "$SP/w1-validate-w14.txt" 2>&1`;
-  `git status --porcelain` -> empty; `diff "$SP/w1-validate0.txt" "$SP/w1-validate-w14.txt"` -> no
-  difference except the trailing `exit=` line, which must also match.
+- [ ] **Step 4:** PASS; full gate, whose validate comparison proves that no shipped claim changed
+  verdict.
 - [ ] **Step 5:** Commit `fix: let a path claim end before , ; or :`.
 
 ### Task W1.5: One unknown-source rule (X7)
@@ -395,8 +407,8 @@ export function everListedNames(root: string): string[] {
     "and every output name a committed ledger has listed".
   - `sync.ts`: `syncCandidateNames(ledger, ownSkills, everListed: string[])` unions `everListed`;
     `main()` passes `everListedNames(root)`.
-- [ ] **Step 4:** PASS; full gate; then the validate baseline comparison of W1.4 Step 4 with
-  `$SP/w1-validate-w16.txt` -> identical to `$SP/w1-validate0.txt`.
+- [ ] **Step 4:** PASS; full gate, whose validate comparison proves that the 10 extra names raise
+  no new finding.
 - [ ] **Step 5:** Commit `feat: keep every name a committed ledger listed in the handoff universe`.
 
 ### Task W1.7: One eject command helper and one bless ceremony
@@ -410,9 +422,10 @@ export function everListedNames(root: string): string[] {
     `assert.throws(() => buildAll(root), /overlay\.patch no longer applies to sp\/skills\/gamma — run: npm run eject -- deniz-process gamma --patch --rebase/);`.
     In the merge-source tests at lines 1162, 1227, and 1263 add
     `assert.throws(() => buildAll(root), (e: Error) => /npm run eject -- deniz-process \S+ --bless/.test(e.message) && !e.message.includes("--yes"));`.
-  - A new `build.test.ts` case: a body-patch item whose overlay directory is missing reports
-    `run: npm run eject -- deniz-process gamma --patch` from both `collectProblems` and the assemble
-    mirror (call `assembleItems` directly for the mirror, as `assemble.test.ts` does).
+  - A body-patch item whose overlay directory is missing reports
+    `run: npm run eject -- deniz-process gamma --patch` from both sides: a new `build.test.ts` case
+    for `collectProblems` (`buildAll`), and a new `tools/lib/assemble.test.ts` case that calls
+    `assembleItems` directly, beside its existing "body is overlay.*missing" assertion.
   - `sync.test.ts`: the OVERLAY assertion (line 130) becomes
     `/OVERLAY — review: git -C external\/sp diff <old> <new> -- skills\/beta; then npm run build names the eject step/`;
     the PATCH assertion (line 189) becomes
@@ -728,6 +741,15 @@ test("replay: no base blob rejects; a deleted target is gone with its chunk in .
   assert.match(readFileSync(join(gone.work, "notes.md.rej"), "utf8"), /^\+N2 ours$/m);
 });
 
+test("replay: an ignore rule in the item never hides a file from the seed index", () => {
+  const r = scenario({
+    commit: true,
+    edit: (f) => { f[14] = "line 15 ours"; },
+    move: (up) => { at(up, 10, "line 10 upstream"); put(up, { ".gitignore": "SKILL.md\n" }); },
+  });
+  assert.equal(r.results[0]?.status, "merged");
+});
+
 test("replay never writes through an inherited GIT_INDEX_FILE or GIT_DIR", () => {
   const decoy = mkdtempSync(join(tmpdir(), "decoy-"));
   const saved = { GIT_INDEX_FILE: process.env.GIT_INDEX_FILE, GIT_DIR: process.env.GIT_DIR };
@@ -746,6 +768,8 @@ test("replay never writes through an inherited GIT_INDEX_FILE or GIT_DIR", () =>
   `cutPatch`; if a fixture helper itself needs git under the decoy, run it before setting the
   variables.
 - [ ] **Step 2:** `node --test tools/lib/overlay.replay.test.ts` -> FAIL (`replayPatch` missing).
+  Once it exists, dropping `--force` from the seed `add` must turn the ignore-rule case `rejected`;
+  check that once so the test is known to guard the flag.
 - [ ] **Step 3: Implement** in `overlay.ts`:
 
 ```ts
@@ -801,7 +825,9 @@ export function replayPatch(work: string, upstreamDir: string, patchText: string
   mkdirSync(join(work, ".git", "info"), { recursive: true });
   writeFileSync(join(work, ".git", "info", "attributes"), "* -text\n");
   seedGit(work, ["config", "merge.conflictStyle", "diff3"]);
-  seedGit(work, ["add", "-A"]);
+  // --force: an item's own .gitignore, info/exclude, or the host's core.excludesFile must not keep
+  // a file out of the index, or its --3way merge fails as "does not exist in index".
+  seedGit(work, ["add", "-A", "--force"]);
   const objects = objectsOf(upstreamDir);
   const alternates = objects ? { GIT_ALTERNATE_OBJECT_DIRECTORIES: objects } : {};
   const scratch = mkdtempSync(join(tmpdir(), "replay-"));
@@ -876,6 +902,12 @@ const upstreamDelta = (root: string, f: string) => join(root, "external", "sp", 
 ```
 
   Tests (names are the assertions):
+  - **R0 reopening a patch on unmoved upstream recuts it byte-identically.** `commitUpstream`;
+    `old = patchDelta(root, { "SKILL.md": ["Delta body.", "Our delta body."] })`; save the lock
+    text; `eject delta --patch --rebase` -> ok, out matches `/applied\s+SKILL\.md/`; with no edit,
+    `eject delta --patch` -> ok; `overlay.patch` equals `old` byte for byte and the lock text is
+    unchanged. This is the spec §10 recut invariant and the flow that replaces the old `--force`
+    recut recipe.
   - **R1 context-only move rebases clean and recuts the same edit.** `commitUpstream`;
     `old = patchDelta(root, { "SKILL.md": ["Delta body.", "Our delta body."] })`; upstream
     `description: Delta upstream` -> `description: Delta moved`; `buildAll` throws
@@ -922,6 +954,10 @@ const upstreamDelta = (root: string, f: string) => join(root, "external", "sp", 
   - **R10 the phase-1 refusal names the rebase.** `eject gamma --patch` on makeRepo's existing patch
     exits 1 with `/reopen it on current upstream: npm run eject -- deniz-process gamma --patch --rebase/`
     and `/--force/`.
+  - **R11 upstream adopting every edit ends the patch instead of looping.** As R1, but upstream
+    `Delta body.` -> `Our delta body.`; the rebase reports `merged` or `applied`; `eject delta --patch`
+    exits 1 with `/already carries every edit/` and names `overlays/deniz-process/delta/`, its lock
+    entry, and `body: patch`; `overlay.patch` and the lock are byte-identical.
 - [ ] **Step 2:** `node --test tools/eject.test.ts` -> FAIL (unknown flag behaves as phase 1).
 - [ ] **Step 3: Implement** in `eject.ts`:
   - Usage: `npm run eject -- <plugin> <name> [--patch [--rebase]] [--bless [--yes]] [--force]`;
@@ -1002,6 +1038,11 @@ function replayLine(r: ReplayResult): string {
 
   - The phase-1 refusal for an existing patch becomes
     `` `overlays/${plugin}/${name}/${PATCH_FILE} already exists — reopen it on current upstream: ${ejectCommand(plugin, name, "rebase")}, or pass --force to discard it` ``.
+  - The cut's empty-patch refusal splits on whether `overlay.patch` exists. Without one it keeps
+    "No edits found …". With one, the working copy equals current upstream, so the build's rebase
+    hint would only lead back here:
+    `` `Upstream already carries every edit in overlays/${plugin}/${name}/${PATCH_FILE} — nothing is left to patch. Delete overlays/${plugin}/${name}/, its ${lockKey(plugin, name)} entry in overlays/${LOCK_FILE}, and body: patch on the item.` ``
+    Nothing is written.
   - `showDrift` and the cut's git calls use `gitEnv()`.
 - [ ] **Step 4:** `node --test tools/eject.test.ts` -> PASS (R6 skipped on Windows, runs on CI
   Linux); full gate.
@@ -1025,7 +1066,8 @@ function replayLine(r: ReplayResult): string {
   - **Full-file overlays have no replay:** an upstream move under a full-file overlay is reviewed
     through the `--bless` diff and ported by hand (`ask-deniz` would replay with 6 conflicts).
   - **Ledger-history names need Git history:** a shallow or archived checkout knows only the names
-    its history holds; a name deleted before any ledger listed it is unknown.
+    its history holds; a name deleted before any ledger listed it is unknown; a renamed taken
+    item keeps only its output name.
   - **`path:line` claims:** `../x/SKILL.md:42` is read as one path and does not resolve.
   Replace the W1 entry's pending-implementation list with "landed; closeout in W1.13".
 - [ ] **Step 5:** Docs-only check (dates, links, one owner per claim); `npm test` (guarded prose);
@@ -1050,7 +1092,8 @@ diff "$SP/w1-validate0.txt" "$SP/w1-validate-final.txt" && echo VALIDATE-IDENTIC
 git submodule status | diff "$SP/w1-submodules.txt" - && echo PINS-UNCHANGED
 ```
 
-  Expected: both `git status` lines print nothing; `VALIDATE-IDENTICAL`; `PINS-UNCHANGED`.
+  Expected: both `git status` lines print nothing; `VALIDATE-IDENTICAL`; `PINS-UNCHANGED`. The
+  recut invariant (an unchanged working copy recuts byte-identically) is proven by R0, not here.
 - [ ] **Step 3: Dry run against a temporary upstream head.** Everything below lives in the session
   scratchpad; the real checkout and its submodules are only read. `R` is the repository root, `SP`
   the scratchpad.
