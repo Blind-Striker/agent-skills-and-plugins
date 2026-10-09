@@ -62,10 +62,13 @@ pinned upstream repos + original skills
   invocation, or emitted in another supported artifact shape. Native commands and agents are kept;
   source skills can also become commands or agents.
 - `auto`, `manual`, and `both` are harness-neutral intent. Claude Code receives native invocation
-  flags; OpenCode receives a skill, a command, or both; Codex receives a skill, with a native
-  explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto` because
-  its native skill surface has no implicit-only posture. Bundled OpenCode manual skills retain their
-  assets in a non-discoverable parked body rather than losing them during command conversion.
+  flags. OpenCode 2 receives one artifact per item at its `<plugin>.<name>` ID: a skill, unless
+  curation chose `as: command` or `as: agent`. A `manual` skill carries
+  `opencode/autoinvoke: false`, so the model is not offered it and the user attaches it with
+  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 115
+  skills, 26 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
+  native explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto`
+  because its native skill surface has no implicit-only posture.
 - Surgical patches, owned overlays, and declared multi-source merges are stamped against their
   upstream inputs. Reviewed upstream drift blocks generation until it is deliberately reconciled or
   re-blessed.
@@ -78,9 +81,9 @@ pinned upstream repos + original skills
   dropped metadata, and emitted artifacts reviewable as data.
 - Every OpenCode Bundle carries a schema-2 manifest of final paths, SHA-256 hashes, executable-mode
   claims, required Modules, source-specific notices, and exact upstream license texts. The Module
-  digest covers that file set and requirement list. Checkout Install state is the same schema-2
-  format. The public `installer-v0.3.0` Package remains a schema-1 historical snapshot; see the
-  Release recipe below.
+  digest covers that file set and requirement list. Install state is the same schema-2 format.
+  Packages of earlier Releases are schema-1 historical snapshots in OpenCode 1 shapes with no
+  upgrade path; see the Release recipe below.
 - The OpenCode installer verifies those Bundles and composes a selected Native tree through a
   zero-write Plan followed by explicit Apply. Ownership, collisions, local modifications, locking,
   crash recovery, rollback, and post-commit finalization fail closed rather than taking over files.
@@ -208,8 +211,8 @@ npm run install:opencode -- remove --module deniz-process
 npm run install:opencode -- remove --module deniz-process --yes
 ```
 
-Checkout Bundles and the checkout installer require schema 2; they do not read the schema-1 public
-Release Package. Plan refuses a final Selection that omits a Module another selected Module records
+Bundles and the installer, from the checkout or the current Release Package, require schema 2; they
+do not read the schema-1 Packages of earlier Releases. Plan refuses a final Selection that omits a Module another selected Module records
 as required. That check is presence-only: it does not add missing Modules, compare versions, or
 claim item/API compatibility. `status` reports recorded Selection dependency findings separately
 from proposed Update dependency findings and exits nonzero for an incomplete recorded Selection even
@@ -229,41 +232,49 @@ retrying.
 
 ### OpenCode from a Release Package
 
-Package 0.4.0 is being prepared with OpenCode 2 Bundles. The verified recipe below remains on the
-last published Release until the new asset passes publication checks. For the current recipe after
-publication, use the [repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
-
-The current Package is attached to GitHub Release `installer-v0.3.0`, targeting commit `1271595`.
-It includes General 0.9.0 and Aspire 0.3.2 alongside Process 0.5.0 and Akka 0.3.0.
+The current Package is attached to GitHub Release `installer-v0.4.0`, targeting commit `a21615e`.
+It carries OpenCode 2 Bundles: Process 0.7.0, General 0.10.0, Akka 0.4.0, and Aspire 0.4.0. They
+need OpenCode 2 at v2.0.4 or later; OpenCode 1 is not supported and there is no compatibility layer.
 It was built on Linux and verified through manifest-backed tar-mode checks, zero-write Plan, Apply,
 status, and a remote re-download. Verify its repository-recorded SHA-256 before first execution. The
 digest detects replacement or corruption but cannot prevent an authorized re-upload. The Package is
 an npm-format transport artifact, not an npm publication or Git package install:
 
 ```powershell
-$download = Join-Path $env:TEMP "deniz-skills-installer-v0.3.0"
+$download = Join-Path $env:TEMP "deniz-skills-installer-v0.4.0"
 New-Item -ItemType Directory -Path $download -Force | Out-Null
-gh release download installer-v0.3.0 --repo Blind-Striker/agent-skills-and-plugins `
-  --pattern "deniz-agent-skills-0.3.0.tgz" --dir $download
-$package = Join-Path $download "deniz-agent-skills-0.3.0.tgz"
-$expected = "a6e5c309cd4739684d908c9bae224941272c57471f278b9a738dac53f704ef22"
+gh release download installer-v0.4.0 --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "deniz-agent-skills-0.4.0.tgz" --dir $download
+$package = Join-Path $download "deniz-agent-skills-0.4.0.tgz"
+$expected = "5108a3ee3673196891644370bb92f538743cdcafad57db7876d8a40f0bf95dce"
 $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "downloaded Package SHA-256 mismatch: $actual" }
 
 # Plan, then Apply
-npm exec --yes --package $package -- deniz-skills install --all
-npm exec --yes --package $package -- deniz-skills install --all --yes
-npm exec --yes --package $package -- deniz-skills status
+npm exec --yes --package $package '--' deniz-skills install --all
+npm exec --yes --package $package '--' deniz-skills install --all --yes
+npm exec --yes --package $package '--' deniz-skills status
 ```
 
+Keep the `'--'` quoted in PowerShell. When `npm` resolves to the `npm.ps1` shim, PowerShell consumes
+a bare `--`, so npm takes the installer's `--all`, `--yes`, or `--module` as its own options: an
+Apply then silently stays a Plan and `remove --all` is refused. The same applies to the checkout's
+`npm run install:opencode -- ...` commands. A POSIX shell or `npm.cmd` passes a bare `--` through.
+
 Release Packages use the same `install`, `update`, `remove`, module-selection, Plan, and Apply grammar
-shown for the checkout. The installer targets only OpenCode's normal global config root and refuses
-alternate config-dir mounts. Current boundaries and lifecycle mechanics are in
-[distribution and installation](docs/architecture/distribution-and-installation.md); the dated
-[adapter research](docs/research/harness-adapters.md) and
+shown for the checkout. The installer writes to the one global config root OpenCode 2 reads:
+`OPENCODE_CONFIG_DIR` when it is set and non-empty, otherwise `$XDG_CONFIG_HOME/opencode`, otherwise
+`~/.config/opencode`. A relative `OPENCODE_CONFIG_DIR` is refused. Run the installer with the same
+`OPENCODE_CONFIG_DIR` as the OpenCode that should read the Modules; there is no project-local target.
+On Windows, an Apply that changed files ends with a warning that a running OpenCode background
+service may have stopped ([`anomalyco/opencode#47505`](https://github.com/anomalyco/opencode/issues/47505));
+reopening `opencode` restarts it. A Destination that holds Install state from an earlier schema-1
+Release is refused, and there is no supported upgrade path from it. Current boundaries and lifecycle
+mechanics are in [distribution and installation](docs/architecture/distribution-and-installation.md);
+the dated [adapter research](docs/research/harness-adapters.md) and
 [experiment protocol](experiments/harness-invocation/protocol.md) retain measured evidence and its
 verification method. The exact asset identity and source-snapshot boundary are in the
-[v0.3.0 release record](experiments/harness-invocation/records/2026-09-06-opencode-installer-v0.3.0.md).
+[v0.4.0 release record](experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md).
 
 ## Limits and support
 

@@ -50,21 +50,21 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.3.0`. The Linux-built
-  asset includes the General and Aspire updates and passed the manual release workflow's source
-  gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote re-download checks.
-  That public Package remains a schema-1 historical source snapshot with OpenCode 1 shapes. Its exact
-  identity and proof boundary are in the
-  [release record](../experiments/harness-invocation/records/2026-09-06-opencode-installer-v0.3.0.md).
-  The older Releases remain historical and their assets were not replaced. Process 0.7.0 and the
-  Codex support are on `master` but in no Release.
-- Dependency-aware Module Selection is implemented in the checkout: schema-2 Bundles and Install
-  state, compile-time `requiredModules` derivation, final-Selection presence checks,
-  actual-versus-proposed status, and metadata-only Apply with exact Recovery. Feature source is
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.4.0`. The Linux-built
+  asset carries the schema-2 OpenCode 2 Bundles of Process 0.7.0, General 0.10.0, Akka 0.4.0, and
+  Aspire 0.4.0, and passed the manual release workflow's source gate, tar-mode verifier, isolated
+  Plan/Apply/status, publication, and remote re-download checks. Its exact identity and proof
+  boundary are in the
+  [release record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md).
+  The older Releases through `installer-v0.3.0` remain schema-1 historical snapshots with OpenCode 1
+  shapes, and their assets were not replaced.
+- Dependency-aware Module Selection is implemented in the checkout and ships in Package 0.4.0:
+  schema-2 Bundles and Install state, compile-time `requiredModules` derivation, final-Selection
+  presence checks, actual-versus-proposed status, and metadata-only Apply with exact Recovery. Feature source is
   four commits through `8be80489cd721b08f0ffa3bee711d8348d1e0ac1`; the independently reviewed tree
   `6e111fbcdcfae83d3401e89a9db27d898d8d001f` equals that source HEAD tree. Linux Package proof is a
-  build-only workflow artifact that shares the public Package filename; it is not a new public
-  Release and was not installed into a real profile. Exact artifact identity, both workflow runs,
+  build-only workflow artifact that shares the 0.3.0 Package filename; it was not a public Release
+  and was not installed into a real profile. Exact artifact identity, both workflow runs,
   and the presence-only proof boundary are in the
   [schema-2 record](../experiments/harness-invocation/records/2026-09-06-module-selection-schema2.md).
 - Aspire CLI, TypeScript, testing, and package examples remain intentionally upstream-owned. Build,
@@ -99,10 +99,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       schema-1 installer, remove the then-empty schema-1 state, and install schema-2 output. This
       is a one-off, not a supported product path
       ([profile migration record](../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md));
-      the WSL distro on the Windows workstation held no install. Remaining plan work: the Release
-      below (Task 19) and the closeout (Task 20). Cut a new Package Release:
-      bump the `package.json` version, update the `tools/repository-docs.test.ts` pins, and change
-      the README consumption recipes, which describe the published Release, only at this step.
+      the WSL distro on the Windows workstation held no install. Package 0.4.0 is published as
+      Release `installer-v0.4.0`
+      ([release record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)),
+      and the README consumption recipes describe it. Remaining plan work: the closeout (Task 20).
 2. **Upstream sync waves, one submodule at a time, cheapest first.** All six pins are frozen at their
    2026-09-06 positions. Order and the upstream state measured on 2026-10-08:
    - `dotnet-skills`: 3 commits ahead (v1.6.0). No taken item changed and no overlay-lock stamp
@@ -205,15 +205,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   [distribution canon](architecture/distribution-and-installation.md#target-opencode-runtime); it
   never stops or blocks on OpenCode, and reopening `opencode` restarts a stopped service. Linux bulk
   Apply against a running server is not measured.
-- **Public Release surface lags the decision:** the README OpenCode recipes and its capability
-  summary (OpenCode "receives a skill, a command, or both", parked manual bodies, refused
-  alternate config-dir mounts), the `package.json` version 0.3.0, and the
-  `tools/repository-docs.test.ts` pins describe `installer-v0.3.0`; they change only at the next
-  Release step.
-- **Public schema-1 Release has no upgrade path:** `installer-v0.3.0` ships schema-1 Bundles in
-  OpenCode 1 shapes, and the checkout installer refuses schema-1 Install state with no
-  compatibility reader. A user of that Release has no supported route to schema-2 output; the
-  real-profile migration is a recorded one-off, not a product path.
+- **Earlier schema-1 Releases have no upgrade path:** the Packages of Releases through
+  `installer-v0.3.0` ship schema-1 Bundles in OpenCode 1 shapes, and the installer, from the
+  checkout or `installer-v0.4.0`, refuses schema-1 Install state with no compatibility reader. A
+  user of such a Release has no supported route to schema-2 output; the real-profile migration is a
+  recorded one-off, not a product path.
 - **Selection dependency automation:** schema-2 manifests and Install state record `requiredModules`.
   Plan presence-checks the final Selection and does not automatically add, cascade-remove, or
   range-resolve Modules. Cross-version item/API compatibility is not claimed. See

@@ -81,11 +81,13 @@ implemented in
 [`digestModulePayload`](../../tools/lib/opencode-bundle.ts), and manifest creation is implemented in
 [`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
 
-Checkout Bundles and Install state are schema 2. The still-public Release Package
-`installer-v0.3.0` is a schema-1 historical source snapshot whose Bundles carry OpenCode-1-shaped
-output; its download and digest recipe is unchanged until the next Release replaces it. There is no
-compatibility reader between the two formats: the installer has no schema-1 reader, and it rejects a
-schema-1 Install state instead of converting it
+Bundles and Install state are schema 2, in the checkout and in the current Release Package
+`installer-v0.4.0`, which carries OpenCode 2 output
+([release record](../../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)).
+The Packages of earlier Releases, through `installer-v0.3.0`, are schema-1 historical source
+snapshots whose Bundles carry OpenCode-1-shaped output; their assets stay published and were not
+replaced. There is no compatibility reader between the two formats: the installer has no schema-1
+reader, and it rejects a schema-1 Install state instead of converting it
 ([`parseInstallState`](../../tools/lib/opencode-install-state.ts)).
 
 Bundle verification rejects missing, extra, tampered, or linked files and checks the recorded mode

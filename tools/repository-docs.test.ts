@@ -32,14 +32,18 @@ test("README states the Codex Plugin host boundary", () => {
 
 test("README verifies the current Release digest before package execution", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
-  assert.doesNotMatch(readme, /installer-v0\.[12]\.0|deniz-agent-skills-0\.[12]\.0\.tgz/);
+  assert.doesNotMatch(readme, /installer-v0\.[123]\.0|deniz-agent-skills-0\.[123]\.0\.tgz/);
+  assert.doesNotMatch(readme, /refuses\s+alternate\s+config-dir\s+mounts/);
   const section = readme.slice(readme.indexOf("### OpenCode from a Release Package"));
-  const download = "gh release download installer-v0.3.0 --repo Blind-Striker/agent-skills-and-plugins";
-  const asset = '"deniz-agent-skills-0.3.0.tgz"';
-  const digest = "a6e5c309cd4739684d908c9bae224941272c57471f278b9a738dac53f704ef22";
+  assert.match(section, /`OPENCODE_CONFIG_DIR`/);
+  // PowerShell's npm.ps1 shim consumes a bare `--`, so npm would take the installer's flags as its own.
+  assert.doesNotMatch(section, /npm exec [^\n]* -- deniz-skills/);
+  const download = "gh release download installer-v0.4.0 --repo Blind-Striker/agent-skills-and-plugins";
+  const asset = '"deniz-agent-skills-0.4.0.tgz"';
+  const digest = "5108a3ee3673196891644370bb92f538743cdcafad57db7876d8a40f0bf95dce";
   const compute = "Get-FileHash -LiteralPath $package -Algorithm SHA256";
   const compare = "if ($actual -ne $expected) { throw";
-  const execute = "npm exec --yes --package $package -- deniz-skills install --all";
+  const execute = "npm exec --yes --package $package '--' deniz-skills install --all";
   const positions = [download, asset, digest, compute, compare, execute].map((value) => section.indexOf(value));
 
   assert.ok(
