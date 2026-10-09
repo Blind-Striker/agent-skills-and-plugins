@@ -26,7 +26,7 @@ things: fixture skills to probe with, the isolated harness homes, and a results 
 <lab-root>/
   fixtures/          probe skills, tracked
   .claude-home/      CLAUDE_CONFIG_DIR      (gitignore — holds credentials)
-  .opencode-home/    relocated HOME and XDG roots (gitignore)
+  .opencode-home/    OpenCode lab root: home, XDG roots, config/ (OPENCODE_CONFIG_DIR), database (gitignore)
   codex-run-*/       isolated CODEX_HOME plus raw JSON (gitignore)
   installer-local/   fresh packed-package profile and npm cache (gitignore)
   installer-release/ fresh Release-package profile and npm cache (gitignore)
@@ -39,29 +39,37 @@ being agreeable", and it lets a probe survive a noisy listing.
 
 ## Isolate
 
-The two harnesses isolate differently. Getting this wrong wastes a round.
+The harnesses isolate differently. Getting this wrong wastes a round.
 
 | Harness | Variable | Behaviour |
 |---|---|---|
 | Claude Code | `CLAUDE_CONFIG_DIR` | **replaces** the config root. Setting it is enough |
-| OpenCode | `OPENCODE_CONFIG_DIR` | only **adds** a search location — the global config and package cache still load |
-| OpenCode | `USERPROFILE` (Windows) | relocates what `opencode debug paths` *reports* — **not** what discovery *reads*. The global config mount follows `XDG_CONFIG_HOME`, falling back to the real profile; set both |
+| OpenCode 2 | `OPENCODE_CONFIG_DIR` | **replaces** the global config root (measured on 2.0.23). The installer composes into it, and the CLI reads its `service.json` there |
+| OpenCode 2 | `HOME`, `USERPROFILE`, `OPENCODE_TEST_HOME` | anchor the always-on `~/.claude/skills` and `~/.agents/skills` compatibility roots. Relocate all three |
+| OpenCode 2 | `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, `XDG_CACHE_HOME`, `OPENCODE_DB` | data, state, cache, logs, and the database. Relocate all of them; upstream's own `packages/cli/script/service-smoke.ts` uses the same set |
+| OpenCode 2 | `OPENCODE_DISABLE_PROJECT_CONFIG=1` | skips the project walk, which otherwise collects `.claude`, `.agents`, `.opencode`, and `opencode.json(c)` from every ancestor of the working directory up to the filesystem root |
 | Codex | `CODEX_HOME` | replaces config, auth, plugin records, marketplace records, cache, and run-local temporary state for the CLI |
 
-Three OpenCode-specific traps, each of which cost a round:
+`Get-OpenCodeLabEnvironment` in [`common.ps1`](common.ps1) holds the OpenCode set for one lab root,
+and `Use-OpenCodeIsolation` applies it to the shell for `<lab>/.opencode-home`. The evidence for
+each row is in
+[OpenCode 2 as the only target](../../docs/research/opencode-2-target.md#2-configuration-roots-project-walk-and-the-background-service).
 
-- **Put the lab outside the repository and real profile.** Discovery walks up from the working
-  directory past any git boundary, so a lab under either location can silently collect real
-  configuration trees on the way up.
-- **The package cache cannot be mounted over.** Packages from a real config's `plugin:` list
-  outrank `OPENCODE_CONFIG_DIR` and the global config dir; same-named probes resolve to the
-  package. Isolate by keeping every `plugin:` key out of the lab home. Not by withholding the
-  config file: OpenCode writes its own `opencode.jsonc` (schema line only) plus a `.gitignore`
-  into an empty config dir on first run. That file declares no packages, so the isolation holds —
-  but "give it no config" cannot be held literally, and a lab that checks for the file's absence
-  will report a leak that is not there.
-- **`opencode debug paths` is not an isolation check.** It reports relocated roots that discovery
-  does not use. Trust the listing (`debug skill`), never `paths`.
+Three OpenCode-specific traps:
+
+- **The background service ignores your shell.** By default the OpenCode 2 CLI talks to a
+  long-lived managed service on a fixed port, and that service reads the environment it started
+  with, so `OPENCODE_CONFIG_DIR` or `XDG_*` in the caller's shell never reaches it. Write
+  `{"disabled":true}` to `<OPENCODE_CONFIG_DIR>/service.json`, which makes CLI commands start a
+  private server, or run your own `opencode serve --hostname 127.0.0.1 --port <port>` with the lab
+  environment and a password, and stop it in a `finally` block.
+- **`~/.claude/skills` and `~/.agents/skills` are always on.** OpenCode 2 has no switch that turns
+  them off, so relocating home is the isolation. Put the lab outside the repository and the real
+  profile, or keep the project walk off: with the walk on, a lab below the real home still collects
+  the real `~/.claude/skills` as an ancestor `.claude` directory.
+- **One-shot introspection races the location load.** The CLI has no skill or command listing, and
+  `opencode debug agents` or `opencode api --standalone skill.list` returned empty lists, because
+  the first request arrives before the location has loaded. Ask a persistent `serve` and poll.
 
 Claude Code keeps credentials inside its config dir, so a fresh one demands a new login. A lab may
 be seeded once with `.credentials.json` on Windows or Linux, as the authentication docs describe,
@@ -69,33 +77,39 @@ but do not clone that rotating OAuth file per attempt: concurrent copies are rep
 one another (<https://github.com/anthropics/claude-code/issues/76561>). For unattended automation,
 the documented mechanism is `claude setup-token` plus `CLAUDE_CODE_OAUTH_TOKEN`
 (<https://code.claude.com/docs/en/authentication>). For an OpenCode TUI session the equivalent is
-`~/.local/share/opencode/auth.json`, copied into the isolated data dir. Never track either file.
+a credential in the isolated database. OpenCode 2 keeps credentials in `OPENCODE_DB`; a migration
+imports a legacy `<XDG_DATA_HOME>/opencode/auth.json` when it creates the database
+(`packages/core/src/database/migration/20260805200742_import_legacy_credentials.ts`, source only,
+unmeasured). Never track either file.
 
 Verify the isolation before trusting a result, with the positive control in the same breath: an
-isolated OpenCode lists exactly one skill, the built-in `customize-opencode`; an isolated Claude
-Code with nothing mounted lists only the harness's own bundled skills, and its `init` event reports
-the mounted plugins and `mcp_servers: 0`. A behavioural panel also disables and checks auto memory as
-described below.
+isolated OpenCode 2.0.23 `serve` with an empty config lists only the built-in skills `opencode` and
+`report`, the built-in commands `init` and `review`, and the built-in agents `build`, `plan`,
+`general`, `explore`, `compaction`, `title`, and `summary` (measured with
+[`oc2-discovery.ps1`](oc2-discovery.ps1), which also fails when a skill resolves outside the lab;
+built-ins report `/builtin/<id>.md`); an isolated Claude Code with nothing mounted lists only the
+harness's own bundled skills, and its `init` event reports the mounted plugins and
+`mcp_servers: 0`. A behavioural panel also disables and checks auto memory as described below.
 
 ## Prove installer composition
 
 The repository checkout and the shipped package are separate seams. `Sync-Lab` uses the checkout
-entrypoint against the relocated XDG root. A release claim uses the packed `deniz-skills` bin, never
-the TypeScript source. Run the free subsystem checks first:
+entrypoint against the lab's `OPENCODE_CONFIG_DIR`. A release claim uses the packed `deniz-skills`
+bin, never the TypeScript source. Run the free subsystem checks first:
 
 ```powershell
 pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1
 ```
 
-That suite creates fresh temporary XDG roots and requires Plan to leave the Destination absent,
-Apply to create only `skills/`, `commands/`, `agents/`, and `.deniz-skills/`, and an
-`OPENCODE_CONFIG_DIR` refusal to leave no files. Its separate lab checks still prove the experiment
-runners reach the end of their dry-run paths.
+That suite creates fresh temporary XDG roots and requires Plan to leave the Destination absent and
+Apply to write nothing outside `skills/`, `commands/`, `agents/`, and `.deniz-skills/`. It also
+requires the `oc2-discovery.ps1` dry run to place every OpenCode root below its lab. Its separate lab
+checks prove the experiment runners reach the end of their dry-run paths.
 
 ### Local packed package
 
 Run from a dedicated PowerShell after dot-sourcing `lab.ps1`. The profile, OpenCode data, and npm
-cache all stay under the external lab. Keep `OPENCODE_CONFIG_DIR` absent.
+cache all stay under the external lab, and `OPENCODE_CONFIG_DIR` is the profile's `config/`.
 
 ```powershell
 . .\experiments\harness-invocation\lab.ps1
@@ -109,34 +123,31 @@ $packed = npm pack $REPO --json --pack-destination $packDir | ConvertFrom-Json
 $package = Join-Path $packDir $packed.filename
 $digest = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 
-$env:USERPROFILE = $profile
-$env:HOME = $profile
-$env:XDG_CONFIG_HOME = Join-Path $profile ".config"
-$env:XDG_DATA_HOME = Join-Path $profile ".local\share"
-$env:TEMP = Join-Path $profile ".tmp"
-$env:TMP = $env:TEMP
+$labEnv = Get-OpenCodeLabEnvironment -Root $profile
+foreach ($name in $script:OpenCodeLabClearedVariables) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
+foreach ($name in $labEnv.Keys) { Set-Item "Env:$name" $labEnv[$name] }
 $env:npm_config_cache = Join-Path $profile ".npm-cache"
-$env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
 New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
-Remove-Item Env:OPENCODE_CONFIG_DIR -ErrorAction SilentlyContinue
 Set-Location (Join-Path $LAB "project")
 
 npm exec --yes --package $package -- deniz-skills install --all
-if (Test-Path (Join-Path $env:XDG_CONFIG_HOME "opencode")) { throw "Plan wrote the Destination" }
+if (Test-Path $env:OPENCODE_CONFIG_DIR) { throw "Plan wrote the Destination" }
 npm exec --yes --package $package -- deniz-skills install --all --yes
 npm exec --yes --package $package -- deniz-skills status
+pwsh -NoProfile -File (Join-Path $REPO "experiments\harness-invocation\oc2-discovery.ps1") -Lab $profile
 ```
 
 The first packed invocation may populate the isolated npm cache; it must not create the Destination.
-After Apply, derive the expected skill, command, and agent names from the installed Native tree and
-assert:
+After Apply, derive the expected skill, command, and agent IDs from the installed Native tree and
+assert from the discovery output:
 
-- `opencode debug skill` contains every installed `skills/*/SKILL.md`, plus the built-in
-  `customize-opencode`, and no installed `BODY.md`-only directory;
-- every non-built-in skill location is below `$XDG_CONFIG_HOME/opencode/skills`;
-- `opencode debug config` contains exactly the installed command and custom-agent names, and its
-  `plugin` list is empty; and
-- `opencode debug paths` reports config, data, cache, and state roots below the relocated profile.
+- `skills` holds every installed `skills/<id>/` directory, plus the built-ins `opencode` and
+  `report`, and every `manual` item is `advertised: false`;
+- the discovery run passed its containment check, so every non-built-in skill resolved below the
+  lab;
+- `commands` and `agents` hold exactly the installed command and agent IDs plus the built-ins; and
+- `opencode debug paths`, run in the same environment after discovery has written `service.json`,
+  reports config, data, cache, and state roots below the profile.
 
 Record the OpenCode version, selected Modules, package SHA-256, Native-tree counts, Install-state
 path, and each assertion. A package-cache path proves only npm materialization; discovery must resolve
@@ -161,40 +172,38 @@ gh release download <installer-tag> --repo Blind-Striker/agent-skills-and-plugin
 $package = Join-Path $profile "<package-name>.tgz"
 $releaseDigest = (Get-FileHash $package -Algorithm SHA256).Hash.ToLowerInvariant()
 
-$env:USERPROFILE = $profile
-$env:HOME = $profile
-$env:XDG_CONFIG_HOME = Join-Path $profile ".config"
-$env:XDG_DATA_HOME = Join-Path $profile ".local\share"
-$env:TEMP = Join-Path $profile ".tmp"
-$env:TMP = $env:TEMP
+$labEnv = Get-OpenCodeLabEnvironment -Root $profile
+foreach ($name in $script:OpenCodeLabClearedVariables) { Remove-Item "Env:$name" -ErrorAction SilentlyContinue }
+foreach ($name in $labEnv.Keys) { Set-Item "Env:$name" $labEnv[$name] }
 $env:npm_config_cache = Join-Path $profile ".npm-cache"
-$env:OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
 New-Item -ItemType Directory -Path $env:TEMP -Force | Out-Null
-Remove-Item Env:OPENCODE_CONFIG_DIR -ErrorAction SilentlyContinue
 Set-Location (Join-Path $LAB "project")
 
 npm exec --yes --package $package -- deniz-skills install --all --yes
 npm exec --yes --package $package -- deniz-skills status
+pwsh -NoProfile -File (Join-Path $REPO "experiments\harness-invocation\oc2-discovery.ps1") -Lab $profile
 ```
 
-Require `$releaseDigest -eq $digest`, then repeat the local package's `debug skill`, `debug config`,
-and Windows path assertions. The selected Modules, Module digests, Native-tree hashes, and Install
+Require `$releaseDigest -eq $digest`, then repeat the local package's discovery and `debug paths`
+assertions. The selected Modules, Module digests, Native-tree hashes, and Install
 state must match the local packed run. A download or upload was not measured unless that exact
 command ran; source review is not Release evidence.
 
 ### Human permission observation
 
-Automated introspection does not answer whether a global command's first read of its parked
-`BODY.md` interrupts the operator. In the isolated project, open the TUI, invoke one installed
-BODY-backed command with an instruction to stop after identifying the body it read, and record the
-literal prompt or “no prompt observed.” Also record whether approval is one-shot, session-scoped, or
-persistent. Do not infer this from `debug config`, do not run against the real profile, and do not
-write a positive or negative permission claim when no human performed the observation.
+Automated introspection does not answer whether a skill's first read of a file bundled beside its
+`SKILL.md` interrupts the operator. The source allows `external_directory` reads below the global
+config root without a prompt; that is unmeasured. In the isolated project, open the TUI with
+`Start-OpenCodeLab`, attach one installed skill that bundles a file with `@<id>`, instruct it to
+stop after naming the bundled file it read, and record the literal prompt or “no prompt observed.”
+Also record whether approval is one-shot, session-scoped, or persistent. Do not run against the real
+profile, and do not write a positive or negative permission claim when no human performed the
+observation.
 
 On Windows, additionally record that the package and npm cache remained below the external lab,
-`OPENCODE_CONFIG_DIR` was absent, every resolved non-built-in skill was below the relocated XDG
-config root, and `debug paths` named only relocated roots. Sanitize absolute paths in the committed
-record; retain raw logs only in the external lab.
+`OPENCODE_CONFIG_DIR` and every other relocated root named the lab, every resolved non-built-in
+skill was below the lab, and `debug paths` named only relocated roots. Sanitize absolute paths in
+the committed record; retain raw logs only in the external lab.
 
 ### Codex native marketplace and plugin discovery
 
@@ -231,16 +240,26 @@ JSONL only in the external lab.
 Prefer a harness's own introspection to asking a model what it can see. It is free, deterministic,
 and does not depend on the model reporting honestly.
 
+OpenCode 2 has no skill or command listing in its CLI; `debug` has only `agents`, `config`, and
+`paths`. Ask an isolated `serve` instead:
+
 ```
-opencode debug skill     every resolved skill as JSON, with its `location`
-opencode debug config    resolved config, including discovered commands
-opencode debug paths     resolved home / data / config / cache / state roots
+GET /api/skill     every registered skill: id, name, description, autoinvoke, path
+GET /api/command   every server command: built-ins, file commands, MCP prompts
+GET /api/agent     every agent, with its mode
+GET /api/info      the serving version
 ```
 
+Each list route takes `location[directory]=<project>` and answers for that location; Basic auth
+uses the user `opencode` and the server's password. [`oc2-discovery.ps1`](oc2-discovery.ps1) does
+all of this for one lab and prints the result as JSON:
+
 ```powershell
-(opencode debug skill | Out-String | ConvertFrom-Json) |
-  ForEach-Object { "{0,-24} {1}" -f $_.name, $_.location }
+pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab-root>
 ```
+
+A skill with `autoinvoke: false` stays registered and loadable; it is only not offered to the
+model. Skills are not slash commands in OpenCode 2, so a skill never appears in `/api/command`.
 
 Claude Code answers the same questions non-interactively, through the event stream:
 
@@ -271,13 +290,11 @@ readable — without it a body's own template read returns denied and a subagent
 to the skill body. `--max-budget-usd` caps a runaway ceremony, but a run it truncates exits 1 and
 emits no `result` event, so a script must treat missing result text as "capped", not as "empty".
 
-On the OpenCode side the equivalents are `--format json` for the event stream, `--auto` to pass
-permission gates, `-m` to pin the model and `--variant` for reasoning effort. Two of those bite:
+On the OpenCode side, OpenCode 2's `opencode run` keeps `--format json` for the event stream and
+`--auto` to approve permissions that are not explicitly denied, but has no `--command` or
+`--variant` flag: `-m` takes `provider/model#variant` (`packages/cli/src/commands/commands.ts`,
+source). One check is still free:
 
-- **`--variant` is not validated.** An effort a model does not offer is dropped in silence and the
-  run proceeds at the default, so a clean exit proves nothing. What each model offers is in
-  `opencode models <provider> --verbose` under `variants`; check the panel against that list before
-  running it, not after.
 - **`opencode auth list`** prints which providers hold credentials, free and without a model call —
   the cheapest way to find a route to a model before assuming one needs paying for.
 
@@ -296,17 +313,18 @@ processes by harness name: unrelated interactive sessions are ordinary on a shar
 ## What cannot be probed this way
 
 Less than it first appears. Both harnesses expose their user surface to a script — Claude Code
-through `-p "/ns:name"`, OpenCode through `opencode run --command <name> [args]` with `--format
-json`, `--auto` to pass a permission gate and `-m`/`--variant` to pin the model. What is left for a
+through `-p "/ns:name"`, OpenCode 2 through its server, where a session attaches a skill by ID
+(`POST /api/experimental/session/:id/skill`) without a model call. What is left for a
 human is how the thing *reads*: whether a `/` menu entry is findable and its description honest,
 whether a long command body pasted as the user's message is a wall of text, whether a folder-access
 prompt lands as an interruption. Those are judgements, and the operator's opinion is the datum.
 
-The trap on the way there is that the *wrong* invocation looks like the right one. A slash inside
-`opencode run`'s message text is never expanded — it reaches the model as prose — yet a model will
-often infer the intent from the words and invoke something plausible, which reads exactly like a
-command that ran. The control that separates them costs nothing: send a name that exists nowhere.
-`--command zzz-nope` fails before any model call; `/zzz-nope` is answered cheerfully.
+The trap on the way there is that the *wrong* invocation looks like the right one. Text that names
+a skill reaches the model as prose — `opencode run` builds no skill attachment — yet a model will
+often infer the intent from the words and invoke something plausible, which reads exactly like an
+explicit invocation. The control that separates them costs nothing: send a name that exists nowhere.
+The skill attachment route answers an unknown ID with 404 before any model call; a prose request
+for `zzz-nope` is answered cheerfully.
 
 For the genuinely human half, write the probe, hand the operator a numbered table of *what to type*
 and *what it decides*, and record what they report verbatim. Do not paraphrase an observation into a
@@ -314,9 +332,11 @@ conclusion in the same step.
 
 ## Traps
 
-- **The probe inherits your shell's environment.** A round concluded that OpenCode does not read
-  `.claude/skills/`. It does; the shell had `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` set from the
-  machine's profile. Print the variables that bear on the result, or clear them explicitly.
+- **The probe inherits your shell's environment.** An OpenCode 1 round concluded that OpenCode does
+  not read `.claude/skills/`. It did; the shell had `OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1` set from
+  the machine's profile. OpenCode 2 reads `OPENCODE_CONFIG_PROJECT_DISABLE` before
+  `OPENCODE_DISABLE_PROJECT_CONFIG`, and `OPENCODE_CONFIG` or `OPENCODE_CONFIG_CONTENT` add config
+  from outside the lab. Print the variables that bear on the result, or clear them explicitly.
 - **Quantity claims need counting.** "Upstream bodies are full of Claude tool names" survived into a
   document; the real count across 206 files was four, all of them C#'s `Task`. A rewrite built on
   that claim would have corrupted three skills to fix nothing.
@@ -330,8 +350,8 @@ conclusion in the same step.
   one, and repeating it across two harnesses and several models reversed it. Invocation is a
   propensity with a tail; one observation of a miss establishes nothing, and this class of claim is
   cheap to disprove and expensive to retract.
-- **A provider that refuses does not fail — it hangs.** A connector at its monthly limit left
-  `opencode run` alive and idle; the error never reached the event stream, only
+- **A provider that refuses does not fail — it hangs.** On OpenCode 1, a connector at its monthly
+  limit left `opencode run` alive and idle; the error never reached the event stream, only
   `<data>/log/opencode.log` as a `stream error` line. Two runs sat dead for 39 and 17 minutes, and
   the second one blocked a whole queue. Never invoke a harness unguarded: wrap every call in a
   timeout that kills the process, mark a killed run as *timed out* rather than letting it read as a
@@ -347,6 +367,10 @@ conclusion in the same step.
 - **Where an artifact lands is part of the question.** OpenCode reads `~/.claude/skills/`, which
   sounds like it reaches Claude Code plugins. It does not — plugins install under
   `~/.claude/plugins/cache/…`. Probe the real install path, not the one that sounds right.
+- **A server that answers has not necessarily loaded.** OpenCode 2 registers its built-in skills
+  before the file scan finishes: one discovery run's first non-empty `/api/skill` answer held only
+  the two built-ins while 115 installed skills were still loading. Poll until the list is stable,
+  not merely non-empty.
 - **A negative needs a positive beside it.** "Not discovered" and "discovered, but I looked in the
   wrong place" are indistinguishable without a control that *is* found.
 

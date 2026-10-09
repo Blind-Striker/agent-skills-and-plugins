@@ -55,8 +55,9 @@ test("README verifies the current Release digest before package execution", () =
 
 test("OpenCode lab describes installer composition rather than a mounted build tree", () => {
   const lab = readFileSync(join(root, "experiments", "harness-invocation", "lab.ps1"), "utf8");
-  assert.match(lab, /installer composition/i);
+  assert.match(lab, /installer composition into\s+OPENCODE_CONFIG_DIR/i);
   assert.doesNotMatch(lab, /built tree mounted as the global config/i);
+  assert.doesNotMatch(lab, /OPENCODE_CONFIG_DIR only ADDS a search/i);
 });
 
 test("package research lead question describes per-Module Bundles and installer", () => {

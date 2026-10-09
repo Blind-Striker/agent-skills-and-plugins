@@ -20,3 +20,8 @@ placed in the isolated Codex home or supplied through `OPENAI_API_KEY`. Behaviou
 `gpt-5.6-luna` at low reasoning effort and cover fixture invocation policy, cross-skill handoff,
 bundled-reference loading, uninstalled-plugin isolation, and generated-plugin execution under the
 full catalog.
+
+The OpenCode leg targets OpenCode 2 only. `oc2-discovery.ps1` starts an isolated `opencode serve`
+(every root, including `OPENCODE_CONFIG_DIR`, below the lab; project walk and managed background
+service off) and reports registered skills, commands, and agents with no model call. The OpenCode 1
+probes are retired; their committed records remain historical evidence.

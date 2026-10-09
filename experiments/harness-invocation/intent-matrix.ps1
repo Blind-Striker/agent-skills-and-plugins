@@ -1,12 +1,11 @@
 # Paired propensity probe: does stating a TDD intent change skill invocation or observed behavior?
 # The runner collects evidence only. A reviewer interprets each complete session afterward.
+# Claude Code only. The OpenCode leg drove OpenCode 1 CLI introspection and run flags that
+# OpenCode 2 removed; it is retired rather than ported.
 #   .\intent-matrix.ps1 -DryRun   <- ALWAYS run first; no model calls, no output directory
-#   .\intent-matrix.ps1           <- approved 24-attempt panel
+#   .\intent-matrix.ps1           <- the Claude half of the approved panel: 12 attempts
 param(
-    [ValidateSet("claude", "opencode")]
-    [string[]] $Harnesses = @("claude", "opencode"),
     [string[]] $ClaudeModels = @("opus", "fable"),
-    [string[]] $OpenCodeLegs = @("sol", "grok"),
     [ValidateRange(1, 20)] [int] $Repeats = 3,
     [string] $Out = $null,
     [ValidateRange(1, 120)] [int] $TimeoutMin = 20,
@@ -56,38 +55,17 @@ function Get-EscapedClaudeMemoryPaths {
 
 function Get-Attempts {
     $attempts = @()
-    if ($Harnesses -contains "claude") {
-        foreach ($model in $ClaudeModels) {
-            foreach ($repeat in 1..$Repeats) {
-                foreach ($condition in (Get-ConditionOrder $repeat)) {
-                    $attempts += [pscustomobject]@{
-                        Harness = "claude"
-                        ModelKey = $model
-                        RequestedModel = $model
-                        Variant = "xhigh"
-                        Condition = $condition
-                        Repeat = $repeat
-                        Prompt = $promptTable[$condition]
-                    }
-                }
-            }
-        }
-    }
-    if ($Harnesses -contains "opencode") {
-        foreach ($leg in $OpenCodeLegs) {
-            if (-not $script:LegTable.ContainsKey($leg)) { continue }
-            $spec = $script:LegTable[$leg]
-            foreach ($repeat in 1..$Repeats) {
-                foreach ($condition in (Get-ConditionOrder $repeat)) {
-                    $attempts += [pscustomobject]@{
-                        Harness = "opencode"
-                        ModelKey = $leg
-                        RequestedModel = $spec.m
-                        Variant = $spec.v
-                        Condition = $condition
-                        Repeat = $repeat
-                        Prompt = $promptTable[$condition]
-                    }
+    foreach ($model in $ClaudeModels) {
+        foreach ($repeat in 1..$Repeats) {
+            foreach ($condition in (Get-ConditionOrder $repeat)) {
+                $attempts += [pscustomobject]@{
+                    Harness = "claude"
+                    ModelKey = $model
+                    RequestedModel = $model
+                    Variant = "xhigh"
+                    Condition = $condition
+                    Repeat = $repeat
+                    Prompt = $promptTable[$condition]
                 }
             }
         }
@@ -238,58 +216,6 @@ function Get-ClaudeObservation {
     }
 }
 
-function Get-OpenCodeObservation {
-    param([string] $Raw)
-    $cost = 0.0
-    $terminalEvent = $false
-    $text = ""
-    $skills = @()
-    $tools = @()
-    $errors = @()
-    $trace = @()
-    $sequence = 0
-
-    foreach ($event in @(ConvertFrom-EventLines $Raw)) {
-        switch ($event.type) {
-            "tool_use" {
-                $sequence++
-                $tool = [string] $event.part.tool
-                $tools += $tool
-                $trace += [pscustomobject]@{
-                    sequence = $sequence
-                    event = "tool_use"
-                    tool = $tool
-                    status = [string] $event.part.state.status
-                    input = $event.part.state.input
-                    output = $event.part.state.output
-                }
-                if ($tool -eq "skill") { $skills += [string] $event.part.state.input.name }
-            }
-            "text" { $text += [string] $event.part.text }
-            "step_finish" {
-                $terminalEvent = $true
-                $cost += [double] $event.part.cost
-            }
-            "error" {
-                $errors += ($event.error | ConvertTo-Json -Compress -Depth 20)
-            }
-        }
-    }
-
-    return [pscustomobject]@{
-        ActualModel = $null
-        MemoryPaths = @()
-        Cost = $cost
-        TerminalEvent = $terminalEvent
-        Text = $text
-        Skills = @($skills)
-        Tools = @($tools)
-        Trace = @($trace)
-        SkillInvoked = @($skills | Where-Object { $_ -ceq "test-driven-development" }).Count -gt 0
-        Errors = @($errors)
-    }
-}
-
 function Get-ClaudeArguments {
     param($Attempt, [switch] $Liveness)
     $prompt = if ($Liveness) { "Reply with the single token ZEBRA-OK and nothing else." } else { $Attempt.Prompt }
@@ -305,14 +231,6 @@ function Get-ClaudeArguments {
         "--max-budget-usd", $budget,
         "-p", $prompt
     )
-}
-
-function Get-OpenCodeArguments {
-    param($Attempt, [switch] $Liveness)
-    $arguments = @("run", "--format", "json", "-m", $Attempt.RequestedModel, "--auto")
-    if ($Attempt.Variant) { $arguments += @("--variant", $Attempt.Variant) }
-    $arguments += if ($Liveness) { "Reply with the single token ZEBRA-OK and nothing else." } else { $Attempt.Prompt }
-    return $arguments
 }
 
 function Get-FixtureDiff {
@@ -335,31 +253,6 @@ function Write-JsonFile {
     $Value | ConvertTo-Json -Depth 100 | Set-Content -Path $Path
 }
 
-function Get-DeclaredOpenCodeModel {
-    param([string] $Model, [hashtable] $ProviderCache)
-    $parts = Split-LegModel $Model
-    if (-not $ProviderCache.ContainsKey($parts.provider)) {
-        $ProviderCache[$parts.provider] = (& opencode models $parts.provider --verbose 2>&1 | Out-String)
-    }
-    $lines = $ProviderCache[$parts.provider] -split "`r?`n"
-    $start = -1
-    for ($i = 0; $i -lt $lines.Count; $i++) {
-        if ($lines[$i].Trim() -ceq $Model) { $start = $i + 1; break }
-    }
-    if ($start -lt 0) { return $null }
-    $depth = 0
-    $buffer = @()
-    $started = $false
-    for ($i = $start; $i -lt $lines.Count; $i++) {
-        $buffer += $lines[$i]
-        $depth += ([regex]::Matches($lines[$i], "\{")).Count
-        $depth -= ([regex]::Matches($lines[$i], "\}")).Count
-        if ($lines[$i].Contains("{")) { $started = $true }
-        if ($started -and $depth -le 0) { break }
-    }
-    try { return (($buffer -join "`n") | ConvertFrom-Json) } catch { return $null }
-}
-
 $attempts = @(Get-Attempts)
 
 Write-Host "preflight" -ForegroundColor Cyan
@@ -372,43 +265,21 @@ if (-not (Test-Path "$scratch\.git")) {
 }
 if (Test-Path $Out) { Fail "$Out already exists - move it before another run" } else { Pass "output path is clean" }
 
-if ($Harnesses -contains "claude") {
-    Use-ClaudeProbeIsolation
-    if (Test-Path "$plugin\.claude-plugin\plugin.json") { Pass "Claude plugin dir" } else { Fail "Claude plugin not found at $plugin" }
-    if (Test-Path "$LAB\.claude-home\.credentials.json") { Pass "Claude credentials" } else { Fail "no Claude credentials in isolated lab" }
-    $persistedMemories = @(Get-PersistedClaudeMemory)
-    if ($persistedMemories.Count) {
-        Fail "isolated Claude home contains persisted project memory; archive its projects directory before measuring"
-    } else { Pass "Claude project memory is empty" }
-    if ($env:CLAUDE_CODE_DISABLE_AUTO_MEMORY -ceq "1") { Pass "Claude auto memory is disabled" }
-    else { Fail "CLAUDE_CODE_DISABLE_AUTO_MEMORY is not 1" }
-}
-
-if ($Harnesses -contains "opencode") {
-    Use-OpenCodeIsolation
-    if (Test-Path "$LAB\.opencode-home\.local\share\opencode\auth.json") { Pass "OpenCode auth" } else { Fail "no OpenCode auth in isolated lab" }
-    $providerCache = @{}
-    foreach ($leg in $OpenCodeLegs) {
-        if (-not $script:LegTable.ContainsKey($leg)) { Fail "unknown OpenCode leg: $leg"; continue }
-        $spec = $script:LegTable[$leg]
-        $declaredModel = Get-DeclaredOpenCodeModel -Model $spec.m -ProviderCache $providerCache
-        if (-not $declaredModel) { Fail "$leg model $($spec.m) is not declared"; continue }
-        if (-not $spec.v) { Pass "$leg model is declared; variant omitted by design"; continue }
-        $variants = if ($declaredModel.variants) { @($declaredModel.variants.PSObject.Properties.Name) } else { @() }
-        if ($variants -ccontains $spec.v) { Pass "$leg variant $($spec.v) is declared" }
-        else { Fail "$leg variant $($spec.v) is not declared by $($spec.m)" }
-    }
-    $skillList = $null
-    try { $skillList = (& opencode debug skill 2>&1 | Out-String) | ConvertFrom-Json } catch {}
-    if (@($skillList | Where-Object { $_.name -ceq "test-driven-development" }).Count) { Pass "OpenCode resolves test-driven-development" }
-    else { Fail "OpenCode isolation does not resolve test-driven-development; run Sync-Lab" }
-}
+Use-ClaudeProbeIsolation
+if (Test-Path "$plugin\.claude-plugin\plugin.json") { Pass "Claude plugin dir" } else { Fail "Claude plugin not found at $plugin" }
+if (Test-Path "$LAB\.claude-home\.credentials.json") { Pass "Claude credentials" } else { Fail "no Claude credentials in isolated lab" }
+$persistedMemories = @(Get-PersistedClaudeMemory)
+if ($persistedMemories.Count) {
+    Fail "isolated Claude home contains persisted project memory; archive its projects directory before measuring"
+} else { Pass "Claude project memory is empty" }
+if ($env:CLAUDE_CODE_DISABLE_AUTO_MEMORY -ceq "1") { Pass "Claude auto memory is disabled" }
+else { Fail "CLAUDE_CODE_DISABLE_AUTO_MEMORY is not 1" }
 
 Assert-Preflight
 
 if ($DryRun) {
     foreach ($attempt in $attempts) {
-        $arguments = if ($attempt.Harness -eq "claude") { Get-ClaudeArguments $attempt } else { Get-OpenCodeArguments $attempt }
+        $arguments = Get-ClaudeArguments $attempt
         Write-Host ("  {0}/{1}/r{2}/{3}  {4} {5}" -f $attempt.Harness, $attempt.ModelKey, $attempt.Repeat, $attempt.Condition, $attempt.Harness, ($arguments -join " "))
     }
     Write-Host "DRY RUN - nothing was invoked." -ForegroundColor Green
@@ -422,42 +293,22 @@ New-Item -ItemType Directory -Path (Join-Path $Out "preflight") -ErrorAction Sto
 New-Item -ItemType Directory -Path (Join-Path $Out "attempts") -ErrorAction Stop | Out-Null
 
 $resolvedClaudeModels = @{}
-if ($Harnesses -contains "claude") {
-    Use-ClaudeProbeIsolation
-    foreach ($model in $ClaudeModels) {
-        $sample = [pscustomobject]@{ RequestedModel = $model }
-        $run = Invoke-HarnessProcess -Command "claude" -Arguments (Get-ClaudeArguments $sample -Liveness) -WorkingDirectory $scratch -TimeoutSeconds 90
-        $slug = "claude-$model"
-        Set-Content -Path (Join-Path $Out "preflight\$slug.stdout.jsonl") -Value $run.RawOut -NoNewline
-        Set-Content -Path (Join-Path $Out "preflight\$slug.stderr.txt") -Value $run.RawErr -NoNewline
-        $observation = Get-ClaudeObservation $run.RawOut
-        if ($run.TimedOut) { Fail "$slug liveness timed out" }
-        elseif ($run.ExitCode -ne 0) { Fail "$slug liveness exited $($run.ExitCode)" }
-        elseif (-not $observation.TerminalEvent) { Fail "$slug liveness has no result event" }
-        elseif ($observation.Text -cnotmatch "ZEBRA-OK") { Fail "$slug liveness returned the wrong text" }
-        elseif (-not $observation.ActualModel) { Fail "$slug liveness has no system/init model" }
-        elseif (@(Get-EscapedClaudeMemoryPaths $observation.MemoryPaths).Count) { Fail "$slug memory_paths escaped the isolated Claude home" }
-        elseif (@(Get-PersistedClaudeMemory).Count) { Fail "$slug wrote persisted project memory despite the disable flag" }
-        else { $resolvedClaudeModels[$model] = $observation.ActualModel; Pass "$slug resolved to $($observation.ActualModel)" }
-    }
-}
-
-if ($Harnesses -contains "opencode") {
-    Use-OpenCodeIsolation
-    foreach ($leg in $OpenCodeLegs) {
-        $spec = $script:LegTable[$leg]
-        $sample = [pscustomobject]@{ RequestedModel = $spec.m; Variant = $spec.v }
-        $run = Invoke-HarnessProcess -Command "opencode" -Arguments (Get-OpenCodeArguments $sample -Liveness) -WorkingDirectory $scratch -TimeoutSeconds 90
-        $slug = "opencode-$leg"
-        Set-Content -Path (Join-Path $Out "preflight\$slug.stdout.jsonl") -Value $run.RawOut -NoNewline
-        Set-Content -Path (Join-Path $Out "preflight\$slug.stderr.txt") -Value $run.RawErr -NoNewline
-        $observation = Get-OpenCodeObservation $run.RawOut
-        if ($run.TimedOut) { Fail "$slug liveness timed out" }
-        elseif ($run.ExitCode -ne 0) { Fail "$slug liveness exited $($run.ExitCode)" }
-        elseif (-not $observation.TerminalEvent) { Fail "$slug liveness has no step_finish event" }
-        elseif ($observation.Text -cnotmatch "ZEBRA-OK") { Fail "$slug liveness returned the wrong text" }
-        else { Pass "$slug provider answered" }
-    }
+Use-ClaudeProbeIsolation
+foreach ($model in $ClaudeModels) {
+    $sample = [pscustomobject]@{ RequestedModel = $model }
+    $run = Invoke-HarnessProcess -Command "claude" -Arguments (Get-ClaudeArguments $sample -Liveness) -WorkingDirectory $scratch -TimeoutSeconds 90
+    $slug = "claude-$model"
+    Set-Content -Path (Join-Path $Out "preflight\$slug.stdout.jsonl") -Value $run.RawOut -NoNewline
+    Set-Content -Path (Join-Path $Out "preflight\$slug.stderr.txt") -Value $run.RawErr -NoNewline
+    $observation = Get-ClaudeObservation $run.RawOut
+    if ($run.TimedOut) { Fail "$slug liveness timed out" }
+    elseif ($run.ExitCode -ne 0) { Fail "$slug liveness exited $($run.ExitCode)" }
+    elseif (-not $observation.TerminalEvent) { Fail "$slug liveness has no result event" }
+    elseif ($observation.Text -cnotmatch "ZEBRA-OK") { Fail "$slug liveness returned the wrong text" }
+    elseif (-not $observation.ActualModel) { Fail "$slug liveness has no system/init model" }
+    elseif (@(Get-EscapedClaudeMemoryPaths $observation.MemoryPaths).Count) { Fail "$slug memory_paths escaped the isolated Claude home" }
+    elseif (@(Get-PersistedClaudeMemory).Count) { Fail "$slug wrote persisted project memory despite the disable flag" }
+    else { $resolvedClaudeModels[$model] = $observation.ActualModel; Pass "$slug resolved to $($observation.ActualModel)" }
 }
 
 Assert-Preflight
@@ -469,17 +320,10 @@ foreach ($attempt in $attempts) {
     Reset-Scratch
     $fatalIsolation = ""
     try {
-        if ($attempt.Harness -eq "claude") {
-            Use-ClaudeProbeIsolation
-            $arguments = Get-ClaudeArguments $attempt
-            $run = Invoke-HarnessProcess -Command "claude" -Arguments $arguments -WorkingDirectory $scratch -TimeoutSeconds ($TimeoutMin * 60)
-            $observation = Get-ClaudeObservation $run.RawOut
-        } else {
-            Use-OpenCodeIsolation
-            $arguments = Get-OpenCodeArguments $attempt
-            $run = Invoke-HarnessProcess -Command "opencode" -Arguments $arguments -WorkingDirectory $scratch -TimeoutSeconds ($TimeoutMin * 60)
-            $observation = Get-OpenCodeObservation $run.RawOut
-        }
+        Use-ClaudeProbeIsolation
+        $arguments = Get-ClaudeArguments $attempt
+        $run = Invoke-HarnessProcess -Command "claude" -Arguments $arguments -WorkingDirectory $scratch -TimeoutSeconds ($TimeoutMin * 60)
+        $observation = Get-ClaudeObservation $run.RawOut
 
         Set-Content -Path (Join-Path $attemptDir "stdout.jsonl") -Value $run.RawOut -NoNewline
         Set-Content -Path (Join-Path $attemptDir "stderr.txt") -Value $run.RawErr -NoNewline
@@ -491,26 +335,26 @@ foreach ($attempt in $attempts) {
         elseif ($run.ExitCode -ne 0) { $invalidReason = "process exited $($run.ExitCode)" }
         elseif (-not $observation.TerminalEvent) { $invalidReason = "missing terminal event" }
         elseif (@($observation.Errors).Count) { $invalidReason = "harness error event" }
-        elseif ($attempt.Harness -eq "claude" -and @(Get-EscapedClaudeMemoryPaths $observation.MemoryPaths).Count) {
+        elseif (@(Get-EscapedClaudeMemoryPaths $observation.MemoryPaths).Count) {
             $invalidReason = "memory_paths escaped the isolated Claude home"
             $fatalIsolation = $invalidReason
         }
-        elseif ($attempt.Harness -eq "claude" -and @(Get-PersistedClaudeMemory).Count) {
+        elseif (@(Get-PersistedClaudeMemory).Count) {
             $invalidReason = "persisted project memory appeared despite the disable flag"
             $fatalIsolation = $invalidReason
         }
-        elseif ($attempt.Harness -eq "claude" -and $observation.ActualModel -cne $resolvedClaudeModels[$attempt.ModelKey]) {
+        elseif ($observation.ActualModel -cne $resolvedClaudeModels[$attempt.ModelKey]) {
             $invalidReason = "resolved model changed from $($resolvedClaudeModels[$attempt.ModelKey]) to $($observation.ActualModel)"
         }
 
-        $actualModel = if ($attempt.Harness -eq "claude") { $observation.ActualModel } else { $attempt.RequestedModel }
+        $actualModel = $observation.ActualModel
         $metadata = [ordered]@{
             attempt_id = $slug
             harness = $attempt.Harness
             model_key = $attempt.ModelKey
             requested_model = $attempt.RequestedModel
             actual_model = $actualModel
-            model_evidence = if ($attempt.Harness -eq "claude") { "system/init" } else { "pinned CLI argument" }
+            model_evidence = "system/init"
             variant = $attempt.Variant
             condition = $attempt.Condition
             repeat = $attempt.Repeat
@@ -527,7 +371,7 @@ foreach ($attempt in $attempts) {
             cost = [double] $observation.Cost
             errors = @($observation.Errors)
             memory_paths = @($observation.MemoryPaths)
-            auto_memory_disabled = if ($attempt.Harness -eq "claude") { $env:CLAUDE_CODE_DISABLE_AUTO_MEMORY -ceq "1" } else { $null }
+            auto_memory_disabled = $env:CLAUDE_CODE_DISABLE_AUTO_MEMORY -ceq "1"
         }
         Write-JsonFile -Path (Join-Path $attemptDir "metadata.json") -Value $metadata
         Write-Output ("{0}|status={1}|skill={2}|{3}s|`${4}" -f $slug, $metadata.status, $metadata.skill_invoked, $metadata.duration_seconds, (Format-Cost $metadata.cost))

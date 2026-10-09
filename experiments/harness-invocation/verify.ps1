@@ -1,7 +1,9 @@
-# Prove the isolation before trusting any observation.
+# Prove the Claude Code isolation before trusting any observation.
 # protocol.md: "A negative needs a positive beside it" — every check below has both.
-#   .\verify.ps1          structural + OpenCode discovery (free, deterministic)
+#   .\verify.ps1          structural checks (free, deterministic)
 #   .\verify.ps1 -Deep    also runs two Claude Code -p calls (costs tokens, ~30s)
+# Its OpenCode 1 leg is retired. OpenCode 2 discovery is checked against an isolated serve by
+# oc2-discovery.ps1.
 param([switch] $Deep)
 
 . "$PSScriptRoot\common.ps1"
@@ -9,7 +11,7 @@ param([switch] $Deep)
 $LAB  = Get-LabRoot
 $REPO = $script:RepoRoot
 $saved = @{}
-foreach ($v in "USERPROFILE","HOME","XDG_CONFIG_HOME","XDG_DATA_HOME","OPENCODE_CONFIG_DIR","OPENCODE_DISABLE_CLAUDE_CODE_SKILLS","CLAUDE_CONFIG_DIR") {
+foreach ($v in @("CLAUDE_CONFIG_DIR")) {
     $saved[$v] = [Environment]::GetEnvironmentVariable($v)
 }
 $fails = 0
@@ -20,39 +22,6 @@ function Check($name, $got, $want) {
     $color = if ($ok) { "Green" } else { "Red" }
     Write-Host ("  [{0}] {1,-52} got {2}  want {3}" -f $mark, $name, $got, $want) -ForegroundColor $color
 }
-
-Write-Host "`n=== OpenCode ===" -ForegroundColor Cyan
-Use-OpenCodeIsolation
-Push-Location "$LAB\project"
-
-$skills = @((& opencode debug skill 2>&1 | Out-String) | ConvertFrom-Json)
-$cfg    = (& opencode debug config 2>&1 | Out-String) | ConvertFrom-Json
-$cmds   = @($cfg.command.PSObject.Properties.Name)
-$leaked = @($skills | Where-Object { $_.location -ne "<built-in>" -and $_.location -notlike "$LAB*" })
-
-Check "skills discovered (86 ours + 1 built-in)"        $skills.Count 87
-Check "commands discovered"                             $cmds.Count   38
-Check "built-in control present (customize-opencode)"   (@($skills | Where-Object name -eq "customize-opencode").Count) 1
-Check "skills resolving OUTSIDE the lab (must be zero)" $leaked.Count 0
-Check "plugin: list empty (no package cache)"           (@($cfg.plugin).Count) 0
-Check "parked bundles invisible"                        (@($skills | Where-Object name -in @(
-    "ask-deniz",
-    "convert-to-cpm",
-    "code-testing-agent",
-    "dotnet-aot-compat",
-    "dotnet-trace-collect",
-    "dump-collect",
-    "improve-codebase-architecture",
-    "migrate-nullable-references",
-    "setup-matt-pocock-skills",
-    "teach",
-    "triage",
-    "wizard",
-    "writing-for-agents",
-    "writing-skills"
-)).Count) 0
-if ($leaked.Count) { $leaked | ForEach-Object { Write-Host ("      LEAK: " + $_.name + " <- " + $_.location) -ForegroundColor Red } }
-Pop-Location
 
 Write-Host "`n=== Claude Code ===" -ForegroundColor Cyan
 Use-ClaudeIsolation
@@ -74,7 +43,7 @@ if ($Deep) {
     $bMine = @($b -split "`r?`n" | Where-Object { $_ -match "^deniz-process:" })
     $bLeak = @($b -split "`r?`n" | Where-Object { $_ -match "superpowers:|dotnet-|aspire:|mattpocock" })
     Check "control: unmounted session sees no curated skill"  $aLeak.Count 0
-    Check "mounted: model sees auto+both only"                $bMine.Count 19
+    Check "mounted: model sees auto+both only"                $bMine.Count 20
     Check "mounted: no upstream plugin leaked in"             $bLeak.Count 0
 }
 

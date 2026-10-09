@@ -29,8 +29,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   files. Localization renders the skill-tool call and the subagent-dispatch words per harness, and
   `validate` runs the handoff-template, harness-vocabulary, and path-claim checks of
   [references and linking](architecture/references-and-linking.md). The OpenCode experiment
-  scripts still use OpenCode 1 shapes; the responsible files are listed under
-  [Known Gaps](#known-gaps).
+  scripts target OpenCode 2: the OpenCode 1 probes are retired, and `oc2-discovery.ps1` checks
+  discovery against an isolated `opencode serve`.
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
@@ -73,14 +73,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 1. **OpenCode 2 migration.** The canon, dated research, spec, and plan come first; the steps below
    run in this order, and each starts on the curator's word.
-   1. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
-      OpenCode 1 CLI matrices). Port only a discovery check against an isolated `opencode serve`
-      HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are marked
-      experimental) and one LLM record proving that a manual skill is unadvertised, `@`-attachable,
-      and callable by the model through its namespaced ID. Lab isolation changes on OpenCode 2:
-      `OPENCODE_CONFIG_DIR` replaces the global root, a managed background service needs
-      `--standalone` or an isolated `serve`, `OPENCODE_DISABLE_PROJECT_CONFIG` skips the ancestor
-      walk, and `~/.claude/skills` and `~/.agents/skills` are always-on compatibility roots.
+   1. **Measurement records.** The OpenCode-1-bound probes are retired, and
+      `experiments/harness-invocation/oc2-discovery.ps1` checks discovery against an isolated
+      `opencode serve` HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are
+      marked experimental) under the OpenCode 2 lab isolation that
+      [the harness protocol](../experiments/harness-invocation/protocol.md#isolate) owns. Still to
+      record: the discovery record on the Windows and Linux hosts, and one LLM record proving that
+      a manual skill is unadvertised, `@`-attachable, and callable by the model through its
+      namespaced ID.
    2. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
       Windows profile as
       [distribution and installation](architecture/distribution-and-installation.md#target-opencode-runtime)
@@ -183,24 +183,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
-- **OpenCode 1 tests and probes remain:** `tools/repository-docs.test.ts` still asserts the
-  OpenCode 1 lab's `lab.ps1` text, which moves with the lab port, and the `installer-v0.3.0` pins
-  listed below. In `experiments/harness-invocation/`,
-  `stub-command-smoke.ps1` and the OpenCode legs of `common.ps1`, `lab.ps1`, the matrix and variant
-  scripts, `ocprobe.ps1`, `verify.ps1`, and `selftest.ps1` rely on OpenCode 1 behavior such as
-  `opencode debug skill`, an additive `OPENCODE_CONFIG_DIR`, and the installer's refusal of it. The
-  harness-invocation `protocol.md` and `runbook.md` still describe that OpenCode 1 isolation and the
-  `BODY.md` stub checks. `selftest.ps1 -SkipLab` is red on master with three failures. The first is
-  the installer refusal of `OPENCODE_CONFIG_DIR`, which is the OpenCode 1 behavior above. The other
-  two are not OpenCode 1 behavior. The reference-audit check (`reference audit keeps global
-  identities and scans both harness outputs`) still expects `${opencodeRoot}/skills/${name}` and
-  `${opencodeRoot}/${artifact}s/${name}.md`, but the ledger's OpenCode 2 projection and the removal
-  of the OpenCode manual-ID leak rule moved `docs/agents/reference-audit-playbook.md` to dotted
-  `${plugin}.${name}` paths without the selftest run that playbook requires. The ledger-derivation
-  oracle (`the ledger derivation reproduces the round's hand-verified numbers`) still holds
-  OpenCode 1 meanings (`commands` 38, `parked` 14, `skills` 87) and `model` 19 from before
-  writing-for-agents became `both`; that curation change did not update the oracle in the same
-  commit, as the oracle's comment requires. Plan Task 14 Step 1 owns all three.
 - **Public Release surface lags the decision:** the README OpenCode recipes and its capability
   summary (OpenCode "receives a skill, a command, or both", parked manual bodies, refused
   alternate config-dir mounts), the `package.json` version 0.3.0, and the

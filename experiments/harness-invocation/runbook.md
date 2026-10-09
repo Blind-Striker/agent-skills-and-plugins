@@ -48,28 +48,24 @@ timed-out processes and retains raw JSONL only under the external lab. Override 
 `-ReasoningEffort` when a comparison run is needed; never let a profile default choose the model for
 a recorded panel.
 
-Run the parked-body command smoke only after its dry run is clean. It generates a disposable
-`manual` beta fixture through `buildAll`, checks only the supported isolated XDG-global mount, and
-keeps raw event streams only in the external lab:
+Check OpenCode 2 discovery against an isolated `opencode serve` without a model call. The dry run
+prints the isolated environment and the server command and starts nothing; the real run creates the
+lab tree, disables the managed background service in `<lab>/config/service.json`, serves on
+127.0.0.1 with a random password, prints the registered skills (with `advertised`), commands, and
+agents as JSON, and stops the server in all cases:
 
 ```powershell
-pwsh -NoProfile -File experiments/harness-invocation/stub-command-smoke.ps1 -DryRun -Leg grok
-pwsh -NoProfile -File experiments/harness-invocation/stub-command-smoke.ps1 -Leg grok
+pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab-root> -DryRun
+pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab-root>
 ```
 
-Do not write a committed measurement record unless the single isolated-global leg passes: command
-discovery must find `beta`, skill discovery must not, and the event stream must show the parked
-`BODY.md` read before the body marker and a separate CLI-only argument marker that is absent from
-`BODY.md`. The earlier dual-mount results remain historical evidence only
+To measure installed output, first run the installer with `OPENCODE_CONFIG_DIR=<lab-root>/config`
+and the lab's other roots (`Get-OpenCodeLabEnvironment -Root <lab-root>` in `common.ps1` names them
+all). A run fails rather than reporting a skill that resolved outside the lab. The OpenCode 1
+probes (the parked-body command smoke, the OpenCode matrix, the variant check, and the single-run
+OpenCode probe) are retired; their records remain historical evidence only
 ([2026-08-06 mounts](records/2026-08-06-opencode-stub-command-mounts.md),
-[2026-08-06 arguments](records/2026-08-06-opencode-stub-command-arguments.md)); project-local mounts
-are not a current supported Destination.
-
-With an isolated lab prepared, walk the OpenCode matrix wiring without spending tokens:
-
-```powershell
-pwsh -NoProfile -File experiments/harness-invocation/matrix.ps1 -DryRun
-```
+[2026-08-06 arguments](records/2026-08-06-opencode-stub-command-arguments.md)).
 
 Run the paired TDD intent probe's complete wiring without spending tokens:
 
@@ -77,7 +73,8 @@ Run the paired TDD intent probe's complete wiring without spending tokens:
 pwsh -NoProfile -File experiments/harness-invocation/intent-matrix.ps1 -DryRun
 ```
 
-Run the approved 24-attempt panel only after the dry-run is clean:
+Run the Claude half of the approved panel (12 attempts; the OpenCode leg is retired) only after the
+dry-run is clean:
 
 ```powershell
 pwsh -NoProfile -File experiments/harness-invocation/intent-matrix.ps1

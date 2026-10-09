@@ -52,8 +52,7 @@ function Get-UnusedDriveQualifier {
 function Invoke-InstallerProcess {
     param(
         [Parameter(Mandatory)] [string] $Root,
-        [Parameter(Mandatory)] [string[]] $InstallerArgs,
-        [string] $OpenCodeConfigDir
+        [Parameter(Mandatory)] [string[]] $InstallerArgs
     )
     $psi = [Diagnostics.ProcessStartInfo]::new()
     $psi.FileName = (Get-Command node -ErrorAction Stop).Source
@@ -67,7 +66,6 @@ function Invoke-InstallerProcess {
     $psi.Environment["USERPROFILE"] = $Root
     $psi.Environment["XDG_CONFIG_HOME"] = Join-Path $Root "xdg"
     $psi.Environment.Remove("OPENCODE_CONFIG_DIR") | Out-Null
-    if ($OpenCodeConfigDir) { $psi.Environment["OPENCODE_CONFIG_DIR"] = $OpenCodeConfigDir }
 
     $process = [Diagnostics.Process]::new()
     $process.StartInfo = $psi
@@ -220,15 +218,9 @@ if ($SkipLab) {
     Skip-That "Use-OpenCodeIsolation relocates TEMP and TMP" "-SkipLab"
 } else {
     Test-That "Use-OpenCodeIsolation relocates TEMP and TMP" {
-        $saved = @{
-            USERPROFILE = $env:USERPROFILE
-            HOME = $env:HOME
-            XDG_CONFIG_HOME = $env:XDG_CONFIG_HOME
-            XDG_DATA_HOME = $env:XDG_DATA_HOME
-            TEMP = $env:TEMP
-            TMP = $env:TMP
-            OPENCODE_CONFIG_DIR = $env:OPENCODE_CONFIG_DIR
-        }
+        $saved = @{}
+        $names = @((Get-OpenCodeLabEnvironment -Root "lab").Keys) + $script:OpenCodeLabClearedVariables
+        foreach ($name in $names) { $saved[$name] = [Environment]::GetEnvironmentVariable($name) }
         try {
             $lab = Get-LabRoot
             Use-OpenCodeIsolation
@@ -279,21 +271,6 @@ Test-That "installer Apply creates only the Native tree and .deniz-skills" {
             $allowed -cnotcontains $relative.Split("/")[0]
         } | ForEach-Object { [IO.Path]::GetRelativePath($destination, $_.FullName).Replace("\", "/") })
         if ($unexpected) { "Apply wrote outside the Native tree/state: $($unexpected -join ', ')" } else { $true }
-    } finally {
-        Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
-    }
-}
-
-Test-That "installer refuses OPENCODE_CONFIG_DIR without mutation" {
-    $root = Join-Path ([IO.Path]::GetTempPath()) ("installer-refusal-" + [guid]::NewGuid().ToString("N"))
-    New-Item -ItemType Directory -Path $root | Out-Null
-    try {
-        $result = Invoke-InstallerProcess -Root $root -InstallerArgs @("status") `
-            -OpenCodeConfigDir (Join-Path $root "alternate")
-        if ($result.ExitCode -eq 0) { return "refusal exited zero" }
-        if ($result.StdErr -notmatch "OPENCODE_CONFIG_DIR") { return "refusal did not name OPENCODE_CONFIG_DIR" }
-        $writes = @(Get-ChildItem $root -Force -Recurse)
-        if ($writes) { "refusal wrote: $(@($writes | ForEach-Object Name) -join ', ')" } else { $true }
     } finally {
         Remove-Item $root -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -443,15 +420,13 @@ Test-That "every runner still contains the parts that make it a runner" {
     # It is a truncation alarm, not a behaviour test: it says the load-bearing parts are present,
     # never that they work. The dry-run check below is the closest this suite gets to the latter.
     $required = @{
-        "matrix.ps1"        = @('$probeTable', 'Invoke-OpenCode', 'Test-LegLive', 'Assert-Preflight', 'Reset-Scratch', 'foreach ($p in $Probes)')
         "claude-matrix.ps1" = @('$PROMPT', 'Assert-Preflight', 'Reset-Scratch', 'stream-json', 'foreach ($model in $Models)')
-        "intent-matrix.ps1" = @('$controlPrompt', '$intentPrompt', 'Invoke-HarnessProcess', 'Assert-Preflight', 'Reset-Scratch', 'stream-json', '--format', 'metadata.json', 'trace.json', 'memory_paths', 'persisted project memory', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', 'escaped the isolated Claude home')
-        "verify.ps1"        = @('debug skill', 'debug config', 'Check ', 'customize-opencode')
-        "variants.ps1"      = @('$targets', 'opencode models', 'variants')
+        "intent-matrix.ps1" = @('$controlPrompt', '$intentPrompt', 'Invoke-HarnessProcess', 'Assert-Preflight', 'Reset-Scratch', 'stream-json', 'metadata.json', 'trace.json', 'memory_paths', 'persisted project memory', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', 'escaped the isolated Claude home')
+        "verify.ps1"        = @('Check ', 'Use-ClaudeIsolation', '.credentials.json', '--plugin-dir')
         "probe.ps1"         = @('--plugin-dir', '--add-dir', 'tool_use', 'stream-json')
-        "ocprobe.ps1"       = @('--format', 'tool_use', 'step_finish')
+        "oc2-discovery.ps1" = @('Get-OpenCodeLabEnvironment', 'service.json', '/api/skill', '/api/command', '/api/agent', 'location[directory]', 'autoinvoke', 'Kill($true)', 'finally')
         "codex-matrix.ps1"  = @('CODEX_HOME', 'codex-probe-marketplace', 'gpt-5.6-luna', 'model_reasoning_effort', 'Invoke-CodexProcess', 'Invoke-CodexBehaviour', 'Get-CodexAgentText', 'cross-skill-handoff', 'bundled-reference', 'generated-implicit-large-catalog', 'plugin", "marketplace", "add', 'plugin", "remove', 'Kill($true)', 'WaitForExit($TimeoutSeconds * 1000)', 'realCodexPluginStateUnchanged', 'repositoryStateUnchanged')
-        "lab.ps1"           = @('Start-ClaudeLab', 'Start-OpenCodeLab', 'Sync-Lab')
+        "lab.ps1"           = @('Start-ClaudeLab', 'Start-OpenCodeLab', 'Use-OpenCodeIsolation', 'Sync-Lab', 'install --all --yes')
     }
     $bad = @()
     foreach ($f in $required.Keys) {
@@ -486,8 +461,8 @@ Test-That "reference audit keeps global identities and scans both harness output
         'const paths = new Set([`plugins/${plugin}`]);',
         'taken.add(name);',
         'const opencodeRoot = `opencode/${plugin}`;',
-        '`${opencodeRoot}/skills/${name}`',
-        '`${opencodeRoot}/${artifact}s/${name}.md`'
+        '`${opencodeRoot}/skills/${plugin}.${name}`',
+        '`${opencodeRoot}/${artifact}s/${plugin}.${name}.md`'
     )
     $missing = @($required | Where-Object { -not $playbook.Contains($_) })
     if ($missing) { "reference audit lost output identity/path logic: $($missing -join ', ')" } else { $true }
@@ -595,13 +570,15 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
     $all  = $l.PSObject.Properties.Value
     $mine = $l.PSObject.Properties | Where-Object { $_.Name -like "deniz-process/*" } | ForEach-Object { $_.Value }
     $got = @{
-        skills   = @($all  | Where-Object { $_.opencode.artifacts -contains "skill" }).Count
-        commands = @($all  | Where-Object { $_.opencode.artifacts -contains "command" }).Count
-        model    = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
-        parked   = @($all  | Where-Object { $_.opencode.artifacts -notcontains "skill" -and @($_.opencode.parked).Count -gt 0 }).Count
+        skills = @($all  | Where-Object { $_.opencode.artifacts -contains "skill" }).Count
+        agents = @($all  | Where-Object { $_.opencode.artifacts -contains "agent" }).Count
+        model  = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
     }
-    # General's vectorization adds one ledger skill; the other three counts are unchanged.
-    $want = @{ skills = 87; commands = 38; model = 19; parked = 14 }
+    # The OpenCode 2 projection emits every non-agent item as a skill: 116 ledger entries are 114
+    # skills and 2 agents (akka-net-specialist, roslyn-incremental-generator-specialist). It emits no
+    # command and records no parked body, so the former commands and parked counts name nothing and
+    # are dropped. deniz-process model is 11 auto + 9 both: writing-for-agents moved from manual to both.
+    $want = @{ skills = 114; agents = 2; model = 20 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }
@@ -627,9 +604,8 @@ if ($SkipLab) {
         # anger - it is redirected, never disabled.
         $bad = @()
         foreach ($m in @(
-            @{ f = "matrix.ps1";        a = @{ DryRun = $true; Legs = @("grok"); Probes = @("P1") } }
             @{ f = "claude-matrix.ps1"; a = @{ DryRun = $true; Models = @("opus"); Repeats = 1 } }
-            @{ f = "intent-matrix.ps1"; a = @{ DryRun = $true; Harnesses = @("claude", "opencode"); ClaudeModels = @("opus"); OpenCodeLegs = @("grok"); Repeats = 1 } }
+            @{ f = "intent-matrix.ps1"; a = @{ DryRun = $true; ClaudeModels = @("opus"); Repeats = 1 } }
             @{ f = "codex-matrix.ps1";  a = @{ DryRun = $true; Behavioural = $true; GeneratedPlugins = $true; Repeats = 1 } })) {
             $outRoot = if ($m.f -ceq "codex-matrix.ps1") { Get-LabRoot } else { [IO.Path]::GetTempPath() }
             $out = Join-Path $outRoot ("dry-" + [guid]::NewGuid().ToString("N") + ".txt")
@@ -648,6 +624,30 @@ if ($SkipLab) {
         }
         if ($bad) { $bad -join "`n" } else { $true }
     }
+}
+
+Write-Host "OpenCode 2 discovery check"
+$ocLab = Join-Path ([IO.Path]::GetTempPath()) "oc2-selftest-lab"
+Test-That "oc2-discovery.ps1 exists" { Test-Path (Join-Path $PSScriptRoot "oc2-discovery.ps1") }
+Test-That "oc2-discovery dry run isolates every OpenCode 2 root under the lab" {
+    $plan = & pwsh -NoProfile -File (Join-Path $PSScriptRoot "oc2-discovery.ps1") -Lab $ocLab -DryRun | ConvertFrom-Json
+    $vars = 'OPENCODE_CONFIG_DIR','OPENCODE_DISABLE_PROJECT_CONFIG','HOME','USERPROFILE','OPENCODE_TEST_HOME',
+            'XDG_CONFIG_HOME','XDG_DATA_HOME','XDG_STATE_HOME','XDG_CACHE_HOME','OPENCODE_DB'
+    $missing = $vars | Where-Object { -not $plan.env.$_ }
+    $outside = $vars | Where-Object { $_ -ne 'OPENCODE_DISABLE_PROJECT_CONFIG' -and -not "$($plan.env.$_)".StartsWith($ocLab) }
+    if ($missing) { "missing: $missing" } elseif ($outside) { "outside lab: $outside" }
+    elseif ($plan.command -notmatch '^opencode serve --hostname 127\.0\.0\.1 --port \d+ --print-logs$') { "command: $($plan.command)" }
+    else { $true }
+}
+Test-That "the OpenCode 1 stub probe is retired" { -not (Test-Path (Join-Path $PSScriptRoot "stub-command-smoke.ps1")) }
+Test-That "no runner calls OpenCode 1 introspection" {
+    $hits = Get-ChildItem $PSScriptRoot -Filter *.ps1 | Where-Object Name -ne 'selftest.ps1' |
+        Select-String -Pattern 'debug skill', 'run --command', 'models --verbose' -SimpleMatch
+    if ($hits) { ($hits | ForEach-Object { "$($_.Filename):$($_.LineNumber)" }) -join ', ' } else { $true }
+}
+Test-That "protocol no longer describes OPENCODE_CONFIG_DIR as additive or BODY.md checks" {
+    $p = Get-Content (Join-Path $PSScriptRoot "protocol.md") -Raw
+    if ($p -match 'only \*\*adds\*\* a search location' -or $p -match 'BODY\.md') { "stale OpenCode 1 text" } else { $true }
 }
 
 Exit-Selftest
