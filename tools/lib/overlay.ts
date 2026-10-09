@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -155,7 +156,9 @@ function toplevel(dir: string): string | null {
  */
 function gitApply(dir: string, patch: string, extra: string[], env: NodeJS.ProcessEnv = {}): string | null {
   const top = toplevel(dir);
-  const rel = top ? relative(resolve(top), resolve(dir)).replaceAll("\\", "/") : "";
+  // git reports its top as a real path; a caller's path through a symlink, junction, subst drive,
+  // or 8.3 short name would otherwise make --directory climb out of the repository.
+  const rel = top ? relative(realpathSync.native(top), realpathSync.native(dir)).replaceAll("\\", "/") : "";
   const args = [
     // The host's git config must not decide what a build produces.
     "-c",
