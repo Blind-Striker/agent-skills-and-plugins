@@ -43,6 +43,7 @@ items:
     depends_on: [finishing-a-development-branch, requesting-code-review, using-git-worktrees] # end-of-run finish, the reviewer template, worktree setup
   - source: superpowers/skills/executing-plans
     invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain
+    body: patch # drops the per-platform tool-ref clause: using-superpowers omits references/** and is manual, so the path was dead in every tree and would read a manual body
     depends_on: [finishing-a-development-branch, subagent-driven-development, using-git-worktrees]
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
@@ -263,6 +264,7 @@ items:
     # flow, on-ramps, vocabulary underneath, phase boundaries — the routing is ours.
     # Stateful routing names only qualifying vocabulary and decisions because domain-modeling creates
     # CONTEXT.md and ADRs lazily; the router must not promise files that the delegated skill may skip.
+    depends_on: [resolving-merge-conflicts, systematic-debugging] # both routes are model-reachable facts, so a target deleted upstream fails as a dangling reference
     omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---
   # --- mattpocock components read and rejected, kept visible so a pin move does not re-raise them ---

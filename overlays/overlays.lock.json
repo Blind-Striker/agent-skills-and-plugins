@@ -249,6 +249,12 @@
       "SKILL.md": "b56a3b5ed6ea0d6216501e0e401ecb00a1b4675f"
     }
   },
+  "deniz-process/executing-plans": {
+    "source": "superpowers/skills/executing-plans",
+    "files": {
+      "SKILL.md": "b51d97d2cc4c2ecc5eabecf27e499aa8c933efac"
+    }
+  },
   "deniz-process/grill-me": {
     "source": "mattpocock-skills/skills/productivity/grill-me",
     "files": {
