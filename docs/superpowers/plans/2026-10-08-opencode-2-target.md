@@ -2694,6 +2694,27 @@ Test-That "protocol no longer describes OPENCODE_CONFIG_DIR as additive or BODY.
   (for example `--format`) and `lab.ps1` (`Start-OpenCodeLab`) to whatever those files keep, and
   every
   selftest assertion that expects the installer to refuse `OPENCODE_CONFIG_DIR`.
+
+  Fix the two other checks that are already red on master. Neither one is OpenCode 1 behavior:
+  - `reference audit keeps global identities and scans both harness outputs`: retarget its
+    `$required` strings to the current OpenCode 2 identity and path logic in
+    `docs/agents/reference-audit-playbook.md`, which is
+    `` `${opencodeRoot}/skills/${plugin}.${name}` `` and
+    `` `${opencodeRoot}/${artifact}s/${plugin}.${name}.md` ``. Keep the three identity strings
+    that still match. Read the playbook again before you copy a string: the
+    playbook is the authority and the check only protects it.
+  - `the ledger derivation reproduces the round's hand-verified numbers`: re-derive the oracle by
+    hand from `docs/ledger.json`. Do not copy the values the check reports. Under OpenCode 2 the
+    ledger has no `command` artifact and no `parked` field, so `commands` and `parked` no longer
+    name a meaning. The current `parked=2` counts only the two agent entries, because
+    `@($null).Count` is 1 in PowerShell. Replace those two counts with `agents` (the OpenCode
+    artifact that is not a skill). At `ed55494` the hand count is 116 ledger entries, 114 OpenCode
+    skills, and 2 agents (`akka-net-specialist`, `roslyn-incremental-generator-specialist`).
+    `deniz-process` `model` is 20 (11 `auto` + 9 `both`). It was 19 before writing-for-agents
+    changed from `manual` to `both`. If curation changed after `ed55494`, count again. Replace the
+    vectorization comment with the reason each number moved: the OpenCode 2 projection for
+    `skills`, `agents`, and the dropped counts, and writing-for-agents for `model`. Keep the
+    oracle warning comment.
 - [ ] **Step 2: Run to verify failure.**
   `pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1 -SkipLab` -> FAIL on the new
   assertions.
@@ -2716,7 +2737,7 @@ Test-That "protocol no longer describes OPENCODE_CONFIG_DIR as additive or BODY.
   installer composition, not a mounted build tree).
 - [ ] **Step 4: Run.** `selftest.ps1 -SkipLab` -> PASS; `npm test` -> `# fail 0`; public-safety passes.
 - [ ] **Step 5: Update ROADMAP**: remove the `experiments/` remainder of "OpenCode 1 tests and
-  probes remain".
+  probes remain", including its three red `selftest.ps1 -SkipLab` checks.
 - [ ] **Step 6: Commit.**
 
 ```bash
@@ -2898,6 +2919,7 @@ npm run install:opencode -- status
 | `README.md` lines 64-68: OpenCode "receives a skill, a command, or both"; parked bodies | Task 19 Step 5 |
 | `README.md` line 256: installer "refuses alternate config-dir mounts" | Task 19 Step 5 |
 | `experiments/harness-invocation/protocol.md` lines 13, 47, 57, 92, 98, 121, 135, 173, 188 and `runbook.md`: additive `OPENCODE_CONFIG_DIR`, the refusal, `BODY.md` checks | Task 14 |
+| `experiments/harness-invocation/selftest.ps1`: the reference-audit check expects pre-OpenCode 2 playbook paths; the ledger oracle holds OpenCode 1 counts and `model` 19 | Task 14 Step 1 |
 | "both harnesses" comments: `curation/deniz-dotnet-akka.yaml:31`, `curation/deniz-dotnet-aspire.yaml:13` | W0.13 (A6) |
 | OpenCode wall-paste reason: `curation/deniz-dotnet-general.yaml:220` | W0.13 (A6) |
 | OpenCode husk reason: `curation/deniz-process.yaml:293` | W0.13 (A6) |

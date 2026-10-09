@@ -190,7 +190,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   scripts, `ocprobe.ps1`, `verify.ps1`, and `selftest.ps1` rely on OpenCode 1 behavior such as
   `opencode debug skill`, an additive `OPENCODE_CONFIG_DIR`, and the installer's refusal of it. The
   harness-invocation `protocol.md` and `runbook.md` still describe that OpenCode 1 isolation and the
-  `BODY.md` stub checks.
+  `BODY.md` stub checks. `selftest.ps1 -SkipLab` is red on master with three failures. The first is
+  the installer refusal of `OPENCODE_CONFIG_DIR`, which is the OpenCode 1 behavior above. The other
+  two are not OpenCode 1 behavior. The reference-audit check (`reference audit keeps global
+  identities and scans both harness outputs`) still expects `${opencodeRoot}/skills/${name}` and
+  `${opencodeRoot}/${artifact}s/${name}.md`, but the ledger's OpenCode 2 projection and the removal
+  of the OpenCode manual-ID leak rule moved `docs/agents/reference-audit-playbook.md` to dotted
+  `${plugin}.${name}` paths without the selftest run that playbook requires. The ledger-derivation
+  oracle (`the ledger derivation reproduces the round's hand-verified numbers`) still holds
+  OpenCode 1 meanings (`commands` 38, `parked` 14, `skills` 87) and `model` 19 from before
+  writing-for-agents became `both`; that curation change did not update the oracle in the same
+  commit, as the oracle's comment requires. Plan Task 14 Step 1 owns all three.
 - **Public Release surface lags the decision:** the README OpenCode recipes and its capability
   summary (OpenCode "receives a skill, a command, or both", parked manual bodies, refused
   alternate config-dir mounts), the `package.json` version 0.3.0, and the
