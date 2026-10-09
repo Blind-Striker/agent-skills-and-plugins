@@ -32,7 +32,7 @@ import {
 import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { writeLedger } from "./lib/ledger.ts";
-import { type CurationItem, type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { type CurationItem, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
 import {
   adaptOpenCodeAgentDocument,
@@ -428,7 +428,7 @@ function collectProblems(root: string, manifests: CurationManifest[], components
       }
       const { comp, outName, outType, overlayDir, id } = resolveItem(root, m.plugin.name, item, components);
       if (!comp) {
-        problems.push(`${m.plugin.name}: source not found in external/: ${item.source}`);
+        problems.push(`${m.plugin.name}: source not found in external/: ${item.source} — ${UNKNOWN_SOURCE_RULE}`);
         continue;
       }
       if (item.body && !existsSync(overlayDir)) {

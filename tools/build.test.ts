@@ -1362,3 +1362,13 @@ test("each harness renders the skill-tool call and dispatch words in its own wor
     /Invoke `\$deniz-process:delta`\.\n\nSubagent:/,
   );
 });
+
+test("a taken source missing from external/ names the deleted-source rule", () => {
+  const root = makeRepo();
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(p, `${readFileSync(p, "utf8")}  - source: sp/skills/vanished\n`);
+  assert.throws(
+    () => buildAll(root),
+    /source not found in external\/: sp\/skills\/vanished — the current pin has no such source/,
+  );
+});

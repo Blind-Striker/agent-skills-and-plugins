@@ -1507,3 +1507,19 @@ test("P: a Markdown link that is no claim still may not land in a manual folder"
     );
   }
 });
+
+test("an unknown source, taken or excluded, names the deleted-source rule", () => {
+  for (const extra of [[], ["    exclude: true"]]) {
+    const root = makeRepo();
+    const p = join(root, "curation", "deniz-process.yaml");
+    writeFileSync(
+      p,
+      `${readFileSync(p, "utf8")}  - source: sp/skills/vanished\n${extra.join("\n")}${extra.length ? "\n" : ""}`,
+    );
+    const msg = validateRepo(root).find((f) => f.message.includes("unknown source sp/skills/vanished"));
+    assert.ok(msg, "reported");
+    assert.match(msg.message, /remove the item from the manifest — an exclude is not a tombstone/);
+    assert.match(msg.message, /in that item's comment/);
+    assert.match(msg.message, /lands with or after that pin move/);
+  }
+});

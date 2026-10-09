@@ -51,6 +51,14 @@ export interface CurationManifest {
   hooks?: { include: string[] };
 }
 
+/**
+ * What an unknown manifest source means and what to do about it (workflow.md "Upstream sync
+ * flow"). validate, build, the assemble mirror, and sync all say this sentence, so a pin move that
+ * deletes a source gets one instruction wherever it is first noticed.
+ */
+export const UNKNOWN_SOURCE_RULE =
+  "the current pin has no such source. If upstream deleted it, remove the item from the manifest — an exclude is not a tombstone — and give the reason in the commit message and, when another item succeeds it, in that item's comment. If upstream moved it, repoint source:. An exclude for a source that only a later pin has lands with or after that pin move.";
+
 function requireEnum(path: string, source: string, field: string, value: unknown, allowed: readonly string[]): void {
   if (value === undefined) {
     return;

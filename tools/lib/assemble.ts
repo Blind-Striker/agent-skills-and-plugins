@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { parseDoc, serializeDoc } from "./frontmatter.ts";
-import type { ComponentType, CurationItem, CurationManifest } from "./manifest.ts";
+import { type ComponentType, type CurationItem, type CurationManifest, UNKNOWN_SOURCE_RULE } from "./manifest.ts";
 import { applyPatch, PATCH_FILE } from "./overlay.ts";
 import { isOmitted, itemRelative, resolveItem } from "./resolve.ts";
 import type { ComponentInfo } from "./scan.ts";
@@ -180,7 +180,7 @@ function assembleCuratedItem(
   }
   const { comp, outName, outType, overlayDir } = resolveItem(root, manifest.plugin.name, item, components);
   if (!comp) {
-    throw new Error(`${manifest.plugin.name}: source not found in external/: ${item.source}`);
+    throw new Error(`${manifest.plugin.name}: source not found in external/: ${item.source} — ${UNKNOWN_SOURCE_RULE}`);
   }
   if (item.body && !existsSync(overlayDir)) {
     throw new Error(

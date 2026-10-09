@@ -14,7 +14,7 @@ import {
 } from "./lib/codex-plugin.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
-import { type ComponentType, type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { type ComponentType, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import {
   findMissingModuleRequirements,
   loadModuleManifest,
@@ -290,7 +290,10 @@ export function validateRepo(root: string): Finding[] {
     for (const item of m.items) {
       const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
       if (!comp) {
-        findings.push({ level: "error", message: `${m.plugin.name}: unknown source ${item.source}` });
+        findings.push({
+          level: "error",
+          message: `${m.plugin.name}: unknown source ${item.source} — ${UNKNOWN_SOURCE_RULE}`,
+        });
       }
       if (item.exclude) {
         continue;

@@ -179,6 +179,27 @@ test("a deleted root-level SKILL.md is a build stop even when other root files r
   assert.doesNotMatch(String(lines[0]), /auto-updated/);
 });
 
+// A source whose component document is gone no longer resolves, so validate reports it as an
+// unknown source whether the item is taken or excluded: both lines carry the deleted-source rule.
+test("a gone component document names the deleted-source rule, taken or excluded", () => {
+  for (const exclude of [false, true]) {
+    const manifest: CurationManifest = {
+      plugin: { name: "deniz-process", description: "d", version: "0.1.0" },
+      items: [{ source: "rootsp", exclude }],
+    };
+    const lines = syncReport("rootsp", ["SKILL.md"], [manifest], {
+      ...NO_IO,
+      readFile: (rev, rel) =>
+        rel === "SKILL.md" && rev === "old" ? "---\nname: root\ndescription: old\n---\nB.\n" : null,
+    });
+    const line = String(lines[0]);
+    assert.match(line, /COMPONENT DOCUMENT GONE/);
+    assert.match(line, /an exclude is not a tombstone/);
+    assert.match(line, exclude ? /validate rejects an unknown source/ : /the next build stops/);
+    assert.doesNotMatch(line, /nothing breaks/);
+  }
+});
+
 // "auto-updated on next build" is a lie for a patch item: upstream moving into the patched region
 // stops the build instead, so the default tag must not be what sync prints for one.
 test("a patch item is reported as neither auto-updated nor an overlay", () => {
@@ -357,6 +378,7 @@ test("a deleted source is reported as a build stop, never as auto-updated", () =
   assert.ok(alpha);
   assert.match(alpha, /SOURCE GONE/);
   assert.match(alpha, /source not found in external\//);
+  assert.match(alpha, /an exclude is not a tombstone/);
   assert.doesNotMatch(alpha, /auto-updated/);
 });
 
@@ -386,6 +408,8 @@ test("a deleted source under an excluded item is a stale record, not a build sto
   assert.match(gone, /SOURCE GONE/);
   assert.match(gone, /excluded/);
   assert.doesNotMatch(gone, /source not found in external\//);
+  assert.match(gone, /validate rejects an unknown source/);
+  assert.match(gone, /an exclude is not a tombstone/);
 });
 
 // `--bless` stamps a merge input by hashing the upstream file. When that file is gone there is

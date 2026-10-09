@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
-import { type CurationManifest, loadManifest } from "./lib/manifest.ts";
+import { type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import { type OwnSkillIdentity, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { candidateHits } from "./lib/refs.ts";
@@ -74,14 +74,15 @@ export function syncCandidateNames(ledger: Record<string, unknown>, ownSkills: O
  * What a vanished address costs, in the words of the thing that will actually stop.
  *
  * A taken item is a hard build stop, and `collectProblems` says so before anything is deleted. An
- * excluded item is not — nothing resolves it — so its entry is merely a record pointing at an
- * address that no longer exists. Saying "changed upstream (auto-updated on next build)" for either,
- * which is what a path-list match alone produces, is the opposite of both.
+ * excluded item is not — nothing resolves it — but its entry is a record validate rejects, because
+ * an unknown source is an error whether taken or excluded. Saying "changed upstream (auto-updated on
+ * next build)" for either, which is what a path-list match alone produces, is the opposite of both.
+ * Both variants end with the one deleted-source rule.
  */
 function goneLine(plugin: string, item: { source: string; exclude?: boolean }, where: string): string {
   return item.exclude
-    ? `${plugin}: ${item.source} SOURCE GONE${where} — nothing breaks (excluded), but the exclusion record now names an address upstream does not have: repoint or drop it`
-    : `${plugin}: ${item.source} SOURCE GONE${where} — nothing auto-updates: the next build stops with "source not found in external/"`;
+    ? `${plugin}: ${item.source} SOURCE GONE${where} — the build ignores it (excluded), but validate rejects an unknown source: ${UNKNOWN_SOURCE_RULE}`
+    : `${plugin}: ${item.source} SOURCE GONE${where} — nothing auto-updates: the next build stops with "source not found in external/"; ${UNKNOWN_SOURCE_RULE}`;
 }
 
 export function syncReport(sub: string, changed: string[], manifests: CurationManifest[], io: SyncIO): string[] {
@@ -139,9 +140,11 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
         const before = io.readFile("old", documentRel);
         const after = io.readFile("new", documentRel);
         if (before !== null && after === null) {
+          // Without its document the scanner no longer finds the component, so validate reports
+          // the item as an unknown source whether it is taken or excluded.
           const consequence = item.exclude
-            ? "nothing breaks (excluded), but the exclusion record no longer names a scanner-visible component"
-            : "the next build stops because the scanner no longer finds this component";
+            ? `the build ignores it (excluded), but validate rejects an unknown source: ${UNKNOWN_SOURCE_RULE}`
+            : `the next build stops because the scanner no longer finds this component; ${UNKNOWN_SOURCE_RULE}`;
           lines.push(`${m.plugin.name}: ${item.source} COMPONENT DOCUMENT GONE at ${documentRel} — ${consequence}`);
           continue;
         }
