@@ -94,12 +94,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
       The curator chose the mitigation: a post-Apply warning on Windows, with no stop requirement
       and no blocking (see Known Gaps), so the measurement's follow-up is closed and the Release
-      gate no longer waits on it. Remaining plan work: the profile migration and the Release below
-      (Tasks 18 and 19), and the closeout (Task 20).
-      Migrate the two real profiles (a Windows workstation and a Linux host, both on
-      OpenCode 2) once by a manual procedure recorded in an experiment record: remove the Modules
-      with the schema-1 installer, remove the then-empty schema-1 state, and install schema-2
-      output. This is a one-off, not a supported product path. Then cut a new Package Release:
+      gate no longer waits on it. The two real profiles (a Windows workstation and a Linux host,
+      both on OpenCode 2) were migrated once by the manual procedure: remove the Modules with the
+      schema-1 installer, remove the then-empty schema-1 state, and install schema-2 output. This
+      is a one-off, not a supported product path
+      ([profile migration record](../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md));
+      the WSL distro on the Windows workstation held no install. Remaining plan work: the Release
+      below (Task 19) and the closeout (Task 20). Cut a new Package Release:
       bump the `package.json` version, update the `tools/repository-docs.test.ts` pins, and change
       the README consumption recipes, which describe the published Release, only at this step.
 2. **Upstream sync waves, one submodule at a time, cheapest first.** All six pins are frozen at their
@@ -213,9 +214,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   OpenCode 1 shapes, and the checkout installer refuses schema-1 Install state with no
   compatibility reader. A user of that Release has no supported route to schema-2 output; the
   real-profile migration is a recorded one-off, not a product path.
-- **Real profiles hold schema-1 state:** both real profiles run OpenCode 2 but hold
-  `installer-v0.3.0` schema-1 Install state and OpenCode 1 shapes, so the checkout installer cannot
-  update or prune them until the recorded one-off migration runs.
 - **Selection dependency automation:** schema-2 manifests and Install state record `requiredModules`.
   Plan presence-checks the final Selection and does not automatically add, cascade-remove, or
   range-resolve Modules. Cross-version item/API compatibility is not claimed. See

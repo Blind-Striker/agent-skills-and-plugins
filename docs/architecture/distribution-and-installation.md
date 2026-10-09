@@ -183,10 +183,10 @@ content in its config root through named directories such as `skills/`, `command
 OpenCode 2 does not read it as content.
 
 A Destination that still holds schema-1 Install state is not a supported starting point. The
-curator's two real profiles that hold such state are migrated once by a manual procedure: remove
+curator's two real profiles that held such state were migrated once by a manual procedure: remove
 their Modules with the schema-1 installer, remove the then-empty schema-1 state, and install
-schema-2 output. That procedure is a one-off recorded in a dated experiment record under
-[`experiments/harness-invocation/records/`](../../experiments/harness-invocation/records/README.md),
+schema-2 output. That procedure is a one-off recorded in the
+[profile migration record](../../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md),
 not a supported product path, and the installer gains no migration or schema-1 import for it.
 
 Only paths under `skills/`, `commands/`, or `agents/` can be owned. Destination, metadata, and managed
