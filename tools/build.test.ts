@@ -845,6 +845,14 @@ test("upstream changing a patched file stops the build, and is absorbed once ble
   const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
   writeFileSync(up, readFileSync(up, "utf8").replace("Far region.", "Far region, improved upstream."));
   assert.throws(() => buildAll(root), /upstream changed under the overlay \(SKILL\.md\)/);
+  // The patch still applies, so the drift line names the bless and never the rebase.
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) =>
+      /upstream changed under the overlay \(SKILL\.md\) — review the diff, then: npm run eject -- deniz-process gamma --bless$/m.test(
+        e.message,
+      ) && !e.message.includes("--rebase"),
+  );
 
   execFileSync(
     process.execPath,
@@ -867,6 +875,15 @@ test("a patch that no longer applies aborts before any output is deleted", () =>
   assert.throws(
     () => buildAll(root),
     /overlay\.patch no longer applies to sp\/skills\/gamma — run: npm run eject -- deniz-process gamma --patch --rebase/,
+  );
+  // The edit also drifts the stamped file. That line must name the same rebase: a patch that does
+  // not apply cannot be blessed.
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) =>
+      /upstream changed under the overlay \(SKILL\.md\) — review the diff, then: npm run eject -- deniz-process gamma --patch --rebase$/m.test(
+        e.message,
+      ) && !e.message.includes("--bless"),
   );
   assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
 });
