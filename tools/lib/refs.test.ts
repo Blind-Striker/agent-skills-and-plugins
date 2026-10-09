@@ -111,6 +111,11 @@ test("landing climbs are path claims only at the depth that reaches the skills d
   ]);
   assert.deepEqual(claims("read ../beta/notes.md.", 0), ["climb:beta:../beta/notes.md"], "one trailing dot dropped");
   assert.deepEqual(
+    claims("[a](../beta/notes.md#part) ../beta/run.sh?raw", 0),
+    ["climb:beta:../beta/notes.md", "climb:beta:../beta/run.sh"],
+    "a fragment or query is no part of the path",
+  );
+  assert.deepEqual(
     claims("[a](../deniz-process.beta/SKILL.md)", 0),
     ["climb:deniz-process.beta:../deniz-process.beta/SKILL.md"],
     "a respelled OpenCode ID is read back, so P can judge the OpenCode tree",

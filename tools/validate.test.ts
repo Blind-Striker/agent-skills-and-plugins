@@ -1432,6 +1432,14 @@ test("P: a landing climb fails closed, and a path into a manual folder fails", (
   assert.ok(!errors.some((m) => m.includes("references/notes.md")), "a resolving climb passes");
 });
 
+test("P: a resolving sibling link with a fragment or query passes in every tree", () => {
+  const errors = ocErrors("See [notes](../delta/references/notes.md#part) and `../delta/references/notes.md?raw`.", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/delta",
+  ]);
+  assert.ok(!errors.some((m) => m.includes("references/notes.md")), errors.join("\n"));
+});
+
 test("P: an item-root path resolves in every tree once OpenCode respells it", () => {
   const errors = ocErrors("Read `skills/delta/references/notes.md` and `skills/delta/missing.md`.", [
     "  - source: sp/skills/alpha",

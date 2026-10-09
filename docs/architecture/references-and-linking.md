@@ -56,8 +56,9 @@ reasonably have caused:
 Markdown link targets are read from Markdown files. Two **path claims** are read from every bundled
 text file in a skill folder, Markdown or not, so scripts are included. A bundled text file is one
 with no NUL byte whose bytes survive a UTF-8 round trip; any other file is binary and is never read
-or rewritten. A claim's path runs to the next whitespace, quote, backtick, `)`, or `]`, with one
-trailing `.` dropped, and neither claim may continue a longer path. A `<segment>` is a portable
+or rewritten. A claim's path runs to the next whitespace, quote, backtick, `)`, `]`, `#`, or `?`, so
+a link's fragment or query is not part of the path, with one trailing `.` dropped, and neither claim
+may continue a longer path. A `<segment>` is a portable
 lowercase name or an OpenCode ID `<plugin>.<name>`, so the OpenCode tree's respelled claims are read
 back with the same grammar and judged by the bare name the ID carries.
 

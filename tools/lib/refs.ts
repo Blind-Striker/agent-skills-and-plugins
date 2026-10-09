@@ -98,7 +98,8 @@ export interface PathClaim {
 const SEGMENT = String.raw`[a-z0-9]+(?:-[a-z0-9]+)*(?:\.[a-z0-9]+(?:-[a-z0-9]+)*)?`;
 /** `../` runs followed by one segment and a `/`: a relative climb into a sibling folder. */
 const CLIMB = new RegExp(String.raw`((?:\.\.\/)+)(${SEGMENT})(?=\/)`, "g");
-const PATH_TAIL = /^\/[^\s"'`)\]]*/;
+/** The rest of a claim's path: it ends before a fragment or query, which names no file. */
+const PATH_TAIL = /^\/[^\s"'`)\]#?]*/;
 /** What continues a path, so a climb preceded by one of these starts inside a longer path. */
 const CONTINUES_PATH = /[A-Za-z0-9._/-]/;
 /** `skills/` then one segment and a `/`: a path rooted at an item folder, as a harness installs it. */
@@ -116,8 +117,8 @@ function claimPath(content: string, start: number, afterSegment: number): string
  * claim only when its `../` count lands exactly on the shared `skills/` directory
  * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path. An item-root path
  * (`skills/<segment>/`) is a claim when it does not continue a longer path, a home directory, or a
- * variable. Either path runs to the first space, quote, backtick, or closing bracket, minus one
- * sentence-ending dot.
+ * variable. Either path runs to the first space, quote, backtick, closing bracket, `#`, or `?`,
+ * minus one sentence-ending dot.
  */
 export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[] {
   const out: PathClaim[] = [];
