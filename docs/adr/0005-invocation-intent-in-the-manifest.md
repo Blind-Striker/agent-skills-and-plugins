@@ -40,10 +40,12 @@ On Codex and OpenCode 2, `manual` means the same thing: the item is **not offere
 implicit selection, and the user invokes it explicitly. Codex sets `allow_implicit_invocation:
 false`; OpenCode 2 keeps the item one skill, its native setting keeps it out of the skill list the
 model is offered, and the user attaches it. If the model learns the ID some other way, the OpenCode
-skill tool can still load it. Claude Code is stricter: `disable-model-invocation` blocks model
-invocation. Each harness's native meaning is accepted as it is, so shipped text may name a `manual`
-item's ID, for example to point the user at it. `auto` and `both` both emit one advertised skill
-that the user can also attach; `both` adds no separate command.
+skill tool can still load it; a measured OpenCode 2 panel observed all three behaviors
+([record](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)).
+Claude Code is stricter: `disable-model-invocation` blocks model invocation. Each harness's
+native meaning is accepted as it is, so shipped text may name a `manual` item's ID, for example to
+point the user at it. `auto` and `both` both emit one advertised skill that the user can also
+attach; `both` adds no separate command.
 
 **Absent is not a fourth value with a default meaning.** An item that says nothing is an item that
 states no intent, and upstream's own invocation posture passes through: Claude Code keeps the

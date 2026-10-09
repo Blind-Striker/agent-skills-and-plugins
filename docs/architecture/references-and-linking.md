@@ -192,11 +192,29 @@ The tool names come from recorded evidence. OpenCode 2's model tool `skill` take
 ID, its subagent tool is `subagent`, and its built-in general subagent is `general`
 ([OpenCode 2 research](../research/opencode-2-target.md), sections 6 and 8). Codex has no skill
 tool: explicit selection is `$plugin:skill`
-([Codex surfaces](../research/codex-native-plugin-and-skill-surfaces.md#skill-invocation)), and a
-measured run followed a body ``Invoke `$plugin:skill` `` handoff
-([record](../../experiments/harness-invocation/records/2026-09-07-codex-plugin-behaviour.md)).
+([Codex surfaces](../research/codex-native-plugin-and-skill-surfaces.md#skill-invocation)).
 This repository's research records no Codex subagent tool or agent type, so Codex wording names
-neither. A phrasing that neither table covers is caught by the
+neither.
+
+Whether a model follows a rendered sentence is runtime evidence, bounded to one model
+(`gpt-5.6-luna` at low effort):
+
+- **OpenCode 2.** With `@deniz-process.grill-me` attached, the model followed its rendered
+  ``Call the `skill` tool with "deniz-process.grilling"`` and loaded the dotted ID in every attempt
+  of two independent runs. The same prompt without the attachment made no grilling call, but that
+  control also dropped the word "grill", which the auto target `grilling` triggers on, so the
+  sentence is followed without being isolated as the cause
+  ([record](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)).
+- **Codex.** A fixture body ``Invoke `$plugin:skill` `` handoff was followed
+  ([record](../../experiments/harness-invocation/records/2026-09-07-codex-plugin-behaviour.md)).
+  The rendered `$deniz-process:grill-me` handoff was injected and its target followed in every
+  attempt of two runs, but its target `grilling` is an auto skill that a plain "Grill me" prompt
+  also loads, so those runs do not show that the handoff alone causes the load
+  ([record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md)).
+- The OpenCode `Subagent (general)` label and the tool-free Codex dispatch wording are unmeasured.
+  The open measurements are in [Known Gaps](../ROADMAP.md#known-gaps).
+
+A phrasing that neither table covers is caught by the
 [harness vocabulary check](#harness-vocabulary-check) instead of leaking.
 
 ## OpenCode ID checks

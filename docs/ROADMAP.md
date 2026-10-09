@@ -35,6 +35,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `manual` skills unadvertised, both agents as subagents), and an empty `OPENCODE_CONFIG_DIR` fell
   back like an unset one on Linux
   ([discovery record](../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md)).
+  A tier-2 model panel on the same version measured the decided `manual` meaning: the hidden skill
+  is absent from the model's offered skill guidance, `@`-attachable, and loadable by an explicit
+  instruction naming its exact ID
+  ([manual-skill record](../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)).
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
@@ -82,17 +86,16 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       `opencode serve` HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are
       marked experimental) under the OpenCode 2 lab isolation that
       [the harness protocol](../experiments/harness-invocation/protocol.md#isolate) owns. The
-      discovery record on both hosts is committed. Still to record: one LLM record proving that a
-      manual skill is unadvertised, `@`-attachable, and callable by the model through its
-      namespaced ID; its model route waits on the curator's credential choice.
+      discovery record on both hosts and the tier-2 model record of the `manual` posture (plan
+      Task 16) are committed.
    2. **Profiles and Release.** Upstream issue `anomalyco/opencode#47505` is measured on isolated
       Windows labs and reproduced: a running OpenCode 2.0.23 server crashed during a full-estate
       bulk Apply
       ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
       The curator chose the mitigation: a post-Apply warning on Windows, with no stop requirement
       and no blocking (see Known Gaps), so the measurement's follow-up is closed and the Release
-      gate no longer waits on it. Remaining plan work: the model record above (plan Task 16), the
-      profile migration and the Release below (Tasks 18 and 19), and the closeout (Task 20).
+      gate no longer waits on it. Remaining plan work: the profile migration and the Release below
+      (Tasks 18 and 19), and the closeout (Task 20).
       Migrate the two real profiles (a Windows workstation and a Linux host, both on
       OpenCode 2) once by a manual procedure recorded in an experiment record: remove the Modules
       with the schema-1 installer, remove the then-empty schema-1 state, and install schema-2
@@ -239,9 +242,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   stays recorded is shared sync infrastructure that must land before the first pin move that
   deletes a taken source (`mattpocock-skills`, `dotnet/skills`); until then a new bare mention of a
   deleted name is not caught, while a promoted fact still fails as a dangling reference.
-- **Harness phrasing is thinly measured:** one Codex run followed a body
-  ``Invoke `$plugin:skill` `` handoff; no run covers the rendered OpenCode skill-tool sentence, the
-  `Subagent (general)` dispatch label, or the tool-free Codex dispatch wording. No Codex subagent
+- **Harness phrasing is partly measured:** on one model, the rendered OpenCode skill-tool sentence
+  in `deniz-process.grill-me` was followed
+  ([record](../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)), and
+  Codex followed a fixture ``Invoke `$plugin:skill` `` handoff and the rendered
+  `$deniz-process:grill-me` handoff
+  ([record](../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md)).
+  Neither rendered handoff is isolated as the cause of the load: its target `grilling` is an auto
+  skill that triggers on "grill", a no-token "Grill me" prompt loaded it on Codex, and the OpenCode
+  control dropped that word together with the attachment. Closing this needs, on each harness, a
+  rendered handoff fixture whose source and target share no trigger words. No run covers the
+  `Subagent (general)` dispatch label or the tool-free Codex dispatch wording. No Codex subagent
   tool or agent type is recorded in repository research, so Codex wording names neither.
 - **Optional writing-style reference remains external:** `brainstorming` names
   `elements-of-style:writing-clearly-and-concisely` when available, but that namespace is not curated

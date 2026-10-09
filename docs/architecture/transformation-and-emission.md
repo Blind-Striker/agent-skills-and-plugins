@@ -177,7 +177,11 @@ exactly one skill folder, whatever its invocation, and nothing under `commands/`
   metadata the document already carries. As in Codex, this means **not offered to the model**: the
   model is not offered the skill, the user attaches it with `@<plugin>.<name>` or the `/skills`
   dialog, and the skill tool can still load the registered ID if the model learns it. The accepted
-  rationale is in [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md).
+  rationale is in [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md). Measured on
+  v2.0.23 ([record](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)):
+  the hidden skill is absent from the skill guidance the model is offered, an `@` attachment puts
+  its body in the user message, and an explicit instruction to load the exact ID loads it. A looser
+  mention of the ID loads it only sometimes, because the model trusts its offered list.
 - `both` emits one plain skill, advertised and attachable, with no duplicate command.
 - Absent invocation passes upstream posture through. An upstream `disable-model-invocation: true`
   is rendered with the same `opencode/autoinvoke: false` metadata key, not passed through, because
@@ -226,10 +230,12 @@ truncation, and records it in the ledger's `metadataTransformations`. No compati
 or `agents/` artifact directory is emitted and no custom-agent TOML is synthesized.
 
 An ordinary Codex skill is implicitly eligible and explicitly addressable. `manual` writes
-`agents/openai.yaml` with `policy.allow_implicit_invocation: false`; `auto` and `both` write no
-disabling policy. Absent invocation uses the Codex target default. Codex does not expose an
-implicit-only skill policy, so `auto` retains native explicit invocation without being mislabeled
-model-only.
+`agents/openai.yaml` with `policy.allow_implicit_invocation: false`, which keeps the skill out of
+the catalog the model is offered while `$plugin:skill` still injects it (measured on Codex CLI
+0.153.4, [record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md));
+`auto` and `both` write no disabling policy. Absent invocation uses the Codex target default.
+Codex does not expose an implicit-only skill policy, so `auto` retains native explicit invocation
+without being mislabeled model-only.
 
 Each Codex Plugin has `.codex-plugin/plugin.json`, repository and source-specific distribution
 metadata, and one entry in `.agents/plugins/marketplace.json`. The repository marketplace is the
