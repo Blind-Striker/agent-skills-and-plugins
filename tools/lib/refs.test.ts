@@ -110,6 +110,11 @@ test("landing climbs are path claims only at the depth that reaches the skills d
     "climb:using-superpowers:../using-superpowers/references/",
   ]);
   assert.deepEqual(claims("read ../beta/notes.md.", 0), ["climb:beta:../beta/notes.md"], "one trailing dot dropped");
+  for (const p of [",", ";", ":"]) {
+    assert.deepEqual(claims(`read ../beta/notes.md${p} then`, 0), ["climb:beta:../beta/notes.md"], `trailing ${p}`);
+  }
+  assert.deepEqual(claims("see ../beta/, then", 0), ["climb:beta:../beta/"], "a directory claim before a comma");
+  assert.deepEqual(claims("read ../beta/notes.md..", 0), ["climb:beta:../beta/notes.md."], "only one character");
   assert.deepEqual(
     claims("[a](../beta/notes.md#part) ../beta/run.sh?raw", 0),
     ["climb:beta:../beta/notes.md", "climb:beta:../beta/run.sh"],

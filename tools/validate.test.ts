@@ -1440,6 +1440,21 @@ test("P: a resolving sibling link with a fragment or query passes in every tree"
   assert.ok(!errors.some((m) => m.includes("references/notes.md")), errors.join("\n"));
 });
 
+test("P: a claim followed by , ; or : resolves", () => {
+  const errors = ocErrors(
+    "See ../beta/SKILL.md, then ../beta/SKILL.md; and ../beta/SKILL.md: done. Also ../gone/x.md; end.",
+    ["  - source: sp/skills/alpha", "  - source: sp/skills/beta", "    invocation: auto"],
+  );
+  // `beta/SKILL.md` also matches OpenCode's respelled `../deniz-process.beta/SKILL.md`.
+  assert.ok(!errors.some((m) => m.includes("beta/SKILL.md")), errors.join("\n"));
+  for (const tree of ["plugins", "opencode", "codex"]) {
+    assert.ok(
+      errors.some((m) => m.includes(`sibling path ../gone/x.md does not resolve in ${tree}/`)),
+      `${tree}\n${errors.join("\n")}`,
+    );
+  }
+});
+
 test("P: an item-root path resolves in every tree once OpenCode respells it", () => {
   const errors = ocErrors("Read `skills/delta/references/notes.md` and `skills/delta/missing.md`.", [
     "  - source: sp/skills/alpha",

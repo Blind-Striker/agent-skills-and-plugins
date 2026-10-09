@@ -109,7 +109,7 @@ const CONTINUES_ITEM_ROOT = /[A-Za-z0-9._/~$-]/;
 
 function claimPath(content: string, start: number, afterSegment: number): string {
   const path = content.slice(start, afterSegment) + (PATH_TAIL.exec(content.slice(afterSegment))?.[0] ?? "");
-  return path.endsWith(".") ? path.slice(0, -1) : path;
+  return /[.,;:]$/.test(path) ? path.slice(0, -1) : path;
 }
 
 /**
@@ -118,7 +118,7 @@ function claimPath(content: string, start: number, afterSegment: number): string
  * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path. An item-root path
  * (`skills/<segment>/`) is a claim when it does not continue a longer path, a home directory, or a
  * variable. Either path runs to the first space, quote, backtick, closing bracket, `#`, or `?`,
- * minus one sentence-ending dot.
+ * minus one trailing `.`, `,`, `;`, or `:`.
  */
 export function scanPathClaims(content: string, depthBelowSkillFolder: number): PathClaim[] {
   const out: PathClaim[] = [];
