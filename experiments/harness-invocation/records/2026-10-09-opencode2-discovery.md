@@ -53,8 +53,9 @@ it ran under the portable PowerShell recipe in the [runbook](../runbook.md).
 5. Snapshot the real state before and after, stop every lab process, delete the lab, and confirm
    the repository is clean.
 
-Each verifier repeated steps 1-5 in a new lab. The Windows verifier ran the committed script 3 times
-plus a probe-skill control (8 server starts in total). The Linux verifier ran it 4 times: twice on
+Each verifier repeated steps 1-5 in a new lab. The Windows verifier ran the committed script 8 times: 3 times with
+default settings, once with planted probe skills as a positive control, once after removing them,
+and 3 times with `-StableSeconds 1`. The Linux verifier ran it 4 times: twice on
 the same lab, once under `strace`, and once with `-StableSeconds 1`.
 
 ## Results
@@ -72,11 +73,12 @@ the same lab, once under `strace`, and once with `-StableSeconds 1`.
 | Built-in agents (aside) | not asserted | `build`, `compaction`, `plan`, `summary`, `title` primary; `explore`, `general` subagent | same | n/a |
 | Installed IDs dotted | every ID `<plugin>.<name>` with a known plugin | 117 of 117 (115 skills, 2 agents); 0 violations | same | pass |
 | Skill paths | `/builtin/` or below the lab | fail-closed check passed; a path-capture variant showed 2 `/builtin/` and 115 `<lab>/config/skills/<id>/SKILL.md` | fail-closed check passed | pass |
-| Repeatability | identical output | both runs and all 3 verifier runs byte-identical (SHA-256 `20a31d22...3fa524`) | all 4 verifier runs byte-identical to each other and to the first run | pass |
+| Repeatability | identical output | both runs and the 7 verifier runs without probes byte-identical (SHA-256 `20a31d22...3fa524`) | all 4 verifier runs byte-identical to each other and to the first run | pass |
 
 Per Module, the 115 installed skills split as Akka 5, Aspire 8, General 65, and Process 37.
 After normalization of line endings, the Windows and Linux discovery JSON objects are identical.
-One script run took about 6 s on Windows and 3.3-7.6 s on Linux (the 7.6 s run was under `strace`).
+One script run took about 5-6 s on Windows (2.9-3.0 s with `-StableSeconds 1`) and 3.3-7.6 s on
+Linux (3.3 s with `-StableSeconds 1`; the 7.6 s run was under `strace`).
 
 The 26 hidden IDs:
 
@@ -120,8 +122,8 @@ inherited.
   `opencode debug paths` in the same environment put every root (home, config, data, cache, state,
   tmp, log, database) below the lab.
 - **Watchers.** The serve logs subscribed watchers only on `<lab>/config` (with its `AGENTS.md`,
-  `skill`, and `skills`) and `<lab>/home`, with `<lab>/project` as the location. The logs held no
-  WARN or ERROR line and no path from the real profile.
+  `skill`, and `skills`) and `<lab>/home`, with `<lab>/project` as the location. No log on
+  either host held a path from the real profile, and the Linux logs held no WARN or ERROR line.
 - **Compatibility roots.** On Windows, a positive control planted probe skills: the run found them
   in `<lab-home>/.claude/skills` and `<lab-home>/.agents/skills` (`<lab-home>` is the lab's home
   folder), so those always-on roots follow the redirected home. It did not find probes in `<lab>/xdg/config/opencode/skills`, in the project's

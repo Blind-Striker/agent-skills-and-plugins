@@ -117,9 +117,9 @@ check consistency only at the end.
 
 | Lab volume | Sessions | Sessions where the server crashed | Applies started | Applies during which it crashed |
 |---|---:|---:|---:|---:|
-| system | 18 | 4 | 52 | 4 |
+| system | 18 | 4 | 49 | 4 |
 | data | 15 | 0 | 49 | 0 |
-| all | 33 | 4 | 101 | 4 |
+| all | 33 | 4 | 98 | 4 |
 
 - Crashes happened in install steps (3) and a remove step (1): as the first Apply of a session
   (2), later in a normal sequence (1), and in a back-to-back sequence (1). Two of the 8 `sys-slow`
@@ -141,14 +141,15 @@ When the server survived (29 sessions):
   remove.
   The worst time from the end of an Apply to a consistent list was 0.592 s; none came near the
   120 s timeout.
-- During an Apply, `/api/skill` returned partial lists (for example 5, 36, 77, and 102 skills during
-  an install, 80 or 81 during a remove), because the watcher rescans about every 0.5 s while files
+- During an Apply, `/api/skill` returned partial lists (in the first run, for example 10, 36, 81, and
+  102 skills during an install, and 5, 43, 77, and 80 during a remove), because the watcher rescans about every 0.5 s while files
   change. This is expected, and it is why a running server can see a partly applied tree.
 - In the final list of every surviving verifier session, the hidden (`opencode/autoinvoke: false`)
   set was exactly the 26 Bundle `manual` skills. Each installed skill path was `<lab>/config/skills/<id>/SKILL.md`, and
   no sample, including the samples taken during an Apply, listed a skill outside the lab.
-- In the verifier's sessions, the 2 Bundle agents were listed as subagents after each install and
-  were absent after each remove.
+- In the verifier's sequential sessions, the 2 Bundle agents were listed as subagents after each
+  install and were absent after each remove. The surviving back-to-back session checked them only
+  after its last install, where both were listed as subagents.
 - The server's own log held only INFO lines, except one WARN per service-mode session (see
   caveats).
 
