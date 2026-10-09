@@ -22,6 +22,18 @@ export function lockKey(plugin: string, name: string): string {
   return `${plugin}/${name}`;
 }
 
+export type EjectStep = "overlay" | "patch" | "bless" | "rebase";
+const EJECT_FLAGS: Record<EjectStep, string> = {
+  overlay: "",
+  patch: " --patch",
+  bless: " --bless",
+  rebase: " --patch --rebase",
+};
+/** The one spelling of every eject step a message names (workflow.md "Manifest and body-edit flow"). */
+export function ejectCommand(plugin: string, name: string, step: EjectStep): string {
+  return `npm run eject -- ${plugin} ${name}${EJECT_FLAGS[step]}`;
+}
+
 function lockPath(root: string): string {
   return join(root, "overlays", LOCK_FILE);
 }

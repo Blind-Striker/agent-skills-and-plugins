@@ -50,6 +50,7 @@ import {
   checkPatch,
   driftedFiles,
   driftedMergeSources,
+  ejectCommand,
   listFiles,
   liveStampKeys,
   loadLock,
@@ -339,15 +340,15 @@ function overlayDrift(
   outName: string,
   overlayDir: string,
   lock: OverlayLock,
+  next: string,
 ): string[] {
   const id = `${plugin}/${outName}`;
-  const bless = `npm run eject -- ${plugin} ${outName} --bless`;
   const entry = lock[lockKey(plugin, outName)];
   if (!entry) {
-    return [`${id}: overlay is not recorded in overlays/overlays.lock.json — run: ${bless}`];
+    return [`${id}: overlay is not recorded in overlays/overlays.lock.json — run: ${next}`];
   }
   if (entry.source !== item.source) {
-    return [`${id}: lock was blessed against ${entry.source}, but the item now curates ${item.source} — run: ${bless}`];
+    return [`${id}: lock was blessed against ${entry.source}, but the item now curates ${item.source} — run: ${next}`];
   }
   const base = upstreamBase(root, item, comp);
   // liveKeys === eject bless keys: both use overlay.patch existence, patchTargets/listFiles, then stampFiles.
@@ -360,14 +361,14 @@ function overlayDrift(
       ...(liveOnly.length ? [`not in lock: ${liveOnly.join(", ")}`] : []),
       ...(lockOnly.length ? [`no longer targeted: ${lockOnly.join(", ")}`] : []),
     ];
-    return [`${id}: overlay stamp target set changed (${changes.join("; ")}) — run: ${bless}`];
+    return [`${id}: overlay stamp target set changed (${changes.join("; ")}) — run: ${next}`];
   }
   if (!Object.keys(entry.files).length) {
-    return [`${id}: lock records no upstream file, so nothing guards this overlay — run: ${bless}`];
+    return [`${id}: lock records no upstream file, so nothing guards this overlay — run: ${next}`];
   }
   const drifted = driftedFiles(base, entry);
   if (drifted.length) {
-    return [`${id}: upstream changed under the overlay (${drifted.join(", ")}) — review the diff, then: ${bless}`];
+    return [`${id}: upstream changed under the overlay (${drifted.join(", ")}) — review the diff, then: ${next}`];
   }
   // A merged body has ingredients the primary stamp knows nothing about, so the declaration and the
   // lock have to name the same sources before either guards anything. Both directions are caught:
@@ -380,7 +381,7 @@ function overlayDrift(
   if ((declaredSources.size || blessedSources.size) && !sameSources) {
     const declared = [...declaredSources].join(", ") || "none";
     const held = [...blessedSources].join(", ") || "none";
-    return [`${id}: merge sources are not blessed (declared: ${declared}; lock has: ${held}) — run: ${bless} --yes`];
+    return [`${id}: merge sources are not blessed (declared: ${declared}; lock has: ${held}) — run: ${next}`];
   }
   // Naming the same sources is still not enough once a source can declare its own files: that list
   // grows without the source SET changing, so the check above passes while the lock holds only the
@@ -390,27 +391,27 @@ function overlayDrift(
     const unstamped = (ms.files ?? []).filter((f) => !(f in stamped));
     if (unstamped.length) {
       return [
-        `${id}: merge source ${ms.source} declares ${unstamped.join(", ")}, which the lock does not stamp — run: ${bless} --yes`,
+        `${id}: merge source ${ms.source} declares ${unstamped.join(", ")}, which the lock does not stamp — run: ${next}`,
       ];
     }
   }
   // Naming the same sources is not yet a guard. A stamp is taken under the same-filename rule, so an
   // address that shares no file name with the overlay records absence and nothing else — and an
   // absent stamp only speaks when a file APPEARS, which is why blessing such an address succeeds and
-  // the guard can then never fire. Re-blessing would only re-record the nulls: the address is wrong.
+  // the guard can then never fire. Blessing again would only re-record the nulls: the address is wrong.
   const unguarded = Object.entries(entry.mergeSources ?? {})
     .filter(([, files]) => Object.values(files).every((sha) => sha === null))
     .map(([addr]) => addr);
   if (unguarded.length) {
     return unguarded.map(
       (addr) =>
-        `${id}: merge source ${addr} shares no filename with the overlay — nothing guards it; wrong address? Fix merged_from, then re-bless`,
+        `${id}: merge source ${addr} shares no filename with the overlay — nothing guards it; wrong address? Fix merged_from, then: ${next}`,
     );
   }
   const mergeDrift = driftedMergeSources(root, entry);
   if (mergeDrift.length) {
     return [
-      `${id}: merge source changed under the overlay (${mergeDrift.join("; ")}) — review the diff, then: ${bless} --yes`,
+      `${id}: merge source changed under the overlay (${mergeDrift.join("; ")}) — review the diff, then: ${next}`,
     ];
   }
   return [];
@@ -433,7 +434,7 @@ function collectProblems(root: string, manifests: CurationManifest[], components
       }
       if (item.body && !existsSync(overlayDir)) {
         problems.push(
-          `${id}: body is ${item.body} but overlays/${id}/ is missing — run: npm run eject -- ${m.plugin.name} ${outName}${item.body === "patch" ? " --patch" : ""}`,
+          `${id}: body is ${item.body} but overlays/${id}/ is missing — run: ${ejectCommand(m.plugin.name, outName, item.body === "patch" ? "patch" : "overlay")}`,
         );
       } else if (item.body === "patch") {
         // A conversion re-serializes frontmatter around a body, so there is no stable file for a
@@ -442,10 +443,18 @@ function collectProblems(root: string, manifests: CurationManifest[], components
           problems.push(`${id}: body: patch applies to skill output only — a ${outType} needs body: overlay`);
         } else if (!existsSync(join(overlayDir, PATCH_FILE))) {
           problems.push(
-            `${id}: body is patch but overlays/${id}/${PATCH_FILE} is missing — run: npm run eject -- ${m.plugin.name} ${outName} --patch`,
+            `${id}: body is patch but overlays/${id}/${PATCH_FILE} is missing — run: ${ejectCommand(m.plugin.name, outName, "patch")}`,
           );
         } else {
-          problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock));
+          // --check writes nothing, so this runs against pristine upstream in the fail-fast pass.
+          // It runs before the drift check because it decides the next step: a patch that still
+          // applies is blessed, one that does not is rebased first. No cause is asserted: a patch
+          // also stops applying when upstream adopted the same edit, or when the path now sits at
+          // or beyond a symlink, and git's own message says which.
+          const err = checkPatch(upstreamBase(root, item, comp), join(overlayDir, PATCH_FILE));
+          const rebase = ejectCommand(m.plugin.name, outName, "rebase");
+          const next = err ? rebase : ejectCommand(m.plugin.name, outName, "bless");
+          problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock, next));
           // omit runs first, so a pattern that swallows a file the patch edits leaves the hunk
           // nothing to land on. git apply would say so — but only after the output tree was
           // already deleted, which is precisely what this pass exists to prevent.
@@ -455,12 +464,8 @@ function collectProblems(root: string, manifests: CurationManifest[], components
           if (swallowed.length) {
             problems.push(`${id}: omit drops ${swallowed.join(", ")}, which ${PATCH_FILE} edits`);
           }
-          // --check writes nothing, so this runs against pristine upstream in the fail-fast pass.
-          // No cause is asserted: a patch also stops applying when upstream adopted the same edit,
-          // or when the path now sits at or beyond a symlink, and git's own message says which.
-          const err = checkPatch(upstreamBase(root, item, comp), join(overlayDir, PATCH_FILE));
           if (err) {
-            problems.push(`${id}: ${PATCH_FILE} no longer applies to ${item.source}:\n${err}`);
+            problems.push(`${id}: ${PATCH_FILE} no longer applies to ${item.source} — run: ${rebase}\n${err}`);
           }
         }
       } else if (item.body === "overlay") {
@@ -474,7 +479,8 @@ function collectProblems(root: string, manifests: CurationManifest[], components
             );
           }
         }
-        problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock));
+        const next = ejectCommand(m.plugin.name, outName, "bless");
+        problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock, next));
       }
       if (outType === "skill" && comp.type !== "skill") {
         problems.push(`${item.source}: ${comp.type} -> skill conversion not supported`);

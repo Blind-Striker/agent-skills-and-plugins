@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import { type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
+import { PATCH_FILE } from "./lib/overlay.ts";
 import { type OwnSkillIdentity, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { candidateHits } from "./lib/refs.ts";
@@ -17,6 +18,13 @@ const POSTURE_KEYS = ["disable-model-invocation", "user-invocable", "description
 
 /** The two POSTURE_KEYS a stated `invocation:` overwrites; `description` is not one of them. */
 const CLAUDE_INVOCATION_KEYS: readonly string[] = ["disable-model-invocation", "user-invocable"];
+
+/**
+ * Where an overlay review ends. Only the build knows which eject step applies — whether a patch
+ * still applies is a `git apply --check` against the new pin — so this report names none and
+ * defers to the build's message, which names exactly one.
+ */
+const NEXT_STEP = "then npm run build names the eject step";
 
 /** Reading upstream at either pin — the only impure thing the report needs, so it comes in. */
 export interface SyncIO {
@@ -105,9 +113,9 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
           continue;
         }
         const mrel = msrc === sub ? "" : msrc.slice(sub.length + 1);
-        // A merge source that vanished cannot be re-blessed: `--bless` stamps upstream files by
-        // hashing them, and there is nothing left to hash. Printing the re-bless command would be
-        // handing over a command that cannot succeed.
+        // A merge source that vanished cannot be blessed again: `--bless` stamps upstream files by
+        // hashing them, and there is nothing left to hash. Deferring to the build's eject step would
+        // be handing over a command that cannot succeed.
         if (!io.exists("new", mrel)) {
           if (io.exists("old", mrel)) {
             lines.push(
@@ -118,7 +126,7 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
         }
         if (mrel === "" ? changed.length > 0 : changed.some((c) => c === mrel || c.startsWith(`${mrel}/`))) {
           lines.push(
-            `${m.plugin.name}: ${item.source} MERGE SOURCE ${msrc} changed upstream — review, then re-bless: git -C external/${sub} diff <old> <new> -- ${mrel || "."}`,
+            `${m.plugin.name}: ${item.source} MERGE SOURCE ${msrc} changed upstream — review: git -C external/${sub} diff <old> <new> -- ${mrel || "."}; ${NEXT_STEP}`,
           );
         }
       }
@@ -165,12 +173,13 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
       if (item.exclude) {
         tag = "excluded — no action";
       } else if (item.body === "overlay") {
-        // Nothing arrives on its own: the copy shadows upstream until it is re-blessed.
-        tag = `OVERLAY — review, then re-bless: ${review}`;
+        // Nothing arrives on its own: the copy shadows upstream until it is blessed again.
+        tag = `OVERLAY — review: ${review}; ${NEXT_STEP}`;
       } else if (item.body === "patch") {
-        // Either the change lands outside the patched region and is absorbed silently, or the build
-        // stops. Both deserve a look, and neither is the "auto-updated" the default tag promises.
-        tag = `PATCH — absorbed if it misses the patched region, otherwise the build stops: ${review}`;
+        // Stamped targets stop the build on any change to a file the patch edits, wherever in the
+        // file it lands; a change to any other file of the item flows through on the next build.
+        // Neither is the "auto-updated" the default tag promises.
+        tag = `PATCH — a change to a file ${PATCH_FILE} edits stops the build; changes elsewhere in the item flow through. Review: ${review}; ${NEXT_STEP}`;
       }
       lines.push(`${m.plugin.name}: ${item.source} changed upstream (${tag})`);
       // An excluded item emits nothing, so everything below — posture that "flows straight into
@@ -229,7 +238,7 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
         // skill end to end and leave its description untouched — which is exactly how an override
         // ends up describing one branch of a body that now has three, with every key still equal.
         //
-        // An owned body is exempt: the overlay shadows upstream until it is re-blessed, so the
+        // An owned body is exempt: the overlay shadows upstream until it is blessed again, so the
         // shipped body did not move, and the OVERLAY tag above already asked for that review. A
         // patched body is not exempt — upstream still flows everywhere the patch does not reach.
         const overridden = Object.keys(item.frontmatter ?? {});

@@ -864,7 +864,22 @@ test("a patch that no longer applies aborts before any output is deleted", () =>
   const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
   writeFileSync(up, readFileSync(up, "utf8").replace("Replace this line.", "Upstream rewrote this line."));
   assert.throws(() => buildAll(root), /overlay\.patch no longer applies to sp\/skills\/gamma/);
+  assert.throws(
+    () => buildAll(root),
+    /overlay\.patch no longer applies to sp\/skills\/gamma — run: npm run eject -- deniz-process gamma --patch --rebase/,
+  );
   assert.ok(existsSync(alpha), "previous build output must survive an aborted build");
+});
+
+// The fail-fast pass and the assembly mirror name the same eject step: a patch body is ejected
+// with --patch, which is what makes the overlay a patch rather than a full-file copy.
+test("a patch item whose overlay directory is missing names the --patch eject", () => {
+  const root = makeRepo();
+  rmSync(join(root, "overlays", "deniz-process", "gamma"), { recursive: true, force: true });
+  assert.throws(
+    () => buildAll(root),
+    /body is patch but overlays\/deniz-process\/gamma\/ is missing — run: npm run eject -- deniz-process gamma --patch$/m,
+  );
 });
 
 // A full-file overlay cannot detect upstream moving under it, so the recorded hash has to.
@@ -1160,6 +1175,10 @@ test("a drifted merge source stops the build, naming the source that moved", () 
     "---\nname: beta\ndescription: moved\n---\nMoved.\n",
   );
   assert.throws(() => buildAll(root), /merge source changed under the overlay \(sp\/skills\/beta: SKILL\.md\)/);
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) => /npm run eject -- deniz-process \S+ --bless/.test(e.message) && !e.message.includes("--yes"),
+  );
 });
 
 // The filename rule stamps what the OVERLAY owns, so a merge that folded in a source's differently
@@ -1218,6 +1237,10 @@ test("a declared files list guards a source file the overlay does not own", () =
     /declares references\/notes\.md, which the lock does not stamp/,
     "a files list that outgrew its stamp is an unblessed merge",
   );
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) => /npm run eject -- deniz-process \S+ --bless/.test(e.message) && !e.message.includes("--yes"),
+  );
 
   lockWith(["SKILL.md", "references/notes.md"]);
   buildAll(root); // clean once the declared list is actually blessed
@@ -1226,6 +1249,10 @@ test("a declared files list guards a source file the overlay does not own", () =
     () => buildAll(root),
     /merge source changed under the overlay \(sp\/skills\/beta: references\/notes\.md\)/,
     "drift in a declared file stops the build like any other ingredient",
+  );
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) => /npm run eject -- deniz-process \S+ --bless/.test(e.message) && !e.message.includes("--yes"),
   );
 });
 
@@ -1261,6 +1288,10 @@ test("merged_from declared but not blessed stops the build", () => {
   };
   writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
   assert.throws(() => buildAll(root), /merge sources are not blessed .* --bless/);
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) => /npm run eject -- deniz-process \S+ --bless/.test(e.message) && !e.message.includes("--yes"),
+  );
 });
 
 // The same-filename rule is what a merge stamp guards by, so an address that shares no filename with
@@ -1302,6 +1333,7 @@ test("a merge source that shares no filename with the overlay stops the build", 
   };
   writeFileSync(join(root, "overlays", "overlays.lock.json"), `${JSON.stringify(lock, null, 2)}\n`);
   assert.throws(() => buildAll(root), /merge source sp\/skills\/epsilon shares no filename with the overlay/);
+  assert.throws(() => buildAll(root), /Fix merged_from, then: npm run eject -- deniz-process alpha --bless/);
 });
 
 test("buildAll emits requiredModules for a guarded cross-Module edge", () => {

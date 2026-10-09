@@ -127,7 +127,14 @@ test("reports only changed curated items with overlay flag", () => {
   assert.match(alpha, /alpha/);
   assert.match(alpha, /auto-updated/);
   assert.match(beta, /beta/);
-  assert.match(beta, /OVERLAY/);
+  assert.match(
+    beta,
+    /OVERLAY — review: git -C external\/sp diff <old> <new> -- skills\/beta; then npm run build names the eject step/,
+  );
+  assert.ok(
+    lines.every((l) => !/npm run eject/.test(l)),
+    "only the build knows which eject step applies",
+  );
 });
 
 test("a changed root-level skill is reported and its SKILL.md is parsed", () => {
@@ -207,8 +214,13 @@ test("a patch item is reported as neither auto-updated nor an overlay", () => {
   assert.equal(lines.length, 1);
   const only = lines[0];
   assert.ok(only);
-  assert.match(only, /PATCH/);
+  assert.match(
+    only,
+    /PATCH — a change to a file overlay\.patch edits stops the build; changes elsewhere in the item flow through/,
+  );
+  assert.match(only, /then npm run build names the eject step/);
   assert.doesNotMatch(only, /auto-updated/);
+  assert.doesNotMatch(only, /npm run eject/);
 });
 
 test("no changes yields empty report", () => {
@@ -298,6 +310,10 @@ test("a pin move touching a merge source tags the merged item even across submod
   assert.ok(
     lines.some((l) => l.includes("MERGE SOURCE") && l.includes("sp/skills/host") && l.includes("mp/skills/beta")),
   );
+  const merge = lines.find((l) => l.includes("MERGE SOURCE"));
+  assert.ok(merge);
+  assert.match(merge, /then npm run build names the eject step/);
+  assert.doesNotMatch(merge, /npm run eject/);
 });
 
 test("candidate edges that appeared or vanished in a changed body are reported", () => {

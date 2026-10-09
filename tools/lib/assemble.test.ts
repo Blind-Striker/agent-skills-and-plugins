@@ -93,3 +93,19 @@ test("an assembly failure does not touch existing generated target trees", (t) =
   assert.equal(readFileSync(pluginSentinel, "utf8"), "plugin\n");
   assert.equal(readFileSync(opencodeSentinel, "utf8"), "opencode\n");
 });
+
+test("the assembly mirror names the --patch eject for a missing patch overlay", (t) => {
+  const root = makeRepo();
+  const stagingRoot = mkdtempSync(join(tmpdir(), "assembly-test-"));
+  t.after(() => {
+    rmSync(root, { recursive: true, force: true });
+    rmSync(stagingRoot, { recursive: true, force: true });
+  });
+  rmSync(join(root, "overlays", "deniz-process", "gamma"), { recursive: true, force: true });
+
+  const { manifests, components } = loadFixture(root);
+  assert.throws(
+    () => assembleItems(root, stagingRoot, manifests, components, []),
+    /body is patch but overlays\/deniz-process\/gamma\/ is missing — run: npm run eject -- deniz-process gamma --patch$/,
+  );
+});

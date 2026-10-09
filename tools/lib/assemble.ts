@@ -12,7 +12,7 @@ import {
 import { basename, join, relative } from "node:path";
 import { parseDoc, serializeDoc } from "./frontmatter.ts";
 import { type ComponentType, type CurationItem, type CurationManifest, UNKNOWN_SOURCE_RULE } from "./manifest.ts";
-import { applyPatch, PATCH_FILE } from "./overlay.ts";
+import { applyPatch, ejectCommand, PATCH_FILE } from "./overlay.ts";
 import { isOmitted, itemRelative, resolveItem } from "./resolve.ts";
 import type { ComponentInfo } from "./scan.ts";
 
@@ -184,7 +184,7 @@ function assembleCuratedItem(
   }
   if (item.body && !existsSync(overlayDir)) {
     throw new Error(
-      `${manifest.plugin.name}/${outName}: body is ${item.body} but overlays/${manifest.plugin.name}/${outName}/ is missing — run: npm run eject -- ${manifest.plugin.name} ${outName}`,
+      `${manifest.plugin.name}/${outName}: body is ${item.body} but overlays/${manifest.plugin.name}/${outName}/ is missing — run: ${ejectCommand(manifest.plugin.name, outName, item.body === "patch" ? "patch" : "overlay")}`,
     );
   }
   if (outType === "skill" && comp.type !== "skill") {
