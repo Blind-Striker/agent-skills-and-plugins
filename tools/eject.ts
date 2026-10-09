@@ -19,6 +19,7 @@ import {
   cutPatch,
   driftedFiles,
   driftedMergeSources,
+  ejectCommand,
   fileStamp,
   listFiles,
   liveStampKeys,
@@ -152,6 +153,18 @@ if (flags.has("--bless")) {
   if (!existsSync(dest)) {
     console.error(`Nothing to bless: overlays/${plugin}/${name}/ does not exist`);
     process.exit(1);
+  }
+  // A stamp says "reviewed against this upstream". Recording it for a patch the build cannot apply
+  // would bless a state the next build still refuses, so the rebase comes first.
+  if (existsSync(patchFile)) {
+    const bad = checkPatch(base, patchFile);
+    if (bad) {
+      console.error(
+        `overlays/${plugin}/${name}/${PATCH_FILE} no longer applies to ${item.source} — blessing would record a patch the build cannot apply. Rebase it: ${ejectCommand(plugin, name, "rebase")}`,
+      );
+      console.error(bad);
+      process.exit(1);
+    }
   }
   // Re-blessing is the moment an upstream change enters the overlay unread, so everything this
   // would overwrite is shown first and only --yes accepts it (ADR-0001). A first blessing has

@@ -229,6 +229,20 @@ test("eject --bless re-stamps a patch overlay against the files its patch touche
   assert.doesNotThrow(() => buildAll(root));
 });
 
+test("eject --bless refuses a patch that no longer applies, even with --yes", () => {
+  const root = makeRepo();
+  const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Replace this line.", "Replaced upstream."));
+  const lockFile = join(root, "overlays", "overlays.lock.json");
+  const before = readFileSync(lockFile, "utf8");
+  const r = eject(root, ["deniz-process", "gamma", "--bless", "--yes"]);
+  assert.equal(r.ok, false);
+  assert.match(r.out, /overlay\.patch no longer applies to sp\/skills\/gamma/);
+  assert.match(r.out, /npm run eject -- deniz-process gamma --patch --rebase/);
+  assert.doesNotMatch(r.out, /DRIFTED/, "refused before any drift display");
+  assert.equal(readFileSync(lockFile, "utf8"), before);
+});
+
 // ADR-0001: a re-bless that displays nothing invites rubber-stamping the very look it exists to
 // force. Merge sources sharpen it — they are ingredients the primary stamp cannot see at all.
 test("eject --bless names the merge-source drift and refuses to record it without --yes", () => {
