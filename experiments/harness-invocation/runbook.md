@@ -52,7 +52,7 @@ Check OpenCode 2 discovery against an isolated `opencode serve` without a model 
 prints the isolated environment and the server command and starts nothing; the real run creates the
 lab tree, disables the managed background service in `<lab>/config/service.json`, serves on
 127.0.0.1 with a random password, prints the registered skills (with `advertised`), commands, and
-agents as JSON, and stops the server in all cases:
+agents (with `mode`) as JSON, and stops the server in all cases:
 
 ```powershell
 pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab-root> -DryRun

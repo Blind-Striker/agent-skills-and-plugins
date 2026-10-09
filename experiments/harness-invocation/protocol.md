@@ -145,7 +145,8 @@ assert from the discovery output:
   `report`, and every `manual` item is `advertised: false`;
 - the discovery run passed its containment check, so every non-built-in skill resolved below the
   lab;
-- `commands` and `agents` hold exactly the installed command and agent IDs plus the built-ins; and
+- `commands` and the `agents` IDs hold exactly the installed command and agent IDs plus the
+  built-ins, and every installed agent reports `mode: subagent`; and
 - `opencode debug paths`, run in the same environment after discovery has written `service.json`,
   reports config, data, cache, and state roots below the profile.
 
@@ -257,6 +258,14 @@ all of this for one lab and prints the result as JSON:
 ```powershell
 pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab-root>
 ```
+
+```
+{ opencodeVersion, skills: [{ id, advertised }], commands: [id], agents: [{ id, mode }] }
+```
+
+In an empty isolated 2.0.23 lab, `build`, `plan`, `compaction`, `title`, and `summary` report
+`mode: primary`, and `general` and `explore` report `mode: subagent` (measured on the Windows
+workstation).
 
 A skill with `autoinvoke: false` stays registered and loadable; it is only not offered to the
 model. Skills are not slash commands in OpenCode 2, so a skill never appears in `/api/command`.

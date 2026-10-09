@@ -424,7 +424,7 @@ Test-That "every runner still contains the parts that make it a runner" {
         "intent-matrix.ps1" = @('$controlPrompt', '$intentPrompt', 'Invoke-HarnessProcess', 'Assert-Preflight', 'Reset-Scratch', 'stream-json', 'metadata.json', 'trace.json', 'memory_paths', 'persisted project memory', 'CLAUDE_CODE_DISABLE_AUTO_MEMORY', 'escaped the isolated Claude home')
         "verify.ps1"        = @('Check ', 'Use-ClaudeIsolation', '.credentials.json', '--plugin-dir')
         "probe.ps1"         = @('--plugin-dir', '--add-dir', 'tool_use', 'stream-json')
-        "oc2-discovery.ps1" = @('Get-OpenCodeLabEnvironment', 'service.json', '/api/skill', '/api/command', '/api/agent', 'location[directory]', 'autoinvoke', 'Kill($true)', 'finally')
+        "oc2-discovery.ps1" = @('Get-OpenCodeLabEnvironment', 'service.json', '/api/skill', '/api/command', '/api/agent', 'mode = [string] $_.mode', 'location[directory]', 'autoinvoke', 'Kill($true)', 'finally')
         "codex-matrix.ps1"  = @('CODEX_HOME', 'codex-probe-marketplace', 'gpt-5.6-luna', 'model_reasoning_effort', 'Invoke-CodexProcess', 'Invoke-CodexBehaviour', 'Get-CodexAgentText', 'cross-skill-handoff', 'bundled-reference', 'generated-implicit-large-catalog', 'plugin", "marketplace", "add', 'plugin", "remove', 'Kill($true)', 'WaitForExit($TimeoutSeconds * 1000)', 'realCodexPluginStateUnchanged', 'repositoryStateUnchanged')
         "lab.ps1"           = @('Start-ClaudeLab', 'Start-OpenCodeLab', 'Use-OpenCodeIsolation', 'Sync-Lab', 'install --all --yes')
     }

@@ -3,7 +3,8 @@
 #   .\oc2-discovery.ps1 -Lab <dir>           start the server, list skills, commands and agents, stop it
 #
 # A real run prints one JSON object:
-#   { opencodeVersion, skills: [{ id, advertised }], commands: [id], agents: [id] }
+#   { opencodeVersion, skills: [{ id, advertised }], commands: [id], agents: [{ id, mode }] }
+# `mode` is the agent mode /api/agent reports, such as `primary` or `subagent`.
 #
 # The OpenCode 2 CLI has no skill or command listing, and one-shot introspection races the
 # asynchronous location load and returns empty lists. A persistent `serve` answers once the location
@@ -151,7 +152,9 @@ try {
             [ordered]@{ id = [string] $_.id; advertised = ($_.autoinvoke -ne $false) }
         })
         commands        = @($commands | ForEach-Object { [string] $_.name } | Sort-Object)
-        agents          = @($agents | ForEach-Object { [string] $_.id } | Sort-Object)
+        agents          = @($agents | Sort-Object { [string] $_.id } | ForEach-Object {
+            [ordered]@{ id = [string] $_.id; mode = [string] $_.mode }
+        })
     } | ConvertTo-Json -Depth 5
 } finally {
     if ($started) {
