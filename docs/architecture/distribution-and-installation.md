@@ -41,17 +41,26 @@ are owned by [Transformation and emission](transformation-and-emission.md).
 
 OpenCode 2 watches its config folders, so Native-tree changes need no restart: on v2.0.23 a newly
 written skill appeared in the running service's `/api/skill` list within about two seconds, and a
-newly written command appeared in `/api/command` without a restart. Changed and removed files and
-agents were not measured. A running
-service can therefore observe a partly applied tree while Apply moves files. Apply's transaction
-protects Install state and Recovery, not what the harness sees between two file moves.
+newly written command appeared in `/api/command` without a restart. On Windows, after a
+full-estate install or remove, the skill list matched the installed tree within 0.6 seconds of the
+end of Apply and the two agents appeared or disappeared with it
+([bulk-Apply record](../../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md));
+changed files were not measured. A running service can therefore observe a partly applied tree
+while Apply moves files, and on Windows it listed partial skill sets during an Apply. Apply's
+transaction protects Install state and Recovery, not what the harness sees between two file moves.
 
-Bulk changes carry an open upstream risk on Windows:
+Bulk changes can crash a running OpenCode 2 server on Windows:
 [`anomalyco/opencode#47505`](https://github.com/anomalyco/opencode/issues/47505) reports that a bulk
 update of global skills terminated the shared OpenCode 2 service, with a second report on v2.0.16.
-Before the next Release, a bulk Apply plus prune against a running, isolated OpenCode 2 service on
-Windows must be measured and recorded. Until that record exists, the effect of a large Apply on a
-running Windows service is unmeasured.
+The
+[bulk-Apply record](../../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)
+reproduced it on v2.0.23: during a full-estate install or remove, an isolated server died with a Bun
+segmentation fault in its file watcher in 4 of 33 sessions, all with the lab on the system volume
+(4 of 18 there, 0 of 15 on a data volume). The installer's Apply itself completed every time; only
+the server died. Until the curator chooses a mitigation (stop OpenCode
+before Apply on Windows in the documented procedure, or wait for an upstream fix), a bulk Apply
+against a running OpenCode on Windows is unsafe, and the next Release stays gated. Bulk Apply
+against a running server on Linux is not measured.
 
 ## Bundle and Package identity
 
@@ -99,7 +108,7 @@ owns consumer instructions. Those instructions describe the published Release, s
 in the release step. A new Release moves the `package.json` version, which names the Package asset,
 and updates the recipe pins guarded by
 [`tools/repository-docs.test.ts`](../../tools/repository-docs.test.ts) in the same change. The next
-Release also requires the Windows bulk-Apply measurement described under
+Release also requires a documented mitigation for the Windows bulk-Apply crash described under
 [Target OpenCode runtime](#target-opencode-runtime).
 
 ## Byte-preserving composition
@@ -299,5 +308,5 @@ version-range resolution remain out of scope. The durable symbol-side proof boun
   measured discovery of the installed full estate on v2.0.23 on the Windows workstation and the
   Linux host: every installed skill and agent appeared under its `<plugin>.<name>` ID, exactly the
   `manual` skills were unadvertised, and both agents reported `mode: subagent`. The manual-skill
-  posture with a model, the Windows bulk-Apply behavior above, and whether a read of a bundled
-  support file from the global Native tree prompts a human for permission are not yet measured.
+  posture with a model and whether a read of a bundled support file from the global Native tree
+  prompts a human for permission are not yet measured.

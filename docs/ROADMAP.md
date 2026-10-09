@@ -85,10 +85,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       discovery record on both hosts is committed. Still to record: one LLM record proving that a
       manual skill is unadvertised, `@`-attachable, and callable by the model through its
       namespaced ID; its model route waits on the curator's credential choice.
-   2. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
-      Windows profile as
-      [distribution and installation](architecture/distribution-and-installation.md#target-opencode-runtime)
-      requires. Migrate the two real profiles (a Windows workstation and a Linux host, both on
+   2. **Profiles and Release.** Upstream issue `anomalyco/opencode#47505` is measured on isolated
+      Windows labs and reproduced: a running OpenCode 2.0.23 server crashed during a full-estate
+      bulk Apply
+      ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
+      The curator chooses the mitigation before the Release (see Known Gaps). Migrate the two real
+      profiles (a Windows workstation and a Linux host, both on
       OpenCode 2) once by a manual procedure recorded in an experiment record: remove the Modules
       with the schema-1 installer, remove the then-empty schema-1 state, and install schema-2
       output. This is a one-off, not a supported product path. Then cut a new Package Release:
@@ -187,6 +189,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
+- **Windows bulk Apply crashes a running OpenCode 2 server:** on v2.0.23 an isolated server died
+  with a Bun segmentation fault in its file watcher during a full-estate install or remove in 4 of
+  33 sessions, all with the lab on the system volume
+  ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
+  The Release gate stays closed until the curator chooses a documented mitigation: stop OpenCode
+  before Apply on Windows, or wait for an upstream fix. The Windows
+  real-profile migration must stop OpenCode, the managed service included, before Apply. Linux bulk
+  Apply against a running server is not measured.
 - **Public Release surface lags the decision:** the README OpenCode recipes and its capability
   summary (OpenCode "receives a skill, a command, or both", parked manual bodies, refused
   alternate config-dir mounts), the `package.json` version 0.3.0, and the
