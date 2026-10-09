@@ -19,6 +19,7 @@ import {
   cutPatch,
   driftedFiles,
   driftedMergeSources,
+  fileStamp,
   listFiles,
   liveStampKeys,
   loadLock,
@@ -106,7 +107,7 @@ function showDrift(addr: string, file: string, sha: string): void {
   // Merge sources are addressed as directories; the primary may be a bare command or agent file,
   // whose own names resolve against the containing directory.
   const now = addr === item.source ? join(base, file) : join(root, "external", addr, file);
-  if (!existsSync(now)) {
+  if (fileStamp(now) === null) {
     console.log("  (gone upstream)");
     return;
   }

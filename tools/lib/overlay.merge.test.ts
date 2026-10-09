@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { makeRepo } from "../testutil.ts";
-import { driftedMergeSources, stampMergeFiles, type LockEntry } from "./overlay.ts";
+import { driftedFiles, driftedMergeSources, type LockEntry, stampFiles, stampMergeFiles } from "./overlay.ts";
 
 test("stampMergeFiles records a sha per present file and null per absent one", () => {
   const root = makeRepo();
@@ -27,4 +27,43 @@ test("driftedMergeSources reports edits, deletions, and files that appeared over
   writeFileSync(join(dir, "notes.md"), "appeared later\n");
   const drifted = driftedMergeSources(root, entry);
   assert.deepEqual(drifted, ["sp/skills/beta: SKILL.md", "sp/skills/beta: notes.md (appeared upstream)"]);
+});
+
+test("a directory at a recorded-absent merge name is not drift", () => {
+  const root = makeRepo();
+  const dir = join(root, "external", "sp", "skills", "beta");
+  const entry: LockEntry = {
+    source: "sp/skills/alpha",
+    files: {},
+    mergeSources: { "sp/skills/beta": stampMergeFiles(dir, ["SKILL.md", "notes.md"]) },
+  };
+  mkdirSync(join(dir, "notes.md"));
+  assert.deepEqual(driftedMergeSources(root, entry), []);
+});
+
+test("a stamped file replaced by a directory is drift, not a hash-object error", () => {
+  const root = makeRepo();
+  const dir = join(root, "external", "sp", "skills", "beta");
+  const entry: LockEntry = {
+    source: "sp/skills/beta",
+    files: stampFiles(dir, ["SKILL.md"]),
+    mergeSources: { "sp/skills/beta": stampMergeFiles(dir, ["SKILL.md"]) },
+  };
+  rmSync(join(dir, "SKILL.md"));
+  mkdirSync(join(dir, "SKILL.md"));
+  assert.deepEqual(driftedFiles(dir, entry), ["SKILL.md"]);
+  assert.deepEqual(driftedMergeSources(root, entry), ["sp/skills/beta: SKILL.md"]);
+});
+
+test("drift of a fresh stamp is empty for a file, an absent name, and a directory", () => {
+  const root = makeRepo();
+  const dir = join(root, "external", "sp", "skills", "beta");
+  const entry: LockEntry = {
+    source: "sp/skills/beta",
+    files: stampFiles(dir, ["SKILL.md", "references"]),
+    mergeSources: { "sp/skills/beta": stampMergeFiles(dir, ["SKILL.md", "absent.md", "references"]) },
+  };
+  assert.deepEqual(entry.mergeSources?.["sp/skills/beta"]?.references, null);
+  assert.deepEqual(driftedFiles(dir, entry), []);
+  assert.deepEqual(driftedMergeSources(root, entry), []);
 });

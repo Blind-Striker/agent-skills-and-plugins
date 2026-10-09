@@ -196,6 +196,11 @@ export function cutPatch(upstreamDir: string, workDir: string): string {
   }
 }
 
+/** What a stamp records for a path: the blob SHA of a regular file, null for anything else. */
+export function fileStamp(p: string): string | null {
+  return existsSync(p) && lstatSync(p).isFile() ? blobSha(p) : null;
+}
+
 /**
  * The upstream content an overlay was written against. Files the overlay adds have no upstream
  * counterpart and cannot be stamped; everything else is recorded by content hash.
@@ -203,9 +208,9 @@ export function cutPatch(upstreamDir: string, workDir: string): string {
 export function stampFiles(upstreamDir: string, files: string[]): Record<string, string> {
   const stamped: Record<string, string> = {};
   for (const f of [...files].sort()) {
-    const up = join(upstreamDir, f);
-    if (existsSync(up) && lstatSync(up).isFile()) {
-      stamped[f] = blobSha(up);
+    const sha = fileStamp(join(upstreamDir, f));
+    if (sha !== null) {
+      stamped[f] = sha;
     }
   }
   return stamped;
@@ -221,10 +226,7 @@ export function liveStampKeys(upstreamDir: string, overlayDir: string): string[]
 /** Upstream files whose content no longer matches what the overlay was blessed against. */
 export function driftedFiles(upstreamDir: string, entry: LockEntry): string[] {
   return Object.entries(entry.files)
-    .filter(([f, sha]) => {
-      const up = join(upstreamDir, f);
-      return !existsSync(up) || blobSha(up) !== sha;
-    })
+    .filter(([f, sha]) => fileStamp(join(upstreamDir, f)) !== sha)
     .map(([f]) => f);
 }
 
@@ -232,8 +234,7 @@ export function driftedFiles(upstreamDir: string, entry: LockEntry): string[] {
 export function stampMergeFiles(dir: string, files: string[]): Record<string, string | null> {
   const out: Record<string, string | null> = {};
   for (const f of [...files].sort()) {
-    const p = join(dir, f);
-    out[f] = existsSync(p) && lstatSync(p).isFile() ? blobSha(p) : null;
+    out[f] = fileStamp(join(dir, f));
   }
   return out;
 }
@@ -244,13 +245,9 @@ export function driftedMergeSources(root: string, entry: LockEntry): string[] {
   for (const [addr, files] of Object.entries(entry.mergeSources ?? {})) {
     const dir = join(root, "external", addr);
     for (const [f, sha] of Object.entries(files)) {
-      const p = join(dir, f);
-      if (sha === null) {
-        if (existsSync(p)) {
-          msgs.push(`${addr}: ${f} (appeared upstream)`);
-        }
-      } else if (!existsSync(p) || blobSha(p) !== sha) {
-        msgs.push(`${addr}: ${f}`);
+      const now = fileStamp(join(dir, f));
+      if (now !== sha) {
+        msgs.push(sha === null ? `${addr}: ${f} (appeared upstream)` : `${addr}: ${f}`);
       }
     }
   }
