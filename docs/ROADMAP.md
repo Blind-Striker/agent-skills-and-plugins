@@ -42,8 +42,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   The curator's real OpenCode 2 profiles on the Windows workstation and the Linux host were moved
   once from `installer-v0.3.0` schema-1 state to the checkout's schema-2 output, with every unowned
   file byte-identical, by a recorded manual procedure that is not a product path
-  ([profile migration record](../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md));
-  the WSL distro on the Windows workstation held no install.
+  ([profile migration record](../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md)).
+  The rollout is done: the public `installer-v0.4.0` Package installed the four Modules fresh into
+  the real OpenCode 2.0.26 profiles of the macOS workstation (the first macOS measurement) and the
+  WSL distro on the Windows workstation, with every foreign file byte-identical; every existing
+  Claude Code and Codex installation of the marketplace moved to the current Module versions;
+  real-profile smoke tests on the Windows workstation and the Linux host, both now on 2.0.26, passed
+  self-diagnostics and 10 of 10 skill tries with `openai/gpt-5.6-luna` at variant `low`; and the
+  migration backups were deleted
+  ([rollout record](../experiments/harness-invocation/records/2026-10-09-opencode2-rollout.md)).
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
@@ -250,6 +257,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   were shortened to fit the skills context budget. The tested explicit, implicit, manual, handoff,
   reference, and generated-skill paths passed, but that bounded panel is not proof for every skill,
   model, or future catalog size.
+- **Codex update re-enables a disabled plugin:** on Codex CLI 0.153.4, upgrading an installed
+  plugin with `codex plugin add <plugin>@deniz-skills` set a plugin the user had disabled back to
+  `enabled = true` in the Codex configuration; the rollout restored the line by hand
+  ([rollout record](../experiments/harness-invocation/records/2026-10-09-opencode2-rollout.md)). The
+  behavior is upstream; the README's Codex section documents installation only and names no update
+  step or re-disable check.
 - **Codex distribution coverage is intentionally split:** native Plugins cover Codex CLI and Codex
   in ChatGPT desktop, not the Codex IDE extension. IDE coverage would need a separately owned
   standalone-skill transport. Same-machine CLI/app-server custom-marketplace state sharing is

@@ -315,5 +315,9 @@ version-range resolution remain out of scope. The durable symbol-side proof boun
   Linux host: every installed skill and agent appeared under its `<plugin>.<name>` ID, exactly the
   `manual` skills were unadvertised, and both agents reported `mode: subagent`. The
   [manual-skill record](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)
-  measured the `manual` posture with a model on the same version. Whether a read of a bundled
+  measured the `manual` posture with a model on the same version. The
+  [rollout record](../../experiments/harness-invocation/records/2026-10-09-opencode2-rollout.md)
+  measured fresh installs from the public `installer-v0.4.0` Package and the same discovery result
+  on v2.0.26 on a macOS workstation and in a WSL distro, and real-profile model smoke tests on
+  v2.0.26 on the Windows workstation and the Linux host. Whether a read of a bundled
   support file from the global Native tree prompts a human for permission is not yet measured.
