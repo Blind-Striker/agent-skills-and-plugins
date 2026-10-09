@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
@@ -192,6 +192,51 @@ test("eject never copies a symlink into overlays/", () => {
   const dir = join(root, "overlays", "deniz-process", "delta");
   assert.ok(!existsSync(join(dir, "linked")), "the link must not travel");
   assert.ok(existsSync(join(dir, "SKILL.md")), "the rest of the item still ejects");
+});
+
+test("a cut never carries the old overlay.patch into the new one", () => {
+  const root = makeRepo();
+  const dir = join(root, "overlays", "deniz-process", "gamma");
+  cpSync(join(root, "external", "sp", "skills", "gamma"), dir, { recursive: true });
+  const file = join(dir, "SKILL.md");
+  writeFileSync(file, readFileSync(file, "utf8").replace("Replace this line.", "Patched line."));
+  const r = eject(root, ["deniz-process", "gamma", "--patch"]);
+  assert.ok(r.ok, r.out);
+  assert.doesNotMatch(readFileSync(join(dir, "overlay.patch"), "utf8"), /overlay\.patch/);
+});
+
+test("a cut refuses replay residue and leaves the old patch byte-identical", () => {
+  for (const residue of ["marker", "rej"]) {
+    const root = makeRepo();
+    const dir = join(root, "overlays", "deniz-process", "gamma");
+    const old = readFileSync(join(dir, "overlay.patch"), "utf8");
+    cpSync(join(root, "external", "sp", "skills", "gamma"), dir, { recursive: true });
+    const file = join(dir, "SKILL.md");
+    if (residue === "marker") {
+      writeFileSync(
+        file,
+        readFileSync(file, "utf8").replace("Replace this line.", "<<<<<<< ours\nA\n=======\nB\n>>>>>>> theirs"),
+      );
+    } else {
+      writeFileSync(join(dir, "SKILL.md.rej"), "@@ -1 +1 @@\n");
+    }
+    const r = eject(root, ["deniz-process", "gamma", "--patch"]);
+    assert.equal(r.ok, false, residue);
+    assert.match(r.out, residue === "marker" ? /SKILL\.md: conflict marker/ : /SKILL\.md\.rej: reject file/);
+    assert.equal(readFileSync(join(dir, "overlay.patch"), "utf8"), old);
+    assert.ok(existsSync(file), "the working copy stays");
+  }
+});
+
+test("eject never copies an upstream root .git gitfile", () => {
+  const root = makeRepo();
+  const delta = join(root, "external", "sp", "skills", "delta");
+  writeFileSync(join(delta, ".git"), "gitdir: ../../.git/modules/delta\n");
+  assert.ok(eject(root, ["deniz-process", "delta", "--patch"]).ok);
+  assert.ok(!existsSync(join(root, "overlays", "deniz-process", "delta", ".git")));
+  rmSync(join(root, "overlays", "deniz-process", "delta"), { recursive: true });
+  assert.ok(eject(root, ["deniz-process", "delta"]).ok);
+  assert.ok(!(".git" in (loadLock(root)[lockKey("deniz-process", "delta")]?.files ?? {})));
 });
 
 test("eject --patch refuses a conversion, which has no stable file to diff against", () => {

@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import {
   cpSync,
   existsSync,
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -16,7 +15,9 @@ import { basename, dirname, join } from "node:path";
 import { loadManifest } from "./lib/manifest.ts";
 import {
   checkPatch,
+  copyUpstream,
   cutPatch,
+  cutResidue,
   driftedFiles,
   driftedMergeSources,
   ejectCommand,
@@ -75,10 +76,6 @@ const patchFile = join(dest, PATCH_FILE);
 // patch touches. Both are recorded, so upstream can never move under either kind unnoticed.
 const stampedNames = (): string[] =>
   existsSync(patchFile) ? patchTargets(readFileSync(patchFile, "utf8")) : listFiles(dest);
-
-// cpSync copies a symlink as a symlink but absolutizes its target, so an ejected link would carry
-// a machine-specific path into a committed directory — the same leak build.ts guards against.
-const noSymlinks = { filter: (s: string) => !lstatSync(s).isSymbolicLink() };
 
 function stamp(): void {
   const lock = loadLock(root);
@@ -221,7 +218,7 @@ if (flags.has("--patch")) {
       process.exit(1);
     }
     mkdirSync(dest, { recursive: true });
-    cpSync(src, dest, { recursive: true, ...noSymlinks });
+    cpSync(src, dest, { recursive: true, filter: copyUpstream(src) });
     console.log(`Ejected ${item.source} -> overlays/${plugin}/${name}/ (working copy)`);
     console.log("Next: 1) edit the files there");
     console.log(`      2) npm run eject -- ${plugin} ${name} --patch   (turns your edits into ${PATCH_FILE})`);
@@ -233,17 +230,32 @@ if (flags.has("--patch")) {
     console.error(`No edits found in overlays/${plugin}/${name}/ — nothing to turn into a patch.`);
     process.exit(1);
   }
-  mkdirSync(dest, { recursive: true });
-  writeFileSync(patchFile, patch);
-  // Verify before destroying the working copy: a patch that does not apply to the very upstream it
-  // was cut from is a tooling bug, and losing the user's edits to it is unrecoverable.
-  const bad = checkPatch(base, patchFile);
+  const residue = cutResidue(patch);
+  if (residue.length) {
+    console.error(`overlays/${plugin}/${name}/ still holds replay residue — nothing was written:`);
+    for (const r of residue) {
+      console.error(`  ${r}`);
+    }
+    console.error(`Resolve each conflict, delete each .rej, then: ${ejectCommand(plugin, name, "patch")}`);
+    process.exit(1);
+  }
+  // Verify before anything is replaced or destroyed: during a rebase overlay.patch still holds the
+  // old edits, and a patch that does not apply to the very upstream it was cut from is a tooling
+  // bug — losing either the old patch or the user's edits to it is unrecoverable.
+  const tmp = mkdtempSync(join(tmpdir(), "cut-"));
+  const candidate = join(tmp, PATCH_FILE);
+  writeFileSync(candidate, patch);
+  const bad = checkPatch(base, candidate);
+  rmSync(tmp, { recursive: true, force: true });
   if (bad) {
-    rmSync(patchFile, { force: true });
-    console.error(`Cut a patch that does not apply back to ${item.source}. Your working copy is untouched.`);
+    console.error(
+      `Cut a patch that does not apply back to ${item.source}. Your working copy and ${PATCH_FILE} are untouched.`,
+    );
     console.error(bad);
     process.exit(1);
   }
+  mkdirSync(dest, { recursive: true });
+  writeFileSync(patchFile, patch);
   for (const f of listFiles(dest)) {
     rmSync(join(dest, f), { force: true });
   }
@@ -262,7 +274,7 @@ if (existsSync(dest) && readdirSync(dest).length && !flags.has("--force")) {
   process.exit(1);
 }
 if (isDir) {
-  cpSync(src, dest, { recursive: true, ...noSymlinks });
+  cpSync(src, dest, { recursive: true, filter: copyUpstream(src) });
 } else {
   mkdirSync(dest, { recursive: true });
   cpSync(src, join(dest, basename(src)));

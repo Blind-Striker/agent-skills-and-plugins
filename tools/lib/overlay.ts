@@ -161,7 +161,48 @@ export function applyPatch(dir: string, patch: string): string | null {
   return gitApply(dir, patch, []);
 }
 
-const noSymlinks = (s: string): boolean => !lstatSync(s).isSymbolicLink();
+/**
+ * Copy filter for every upstream copy: no symlinks (ADR-0001: a copied link absolutizes its target)
+ * and no root `.git`, because a root item's gitfile would point git commands in the copy at the
+ * real submodule (assemble.ts omits it for the same reason).
+ */
+export function copyUpstream(src: string): (s: string) => boolean {
+  const gitfile = join(src, ".git");
+  return (s) => s !== gitfile && !lstatSync(s).isSymbolicLink();
+}
+
+/** Splits a patch into one chunk per file at its column-0 `diff --git ` headers. */
+export function splitPatch(text: string): string[] {
+  const starts = [...text.matchAll(/^diff --git /gm)].map((m) => m.index);
+  return starts.map((s, i) => text.slice(s, starts[i + 1] ?? text.length));
+}
+
+/** The item-relative path a chunk writes: its `+++ b/` side, else `--- a/`, else the header. */
+export function chunkTarget(chunk: string): string {
+  return (
+    /^\+\+\+ b\/(.+?)\s*$/m.exec(chunk)?.[1] ??
+    /^--- a\/(.+?)\s*$/m.exec(chunk)?.[1] ??
+    /^diff --git a\/(\S+)/.exec(chunk)?.[1] ??
+    ""
+  );
+}
+
+// diff3 markers only. `=======` is left out because it is also a Markdown setext underline.
+const ADDED_MARKER = /^\+(?:<{7}|\|{7}|>{7})(?: |$)/m;
+
+/** Replay residue a cut must never ship: added conflict-marker lines and added `.rej` files. */
+export function cutResidue(patch: string): string[] {
+  const out: string[] = [];
+  for (const chunk of splitPatch(patch)) {
+    const target = chunkTarget(chunk);
+    if (target.endsWith(".rej")) {
+      out.push(`${target}: reject file`);
+    } else if (ADDED_MARKER.test(chunk)) {
+      out.push(`${target}: conflict marker`);
+    }
+  }
+  return out;
+}
 
 /**
  * The patch that turns `upstreamDir` into `workDir`: two snapshots side by side, because a commit
@@ -172,8 +213,13 @@ const noSymlinks = (s: string): boolean => !lstatSync(s).isSymbolicLink();
 export function cutPatch(upstreamDir: string, workDir: string): string {
   const tmp = mkdtempSync(join(tmpdir(), "eject-"));
   try {
-    cpSync(upstreamDir, join(tmp, "a"), { recursive: true, filter: noSymlinks });
-    cpSync(workDir, join(tmp, "b"), { recursive: true, filter: noSymlinks });
+    cpSync(upstreamDir, join(tmp, "a"), { recursive: true, filter: copyUpstream(upstreamDir) });
+    // The old patch sits beside the working copy during a rebase; it is never part of the edits.
+    const oldPatch = join(workDir, PATCH_FILE);
+    cpSync(workDir, join(tmp, "b"), {
+      recursive: true,
+      filter: (s) => s !== oldPatch && !lstatSync(s).isSymbolicLink(),
+    });
     try {
       // Pin the format: diff.noprefix or diff.mnemonicPrefix would break the -p1 contract, and
       // diff.context would silently narrow the anchor a patch is matched on.
