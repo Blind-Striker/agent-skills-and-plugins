@@ -245,8 +245,25 @@ export function everListedNames(root: string): string[] {
   try {
     log = execFileSync(
       "git",
-      ["-C", root, "log", "--format=", "-p", "-U0", "--no-ext-diff", "--no-textconv", "--", "docs/ledger.json"],
-      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 1 << 28 },
+      [
+        "-C",
+        root,
+        "log",
+        "--no-color",
+        "--format=",
+        "-p",
+        "-U0",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--",
+        "docs/ledger.json",
+      ],
+      {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        maxBuffer: 1 << 28,
+        env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" },
+      },
     );
   } catch {
     return [];

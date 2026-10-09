@@ -196,4 +196,17 @@ test("everListedNames reads every top-level key any committed ledger listed", ()
   g("add", "-A");
   g("commit", "-qm", "two");
   assert.deepEqual(everListedNames(root), ["gone", "kept", "old-shape"], "nested keys never count");
+  const saved = { ...process.env };
+  Object.assign(process.env, { GIT_CONFIG_COUNT: "1", GIT_CONFIG_KEY_0: "color.ui", GIT_CONFIG_VALUE_0: "always" });
+  try {
+    assert.deepEqual(everListedNames(root), ["gone", "kept", "old-shape"], "host color config never hides a name");
+  } finally {
+    for (const k of ["GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0"]) {
+      if (k in saved) {
+        process.env[k] = saved[k];
+      } else {
+        delete process.env[k];
+      }
+    }
+  }
 });
