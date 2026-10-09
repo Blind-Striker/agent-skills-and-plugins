@@ -22,6 +22,8 @@ import {
   driftedMergeSources,
   ejectCommand,
   fileStamp,
+  gitEnv,
+  LOCK_FILE,
   listFiles,
   liveStampKeys,
   loadLock,
@@ -29,6 +31,8 @@ import {
   type LockEntry,
   PATCH_FILE,
   patchTargets,
+  type ReplayResult,
+  replayPatch,
   saveLock,
   stampFiles,
   stampMergeFiles,
@@ -40,12 +44,16 @@ const argv = process.argv.slice(2);
 const flags = new Set(argv.filter((a) => a.startsWith("--")));
 const [pluginArg, nameArg] = argv.filter((a) => !a.startsWith("--"));
 if (!pluginArg || !nameArg) {
-  console.error("Usage: npm run eject -- <plugin> <name> [--patch] [--bless [--yes]] [--force]");
+  console.error("Usage: npm run eject -- <plugin> <name> [--patch [--rebase]] [--bless [--yes]] [--force]");
   process.exit(1);
 }
 // Re-bound after the guard: a closure below cannot see flow narrowing on the destructured bindings.
 const plugin: string = pluginArg;
 const name: string = nameArg;
+if (flags.has("--rebase") && !flags.has("--patch")) {
+  console.error(`--rebase reopens an overlay.patch: ${ejectCommand(plugin, name, "rebase")}`);
+  process.exit(1);
+}
 const root = process.cwd();
 requireSubmodules(root);
 const manifest = loadManifest(join(root, "curation", `${plugin}.yaml`));
@@ -115,9 +123,10 @@ function showDrift(addr: string, file: string, sha: string): void {
     recorded = execFileSync("git", ["-C", join(root, "external", submodule), "cat-file", "blob", sha], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: gitEnv(),
     });
   } catch {
-    console.log(`  (blob ${sha.slice(0, 7)} is not in ${submodule} — blessing records this file unreviewed)`);
+    console.log(`  (blob ${sha.slice(0, 7)} is not in ${submodule} — the next stamp records this file unreviewed)`);
     return;
   }
   // Both sides land in one throwaway tree under the same name, so git's headers read `recorded/` and
@@ -137,6 +146,7 @@ function showDrift(addr: string, file: string, sha: string): void {
       cwd: tmp,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      env: gitEnv(),
     });
   } catch (e) {
     // --no-index exits 1 when the two sides differ, which is the only reason this is being shown.
@@ -144,6 +154,41 @@ function showDrift(addr: string, file: string, sha: string): void {
   }
   rmSync(tmp, { recursive: true, force: true });
   console.log(diff.trimEnd());
+}
+
+/**
+ * Prints every recorded-versus-current upstream change since `prior`: one DRIFTED line per drifted
+ * primary and merge-source file, each followed by its diff. Returns how many it printed.
+ */
+function printDrift(prior: LockEntry): number {
+  const moved = [...driftedFiles(base, prior).map((f) => `${item.source}: ${f}`), ...driftedMergeSources(root, prior)];
+  for (const line of moved) {
+    console.log(`DRIFTED ${line}`);
+    // The line reads "<address>: <file>", and an address is a directory path — so the first ": "
+    // separates them. An exotic file name that also holds one costs the diff, never the report.
+    const [addr = "", file = ""] = line.replace(" (appeared upstream)", "").split(": ");
+    // A file that appeared over an absent stamp has no recorded content, and the line said so.
+    const sha = addr === item.source ? prior.files[file] : prior.mergeSources?.[addr]?.[file];
+    if (sha) {
+      showDrift(addr, file, sha);
+    }
+  }
+  return moved.length;
+}
+
+function replayLine(r: ReplayResult): string {
+  switch (r.status) {
+    case "applied":
+      return `applied   ${r.file}`;
+    case "merged":
+      return `merged    ${r.file} (upstream moved inside the patched region — read the merge)`;
+    case "conflict":
+      return `CONFLICT  ${r.file} (${r.regions} region${r.regions === 1 ? "" : "s"})`;
+    case "rejected":
+      return `REJECTED  ${r.file} -> ${r.reject} (${r.detail})`;
+    case "gone":
+      return `GONE      ${r.file} -> ${r.reject} (upstream deleted the file)`;
+  }
 }
 
 if (flags.has("--bless")) {
@@ -167,21 +212,8 @@ if (flags.has("--bless")) {
   // would overwrite is shown first and only --yes accepts it (ADR-0001). A first blessing has
   // nothing recorded to compare against, and a confirmation with nothing above it is theatre.
   const prior = loadLock(root)[lockKey(plugin, name)];
-  const moved = prior
-    ? [...driftedFiles(base, prior).map((f) => `${item.source}: ${f}`), ...driftedMergeSources(root, prior)]
-    : [];
-  for (const line of moved) {
-    console.log(`DRIFTED ${line}`);
-    // The line reads "<address>: <file>", and an address is a directory path — so the first ": "
-    // separates them. An exotic file name that also holds one costs the diff, never the report.
-    const [addr = "", file = ""] = line.replace(" (appeared upstream)", "").split(": ");
-    // A file that appeared over an absent stamp has no recorded content, and the line said so.
-    const sha = addr === item.source ? prior?.files[file] : prior?.mergeSources?.[addr]?.[file];
-    if (sha) {
-      showDrift(addr, file, sha);
-    }
-  }
-  if (moved.length && !flags.has("--yes")) {
+  const moved = prior ? printDrift(prior) : 0;
+  if (moved && !flags.has("--yes")) {
     console.error("Re-blessing records the content above as reviewed. Re-run with --yes to accept it.");
     process.exit(1);
   }
@@ -205,6 +237,58 @@ if (flags.has("--patch")) {
     console.error(`${plugin}/${name}: --patch applies to skill output only — a conversion needs a full-file overlay.`);
     process.exit(1);
   }
+  if (flags.has("--rebase")) {
+    if (flags.has("--force")) {
+      console.error("--rebase keeps the old edits and --force discards them — pass one");
+      process.exit(1);
+    }
+    if (!existsSync(patchFile)) {
+      console.error(
+        item.body === "overlay"
+          ? `overlays/${plugin}/${name}/ is a full-file overlay — review upstream with: ${ejectCommand(plugin, name, "bless")}`
+          : `Nothing to rebase: overlays/${plugin}/${name}/${PATCH_FILE} does not exist — start a patch with: ${ejectCommand(plugin, name, "patch")}`,
+      );
+      process.exit(1);
+    }
+    if (listFiles(dest).length) {
+      console.error(
+        `overlays/${plugin}/${name}/ already holds a working copy — cut it with: ${ejectCommand(plugin, name, "patch")}, or delete its files (${PATCH_FILE} stays) to replay again`,
+      );
+      process.exit(1);
+    }
+    // The cut stamps everything, so the review comes first — the same show-then-record as --bless.
+    const prior = loadLock(root)[lockKey(plugin, name)];
+    if (prior) {
+      printDrift(prior);
+    }
+    const tmp = mkdtempSync(join(tmpdir(), "rebase-"));
+    let results: ReplayResult[];
+    try {
+      const work = join(tmp, "w");
+      cpSync(src, work, { recursive: true, filter: copyUpstream(src) });
+      results = replayPatch(work, base, readFileSync(patchFile, "utf8"));
+      // The old patch stays: deleting the working-copy files abandons the rebase.
+      cpSync(work, dest, { recursive: true });
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+    console.log(`Replayed overlays/${plugin}/${name}/${PATCH_FILE} onto ${item.source}:`);
+    for (const r of results) {
+      console.log(`  ${replayLine(r)}`);
+    }
+    const open = results.filter((r) => r.status !== "applied" && r.status !== "merged");
+    if (open.some((r) => r.status === "conflict")) {
+      console.log(
+        "Markers: <<<<<<< ours = current upstream, ||||||| base = what the patch was cut against, >>>>>>> theirs = the old patch's result.",
+      );
+    }
+    console.log(
+      open.length
+        ? `Next: resolve every conflict and .rej, delete each .rej, review, then: ${ejectCommand(plugin, name, "patch")}`
+        : `Next: review the working copy, then: ${ejectCommand(plugin, name, "patch")}`,
+    );
+    process.exit(open.length ? 1 : 0);
+  }
   if (flags.has("--force") && existsSync(patchFile)) {
     rmSync(dest, { recursive: true, force: true });
   }
@@ -213,7 +297,7 @@ if (flags.has("--patch")) {
     // Phase 1: lay down a working copy to edit. The patch is cut from it on the second run.
     if (existsSync(join(dest, PATCH_FILE)) && !flags.has("--force")) {
       console.error(
-        `overlays/${plugin}/${name}/${PATCH_FILE} already exists — pass --force to re-cut it from scratch.`,
+        `overlays/${plugin}/${name}/${PATCH_FILE} already exists — reopen it on current upstream: ${ejectCommand(plugin, name, "rebase")}, or pass --force to discard it`,
       );
       process.exit(1);
     }
@@ -227,7 +311,13 @@ if (flags.has("--patch")) {
   // Phase 2: cut the patch from the edited working copy.
   const patch = cutPatch(src, dest);
   if (!patch.trim()) {
-    console.error(`No edits found in overlays/${plugin}/${name}/ — nothing to turn into a patch.`);
+    // With an old patch beside it, an unedited working copy means upstream already carries every
+    // edit: the build would keep naming the rebase, which would only lead back here.
+    console.error(
+      existsSync(patchFile)
+        ? `Upstream already carries every edit in overlays/${plugin}/${name}/${PATCH_FILE} — nothing is left to patch. Delete overlays/${plugin}/${name}/, its ${lockKey(plugin, name)} entry in overlays/${LOCK_FILE}, and body: patch on the item.`
+        : `No edits found in overlays/${plugin}/${name}/ — nothing to turn into a patch.`,
+    );
     process.exit(1);
   }
   const residue = cutResidue(patch);

@@ -1,10 +1,21 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  cpSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "./build.ts";
-import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
+import { blobSha, loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import { makeRepo } from "./testutil.ts";
 
 // eject is a script, not a library: it reads process.argv and exits. Driving it as a subprocess is
@@ -404,4 +415,350 @@ test("eject --bless records a first blessing without asking for confirmation", (
   const r = eject(root, ["deniz-process", "delta", "--bless"]);
   assert.ok(r.ok, r.out);
   assert.ok(loadLock(root)[lockKey("deniz-process", "delta")]?.files["SKILL.md"], "the first bless still stamps");
+});
+
+// --- eject --patch --rebase -------------------------------------------------------------------
+
+/** Commits the fixture upstream, so a patch's index lines name blobs a 3-way merge can read. */
+function commitUpstream(root: string): void {
+  const sp = join(root, "external", "sp");
+  for (const a of [
+    ["init", "-q", "."],
+    ["add", "-A"],
+    ["commit", "-qm", "pin"],
+  ]) {
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "core.autocrlf=false", ...a], {
+      cwd: sp,
+      stdio: "ignore",
+    });
+  }
+}
+
+/** Cuts a delta patch from the given edits and switches the item to `body: patch`; returns the patch. */
+function patchDelta(root: string, edits: Record<string, [string, string]>): string {
+  const dir = join(root, "overlays", "deniz-process", "delta");
+  assert.ok(eject(root, ["deniz-process", "delta", "--patch"]).ok);
+  for (const [f, [from, to]] of Object.entries(edits)) {
+    writeFileSync(join(dir, f), readFileSync(join(dir, f), "utf8").replace(from, to));
+  }
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace("  - source: sp/skills/delta", "  - source: sp/skills/delta\n    body: patch"),
+  );
+  return readFileSync(join(dir, "overlay.patch"), "utf8");
+}
+
+const changes = (p: string) =>
+  p
+    .split("\n")
+    .filter((l) => /^[+-](?![+-]{2} )/.test(l))
+    .sort();
+const upstreamDelta = (root: string, f: string) => join(root, "external", "sp", "skills", "delta", f);
+const deltaDir = (root: string) => join(root, "overlays", "deniz-process", "delta");
+const lockText = (root: string) => readFileSync(join(root, "overlays", "overlays.lock.json"), "utf8");
+const editUpstream = (root: string, f: string, from: string, to: string) => {
+  const p = upstreamDelta(root, f);
+  writeFileSync(p, readFileSync(p, "utf8").replace(from, to));
+};
+const twentyLines = `${Array.from({ length: 20 }, (_, i) => `line ${i + 1}`).join("\n")}\n`;
+
+/** Every file under a directory with its content: what "left byte-identical" compares. */
+function snapshot(dir: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!existsSync(dir)) {
+    return out;
+  }
+  for (const e of readdirSync(dir, { withFileTypes: true, recursive: true })) {
+    if (e.isFile()) {
+      const p = join(e.parentPath, e.name);
+      out[p.slice(dir.length)] = readFileSync(p, "utf8");
+    }
+  }
+  return out;
+}
+
+test("R0 reopening a patch on unmoved upstream recuts it byte-identically", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  const old = patchDelta(root, { "SKILL.md": ["Delta body.", "Our delta body."] });
+  const lock = lockText(root);
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.ok(r.ok, r.out);
+  assert.match(r.out, /applied\s+SKILL\.md/);
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  assert.equal(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8"), old);
+  assert.equal(lockText(root), lock);
+});
+
+test("R1 context-only move rebases clean and recuts the same edit", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  const old = patchDelta(root, { "SKILL.md": ["Delta body.", "Our delta body."] });
+  editUpstream(root, "SKILL.md", "description: Delta upstream", "description: Delta moved");
+  assert.throws(() => buildAll(root), /no longer applies[\s\S]*--patch --rebase/);
+
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.ok(r.ok, r.out);
+  assert.match(r.out, /merged\s+SKILL\.md/);
+  assert.match(r.out, /Next: review the working copy, then: npm run eject -- deniz-process delta --patch/);
+  const working = readFileSync(join(deltaDir(root), "SKILL.md"), "utf8");
+  assert.match(working, /Delta moved/);
+  assert.match(working, /Our delta body\./);
+  assert.equal(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8"), old, "the old patch stays until the cut");
+
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  assert.deepEqual(changes(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8")), changes(old));
+  assert.equal(
+    loadLock(root)[lockKey("deniz-process", "delta")]?.files["SKILL.md"],
+    blobSha(upstreamDelta(root, "SKILL.md")),
+  );
+  assert.doesNotThrow(() => buildAll(root));
+  const emitted = readFileSync(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md"), "utf8");
+  assert.match(emitted, /Delta moved/);
+  assert.match(emitted, /Our delta body\./);
+});
+
+test("R2 a real conflict stops, keeps the old patch, and blocks the cut until resolved", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  const old = patchDelta(root, { "SKILL.md": ["Delta body.", "Our delta body."] });
+  editUpstream(root, "SKILL.md", "Delta body.", "Delta body, upstream.");
+  const lock = lockText(root);
+
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.equal(r.ok, false, r.out);
+  assert.match(r.out, /CONFLICT\s+SKILL\.md \(1 region\)/);
+  assert.match(r.out, /<<<<<<< ours = current upstream/);
+  assert.match(r.out, /delete each \.rej, review, then: npm run eject -- deniz-process delta --patch/);
+  assert.equal(lockText(root), lock);
+  assert.equal(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8"), old);
+
+  const blocked = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.equal(blocked.ok, false);
+  assert.match(blocked.out, /SKILL\.md: conflict marker/);
+
+  const resolved = readFileSync(upstreamDelta(root, "SKILL.md"), "utf8").replace(
+    "Delta body, upstream.",
+    "Our delta body, upstream.",
+  );
+  writeFileSync(join(deltaDir(root), "SKILL.md"), resolved);
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  assert.doesNotThrow(() => buildAll(root));
+});
+
+test("R3 one file's conflict leaves the other file's edit in place", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  patchDelta(root, {
+    "SKILL.md": ["Delta body.", "Our delta body."],
+    "references/notes.md": ["delta note", "our delta note"],
+  });
+  editUpstream(root, "SKILL.md", "Delta body.", "Delta body, upstream.");
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.equal(r.ok, false, r.out);
+  assert.match(r.out, /CONFLICT\s+SKILL\.md/);
+  assert.match(r.out, /applied\s+references\/notes\.md/);
+  assert.match(readFileSync(join(deltaDir(root), "references", "notes.md"), "utf8"), /our delta note/);
+});
+
+test("R4 a patch with no base blob falls back to .rej", () => {
+  const root = makeRepo();
+  const up = join(root, "external", "sp", "skills", "gamma", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Replace this line.", "Replace this line, upstream."));
+  const r = eject(root, ["deniz-process", "gamma", "--patch", "--rebase"]);
+  assert.equal(r.ok, false, r.out);
+  assert.match(r.out, /REJECTED\s+SKILL\.md -> SKILL\.md\.rej \(1 of 1 hunks/);
+  const cut = eject(root, ["deniz-process", "gamma", "--patch"]);
+  assert.equal(cut.ok, false, cut.out);
+  assert.match(cut.out, /SKILL\.md\.rej: reject file/);
+});
+
+test("R5 a target deleted upstream is GONE and drops out after resolution", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  patchDelta(root, {
+    "SKILL.md": ["Delta body.", "Our delta body."],
+    "references/notes.md": ["delta note", "our delta note"],
+  });
+  rmSync(upstreamDelta(root, "references/notes.md"));
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.equal(r.ok, false, r.out);
+  assert.match(r.out, /GONE\s+references\/notes\.md -> references\/notes\.md\.rej/);
+  rmSync(join(deltaDir(root), "references", "notes.md.rej"));
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  assert.deepEqual(Object.keys(loadLock(root)[lockKey("deniz-process", "delta")]?.files ?? {}), ["SKILL.md"]);
+  assert.doesNotThrow(() => buildAll(root));
+});
+
+// A patch cut on Windows records 100644 for every file; on a POSIX checkout the upstream script is
+// 100755, and neither the replay nor the recut may drop the bit or record a mode change.
+test("R6 exec mode survives replay and cut", { skip: process.platform === "win32" }, () => {
+  const root = makeRepo();
+  const run = upstreamDelta(root, "scripts/run.sh");
+  mkdirSync(join(run, ".."), { recursive: true });
+  writeFileSync(run, twentyLines);
+  chmodSync(run, 0o755);
+  commitUpstream(root);
+  patchDelta(root, { "scripts/run.sh": ["line 12\n", "line 12 ours\n"] });
+  const patchFile = join(deltaDir(root), "overlay.patch");
+  writeFileSync(
+    patchFile,
+    readFileSync(patchFile, "utf8").replace(/^(index [0-9a-f]+\.\.[0-9a-f]+) 100755$/gm, "$1 100644"),
+  );
+  editUpstream(root, "scripts/run.sh", "line 6\n", "line 6 upstream\n");
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.ok(r.ok, r.out);
+  assert.match(r.out, /merged\s+scripts\/run\.sh/, "the mode is kept across a real 3-way merge");
+  assert.equal(statSync(join(deltaDir(root), "scripts", "run.sh")).mode & 0o777, 0o755);
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  const patch = readFileSync(patchFile, "utf8");
+  assert.doesNotMatch(patch, /^old mode/m);
+  assert.doesNotMatch(patch, /^new mode/m);
+});
+
+test("R7 a non-Markdown file rebases like Markdown", () => {
+  const root = makeRepo();
+  const ps1 = upstreamDelta(root, "scripts/check.ps1");
+  mkdirSync(join(ps1, ".."), { recursive: true });
+  writeFileSync(ps1, twentyLines);
+  commitUpstream(root);
+  const old = patchDelta(root, { "scripts/check.ps1": ["line 12\n", "line 12 ours\n"] });
+  editUpstream(root, "scripts/check.ps1", "line 6\n", "line 6 upstream\n");
+  assert.throws(() => buildAll(root), /no longer applies[\s\S]*--patch --rebase/);
+
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.ok(r.ok, r.out);
+  assert.match(r.out, /merged\s+scripts\/check\.ps1/);
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  assert.deepEqual(changes(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8")), changes(old));
+  assert.equal(
+    loadLock(root)[lockKey("deniz-process", "delta")]?.files["scripts/check.ps1"],
+    blobSha(upstreamDelta(root, "scripts/check.ps1")),
+  );
+  assert.doesNotThrow(() => buildAll(root));
+  const emitted = readFileSync(
+    join(root, "plugins", "deniz-process", "skills", "delta", "scripts", "check.ps1"),
+    "utf8",
+  );
+  assert.match(emitted, /^line 6 upstream$[\s\S]*^line 12 ours$/m);
+});
+
+test("R8 merge-source drift is shown, and the cut stamps it", () => {
+  const root = makeRepo();
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "  - source: sp/skills/delta",
+      "  - source: sp/skills/delta\n    body: patch\n    merged_from: [sp/skills/beta]",
+    ),
+  );
+  commitUpstream(root);
+  const dir = deltaDir(root);
+  assert.ok(eject(root, ["deniz-process", "delta", "--patch"]).ok);
+  const skill = join(dir, "SKILL.md");
+  writeFileSync(skill, readFileSync(skill, "utf8").replace("Delta body.", "Our delta body."));
+  const first = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(first.ok, first.out);
+  const beta = join(root, "external", "sp", "skills", "beta", "SKILL.md");
+  writeFileSync(beta, readFileSync(beta, "utf8").replace("Beta body.", "Beta body, moved upstream."));
+
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.ok(r.ok, r.out);
+  assert.match(r.out, /DRIFTED sp\/skills\/beta: SKILL\.md/);
+  assert.match(r.out, /^\+Beta body, moved upstream\.$/m);
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(cut.ok, cut.out);
+  assert.equal(
+    loadLock(root)[lockKey("deniz-process", "delta")]?.mergeSources?.["sp/skills/beta"]?.["SKILL.md"],
+    blobSha(beta),
+  );
+  // beta also backs the deniz-beta full-file overlay, whose own review is the bless.
+  assert.ok(eject(root, ["deniz-process", "deniz-beta", "--bless", "--yes"]).ok);
+  assert.doesNotThrow(() => buildAll(root));
+});
+
+test("R9 every rebase refusal leaves the overlay directory and the lock byte-identical", () => {
+  const cases: { args: string[]; setup?: (root: string) => void; message: RegExp }[] = [
+    {
+      args: ["gamma", "--rebase"],
+      message: /--rebase reopens an overlay\.patch: npm run eject -- deniz-process gamma --patch --rebase/,
+    },
+    {
+      args: ["gamma", "--patch", "--rebase", "--force"],
+      message: /--rebase keeps the old edits and --force discards them — pass one/,
+    },
+    {
+      args: ["delta", "--patch", "--rebase"],
+      message:
+        /Nothing to rebase: overlays\/deniz-process\/delta\/overlay\.patch does not exist — start a patch with: npm run eject -- deniz-process delta --patch$/m,
+    },
+    {
+      args: ["gamma", "--patch", "--rebase"],
+      setup: (root) =>
+        cpSync(join(root, "external", "sp", "skills", "gamma"), join(root, "overlays", "deniz-process", "gamma"), {
+          recursive: true,
+        }),
+      message:
+        /already holds a working copy — cut it with: npm run eject -- deniz-process gamma --patch, or delete its files \(overlay\.patch stays\) to replay again/,
+    },
+    {
+      args: ["delta", "--patch", "--rebase"],
+      setup: (root) => {
+        assert.ok(eject(root, ["deniz-process", "delta"]).ok);
+        writeFileSync(join(root, "curation", "deniz-process.yaml"), manifestWithDeltaOverlay(root));
+      },
+      message:
+        /overlays\/deniz-process\/delta\/ is a full-file overlay — review upstream with: npm run eject -- deniz-process delta --bless/,
+    },
+  ];
+  for (const c of cases) {
+    const root = makeRepo();
+    c.setup?.(root);
+    const label = c.args.join(" ");
+    const dir = join(root, "overlays", "deniz-process", c.args[0] ?? "");
+    const before = snapshot(dir);
+    const lock = lockText(root);
+    const r = eject(root, ["deniz-process", ...c.args]);
+    assert.equal(r.ok, false, label);
+    assert.match(r.out, c.message, label);
+    assert.deepEqual(snapshot(dir), before, label);
+    assert.equal(lockText(root), lock, label);
+  }
+});
+
+test("R10 the phase-1 refusal names the rebase", () => {
+  const root = makeRepo();
+  const r = eject(root, ["deniz-process", "gamma", "--patch"]);
+  assert.equal(r.ok, false);
+  assert.match(r.out, /reopen it on current upstream: npm run eject -- deniz-process gamma --patch --rebase/);
+  assert.match(r.out, /--force/);
+});
+
+test("R11 upstream adopting every edit ends the patch instead of looping", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  const old = patchDelta(root, { "SKILL.md": ["Delta body.", "Our delta body."] });
+  editUpstream(root, "SKILL.md", "Delta body.", "Our delta body.");
+  const r = eject(root, ["deniz-process", "delta", "--patch", "--rebase"]);
+  assert.ok(r.ok, r.out);
+  assert.match(r.out, /(?:merged|applied)\s+SKILL\.md/);
+  const lock = lockText(root);
+  const cut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.equal(cut.ok, false, cut.out);
+  assert.match(cut.out, /already carries every edit/);
+  assert.match(cut.out, /overlays\/deniz-process\/delta\//);
+  assert.match(cut.out, /deniz-process\/delta entry in overlays\/overlays\.lock\.json/);
+  assert.match(cut.out, /body: patch/);
+  assert.equal(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8"), old);
+  assert.equal(lockText(root), lock);
 });
