@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, lstatSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative, resolve } from "node:path";
 
 /** The one file a `body: patch` overlay directory is allowed to contain. */
@@ -107,7 +108,7 @@ function toplevel(dir: string): string | null {
  * throwaway fixture, a consumer without git history) the plain cwd form is correct, so both are
  * kept and the exercised one depends on where the tree lives.
  */
-function gitApply(dir: string, patch: string, check: boolean): string | null {
+function gitApply(dir: string, patch: string, extra: string[], env: NodeJS.ProcessEnv = {}): string | null {
   const top = toplevel(dir);
   const rel = top ? relative(resolve(top), resolve(dir)).replaceAll("\\", "/") : "";
   const args = [
@@ -120,7 +121,7 @@ function gitApply(dir: string, patch: string, check: boolean): string | null {
     "core.longpaths=true",
     "apply",
     "-p1",
-    ...(check ? ["--check"] : []),
+    ...extra,
     ...(rel ? [`--directory=${rel}`] : []),
     "--",
     resolve(patch),
@@ -130,7 +131,7 @@ function gitApply(dir: string, patch: string, check: boolean): string | null {
       cwd: top ?? dir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" },
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", ...env },
     });
     return null;
   } catch (e) {
@@ -141,11 +142,58 @@ function gitApply(dir: string, patch: string, check: boolean): string | null {
 
 /** Verifies the patch still applies to pristine upstream without writing anything. */
 export function checkPatch(upstreamDir: string, patch: string): string | null {
-  return gitApply(upstreamDir, patch, true);
+  return gitApply(upstreamDir, patch, ["--check"]);
 }
 
 export function applyPatch(dir: string, patch: string): string | null {
-  return gitApply(dir, patch, false);
+  return gitApply(dir, patch, []);
+}
+
+const noSymlinks = (s: string): boolean => !lstatSync(s).isSymbolicLink();
+
+/**
+ * The patch that turns `upstreamDir` into `workDir`: two snapshots side by side, because a commit
+ * plus copy could not see an added (untracked) or deleted (a copy never removes) file, and
+ * --no-index has no index to hide them in. The a/ and b/ names are exactly what -p1 strips.
+ * Returns "" when the trees are equal.
+ */
+export function cutPatch(upstreamDir: string, workDir: string): string {
+  const tmp = mkdtempSync(join(tmpdir(), "eject-"));
+  try {
+    cpSync(upstreamDir, join(tmp, "a"), { recursive: true, filter: noSymlinks });
+    cpSync(workDir, join(tmp, "b"), { recursive: true, filter: noSymlinks });
+    try {
+      // Pin the format: diff.noprefix or diff.mnemonicPrefix would break the -p1 contract, and
+      // diff.context would silently narrow the anchor a patch is matched on.
+      execFileSync(
+        "git",
+        // --no-prefix plus directories literally named a and b yields the `a/x` `b/x` paths -p1
+        // strips; git's own prefix would stack on top of them and land the hunk one level off.
+        [
+          "-c",
+          "core.autocrlf=false",
+          "-c",
+          "core.eol=lf",
+          "diff",
+          "--no-ext-diff",
+          "--no-textconv",
+          "--no-prefix",
+          "-U8",
+          "--no-index",
+          "--",
+          "a",
+          "b",
+        ],
+        { cwd: tmp, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" } },
+      );
+      return "";
+    } catch (e) {
+      // --no-index exits 1 when the trees differ, which is the normal outcome.
+      return (e as { stdout?: string }).stdout ?? "";
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
 }
 
 /**

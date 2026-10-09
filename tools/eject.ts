@@ -16,6 +16,7 @@ import { basename, dirname, join } from "node:path";
 import { loadManifest } from "./lib/manifest.ts";
 import {
   checkPatch,
+  cutPatch,
   driftedFiles,
   driftedMergeSources,
   listFiles,
@@ -212,42 +213,8 @@ if (flags.has("--patch")) {
     console.log(`      2) npm run eject -- ${plugin} ${name} --patch   (turns your edits into ${PATCH_FILE})`);
     process.exit(0);
   }
-  // Phase 2: diff two snapshots side by side. Committing upstream and copying the working copy
-  // over it could not see an added file (untracked) or a deleted one (a copy never removes), and
-  // --no-index has no index to hide them in. The a/ and b/ names are exactly what -p1 strips.
-  const tmp = mkdtempSync(join(tmpdir(), "eject-"));
-  cpSync(src, join(tmp, "a"), { recursive: true, ...noSymlinks });
-  cpSync(dest, join(tmp, "b"), { recursive: true, ...noSymlinks });
-  let patch = "";
-  try {
-    // Pin the format: diff.noprefix or diff.mnemonicPrefix would break the -p1 contract, and
-    // diff.context would silently narrow the anchor a patch is matched on.
-    execFileSync(
-      "git",
-      // --no-prefix plus directories literally named a and b yields the `a/x` `b/x` paths -p1
-      // strips; git's own prefix would stack on top of them and land the hunk one level off.
-      [
-        "-c",
-        "core.autocrlf=false",
-        "-c",
-        "core.eol=lf",
-        "diff",
-        "--no-ext-diff",
-        "--no-textconv",
-        "--no-prefix",
-        "-U8",
-        "--no-index",
-        "--",
-        "a",
-        "b",
-      ],
-      { cwd: tmp, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" } },
-    );
-  } catch (e) {
-    // --no-index exits 1 when the trees differ, which is the normal outcome.
-    patch = (e as { stdout?: string }).stdout ?? "";
-  }
-  rmSync(tmp, { recursive: true, force: true });
+  // Phase 2: cut the patch from the edited working copy.
+  const patch = cutPatch(src, dest);
   if (!patch.trim()) {
     console.error(`No edits found in overlays/${plugin}/${name}/ — nothing to turn into a patch.`);
     process.exit(1);
