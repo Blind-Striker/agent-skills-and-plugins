@@ -18,7 +18,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.6.0
+  version: 0.7.0
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -149,7 +149,9 @@ items:
     invocation: auto # vocabulary layer grill-with-docs drives; other skills reach it by name
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/handoff
-    invocation: manual # small, dependency-free, immediately useful session bridge
+    invocation: manual # small, dependency-free, immediately useful session bridge. Stays a skill,
+    # not as: command: OpenCode 2 attaches it with @ like every manual item, and its argument-hint
+    # stays advisory
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/diagnosing-bugs
     exclude: true # not rejected — merged: its feedback-loop phases live inside the
@@ -210,15 +212,19 @@ items:
     invocation: auto # the trigger is the situation (an in-progress conflict), not a wish
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/teach
-    invocation: manual # upstream's own flag; stateful learning workspace, wanted around
+    invocation: manual # upstream's own flag; stateful learning workspace, wanted around. Stays a
+    # skill, not as: command: upstream ships /teach as a skill body, and a command would drop its
+    # four *-FORMAT.md files in OpenCode
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/writing-for-agents
-    invocation: manual # curator's call now, not upstream's flag: upstream deleted writing-great-skills,
+    invocation: both # curator's call now, not upstream's flag: upstream deleted writing-great-skills,
     # rewrote it under this name, broadened it from skills to any agent-consumed document, and dropped
-    # its disable-model-invocation. Its new trigger fires on "modifying AGENTS.md or CLAUDE.md", which
-    # is ordinary canon work in this repo, so the trigger stays in the curator's hand. Still the
-    # complement, not the substitute, of writing-skills: that one is a TDD-for-skills testing
-    # methodology, this one is the design vocabulary — and both being manual, neither competes.
+    # its disable-model-invocation. Both, so a skill body can load it (retro's prescription step does
+    # once retro is taken). Its upstream trigger fired on "modifying AGENTS.md or CLAUDE.md", which is
+    # ordinary canon work in this repo, so the patched description narrows it to designing or
+    # rewording such documents. Still the complement, not the substitute, of writing-skills: that one
+    # is a TDD-for-skills testing methodology opened by hand, this one is the design vocabulary.
+    body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build
     omit: ["agents/**"]
   - source: asd-ste100
     invocation: auto # passive controlled-English rewrite knowledge and wait-what's model-reachable
@@ -296,8 +302,7 @@ items:
     invocation: manual # authoring ceremony, opened by hand — its body then reaches the two auto disciplines below
     depends_on: [systematic-debugging, test-driven-development]
     # One-line patch, finishing a decision already made: using-superpowers omits references/**
-    # (dead harness tool maps), and this body still sent the reader to two of those files. In
-    # OpenCode the omit left that item with no bundle at all, so the emitter dropped the husk and
-    # the target directory does not exist either. The clause named nothing but those two links;
-    # the runtime paths it wrapped stay, because they are the ones our harnesses actually use.
+    # (dead harness tool maps), and this body still sent the reader to two of those files. The
+    # clause named nothing but those two links; the runtime paths it wrapped stay, because they are
+    # the ones our harnesses actually use.
     body: patch

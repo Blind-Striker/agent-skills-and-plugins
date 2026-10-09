@@ -6,11 +6,11 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.3.3
+  version: 0.4.0
 items:
   - source: aspire-skills/skills/aspire
     omit: ["evals/**"] # upstream Copilot/vally evaluation assets are not harness runtime content
-    body: patch # guard the router and both migration references' in-package routes in both harnesses
+    body: patch # guard the router and both migration references' in-package routes in every harness
     depends_on:
       - aspire-init
       - aspireify

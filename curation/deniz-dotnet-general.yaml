@@ -28,7 +28,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.9.1
+  version: 0.10.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -230,9 +230,10 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/analyzing-dotnet-performance
     invocation: both # the corpus's only code-level perf audit. Curator's call: `both`, not
     # `manual` — its references carry some unconditional-transformation prescriptions, but it only
-    # fires on an explicit perf-audit request, and forced-manual would hide it from the model
-    # structurally (Claude) and wall-paste its body (OpenCode). `as: agent` was considered and
-    # rejected: a 43KB full-file overlay is the wrong price when posture alone contains the risk.
+    # fires on an explicit perf-audit request, and forced-manual would block the model from loading
+    # it in Claude Code and stop offering it to the model in OpenCode 2 and Codex. `as: agent` was
+    # considered and rejected: a 43KB full-file overlay is the wrong price when posture alone
+    # contains the risk.
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect
     invocation: manual # production artifact-collection ceremony — the curator decides when
     body: patch # user invokes the dump-collection ceremony separately where applicable

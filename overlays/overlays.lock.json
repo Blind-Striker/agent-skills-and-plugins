@@ -388,6 +388,12 @@
       "SKILL.md": "812805b760baf328db0ebdef6f3807e381f97016"
     }
   },
+  "deniz-process/writing-for-agents": {
+    "source": "mattpocock-skills/skills/productivity/writing-for-agents",
+    "files": {
+      "SKILL.md": "a37608daf6e835e767deecfb498facecaaba82ba"
+    }
+  },
   "deniz-process/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "files": {

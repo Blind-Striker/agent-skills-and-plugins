@@ -3,7 +3,7 @@
 plugin:
   name: deniz-dotnet-akka
   description: "Deniz's curated Akka.NET skills"
-  version: 0.3.1
+  version: 0.4.0
 items:
   - source: dotnet-skills/skills/akka-best-practices
     invocation: auto # foundational Akka.NET rules; model-reachable for the Aspire configuration cookbook
@@ -28,5 +28,6 @@ items:
       - aspire-integration-testing
       - akka-net-testing-patterns
   - source: dotnet-skills/agents/akka-net-specialist.md
-    # Native diagnostic agent in both harnesses; its delegated troubleshooting posture is distinct
-    # from the model-selected reference skills, so its upstream body and agent shape stay intact.
+    # Native diagnostic agent in Claude Code and OpenCode 2, and a skill in Codex; its delegated
+    # troubleshooting posture is distinct from the model-selected reference skills, so its upstream
+    # body and agent shape stay intact.
