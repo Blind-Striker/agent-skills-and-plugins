@@ -49,10 +49,29 @@ index e39e825..3778536 100644
 -No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the `/codebase-design` glossary, reach for one that is before inventing a new one.
 +No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the `mattpocock-skills:codebase-design` glossary, reach for one that is before inventing a new one.
 diff --git a/SKILL.md b/SKILL.md
-index a578dd0..fb416ff 100644
+index a578dd0..3416d1b 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -46,17 +46,17 @@ For each candidate, render a card with:
+@@ -5,17 +5,17 @@ disable-model-invocation: true
+ ---
+ 
+ # Improve Codebase Architecture
+ 
+ Surface architectural friction and propose **deepening opportunities**: refactors that turn shallow modules into deep ones. The aim is testability and AI-navigability.
+ 
+ This command is _informed_ by the project's domain model and built on a shared design vocabulary:
+ 
+-- Call the Skill tool with "codebase-design" for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
++- Call the Skill tool with "mattpocock-skills:codebase-design" for the architecture vocabulary (**module**, **interface**, **depth**, **seam**, **adapter**, **leverage**, **locality**) and its principles (the deletion test, "the interface is the test surface", "one adapter = hypothetical seam, two = real"). Use these terms exactly in every suggestion, and don't drift into "component," "service," "API," or "boundary."
+ - The domain language in `CONTEXT.md` gives names to good seams; ADRs in `docs/adr/` record decisions this command should not re-litigate.
+ 
+ ## Process
+ 
+ ### 1. Explore
+ 
+ **Scope before you scan: YAGNI.** Deepening a module pays off by making future changes to it easier, so put extra weight on the parts of the codebase that have recently changed. Decide *where* to look before you look:
+ 
+@@ -46,26 +46,26 @@ For each candidate, render a card with:
  - **Problem**: why the current architecture is causing friction
  - **Solution**: plain English description of what would change
  - **Benefits**: explained in terms of locality and leverage, and how tests would improve
@@ -71,3 +90,15 @@ index a578dd0..fb416ff 100644
  Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
  
  ### 3. Grilling loop
+ 
+-Once the user picks a candidate, call the Skill tool with "grilling" to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
++Once the user picks a candidate, call the Skill tool with "mattpocock-skills:grilling" to walk the decision tree with them: constraints, dependencies, the shape of the deepened module, what sits behind the seam, what tests survive.
+ 
+-Side effects happen inline as decisions crystallize; call the Skill tool with "domain-modeling" to keep the domain model current as you go:
++Side effects happen inline as decisions crystallize; call the Skill tool with "mattpocock-skills:domain-modeling" to keep the domain model current as you go:
+ 
+ - **Naming a deepened module after a concept not in `CONTEXT.md`?** Add the term to `CONTEXT.md`. Create the file lazily if it doesn't exist.
+ - **Sharpening a fuzzy term during the conversation?** Update `CONTEXT.md` right there.
+ - **User rejects the candidate with a load-bearing reason?** Offer an ADR, framed as: _"Want me to record this as an ADR so future architecture reviews don't re-suggest it?"_ Only offer when the reason would actually be needed by a future explorer to avoid re-suggesting the same thing; skip ephemeral reasons ("not worth it right now") and self-evident ones.
+-- **Want to explore alternative interfaces for the deepened module?** Call the Skill tool with "codebase-design" and use its design-it-twice parallel sub-agent pattern.
++- **Want to explore alternative interfaces for the deepened module?** Call the Skill tool with "mattpocock-skills:codebase-design" and use its design-it-twice parallel sub-agent pattern.

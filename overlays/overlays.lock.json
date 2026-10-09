@@ -249,6 +249,18 @@
       "SKILL.md": "b56a3b5ed6ea0d6216501e0e401ecb00a1b4675f"
     }
   },
+  "deniz-process/grill-me": {
+    "source": "mattpocock-skills/skills/productivity/grill-me",
+    "files": {
+      "SKILL.md": "3947ff9c4ad980d14fc07fccbf659d47c114e81d"
+    }
+  },
+  "deniz-process/grill-with-docs": {
+    "source": "mattpocock-skills/skills/engineering/grill-with-docs",
+    "files": {
+      "SKILL.md": "62b9efb6f991d1b229adee7506962f13ced0c499"
+    }
+  },
   "deniz-process/implement": {
     "source": "mattpocock-skills/skills/engineering/implement",
     "files": {

@@ -133,12 +133,16 @@ items:
   # Codex/OpenAI harness config; dead weight in both of our target harnesses.
   - source: mattpocock-skills/skills/productivity/grill-me
     invocation: manual # 7-line trigger whose whole body is "Run a /grilling session" — the composition pattern's cleanest example
+    body: patch # namespaces the grilling handle, so each harness renders a skill-tool sentence it can follow
+    depends_on: [grilling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/grilling
     invocation: auto # the knowledge grill-me/grill-with-docs invoke; upstream marks it model-invoked for exactly this reason
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/grill-with-docs
     invocation: manual # stateful grill (CONTEXT.md + ADRs); entry point, drags domain-modeling (taken)
+    body: patch # namespaces both handles, so each harness renders a skill-tool sentence it can follow
+    depends_on: [domain-modeling, grilling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/domain-modeling
     invocation: auto # vocabulary layer grill-with-docs drives; other skills reach it by name
@@ -166,7 +170,8 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/wayfinder
     invocation: manual # upstream's own flag; the heaviest ceremony — decision maps for foggy efforts
-    body: patch # localize the explicit setup prerequisite through the shared reference grammar
+    body: patch # localize the explicit setup prerequisite and the research, prototype, grilling, and domain-modeling handles through the shared reference grammar
+    depends_on: [domain-modeling, grilling, prototype, research]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/implement
     invocation: manual # upstream's own flag; the ceremony that opens an implementation run
@@ -187,8 +192,8 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/improve-codebase-architecture
     invocation: manual # upstream's own flag; spare-moment architecture survey
-    body: patch # make the load-bearing codebase-design vocabulary edge harness-native
-    depends_on: [codebase-design]
+    body: patch # make the load-bearing codebase-design, grilling, and domain-modeling edges harness-native
+    depends_on: [codebase-design, domain-modeling, grilling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/research
     invocation: both # curator's call: "şunu araştır" is as natural typed as model-delegated
