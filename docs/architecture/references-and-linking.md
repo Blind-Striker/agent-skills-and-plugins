@@ -57,8 +57,8 @@ Markdown link targets are read from Markdown files. Two **path claims** are read
 text file in a skill folder, Markdown or not, so scripts are included. A bundled text file is one
 with no NUL byte whose bytes survive a UTF-8 round trip; any other file is binary and is never read
 or rewritten. A claim's path runs to the next whitespace, quote, backtick, `)`, `]`, `#`, or `?`, so
-a link's fragment or query is not part of the path, with one trailing `.` dropped, and neither claim
-may continue a longer path. A `<segment>` is a portable
+a link's fragment or query is not part of the path, with one trailing `.`, `,`, `;`, or `:` dropped,
+and neither claim may continue a longer path. A `<segment>` is a portable
 lowercase name or an OpenCode ID `<plugin>.<name>`, so the OpenCode tree's respelled claims are read
 back with the same grammar and judged by the bare name the ID carries.
 
@@ -124,11 +124,13 @@ namespace. A bare name in one of them is a build error, not a candidate:
 A sentence ends at `.`, `;`, `:`, `!`, `?`, `|`, a blank line, or a newline followed by a list,
 table, heading, or quote marker. A `<name>` is a backticked lowercase portable name, so a fact,
 which carries a colon, never matches. The estate names are every scanned upstream component
-address and frontmatter name, every manifest item's output name with excluded items included, and
-every original skill. A name outside that set, such as the `docker` CLI or an external
-`dotnet-inspect` skill, stays silent. A hit on an emitted name is fixed by promotion: author
-`ns:name` with its `depends_on` entry, or `/ns:name` when the human is the audience. A hit on an
-estate name that is not emitted is rerouted or removed.
+address and frontmatter name, every manifest item's output name with excluded items included, every
+original skill, and every output name that a committed `docs/ledger.json` has listed, read from the
+repository's Git history. The last part keeps a name that a pin move deleted known after its
+manifest item leaves, without a tombstone in the manifest. A name outside that set, such as the
+`docker` CLI or an external `dotnet-inspect` skill, stays silent. A hit on an emitted name is fixed
+by promotion: author `ns:name` with its `depends_on` entry, or `/ns:name` when the human is the
+audience. A hit on an estate name that is not emitted is rerouted or removed.
 
 These are not templates and stay candidates: a "see the `x` skill" reference, a ``(use `x`)`` or
 ``Use `x` `` routing hint without the word `skill`, an unbackticked imperative such as "invoke the
@@ -307,20 +309,23 @@ installation state have their own manifests and are owned by
   `both` target can satisfy either audience edge, so a semantically wrong target kind may remain a
   human review concern even when linkage is green.
 - The `sync` CLI derives its candidate universe from the output-name segments of ledger keys
-  (`<plugin>/<kind>/<name>`) plus authored original-skill directory names. Its candidate-edge report
-  is still bounded by the tier: it compares known output names across one changed `SKILL.md`, so it
-  surfaces edges for reading and never promotes one to a fact, a declaration, or build state.
+  (`<plugin>/<kind>/<name>`), every output name a committed ledger has listed, and authored
+  original-skill directory names. Its candidate-edge report is still bounded by the tier: it
+  compares known output names across one changed `SKILL.md`, so it surfaces edges for reading and
+  never promotes one to a fact, a declaration, or build state.
 - The namespaced fact scanner is lowercase-only. Capitalized spellings can evade fact detection.
 - Bare-name composition can work at runtime in a harness that resolves bare names while remaining
   deliberately unguarded outside the handoff templates. Its success does not make candidates
   authoritative after the fact. In OpenCode a bare name matches none of this repository's IDs; the
   templates are the checked load-bearing forms. They are closed and English: a load-bearing sentence
   outside them is not caught, and a rephrased skill-tool sentence fails rather than passes.
-- The estate names come from the current scan, manifests, and original skills. A name deleted
-  upstream at a pin move leaves them once its manifest item leaves, so a new bare mention of it is
-  not caught; a handoff already promoted to a fact still fails as a dangling reference when its
-  target is deleted. How deletions stay recorded is tracked in
-  [Known Gaps](../ROADMAP.md#known-gaps).
+- The ledger-history part of the estate names is only as complete as the checkout's history: a
+  shallow or archived checkout knows fewer names, and CI checks out full history. A name upstream
+  deleted before any committed ledger listed it, for example an item that was never taken, is not
+  known after the pin move. A handoff already promoted to a fact still fails as a dangling reference
+  when its target is deleted.
+- A claim's path ends only at the characters the grammar names, so a `path:line` suffix such as
+  `../x/SKILL.md:42` is read as part of the path and does not resolve.
 - Rendered harness phrasing proves only that the sentence names the harness's own tool. Whether a
   model follows it is runtime evidence, bounded as described under
   [Harness phrasing](#harness-phrasing).

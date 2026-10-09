@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-09-07
+Date: 2026-10-09
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field
@@ -66,10 +66,46 @@ npm run eject -- <plugin> <item> --patch
 npm run eject -- <plugin> <item> --patch
 ```
 
-The second pass cuts `overlay.patch`, verifies that it applies, removes the temporary working-copy
-files, and records the upstream stamp. Then set the manifest to use the patch and regenerate. Shape
-limits and merge-source declaration rules remain in `curation/SCHEMA.md` and the command's own
-diagnostics.
+The second pass cuts `overlay.patch` with eight lines of context, verifies that it applies, removes
+the temporary working-copy files, and records the upstream stamp. Then set the manifest to use the
+patch and regenerate. Shape limits and merge-source declaration rules remain in `curation/SCHEMA.md`
+and the command's own diagnostics.
+
+A cut refuses, and writes nothing, while the working copy holds replay residue: an added `.rej`
+file, or an added line that starts with a conflict marker (`<<<<<<< `, `||||||| `, or `>>>>>>> `).
+It checks the new patch before it replaces the old one, so a refused cut leaves both the working
+copy and `overlay.patch` untouched.
+
+To change an existing patch, or to carry it onto a moved upstream, reopen it instead of starting
+over:
+
+```text
+npm run eject -- <plugin> <item> --patch --rebase
+# resolve, review, and edit the working copy
+npm run eject -- <plugin> <item> --patch
+```
+
+`--rebase` first prints every recorded-versus-current upstream diff, for the primary and every
+declared merge source, exactly as `--bless` does. It then lays the current upstream item down as the
+working copy and replays the old `overlay.patch` onto it one file at a time, reporting each file:
+
+- `applied`: the old edit still applies as it was cut.
+- `merged`: upstream moved inside the patched region and Git merged both sides without a conflict.
+  Read the merge.
+- `CONFLICT`: both sides changed the same lines. The file holds diff3 markers: `<<<<<<< ours` is
+  current upstream, `||||||| base` is what the patch was cut against, and `>>>>>>> theirs` is the
+  old patch's result.
+- `REJECTED`: no three-way base was available, or the edit has no place to land; the hunks that did
+  not apply are in `<file>.rej`.
+- `GONE`: upstream deleted the file; the file's whole old diff is in `<file>.rej`.
+
+The command exits non-zero while any conflict, reject, or deleted target remains. The old
+`overlay.patch` stays in place until the cut, so deleting the working-copy files abandons the
+rebase. Resolve every conflict, delete each `.rej`, and review the working copy before cutting. A
+clean replay is textual, not semantic: whether the old edits still serve the item's intent at the new
+upstream is the curator's review. The cut stamps the primary and every declared merge source, and
+that stamp is the review record of the rebase, so no bless follows it. `--patch --force` remains the
+way to discard the old patch and start again from pristine upstream.
 
 An upstream move under an existing overlay or patch is a review event, not a hash-update chore. Run:
 
@@ -80,7 +116,15 @@ npm run eject -- <plugin> <item> --bless
 Read every displayed upstream diff. If drift exists, the command stops before changing the lock;
 rerun with `--bless --yes` only after that review. Blessing records the current primary and declared
 merge inputs as reviewed. It does not merge new upstream content into an owned overlay or prove that
-the body still serves its curation intent.
+the body still serves its curation intent. A patch that no longer applies to the current upstream
+cannot be blessed: `--bless` refuses before it shows any drift, even with `--yes`, and names the
+rebase.
+
+These are the only two review ceremonies, and every message names them in one spelling. The build
+and `eject` name `npm run eject -- <plugin> <item> --bless` while the overlay or patch still applies,
+and `npm run eject -- <plugin> <item> --patch --rebase` when a patch no longer applies; no message
+appends `--yes`, which is typed only after `--bless` has shown the drift. `npm run sync` names no
+eject step: it points at the upstream diff and leaves the step to the next build.
 
 ## Upstream sync flow
 
@@ -90,10 +134,19 @@ report as a review aid, not a complete impact proof: inspect the submodule diff,
 inventory, reopen affected source bodies and manifests, and review any posture, reference, overlay,
 or patch impact.
 
-After a pin move, resolve overlay drift through the bless flow, make any newly required curation
-decisions with nearby reasons, regenerate all three harness outputs, and run the generated-output gate in
-[quality-gates.md](quality-gates.md#command-matrix). Complete its generated-output review before
-accepting the update.
+After a pin move, resolve overlay drift through the bless or rebase flow, make any newly required
+curation decisions with nearby reasons, regenerate all three harness outputs, and run the
+generated-output gate in [quality-gates.md](quality-gates.md#command-matrix). Complete its
+generated-output review before accepting the update.
+
+A manifest records only sources the current pin has, and `validate` rejects an unknown source,
+taken or excluded. When a pin move deletes a source, remove its item in the same change: an exclude
+is not a tombstone. Give the reason in the commit message and, when another item succeeds it, in that
+item's comment. If upstream moved the source instead, repoint `source:`. In the other direction, an
+exclude for a source that only a later pin has lands with or after that pin move, never before it.
+`validate`, the build, and `sync` say this rule in their unknown-source messages. A removed item's
+output name stays known to the handoff and candidate checks through the committed ledger's history
+([References and linking](../architecture/references-and-linking.md#handoff-templates)).
 
 ## Bump the Module version with the bytes
 

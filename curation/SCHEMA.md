@@ -5,7 +5,10 @@ Authoring guide — behaviour authority is `tools/`.
 `curation/<plugin>.yaml` records what enters a plugin and the intent of each transformation. Before
 deciding an item, run `npm run inventory` and use `docs/inventory.md`; every take, rejection, rename,
 or modification needs a why-comment beside that item. Keep deliberate rejections as
-`exclude: true` rather than deleting them from the manifest.
+`exclude: true` rather than deleting them from the manifest. An exclude records a source the current
+pin has; a source deleted upstream leaves the manifest instead, with its reason in the commit message
+and, when one exists, in its successor item's comment
+([Upstream sync flow](../docs/engineering/workflow.md#upstream-sync-flow)).
 
 Each manifest has plugin metadata and an item list:
 
@@ -49,7 +52,8 @@ body ownership adds review cost whenever upstream moves.
 
 Use item-level `name:`, not `frontmatter.name`; the build forces output identity after frontmatter
 overrides (in OpenCode, a skill's `name` is its namespaced ID). Use `body:` only with an overlay
-directory created by `npm run eject -- <plugin> <item>` (`--patch` for a patch). A patch applies
+directory created by `npm run eject -- <plugin> <item>` (`--patch` for a patch; `--patch --rebase`
+reopens an existing patch on current upstream). A patch applies
 only to skill-shaped output; a command or agent conversion needs a full-file overlay. For a
 conversion overlay, keep the upstream body filename (`SKILL.md` for a source skill, or the source
 command/agent filename); the build reads that one file.
@@ -126,7 +130,11 @@ resolving.
 ## Body ownership and merge sources
 
 Both body modes are blessed in `overlays/overlays.lock.json`. The build checks the stamped upstream
-files and stops on drift until the edit is reviewed and re-blessed. A body assembled from additional
+files and stops on drift until the edit is reviewed and re-blessed; a patch that no longer applies is
+rebased instead, because `eject --bless` refuses to stamp it
+([Manifest and body-edit flow](../docs/engineering/workflow.md#manifest-and-body-edit-flow)). A
+stamp records the blob of a regular file, and `null` for a declared merge-source name that is absent
+or not a regular file; only a regular file appearing there is drift. A body assembled from additional
 upstream items declares every source with `merged_from:` and is invalid without `body:`.
 
 ```yaml

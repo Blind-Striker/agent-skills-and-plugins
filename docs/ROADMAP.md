@@ -91,25 +91,40 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **W1: shared sync infrastructure, before any pin moves.** A cross-upstream review on 2026-10-08
-   read one decision packet per upstream and deduplicated the infrastructure the waves need. Its
-   first wave, W0 (harness phrasing, handoff templates, and path claims), landed with the OpenCode 2
-   migration. W1 is the rest that every later wave depends on:
-   - **`eject --rebase`.** Seed the working copy by replaying the old patch, stop on a real
-     conflict, and make `--bless` check that the patch still applies. At the reviewed upstream heads
-     every Aspire patch, 12 of 16 dotnet/skills patches, and the `using-superpowers` patch fail to
-     apply, and 11 drifted mattpocock overlays need recuts.
-   - **Description validation for every harness.** Check the rendered 1,024-character limit in
-     every tree, not only Codex, where `aspireify` and `aspire-orchestration` are already truncated
-     after localization; the boundary of a tag or angle-bracket rule is still open. Add a
-     frontmatter-override staleness stamp only if a description-only change without a patch
-     appears.
-   - **Canon for sources deleted upstream.** Decide how a deletion stays recorded; this settles the
-     "Deleted names leave the handoff universe" gap below. The review recommends that a deleted
-     taken source leave its manifest, with the reason in the commit and in the successor item's
-     comment, and that a new exclude land with or after the pin move.
-   - **Drift-scan noise.** The drift scan reports a null-sentinel merge file as changed; make it
-     honor the sentinel.
+1. **W1: shared sync infrastructure, before any pin moves — in progress.** A cross-upstream review on
+   2026-10-08 read one decision packet per upstream and deduplicated the infrastructure the waves
+   need. Its first wave, W0 (harness phrasing, handoff templates, and path claims), landed with the
+   OpenCode 2 migration. W1 is the tooling every later wave depends on. Its rules are decided and
+   written into canon: the rebase and bless ceremonies and the deleted-source rule in
+   [workflow](engineering/workflow.md#manifest-and-body-edit-flow), the authoring consequences in
+   [`curation/SCHEMA.md`](../curation/SCHEMA.md), and the path grammar and ledger-history estate
+   names in [references and linking](architecture/references-and-linking.md#handoff-templates). The
+   transient [spec](superpowers/specs/2026-10-09-w1-sync-infrastructure-design.md) and
+   [plan](superpowers/plans/2026-10-09-w1-sync-infrastructure.md) carry the design and its tasks.
+   Until each task lands, the checkout differs from that canon:
+   - **`eject --patch --rebase`** does not exist, and `--bless` stamps a patch that no longer
+     applies (`tools/eject.ts`). A 3-way replay measured at the reviewed heads (aspire `da1230c`,
+     dotnet/skills `0608d892`, mattpocock `b0618bc`, superpowers `8ca22db`): every Aspire patch
+     fails a direct apply and four keep `SKILL.md` conflicts; 15 of the 20 dotnet/skills patch
+     items fail a direct apply and 8 keep conflicts, one of them (`code-testing-agent`) also
+     patching a file upstream deleted; 5 mattpocock patch items and 2 superpowers items keep
+     conflicts. The 11 drifted mattpocock overlays need recuts; the four full-file overlays among the
+     W5 items (`ask-deniz`, `requesting-code-review`, `systematic-debugging`,
+     `test-driven-development`) have no replay and are ported by hand through the `--bless` diff. A
+     cut does not yet refuse conflict markers or `.rej` files, and it overwrites the
+     old patch before checking the new one.
+   - **Bless hints** still disagree (`tools/build.ts` `overlayDrift`, `tools/sync.ts`); see Known
+     Gaps.
+   - **Unknown-source messages** do not yet state the deleted-source rule (`tools/validate.ts`
+     section 1, `tools/build.ts` `collectProblems`, `tools/lib/assemble.ts`, `tools/sync.ts`
+     `goneLine`).
+   - **Estate names** do not yet include the ledger history (`tools/validate.ts` `estateNames`,
+     `tools/sync.ts` `syncCandidateNames`); see Known Gaps.
+   - **Path claims** still keep a trailing `,`, `;`, or `:` (`tools/lib/refs.ts` `claimPath`), so
+     such a claim is reported as not resolving.
+   - **Drift scan:** the review's report that the scan flags a recorded-absent merge file as changed
+     came from its own ad-hoc scan; `driftedMergeSources` already honours an absent file. The real
+     defect is the directory case in Known Gaps (`tools/lib/overlay.ts`).
 2. **Upstream sync waves W2 to W6, in this order.** All six pins are frozen at their 2026-09-06
    positions. The 2026-10-08 packets recommend a treatment for each item; every take, skip, merge,
    or modification is still the curator's decision, and each wave measures its upstream again
@@ -123,7 +138,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      three commits past it and targets Aspire 13.6, and the packet recommends HEAD because the
      post-tag commit fixes `aspire-init` guidance for 13.6. All six taken items changed and 12
      stamps drift, so all six patches need recutting with their current intent; most rejects are
-     context-only, which makes this the first live test of `eject --rebase`.
+     context-only, which makes this the first live test of `eject --patch --rebase`. The wave also
+     lands description validation for every harness: check the rendered 1,024-character limit in
+     every tree, not only Codex, where `aspireify` and `aspire-orchestration` are already truncated
+     after localization, together with the Aspire shortening decision; the boundary of a tag or
+     angle-bracket rule is still open. Add a frontmatter-override staleness stamp only if a
+     description-only change without a patch appears.
      `aspire-project-v2-migration` is a new candidate (packet: `manual`, reached by a checked
      user-pointer from the router); `pr-review` stays excluded. The wave also decides stated
      invocation for the six items, which pass upstream posture through today.
@@ -277,10 +297,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   namespaced fact and matching dependency; the sync wave that recuts the item is the natural point.
 - **Deleted names leave the handoff universe:** a name deleted upstream at a pin move stays an
   estate name only while its manifest item lists it, but `validate` rejects a manifest source that
-  no longer exists, even an excluded one (`tools/validate.ts`, section 1). Deciding how a deletion
-  stays recorded is shared sync infrastructure that must land before the first pin move that
-  deletes a taken source (`mattpocock-skills`, `dotnet/skills`); until then a new bare mention of a
-  deleted name is not caught, while a promoted fact still fails as a dangling reference.
+  no longer exists, even an excluded one (`tools/validate.ts`, section 1), so a new bare mention of a
+  deleted name is not caught, while a promoted fact still fails as a dangling reference. The decided
+  fix, every output name a committed ledger has listed, is W1 work in progress and must land before
+  the first pin move that deletes a taken source (`mattpocock-skills`, `dotnet/skills`).
 - **Harness phrasing is partly measured:** on one model, the rendered OpenCode skill-tool sentence
   in `deniz-process.grill-me` was followed
   ([record](../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)), and
