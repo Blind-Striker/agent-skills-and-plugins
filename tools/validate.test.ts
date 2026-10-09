@@ -1405,6 +1405,32 @@ test("H2–H4: an excluded name is reported as not emitted", () => {
   );
 });
 
+test("H2–H4: a name a committed ledger once listed stays in the estate", () => {
+  const history = (root: string) => {
+    const g = (...a: string[]) =>
+      execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "core.autocrlf=false", ...a], {
+        cwd: root,
+        stdio: "ignore",
+      });
+    const ledger = join(root, "docs", "ledger.json");
+    const built = readFileSync(ledger, "utf8");
+    g("init", "-q");
+    writeFileSync(ledger, `${JSON.stringify({ "deniz-process/skill/gone": { source: "sp/skills/gone" } }, null, 2)}\n`);
+    g("add", "docs/ledger.json");
+    g("commit", "-qm", "gone listed");
+    writeFileSync(ledger, built);
+    g("add", "docs/ledger.json");
+    g("commit", "-qm", "gone deleted");
+  };
+  const items = ["  - source: sp/skills/alpha"];
+  assert.ok(
+    ocErrors("Use the `gone` skill.", items, history).some((m) =>
+      m.includes("names `gone`, which this estate does not emit"),
+    ),
+  );
+  assert.ok(!ocErrors("Use the `gone` skill.", items).some((m) => m.includes("`gone`")), "no history, no name");
+});
+
 test("P: a landing climb fails closed, and a path into a manual folder fails", () => {
   const errors = ocErrors("See `../beta/references/` and `../gone/x.md` and `../delta/references/notes.md`.", [
     "  - source: sp/skills/alpha",

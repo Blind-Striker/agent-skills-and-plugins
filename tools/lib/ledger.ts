@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
@@ -228,5 +229,31 @@ export function writeLedger(
   }
   const sorted = Object.fromEntries(Object.entries(ledger).sort(([a], [b]) => a.localeCompare(b)));
   mkdirSync(join(root, "docs"), { recursive: true });
+  // everListedNames reads this exact two-space key shape back from Git history.
   writeFileSync(join(root, "docs", "ledger.json"), `${JSON.stringify(sorted, null, 2)}\n`);
+}
+
+/**
+ * Every output name any committed docs/ledger.json has listed (references-and-linking.md "Handoff
+ * templates"), so a name a pin move deleted stays known after its manifest item leaves. writeLedger
+ * writes JSON.stringify(…, 2), so an item is a two-space top-level key line; a format change must
+ * move this pattern with it. Keys were once `<plugin>/<name>` and are now `<plugin>/<kind>/<name>`;
+ * the last segment is the name in both. Outside Git, or without the history, the set is smaller.
+ */
+export function everListedNames(root: string): string[] {
+  let log: string;
+  try {
+    log = execFileSync(
+      "git",
+      ["-C", root, "log", "--format=", "-p", "-U0", "--no-ext-diff", "--no-textconv", "--", "docs/ledger.json"],
+      { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"], maxBuffer: 1 << 28 },
+    );
+  } catch {
+    return [];
+  }
+  const names = new Set<string>();
+  for (const m of log.matchAll(/^\+ {2}"([^"]+)": \{$/gm)) {
+    names.add((m[1] as string).split("/").at(-1) as string);
+  }
+  return [...names].sort();
 }

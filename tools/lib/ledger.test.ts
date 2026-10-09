@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "../build.ts";
 import { makeRepo, opencodeIdPath } from "../testutil.ts";
+import { everListedNames } from "./ledger.ts";
 
 test("the build writes a deterministic ledger describing each item's resolved state per harness", () => {
   const root = makeRepo();
@@ -170,4 +173,27 @@ test("the ledger records only boolean invocation flags from emitted Claude skill
   assert.equal("flags" in ledger["deniz-process/skill/nonboolean-flag"].claude, false);
   assert.equal("flags" in ledger["deniz-process/command/upstream-flag-command"].claude, false);
   assert.equal("flags" in ledger["deniz-process/agent/upstream-flag-agent"].claude, false);
+});
+
+test("everListedNames reads every top-level key any committed ledger listed", () => {
+  const root = mkdtempSync(join(tmpdir(), "ledger-"));
+  const g = (...a: string[]) =>
+    execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "core.autocrlf=false", ...a], {
+      cwd: root,
+      stdio: "ignore",
+    });
+  mkdirSync(join(root, "docs"));
+  const write = (o: object) => writeFileSync(join(root, "docs", "ledger.json"), `${JSON.stringify(o, null, 2)}\n`);
+  assert.deepEqual(everListedNames(root), [], "outside Git");
+  g("init", "-q");
+  write({
+    "deniz-process/old-shape": { source: "x" },
+    "deniz-process/skill/gone": { claude: { "deniz-process/skill/nested": { a: 1 } } },
+  });
+  g("add", "-A");
+  g("commit", "-qm", "one");
+  write({ "deniz-process/skill/kept": { source: "y" } });
+  g("add", "-A");
+  g("commit", "-qm", "two");
+  assert.deepEqual(everListedNames(root), ["gone", "kept", "old-shape"], "nested keys never count");
 });

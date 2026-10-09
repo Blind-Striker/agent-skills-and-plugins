@@ -14,6 +14,7 @@ import {
 } from "./lib/codex-plugin.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
+import { everListedNames } from "./lib/ledger.ts";
 import { type ComponentType, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import {
   findMissingModuleRequirements,
@@ -792,7 +793,8 @@ export function validateRepo(root: string): Finding[] {
     }
   }
   // The handoff universe (references-and-linking.md "Handoff templates"): every scanned upstream
-  // address and frontmatter name, every manifest output name (excluded included), every original skill.
+  // address and frontmatter name, every manifest output name (excluded included), every original skill,
+  // and every output name a committed ledger has listed.
   const estateNames = new Set<string>();
   for (const c of components) {
     estateNames.add(addressOf(c));
@@ -805,6 +807,9 @@ export function validateRepo(root: string): Finding[] {
   }
   for (const own of ownSkills) {
     estateNames.add(own.name);
+  }
+  for (const n of everListedNames(root)) {
+    estateNames.add(n);
   }
   const ocModelCause = (t: TargetState): string =>
     !t.ocUser

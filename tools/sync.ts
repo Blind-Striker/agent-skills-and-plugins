@@ -3,6 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
+import { everListedNames } from "./lib/ledger.ts";
 import { type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import { type OwnSkillIdentity, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
@@ -66,8 +67,12 @@ export function ledgerCandidateNames(ledger: Record<string, unknown>): string[] 
   return [...new Set(names)].sort();
 }
 
-export function syncCandidateNames(ledger: Record<string, unknown>, ownSkills: OwnSkillIdentity[]): string[] {
-  return [...new Set([...ledgerCandidateNames(ledger), ...ownSkills.map((skill) => skill.name)])].sort();
+export function syncCandidateNames(
+  ledger: Record<string, unknown>,
+  ownSkills: OwnSkillIdentity[],
+  everListed: string[],
+): string[] {
+  return [...new Set([...ledgerCandidateNames(ledger), ...ownSkills.map((skill) => skill.name), ...everListed])].sort();
 }
 
 /**
@@ -320,7 +325,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
   const ledger = existsSync(ledgerPath)
     ? (JSON.parse(readFileSync(ledgerPath, "utf8")) as Record<string, unknown>)
     : {};
-  const ledgerNames = syncCandidateNames(ledger, ownSkillIdentities(root, manifests));
+  const ledgerNames = syncCandidateNames(ledger, ownSkillIdentities(root, manifests), everListedNames(root));
 
   for (const sub of subs) {
     const dir = join(root, "external", sub);

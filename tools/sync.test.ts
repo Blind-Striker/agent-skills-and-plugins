@@ -335,15 +335,23 @@ test("the candidate universe de-duplicates a name two Modules both emit", () => 
 
 test("the sync candidate universe includes original skill names", () => {
   assert.deepEqual(
-    syncCandidateNames({ "deniz-process/skill/writing-plans": {} }, [
-      {
-        plugin: "deniz-general",
-        name: "writing-tunit-tests",
-        address: "deniz-general:writing-tunit-tests",
-      },
-    ]),
+    syncCandidateNames(
+      { "deniz-process/skill/writing-plans": {} },
+      [
+        {
+          plugin: "deniz-general",
+          name: "writing-tunit-tests",
+          address: "deniz-general:writing-tunit-tests",
+        },
+      ],
+      [],
+    ),
     ["writing-plans", "writing-tunit-tests"],
   );
+});
+
+test("the sync candidate universe includes every name a committed ledger listed", () => {
+  assert.ok(syncCandidateNames({}, [], ["gone"]).includes("gone"));
 });
 
 test("an original skill candidate gained or lost in an upstream body is reported", () => {
