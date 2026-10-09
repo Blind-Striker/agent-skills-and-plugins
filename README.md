@@ -131,7 +131,7 @@ worktrees.
 |---|---|
 | `npm run build` | Compile manifests + overlays + own skills into committed `plugins/`, `opencode/`, `codex/`, marketplaces, and installer `dist/` output |
 | `npm run inventory` | Regenerate `docs/inventory.md` catalog |
-| `npm run eject -- <plugin> <name>` | Copy an item to `overlays/` for body editing |
+| `npm run eject -- <plugin> <name> [--patch [--rebase]] [--bless]` | Copy an item to `overlays/` for body editing, reopen a patch on current upstream, or bless reviewed upstream drift |
 | `npm run sync [submodule]` | Update submodule(s), report impact on curated items |
 | `npm run validate` | Link the built trees: references resolve and are reachable, `depends_on` matches the bodies, plus sources, frontmatter, collisions, overlay wiring, file modes, marketplace |
 | `npm run verify:package -- <package.tgz>` | Verify an exact Package's payload, Bundle hashes, and tar executable modes before publication |

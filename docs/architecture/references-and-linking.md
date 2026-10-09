@@ -323,8 +323,8 @@ installation state have their own manifests and are owned by
   shallow or archived checkout knows fewer names, and CI checks out full history. A name upstream
   deleted before any committed ledger listed it, for example an item that was never taken, is not
   known after the pin move. Only output names are kept: a taken item renamed with `name:` keeps its
-  output name, not the upstream name a deleted upstream body would use. A handoff already promoted to a fact still fails as a dangling reference
-  when its target is deleted.
+  output name, not the upstream name a deleted upstream body would use. A handoff already promoted
+  to a fact still fails as a dangling reference when its target is deleted.
 - A claim's path ends only at the characters the grammar names, so a `path:line` suffix such as
   `../x/SKILL.md:42` is read as part of the path and does not resolve.
 - Rendered harness phrasing proves only that the sentence names the harness's own tool. Whether a

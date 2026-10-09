@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-10-09
+Date: 2026-10-10
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -101,30 +101,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    names in [references and linking](architecture/references-and-linking.md#handoff-templates). The
    transient [spec](superpowers/specs/2026-10-09-w1-sync-infrastructure-design.md) and
    [plan](superpowers/plans/2026-10-09-w1-sync-infrastructure.md) carry the design and its tasks.
-   Until each task lands, the checkout differs from that canon:
-   - **`eject --patch --rebase`** does not exist, and `--bless` stamps a patch that no longer
-     applies (`tools/eject.ts`). A 3-way replay measured at the reviewed heads (aspire `da1230c`,
-     dotnet/skills `0608d892`, mattpocock `b0618bc`, superpowers `8ca22db`): every Aspire patch
-     fails a direct apply and four keep `SKILL.md` conflicts; 15 of the 20 dotnet/skills patch
-     items fail a direct apply and 8 keep conflicts, one of them (`code-testing-agent`) also
-     patching a file upstream deleted; 5 mattpocock patch items and 2 superpowers items keep
-     conflicts. The 11 drifted mattpocock overlays need recuts; the four full-file overlays among the
-     W5 items (`ask-deniz`, `requesting-code-review`, `systematic-debugging`,
-     `test-driven-development`) have no replay and are ported by hand through the `--bless` diff. A
-     cut does not yet refuse conflict markers or `.rej` files, and it overwrites the
-     old patch before checking the new one.
-   - **Bless hints** still disagree (`tools/build.ts` `overlayDrift`, `tools/sync.ts`); see Known
-     Gaps.
-   - **Unknown-source messages** do not yet state the deleted-source rule (`tools/validate.ts`
-     section 1, `tools/build.ts` `collectProblems`, `tools/lib/assemble.ts`, `tools/sync.ts`
-     `goneLine`).
-   - **Estate names** do not yet include the ledger history (`tools/validate.ts` `estateNames`,
-     `tools/sync.ts` `syncCandidateNames`); see Known Gaps.
-   - **Path claims** still keep a trailing `,`, `;`, or `:` (`tools/lib/refs.ts` `claimPath`), so
-     such a claim is reported as not resolving.
-   - **Drift scan:** the review's report that the scan flags a recorded-absent merge file as changed
-     came from its own ad-hoc scan; `driftedMergeSources` already honours an absent file. The real
-     defect is the directory case in Known Gaps (`tools/lib/overlay.ts`).
+   The implementation has landed; the closeout is plan task W1.13.
 2. **Upstream sync waves W2 to W6, in this order.** All six pins are frozen at their 2026-09-06
    positions. The 2026-10-08 packets recommend a treatment for each item; every take, skip, merge,
    or modification is still the curator's decision, and each wave measures its upstream again
@@ -138,12 +115,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      three commits past it and targets Aspire 13.6, and the packet recommends HEAD because the
      post-tag commit fixes `aspire-init` guidance for 13.6. All six taken items changed and 12
      stamps drift, so all six patches need recutting with their current intent; most rejects are
-     context-only, which makes this the first live test of `eject --patch --rebase`. The wave also
-     lands description validation for every harness: check the rendered 1,024-character limit in
-     every tree, not only Codex, where `aspireify` and `aspire-orchestration` are already truncated
-     after localization, together with the Aspire shortening decision; the boundary of a tag or
-     angle-bracket rule is still open. Add a frontmatter-override staleness stamp only if a
-     description-only change without a patch appears.
+     context-only, which makes this the first live test of `eject --patch --rebase`. A 3-way replay
+     measured at `da1230c`: every Aspire patch fails a direct apply and four keep `SKILL.md`
+     conflicts. The wave also lands description validation for every harness: check the rendered
+     1,024-character limit in every tree, not only Codex, where `aspireify` and
+     `aspire-orchestration` are already truncated after localization, together with the Aspire
+     shortening decision; the boundary of a tag or angle-bracket rule is still open. Add a
+     frontmatter-override staleness stamp only if a description-only change without a patch
+     appears.
      `aspire-project-v2-migration` is a new candidate (packet: `manual`, reached by a checked
      user-pointer from the router); `pr-review` stays excluded. The wave also decides stated
      invocation for the six items, which pass upstream posture through today.
@@ -154,8 +133,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      autonomous inline executor and gains executable `scripts/task-start` and `scripts/task-done`
      (mode 100755, which the Codex mode check covers) that climb into
      `subagent-driven-development/scripts`; `using-superpowers` gains references and its patch no
-     longer applies; `diagnosing-superpowers` is a new candidate. `asd-ste100` is 12 commits ahead,
-     no tags: its single taken root item changed in every shipped path and adds
+     longer applies; `diagnosing-superpowers` is a new candidate. A 3-way replay measured at
+     `8ca22db` keeps conflicts in 2 patch items. `asd-ste100` is 12 commits ahead, no tags: its
+     single taken root item changed in every shipped path and adds
      `examples/linter-edge-cases.md` (packet: add it to `omit` in the pin-move commit) and a
      non-executable `scripts/ste-lint.py` whose interpreter and invocation fit need review. No
      overlay-lock stamp covers it, so these changes pass straight through on a pin move. Both
@@ -169,8 +149,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      was deleted upstream and is still taken in `curation/deniz-process.yaml`; the packet
      recommends dropping it together with its `ask-deniz` route and its authored
      `docs/cheatsheet.md` line. Eighteen of 25 taken or merge-source items changed;
-     `domain-modeling` replaced `CONTEXT-FORMAT.md` with `GLOSSARY-FORMAT.md`, and adopting
-     GLOSSARY needs this repository's own `CONTEXT.md` relocation before the pin moves.
+     the 11 drifted overlays need recuts, and a 3-way replay measured at `b0618bc` keeps conflicts
+     in 5 patch items. `domain-modeling` replaced `CONTEXT-FORMAT.md` with `GLOSSARY-FORMAT.md`,
+     and adopting GLOSSARY needs this repository's own `CONTEXT.md` relocation before the pin
+     moves.
      `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new candidates; `pr` first needs
      attribution for an origin outside the submodules. The wave also decides the
      `setup-matt-pocock-skills` question of patching it to prefer `AGENTS.md`, since OpenCode 2
@@ -182,7 +164,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      `code-testing-agent` is now a legacy alias that redirects to the new `code-testing` skill
      (packet: re-source to it, rename the output to `code-testing`, keep it `manual`), and a
      consolidated `dotnet/msbuild` skill sits beside the individual MSBuild skills, whose
-     descriptions were recut. Thirty-one of 48 taken items changed and 20 stamps drift. Decide
+     descriptions were recut. Thirty-one of 48 taken items changed and 20 stamps drift. A 3-way
+     replay measured at `0608d892`: 15 of the 20 patch items fail a direct apply and 8 keep
+     conflicts, one of them (`code-testing-agent`) also patching a file upstream deleted. Decide
      before the wave: the MSBuild estate shape, which decides whether four MCP patches are recut or
      retired; MCP posture (build MCP-server emission for every harness, or record a no-ship
      decision); and the `code-testing` name and scope.
@@ -295,12 +279,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `brainstorming`'s "the writing-plans skill"), and "Hand off to `x`" (`aspire-init` to
   `aspireify`) are candidates, not build state. Promote load-bearing cases through an authored
   namespaced fact and matching dependency; the sync wave that recuts the item is the natural point.
-- **Deleted names leave the handoff universe:** a name deleted upstream at a pin move stays an
-  estate name only while its manifest item lists it, but `validate` rejects a manifest source that
-  no longer exists, even an excluded one (`tools/validate.ts`, section 1), so a new bare mention of a
-  deleted name is not caught, while a promoted fact still fails as a dangling reference. The decided
-  fix, every output name a committed ledger has listed, is W1 work in progress and must land before
-  the first pin move that deletes a taken source (`mattpocock-skills`, `dotnet/skills`).
+- **Ledger-history names need Git history:** a shallow or archived checkout knows only the names
+  its history holds; a name deleted before any ledger listed it is unknown; a renamed taken item
+  keeps only its output name
+  ([references and linking](architecture/references-and-linking.md#proof-boundary-and-current-limits)).
+- **`path:line` claims:** `../x/SKILL.md:42` is read as one path and does not resolve
+  ([references and linking](architecture/references-and-linking.md#proof-boundary-and-current-limits)).
 - **Harness phrasing is partly measured:** on one model, the rendered OpenCode skill-tool sentence
   in `deniz-process.grill-me` was followed
   ([record](../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)), and
@@ -322,10 +306,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   remain unavailable until the declaration surface above exists.
 - **Clean-fixture debt is filtered by finding name:** split the fixture so tests prove those findings
   still exist instead of tolerating their disappearance.
-- **Bless hints disagree:** primary drift prints a two-step review ceremony while merge drift suggests
-  the one-step `--bless --yes` form.
-- **Recorded-absent merge directories:** a directory at a stamped filename produces an imprecise
-  report and can reach a raw blob-hash error.
+- **Full-file overlays have no replay:** an upstream move under a full-file overlay is reviewed
+  through the `--bless` diff and ported by hand. This applies to the four full-file overlays among
+  the W5 items (`ask-deniz`, `requesting-code-review`, `systematic-debugging`,
+  `test-driven-development`); `ask-deniz` would replay with 6 conflicts.
 - **Scanner layout blind spots:** grouped commands and agents are missed, while nested component
   directories can be double-counted.
 - **Overlay mode drift:** overlay locks hash bytes but not executable mode.

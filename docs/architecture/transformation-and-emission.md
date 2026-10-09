@@ -300,10 +300,10 @@ to committed `dist/` JavaScript using
   grouped subdirectories are missed, while a `commands/` or `agents/` directory nested under a skill
   can be double-counted as a standalone component ([`scanSubmodule`](../../tools/lib/scan.ts#L69-L106)).
 - Overlay locks hash file content, not executable mode, so a mode-only upstream change does not force
-  a re-bless ([`blobSha`](../../tools/lib/overlay.ts#L44-L46),
-  [`stampFiles`](../../tools/lib/overlay.ts#L155-L164)).
+  a re-bless ([`blobSha`](../../tools/lib/overlay.ts#L90-L92),
+  [`stampFiles`](../../tools/lib/overlay.ts#L391-L400)).
 - Patch application cannot touch a path at or beyond a symlink: `git apply` rejects those paths while
-  emitted copies skip symlinks ([`gitApply`](../../tools/lib/overlay.ts#L110-L140),
+  emitted copies skip symlinks ([`gitApply`](../../tools/lib/overlay.ts#L157-L192),
   [`skipSymlinks`](../../tools/lib/assemble.ts)).
 - Manifest `frontmatter:` overrides have no upstream-staleness guard. They merge into the assembled
   document after body assembly, so an upstream rewrite does not make an old override drift
