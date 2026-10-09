@@ -6,4 +6,4 @@ metadata:
   opencode/autoinvoke: false
 ---
 
-Call the Skill tool twice, for "grilling" and "domain-modeling".
+Call the `skill` tool twice, for "deniz-process.grilling" and "deniz-process.domain-modeling".

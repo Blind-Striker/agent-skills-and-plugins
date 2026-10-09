@@ -31,7 +31,7 @@ Choose the smallest path that satisfies the request:
 | One-time classic run without rebuilding | Keep the repository runner and invoke it against an existing built assembly; do not substitute `dotnet test`. |
 | Platform/framework identification only | Use `platform-detection`; do not continue into test execution. |
 | Explicit hot reload or a keep-running edit/re-run loop | Use `mtp-hot-reload`. |
-| Filter needed and the framework-specific syntax is not already clear | Load `filter-syntax`; do not load it for unfiltered runs. |
+| Filter needed and the framework-specific syntax is not already clear | Load `deniz-dotnet-general.filter-syntax`; do not load it for unfiltered runs. |
 
 Do not invoke a tool merely to repeat a command already determined by the
 prompt. Do not build first "just in case": `dotnet test` builds by default.
@@ -59,7 +59,7 @@ relevant files: `global.json`, the selected project, `packages.config`,
 scripts/CI documentation. For a file-backed request, enumerate those
 configuration names once and read all relevant files that are present in one
 batch; never infer that a runner or bridge property is absent merely because it
-is not in the `.csproj`. Load `platform-detection` only when those signals need
+is not in the `.csproj`. Load `deniz-dotnet-general.platform-detection` only when those signals need
 precedence analysis; do not duplicate its full analysis in the response.
 If execution is requested and the command depends on the active SDK but neither
 the prompt nor `global.json` establishes it, run `dotnet --version` once. For a
@@ -168,7 +168,7 @@ an incidental substring difference.
 
 3. **Apply platform- and framework-correct filters.**
 
-Load `filter-syntax` only when the request is filtered and the framework-specific
+Load `deniz-dotnet-general.filter-syntax` only when the request is filtered and the framework-specific
 syntax is not already clear. The common decisions are:
 
 For a file-backed filtered request, resolve the framework and SDK command mode

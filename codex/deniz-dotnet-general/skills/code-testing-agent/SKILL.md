@@ -56,7 +56,7 @@ Use this skill when you need to:
 
 ## When Not to Use
 
-- Running or executing existing tests (use the `run-tests` skill)
+- Running or executing existing tests (use the `$deniz-dotnet-general:run-tests` skill)
 - Migrating between test frameworks (use migration skills)
 - Answering a framework API or modernization question that does not ask to
   generate tests
@@ -183,7 +183,7 @@ Do not report completion until all of these are true:
    completeness by whether every independently requested behavior has direct,
    nonredundant evidence, not by raw test volume.
 5. Review the generated tests for behavior gaps and weak assertions. On a broad
-   scope, invoke `test-gap-analysis` and `test-anti-patterns` when available and
+   scope, invoke `$deniz-dotnet-general:test-gap-analysis` and `$deniz-dotnet-general:test-anti-patterns` when available and
    record the findings and fixes in `.testagent/status.md`. On a focused scope,
    do the equivalent review inline — re-read each generated assertion against
    the source — without spawning extra passes.

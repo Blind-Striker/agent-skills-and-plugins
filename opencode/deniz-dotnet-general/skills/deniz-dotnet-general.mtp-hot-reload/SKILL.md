@@ -55,7 +55,7 @@ edits and automatically reruns tests.
 
 Hot reload requires MTP. It does **not** work with VSTest.
 
-Follow the complete evaluated-property procedure in the `platform-detection`
+Follow the complete evaluated-property procedure in the `deniz-dotnet-general.platform-detection`
 skill. Read imported props and package versions as well as the project file.
 Do this before installing packages, editing files, or returning an MTP launch
 command.

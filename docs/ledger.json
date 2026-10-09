@@ -1141,13 +1141,19 @@
   "deniz-dotnet-general/skill/build-perf-baseline": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-baseline",
     "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "build-perf-diagnostics"
+    ],
     "description": "Establish build performance baselines and apply systematic optimization techniques. USE FOR: diagnosing slow builds, establishing before/after measurements (cold, warm, no-op scenarios), applying optimization strategies like MSBuild Server, static graph builds, artifacts output, and dependency graph trimming. Start here before diving into build-perf-diagnostics, incremental-build, or build-parallelism. DO NOT USE FOR: non-MSBuild build systems, detailed bottleneck analysis (use build-perf-diagnostics after baselining).",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:build-perf-diagnostics"
+        ],
         "pointer": []
       },
       "flags": {
@@ -1161,7 +1167,9 @@
       "identity": "deniz-dotnet-general.build-perf-baseline",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.build-perf-diagnostics"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -1180,7 +1188,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:build-perf-diagnostics"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -1244,13 +1254,18 @@
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash",
     "invocation": "auto",
     "body": "patch",
+    "dependsOn": [
+      "binlog-generation"
+    ],
     "description": "Detects MSBuild projects with conflicting OutputPath or IntermediateOutputPath. USE FOR: builds failing with 'Cannot create a file when that file already exists', 'The process cannot access the file because it is being used by another process', intermittent build failures that succeed on retry, or missing/overwritten outputs in multi-project or multi-targeting builds where bin/obj (or project.assets.json) collide. Common causes: shared OutputPath, missing AppendTargetFrameworkToOutputPath, extra global properties (e.g. PublishReadyToRun), or SetTargetFramework on a ProjectReference to a single-targeting project. DO NOT USE FOR: file access errors unrelated to MSBuild (OS-level locking), single-project single-TFM builds, non-MSBuild build systems.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:binlog-generation"
+        ],
         "pointer": []
       },
       "flags": {
@@ -1264,7 +1279,9 @@
       "identity": "deniz-dotnet-general.check-bin-obj-clash",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.binlog-generation"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -1283,7 +1300,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:binlog-generation"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -1295,6 +1314,9 @@
     "invocation": "manual",
     "body": "patch",
     "dependsOn": [
+      "run-tests",
+      "test-anti-patterns",
+      "test-gap-analysis",
       "writing-tunit-tests"
     ],
     "description": "Generate or add unit tests for existing code, from one helper or regression case to a project-wide suite. Use for \"write unit tests\", \"add tests\", \"cover this untested method\", scaffolding tests where none exist, or extending a healthy suite. Focused requests stay proportional; broad requests use the full pipeline. Polyglot, including classic packages.config projects. DO NOT USE for only running or diagnosing tests, coverage analysis, test-quality audits, or a behavior test blocked on a production seam that has not been selected.",
@@ -1304,6 +1326,9 @@
       ],
       "edges": {
         "model": [
+          "deniz-dotnet-general:run-tests",
+          "deniz-dotnet-general:test-anti-patterns",
+          "deniz-dotnet-general:test-gap-analysis",
           "deniz-dotnet-general:writing-tunit-tests"
         ],
         "pointer": []
@@ -1320,6 +1345,9 @@
       "advertised": false,
       "edges": {
         "model": [
+          "deniz-dotnet-general.run-tests",
+          "deniz-dotnet-general.test-anti-patterns",
+          "deniz-dotnet-general.test-gap-analysis",
           "deniz-dotnet-general.writing-tunit-tests"
         ],
         "pointer": []
@@ -1343,6 +1371,9 @@
       ],
       "edges": {
         "model": [
+          "$deniz-dotnet-general:run-tests",
+          "$deniz-dotnet-general:test-anti-patterns",
+          "$deniz-dotnet-general:test-gap-analysis",
           "$deniz-dotnet-general:writing-tunit-tests"
         ],
         "pointer": []
@@ -3144,13 +3175,19 @@
   "deniz-dotnet-general/skill/msbuild-antipatterns": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-antipatterns",
     "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "check-bin-obj-clash"
+    ],
     "description": "Detect and fix MSBuild anti-patterns in project and build files. USE WHEN asked to review, audit, lint, clean up, or code-review a .csproj/.vbproj/.fsproj/.props/.targets/.proj (or Directory.Build.props/.targets) file, when asked 'is this project file correct?' or 'what's wrong with my build file?', or when hunting subtle build bugs caused by how a project is authored. Each anti-pattern has a symptom and a concrete BAD→GOOD fix. DO NOT USE FOR: non-MSBuild build systems (npm, Maven, CMake), or migrating a project to SDK-style (use msbuild-modernization).",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:check-bin-obj-clash"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3164,7 +3201,9 @@
       "identity": "deniz-dotnet-general.msbuild-antipatterns",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.check-bin-obj-clash"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3183,7 +3222,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:check-bin-obj-clash"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -3292,13 +3333,18 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload",
     "invocation": "auto",
     "body": "patch",
+    "dependsOn": [
+      "platform-detection"
+    ],
     "description": "Set up or recover MTP hot reload for a long-lived edit/re-run loop. Use for \"hot reload tests\", \"dotnet run or dotnet test for hot reload\", a host that keeps running, unsupported/rude edits, or a watch-based VSTest fallback. Covers setup, run/watch, restarts, filters, and the VSTest no-mutation fallback. Never mutate VSTest for hot reload. For one-time runs, exact commands, filter errors, TRX/dumps, or merely a failing test, use run-tests. Excludes writing/debugging tests, CI, and Test Explorer hot reload.\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:platform-detection"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3312,7 +3358,9 @@
       "identity": "deniz-dotnet-general.mtp-hot-reload",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.platform-detection"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3331,7 +3379,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:platform-detection"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -3645,13 +3695,21 @@
   "deniz-dotnet-general/skill/run-tests": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
     "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "filter-syntax",
+      "platform-detection"
+    ],
     "description": "Run .NET tests or give the exact repository-compatible command. Use for \"run the tests\", one test/class/category/trait, one target framework, \"what dotnet test command?\", `--no-build`, `--diag`, diagnostic logs, classic packages.config or MSTest.exe, TRX or coverage collection, crash/hang dumps, filter mismatch, `--filter-query`, a single combined filter expression, or unrecognized options. Handles VSTest and bridged/native Microsoft.Testing.Platform across MSTest/xUnit/NUnit/TUnit, including NUnit bridge filters, xUnit v3 class/trait/query filters, multi-TFM, and argument order. For identification-only requests, use platform-detection. DO NOT USE for writing tests, hot-reload/no-rebuild loops, migration, CI, coverage analysis, or debugging test logic.\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:platform-detection"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3665,7 +3723,10 @@
       "identity": "deniz-dotnet-general.run-tests",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.filter-syntax",
+          "deniz-dotnet-general.platform-detection"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3684,7 +3745,10 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:filter-syntax",
+          "$deniz-dotnet-general:platform-detection"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -3902,13 +3966,18 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
     "invocation": "auto",
     "body": "patch",
+    "dependsOn": [
+      "test-analysis-extensions"
+    ],
     "description": "Audits an existing test file or suite in any language for pragmatic anti-patterns and quality issues, producing a severity-ranked report. Use when asked to review tests, find false-confidence assertions, investigate flakiness or order dependence, identify duplication or magic values, or judge whether assertions repeatedly verify only one facet of behavior. DO NOT USE FOR: writing or running tests, coverage/CRAP metrics, behavioral gap analysis, full assertion-diversity metrics, an academic smell catalog, or fixing the tests it audits (report-only).\n",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:test-analysis-extensions"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3922,7 +3991,9 @@
       "identity": "deniz-dotnet-general.test-anti-patterns",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.test-analysis-extensions"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3941,7 +4012,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:test-analysis-extensions"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -3952,13 +4025,18 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "invocation": "auto",
     "body": "patch",
+    "dependsOn": [
+      "test-analysis-extensions"
+    ],
     "description": "Performs report-only pseudo-mutation analysis of existing tests: find caller-visible production-code changes that current assertions would not catch. Use when asked whether a bug or mutation could survive, where tests are behaviorally blind, or which production outcomes lack protection. Polyglot. DO NOT USE FOR: writing tests, suite organization or taxonomy, coverage/CRAP interpretation, assertion/smell audits, or running a mutation-testing tool.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:test-analysis-extensions"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3972,7 +4050,9 @@
       "identity": "deniz-dotnet-general.test-gap-analysis",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.test-analysis-extensions"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3991,7 +4071,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:test-analysis-extensions"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -4205,13 +4287,20 @@
     "source": "mattpocock-skills/skills/engineering/ask-matt",
     "invocation": "manual",
     "body": "overlay",
+    "dependsOn": [
+      "resolving-merge-conflicts",
+      "systematic-debugging"
+    ],
     "description": "Ask which skill or flow fits your situation. A router over the skills in this module.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:resolving-merge-conflicts",
+          "deniz-process:systematic-debugging"
+        ],
         "pointer": [
           "deniz-process:brainstorming",
           "deniz-process:executing-plans",
@@ -4251,7 +4340,10 @@
       "identity": "deniz-process.ask-deniz",
       "advertised": false,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.resolving-merge-conflicts",
+          "deniz-process.systematic-debugging"
+        ],
         "pointer": [
           "@deniz-process.brainstorming",
           "@deniz-process.executing-plans",
@@ -4296,7 +4388,10 @@
         "agents/openai.yaml"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:resolving-merge-conflicts",
+          "$deniz-process:systematic-debugging"
+        ],
         "pointer": [
           "$deniz-process:brainstorming",
           "$deniz-process:executing-plans",
@@ -4527,6 +4622,7 @@
   "deniz-process/skill/executing-plans": {
     "source": "superpowers/skills/executing-plans",
     "invocation": "both",
+    "body": "patch",
     "dependsOn": [
       "finishing-a-development-branch",
       "subagent-driven-development",
@@ -4632,13 +4728,19 @@
   "deniz-process/skill/grill-me": {
     "source": "mattpocock-skills/skills/productivity/grill-me",
     "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "grilling"
+    ],
     "description": "A relentless interview to sharpen a plan or design.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:grilling"
+        ],
         "pointer": []
       },
       "flags": {
@@ -4652,7 +4754,9 @@
       "identity": "deniz-process.grill-me",
       "advertised": false,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.grilling"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -4673,7 +4777,9 @@
         "agents/openai.yaml"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:grilling"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -4685,13 +4791,21 @@
   "deniz-process/skill/grill-with-docs": {
     "source": "mattpocock-skills/skills/engineering/grill-with-docs",
     "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "domain-modeling",
+      "grilling"
+    ],
     "description": "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling"
+        ],
         "pointer": []
       },
       "flags": {
@@ -4705,7 +4819,10 @@
       "identity": "deniz-process.grill-with-docs",
       "advertised": false,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.domain-modeling",
+          "deniz-process.grilling"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -4726,7 +4843,10 @@
         "agents/openai.yaml"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:domain-modeling",
+          "$deniz-process:grilling"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -4909,7 +5029,9 @@
     "invocation": "manual",
     "body": "patch",
     "dependsOn": [
-      "codebase-design"
+      "codebase-design",
+      "domain-modeling",
+      "grilling"
     ],
     "description": "Scan a codebase for deepening opportunities, present them as a visual HTML report, then grill through whichever one you pick.",
     "claude": {
@@ -4918,7 +5040,9 @@
       ],
       "edges": {
         "model": [
-          "deniz-process:codebase-design"
+          "deniz-process:codebase-design",
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling"
         ],
         "pointer": []
       },
@@ -4934,7 +5058,9 @@
       "advertised": false,
       "edges": {
         "model": [
-          "deniz-process.codebase-design"
+          "deniz-process.codebase-design",
+          "deniz-process.domain-modeling",
+          "deniz-process.grilling"
         ],
         "pointer": []
       },
@@ -4957,7 +5083,9 @@
       ],
       "edges": {
         "model": [
-          "$deniz-process:codebase-design"
+          "$deniz-process:codebase-design",
+          "$deniz-process:domain-modeling",
+          "$deniz-process:grilling"
         ],
         "pointer": []
       },
@@ -5990,13 +6118,24 @@
     "source": "mattpocock-skills/skills/engineering/wayfinder",
     "invocation": "manual",
     "body": "patch",
+    "dependsOn": [
+      "domain-modeling",
+      "grilling",
+      "prototype",
+      "research"
+    ],
     "description": "Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your issue tracker, and resolve them one at a time until the way to the destination is clear.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling",
+          "deniz-process:prototype",
+          "deniz-process:research"
+        ],
         "pointer": [
           "deniz-process:setup-matt-pocock-skills"
         ]
@@ -6012,7 +6151,12 @@
       "identity": "deniz-process.wayfinder",
       "advertised": false,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.domain-modeling",
+          "deniz-process.grilling",
+          "deniz-process.prototype",
+          "deniz-process.research"
+        ],
         "pointer": [
           "@deniz-process.setup-matt-pocock-skills"
         ]
@@ -6035,7 +6179,12 @@
         "agents/openai.yaml"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:domain-modeling",
+          "$deniz-process:grilling",
+          "$deniz-process:prototype",
+          "$deniz-process:research"
+        ],
         "pointer": [
           "$deniz-process:setup-matt-pocock-skills"
         ]
@@ -6097,8 +6246,9 @@
   },
   "deniz-process/skill/writing-for-agents": {
     "source": "mattpocock-skills/skills/productivity/writing-for-agents",
-    "invocation": "manual",
-    "description": "Writing documents for agents. Use when creating or editing skills, or modifying AGENTS.md or CLAUDE.md.",
+    "invocation": "both",
+    "body": "patch",
+    "description": "Writing documents an agent consumes. Use when designing or rewording a skill, an AGENTS.md or CLAUDE.md, or an agent prompt for how reliably an agent follows it — not for routine content edits to those files.",
     "claude": {
       "artifacts": [
         "skill"
@@ -6106,9 +6256,6 @@
       "edges": {
         "model": [],
         "pointer": []
-      },
-      "flags": {
-        "disable-model-invocation": true
       }
     },
     "opencode": {
@@ -6116,7 +6263,7 @@
         "skill"
       ],
       "identity": "deniz-process.writing-for-agents",
-      "advertised": false,
+      "advertised": true,
       "edges": {
         "model": [],
         "pointer": []
@@ -6131,11 +6278,9 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "disabled",
+      "implicit": "enabled",
       "explicit": "available",
-      "policyFiles": [
-        "agents/openai.yaml"
-      ],
+      "policyFiles": [],
       "edges": {
         "model": [],
         "pointer": []

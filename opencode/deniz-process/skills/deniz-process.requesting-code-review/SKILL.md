@@ -81,14 +81,14 @@ is a judgement call**, never a hard violation.
 
 ## 4. Dispatch
 
-Fill the template at [code-reviewer.md](code-reviewer.md) and dispatch a `general-purpose`
+Fill the template at [code-reviewer.md](code-reviewer.md) and dispatch a `general`
 subagent. **Placeholders:** `{DESCRIPTION}`, `{SPEC}`, `{STANDARDS_SOURCES}`, `{BASE_SHA}`,
 `{HEAD_SHA}`.
 
 **One reviewer by default.** It holds both axes and reports them separately.
 
 **Two reviewers when the Spec axis is a genuinely different document** — an issue, a PRD, a spec
-file that the Standards sources are not. Then send one message with two `Agent` calls, each getting
+file that the Standards sources are not. Then send one message with two `subagent` calls, each getting
 the range and only its own axis's material, and neither seeing the other's brief. Isolation is the
 point: two long documents in one context is where one axis starts masking the other.
 

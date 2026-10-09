@@ -5,4 +5,4 @@ description: A relentless interview to sharpen a plan or design, which also
 disable-model-invocation: true
 ---
 
-Call the Skill tool twice, for "grilling" and "domain-modeling".
+Call the Skill tool twice, for "deniz-process:grilling" and "deniz-process:domain-modeling".

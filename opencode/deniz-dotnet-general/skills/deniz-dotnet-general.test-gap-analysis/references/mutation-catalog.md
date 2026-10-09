@@ -28,7 +28,7 @@ risk-ranked table in `SKILL.md`.
 | Java/Kotlin | Remove validation/exception; change nullable/default handling; alter collection or stream predicate |
 
 When framework-specific test discovery or assertion APIs are unclear, invoke
-`test-analysis-extensions` and read only the matching language extension.
+`deniz-dotnet-general.test-analysis-extensions` and read only the matching language extension.
 
 ## Equivalence and noise filters
 

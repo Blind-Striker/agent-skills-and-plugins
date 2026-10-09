@@ -394,7 +394,7 @@ Always start with a binlog:
 dotnet build /bl:perf.binlog -m
 ```
 
-Then use the `build-perf-diagnostics` skill and binlog tools for systematic bottleneck identification.
+Then use the `$deniz-dotnet-general:build-perf-diagnostics` skill and binlog tools for systematic bottleneck identification.
 
 ---
 

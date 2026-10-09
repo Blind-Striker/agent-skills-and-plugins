@@ -11,7 +11,7 @@ Output sections, and only its own axis's material. Neither gets the other's brie
 dispatch one with the whole template.
 
 ```
-Subagent (general-purpose):
+Subagent:
   description: "Review code changes"
   prompt: |
     You are a Senior Code Reviewer with expertise in software architecture,

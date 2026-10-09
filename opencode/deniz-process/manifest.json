@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.6.0",
-  "digest": "sha256:00bc8b7cbfef9aa5e025306706a0884a66d219e882fa6ce59c2d45d0100916c2",
+  "version": "0.7.0",
+  "digest": "sha256:a902e274d69a5caee7b3f3d7cc40c224c50c8885cae40d850f075aee1951068f",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -34,11 +34,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:3d8302a08489e6aadf5df3ac94633cbc3574c47fb7179b59dc5f89c163b095af",
+      "sha256": "sha256:dafe12e23718a3904fd0ec41ad6de05c80e56b9f634c7db641a04bbe767dc954",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {
-      "sha256": "sha256:a74420fc63c2badd47984f5c48e627cf1fb78d771992064b51d085ab582bb6ff",
+      "sha256": "sha256:b9592d8f79cfdc9f51129dafe345686828fd40c6c10b592c85e81bbfe56bd9a8",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/scripts/frame-template.html": {
@@ -62,7 +62,7 @@
       "mode": "100755"
     },
     "skills/deniz-process.brainstorming/spec-document-reviewer-prompt.md": {
-      "sha256": "sha256:95a0a195de9d984be2fffa95bab16fc8c563bc296a9cfc5e9c29cb3ece0d7457",
+      "sha256": "sha256:289a3e043cb06a8f93ee22b09c80e8e640f824e76f0911e22a97348b66496212",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/visual-companion.md": {
@@ -82,7 +82,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.dispatching-parallel-agents/SKILL.md": {
-      "sha256": "sha256:89aa75442570ea3bf7abff09eb13cdddbb761192f2e2e1cf61af5465103b36c2",
+      "sha256": "sha256:65af5b7878bb381255be435bb5f6279b52c90f5d2f512490d859a34be5d6d7fe",
       "mode": "100644"
     },
     "skills/deniz-process.domain-modeling/ADR-FORMAT.md": {
@@ -98,7 +98,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:2ee6a59592334d80c0a56e6a9c91f359a3044870f2a67c43387be7010365f3a3",
+      "sha256": "sha256:5155cd5b351b0625e4d0adea4ea9183fe60c04ebb028cbeabd8ff9f71f119828",
       "mode": "100644"
     },
     "skills/deniz-process.finishing-a-development-branch/SKILL.md": {
@@ -106,11 +106,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.grill-me/SKILL.md": {
-      "sha256": "sha256:086111093d8b3f6cabf9d98597951101502c8f0c239570adb3394ede17740be5",
+      "sha256": "sha256:65f5358a46425b0db57e037659249321a34ce843270d41ff972394438c85f8c3",
       "mode": "100644"
     },
     "skills/deniz-process.grill-with-docs/SKILL.md": {
-      "sha256": "sha256:6857338693a87bfd891783a1edda89883739042f73a3200df50408b2a2bce952",
+      "sha256": "sha256:59bf212f5ff9729f18b29221b18592cdef7a796108f7c4e90a870a4250bf21bc",
       "mode": "100644"
     },
     "skills/deniz-process.grilling/SKILL.md": {
@@ -118,7 +118,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.handoff/SKILL.md": {
-      "sha256": "sha256:3733ed652aca55d99a26a4b0e1de0159a58bb1e67d2029fd38336fe2222b6702",
+      "sha256": "sha256:16b3fe71f1e0a792ff1979020f923bd4d1d11962714c84c484c41ac053b53954",
       "mode": "100644"
     },
     "skills/deniz-process.implement/SKILL.md": {
@@ -130,7 +130,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.improve-codebase-architecture/SKILL.md": {
-      "sha256": "sha256:d07f98e83fc283d99115e2f1f11bbc84c45678cbb569fc2487d90eef8670eb86",
+      "sha256": "sha256:e516bf9213e567681518f8512555e1917b1022e883ca61fa67e4ad71857bb58a",
       "mode": "100644"
     },
     "skills/deniz-process.prototype/LOGIC.md": {
@@ -150,11 +150,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
-      "sha256": "sha256:604917b8ee730627902d6f0b1a90d6bb7288735d996e21bd1b94b101190b4783",
+      "sha256": "sha256:ac02b9672d703aecea8330625a28297e53199fa7364122471ec23bafd9e44153",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/code-reviewer.md": {
-      "sha256": "sha256:7a0e2717297d51c1351ac7d2fc51262f88be7763253435f1a57d0400b492b43f",
+      "sha256": "sha256:448b205b9ceb8a0f46c5058bbb76ee2352284c97df601fa8b4fa0dd88e0e92f4",
       "mode": "100644"
     },
     "skills/deniz-process.research/SKILL.md": {
@@ -194,11 +194,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {
-      "sha256": "sha256:81dd9d5a3fb0b09b96b5829f03b9796842f3199ef7591d1ba1c2db2a515f64d0",
+      "sha256": "sha256:3cc293658b300dbe9984aecb695f8b4310bd1c7fc824990e2ccc4b3f7cad1cc7",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/re-review-prompt.md": {
-      "sha256": "sha256:db0d5849478bc79cbde97b9b2cf0e58b50be8b8ed18464b0252c2bf27b6440a6",
+      "sha256": "sha256:00edb69ff2bc0975962dcc4605f8d0f6bdfb53bded7c689c469d2e7adb3217d2",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/scripts/review-package": {
@@ -214,7 +214,7 @@
       "mode": "100755"
     },
     "skills/deniz-process.subagent-driven-development/task-reviewer-prompt.md": {
-      "sha256": "sha256:eea23e33ec570c3041f40e9569fa711d61b8029f9eecf908345138aa1c6e61ab",
+      "sha256": "sha256:5d0cf299386c276c670b46d89535a77af7ad981759be66a9c4330c588b0611df",
       "mode": "100644"
     },
     "skills/deniz-process.systematic-debugging/SKILL.md": {
@@ -310,7 +310,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.wayfinder/SKILL.md": {
-      "sha256": "sha256:85a8e54903d27c073accaeebc82f4f7dd1acac0676e9bdc92fb8c1cd0282c697",
+      "sha256": "sha256:455035e07ded02d76c68691d910d1bf48d45e0d3a6e84e839b0bc9498c62c1cb",
       "mode": "100644"
     },
     "skills/deniz-process.wizard/SKILL.md": {
@@ -326,7 +326,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL.md": {
-      "sha256": "sha256:0206d6e9ac8928053e30d3b55761796888e52747cb0c7903e5a445e57f6d9894",
+      "sha256": "sha256:978ddd28a902e8dabce35642d6f51b990895e8c6de7b00a2ecae0a0d83d2d70c",
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
@@ -334,7 +334,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/plan-document-reviewer-prompt.md": {
-      "sha256": "sha256:aa728b96aad603c8be28875a4305637f6c984aa81ffcadcb13e743202fa2a0c7",
+      "sha256": "sha256:a310abfa3ba3da06c93ddd271bc1aa7e5955571a2bc0c57ec106a47d64909626",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {

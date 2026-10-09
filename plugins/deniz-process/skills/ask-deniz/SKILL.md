@@ -83,7 +83,7 @@ A starting situation that generates work, then merges onto the main flow.
   produces agent-ready ones. Only for issues **you didn't create**: what `to-tickets` produced is
   already agent-ready, so don't triage it.
 
-- **Something's broken** → `systematic-debugging`. Model-reachable, because the trigger is the
+- **Something's broken** → `deniz-process:systematic-debugging`. Model-reachable, because the trigger is the
   situation rather than a wish. It refuses to theorise until it has a tight feedback loop — one
   command that already goes red on *this* bug — then fixes with a regression test. It redacts
   secrets from everything it shows you along the way.
@@ -94,7 +94,7 @@ A starting situation that generates work, then merges onto the main flow.
   the main flow at `to-spec` or `brainstorming`, depending on which ladder the cleared work wants.
   Never reach for it on a well-scoped feature.
 
-- **A merge went sideways** → `resolving-merge-conflicts`. Model-reachable; the conflict is the
+- **A merge went sideways** → `deniz-process:resolving-merge-conflicts`. Model-reachable; the conflict is the
   trigger.
 
 ## Codebase health

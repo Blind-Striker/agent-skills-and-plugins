@@ -5,4 +5,4 @@ metadata:
   opencode/autoinvoke: false
 ---
 
-Call the Skill tool with "grilling".
+Call the `skill` tool with "deniz-process.grilling".

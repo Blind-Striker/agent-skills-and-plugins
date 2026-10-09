@@ -123,7 +123,7 @@ The same precedence applies to a legacy `.agents/skills/aspire-init/SKILL.md` fr
 | `aspire init` fails without `--language` in `--non-interactive` | CLI needs the language explicitly when prompts are disabled | Re-run with `--language csharp` or `--language typescript` |
 | Skeleton dropped but no `aspireify` skill | Agent skill directory not detected during init | Run `aspire agent init` to install `aspireify`, then continue |
 | `apphost.cs` references a missing `#:package` | Channel mismatch or transient feed issue | Re-run with `--channel stable` (or `daily` for pre-release) |
-| `aspire start` after wiring fails immediately | Wiring incomplete or wrong AppHost path | Re-invoke `aspireify`; confirm `aspire.config.json` `appHost.path` is correct |
+| `aspire start` after wiring fails immediately | Wiring incomplete or wrong AppHost path | Re-invoke `$deniz-dotnet-aspire:aspireify`; confirm `aspire.config.json` `appHost.path` is correct |
 | Existing TypeScript AppHost uses `apphost.ts` | Legacy entry point and package graph | Hand off to `$deniz-dotnet-aspire:aspire-orchestration`, which owns approval and `aspire update --migrate --yes --non-interactive`; return to $deniz-dotnet-aspire:aspireify only for later source authoring |
 
 ## Don't Do This

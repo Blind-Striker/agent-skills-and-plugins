@@ -38,7 +38,7 @@ code is in scope only to trace an allowed outcome.
 
 Do not expand a focused request into a repository audit, plan artifact, or
 dashboard. Use source and tests directly for familiar frameworks. Invoke
-`test-analysis-extensions` only when discovery or assertion semantics are
+`deniz-dotnet-general.test-analysis-extensions` only when discovery or assertion semantics are
 unclear.
 
 ### 2. Establish one baseline

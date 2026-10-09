@@ -1,6 +1,0 @@
-interface:
-  display_name: "Writing For Agents"
-  short_description: "Writing documents for agents. Use when creating or editing sk..."
-  default_prompt: "Use $deniz-process:writing-for-agents for this task."
-policy:
-  allow_implicit_invocation: false

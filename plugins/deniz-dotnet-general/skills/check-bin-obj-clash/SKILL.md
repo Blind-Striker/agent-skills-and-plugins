@@ -44,7 +44,7 @@ Clashes can occur between:
 
 ## Step 1: Generate a Binary Log
 
-Use the `binlog-generation` skill to generate a binary log with the correct naming convention.
+Use the `deniz-dotnet-general:binlog-generation` skill to generate a binary log with the correct naming convention.
 
 ## Optional workflow — binlog MCP (when configured)
 

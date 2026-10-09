@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-aspire",
-  "version": "0.3.3",
-  "digest": "sha256:f77bb49b0f61fd3103faecd932aec9309b925ef26bb115c490b04d5250a7f90b",
+  "version": "0.4.0",
+  "digest": "sha256:6f4d92ddad0e37cc0eee0ae63e1e03e1cdb1b88877002bb6060dba0f7f746ab5",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -58,7 +58,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-init/references/init-workflow.md": {
-      "sha256": "sha256:e910b7b6e299c3b73cdc24b2588dca1a8727c2c31e4f0799a22d889d03692c47",
+      "sha256": "sha256:77c854f732f4da7d4c9148eea7d238f17d3a3846b2531618596553cd1d33453f",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-init/references/templates.md": {

@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.6.0, General 0.9.1, Akka 0.3.1, and Aspire 0.3.3. Their item
+  Checkout Module versions are Process 0.7.0, General 0.10.0, Akka 0.4.0, and Aspire 0.4.0. Their item
   posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -26,13 +26,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   committed `opencode/` tree is OpenCode 2 output: one skill folder per skill item under its
   `<plugin>.<name>` ID, `manual` skills hidden with `opencode/autoinvoke: false`, namespaced
   agents, and no stubs, `both` duplicate commands, inline manual commands, or parked `BODY.md`
-  files. The OpenCode experiment
+  files. Localization renders the skill-tool call and the subagent-dispatch words per harness, and
+  `validate` runs the handoff-template, harness-vocabulary, and path-claim checks of
+  [references and linking](architecture/references-and-linking.md). The OpenCode experiment
   scripts still use OpenCode 1 shapes; the responsible files are listed under
   [Known Gaps](#known-gaps).
-- `dotnet/skills` is reviewed through `d68dd708`. General 0.9.1 carries the current test-execution,
+- `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
-- Aspire 0.3.3 follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
+- Aspire 0.4.0 follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
   0.0.2 and guidance targets Aspire 13.5.3. This is a reviewed main-commit choice, not a claim that
   upstream published a 0.0.2 tag or Release. The eight-skill set and declared dependency closure are
   unchanged; the six official workflow patches continue to own only package-local routing.
@@ -46,7 +48,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   That public Package remains a schema-1 historical source snapshot with OpenCode 1 shapes. Its exact
   identity and proof boundary are in the
   [release record](../experiments/harness-invocation/records/2026-09-06-opencode-installer-v0.3.0.md).
-  The older Releases remain historical and their assets were not replaced. Process 0.6.0 and the
+  The older Releases remain historical and their assets were not replaced. Process 0.7.0 and the
   Codex support are on `master` but in no Release.
 - Dependency-aware Module Selection is implemented in the checkout: schema-2 Bundles and Install
   state, compile-time `requiredModules` derivation, final-Selection presence checks,
@@ -71,22 +73,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 1. **OpenCode 2 migration.** The canon, dated research, spec, and plan come first; the steps below
    run in this order, and each starts on the curator's word.
-   1. **W0: OpenCode 2 correctness and the curation pass.** The curator settled the W0 decisions on
-      2026-10-08; the plan's Phase B2 records them and its tasks. Build the per-harness rendering of
-      the skill-tool call and subagent-dispatch words, the handoff-template and harness-vocabulary
-      checks, and path integrity outside Markdown links
-      ([references and linking](architecture/references-and-linking.md)). Then, at the current
-      pins: promote the 12 lines carrying 16 bare skill-tool handles in Process bodies (`grill-me`,
-      `grill-with-docs`, `wayfinder`, and `improve-codebase-architecture`; targets `grilling`,
-      `domain-modeling`, `research`, `codebase-design`, and `prototype`) and the bare handoffs the
-      templates find in General, Aspire, and `ask-deniz` to namespaced facts with matching
-      `depends_on`; drop `executing-plans`' dead path into `using-superpowers`; make
-      `writing-for-agents` `both` with a narrower description; keep every `manual` and `both` item a
-      skill, with no `as: command`; refresh reasons written against OpenCode 1 plus comments that
-      describe only two harnesses; and bump every Module's minor version. Until this lands,
-      `npm run validate` reports the curation-owned findings, so the OpenCode 2 branch merges to
-      `master` only after it.
-   2. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
+   1. **Measurement records.** Retire the OpenCode-1-bound probes (`stub-command-smoke.ps1` and the
       OpenCode 1 CLI matrices). Port only a discovery check against an isolated `opencode serve`
       HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are marked
       experimental) and one LLM record proving that a manual skill is unadvertised, `@`-attachable,
@@ -94,7 +81,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       `OPENCODE_CONFIG_DIR` replaces the global root, a managed background service needs
       `--standalone` or an isolated `serve`, `OPENCODE_DISABLE_PROJECT_CONFIG` skips the ancestor
       walk, and `~/.claude/skills` and `~/.agents/skills` are always-on compatibility roots.
-   3. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
+   2. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
       Windows profile as
       [distribution and installation](architecture/distribution-and-installation.md#target-opencode-runtime)
       requires. Migrate the two real profiles (a Windows workstation and a Linux host, both on
@@ -209,20 +196,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   alternate config-dir mounts), the `package.json` version 0.3.0, and the
   `tools/repository-docs.test.ts` pins describe `installer-v0.3.0`; they change only at the next
   Release step.
-- **W0 rendering and checks are canon but not implemented:** harness phrasing, the handoff
-  templates, the harness vocabulary check, and path claims are stated in
-  [references and linking](architecture/references-and-linking.md) but absent from
-  `tools/lib/refs.ts`, `tools/lib/rewrite.ts` (no `localize`; climbs respelled only in Markdown),
-  `tools/build.ts` (`rewriteTree`, `rewriteOpenCodeTree`), and `tools/validate.ts`, which still runs
-  the OpenCode-only skill-tool handle rule (`skillToolHandles`, O2) and reads paths only from
-  Markdown links. The OpenCode tree therefore still names `skills/brainstorming/` and Claude-only
-  dispatch words, and Codex still renders a skill-tool handle inside a Skill-tool sentence. The
-  plan's Phase B2 closes this before the merge.
-- **Curation comments describe OpenCode 1 or two harnesses:** for example the "both harnesses"
-  comments in `curation/deniz-dotnet-akka.yaml` and `curation/deniz-dotnet-aspire.yaml`, the
-  `analyzing-dotnet-performance` reason in `curation/deniz-dotnet-general.yaml`, and the
-  husk-removal reason in `curation/deniz-process.yaml`. They are refreshed in the curation pass
-  above, on the curator's decisions.
 - **Public schema-1 Release has no upgrade path:** `installer-v0.3.0` ships schema-1 Bundles in
   OpenCode 1 shapes, and the checkout installer refuses schema-1 Install state with no
   compatibility reader. A user of that Release has no supported route to schema-2 output; the
