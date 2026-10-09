@@ -57,10 +57,14 @@ The
 reproduced it on v2.0.23: during a full-estate install or remove, an isolated server died with a Bun
 segmentation fault in its file watcher in 4 of 33 sessions, all with the lab on the system volume
 (4 of 18 there, 0 of 15 on a data volume). The installer's Apply itself completed every time; only
-the server died. Until the curator chooses a mitigation (stop OpenCode
-before Apply on Windows in the documented procedure, or wait for an upstream fix), a bulk Apply
-against a running OpenCode on Windows is unsafe, and the next Release stays gated. Bulk Apply
-against a running server on Linux is not measured.
+the server died, and the next `opencode` invocation starts it again. The mitigation is therefore a
+warning, not a block: the installer neither detects nor stops a running OpenCode and never refuses
+Apply because of it. After an Apply on Windows that wrote, removed, or changed the mode of at least
+one Native path, it appends a warning to the printed Plan that a running OpenCode's background
+service may have stopped (citing `anomalyco/opencode#47505`) and that reopening `opencode` restarts
+it; the exit code is unchanged. A no-op Apply, a Plan without `--yes`, and Apply on other platforms
+print no warning. [`tools/install-opencode.ts`](../../tools/install-opencode.ts) owns the wording.
+Bulk Apply against a running server on Linux is not measured.
 
 ## Bundle and Package identity
 
@@ -107,9 +111,9 @@ current asset passes the release gate; the root [`README.md`](../../README.md#op
 owns consumer instructions. Those instructions describe the published Release, so they change only
 in the release step. A new Release moves the `package.json` version, which names the Package asset,
 and updates the recipe pins guarded by
-[`tools/repository-docs.test.ts`](../../tools/repository-docs.test.ts) in the same change. The next
-Release also requires a documented mitigation for the Windows bulk-Apply crash described under
-[Target OpenCode runtime](#target-opencode-runtime).
+[`tools/repository-docs.test.ts`](../../tools/repository-docs.test.ts) in the same change. A
+Release requires a documented mitigation for the Windows bulk-Apply crash; the post-Apply warning
+described under [Target OpenCode runtime](#target-opencode-runtime) is that mitigation.
 
 ## Byte-preserving composition
 

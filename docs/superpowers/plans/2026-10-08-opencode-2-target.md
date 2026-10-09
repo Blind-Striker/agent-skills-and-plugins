@@ -2807,9 +2807,10 @@ git commit -m "test: port OpenCode experiments to OpenCode 2"
   `install --all --yes` again, while polling `/api/skill` every second and capturing the service log.
 - [ ] **Step 3:** Record whether the service stayed alive, the time to a consistent list after each
   Apply, and any watcher error. Repeat three times.
-- [ ] **Step 4:** If the service terminates, record it, keep the Release gate closed, and return to
-  the curator with options (stop the service before Apply in the documented procedure, or wait for
-  an upstream fix).
+- [ ] **Step 4:** If the service terminates, record it and return to the curator for a mitigation.
+  Curator decision after the record: the installer prints a warning after a Windows Apply that
+  changed files (a running OpenCode service may have stopped; reopening `opencode` restarts it). It
+  never detects, stops, or blocks on OpenCode, and no procedure must stop the service first.
 - [ ] **Step 5:** public-safety; commit `test: measure Windows bulk Apply on OpenCode 2`.
 
 ---
@@ -2835,8 +2836,9 @@ This is a recorded one-off, not a product path; the installer gains nothing for 
   OpenCode config root differs from the v0.3.0 installer's Destination (the old installer refuses
   `OPENCODE_CONFIG_DIR`).
 - [ ] **Step 2: Back up** the whole config root to a dated directory outside it.
-- [ ] **Step 3: Stop OpenCode** on the machine (managed service included) unless Task 17 showed bulk
-  Apply is safe on that OS.
+- [ ] **Step 3: Leave OpenCode running or stopped as it is.** No stop is required (Task 17 Step 4
+  decision). On the Windows workstation the Apply may stop a running OpenCode service, and the
+  installer then prints its warning; Step 7 reopens OpenCode.
 - [ ] **Step 4: Remove with the schema-1 installer**, Plan then Apply. `$package030` is the
   local path of the `installer-v0.3.0` Package, downloaded and digest-checked with the README's
   current Release recipe before any execution:
@@ -2860,8 +2862,8 @@ npm run install:opencode -- status
 ```
 
   Expected: Plan without Collisions; Apply succeeds; status shows four Modules current.
-- [ ] **Step 7: Verify.** Start OpenCode again if Step 3 stopped it (a running OpenCode 2 service
-  hot-reloads its config folders otherwise); `/api/skill` (or the TUI `@` picker) lists the dotted
+- [ ] **Step 7: Verify.** Reopen `opencode` if its service is no longer running (a running
+  OpenCode 2 service hot-reloads its config folders otherwise); `/api/skill` (or the TUI `@` picker) lists the dotted
   IDs; unrelated files from Step 1's listing are byte-identical.
 - [ ] **Step 8: Record** both machines (machine described only as "Windows workstation" and "Linux
   host"; no paths, hostnames, or usernames). Remove the ROADMAP Known Gaps entry "Real profiles
@@ -2877,8 +2879,8 @@ npm run install:opencode -- status
   current Release name and schema), `docs/ROADMAP.md`
 - Create: `experiments/harness-invocation/records/2026-MM-DD-opencode-installer-v<version>.md`
 
-- [ ] **Step 1: Gates.** G7 answered; Task 17 record shows no service termination or documents the
-  mitigation; Tasks 13–18 committed; `validate` clean on `master`.
+- [ ] **Step 1: Gates.** G7 answered; the Windows bulk-Apply mitigation (the post-Apply warning from
+  Task 17 Step 4) is in the installer and distribution canon; Tasks 13–18 committed; `validate` clean on `master`.
 - [ ] **Step 2: Write the failing guard first.** In `tools/repository-docs.test.ts` change the
   Release test to the new tag, asset name, and a placeholder digest constant; add
   `installer-v0\.3\.0|deniz-agent-skills-0\.3\.0\.tgz` to the `doesNotMatch` list.
@@ -2946,7 +2948,8 @@ Stop and return to the curator instead of guessing when:
 - W0.14 shows a ledger change outside spec section 16, or the idempotence `cmp` prints anything;
 - a measured OpenCode 2 behavior contradicts the research note (hiding key, dotted IDs, `@` attach,
   `OPENCODE_CONFIG_DIR` as the root);
-- the Windows bulk-Apply measurement terminates the service;
+- the Windows bulk-Apply measurement terminates the service (met by Task 17; the curator resolved
+  it with the warning-only decision in Task 17 Step 4);
 - a real profile's config root differs between OpenCode and either installer;
 - an `as: command` decision needs bundled files in OpenCode.
 

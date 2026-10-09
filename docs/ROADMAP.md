@@ -89,8 +89,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       Windows labs and reproduced: a running OpenCode 2.0.23 server crashed during a full-estate
       bulk Apply
       ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
-      The curator chooses the mitigation before the Release (see Known Gaps). Migrate the two real
-      profiles (a Windows workstation and a Linux host, both on
+      The curator chose the mitigation: a post-Apply warning on Windows, with no stop requirement
+      and no blocking (see Known Gaps), so the measurement's follow-up is closed and the Release
+      gate no longer waits on it. Remaining plan work: the model record above (plan Task 16), the
+      profile migration and the Release below (Tasks 18 and 19), and the closeout (Task 20).
+      Migrate the two real profiles (a Windows workstation and a Linux host, both on
       OpenCode 2) once by a manual procedure recorded in an experiment record: remove the Modules
       with the schema-1 installer, remove the then-empty schema-1 state, and install schema-2
       output. This is a one-off, not a supported product path. Then cut a new Package Release:
@@ -189,13 +192,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
-- **Windows bulk Apply crashes a running OpenCode 2 server:** on v2.0.23 an isolated server died
+- **Windows bulk Apply can crash a running OpenCode 2 server:** on v2.0.23 an isolated server died
   with a Bun segmentation fault in its file watcher during a full-estate install or remove in 4 of
   33 sessions, all with the lab on the system volume
   ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
-  The Release gate stays closed until the curator chooses a documented mitigation: stop OpenCode
-  before Apply on Windows, or wait for an upstream fix. The Windows
-  real-profile migration must stop OpenCode, the managed service included, before Apply. Linux bulk
+  The fault is upstream (`anomalyco/opencode#47505`) and the Apply itself always completed. The
+  installer's mitigation is a warning after a Windows Apply that changed files, owned by
+  [distribution canon](architecture/distribution-and-installation.md#target-opencode-runtime); it
+  never stops or blocks on OpenCode, and reopening `opencode` restarts a stopped service. Linux bulk
   Apply against a running server is not measured.
 - **Public Release surface lags the decision:** the README OpenCode recipes and its capability
   summary (OpenCode "receives a skill, a command, or both", parked manual bodies, refused

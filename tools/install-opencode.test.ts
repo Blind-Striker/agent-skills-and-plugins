@@ -190,6 +190,48 @@ test("repeated --yes install is idempotent and names the no-op Module", async ()
   assert.equal(readFileSync(statePath).equals(before), true);
 });
 
+const WATCHER_WARNING = /^Warning: .*OpenCode.*may.*anomalyco\/opencode#47505.*opencode/m;
+
+test("a Windows Apply that changes files warns about the OpenCode watcher crash and still succeeds", async () => {
+  const fixture = makeCliFixture();
+  const io: InstallCliIo = { ...fixture.io, platform: "windows" };
+
+  const preview = await runInstallCli(["install", "--module", "deniz-process"], io);
+  assert.equal(preview.exitCode, 0);
+  assert.doesNotMatch(`${preview.stdout}${preview.stderr}`, WATCHER_WARNING);
+
+  const installed = await runInstallCli(["install", "--module", "deniz-process", "--yes"], io);
+  assert.equal(installed.exitCode, 0, `${installed.stdout}${installed.stderr}`);
+  assert.match(installed.stdout, WATCHER_WARNING);
+  assert.equal(installed.stderr, "");
+
+  const removed = await runInstallCli(["remove", "--module", "deniz-process", "--yes"], io);
+  assert.equal(removed.exitCode, 0, `${removed.stdout}${removed.stderr}`);
+  assert.match(removed.stdout, WATCHER_WARNING);
+});
+
+test("a Windows Apply that changes no file prints no watcher warning", async () => {
+  const fixture = makeCliFixture();
+  const io: InstallCliIo = { ...fixture.io, platform: "windows" };
+  assert.equal((await runInstallCli(["install", "--module", "deniz-process", "--yes"], io)).exitCode, 0);
+
+  const repeated = await runInstallCli(["install", "--module", "deniz-process", "--yes"], io);
+
+  assert.equal(repeated.exitCode, 0);
+  assert.match(repeated.stdout, /No changes\./);
+  assert.doesNotMatch(`${repeated.stdout}${repeated.stderr}`, WATCHER_WARNING);
+});
+
+test("a posix Apply that changes files prints no watcher warning", async () => {
+  const fixture = makeCliFixture();
+
+  const installed = await runInstallCli(["install", "--module", "deniz-process", "--yes"], fixture.io);
+
+  assert.equal(installed.exitCode, 0);
+  assert.ok(existsSync(join(fixture.destination, "skills", "alpha", "SKILL.md")));
+  assert.doesNotMatch(`${installed.stdout}${installed.stderr}`, WATCHER_WARNING);
+});
+
 test("repeated --module installs each requested Module", async () => {
   const fixture = makeCliFixture({
     "deniz-dotnet-general": { "skills/other/SKILL.md": "other skill\n" },

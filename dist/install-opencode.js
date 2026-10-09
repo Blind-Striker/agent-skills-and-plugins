@@ -413,6 +413,17 @@ function applyLockedRecovery(lock, destination, recovery) {
   applyRecovery(lock, destination, recovery);
   return { exitCode: 0, stdout: `${renderRecovery(recovery, destination)}Recovered.\n`, stderr: "" };
 }
+/**
+ * Measured on OpenCode 2.0.23 for Windows: a bulk Apply can crash a running OpenCode service in its
+ * native file watcher. The Apply itself is unaffected and the next `opencode` start restarts the
+ * service, so the installer only warns and never blocks.
+ */
+const WINDOWS_WATCHER_WARNING =
+  "Warning: if OpenCode was running, its background service may have stopped (Windows file-watcher crash, anomalyco/opencode#47505). Reopen opencode to restart it.";
+/** True when Apply wrote, removed, or chmodded a Native path; dropping a missing claim touches none. */
+function changesNativeFiles(plan) {
+  return plan.operations.some((operation) => operation.kind !== "drop-missing-claim");
+}
 function runMutation(args, destination, loaded, io) {
   if (!args.yes) {
     const recovery = inspectRecovery(destination);
@@ -451,7 +462,8 @@ function runMutation(args, destination, loaded, io) {
       return { exitCode: 1, stdout: rendered, stderr: "" };
     }
     applyPlan(lock, destination, plan, loaded.bundles);
-    return { exitCode: 0, stdout: rendered, stderr: "" };
+    const warning = io.platform === "windows" && changesNativeFiles(plan) ? `\n${WINDOWS_WATCHER_WARNING}\n` : "";
+    return { exitCode: 0, stdout: `${rendered}${warning}`, stderr: "" };
   } finally {
     lock?.release();
     removeCreatedScaffolding(destination, destExisted, denizExisted);
