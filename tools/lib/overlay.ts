@@ -1,7 +1,39 @@
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
-import { join, relative, resolve } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
+
+const INHERITED_REPOSITORY = [
+  "GIT_DIR",
+  "GIT_WORK_TREE",
+  "GIT_INDEX_FILE",
+  "GIT_OBJECT_DIRECTORY",
+  "GIT_COMMON_DIR",
+  "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+];
+
+/**
+ * The environment of every git call in the overlay plumbing: no system config, and no repository a
+ * caller (a hook, an IDE) left in the environment — those would make an init or add in a throwaway
+ * directory act on a real repository. `extra` may set alternates back on purpose.
+ */
+export function gitEnv(extra: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, GIT_CONFIG_NOSYSTEM: "1" };
+  for (const k of INHERITED_REPOSITORY) {
+    delete env[k];
+  }
+  return { ...env, ...extra };
+}
 
 /** The one file a `body: patch` overlay directory is allowed to contain. */
 export const PATCH_FILE = "overlay.patch";
@@ -55,7 +87,7 @@ export function saveLock(root: string, lock: OverlayLock): void {
  * clean filters, and a lock is worthless if two machines disagree about what it recorded.
  */
 export function blobSha(file: string): string {
-  return execFileSync("git", ["hash-object", "--no-filters", "--", file], { encoding: "utf8" }).trim();
+  return execFileSync("git", ["hash-object", "--no-filters", "--", file], { encoding: "utf8", env: gitEnv() }).trim();
 }
 
 /**
@@ -104,6 +136,7 @@ function toplevel(dir: string): string | null {
     return execFileSync("git", ["-C", dir, "rev-parse", "--show-toplevel"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"],
+      env: gitEnv(),
     }).trim();
   } catch {
     return null;
@@ -131,6 +164,9 @@ function gitApply(dir: string, patch: string, extra: string[], env: NodeJS.Proce
     "core.eol=lf",
     "-c",
     "core.longpaths=true",
+    // A host apply.whitespace=fix would rewrite the content a patch lands.
+    "-c",
+    "apply.whitespace=nowarn",
     "apply",
     "-p1",
     ...extra,
@@ -143,7 +179,7 @@ function gitApply(dir: string, patch: string, extra: string[], env: NodeJS.Proce
       cwd: top ?? dir,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
-      env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1", ...env },
+      env: gitEnv(env),
     });
     return null;
   } catch (e) {
@@ -242,7 +278,7 @@ export function cutPatch(upstreamDir: string, workDir: string): string {
           "a",
           "b",
         ],
-        { cwd: tmp, encoding: "utf8", env: { ...process.env, GIT_CONFIG_NOSYSTEM: "1" } },
+        { cwd: tmp, encoding: "utf8", env: gitEnv() },
       );
       return "";
     } catch (e) {
@@ -251,6 +287,92 @@ export function cutPatch(upstreamDir: string, workDir: string): string {
     }
   } finally {
     rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+export type ReplayStatus = "applied" | "merged" | "conflict" | "rejected" | "gone";
+export interface ReplayResult {
+  file: string;
+  status: ReplayStatus;
+  regions?: number;
+  reject?: string;
+  detail?: string;
+}
+
+function seedGit(work: string, args: string[]): string {
+  return execFileSync("git", ["-c", "core.autocrlf=false", "-c", "core.eol=lf", "-c", "core.longpaths=true", ...args], {
+    cwd: work,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: gitEnv(),
+  });
+}
+
+/** Absolute object directory of the repository holding `dir`; a relative one silently disables --3way. */
+function objectsOf(dir: string): string | null {
+  try {
+    return execFileSync("git", ["-C", dir, "rev-parse", "--path-format=absolute", "--git-path", "objects"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      env: gitEnv(),
+    }).trim();
+  } catch {
+    return null;
+  }
+}
+
+const firstLine = (s: string | null): string => (s ?? "").split("\n").find((l) => l.trim()) ?? "";
+const hunks = (s: string): number => (s.match(/^@@ /gm) ?? []).length;
+
+/**
+ * Replays an old patch onto `work`, a copy of the current upstream item, one file at a time
+ * (workflow.md "Manifest and body-edit flow"). The old pin's blobs live in the submodule, so the
+ * throwaway repository borrows its objects; status is read from the index and the files, never from
+ * git's wording.
+ */
+export function replayPatch(work: string, upstreamDir: string, patchText: string): ReplayResult[] {
+  seedGit(work, ["init", "-q"]);
+  mkdirSync(join(work, ".git", "info"), { recursive: true });
+  writeFileSync(join(work, ".git", "info", "attributes"), "* -text\n");
+  seedGit(work, ["config", "merge.conflictStyle", "diff3"]);
+  // --force: an item's own .gitignore, info/exclude, or the host's core.excludesFile must not keep
+  // a file out of the index, or its --3way merge fails as "does not exist in index".
+  seedGit(work, ["add", "-A", "--force"]);
+  const objects = objectsOf(upstreamDir);
+  const alternates = objects ? { GIT_ALTERNATE_OBJECT_DIRECTORIES: objects } : {};
+  const scratch = mkdtempSync(join(tmpdir(), "replay-"));
+  try {
+    return splitPatch(patchText).map((chunk, i): ReplayResult => {
+      const file = chunkTarget(chunk);
+      const p = join(scratch, `${i}.patch`);
+      writeFileSync(p, chunk);
+      if (gitApply(work, p, ["--check"]) === null && gitApply(work, p, []) === null) {
+        return { file, status: "applied" };
+      }
+      const three = gitApply(work, p, ["--3way"], alternates);
+      if (seedGit(work, ["ls-files", "-u", "--", file]).trim()) {
+        const regions = (readFileSync(join(work, file), "utf8").match(/^<<<<<<< /gm) ?? []).length;
+        return { file, status: "conflict", regions };
+      }
+      if (three === null) {
+        // Reached only after --check failed, so this is a real merge.
+        return { file, status: "merged" };
+      }
+      const reject = `${file}.rej`;
+      const rejected = gitApply(work, p, ["--reject"]);
+      if (existsSync(join(work, reject))) {
+        const k = hunks(readFileSync(join(work, reject), "utf8"));
+        return { file, status: "rejected", reject, detail: `${k} of ${hunks(chunk)} hunks: ${firstLine(three)}` };
+      }
+      mkdirSync(dirname(join(work, reject)), { recursive: true });
+      writeFileSync(join(work, reject), chunk);
+      return existsSync(join(work, file))
+        ? { file, status: "rejected", reject, detail: `whole file: ${firstLine(rejected)}` }
+        : { file, status: "gone", reject };
+    });
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+    rmSync(join(work, ".git"), { recursive: true, force: true });
   }
 }
 
