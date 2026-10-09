@@ -63,9 +63,12 @@ questions were:
   `opencode/fledge-alpha-free`. None of these measurements is a committed experiment record yet.
   They are prose evidence (tier 0 in the
   [record tiers](../../experiments/harness-invocation/records/README.md#evidence-tiers)). The
-  committed discovery check and model record are follow-ups tracked in the roadmap. Later records:
+  committed discovery check and model record were follow-ups, now landed. Later records:
   [`opencode2-discovery-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md),
-  [`opencode2-manual-skill-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md).
+  [`opencode2-manual-skill-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md),
+  [`opencode2-bulk-apply-windows-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md),
+  [`opencode2-profile-migration-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md),
+  [`opencode-installer-v0.4.0-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md).
 - **Labels.** Each claim is marked *documented* (production docs or upstream issues), *source*
   (read at the pin), *measured* (observed in a probe), or *inferred* (reasoned from the others).
 
@@ -632,5 +635,7 @@ On 2026-10-08 the curator accepted the following, recorded in the current owners
 - The OpenCode 1-bound probes retire in favour of a `serve`-based discovery check and one model
   record.
 
-This note does not own any of those rules. The implementation gap, the measurement records, the
-real-profile migration, and the Release follow the sequence in [`docs/ROADMAP.md`](../ROADMAP.md).
+This note does not own any of those rules. The implementation, the measurement records, the
+real-profile migration, and Release `installer-v0.4.0` landed on 2026-10-09; the records are linked
+under [Evidence boundary](#evidence-boundary) above, and remaining gaps are in
+[`docs/ROADMAP.md`](../ROADMAP.md).

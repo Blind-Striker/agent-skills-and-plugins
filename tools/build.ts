@@ -513,8 +513,8 @@ function rewriteTree(dir: string, map: Map<string, RewriteTarget>, style: RefSty
 }
 
 /**
- * OpenCode 2 reference spelling (spec §7, §14): every Markdown file in a Module gets the harness
- * phrasing and the dotted-ID rendering. Inside `skills/<id>/`, every file is walked: a Markdown file
+ * OpenCode 2 reference spelling (docs/architecture/references-and-linking.md, Localization): every
+ * Markdown file in a Module gets the harness phrasing and the dotted-ID rendering. Inside `skills/<id>/`, every file is walked: a Markdown file
  * gets the phrasing and rendering, then its sibling climbs and item-root `skills/<name>/` paths
  * re-rooted onto the ID folders (climbs measured from the file's depth below its own skill folder);
  * any other file that `isBundledText` accepts (a script, a template) gets only the path respelling;

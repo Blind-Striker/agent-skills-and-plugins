@@ -39,6 +39,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   is absent from the model's offered skill guidance, `@`-attachable, and loadable by an explicit
   instruction naming its exact ID
   ([manual-skill record](../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)).
+  The curator's real OpenCode 2 profiles on the Windows workstation and the Linux host were moved
+  once from `installer-v0.3.0` schema-1 state to the checkout's schema-2 output, with every unowned
+  file byte-identical, by a recorded manual procedure that is not a product path
+  ([profile migration record](../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md));
+  the WSL distro on the Windows workstation held no install.
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
@@ -79,58 +84,81 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **OpenCode 2 migration.** The canon, dated research, spec, and plan come first; the steps below
-   run in this order, and each starts on the curator's word.
-   1. **Measurement records.** The OpenCode-1-bound probes are retired, and
-      `experiments/harness-invocation/oc2-discovery.ps1` checks discovery against an isolated
-      `opencode serve` HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are
-      marked experimental) under the OpenCode 2 lab isolation that
-      [the harness protocol](../experiments/harness-invocation/protocol.md#isolate) owns. The
-      discovery record on both hosts and the tier-2 model record of the `manual` posture (plan
-      Task 16) are committed.
-   2. **Profiles and Release.** Upstream issue `anomalyco/opencode#47505` is measured on isolated
-      Windows labs and reproduced: a running OpenCode 2.0.23 server crashed during a full-estate
-      bulk Apply
-      ([bulk-Apply record](../experiments/harness-invocation/records/2026-10-09-opencode2-bulk-apply-windows.md)).
-      The curator chose the mitigation: a post-Apply warning on Windows, with no stop requirement
-      and no blocking (see Known Gaps), so the measurement's follow-up is closed and the Release
-      gate no longer waits on it. The two real profiles (a Windows workstation and a Linux host,
-      both on OpenCode 2) were migrated once by the manual procedure: remove the Modules with the
-      schema-1 installer, remove the then-empty schema-1 state, and install schema-2 output. This
-      is a one-off, not a supported product path
-      ([profile migration record](../experiments/harness-invocation/records/2026-10-09-opencode2-profile-migration.md));
-      the WSL distro on the Windows workstation held no install. Package 0.4.0 is published as
-      Release `installer-v0.4.0`
-      ([release record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)),
-      and the README consumption recipes describe it. Remaining plan work: the closeout (Task 20).
-2. **Upstream sync waves, one submodule at a time, cheapest first.** All six pins are frozen at their
-   2026-09-06 positions. Order and the upstream state measured on 2026-10-08:
-   - `dotnet-skills`: 3 commits ahead (v1.6.0). No taken item changed and no overlay-lock stamp
-     drifts; the only content change is the new `aot-trimming` candidate.
-   - `asd-ste100`: 12 commits ahead, no tags. The single taken root item changed in every shipped
-     path and adds `examples/linter-edge-cases.md` and a non-executable `scripts/ste-lint.py` whose
-     interpreter and invocation fit need review. No overlay-lock stamp covers it, so these changes
-     pass straight through on a pin move.
-   - `superpowers`: v6.3.0 to v6.4.2. Nine of 14 taken items changed; six stamps drift.
-     `writing-plans` drops `plan-document-reviewer-prompt.md`, `executing-plans` gains executable
-     `scripts/task-start` and `scripts/task-done` (mode 100755, which the Codex mode check covers),
-     `using-superpowers` gains references, and `diagnosing-superpowers` is a new candidate.
-   - `aspire-skills`: 29 commits ahead. Upstream published v0.0.3 (2026-09-23); HEAD is three
-     commits past it and targets Aspire 13.6. All six taken items changed and 12 stamps drift, so
-     all six patches need recutting; `aspire-project-v2-migration` is a new candidate.
-   - `mattpocock-skills`: 92 commits ahead (v1.3.0 and v1.3.1). `resolving-merge-conflicts` was
-     deleted upstream and is still taken in `curation/deniz-process.yaml`. Eighteen of 25 taken or
-     merge-source items changed; `domain-modeling` replaced `CONTEXT-FORMAT.md` with
-     `GLOSSARY-FORMAT.md`; `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new
-     candidates. The wave also decides the `setup-matt-pocock-skills` question of patching it to
-     prefer `AGENTS.md`, since OpenCode 2 loads `AGENTS.md` and never `CLAUDE.md`.
-   - `dotnet/skills`: 339 commits ahead with no new stable release.
-     `configuring-opentelemetry-dotnet`, `minimal-api-file-upload`, and `msbuild-server` were deleted
-     upstream and are still taken in
-     `curation/deniz-dotnet-general.yaml`. `code-testing-agent` is now a legacy alias that redirects
-     to the new `code-testing` skill, and a consolidated `dotnet/msbuild` skill sits beside the
-     individual MSBuild skills, whose descriptions were recut. Thirty-one of 48 taken items changed
-     and 20 stamps drift.
+1. **W1: shared sync infrastructure, before any pin moves.** A cross-upstream review on 2026-10-08
+   read one decision packet per upstream and deduplicated the infrastructure the waves need. Its
+   first wave, W0 (harness phrasing, handoff templates, and path claims), landed with the OpenCode 2
+   migration. W1 is the rest that every later wave depends on:
+   - **`eject --rebase`.** Seed the working copy by replaying the old patch, stop on a real
+     conflict, and make `--bless` check that the patch still applies. At the reviewed upstream heads
+     every Aspire patch, 12 of 16 dotnet/skills patches, and the `using-superpowers` patch fail to
+     apply, and 11 drifted mattpocock overlays need recuts.
+   - **Description validation for every harness.** Check the rendered 1,024-character limit in
+     every tree, not only Codex, where `aspireify` and `aspire-orchestration` are already truncated
+     after localization; the boundary of a tag or angle-bracket rule is still open. Add a
+     frontmatter-override staleness stamp only if a description-only change without a patch
+     appears.
+   - **Canon for sources deleted upstream.** Decide how a deletion stays recorded; this settles the
+     "Deleted names leave the handoff universe" gap below. The review recommends that a deleted
+     taken source leave its manifest, with the reason in the commit and in the successor item's
+     comment, and that a new exclude land with or after the pin move.
+   - **Drift-scan noise.** The drift scan reports a null-sentinel merge file as changed; make it
+     honor the sentinel.
+2. **Upstream sync waves W2 to W6, in this order.** All six pins are frozen at their 2026-09-06
+   positions. The 2026-10-08 packets recommend a treatment for each item; every take, skip, merge,
+   or modification is still the curator's decision, and each wave measures its upstream again
+   before it starts. A wave moves one submodule, except that W4 moves `superpowers` and
+   `asd-ste100` together.
+   - **W2 `dotnet-skills`** (3 commits ahead, v1.6.0). No taken item changed and no overlay-lock
+     stamp drifts; the only content change is the new `aot-trimming` candidate. The packet
+     recommends taking it `auto` in General, paired with the `manual` `dotnet-aot-compat` ceremony
+     the way `csharp-nullable-reference-types` pairs with its migration ceremony.
+   - **W3 `aspire-skills`** (29 commits ahead). Upstream published v0.0.3 (2026-09-23); HEAD is
+     three commits past it and targets Aspire 13.6, and the packet recommends HEAD because the
+     post-tag commit fixes `aspire-init` guidance for 13.6. All six taken items changed and 12
+     stamps drift, so all six patches need recutting with their current intent; most rejects are
+     context-only, which makes this the first live test of `eject --rebase`.
+     `aspire-project-v2-migration` is a new candidate (packet: `manual`, reached by a checked
+     user-pointer from the router); `pr-review` stays excluded. The wave also decides stated
+     invocation for the six items, which pass upstream posture through today.
+   - **W4 `superpowers` v6.3.0 to v6.4.2, with `asd-ste100`.** Nine of 14 taken superpowers items
+     changed; six stamps drift. `executing-plans`, `subagent-driven-development`, `writing-plans`,
+     and the `requesting-code-review` overlay share one contract and land together.
+     `writing-plans` drops `plan-document-reviewer-prompt.md`; `executing-plans` becomes an
+     autonomous inline executor and gains executable `scripts/task-start` and `scripts/task-done`
+     (mode 100755, which the Codex mode check covers) that climb into
+     `subagent-driven-development/scripts`; `using-superpowers` gains references and its patch no
+     longer applies; `diagnosing-superpowers` is a new candidate. `asd-ste100` is 12 commits ahead,
+     no tags: its single taken root item changed in every shipped path and adds
+     `examples/linter-edge-cases.md` (packet: add it to `omit` in the pin-move commit) and a
+     non-executable `scripts/ste-lint.py` whose interpreter and invocation fit need review. No
+     overlay-lock stamp covers it, so these changes pass straight through on a pin move. Both
+     upstreams raise one question: how a body names a bundled script's interpreter. Decide that
+     convention once, with a `validate` gate, and fix the two dotnet/skills `.ps1` items at their
+     current pin in the same change. Decide before the wave: the overlay questions shared with
+     mattpocock (`requesting-code-review`, `test-driven-development`, `systematic-debugging`), the
+     interpreter convention and Python spelling, and whether `diagnosing-superpowers` and
+     mattpocock's `retro` become one post-mortem item or two.
+   - **W5 `mattpocock-skills`** (92 commits ahead, v1.3.0 and v1.3.1). `resolving-merge-conflicts`
+     was deleted upstream and is still taken in `curation/deniz-process.yaml`; the packet
+     recommends dropping it together with its `ask-deniz` route and its authored
+     `docs/cheatsheet.md` line. Eighteen of 25 taken or merge-source items changed;
+     `domain-modeling` replaced `CONTEXT-FORMAT.md` with `GLOSSARY-FORMAT.md`, and adopting
+     GLOSSARY needs this repository's own `CONTEXT.md` relocation before the pin moves.
+     `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new candidates; `pr` first needs
+     attribution for an origin outside the submodules. The wave also decides the
+     `setup-matt-pocock-skills` question of patching it to prefer `AGENTS.md`, since OpenCode 2
+     loads `AGENTS.md` and never `CLAUDE.md`. It follows W4 because `ask-deniz` also routes
+     superpowers items and needs their final shape.
+   - **W6 `dotnet/skills`** (339 commits ahead with no new stable release).
+     `configuring-opentelemetry-dotnet`, `minimal-api-file-upload`, and `msbuild-server` were
+     deleted upstream and are still taken in `curation/deniz-dotnet-general.yaml`.
+     `code-testing-agent` is now a legacy alias that redirects to the new `code-testing` skill
+     (packet: re-source to it, rename the output to `code-testing`, keep it `manual`), and a
+     consolidated `dotnet/msbuild` skill sits beside the individual MSBuild skills, whose
+     descriptions were recut. Thirty-one of 48 taken items changed and 20 stamps drift. Decide
+     before the wave: the MSBuild estate shape, which decides whether four MCP patches are recut or
+     retired; MCP posture (build MCP-server emission for every harness, or record a no-ship
+     decision); and the `code-testing` name and scope.
 
    Moving several pins together fails the build: the four taken sources deleted upstream fail as
    unknown sources, and 47 stamped upstream files across 34 of the 48 overlay-lock items no longer
@@ -181,7 +209,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    confidence, and one of `retain`, `narrow`, `reconsider`, or `ambiguous`; preserve disagreements.
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
-   Run it after a body-ownership pass and before declaring a Module closed.
+   Run it after a body-ownership pass and before declaring a Module closed. The sync packets name
+   five trigger-competition cases for it: `subagent-driven-development` against `executing-plans`,
+   `aot-trimming` against `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild
+   specialists, `directory-build-organization` against `convert-to-cpm`, and `code-testing` against
+   `systematic-debugging`; W4 or W6 is the natural first run.
 5. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience

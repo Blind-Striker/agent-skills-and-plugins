@@ -174,7 +174,9 @@ exactly one skill folder, whatever its invocation, and nothing under `commands/`
   model-only, so the user can also attach it with `@<plugin>.<name>`; that explicit path is a native
   capability `auto` leaves unspecified, as in Codex.
 - `manual` emits the same skill with `metadata: {"opencode/autoinvoke": false}` merged into any
-  metadata the document already carries. As in Codex, this means **not offered to the model**: the
+  metadata the document already carries; a `metadata` value that is not a mapping stops the build
+  before any output is deleted (`collectOpenCodeEmissionProblems` in
+  [`tools/lib/opencode-target.ts`](../../tools/lib/opencode-target.ts)). As in Codex, this means **not offered to the model**: the
   model is not offered the skill, the user attaches it with `@<plugin>.<name>` or the `/skills`
   dialog, and the skill tool can still load the registered ID if the model learns it. The accepted
   rationale is in [ADR-0005](../adr/0005-invocation-intent-in-the-manifest.md). Measured on
@@ -248,7 +250,10 @@ References, harness phrasing, and OpenCode's sibling-item and item-root paths ar
 after all three artifact trees exist, independently for each address space. Facts and phrasing are
 rendered in Markdown; OpenCode path respelling also covers every other bundled text file of a skill
 folder and rewrites a file only when its bytes change.
-Module manifests are then written over final OpenCode bytes. Compile-time `requiredModules` are
+Module manifests are then written over final OpenCode bytes. A file copied into a skill folder takes
+the Git index mode of its committed Claude Plugin counterpart, so an executable script keeps
+`100755` after path respelling, and every other Bundle file is `100644`
+([`claudeCounterpartPath`](../../tools/lib/opencode-target.ts)). Compile-time `requiredModules` are
 derived from declared `depends_on` edges
 ([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
 [`writeOpenCodeManifests`](../../tools/build.ts). The ledger is written last from the
@@ -274,7 +279,9 @@ to committed `dist/` JavaScript using
   Non-empty `hooks.include` remains rejected.
 - An item resolved `as: command` is a single file in Claude Code and OpenCode. Skill-relative paths
   in its body can cease to resolve from that command location; whether the command surface is worth
-  that cost is the per-item `as:` decision. The path check that covers this case is described in
+  that cost is the per-item `as:` decision. OpenCode has no place for such a command's bundled
+  files: the build reports `bundled files not emitted` for them, while Codex, which emits the item
+  as a skill, keeps them. The path check that covers this case is described in
   [References and linking](references-and-linking.md#paths).
 - On OpenCode, `manual` hides a skill from the model's list but cannot stop the skill tool from
   loading a registered ID that text names

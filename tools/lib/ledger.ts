@@ -25,7 +25,10 @@ interface HarnessState {
     "disable-model-invocation"?: boolean;
   };
 }
-/** OpenCode 2 projection: one artifact per item at its `<plugin>.<name>` ID path (spec section 8). */
+/**
+ * OpenCode 2 projection: one artifact per item at its `<plugin>.<name>` ID path
+ * (docs/architecture/references-and-linking.md, Ledger semantics).
+ */
 interface OpenCodeState {
   artifacts: ComponentType[];
   identity: string;

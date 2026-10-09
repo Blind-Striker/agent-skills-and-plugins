@@ -1,6 +1,6 @@
 # Distribution and installation
 
-Date: 2026-10-08
+Date: 2026-10-09
 
 ## Responsibility
 
@@ -313,6 +313,7 @@ version-range resolution remain out of scope. The durable symbol-side proof boun
   [OpenCode 2 discovery record](../../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md)
   measured discovery of the installed full estate on v2.0.23 on the Windows workstation and the
   Linux host: every installed skill and agent appeared under its `<plugin>.<name>` ID, exactly the
-  `manual` skills were unadvertised, and both agents reported `mode: subagent`. The manual-skill
-  posture with a model and whether a read of a bundled support file from the global Native tree
-  prompts a human for permission are not yet measured.
+  `manual` skills were unadvertised, and both agents reported `mode: subagent`. The
+  [manual-skill record](../../experiments/harness-invocation/records/2026-10-09-opencode2-manual-skill.md)
+  measured the `manual` posture with a model on the same version. Whether a read of a bundled
+  support file from the global Native tree prompts a human for permission is not yet measured.

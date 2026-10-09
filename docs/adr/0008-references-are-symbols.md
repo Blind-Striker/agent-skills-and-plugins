@@ -103,7 +103,8 @@ separate transformation concern owned by
   move; a load-bearing sentence outside the templates, such as an unbackticked imperative or a
   "see the `x` skill" reference, is not caught. Rendered phrasing is a wording choice backed by
   bounded evidence: one measured Codex run followed a body ``Invoke `$plugin:skill` `` handoff, and
-  no run yet covers the rendered OpenCode sentence.
+  one run on each of Codex and OpenCode followed a rendered handoff whose target also triggers on
+  the prompt's own words, so no run yet isolates the rendering as the cause of the load.
 - The path tier trades silence for narrowly scoped findings. It avoids treating all illustrative
   upstream paths as dependencies while still catching attributable breakage caused by rename,
   omission, exclusion, or conversion. A climb that lands on the shared skills directory has no
