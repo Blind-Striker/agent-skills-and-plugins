@@ -66,8 +66,8 @@ The method mirrors [`codex-matrix.ps1`](../codex-matrix.ps1) and the
 |---|---|---|---:|---|---|
 | `gpt-5.6-luna@low` | `liveness` | pass |  | none | exact `LIVE` |
 | `gpt-5.6-luna@low` | `explicit-grill-me-1` | pass |  | read `grilling/SKILL.md` (exit 0); 2 failed workspace scans | "I'm using the grilling skill …"; Q1–Q6 rounds; grill-me `SKILL.md` not shell-read |
-| `gpt-5.6-luna@low` | `explicit-grill-me-2` | pass |  | read `grilling/SKILL.md` (exit 0); 3 failed workspace scans | grilling announced; Q1–Q4 rounds |
-| `gpt-5.6-luna@low` | `explicit-grill-me-3` | pass |  | read `grilling/SKILL.md` (exit 0); 1 failed, 1 passing workspace scan | grilling announced; Q1–Q3 rounds |
+| `gpt-5.6-luna@low` | `explicit-grill-me-2` | pass |  | read `grilling/SKILL.md` (exit 0); 3 failed workspace scans | grilling announced; Q1–Q5 rounds |
+| `gpt-5.6-luna@low` | `explicit-grill-me-3` | pass |  | read `grilling/SKILL.md` (exit 0); 1 failed, 1 passing workspace scan | grilling announced; Q1–Q6 rounds |
 | `gpt-5.6-luna@low` | `control-no-grill-1` | pass |  | read `brainstorming/SKILL.md` (exit 0); workspace scans | grilling not loaded; implicitly chose the auto `deniz-process:brainstorming` and gave a plain review |
 
 ## Results: verifier run
@@ -128,10 +128,10 @@ remote plugins that are not installed. None of their skills was loaded in any at
 
 ### Other harness events
 
-Each non-ephemeral call that ran commands wrote a second rollout with source
-`{"subagent": {"other": "guardian"}}`: the automatic approvals reviewer that `--approve-for-me`
-enables. The session sandbox mode was read-only. Input per explicit attempt was about 42,000 to
-74,000 tokens, mostly cached.
+The one non-ephemeral call that ran commands (verifier `explicit-grill-me-3`) wrote a second
+rollout with source `{"subagent": {"other": "guardian"}}`: the automatic approvals reviewer that
+`--approve-for-me` enables. Input per explicit attempt was about 42,000 to 74,000 tokens, mostly
+cached.
 
 ## Sanitized excerpts
 
