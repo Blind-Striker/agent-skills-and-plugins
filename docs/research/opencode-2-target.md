@@ -63,7 +63,8 @@ questions were:
   `opencode/fledge-alpha-free`. None of these measurements is a committed experiment record yet.
   They are prose evidence (tier 0 in the
   [record tiers](../../experiments/harness-invocation/records/README.md#evidence-tiers)). The
-  committed discovery check and model record are follow-ups tracked in the roadmap.
+  committed discovery check and model record are follow-ups tracked in the roadmap. Later record:
+  [`opencode2-discovery-2026-10-09`](../../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md).
 - **Labels.** Each claim is marked *documented* (production docs or upstream issues), *source*
   (read at the pin), *measured* (observed in a probe), or *inferred* (reasoned from the others).
 

@@ -30,7 +30,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `validate` runs the handoff-template, harness-vocabulary, and path-claim checks of
   [references and linking](architecture/references-and-linking.md). The OpenCode experiment
   scripts target OpenCode 2: the OpenCode 1 probes are retired, and `oc2-discovery.ps1` checks
-  discovery against an isolated `opencode serve`.
+  discovery against an isolated `opencode serve`. On v2.0.23 that check discovered the installed
+  estate identically on the Windows workstation and the Linux host (115 dotted skills, the 26
+  `manual` skills unadvertised, both agents as subagents), and an empty `OPENCODE_CONFIG_DIR` fell
+  back like an unset one on Linux
+  ([discovery record](../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md)).
 - `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
@@ -77,10 +81,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
       `experiments/harness-invocation/oc2-discovery.ps1` checks discovery against an isolated
       `opencode serve` HTTP API (`/api/skill`, `/api/command`, `/api/agent`; the skill routes are
       marked experimental) under the OpenCode 2 lab isolation that
-      [the harness protocol](../experiments/harness-invocation/protocol.md#isolate) owns. Still to
-      record: the discovery record on the Windows and Linux hosts, and one LLM record proving that
-      a manual skill is unadvertised, `@`-attachable, and callable by the model through its
-      namespaced ID.
+      [the harness protocol](../experiments/harness-invocation/protocol.md#isolate) owns. The
+      discovery record on both hosts is committed. Still to record: one LLM record proving that a
+      manual skill is unadvertised, `@`-attachable, and callable by the model through its
+      namespaced ID; its model route waits on the curator's credential choice.
    2. **Profiles and Release.** Measure upstream issue `anomalyco/opencode#47505` on an isolated
       Windows profile as
       [distribution and installation](architecture/distribution-and-installation.md#target-opencode-runtime)

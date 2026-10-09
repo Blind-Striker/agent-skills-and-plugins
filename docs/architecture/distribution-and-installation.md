@@ -138,7 +138,9 @@ The installer resolves exactly one global Destination, the global config root Op
 config home is set, otherwise `<home>/.config/opencode`. In OpenCode 2 `OPENCODE_CONFIG_DIR`
 replaces the global root rather than adding a second one
 (`anomalyco/opencode@0fd7e28 packages/util/src/global.ts:79`), so the installer honors it as the
-Destination. The installer refuses a relative `OPENCODE_CONFIG_DIR`, because it cannot know the
+Destination. OpenCode 2 also treats an empty value as unset: on v2.0.23 on the Linux host,
+`opencode debug paths` reported the same XDG config root with the variable empty as with it unset
+([discovery record](../../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md#empty-opencode_config_dir-on-the-linux-host-plan-task-15-step-4)). The installer refuses a relative `OPENCODE_CONFIG_DIR`, because it cannot know the
 working directory of the OpenCode process that will read it. `<home>` is `os.homedir()` only, the
 same home source OpenCode 2 uses; the installer never reads `HOME` or `USERPROFILE` directly, so a
 shell that sets `HOME` to another folder (Git Bash on Windows does) cannot move the Destination away
@@ -292,7 +294,10 @@ version-range resolution remain out of scope. The durable symbol-side proof boun
   immutable.
 - Committed tests establish Plan/Apply behavior and byte equality. The
   [installer record](../../experiments/harness-invocation/records/2026-08-18-opencode-module-installer.md#explicitly-unmeasured)
-  measured Native discovery on OpenCode 1.18.18, which is no longer a supported runtime. OpenCode 2
-  discovery of the installed tree, the manual-skill posture, the Windows bulk-Apply behavior above,
-  and whether a read of a bundled support file from the global Native tree prompts a human for
-  permission are not yet measured.
+  measured Native discovery on OpenCode 1.18.18, which is no longer a supported runtime. The
+  [OpenCode 2 discovery record](../../experiments/harness-invocation/records/2026-10-09-opencode2-discovery.md)
+  measured discovery of the installed full estate on v2.0.23 on the Windows workstation and the
+  Linux host: every installed skill and agent appeared under its `<plugin>.<name>` ID, exactly the
+  `manual` skills were unadvertised, and both agents reported `mode: subagent`. The manual-skill
+  posture with a model, the Windows bulk-Apply behavior above, and whether a read of a bundled
+  support file from the global Native tree prompts a human for permission are not yet measured.
