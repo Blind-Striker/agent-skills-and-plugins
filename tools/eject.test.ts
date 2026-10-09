@@ -228,13 +228,39 @@ test("a cut refuses replay residue and leaves the old patch byte-identical", () 
   }
 });
 
+// The refusal above exits before any write, so it cannot tell a check-then-write cut from a
+// write-then-check one. A binary edit can: the cut carries no full index line, so its check fails.
+test("a cut that does not apply back leaves the old patch and the working copy in place", () => {
+  const root = makeRepo();
+  const dir = join(root, "overlays", "deniz-process", "gamma");
+  const old = readFileSync(join(dir, "overlay.patch"), "utf8");
+  writeFileSync(join(root, "external", "sp", "skills", "gamma", "img.bin"), Buffer.from([0, 1, 2, 3, 0, 9]));
+  cpSync(join(root, "external", "sp", "skills", "gamma"), dir, { recursive: true });
+  writeFileSync(join(dir, "img.bin"), Buffer.from([0, 9, 8, 7, 0, 1]));
+  const r = eject(root, ["deniz-process", "gamma", "--patch"]);
+  assert.equal(r.ok, false, r.out);
+  assert.match(r.out, /does not apply back to sp\/skills\/gamma/);
+  assert.equal(readFileSync(join(dir, "overlay.patch"), "utf8"), old);
+  assert.ok(existsSync(join(dir, "SKILL.md")), "the working copy stays");
+  assert.ok(existsSync(join(dir, "img.bin")), "the edited file stays");
+});
+
 test("eject never copies an upstream root .git gitfile", () => {
   const root = makeRepo();
   const delta = join(root, "external", "sp", "skills", "delta");
-  writeFileSync(join(delta, ".git"), "gitdir: ../../.git/modules/delta\n");
+  // A live gitfile, as a checked-out submodule root has: the cut's check runs git inside it.
+  execFileSync("git", ["init", "-q", "--separate-git-dir", join(root, "delta.git"), delta]);
+  assert.ok(existsSync(join(delta, ".git")));
   assert.ok(eject(root, ["deniz-process", "delta", "--patch"]).ok);
-  assert.ok(!existsSync(join(root, "overlays", "deniz-process", "delta", ".git")));
-  rmSync(join(root, "overlays", "deniz-process", "delta"), { recursive: true });
+  const dir = join(root, "overlays", "deniz-process", "delta");
+  assert.ok(!existsSync(join(dir, ".git")));
+  // The cut's upstream side must drop the gitfile too, or every cut of a root item deletes .git.
+  const file = join(dir, "SKILL.md");
+  writeFileSync(file, readFileSync(file, "utf8").replace("Delta body.", "Patched body."));
+  const r = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(r.ok, r.out);
+  assert.doesNotMatch(readFileSync(join(dir, "overlay.patch"), "utf8"), /\.git\b/);
+  rmSync(dir, { recursive: true });
   assert.ok(eject(root, ["deniz-process", "delta"]).ok);
   assert.ok(!(".git" in (loadLock(root)[lockKey("deniz-process", "delta")]?.files ?? {})));
 });
