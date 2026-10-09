@@ -1,7 +1,26 @@
 diff --git a/SKILL.md b/SKILL.md
-index df5b9a5..a3a4c32 100644
+index df5b9a5..e1a9e80 100644
 --- a/SKILL.md
 +++ b/SKILL.md
+@@ -51,17 +51,17 @@ edits and automatically reruns tests.
+   xUnit v3 `--filter-method` or TUnit `--treenode-filter`.
+ 
+ ## Workflow
+ 
+ ### Step 1: Detect the platform before changing anything
+ 
+ Hot reload requires MTP. It does **not** work with VSTest.
+ 
+-Follow the complete evaluated-property procedure in the `platform-detection`
++Follow the complete evaluated-property procedure in the `dotnet-test:platform-detection`
+ skill. Read imported props and package versions as well as the project file.
+ Do this before installing packages, editing files, or returning an MTP launch
+ command.
+ 
+ **Hard stop for VSTest:** report that MTP hot reload is unavailable for the
+ project as configured and stop the MTP setup path. Do not install the extension,
+ create `launchSettings.json`, set the environment variable, change runner
+ properties/packages, or return a `dotnet run` hot-reload command. Never turn a
 @@ -69,19 +69,17 @@ setup request into an implicit VSTest-to-MTP migration.
  
  Offer one valid non-MTP fallback that preserves the project:

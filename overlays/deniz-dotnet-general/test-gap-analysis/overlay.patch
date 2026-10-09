@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 37d6654..065f3ba 100644
+index 37d6654..475e9d8 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,21 +1,17 @@
@@ -30,7 +30,7 @@ index 37d6654..065f3ba 100644
  Answer one question: **which caller-visible production behaviors could change
  without an existing test failing?** Mutation reasoning is a probe, not the goal.
  Inventory public outcomes first, then verify only credible gaps.
-@@ -28,18 +24,17 @@ Discover production and test files from manifests and file types. After a narrow
+@@ -28,46 +24,45 @@ Discover production and test files from manifests and file types. After a narrow
  search misses, inspect the current directory broadly before asking for paths.
  
  | Request | Action |
@@ -50,7 +50,18 @@ index 37d6654..065f3ba 100644
  state predicates (including derived booleans), identity, and formatting. Private
  code is in scope only to trace an allowed outcome.
  
-@@ -57,17 +52,17 @@ attempt cannot run the suite, do not troubleshoot the runner or try alternate
+ Do not expand a focused request into a repository audit, plan artifact, or
+ dashboard. Use source and tests directly for familiar frameworks. Invoke
+-`test-analysis-extensions` only when discovery or assertion semantics are
++`dotnet-test:test-analysis-extensions` only when discovery or assertion semantics are
+ unclear.
+ 
+ ### 2. Establish one baseline
+ 
+ Run the narrowest existing test command once. Choose it from the project
+ manifest; Microsoft.Testing.Platform executables may require `dotnet run`.
+ Confirm tests executed: exit 0 with build-only output is not green. If that one
+ attempt cannot run the suite, do not troubleshoot the runner or try alternate
  commands for an advisory review; continue statically and label all candidates
  **unverified**. Do not infer a project-configuration cause from missing output;
  name a cause only when the command reports it.
@@ -157,3 +168,26 @@ index 37d6654..065f3ba 100644
    does not prove siblings: allow does not prove deny; read does not prove write;
    null does not prove empty or whitespace when those inputs have different
    caller-visible outcomes. A kill clears only the edit and path that ran.
+diff --git a/references/mutation-catalog.md b/references/mutation-catalog.md
+index 78d6d94..38eaadb 100644
+--- a/references/mutation-catalog.md
++++ b/references/mutation-catalog.md
+@@ -23,17 +23,17 @@ risk-ranked table in `SKILL.md`.
+ | C#/.NET | Remove null/range guards; change exception type; replace `??` fallback; change null-conditional access; return `default`; alter async cancellation/error propagation |
+ | Rust | Replace `?` with `unwrap()`/`expect()`; swap `Ok`/`Err` or `Some`/`None`; remove `if let`/`match` arm; change inclusive range; alter error mapping |
+ | Go | Remove or swallow a meaningful `err` branch; change wrapped error; alter `(value, err)` result. Do not flag a bare idiomatic passthrough unless behavior changes |
+ | Python | Remove `raise`; change exception type; replace `None` fallback; alter truthiness/boundary checks |
+ | TypeScript/JavaScript | Remove rejected-promise/error path; alter nullish coalescing; confuse truthiness with exact value; skip awaited behavior |
+ | Java/Kotlin | Remove validation/exception; change nullable/default handling; alter collection or stream predicate |
+ 
+ When framework-specific test discovery or assertion APIs are unclear, invoke
+-`test-analysis-extensions` and read only the matching language extension.
++`dotnet-test:test-analysis-extensions` and read only the matching language extension.
+ 
+ ## Equivalence and noise filters
+ 
+ Exclude:
+ 
+ - generated/designer/migration output;
+ - auto-properties, records/data holders, and trivial forwarding methods;
+ - logging-only or formatting-only changes unless the user identifies them as

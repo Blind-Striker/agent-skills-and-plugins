@@ -1,15 +1,18 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8d1007c..46fb7ab 100644
+index 8d1007c..a1699be 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -30,19 +30,19 @@ Clashes can occur between:
+@@ -28,21 +28,21 @@ Clashes can occur between:
+ **Invoke this skill immediately when you see:**
+ - `Cannot create a file when that file already exists` during NuGet restore
  - `The process cannot access the file because it is being used by another process`
  - Intermittent build failures that succeed on retry
  - Missing output files or unexpected overwriting
  
  ## Step 1: Generate a Binary Log
  
- Use the `binlog-generation` skill to generate a binary log with the correct naming convention.
+-Use the `binlog-generation` skill to generate a binary log with the correct naming convention.
++Use the `dotnet-msbuild:binlog-generation` skill to generate a binary log with the correct naming convention.
  
 -## Primary workflow — binlog MCP
 +## Optional workflow — binlog MCP (when configured)

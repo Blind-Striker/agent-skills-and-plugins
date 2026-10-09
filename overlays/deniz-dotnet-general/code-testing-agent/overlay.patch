@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8419ae9..4a2037b 100644
+index 8419ae9..6165bd4 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,20 +1,18 @@
@@ -47,7 +47,8 @@ index 8419ae9..4a2037b 100644
  
  ## When Not to Use
  
- - Running or executing existing tests (use the `run-tests` skill)
+-- Running or executing existing tests (use the `run-tests` skill)
++- Running or executing existing tests (use the `dotnet-test:run-tests` skill)
  - Migrating between test frameworks (use migration skills)
 -- Answering an MSTest API/pattern or modernization question that does not ask to
 -  generate tests (use `writing-mstest-tests`)
@@ -129,7 +130,7 @@ index 8419ae9..4a2037b 100644
     nonredundant evidence, not by raw test volume.
  5. Review the generated tests for behavior gaps and weak assertions. On a broad
 -   scope, invoke `test-gap-analysis` and `assertion-quality` when available and
-+   scope, invoke `test-gap-analysis` and `test-anti-patterns` when available and
++   scope, invoke `dotnet-test:test-gap-analysis` and `dotnet-test:test-anti-patterns` when available and
     record the findings and fixes in `.testagent/status.md`. On a focused scope,
     do the equivalent review inline — re-read each generated assertion against
     the source — without spawning extra passes.

@@ -18,9 +18,11 @@
 # Reference posture: .NET upstream bodies usually point at sibling skills by bare name ("see the
 # `filter-syntax` skill") — candidate-tier by ADR-0008, never build state merely because a body is
 # patched. An upstream-authored namespaced fact is retained only when its curated target exists and
-# is declared with exact `depends_on`. The reference husks (filter-syntax and
-# test-analysis-extensions) are taken `auto`: model loads them by name, users never see them. That
-# matches their upstream user-invocable:false + disable-model-invocation:true "neither" class.
+# is declared with exact `depends_on`. A load form (Load `x`, Use the `x` skill, Invoke `x`) is a
+# handoff template, so it is authored as a namespaced fact with its `depends_on`; a "see" mention
+# stays a candidate. The reference husks (filter-syntax and test-analysis-extensions) are taken
+# `auto`: model loads them by name, users never see them. That matches their upstream
+# user-invocable:false + disable-model-invocation:true "neither" class.
 # platform-detection is now a bounded identification specialist upstream; this repo keeps it
 # model-reachable and lets that narrower selection surface flow.
 plugin:
@@ -111,6 +113,8 @@ items:
   # so those bodies are patched replay-first (axis-3 fit — the claim is false where they land).
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-antipatterns
     invocation: auto # the review entry point for project/build files
+    body: patch # the reference file's two check-bin-obj-clash handoffs become namespaced facts
+    depends_on: [check-bin-obj-clash]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/directory-build-organization
     invocation: auto # Directory.Build.* mechanics — deeper on evaluation order than project-structure
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/property-patterns
@@ -142,9 +146,12 @@ items:
     body: patch # MCP optional / replay portable
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-baseline
     invocation: auto # measure-first baselining discipline
+    body: patch # namespaces its build-perf-diagnostics handoff
+    depends_on: [build-perf-diagnostics]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash
     invocation: auto # output-path collision diagnosis — the classic file-lock culprit
-    body: patch # MCP optional / replay portable
+    body: patch # MCP optional / replay portable; its load instruction for binlog-generation is a namespaced fact
+    depends_on: [binlog-generation]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance
     invocation: auto
     body: patch # MCP optional / replay portable
@@ -156,6 +163,8 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/run-tests
     invocation: auto # the operational core: current upstream owns exact classic/VSTest/MTP syntax
     # and now keeps its routing within the surviving test-execution cluster
+    body: patch # namespaces its filter-syntax and platform-detection loads so every harness renders a loadable ID
+    depends_on: [filter-syntax, platform-detection]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax
     invocation: auto # reference husk: upstream now names only run-tests and mtp-hot-reload and
     # scopes loading to filtered runs, so its description can flow while this dial makes it reachable
@@ -167,16 +176,21 @@ items:
     body: patch # its consumer lists named five skills and an agent; only two consumers survive here
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload
     invocation: auto # TUnit is MTP-native, so MTP iteration speed matters here
-    body: patch # keeps the safe VSTest watch fallback but removes the generic migration offer
+    body: patch # keeps the safe VSTest watch fallback but removes the generic migration offer; its
+    # load instruction for platform-detection is a namespaced fact
+    depends_on: [platform-detection]
   # The audit menu — report-only, so auto is safe: each fires on its own explicit audit request.
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns
     invocation: auto # the broad pragmatic audit, including qualitative assertion-depth review
-    body: patch # dead redirects dropped; practical assertion-depth checks added; sibling references
-    # preserve the upstream bare style
+    body: patch # dead redirects dropped; practical assertion-depth checks added; its two
+    # test-analysis-extensions loads are namespaced facts
+    depends_on: [test-analysis-extensions]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis
     invocation: auto # pseudo-mutation strength reasoning — the "would my tests catch it" job
     body: patch # preserves the report-only contract by removing upstream's close-gaps/test-writing
-    # path; dead redirects stay out while the bundled mutation catalog flows by copy
+    # path; dead redirects stay out; SKILL.md and the bundled mutation catalog load
+    # test-analysis-extensions through a namespaced fact
+    depends_on: [test-analysis-extensions]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
     invocation: auto # the module's single CRAP/coverage home (Cobertura-based) — including the
     # targeted method/class/file job it absorbed from the excluded crap-score
@@ -312,9 +326,11 @@ items:
     body: patch # drops the writing-mstest-tests handoffs (excluded) and points C# generation at our
     # own TUnit skill instead; softens the ALWAYS-USE description, which was trigger prose aimed at a
     # model that can no longer reach this item. The same patch internalizes the excluded helper-agent
-    # pipeline in SKILL.md and removes its last dead extension handoff from the bundled prompt.
-    depends_on: [writing-tunit-tests] # guarded original-skill target: C# generation loads the
-    # TUnit-first framework guide after this manual entry ceremony has established scope
+    # pipeline in SKILL.md and removes its last dead extension handoff from the bundled prompt; its
+    # load instructions for run-tests, test-gap-analysis, and test-anti-patterns are namespaced facts.
+    depends_on: [run-tests, test-anti-patterns, test-gap-analysis, writing-tunit-tests] # writing-tunit-tests
+    # is a guarded original-skill target: C# generation loads the TUnit-first framework guide after
+    # this manual entry ceremony has established scope
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-extensions
     exclude: true # reference husk for the excluded pipeline only; no taken dependent
   - source: dotnet-agent-skills/plugins/dotnet-test/agents/code-testing-builder.agent.md

@@ -1,0 +1,42 @@
+diff --git a/references/additional-antipatterns.md b/references/additional-antipatterns.md
+index 9ad2e8e..fba76cd 100644
+--- a/references/additional-antipatterns.md
++++ b/references/additional-antipatterns.md
+@@ -179,17 +179,17 @@ For a detailed explanation of MSBuild's evaluation and execution phases, see [Bu
+ <!-- (a) the SAME project re-invokes itself (publish-on-build) -->
+ <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="_IsPublishing=true" />
+ 
+ <!-- (b) project A invokes Build/Publish on ANOTHER project B it consumes
+         (e.g. a test or layout project publishing a tool) -->
+ <MSBuild Projects="..\tool\tool.csproj" Targets="Publish" Properties="_IsPublishing=true" />
+ ```
+ 
+-**Why it's bad**: An MSBuild project instance is identified by its path **plus its global properties**. Passing an extra global property creates a *distinct* instance of the target project — `(project, {_IsPublishing=true})` — that still resolves to the same `OutputPath`/`IntermediateOutputPath` as the instance the solution/graph already builds, `(project, {})`. That project is then built twice, and in a parallel/graph build the two instances can write the same files concurrently (PDBs, `*.sourcelink` and other NativeAOT intermediates, `project.assets.json`), producing `The process cannot access the file because it is being used by another process` or intermittent file-lock failures. This applies whether the offending `<MSBuild>` call is in the target project itself or in some other project in the same build. Use the `check-bin-obj-clash` skill to confirm two evaluations of that project differ only by a path-neutral property while sharing an output path.
++**Why it's bad**: An MSBuild project instance is identified by its path **plus its global properties**. Passing an extra global property creates a *distinct* instance of the target project — `(project, {_IsPublishing=true})` — that still resolves to the same `OutputPath`/`IntermediateOutputPath` as the instance the solution/graph already builds, `(project, {})`. That project is then built twice, and in a parallel/graph build the two instances can write the same files concurrently (PDBs, `*.sourcelink` and other NativeAOT intermediates, `project.assets.json`), producing `The process cannot access the file because it is being used by another process` or intermittent file-lock failures. This applies whether the offending `<MSBuild>` call is in the target project itself or in some other project in the same build. Use the `dotnet-msbuild:check-bin-obj-clash` skill to confirm two evaluations of that project differ only by a path-neutral property while sharing an output path.
+ 
+ ```xml
+ <!-- BAD (a): forks a second instance (path + {_IsPublishing=true}) that shares this project's bin/obj -->
+ <Target Name="PublishOnBuild" AfterTargets="Build">
+   <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Publish" Properties="_IsPublishing=true" />
+ </Target>
+ ```
+ 
+@@ -237,17 +237,17 @@ For (b), the consumer must not fork the producer with path-neutral global proper
+   <ProjectReference Include="..\Tool\Tool.csproj" SetTargetFramework="TargetFramework=net8.0" />
+ </ItemGroup>
+ ```
+ 
+ **Why it's bad**: `SetTargetFramework` injects `TargetFramework` as a **global property** on the referenced project's build. That mechanism exists so a consumer can pick *one specific TFM* of a **multi-targeting** project — different TFM values produce different output paths, so each build is distinct and safe.
+ 
+ For a **single-targeting** project, injecting the TFM it **already targets** is **path-neutral**: the project already resolves to `bin\<config>\net8.0\` and `obj\<config>\net8.0\` on its own, so the extra global property doesn't change the output path — it only creates a *distinct* MSBuild project instance `(project, {TargetFramework=net8.0})`. Meanwhile the solution/graph builds that same project as `(project, {})` with no global properties. Both instances resolve to the **same** `OutputPath`/`IntermediateOutputPath`, so the project is **built twice** and the two instances write the same files (assemblies, PDBs, `project.assets.json`, etc.). Under a parallel build this is a classic bin/obj clash — `The process cannot access the file because it is being used by another process` or intermittent, retry-flaky failures. (Injecting a *different* TFM changes the output path and is a legitimate override — see below.)
+ 
+-Note the healthy contrast: the P2P protocol itself does **not** inject `TargetFramework` when it sees a non-multi-targeting reference — it correctly omits the global property. `SetTargetFramework` overrides that safe default and is what reintroduces the clash. Use the `check-bin-obj-clash` skill to confirm two evaluations of the referenced project differ only by a path-neutral `TargetFramework` global property while sharing an output path.
++Note the healthy contrast: the P2P protocol itself does **not** inject `TargetFramework` when it sees a non-multi-targeting reference — it correctly omits the global property. `SetTargetFramework` overrides that safe default and is what reintroduces the clash. Use the `dotnet-msbuild:check-bin-obj-clash` skill to confirm two evaluations of the referenced project differ only by a path-neutral `TargetFramework` global property while sharing an output path.
+ 
+ ```xml
+ <!-- GOOD: single-targeting reference needs no SetTargetFramework — just reference it -->
+ <ItemGroup>
+   <ProjectReference Include="..\Tool\Tool.csproj" />
+ </ItemGroup>
+ ```
+ 

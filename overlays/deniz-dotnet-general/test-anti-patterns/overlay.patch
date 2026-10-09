@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 94b0e10..63d47b8 100644
+index 94b0e10..561f5cf 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,23 +1,19 @@
+@@ -1,107 +1,103 @@
  ---
  name: test-anti-patterns
  description: >
@@ -33,8 +33,11 @@ index 94b0e10..63d47b8 100644
  
  Quick, pragmatic analysis of test code in any supported language for anti-patterns and quality issues that undermine test reliability, maintainability, and diagnostic value.
  
- > **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
-@@ -27,26 +23,24 @@ Quick, pragmatic analysis of test code in any supported language for anti-patter
+-> **Language-specific guidance**: Call the `test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
++> **Language-specific guidance**: Call the `dotnet-test:test-analysis-extensions` skill to discover available extension files, then read the file matching the target codebase (e.g., `extensions/dotnet.md`, `extensions/python.md`, `extensions/typescript.md`, `extensions/go.md`). The extension file tells you which sleep / time / random / skip / setup-teardown / mystery-guest APIs to look for in that language.
+ 
+ ## When to Use
+ 
  - User asks to review test quality or find test smells
  - User wants to know why tests are flaky or unreliable
  - User asks "are my tests good?" or "what's wrong with my tests?"
@@ -65,7 +68,21 @@ index 94b0e10..63d47b8 100644
  | Test code | Yes | One or more test files or classes to analyze |
  | Production code | No | The code under test, for context on what tests should verify |
  | Specific concern | No | A focused area like "flakiness" or "naming" to narrow the review |
-@@ -67,41 +61,43 @@ If production code is available, read it too -- this is critical for detecting t
+ 
+ ## Workflow
+ 
+ ### Step 1: Detect language and load extension
+ 
+-Identify the target codebase's language and test framework. Call the `test-analysis-extensions` skill and read the matching extension file. The extension file documents framework-specific anti-pattern markers — what counts as a sleep/wait, a test marker, a skip, a setup/teardown, a shared-state hot spot, and an integration boundary — so this skill stays language-neutral.
++Identify the target codebase's language and test framework. Call the `dotnet-test:test-analysis-extensions` skill and read the matching extension file. The extension file documents framework-specific anti-pattern markers — what counts as a sleep/wait, a test marker, a skip, a setup/teardown, a shared-state hot spot, and an integration boundary — so this skill stays language-neutral.
+ 
+ ### Step 2: Gather the test code
+ 
+ Read the test files the user wants reviewed. If the user points to a directory or project, scan for all test files using the discovery markers in the loaded language extension file (e.g., `[TestClass]`/`[Fact]`/`[Test]` for .NET, `test_*.py` / `def test_*` for pytest, `*.test.ts` / `it()` for Jest, `*Test.java` / `@Test` for JUnit, `*_test.go` / `func TestXxx` for Go, `*_spec.rb` for RSpec, `#[test]` for Rust, `*.Tests.ps1` / `Describe` for Pester, `TEST(...)` for GoogleTest, `TEST_CASE(...)` for Catch2/doctest).
+ 
+ If production code is available, read it too -- this is critical for detecting tests that are coupled to implementation details rather than behavior.
+ 
+ ### Step 3: Scan for anti-patterns
  
  Check each test file against the anti-pattern catalog below. Report findings grouped by severity. The examples are .NET-centric but the patterns generalize — use the loaded language extension file to map each pattern to the framework you are auditing.
  

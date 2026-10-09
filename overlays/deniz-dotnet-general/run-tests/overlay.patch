@@ -1,0 +1,61 @@
+diff --git a/SKILL.md b/SKILL.md
+index 0dcb1d2..57a54f5 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -27,17 +27,17 @@ Choose the smallest path that satisfies the request:
+ | Request | Action |
+ |---|---|
+ | Exact command or explanation; user says not to run | Inspect only the files needed to resolve syntax. Do not restore, build, or run tests. |
+ | Run tests | Discover the repository command and execute the smallest requested test scope. |
+ | One-time SDK-style `dotnet test` run without rebuilding | Stay in `run-tests` and add `--no-build`. |
+ | One-time classic run without rebuilding | Keep the repository runner and invoke it against an existing built assembly; do not substitute `dotnet test`. |
+ | Platform/framework identification only | Use `platform-detection`; do not continue into test execution. |
+ | Explicit hot reload or a keep-running edit/re-run loop | Use `mtp-hot-reload`. |
+-| Filter needed and the framework-specific syntax is not already clear | Load `filter-syntax`; do not load it for unfiltered runs. |
++| Filter needed and the framework-specific syntax is not already clear | Load `dotnet-test:filter-syntax`; do not load it for unfiltered runs. |
+ 
+ Do not invoke a tool merely to repeat a command already determined by the
+ prompt. Do not build first "just in case": `dotnet test` builds by default.
+ Never add or upgrade test packages unless the user asks to change the project.
+ For an exact-command request, return one runnable command first. Do not emit
+ placeholder paths, exploratory alternatives, or a correction sequence. Use a
+ project path only when the prompt or repository establishes it; otherwise let
+ the command operate on the current project or solution when that syntax is
+@@ -55,17 +55,17 @@ arguments must follow `--`.
+ - Requested output: console result, TRX, diagnostics, crash dump, or hang dump
+ 
+ When those facts are present in the prompt, use them. Otherwise inspect only the
+ relevant files: `global.json`, the selected project, `packages.config`,
+ `Directory.Build.props`, `Directory.Packages.props`, then repository
+ scripts/CI documentation. For a file-backed request, enumerate those
+ configuration names once and read all relevant files that are present in one
+ batch; never infer that a runner or bridge property is absent merely because it
+-is not in the `.csproj`. Load `platform-detection` only when those signals need
++is not in the `.csproj`. Load `dotnet-test:platform-detection` only when those signals need
+ precedence analysis; do not duplicate its full analysis in the response.
+ If execution is requested and the command depends on the active SDK but neither
+ the prompt nor `global.json` establishes it, run `dotnet --version` once. For a
+ command-only request that prohibits execution, do not probe: state the required
+ SDK assumption or ask for the SDK version when the syntax cannot otherwise be
+ resolved. Route identification-only requests to `platform-detection`.
+ 
+ ## Decision table
+@@ -164,17 +164,17 @@ only when needed to translate a human label such as "integration" or "smoke"
+ into the framework's actual category/trait name.
+ 
+ When a VSTest class filter must distinguish similarly named classes, combine
+ the positive selector with an explicit negative selector rather than relying on
+ an incidental substring difference.
+ 
+ 3. **Apply platform- and framework-correct filters.**
+ 
+-Load `filter-syntax` only when the request is filtered and the framework-specific
++Load `dotnet-test:filter-syntax` only when the request is filtered and the framework-specific
+ syntax is not already clear. The common decisions are:
+ 
+ For a file-backed filtered request, resolve the framework and SDK command mode
+ from the project, `global.json`, and imported props before choosing syntax.
+ Do not infer VSTest syntax merely from `Microsoft.NET.Test.Sdk` or from the
+ framework name.
+ 
+ | Platform / framework | Filter |
