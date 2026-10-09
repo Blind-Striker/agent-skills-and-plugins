@@ -2757,7 +2757,12 @@ git commit -m "test: port OpenCode experiments to OpenCode 2"
   2.0.x line) on both machines.
 - [ ] **Step 2: Install the checkout output into the lab** with
   `OPENCODE_CONFIG_DIR=<lab config>` and `npm run install:opencode -- install --all --yes`.
+  On the Linux host, Node comes from a version manager and is not on a non-interactive shell's
+  `PATH`; put it there explicitly.
 - [ ] **Step 3: Run** `pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab>`.
+  The Linux host has no PowerShell: run the same script with a portable PowerShell in the
+  `mktemp` directory, per the `experiments/harness-invocation/runbook.md` recipe (Task 14 review
+  decision: one script on both machines, no POSIX twin to keep in parity).
   Expected: the post-Task-13 estate from `docs/ledger.json` (before curation: 115 skills, the 27
   manual IDs `advertised: false`, 0 commands, 2 agents; an `as: command` decision moves an item from
   the skill count to the command count), every ID dotted, every agent `mode: subagent`, built-in

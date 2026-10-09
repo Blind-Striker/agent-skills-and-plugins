@@ -59,6 +59,27 @@ pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab
 pwsh -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab <lab-root>
 ```
 
+On a host without PowerShell, such as the Linux host, run the same script with a portable
+PowerShell; do not rebuild the isolation by hand or in a second script, which would have to repeat
+the environment table, the cleared variables, and the `service.json` placement. Download the
+official `powershell-<version>-linux-x64.tar.gz` and `hashes.sha256` from the PowerShell GitHub
+release into a `mktemp -d` directory (`hashes.sha256` is UTF-16; convert it with `iconv` before
+comparing SHA-256), extract the archive there, and give PowerShell its own home so that it writes
+nothing below the real one. Nothing is installed system-wide; remove the directory afterwards:
+
+```sh
+tmp=$(mktemp -d)   # holds the verified tarball, the extracted pwsh/, pwsh-home/ and lab/
+HOME="$tmp/pwsh-home" POWERSHELL_TELEMETRY_OPTOUT=1 POWERSHELL_UPDATECHECK=Off \
+  "$tmp/pwsh/pwsh" -NoProfile -File experiments/harness-invocation/oc2-discovery.ps1 -Lab "$tmp/lab"
+rm -rf "$tmp"
+```
+
+Measured on the Linux host (PowerShell 7.6.6, OpenCode 2.0.23): the dry run and a real run with one
+lab skill and an inherited `OPENCODE_CONFIG` passed unchanged, listed the lab skill plus the
+built-ins, left no lab server running, and changed nothing in the real OpenCode, `~/.claude`, or
+`~/.agents` trees. Only `oc2-discovery.ps1` with an explicit `-Lab` is portable; `Get-LabRoot` and
+`Use-OpenCodeIsolation` in `common.ps1` assume a drive-letter lab.
+
 To measure installed output, first run the installer with `OPENCODE_CONFIG_DIR=<lab-root>/config`
 and the lab's other roots (`Get-OpenCodeLabEnvironment -Root <lab-root>` in `common.ps1` names them
 all). A run fails rather than reporting a skill that resolved outside the lab. The OpenCode 1
