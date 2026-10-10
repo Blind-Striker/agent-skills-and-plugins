@@ -354,8 +354,13 @@ if (flags.has("--patch")) {
   }
   stamp();
   console.log(`Cut ${patch.split("\n").length} patch lines -> overlays/${plugin}/${name}/${PATCH_FILE}`);
-  console.log(`Next: 1) set 'body: patch' on that item in curation/${plugin}.yaml`);
-  console.log("      2) npm run build");
+  // A recut, after a rebase or an edit, lands on an item that already uses the patch.
+  if (item.body === "patch") {
+    console.log("Next: npm run build");
+  } else {
+    console.log(`Next: 1) set 'body: patch' on that item in curation/${plugin}.yaml`);
+    console.log("      2) npm run build");
+  }
   process.exit(0);
 }
 

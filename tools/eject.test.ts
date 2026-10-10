@@ -762,3 +762,25 @@ test("R11 upstream adopting every edit ends the patch instead of looping", () =>
   assert.equal(readFileSync(join(deltaDir(root), "overlay.patch"), "utf8"), old);
   assert.equal(lockText(root), lock);
 });
+
+test("R12 the cut asks for body: patch only when the item does not have it yet", () => {
+  const root = makeRepo();
+  commitUpstream(root);
+  assert.ok(eject(root, ["deniz-process", "delta", "--patch"]).ok);
+  const file = join(deltaDir(root), "SKILL.md");
+  writeFileSync(file, readFileSync(file, "utf8").replace("Delta body.", "Our delta body."));
+  const first = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(first.ok, first.out);
+  assert.match(first.out, /set 'body: patch' on that item in curation\/deniz-process\.yaml/);
+
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace("  - source: sp/skills/delta", "  - source: sp/skills/delta\n    body: patch"),
+  );
+  assert.ok(eject(root, ["deniz-process", "delta", "--patch", "--rebase"]).ok);
+  const recut = eject(root, ["deniz-process", "delta", "--patch"]);
+  assert.ok(recut.ok, recut.out);
+  assert.doesNotMatch(recut.out, /set 'body: patch'/);
+  assert.match(recut.out, /Next: npm run build/);
+});
