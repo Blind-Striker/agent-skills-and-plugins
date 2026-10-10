@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-10-10
+Date: 2026-10-11
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.7.0, General 0.10.0, Akka 0.4.0, and Aspire 0.4.0. Their item
+  Checkout Module versions are Process 0.7.0, General 0.11.0, Akka 0.4.1, and Aspire 0.4.1. Their item
   posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -46,15 +46,21 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   The rollout is done: the public `installer-v0.4.0` Package installed the four Modules fresh into
   the real OpenCode 2.0.26 profiles of the macOS workstation (the first macOS measurement) and the
   WSL distro on the Windows workstation, with every foreign file byte-identical; every existing
-  Claude Code and Codex installation of the marketplace moved to the current Module versions;
+  Claude Code and Codex installation of the marketplace moved to the Module versions of that rollout;
   real-profile smoke tests on the Windows workstation and the Linux host, both now on 2.0.26, passed
   self-diagnostics and 10 of 10 skill tries with `openai/gpt-5.6-luna` at variant `low`; and the
   migration backups were deleted
   ([rollout record](../experiments/harness-invocation/records/2026-10-09-opencode2-rollout.md)).
-- `dotnet/skills` is reviewed through `d68dd708`. General 0.10.0 carries the current test-execution,
+- `dotnet/skills` is reviewed through `d68dd708`. General carries the current test-execution,
   coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
   retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
-- Aspire 0.4.0 follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
+- `dotnet-skills` is reviewed through v1.7.0 (`29878f2`); wave W2 is done. General takes
+  `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which now
+  carries the warning-approval baseline, plus `cscheck` and `sdk-container-publishing`, whose patch
+  fixes upstream defects verified against Microsoft Learn and the dotnet/sdk source.
+  `testcontainers-integration-tests` flows unowned now that upstream teaches the Testcontainers 4.x
+  API. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key rename.
+- Aspire follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
   0.0.2 and guidance targets Aspire 13.5.3. This is a reviewed main-commit choice, not a claim that
   upstream published a 0.0.2 tag or Release. The eight-skill set and declared dependency closure are
   unchanged; the six official workflow patches continue to own only package-local routing.
@@ -91,15 +97,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Upstream sync waves W2 to W6, in this order.** All six pins are frozen at their 2026-09-06
-   positions. A cross-upstream review on 2026-10-08 read one decision packet per upstream; the
-   packets recommend a treatment for each item; every take, skip, merge, or modification is still
-   the curator's decision, and each wave measures its upstream again before it starts. A wave
-   moves one submodule, except that W4 moves `superpowers` and `asd-ste100` together.
-   - **W2 `dotnet-skills`** (3 commits ahead, v1.6.0). No taken item changed and no overlay-lock
-     stamp drifts; the only content change is the new `aot-trimming` candidate. The packet
-     recommends taking it `auto` in General, paired with the `manual` `dotnet-aot-compat` ceremony
-     the way `csharp-nullable-reference-types` pairs with its migration ceremony.
+1. **Upstream sync waves W3 to W6, in this order.** The five remaining pins are frozen at their
+   2026-09-06 positions. A cross-upstream review on 2026-10-08 read one decision packet per
+   upstream; the packets recommend a treatment for each item; every take, skip, merge, or
+   modification is still the curator's decision, and each wave measures its upstream again before
+   it starts. A wave moves one submodule, except that W4 moves `superpowers` and `asd-ste100`
+   together.
    - **W3 `aspire-skills`** (29 commits ahead). Upstream published v0.0.3 (2026-09-23); HEAD is
      three commits past it and targets Aspire 13.6, and the packet recommends HEAD because the
      post-tag commit fixes `aspire-init` guidance for 13.6. All six taken items changed and 12
@@ -160,9 +163,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      retired; MCP posture (build MCP-server emission for every harness, or record a no-ship
      decision); and the `code-testing` name and scope.
 
-   Moving several pins together fails the build: the four taken sources deleted upstream fail as
-   unknown sources, and 47 stamped upstream files across 34 of the 48 overlay-lock items no longer
-   match. Whether to exclude, relocate, or replace each deleted source is a curator decision.
+   Measured on 2026-10-08, moving the W3 to W6 pins together fails the build: the four taken
+   sources deleted upstream fail as unknown sources, and 47 stamped upstream files across 34 of the
+   then 48 overlay-lock items no longer matched. Patches added since are not in that count. Whether to exclude, relocate, or replace each deleted source is a curator decision.
 2. **Iteration 2: dependency automation and original-skill declarations.** After the upstream sync
    waves, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not

@@ -1,6 +1,6 @@
 # Skills cheatsheet: which skill, when
 
-Date: 2026-10-08
+Date: 2026-10-11
 
 Convenience routing map for the four curated Modules. This is not an authorship claim or a new
 methodology: it describes how upstream work is selected, combined, renamed, and invoked in this
@@ -77,13 +77,14 @@ Most reference skills activate when their topic appears. These are the useful de
 | Cluster | Deliberate entry points | Supporting auto-routes |
 |---|---|---|
 | API and public surface | `api-design`, `snapshot-testing` | modern C#, DI, Options, serialization, concurrency, R3 |
-| Test generation and authoring | `code-testing-agent`, `writing-tunit-tests` | framework/platform detection and test-analysis extensions |
+| Test generation and authoring | `code-testing-agent`, `writing-tunit-tests` | framework/platform detection, test-analysis extensions, and CsCheck property-based tests |
 | Test execution and quality | `run-tests`, `mtp-hot-reload`, `coverage-analysis` | anti-patterns, pseudo-mutation gap analysis, Testcontainers, Playwright, filter syntax |
 | Nullable adoption | `migrate-nullable-references` for project migration | `csharp-nullable-reference-types` for ordinary nullable-enabled code |
+| Trim/AOT adoption | `dotnet-aot-compat` for project enablement and IL-warning cleanup | `aot-trimming` for trim/AOT-safe code where analysis is already in effect |
 | Testability migrations | `generate-testability-wrappers`, then `migrate-static-to-wrapper` when approved | `detect-static-dependencies` identifies the obstacles without mutating code |
-| Build and MSBuild | `binlog-generation` then `binlog-failure-analysis`; `build-perf-baseline` first for slow builds | antipatterns, incrementality, parallelism, evaluation, props, items, targets, extensions |
+| Build and MSBuild | `binlog-generation` then `binlog-failure-analysis`; `build-perf-baseline` first for slow builds | antipatterns, incrementality, parallelism, evaluation, props, items, targets, extensions, SDK container publishing |
 | Performance | `microbenchmarking`, `analyzing-dotnet-performance` | vectorization, database performance, EF Core, serialization and allocation guidance |
-| Diagnostics and upgrade | `dotnet-trace-collect`, `dump-collect`, `dotnet-aot-compat`, `thread-abort-migration` | ILSpy and focused framework references |
+| Diagnostics and upgrade | `dotnet-trace-collect`, `dump-collect`, `thread-abort-migration` | ILSpy and focused framework references |
 | Guardrail | `dotnet-slopwatch` after code changes | static-dependency detection and other passive review knowledge |
 
 ## Specialized Modules
