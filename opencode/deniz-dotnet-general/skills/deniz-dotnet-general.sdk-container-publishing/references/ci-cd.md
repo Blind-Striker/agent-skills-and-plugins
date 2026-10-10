@@ -104,12 +104,13 @@ Building for more than one OS / arch (for example `linux-x64`, `linux-arm64` for
 
 ```bash
 dotnet publish src/MyService/MyService.csproj \
-  -p:RuntimeIdentifiers=linux-x64;linux-arm64 \
-  -p:ContainerRuntimeIdentifiers=linux-x64;linux-arm64 \
+  -p:RuntimeIdentifiers='"linux-x64;linux-arm64"' \
+  -p:ContainerRuntimeIdentifiers='"linux-x64;linux-arm64"' \
   /t:PublishContainer
 ```
 
 Key points:
+- Quote each semicolon-delimited value as shown. Unquoted, Bash ends the command at the `;`, and MSBuild splits a `-p:` value at `;` and fails with `MSB1006`.
 - The RIDs must be a subset of `RuntimeIdentifiers`, or the publish fails.
 - Multi-arch output is always an OCI image index (Docker format is unavailable for it).
 - Multi-arch support requires SDK 8.0.405, 9.0.102, or 9.0.2xx or later.

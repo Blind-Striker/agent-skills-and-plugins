@@ -127,9 +127,10 @@ items:
     # publish tags only `latest`), the `latest` default dating from .NET 8 rather than .NET 10,
     # ContainerPublishInParallel covering only multi-RID publishes, the false daemon requirement for
     # a registry push, the dead registry-auth link, the deprecated ContainerEntrypoint and the missing
-    # ContainerDefaultArgs, `docker login -p`, the multi-target entry, and authoring residue. It also
-    # adds an external-action guard, a user pointer to the manual AOT ceremony for turning PublishAot
-    # on, and a USE FOR / DO NOT USE FOR description
+    # ContainerDefaultArgs, `docker login -p`, the multi-target entry, the unquoted RID lists that
+    # break the multi-arch command in Bash and in MSBuild, and authoring residue. It also adds an
+    # external-action guard, a user pointer to the manual AOT ceremony for turning PublishAot on, and
+    # a USE FOR / DO NOT USE FOR description
     depends_on: [testcontainers-integration-tests, aot-trimming] # its Related Skills facts stay checked
   - source: dotnet-agent-skills/plugins/dotnet-nuget/skills/convert-to-cpm
     invocation: manual # one-shot repo-mutating conversion ceremony — the curator types it
