@@ -163,9 +163,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      retired; MCP posture (build MCP-server emission for every harness, or record a no-ship
      decision); and the `code-testing` name and scope.
 
-   Measured on 2026-10-08, moving the W3 to W6 pins together fails the build: the four taken
-   sources deleted upstream fail as unknown sources, and 47 stamped upstream files across 34 of the
-   then 48 overlay-lock items no longer matched. Patches added since are not in that count. Whether to exclude, relocate, or replace each deleted source is a curator decision.
+   Measured on 2026-10-08, moving the W3 to W6 pins together failed the build: the four taken
+   sources deleted upstream failed as unknown sources, and 47 stamped upstream files across 34 of
+   the then 48 overlay-lock items no longer matched. Patches added since are not in that count.
+   Whether to exclude, relocate, or replace each deleted source is a curator decision.
 2. **Iteration 2: dependency automation and original-skill declarations.** After the upstream sync
    waves, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
