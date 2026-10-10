@@ -86,7 +86,7 @@ Most of our services only override what they need and let the SDK infer the rest
 Notes:
 - No `ContainerRegistry`, no `ContainerBaseImage`, no `ContainerUser`. The SDK defaults these correctly for most ASP.NET services.
 - `ContainerPort` items expose ports without a Dockerfile.
-- Tags follow semver: the package version plus a floating `latest`.
+- The version tag needs a `VersionPrefix` set before `ContainerImageTags` is evaluated: on the command line (`-p:VersionPrefix=...`, as in the CI command below), in `Directory.Build.props`, or earlier in this file. The SDK sets its `1.0.0` default only after the project body, so a publish without one tags the image `latest` only.
 
 For the full property catalog, see [references/property-reference.md](references/property-reference.md).
 
