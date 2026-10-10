@@ -86,9 +86,14 @@ export function saveLock(root: string, lock: OverlayLock): void {
  * works the same in the real tree and in a throwaway fixture. `--no-filters` keeps the value a
  * function of the bytes alone: without it the answer depends on the caller's `core.autocrlf` and
  * clean filters, and a lock is worthless if two machines disagree about what it recorded.
+ * `core.longpaths` is set here because gitEnv() drops the system config that sets it on Windows,
+ * and a stamped file deep in a checkout can pass 260 characters.
  */
 export function blobSha(file: string): string {
-  return execFileSync("git", ["hash-object", "--no-filters", "--", file], { encoding: "utf8", env: gitEnv() }).trim();
+  return execFileSync("git", ["-c", "core.longpaths=true", "hash-object", "--no-filters", "--", file], {
+    encoding: "utf8",
+    env: gitEnv(),
+  }).trim();
 }
 
 /**

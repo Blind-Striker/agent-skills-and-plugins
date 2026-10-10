@@ -1,9 +1,26 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { makeRepo } from "../testutil.ts";
-import { driftedFiles, driftedMergeSources, type LockEntry, stampFiles, stampMergeFiles } from "./overlay.ts";
+import { blobSha, driftedFiles, driftedMergeSources, type LockEntry, stampFiles, stampMergeFiles } from "./overlay.ts";
+
+test("blobSha hashes a file whose absolute path is longer than 260 characters", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "blob-"));
+  try {
+    const dir = join(tmp, ...Array.from({ length: 6 }, (_, i) => `${"d".repeat(40)}${i}`));
+    mkdirSync(dir, { recursive: true });
+    const file = join(dir, "references-with-a-long-name.md");
+    assert.ok(file.length > 260);
+    writeFileSync(file, "body\n");
+    const expected = createHash("sha1").update("blob 5\0body\n").digest("hex");
+    assert.equal(blobSha(file), expected);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+});
 
 test("stampMergeFiles records a sha per present file and null per absent one", () => {
   const root = makeRepo();
