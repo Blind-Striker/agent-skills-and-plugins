@@ -91,22 +91,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **W1: shared sync infrastructure, before any pin moves — in progress.** A cross-upstream review on
-   2026-10-08 read one decision packet per upstream and deduplicated the infrastructure the waves
-   need. Its first wave, W0 (harness phrasing, handoff templates, and path claims), landed with the
-   OpenCode 2 migration. W1 is the tooling every later wave depends on. Its rules are decided and
-   written into canon: the rebase and bless ceremonies and the deleted-source rule in
-   [workflow](engineering/workflow.md#manifest-and-body-edit-flow), the authoring consequences in
-   [`curation/SCHEMA.md`](../curation/SCHEMA.md), and the path grammar and ledger-history estate
-   names in [references and linking](architecture/references-and-linking.md#handoff-templates). The
-   transient [spec](superpowers/specs/2026-10-09-w1-sync-infrastructure-design.md) and
-   [plan](superpowers/plans/2026-10-09-w1-sync-infrastructure.md) carry the design and its tasks.
-   The implementation has landed; the closeout is plan task W1.13.
-2. **Upstream sync waves W2 to W6, in this order.** All six pins are frozen at their 2026-09-06
-   positions. The 2026-10-08 packets recommend a treatment for each item; every take, skip, merge,
-   or modification is still the curator's decision, and each wave measures its upstream again
-   before it starts. A wave moves one submodule, except that W4 moves `superpowers` and
-   `asd-ste100` together.
+1. **Upstream sync waves W2 to W6, in this order.** All six pins are frozen at their 2026-09-06
+   positions. A cross-upstream review on 2026-10-08 read one decision packet per upstream; the
+   packets recommend a treatment for each item; every take, skip, merge, or modification is still
+   the curator's decision, and each wave measures its upstream again before it starts. A wave
+   moves one submodule, except that W4 moves `superpowers` and `asd-ste100` together.
    - **W2 `dotnet-skills`** (3 commits ahead, v1.6.0). No taken item changed and no overlay-lock
      stamp drifts; the only content change is the new `aot-trimming` candidate. The packet
      recommends taking it `auto` in General, paired with the `manual` `dotnet-aot-compat` ceremony
@@ -174,7 +163,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Moving several pins together fails the build: the four taken sources deleted upstream fail as
    unknown sources, and 47 stamped upstream files across 34 of the 48 overlay-lock items no longer
    match. Whether to exclude, relocate, or replace each deleted source is a curator decision.
-3. **Iteration 2: dependency automation and original-skill declarations.** After the upstream sync
+2. **Iteration 2: dependency automation and original-skill declarations.** After the upstream sync
    waves, address automatic dependency installation, cascade remove, version-range resolution, and
    the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
    the first feature. Selection/Ownership semantics, user approval for automatic changes, and version
@@ -210,7 +199,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    One consequence needs a curator decision when this lands. The example's `test-driven-development`
    edge targets a Process item, so it would add a General -> Process `requiredModules` edge; General
    requires only Aspire today.
-4. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -225,7 +214,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    `aot-trimming` against `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild
    specialists, `directory-build-organization` against `convert-to-cpm`, and `code-testing` against
    `systematic-debugging`; W4 or W6 is the natural first run.
-5. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
