@@ -3,7 +3,6 @@ name: akka-net-management
 description: Akka.Management for cluster bootstrapping, service discovery
   (Kubernetes, Azure, Config), health checks, and dynamic cluster formation
   without static seed nodes.
-invocable: false
 user-invocable: false
 ---
 

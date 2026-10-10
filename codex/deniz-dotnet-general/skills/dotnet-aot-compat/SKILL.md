@@ -217,6 +217,22 @@ Build all target frameworks to ensure:
 dotnet build <project.csproj>  # builds all TFMs
 ```
 
+### Optional: lock the remaining warnings with a temporary baseline
+
+Use a warning-approval baseline only as a migration aid, when a run stops short of 0 IL warnings — for
+example, when the Stop Signals below leave warnings that need architectural refactoring — and the user
+wants the remaining set locked. A baseline neither fixes nor suppresses a warning: every baselined
+warning still appears in the build, and the Critical Rules above still apply to every fix.
+
+1. Keep the analyzers from Step 1 enabled (`IsAotCompatible` implies `EnableTrimAnalyzer` and `EnableAotAnalyzer`).
+2. Build, capture the `IL2xxx`/`IL3xxx` diagnostics, scrub volatile parts (absolute paths, line numbers), normalize separators, and group by file.
+3. Store the result as an approved baseline (a checked-in text file).
+4. Add an approval test that compares the current warnings against the baseline on every build. A new warning fails the build: fix it with the strategies above. Only the user approves a new warning into the baseline, in the same PR; never extend the baseline to make a build pass.
+
+Once the warning set is empty, delete the approval test and the checked-in warning file, and enforce
+trimming directly through the project analyzers and publish validation. A permanent baseline can hide
+regressions behind an ever-growing list.
+
 ## Stop Signals
 
 - **Do not analyze more than 2-3 representative files per warning pattern.** After identifying the fix for a pattern, apply it to all matching files without reading each one first.

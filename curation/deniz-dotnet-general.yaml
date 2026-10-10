@@ -28,13 +28,14 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.10.0
+  version: 0.11.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
     invocation: auto # the module's spine; passive C# convention knowledge. Tolerated upstream
-    # content bug: the main body endorses generic Result<T,TError> while its companion file says
-    # don't build generic Results — runtime content, flows as shipped
+    # content inconsistency: the Result-type summary now prefers a domain-specific result type, while
+    # the DO list, the Code Organization example, and performance-and-api-design.md still use a
+    # generic Result<T, TError> — runtime content, flows as shipped
   - source: dotnet-skills/skills/csharp-nullable-reference-types
     invocation: auto # passive NRT semantics for writing and review where nullable context is already
     # enabled. Project/solution adoption and systematic CS86xx cleanup remain the existing manual
@@ -44,6 +45,17 @@ items:
       description: "Apply C# nullable-reference-type semantics where nullable context is already enabled: null-state flow, T? and !, API contracts, System.Diagnostics.CodeAnalysis nullable attributes, and gated C# 14 field-backed-property analysis. USE FOR: writing, refactoring, or reviewing nullable-aware C#. DO NOT USE FOR: enabling NRT across an existing project, systematic CS86xx cleanup, or migration planning; the user invokes migrate-nullable-references separately."
     body: patch # removes migration activation and the omitted playbook links, preserving passive
     # flow/API/attribute knowledge and a user pointer to the manual migration ceremony
+  - source: dotnet-skills/skills/aot-trimming
+    invocation: auto # passive trimming/AOT design and attribute knowledge for code being written,
+    # refactored, or reviewed where trim/AOT analysis is in effect. Enabling it across an existing
+    # project and systematic IL-warning cleanup remain the manual dotnet-aot-compat ceremony, the
+    # same pairing as nullable reference types, so the two items do not trigger-compete. No omit:
+    # unlike the NRT playbook, this playbook is design knowledge that only this item carries.
+    body: patch # rescopes the description and When to Use to code in scope, adds a user pointer to
+    # the manual ceremony, lets only a new project declare the trim/AOT properties, states that the
+    # ceremony's no-suppression rule governs inside it and a justified leaf suppression is allowed
+    # outside it, and removes the warning-approval baseline, which moved into dotnet-aot-compat. The
+    # serialization see-also stays candidate prose.
   - source: dotnet-skills/skills/csharp-api-design
     invocation: auto # extend-only public API + wire compatibility; the NuGet/distributed side of design
   - source: dotnet-skills/skills/csharp-concurrency-patterns
@@ -103,6 +115,20 @@ items:
     invocation: auto # daily CPM/NuGet CLI discipline; its "never edit XML" absolutism is upstream content, tolerated
   - source: dotnet-skills/skills/local-tools
     invocation: auto # dotnet-tools.json manifest discipline; pairs with project-structure
+  - source: dotnet-skills/skills/sdk-container-publishing
+    invocation: auto # SDK-built container images (PublishContainer and the Container* properties) and
+    # their CI publish step; no other item carries this knowledge, and aspire-deployment covers only
+    # images deployed through an Aspire AppHost
+    omit: [references/real-world-examples.md] # duplicates ci-cd.md with upstream-organization detail;
+    # the patch re-points its one link to ci-cd.md
+    body: patch # fixes upstream defects verified against Microsoft Learn and the dotnet/sdk source:
+    # CONTAINER2008 between the csproj tag list and the CI tag flag, the `latest` default dating from
+    # .NET 8 rather than .NET 10, ContainerPublishInParallel covering only multi-RID publishes, the
+    # false daemon requirement for a registry push, the dead registry-auth link, the deprecated
+    # ContainerEntrypoint and the missing ContainerDefaultArgs, `docker login -p`, the multi-target
+    # entry, and authoring residue. It also adds an external-action guard, a user pointer to the
+    # manual AOT ceremony for turning PublishAot on, and a USE FOR / DO NOT USE FOR description
+    depends_on: [testcontainers-integration-tests, aot-trimming] # its Related Skills facts stay checked
   - source: dotnet-agent-skills/plugins/dotnet-nuget/skills/convert-to-cpm
     invocation: manual # one-shot repo-mutating conversion ceremony — the curator types it
   # The MSBuild estate is taken whole as knowledge (curator's call): Microsoft's own
@@ -210,13 +236,16 @@ items:
     body: patch # user invokes the wrapper-creation ceremony separately first
   - source: dotnet-skills/skills/snapshot-testing
     invocation: auto # general Verify knowledge: API, HTTP, serialization, objects, rendered output
-    body: patch # email-authoring branches and their dead handoff are outside the curator's flow
+    body: patch # email-authoring branches and their handoff to the excluded email skills are outside
+    # the curator's flow
   - source: dotnet-skills/skills/testcontainers
     invocation: auto # real-infra integration testing without Aspire — no substitute in the corpus.
-    # Curator's call: taken despite teaching the pre-3.0 TestcontainersBuilder<T> API;
-    # the patch rewrites every builder example (containers AND networks) to the post-3.0 API, fixes the
-    # non-compiling MigrationTests/Respawn fixtures, and fronts the typed module packages
-    body: patch
+    # Upstream now teaches the Testcontainers 4.x module-builder API itself, so the body flows unowned
+  - source: dotnet-skills/skills/cscheck
+    invocation: auto # CsCheck property-based, model-based, and Spec test knowledge, unique in the corpus;
+    # the curator chose CsCheck as the property-testing library. Its body is framework-neutral by its
+    # own text, so it flows unchanged: TUnit syntax comes from writing-tunit-tests, and under TUnit an
+    # awaited assertion goes inside SampleAsync, because an unawaited one fails the build loudly
   - source: dotnet-skills/skills/playwright-blazor
     invocation: auto # Blazor UI *testing* knowledge; the Blazor authoring estate is deferred, this is not
   - source: dotnet-skills/skills/slopwatch
@@ -252,6 +281,13 @@ items:
     invocation: manual # Thread.Abort → cooperative cancellation — typed
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat
     invocation: manual # trim/AOT ceremony — typed; its in-ceremony process discipline left as shipped
+    body: patch # takes in the warning-approval baseline from aot-trimming's playbook as an optional,
+    # temporary migration aid inside this ceremony: it locks the warnings a run could not fix, never
+    # suppresses one, and is deleted once the warning set is empty. Setting it up changes the
+    # repository, so it belongs here rather than in the auto partner, which no longer carries it
+    merged_from:
+      - source: dotnet-skills/skills/aot-trimming
+        files: [aot-trimming-playbook-reference.md]
 
   # ======== exclusions — every one a considered reject, reason beside it ========
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/grade-tests

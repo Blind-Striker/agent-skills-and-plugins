@@ -2,19 +2,19 @@
   "deniz-dotnet-akka/akka-hosting-actor-patterns": {
     "source": "dotnet-skills/skills/akka-hosting-actor-patterns",
     "files": {
-      "SKILL.md": "4491a4797c427d2ed23553c7f5b44fb438e0e8ce"
+      "SKILL.md": "6ea71a8972da5717983936d8b1f0188f173c716e"
     }
   },
   "deniz-dotnet-akka/akka-net-aspire-configuration": {
     "source": "dotnet-skills/skills/akka-aspire-configuration",
     "files": {
-      "SKILL.md": "ec7f15f826f360161ac82e24372107e5d7336062"
+      "SKILL.md": "dda2c25bfb7bdfaaf3d77e8ce9f9cc69cbb34421"
     }
   },
   "deniz-dotnet-akka/akka-net-management": {
     "source": "dotnet-skills/skills/akka-management",
     "files": {
-      "SKILL.md": "6c0d0ab4fedfba8d244f6f055310d96e3e8d2613"
+      "SKILL.md": "bd55f86d8f8f2ad0527f96bc8e8a1d895bc53fbc"
     }
   },
   "deniz-dotnet-aspire/aspire": {
@@ -61,6 +61,13 @@
       "SKILL.md": "30eac9f193e8a953b22c0253dde4c1088c7f451b",
       "references/typescript-authoring.md": "47e2d209984dd7cc1bf1ac96bb2f28717484e8d0",
       "references/validation.md": "8dc6f326b890383edad4878488d03962cf277401"
+    }
+  },
+  "deniz-dotnet-general/aot-trimming": {
+    "source": "dotnet-skills/skills/aot-trimming",
+    "files": {
+      "SKILL.md": "f096afeb5730f216de77d6daca3154d60199d414",
+      "aot-trimming-playbook-reference.md": "1d1ed9d4d4235fff4ef1d0df3ad053e91e8ca327"
     }
   },
   "deniz-dotnet-general/binlog-failure-analysis": {
@@ -120,7 +127,7 @@
   "deniz-dotnet-general/database-performance": {
     "source": "dotnet-skills/skills/database-performance",
     "files": {
-      "SKILL.md": "38e63cc439d36a48fe2ced7763ec62e3ecf8dcac"
+      "SKILL.md": "09a0f6841729ef85a60905aa379d09b319a6dfef"
     },
     "mergeSources": {
       "dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries": {
@@ -134,10 +141,21 @@
       "SKILL.md": "7d15517a9cd259ac71e7556e986697c235c58cbc"
     }
   },
+  "deniz-dotnet-general/dotnet-aot-compat": {
+    "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat",
+    "files": {
+      "SKILL.md": "bcfeca1068e3ed65c92fb0cc2ba5c9de427ff066"
+    },
+    "mergeSources": {
+      "dotnet-skills/skills/aot-trimming": {
+        "aot-trimming-playbook-reference.md": "1d1ed9d4d4235fff4ef1d0df3ad053e91e8ca327"
+      }
+    }
+  },
   "deniz-dotnet-general/dotnet-devcert-trust": {
     "source": "dotnet-skills/skills/dotnet-devcert-trust",
     "files": {
-      "SKILL.md": "6a530618fdc99a6fbb89773027ecf983bebf836f"
+      "SKILL.md": "4fd62ed5ed98a19bb5feb0ddc599c8f5d08bb342"
     }
   },
   "deniz-dotnet-general/dotnet-trace-collect": {
@@ -156,7 +174,7 @@
   "deniz-dotnet-general/efcore-patterns": {
     "source": "dotnet-skills/skills/efcore-patterns",
     "files": {
-      "SKILL.md": "129f403bb0526045eb666ee5404149904eff87a5"
+      "SKILL.md": "e9d5bdce82c988d4ef74f234d92347a9220a0926"
     },
     "mergeSources": {
       "dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries": {
@@ -211,10 +229,19 @@
       "SKILL.md": "0dcb1d26ad939a66eb31350db5e13a82a290311b"
     }
   },
+  "deniz-dotnet-general/sdk-container-publishing": {
+    "source": "dotnet-skills/skills/sdk-container-publishing",
+    "files": {
+      "SKILL.md": "d17fb9ee6ed1a3cf19188d0d0b2beb8f918db4b0",
+      "references/ci-cd.md": "7bc7c976f958dbfc7eb4b0aa173efdf937c6f107",
+      "references/property-reference.md": "3da45df0ec1fc7feeeb75d360faaa26501cb9ee3",
+      "references/troubleshooting.md": "843cd183a6be2b3ac67f8361d33bcf6a8f403548"
+    }
+  },
   "deniz-dotnet-general/snapshot-testing": {
     "source": "dotnet-skills/skills/snapshot-testing",
     "files": {
-      "SKILL.md": "a30f75f5d86a8902577ebe1f25717dd3d78b373d"
+      "SKILL.md": "7ff25dbcb86f2691ea2e37e31c08e1decf63067e"
     }
   },
   "deniz-dotnet-general/test-analysis-extensions": {
@@ -245,14 +272,6 @@
     "files": {
       "SKILL.md": "37d6654c6b94f9c2d3274d59e90be6e4e3cef9c0",
       "references/mutation-catalog.md": "78d6d94310fb3e232f726760f6989a436e3b570d"
-    }
-  },
-  "deniz-dotnet-general/testcontainers-integration-tests": {
-    "source": "dotnet-skills/skills/testcontainers",
-    "files": {
-      "SKILL.md": "c42428270f15fb23acb0b81ed5f69c53176d27fa",
-      "database-patterns.md": "34cfe9b7f11c34a498044c1673b18b03990ce47a",
-      "infrastructure-patterns.md": "de33ff0f4683961c131a058cea90de54a15619ed"
     }
   },
   "deniz-process/ask-deniz": {

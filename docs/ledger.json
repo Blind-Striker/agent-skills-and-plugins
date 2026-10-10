@@ -77,7 +77,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -98,7 +98,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -150,7 +150,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -175,7 +175,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -207,7 +207,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -226,7 +226,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -266,7 +266,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -287,7 +287,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -319,7 +319,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -338,7 +338,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -571,7 +571,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -590,7 +590,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -755,7 +755,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -774,7 +774,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -938,6 +938,66 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/aot-trimming": {
+    "source": "dotnet-skills/skills/aot-trimming",
+    "invocation": "auto",
+    "body": "patch",
+    "description": "Apply .NET trimming and Native AOT semantics to code being written or reviewed where trim/AOT analysis is already in effect: the trimming/AOT model, RequiresUnreferencedCode / RequiresDynamicCode / DynamicallyAccessedMembers / UnconditionalSuppressMessage / DynamicDependency semantics, IL2xxx/IL3xxx meaning, and design patterns (source-generated registration, UnsafeAccessor, generated-interception suppressors, intentional scanning boundaries, trimming-safe islands and feature switches, object-to-generic overloads, migration analyzers). For System.Text.Json AOT scenarios, see also the serialization skill. USE FOR: writing, refactoring, or reviewing reflection-touching code that must stay trim/AOT-safe, including the IL warnings that code raises. DO NOT USE FOR: enabling IsTrimmable/IsAotCompatible/PublishAot across an existing project or systematic IL-warning cleanup; the user invokes dotnet-aot-compat separately.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "deniz-dotnet-general:dotnet-aot-compat"
+        ]
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.aot-trimming",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": [
+          "@deniz-dotnet-general.dotnet-aot-compat"
+        ]
+      },
+      "dropped": [
+        "tags",
+        "version"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:aot-trimming",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": [
+          "$deniz-dotnet-general:dotnet-aot-compat"
+        ]
+      },
+      "dropped": [
+        "tags",
+        "version"
+      ],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/api-design": {
     "source": "dotnet-skills/skills/csharp-api-design",
     "invocation": "auto",
@@ -965,7 +1025,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -984,7 +1044,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -1581,6 +1641,53 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/cscheck": {
+    "source": "dotnet-skills/skills/cscheck",
+    "invocation": "auto",
+    "description": "Write and simplify C# property-based, model-based, and executable specification tests with CsCheck. Use for generators, shrinking, stateful command sequences, Spec guards and rules, implementation conformance, or replaying generated failures.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.cscheck",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:cscheck",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/csharp-concurrency-patterns": {
     "source": "dotnet-skills/skills/csharp-concurrency-patterns",
     "invocation": "auto",
@@ -1608,7 +1715,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -1627,7 +1734,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -1772,8 +1879,8 @@
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "tags"
+        "tags",
+        "user-invocable"
       ]
     },
     "codex": {
@@ -1792,8 +1899,8 @@
         "pointer": []
       },
       "dropped": [
-        "invocable",
-        "tags"
+        "tags",
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -1825,7 +1932,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -1844,7 +1951,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -1951,6 +2058,10 @@
   "deniz-dotnet-general/skill/dotnet-aot-compat": {
     "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat",
     "invocation": "manual",
+    "body": "patch",
+    "mergedFrom": [
+      "dotnet-skills/skills/aot-trimming"
+    ],
     "description": "Make .NET projects compatible with Native AOT and trimming by systematically resolving IL trim/AOT analyzer warnings. USE FOR: making projects AOT-compatible, fixing trimming warnings, resolving IL warnings (IL2026, IL2070, IL2067, IL2072, IL3050), adding DynamicallyAccessedMembers annotations, enabling IsAotCompatible. DO NOT USE FOR: publishing native AOT binaries, optimizing binary size, replacing reflection-heavy libraries with alternatives. INVOKES: no tools — pure knowledge skill.\n",
     "claude": {
       "artifacts": [
@@ -2031,7 +2142,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -2052,7 +2163,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -2084,7 +2195,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -2103,7 +2214,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -2184,7 +2295,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -2203,7 +2314,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -2231,9 +2342,7 @@
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "invocable"
-      ]
+      "dropped": []
     },
     "codex": {
       "artifacts": [
@@ -2250,9 +2359,7 @@
         "model": [],
         "pointer": []
       },
-      "dropped": [
-        "invocable"
-      ],
+      "dropped": [],
       "bodyTransformations": []
     }
   },
@@ -2440,7 +2547,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -2459,7 +2566,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -2945,7 +3052,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -2964,7 +3071,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -3148,7 +3255,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -3167,7 +3274,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -3468,7 +3575,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -3487,7 +3594,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -3568,7 +3675,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -3587,7 +3694,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -3668,7 +3775,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -3687,7 +3794,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -3755,6 +3862,77 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/sdk-container-publishing": {
+    "source": "dotnet-skills/skills/sdk-container-publishing",
+    "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "aot-trimming",
+      "testcontainers-integration-tests"
+    ],
+    "description": "Publish .NET services as container images with the built-in SDK tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) - no Dockerfile required. Covers the MSBuild property surface, base-image inference, self-contained and AOT implications, and CI/CD publishing. USE FOR: configuring or troubleshooting SDK-built container images and their CI publish step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost (aspire-deployment), running containers in tests (testcontainers-integration-tests), or turning on PublishAot in an existing project.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:aot-trimming",
+          "deniz-dotnet-general:testcontainers-integration-tests"
+        ],
+        "pointer": [
+          "deniz-dotnet-general:dotnet-aot-compat"
+        ]
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.sdk-container-publishing",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general.aot-trimming",
+          "deniz-dotnet-general.testcontainers-integration-tests"
+        ],
+        "pointer": [
+          "@deniz-dotnet-general.dotnet-aot-compat"
+        ]
+      },
+      "dropped": [
+        "invocable"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:sdk-container-publishing",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:aot-trimming",
+          "$deniz-dotnet-general:testcontainers-integration-tests"
+        ],
+        "pointer": [
+          "$deniz-dotnet-general:dotnet-aot-compat"
+        ]
+      },
+      "dropped": [
+        "invocable"
+      ],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/serialization": {
     "source": "dotnet-skills/skills/serialization",
     "invocation": "auto",
@@ -3782,7 +3960,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -3801,7 +3979,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -3834,7 +4012,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -3853,7 +4031,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }
@@ -4083,7 +4261,6 @@
   "deniz-dotnet-general/skill/testcontainers-integration-tests": {
     "source": "dotnet-skills/skills/testcontainers",
     "invocation": "auto",
-    "body": "patch",
     "description": "Write integration tests using TestContainers for .NET with xUnit. Covers infrastructure testing with real databases, message queues, and caches in Docker containers instead of mocks.",
     "claude": {
       "artifacts": [
@@ -4108,7 +4285,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ]
     },
     "codex": {
@@ -4127,7 +4304,7 @@
         "pointer": []
       },
       "dropped": [
-        "invocable"
+        "user-invocable"
       ],
       "bodyTransformations": []
     }

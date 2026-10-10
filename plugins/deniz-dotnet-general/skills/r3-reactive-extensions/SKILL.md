@@ -5,7 +5,6 @@ description: Build reactive/event-driven C# with R3 (Cysharp's modern
   model, the OnErrorResume error contract, async dispatch with AwaitOperation,
   Task/IAsyncEnumerable integration, TimeProvider/FrameProvider scheduling, the
   concurrency contract, and how R3 differs from System.Reactive (Rx.NET).
-invocable: false
 user-invocable: false
 ---
 

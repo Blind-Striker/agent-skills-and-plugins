@@ -1,0 +1,214 @@
+diff --git a/SKILL.md b/SKILL.md
+index f096afe..09c60ad 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,27 +1,30 @@
+ ---
+ name: aot-trimming
+-description: "Guidelines for making .NET libraries and applications trimming-safe and Native AOT compatible. Covers the trimming/AOT model, the MSBuild properties that enable analysis (IsTrimmable, IsAotCompatible, PublishTrimmed, PublishAot), the trimming attributes (RequiresUnreferencedCode, RequiresDynamicCode, DynamicallyAccessedMembers, UnconditionalSuppressMessage), IL2xxx/IL3xxx warning codes, and a pattern playbook: source generators and UnsafeAccessor, generated-interception diagnostic suppressors, intentional runtime scanning boundaries, trimming-safe islands and feature switches, migration analyzers, and temporary warning-approval baselines. Use when introducing trimming/AOT support, resolving IL2xxx/IL3xxx warnings, or making reflection-heavy code trimming-safe in C# / .NET codebases. For System.Text.Json AOT scenarios, see also the serialization skill."
++description: "Apply .NET trimming and Native AOT semantics to code being written or reviewed where trim/AOT analysis is already in effect: the trimming/AOT model, RequiresUnreferencedCode / RequiresDynamicCode / DynamicallyAccessedMembers / UnconditionalSuppressMessage / DynamicDependency semantics, IL2xxx/IL3xxx meaning, and design patterns (source-generated registration, UnsafeAccessor, generated-interception suppressors, intentional scanning boundaries, trimming-safe islands and feature switches, object-to-generic overloads, migration analyzers). For System.Text.Json AOT scenarios, see also the serialization skill. USE FOR: writing, refactoring, or reviewing reflection-touching code that must stay trim/AOT-safe, including the IL warnings that code raises. DO NOT USE FOR: enabling IsTrimmable/IsAotCompatible/PublishAot across an existing project or systematic IL-warning cleanup; the user invokes dotnet-aot-compat separately."
+ version: 1.0.0
+ tags:
+   - csharp
+   - dotnet
+   - aot
+   - trimming
+   - nativeaot
+   - code-quality
+ ---
+ 
+ # .NET Trimming and Native AOT
+ 
++This skill assumes trim/AOT analysis is already in effect for the code in scope. To enable trimming or
++AOT across an existing project, or for systematic IL-warning cleanup, ask the user to invoke
++`/dotnet-upgrade:dotnet-aot-compat`; do not perform that work through this skill.
++
+ ## When to Use
+ 
+-- Adding trimming (`PublishTrimmed`) or Native AOT (`PublishAot`) support to a library or application
+-- Resolving `IL2xxx` (trimming) and `IL3xxx` (AOT/single-file) warnings
++- Resolving the `IL2xxx` (trimming) and `IL3xxx` (AOT/single-file) warnings raised by the code in scope
+ - Making reflection-heavy code trimming-safe
+ - Replacing runtime reflection, assembly scanning, or `Reflection.Emit` with compile-time alternatives
+ - Reviewing a codebase or PR for trimming/AOT compatibility, including generated interceptors and analyzer suppressors
+ - Designing public APIs that must carry trimming annotations
+ 
+ ## Core Goals
+ 
+ - Produce code that survives the linker's reachability analysis and runs under Native AOT (no JIT).
+@@ -48,29 +51,33 @@ A library can be trimmable but **not** AOT-compatible (it uses `Reflection.Emit`
+ Both are solved the same way: make the required members *statically visible* to the analyzer, or remove the need for reflection entirely.
+ 
+ ### Reflection is not the enemy
+ 
+ Reflection is a legitimate technique and is completely fine in ordinary JIT applications — you need none of this there. The trimming attributes exist to *allow* reflection under trimming/AOT, not to forbid it: annotate what reflection needs, and the linker keeps it. Reach for source generators, `[UnsafeAccessor]`, or capability gating only when you want a specific reflective surface removed or contained (for example, a public registration API you do not want to ship with `[RequiresUnreferencedCode]`).
+ 
+ ## Project Configuration
+ 
+-For a **library**, declare compatibility so the analyzers surface warnings and consumers know:
++Declare these properties only on a **new** project you are creating. Adopting them in an existing
++project is the job of the manual ceremony named above; for existing code, confirm what the project
++already declares before applying this guidance.
++
++For a new **library**, declare compatibility so the analyzers surface warnings and consumers know:
+ 
+ ```xml
+ <PropertyGroup>
+   <!-- Trim-compatible: enables trim warnings. -->
+   <IsTrimmable>true</IsTrimmable>
+ 
+   <!-- AOT-compatible: implies IsTrimmable + EnableTrimAnalyzer + EnableSingleFileAnalyzer + EnableAotAnalyzer. -->
+   <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
+ </PropertyGroup>
+ ```
+ 
+-For an **application**, publish trimmed or AOT:
++For a new **application**, publish trimmed or AOT:
+ 
+ ```xml
+ <PropertyGroup>
+   <PublishTrimmed>true</PublishTrimmed>
+   <!-- or -->
+   <PublishAot>true</PublishAot>
+ </PropertyGroup>
+ ```
+@@ -89,17 +96,17 @@ A **test app** that roots the library is the standard way to validate a library:
+   <PublishTrimmed>true</PublishTrimmed>
+ </PropertyGroup>
+ <ItemGroup>
+   <ProjectReference Include="..\MyLibrary\MyLibrary.csproj" />
+   <TrimmerRootAssembly Include="MyLibrary" />
+ </ItemGroup>
+ ```
+ 
+-See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md) for the full property table, feature switches, and the warning-approval baseline pattern.
++See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md) for the full property table and feature switches.
+ 
+ ## The Attribute Model
+ 
+ These live in `System.Diagnostics.CodeAnalysis`. See [trimming-attributes-reference.md](trimming-attributes-reference.md) for the full catalog with exact signatures, warning codes, and rules.
+ 
+ - `[RequiresUnreferencedCode(message)]` — marks code that needs members the linker cannot see. Suppresses warnings *inside*; emits `IL2026` at every call site.
+ - `[RequiresDynamicCode(message)]` — marks code that needs a JIT (emitting, dynamic). Emits `IL3050` at call sites.
+ - `[DynamicallyAccessedMembers(memberTypes)]` — declares which members of a `Type`/`string` must be preserved. Flows *backward* from the reflection site to the `Type` source. Scope it (and the other attributes) to a single accessor by placing the attribute directly on the accessor, or with the `[method:]`, `[field:]`, or `[return:]` targets.
+@@ -128,31 +135,34 @@ The goal is never "remove all reflection"; it is *make the reflection statically
+ - **Keep the reflection and annotate it** — the common case. Put `[DynamicallyAccessedMembers(...)]` on the `Type`/`string` source and propagate it through the chain; mark entry points `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]`. The attributes exist precisely to let reflection work under trimming. See [trimming-attributes-reference.md](trimming-attributes-reference.md).
+ 
+ - **Replace the reflection with a compile-time alternative** — when you want a reflective surface gone (for example, a public registration API you do not want to ship with `[RequiresUnreferencedCode]`). A **source generator** emits direct type references (marker attribute → generated registration); `[UnsafeAccessor]` replaces `FieldInfo`/`MethodInfo`/`ConstructorInfo`. See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md#source-generators-and-compile-time-registration) and [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md#unsafe-accessors-for-non-public-members).
+ 
+ - **Isolate a whole dynamic path** — when a path is inherently dynamic (emitting proxies, loading plugins by name), move it behind a boundary and provide a trimming-safe alternative selected by `RuntimeFeature.IsDynamicCodeSupported`. See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md#trimming-safe-islands).
+ 
+ - **Suppress only as a last resort** — a single `[UnconditionalSuppressMessage(...)]` at an invariant-proven leaf, with a `Justification`. Never `#pragma` (not persisted in IL).
+ 
+-See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md) for the full playbook, including object-overload → generic-overload redirects, generated-interception suppressors, intentional scanning boundaries, migration analyzers, strict-mode precedence, and temporary warning-approval baselines.
++Inside the `/dotnet-upgrade:dotnet-aot-compat` ceremony, its no-suppression rule governs. Outside it, a
++justified leaf `[UnconditionalSuppressMessage]` with a proven invariant and a `Justification` is allowed.
++
++See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md) for the full playbook, including object-overload → generic-overload redirects, generated-interception suppressors, intentional scanning boundaries, migration analyzers, and strict-mode precedence.
+ 
+ ## Reference Files
+ 
+ - [trimming-attributes-reference.md](trimming-attributes-reference.md): The complete attribute catalog — `RequiresUnreferencedCode`, `RequiresDynamicCode`, `DynamicallyAccessedMembers` (full `DynamicallyAccessedMemberTypes` list), `UnconditionalSuppressMessage`, `DynamicDependency` — each with intent, exact signature, and rules, plus the `IL2xxx`/`IL3xxx` warning-code table.
+-- [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md): The full pattern playbook — source generators vs reflection, trimming-safe islands and capability guards, separating safe/unsafe code, System.Text.Json source generation, object-overload → generic-overload redirects with `[OverloadResolutionPriority]` and opt-in analyzers, migration analyzers, warning-approval baselines, known gotchas, and the full generation checklist.
++- [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md): The full pattern playbook — source generators vs reflection, trimming-safe islands and capability guards, separating safe/unsafe code, System.Text.Json source generation, object-overload → generic-overload redirects with `[OverloadResolutionPriority]` and opt-in analyzers, migration analyzers, known gotchas, and the full generation checklist.
+ 
+ ## Generation Checklist (Summary)
+ 
+-1. **Project** — `IsTrimmable`/`IsAotCompatible` on libraries; `PublishTrimmed`/`PublishAot` on apps; zero warnings on publish.
++1. **Project** — trim/AOT analysis is already in effect for the code in scope, or you are creating a new project that declares it (`IsTrimmable`/`IsAotCompatible` on libraries; `PublishTrimmed`/`PublishAot` on apps); otherwise route the user to the manual ceremony. Zero warnings on publish.
+ 2. **Make reflection visible (or replace it)** — annotate the reflection you keep (`DynamicallyAccessedMembers`/`RequiresUnreferencedCode`/`RequiresDynamicCode`); replace it with source generators, generic (`typeof(T)`) APIs, or `[UnsafeAccessor]` only where you want the reflective surface gone.
+ 3. **Annotate** — narrowest `DynamicallyAccessedMembers` on every `Type`/`string` source; propagate through the chain; `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]` on unsafe entry points.
+ 4. **Isolate** — keep unsafe reflective/emit code behind a boundary; gate *dynamic-code* paths with `RuntimeFeature.IsDynamicCodeSupported`, and separate *trimming* paths with `#if` or annotations.
+ 5. **Suppress** — only with `[UnconditionalSuppressMessage]` + justification at invariant-proven leaves; never `#pragma`/`SuppressMessage`.
+-6. **Verify** — publish trimmed and AOT, run analyzers, and lock the warning surface with an approval baseline.
++6. **Verify** — publish trimmed and AOT, run analyzers, and confirm zero warnings.
+ 
+ ## References
+ 
+ - [Trimming options](https://learn.microsoft.com/dotnet/core/deploying/trimming/trimming-options)
+ - [Prepare .NET libraries for trimming](https://learn.microsoft.com/dotnet/core/deploying/trimming/prepare-libraries-for-trimming)
+ - [Introduction to trim warnings](https://learn.microsoft.com/dotnet/core/deploying/trimming/fixing-warnings)
+ - [Native AOT deployment](https://learn.microsoft.com/dotnet/core/deploying/native-aot/)
+ - [ILLink error codes](https://github.com/dotnet/runtime/blob/main/docs/tools/illink/error-codes.md)
+diff --git a/aot-trimming-playbook-reference.md b/aot-trimming-playbook-reference.md
+index 1d1ed9d..3f4d30a 100644
+--- a/aot-trimming-playbook-reference.md
++++ b/aot-trimming-playbook-reference.md
+@@ -10,20 +10,19 @@ Patterns for making reflection-heavy .NET code trimming-safe and AOT-compatible,
+ 4. [DAM on type access and type extensions](#dam-on-type-access-and-type-extensions)
+ 5. [Unsafe accessors for non-public members](#unsafe-accessors-for-non-public-members)
+ 6. [Trimming-safe islands](#trimming-safe-islands)
+ 7. [Separating trimming-unsafe from trimming-safe code](#separating-trimming-unsafe-from-trimming-safe-code)
+ 8. [System.Text.Json source generation](#systemtextjson-source-generation)
+ 9. [Migration analyzers](#migration-analyzers)
+ 10. [Object overloads to generic overloads](#object-overloads-to-generic-overloads)
+ 11. [Strict-mode feature flag (AppContext switch)](#strict-mode-feature-flag-appcontext-switch)
+-12. [Warning-approval baseline](#warning-approval-baseline)
+-13. [MSBuild property reference](#msbuild-property-reference)
+-14. [Known gotchas](#known-gotchas)
+-15. [Full generation checklist](#full-generation-checklist)
++12. [MSBuild property reference](#msbuild-property-reference)
++13. [Known gotchas](#known-gotchas)
++14. [Full generation checklist](#full-generation-checklist)
+ 
+ ---
+ 
+ ## Source generators and compile-time registration
+ 
+ **General rule:** reflection is fine in JIT scenarios, and you can often keep it and annotate it instead (see the DAM section). Use this technique when you *want the reflective surface gone* — for example, a public registration API you do not want to ship with `[RequiresUnreferencedCode]`. The only way to *eliminate* a warning class is to remove the reflection: replace runtime discovery — `Assembly.GetTypes()`, `AppDomain` scanning, `Activator.CreateInstance(Type)`, `type.GetMethod("name")` — with a source generator that emits direct type references at compile time.
+ 
+ **Shape of the pattern:**
+@@ -470,39 +469,16 @@ AppContext.SetSwitch("MyLibrary.StrictMode", true);
+ - Make failures **actionable** — point at the generated registration, the generic overload, or the explicit `Register<T>()` API that closes the gap.
+ - It complements the compile-time analyzer: the analyzer catches what it can see, strict mode catches what it cannot (runtime-discovered types).
+ - It only fits when the library already has a registration / compile-time-manifest concept. With nothing to be "strict" about, the pattern does not apply.
+ - `[FeatureSwitchDefinition]` is available from .NET 9. On older TFMs, declare the same static `bool` property and read `AppContext.TryGetSwitch` directly — you lose only the trim-time substitution.
+ - Feature switches complicate unit testing and code sharing (different app configurations can disagree on the value). Prefer structuring APIs so trimming happens naturally; reserve switches for when API changes are not feasible.
+ 
+ ---
+ 
+-## Warning-approval baseline
+-
+-**General rule:** use an approval baseline only as a migration aid when a large codebase cannot reach zero warnings overnight. Once the warning set is empty, delete the approval test and checked-in warning file; enforce trimming directly through the project analyzers and publish validation. A permanent baseline can hide regressions behind an ever-growing list.
+-
+-**Shape:**
+-
+-1. Enable the analyzers in the library build:
+-
+-```xml
+-<PropertyGroup>
+-  <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+-  <EnableAotAnalyzer>true</EnableAotAnalyzer>
+-</PropertyGroup>
+-```
+-
+-2. Build, capture the `IL2xxx`/`IL3xxx` diagnostics, scrub volatile parts (absolute paths, line numbers), normalize separators, and group by file.
+-3. Store the result as an approved baseline (a checked-in text file).
+-4. On every build, compare current warnings against the baseline; any new warning fails the build and must either be fixed or explicitly approved in the same PR.
+-
+-This is the same idea as snapshot testing: the baseline documents known debt and makes every change to the warning surface a reviewed decision.
+-
+----
+-
+ ## MSBuild property reference
+ 
+ ### Libraries (declare compatibility)
+ 
+ | Property | Effect |
+ | --- | --- |
+ | `IsTrimmable` | Declares the assembly trim-compatible; enables trim warnings during its build. |
+ | `IsAotCompatible` | Declares AOT compatibility; implies `IsTrimmable`, `EnableTrimAnalyzer`, `EnableSingleFileAnalyzer`, `EnableAotAnalyzer`. |
+@@ -567,12 +543,12 @@ When introducing trimming/AOT support or resolving warnings:
+ 
+ 5. **Suppress minimally**
+    - Only `[UnconditionalSuppressMessage]` with a mandatory, invariant-stating justification, at a leaf.
+    - For generated interception, use a narrowly matched `DiagnosticSuppressor` and test intercepted and non-intercepted calls separately.
+    - Never `#pragma`/`[SuppressMessage]`.
+ 
+ 6. **Verify and lock**
+    - Publish trimmed and AOT test apps that root the library (`TrimmerRootAssembly`).
+-   - Use an approval baseline only while migrating; once warnings are resolved, enforce a zero-warning project build and remove the baseline.
++   - Enforce a zero-warning project build through the project analyzers and publish validation.
+    - Add a migration analyzer + code fix when retiring reflective public APIs.
+ 
+ By following these rules, generated and refactored .NET code cooperates with the linker's reachability analysis and runs correctly under Native AOT.

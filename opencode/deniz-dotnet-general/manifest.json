@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.10.0",
-  "digest": "sha256:80688637e4230445d04326d05fd789b9e2c3ec77ccb03e3830e79208aa59a4d2",
+  "version": "0.11.0",
+  "digest": "sha256:a9e02ece78794af120a177fb0e8afa711e995f138d3b498130b87c7fd7820b10",
   "requiredModules": [
     "deniz-dotnet-aspire"
   ],
@@ -49,6 +49,18 @@
     },
     "skills/deniz-dotnet-general.analyzing-dotnet-performance/references/structural-patterns.md": {
       "sha256": "sha256:ee75e7da219e1d5fcc91c728babe9978793be97e37e01a78b51cc47316ecf170",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.aot-trimming/SKILL.md": {
+      "sha256": "sha256:a49e92adce86facf392e36f9afd74d4fc1d0803839ce25ad50ead44b6ff5cf6f",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.aot-trimming/aot-trimming-playbook-reference.md": {
+      "sha256": "sha256:af0d13d16bb3e962a0d66613c11a8d29dc8283801ddf09d16efba039350108d6",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.aot-trimming/trimming-attributes-reference.md": {
+      "sha256": "sha256:80d57a9a4efc7c83605f2c8af8408dde3e2d57e67a75af299e655cb76370925f",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.api-design/SKILL.md": {
@@ -155,6 +167,26 @@
       "sha256": "sha256:37b3c6377dd5f654f2a0b88ceaeb4c77d8798134cbb0c9584532e7b2835f6f5b",
       "mode": "100644"
     },
+    "skills/deniz-dotnet-general.cscheck/SKILL.md": {
+      "sha256": "sha256:e8d9b729c6779bbf370b13b7f58961b2c0a425e2a9c004bf13b02e0c086a4d73",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.cscheck/references/failures.md": {
+      "sha256": "sha256:a0f4185a68ba2fc5d4feeebf3d4bab5a0d874478e9f04668e9f9f7e5cea2ed2d",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.cscheck/references/properties.md": {
+      "sha256": "sha256:ab3f05399da3118b0d1cfaa6230c2b28de74a2512297ddf894401aa8500018ed",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.cscheck/references/specifications.md": {
+      "sha256": "sha256:ebd1391434b717062dc8a3ac1002d4622f4b66396d0196daa30106793f31af21",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.cscheck/references/stateful-and-async.md": {
+      "sha256": "sha256:b3bf50b6556e10d1e6e2995ee8e8386ea953432006366b09fa960c160a93534a",
+      "mode": "100644"
+    },
     "skills/deniz-dotnet-general.csharp-concurrency-patterns/SKILL.md": {
       "sha256": "sha256:0be86ff3d03917cf52b4f7db284cb0ca5f02dd03e8240172a22d57d89fa45ce0",
       "mode": "100644"
@@ -208,7 +240,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-aot-compat/SKILL.md": {
-      "sha256": "sha256:2b76d65f440f9056c12d3767bac934e2c4b4f801cf78b7d8f5a4f8ba0da36787",
+      "sha256": "sha256:9847b594abeabd395fd467b9b9c78e97e6c97158c1bb5dd6cc0e6b8d5c329af1",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-aot-compat/references/polyfills.md": {
@@ -240,7 +272,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-slopwatch/SKILL.md": {
-      "sha256": "sha256:62b2f88228c07b1629d560d7315aa87f7899d0c04326a6e0c493055822c12158",
+      "sha256": "sha256:c70a77ebd3fe9422614ba58678a59c4ff6f220183d5bffc8696f3fcd901c4608",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-trace-collect/SKILL.md": {
@@ -388,7 +420,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.modern-csharp-coding-standards/SKILL.md": {
-      "sha256": "sha256:135863332e5621d69b5268973e39e1984016a793e8ad654ebbe0ade7a701151f",
+      "sha256": "sha256:f4c5e576bb2ac9aafbe57089fb8a854b2713618c6decc56b625b3bafdbbfd3ac",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.modern-csharp-coding-standards/anti-patterns-and-reflection.md": {
@@ -491,6 +523,26 @@
       "sha256": "sha256:e3b363783952d7cbbc23638ceb67fc3175377f5363bc60e7f53a7ee27b720e5c",
       "mode": "100644"
     },
+    "skills/deniz-dotnet-general.sdk-container-publishing/SKILL.md": {
+      "sha256": "sha256:55bd3ace3291405c17ecb714973b1d647d5420fe1209e4d00d816dc0bb777c5f",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.sdk-container-publishing/references/ci-cd.md": {
+      "sha256": "sha256:fd17878b1a0a0ea72d696f116829017a72aa64e8bb6e09327f00994c05732b94",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.sdk-container-publishing/references/property-reference.md": {
+      "sha256": "sha256:c9e451cfbb2d9bd085118a19ae262cd6461f0add1524e0e43b8801bafdfb5de2",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.sdk-container-publishing/references/self-contained-and-aot.md": {
+      "sha256": "sha256:b4a63e361fba543f3b82fbec026d4b3de81ec15207b4c224bd1e23fe62ddf3ae",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.sdk-container-publishing/references/troubleshooting.md": {
+      "sha256": "sha256:4fbdd625f1430139dfae079b0587cfd17d31d057439b35f0f7e719985106ee8a",
+      "mode": "100644"
+    },
     "skills/deniz-dotnet-general.serialization/SKILL.md": {
       "sha256": "sha256:454d835af0f2e508008a4b681367d6fbf7a55ba90e84b252ad41b74eb90482ef",
       "mode": "100644"
@@ -564,15 +616,15 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.testcontainers-integration-tests/SKILL.md": {
-      "sha256": "sha256:ff22cea61e9a293053312f46a204441b595fb5e5d6e7951ee9476587afccb5b4",
+      "sha256": "sha256:91490e48ef87dfe7d6f726ffb0b6d96fd8dbace049c8d14a2186a9c2e4ea2815",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.testcontainers-integration-tests/database-patterns.md": {
-      "sha256": "sha256:7e1ecc683f21d7832a644da28d52df6f08a573e99c081fe9066fc09ac7c38a08",
+      "sha256": "sha256:dd80862965520bbcf11afc0efe15c238501ed555c1b8049f701c523d8bdd026f",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.testcontainers-integration-tests/infrastructure-patterns.md": {
-      "sha256": "sha256:846865de531a6c518105c673a62eacfe352a37711c2f6cd95081cd4b239b3814",
+      "sha256": "sha256:1f71b8d180dc6c7b30781c04f9fc6861dbf691d0ea2cc83c1ddc0c372b138450",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.thread-abort-migration/SKILL.md": {

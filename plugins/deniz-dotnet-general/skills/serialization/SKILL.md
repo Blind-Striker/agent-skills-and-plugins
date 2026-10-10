@@ -4,7 +4,6 @@ description: Choose the right serialization format for .NET applications. Prefer
   schema-based formats (Protobuf, MessagePack) over reflection-based
   (Newtonsoft.Json). Use System.Text.Json with AOT source generators for JSON
   scenarios.
-invocable: false
 user-invocable: false
 ---
 
