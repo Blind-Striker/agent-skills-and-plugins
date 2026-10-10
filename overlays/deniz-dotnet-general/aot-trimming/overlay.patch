@@ -131,7 +131,7 @@ index f096afe..09c60ad 100644
  - [Native AOT deployment](https://learn.microsoft.com/dotnet/core/deploying/native-aot/)
  - [ILLink error codes](https://github.com/dotnet/runtime/blob/main/docs/tools/illink/error-codes.md)
 diff --git a/aot-trimming-playbook-reference.md b/aot-trimming-playbook-reference.md
-index 1d1ed9d..3f4d30a 100644
+index 1d1ed9d..934a178 100644
 --- a/aot-trimming-playbook-reference.md
 +++ b/aot-trimming-playbook-reference.md
 @@ -10,20 +10,19 @@ Patterns for making reflection-heavy .NET code trimming-safe and AOT-compatible,
@@ -198,14 +198,43 @@ index 1d1ed9d..3f4d30a 100644
  | --- | --- |
  | `IsTrimmable` | Declares the assembly trim-compatible; enables trim warnings during its build. |
  | `IsAotCompatible` | Declares AOT compatibility; implies `IsTrimmable`, `EnableTrimAnalyzer`, `EnableSingleFileAnalyzer`, `EnableAotAnalyzer`. |
-@@ -567,12 +543,12 @@ When introducing trimming/AOT support or resolving warnings:
+@@ -539,21 +515,22 @@ This is the same idea as snapshot testing: the baseline documents known debt and
+ - **Reflection in a static constructor** propagates warnings to every member of the class; annotate the type instead.
+ - **A suppression is invalid** if the reflected member is reachable only by a normal (non-reflective) call — it may be inlined/renamed/moved. The member must be a genuine reflection target elsewhere.
+ - **Generic APIs are your friend.** A `typeof(T)` in a generic method is statically visible; a `Type` instance passed at runtime is not. Prefer generic overloads over `Type` parameters wherever the type is known at compile time.
+ 
+ ---
+ 
+ ## Full generation checklist
+ 
+-When introducing trimming/AOT support or resolving warnings:
++When introducing trimming/AOT support in a new project or resolving warnings:
+ 
+ 1. **Project configuration**
+-   - Libraries: set `IsTrimmable` (and `IsAotCompatible` on `net8.0+`) so warnings surface.
+-   - Apps: set `PublishTrimmed`/`PublishAot`; publish and confirm **zero** warnings.
++   - New libraries: set `IsTrimmable` (and `IsAotCompatible` on `net8.0+`) so warnings surface.
++   - New apps: set `PublishTrimmed`/`PublishAot`; publish and confirm **zero** warnings.
++   - Existing projects: confirm what the project already declares. To adopt these properties in one, ask the user to invoke `/dotnet-upgrade:dotnet-aot-compat`; do not set them through this playbook.
+    - Consider `TrimmerSingleWarn=false` while fixing, then restore per-assembly collapse.
+ 
+ 2. **Make reflection visible (or selectively replace it)**
+    - Replace `Assembly.GetTypes()`/scanning with a marker-attribute-driven source generator emitting direct references.
+    - Replace `Activator.CreateInstance(Type)` with generic factories (`ActivatorUtilities.CreateFactory<T>` or `new T()`) carrying DAM.
+    - Add `AddType<T>()`/`Register<T>()` explicit-registration overloads for types the generator cannot see.
+ 
+ 3. **Annotate what remains**
+@@ -565,14 +542,14 @@ When introducing trimming/AOT support or resolving warnings:
+    - Gate *dynamic-code* paths with `RuntimeFeature.IsDynamicCodeSupported`; separate *trimming* paths with `#if` or annotations (there is no runtime trimming flag).
+    - Keep the safe path genuinely reflection-free; fail fast on unsupported shapes.
  
  5. **Suppress minimally**
     - Only `[UnconditionalSuppressMessage]` with a mandatory, invariant-stating justification, at a leaf.
     - For generated interception, use a narrowly matched `DiagnosticSuppressor` and test intercepted and non-intercepted calls separately.
     - Never `#pragma`/`[SuppressMessage]`.
  
- 6. **Verify and lock**
+-6. **Verify and lock**
++6. **Verify and enforce**
     - Publish trimmed and AOT test apps that root the library (`TrimmerRootAssembly`).
 -   - Use an approval baseline only while migrating; once warnings are resolved, enforce a zero-warning project build and remove the baseline.
 +   - Enforce a zero-warning project build through the project analyzers and publish validation.

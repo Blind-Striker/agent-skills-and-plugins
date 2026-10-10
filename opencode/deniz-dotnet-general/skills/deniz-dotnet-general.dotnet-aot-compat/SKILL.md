@@ -279,8 +279,8 @@ Do **not** add the external type to your `JsonSerializerContext` — it won't so
 
 - [ ] Added `<IsAotCompatible>` with TFM condition to .csproj
 - [ ] Built with AOT analyzers enabled (net8.0+ TFM)
-- [ ] Fixed all IL warnings via annotations or refactoring
+- [ ] Fixed all IL warnings via annotations or refactoring (or, on the user's choice, locked the rest with the optional temporary baseline above)
 - [ ] No `#pragma warning disable` or `[UnconditionalSuppressMessage]` used for any IL warning
 - [ ] Polyfills present for older TFMs if needed
-- [ ] All target frameworks build with 0 warnings
+- [ ] All target frameworks build with 0 warnings (with that baseline: 0 warnings outside it)
 - [ ] Verified shared/linked source doesn't break sibling projects

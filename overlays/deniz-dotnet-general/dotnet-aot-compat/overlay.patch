@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index bcfeca1..42bb632 100644
+index bcfeca1..e5f6777 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -212,16 +212,32 @@ Build all target frameworks to ensure:
@@ -35,3 +35,19 @@ index bcfeca1..42bb632 100644
  - If a warning requires **architectural refactoring** beyond annotation flow fixes (e.g., replacing an entire serialization layer), document it and stop — don't rewrite large subsystems.
  - Limit to **3 build-fix iterations** per warning. If annotation flow doesn't resolve it after 3 attempts, escalate to `[RequiresUnreferencedCode]`.
  - Don't chase warnings in **third-party dependencies** you can't modify. Note them and move on.
+@@ -257,13 +273,13 @@ Do **not** add the external type to your `JsonSerializerContext` — it won't so
+ [Limitations](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/?tabs=windows%2Cnet8#limitations-of-native-aot-deployment)
+ [Conceptual: Understanding trimming](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/trimming-concepts)
+ [How-to: trim compat](https://learn.microsoft.com/en-us/dotnet/core/deploying/trimming/fixing-warnings)
+ 
+ ## Checklist
+ 
+ - [ ] Added `<IsAotCompatible>` with TFM condition to .csproj
+ - [ ] Built with AOT analyzers enabled (net8.0+ TFM)
+-- [ ] Fixed all IL warnings via annotations or refactoring
++- [ ] Fixed all IL warnings via annotations or refactoring (or, on the user's choice, locked the rest with the optional temporary baseline above)
+ - [ ] No `#pragma warning disable` or `[UnconditionalSuppressMessage]` used for any IL warning
+ - [ ] Polyfills present for older TFMs if needed
+-- [ ] All target frameworks build with 0 warnings
++- [ ] All target frameworks build with 0 warnings (with that baseline: 0 warnings outside it)
+ - [ ] Verified shared/linked source doesn't break sibling projects
