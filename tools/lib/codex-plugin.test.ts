@@ -274,12 +274,33 @@ test("a word cut drops trailing function words and punctuation before the ellips
   );
 });
 
+test("a clause cut drops trailing function words before the ellipsis too", () => {
+  assert.equal(
+    short("Migrate a .NET Framework project to the new SDK and, where packages allow, to Central Package Management."),
+    "Migrate a .NET Framework project to the new SDK…",
+  );
+});
+
 test("a word cut never leaves a bracket open", () => {
   assert.equal(
     short(
       "Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your issue tracker.",
     ),
     "Plan a huge chunk of work…",
+  );
+  assert.equal(
+    short(
+      "Plan big work (more than one agent session can hold, or several people's worth) as a map of decision tickets.",
+    ),
+    "Plan big work…",
+    "however few characters precede the bracket",
+  );
+  assert.equal(
+    short(
+      "(Experimental, Aspire 13.6 and later, behind a preview feature flag) Migrates AppHosts to the new project resource API.",
+    ),
+    "Use Alpha for relevant Codex tasks.",
+    "a bracket that opens the text leaves nothing before it, so the generic label stands in",
   );
 });
 

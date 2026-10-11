@@ -114,7 +114,7 @@ export function adaptCodexSkillDocument(name: string, doc: ParsedDoc): { documen
 const SHORT_DESCRIPTION_LIMIT = 64;
 /** A cut ends with an ellipsis, which takes one character, so the text before it keeps one less. */
 const CUT_LIMIT = SHORT_DESCRIPTION_LIMIT - 1;
-/** The shortest text a clause or bracket cut may leave, so a label still says something. */
+/** The shortest text a clause cut may leave, so a label still says something. */
 const MEANINGFUL_LABEL = 25;
 /** A sentence ends at `.`, `!`, or `?` before the end of the text or before a capital. */
 const SENTENCE_END = /[.!?](?=$|\s+[A-Z])/g;
@@ -164,7 +164,10 @@ function bracketDepths(text: string): number[] {
   return depths;
 }
 
-/** The last clause boundary outside brackets whose leading text fits and still says something. */
+/**
+ * The text before the last clause boundary outside brackets, with trailing function words dropped,
+ * that fits and still says something.
+ */
 function clauseCut(text: string): string | undefined {
   const depths = bracketDepths(text);
   let cut: string | undefined;
@@ -172,7 +175,7 @@ function clauseCut(text: string): string | undefined {
     if (!CLAUSE_BOUNDARIES.has(text.charAt(i)) || depths[i] !== 0) {
       continue;
     }
-    const lead = text.slice(0, i).trimEnd();
+    const lead = trimCut(text.slice(0, i));
     if (lead.length > CUT_LIMIT) {
       break;
     }
@@ -195,7 +198,10 @@ function trimCut(words: string): string {
   }
 }
 
-/** Whole words that fit, never ending inside an open bracket when the text before it says enough. */
+/**
+ * Whole words that fit, cut before the bracket the cut would leave open however little precedes
+ * it; empty when that bracket opens the text.
+ */
 function wordCut(text: string): string {
   const wordEnd = text.lastIndexOf(" ", CUT_LIMIT);
   const words = wordEnd > 0 ? text.slice(0, wordEnd) : text.slice(0, CUT_LIMIT);
@@ -203,10 +209,7 @@ function wordCut(text: string): string {
   if (depths.at(-1) !== 0) {
     // The bracket still open at the cut is the last one opened from depth zero.
     const open = depths.findLastIndex((depth, i) => depth === 0 && depths[i + 1] !== 0);
-    const lead = trimCut(words.slice(0, open));
-    if (lead.length >= MEANINGFUL_LABEL) {
-      return lead;
-    }
+    return trimCut(words.slice(0, open));
   }
   return trimCut(words);
 }
@@ -214,12 +217,15 @@ function wordCut(text: string): string {
 /**
  * The menu label of a manual skill, measured without Markdown markers: the whole description when
  * it fits, else as many whole sentences as fit, else the text before the last clause boundary that
- * fits outside brackets, else whole words with trailing function words dropped. A cut that does not
- * end a sentence ends with an ellipsis, so no label ends inside a word or on a dangling `by`.
+ * fits outside brackets, else whole words, both with trailing function words dropped. A cut that
+ * does not end a sentence ends with an ellipsis, so no label ends inside a word, on a dangling `by`,
+ * or inside an open bracket. A description too short to say anything, or a cut left empty, takes
+ * the generic label.
  */
 function shortSkillDescription(name: string, description: string): string {
+  const generic = `Use ${codexDisplayName(name)} for relevant Codex tasks.`;
   const normalized = description.replace(MARKUP, "").replace(/\s+/g, " ").trim();
-  const candidate = normalized.length >= 25 ? normalized : `Use ${codexDisplayName(name)} for relevant Codex tasks.`;
+  const candidate = normalized.length >= 25 ? normalized : generic;
   if (candidate.length <= SHORT_DESCRIPTION_LIMIT) {
     return candidate;
   }
@@ -230,7 +236,8 @@ function shortSkillDescription(name: string, description: string): string {
   if (sentenceEnd !== undefined) {
     return candidate.slice(0, sentenceEnd);
   }
-  return `${clauseCut(candidate) ?? wordCut(candidate)}…`;
+  const cut = clauseCut(candidate) ?? wordCut(candidate);
+  return cut ? `${cut}…` : generic;
 }
 
 export function createCodexSkillAgentManifest(
