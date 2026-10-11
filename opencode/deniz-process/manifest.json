@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.0",
-  "digest": "sha256:0371da3ffefaa8d1862ec73fe4661488a82ed9d4bd3cc53e126c053219ceff3a",
+  "digest": "sha256:8e7f18a4d858b1249b6a84f1c1aaf8a1dc7cbf54c0e8065702a16d0434118942",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -18,7 +18,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.asd-ste100/SKILL.md": {
-      "sha256": "sha256:4e90bcacb11e6544b2a8d1e2a08a6346b51978b6672d6ef7e50185527ee7cf95",
+      "sha256": "sha256:30493c835875d2324c9491e84bf115e10da65a480f23e20d4e249bc88505309c",
       "mode": "100644"
     },
     "skills/deniz-process.asd-ste100/examples/before-after.md": {

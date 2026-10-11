@@ -274,8 +274,8 @@ items:
     # handoff target. This single-purpose root-skill repo stays a submodule so pin drift reaches the
     # normal sync review machinery instead of becoming an untracked original-skill fork.
     body: patch # step 3 only, curator's call. The bundled linter runs for multi-sentence or
-    # document-length input, never for a one-line rewrite or a short conversational re-pitch, which
-    # is wait-what's use. One sentence states its limits (a short fixed phrasal-verb list, no
+    # document-length input, never for a one-line rewrite or a conversational re-pitch, which is
+    # wait-what's use. One sentence states its limits (a short fixed phrasal-verb list, no
     # noun-cluster check, so a clean run proves neither compliance nor kept meaning), because the
     # omitted README was the only place that said so. And it names the interpreter: python3, or
     # py -3 on Windows, where python3 resolves to the Store stub.
