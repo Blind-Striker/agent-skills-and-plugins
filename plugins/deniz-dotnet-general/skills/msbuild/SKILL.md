@@ -7,12 +7,12 @@ description: "Use only for MSBuild failure investigation, build-performance
   activate, even to check scope. Framework/API upgrades are also excluded.
   Activate for advisory Import/Exists hook and NuGet packed-import questions
   even without a checkout or failed build;
-  .csproj/.fsproj/.vbproj/.props/.targets conditions; custom-target
-  inputs/outputs; .binlog capture/replay; failing dotnet
-  build/restore/pack/publish or MSBuild-based test builds; slow evaluation,
-  compilation, copying, or no-change builds; and controlled timing comparisons.
-  Exclude SDK installation alone, C# refactoring, runtime profiling, assertions
-  after successful builds, and non-MSBuild builds."
+  .csproj/.fsproj/.vbproj/.props/.targets conditions; custom targets that rerun
+  or skip; .binlog capture/replay; failing dotnet build/restore/pack/publish or
+  MSBuild-based test builds; slow evaluation, compilation, copying, or no-change
+  builds; and controlled timing comparisons. Exclude SDK installation alone, C#
+  refactoring, runtime profiling, assertions after successful builds, and
+  non-MSBuild builds."
 license: MIT
 user-invocable: false
 ---
@@ -88,14 +88,15 @@ correctness regresses. Report missing measurements rather than manufacturing a c
 
 **Goal:** improve project/build-file structure and extension contracts while preserving behavior.
 This route means MSBuild authoring cleanup, not an implicit framework, package, language,
-or legacy project-system migration.
+or legacy project-system migration. A review or audit only reports its findings; edit files only
+when the user asks for fixes.
 
 | Requested change | Read | Preserve |
 | --- | --- | --- |
 | Review/clean up project files, shared properties, item declarations, or custom targets | [msbuild-antipatterns](references/msbuild-antipatterns.md) | Intentional overrides, F# source order, required imports, package assets, and actual input/output contracts. |
 | Review/improve hooks, imports, shared-file discovery, or NuGet build extensions | [extension-points](references/extension-points.md) | Prior hooks, evaluation order, direct/transitive consumer behavior, and the packed layout. |
 | Restructure generation or copying as part of cleanup | [incremental-build](references/incremental-build.md) and [copy-to-output-directory](references/copy-to-output-directory.md), as applicable | First-build and no-change behavior, invalidation, generated-item registration, and output completeness. |
-| Write or fix a custom target, its `DependsOnTargets`/`BeforeTargets`/`AfterTargets` ordering, a `$(XxxDependsOn)` chain, or `Outputs` versus `Returns` | Load the `deniz-dotnet-general:target-authoring` skill | The SDK target chain and every existing extension of it. |
+| Write or fix a custom target, its `Inputs`/`Outputs`, its `DependsOnTargets`/`BeforeTargets`/`AfterTargets` ordering, a `$(XxxDependsOn)` chain, or `Outputs` versus `Returns` | Load the `deniz-dotnet-general:target-authoring` skill | The SDK target chain and every existing extension of it. |
 | A concrete property defect: a condition, default, append versus overwrite, last-write-wins value, OS/TFM check, or path | Load the `deniz-dotnet-general:property-patterns` skill | Intentional overrides and evaluation order. |
 | A concrete item operation: `Include`, `Remove`, `Update`, metadata, transforms, batching, or duplicate items | Load the `deniz-dotnet-general:item-management` skill | SDK default globs and item identity. |
 | Organize shared settings across projects, or fix a `Directory.Build.props`/`.targets`/`.rsp` layering defect | Load the `deniz-dotnet-general:directory-build-organization` skill | Props-versus-targets placement and per-project overrides. |

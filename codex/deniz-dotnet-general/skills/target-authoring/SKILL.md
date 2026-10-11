@@ -5,12 +5,12 @@ description: "Canonical patterns for writing custom MSBuild targets. USE FOR:
   chains across files (e.g., Directory.Build.targets silently redefining SDK
   targets); targets that replace CompileDependsOn instead of extending it with
   $(CompileDependsOn); query targets returning stale results from Outputs vs
-  Returns misuse; missing Inputs/Outputs causing unnecessary rebuilds; missing
-  FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs
-  AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn)
-  chain-extension pattern. DO NOT USE FOR: incremental build diagnosis or
-  general anti-pattern review (use msbuild), parallelization (use
-  build-parallelism), non-MSBuild build systems."
+  Returns misuse; writing a target's Inputs/Outputs; missing FileWrites
+  registration. Covers DependsOnTargets vs BeforeTargets vs AfterTargets, the
+  Build→CoreBuild three-level pattern, and the $(XxxDependsOn) chain-extension
+  pattern. DO NOT USE FOR: finding why a target reruns or skips, incremental
+  build diagnosis, or general anti-pattern review (use msbuild), parallelization
+  (use build-parallelism), non-MSBuild build systems."
 license: MIT
 ---
 
@@ -169,3 +169,4 @@ Validation targets use `BeforeTargets` to intercept all entry points:
 - **Using `Outputs` on query targets** causes MSBuild to skip them when "up to date," returning stale data. Use `Returns`.
 - **Defining targets in `.props`** means `BeforeTargets` on SDK targets have nothing to hook into yet. Move targets to `.targets`.
 - **Forgetting `OnError`** in orchestrating targets means file tracking fails on build errors, breaking subsequent incremental builds.
+- **A target that reruns on every build, or skips when it should run,** needs a diagnosis before its `Inputs`/`Outputs` change: load the `$deniz-dotnet-general:msbuild` skill for that, then write the fix here.

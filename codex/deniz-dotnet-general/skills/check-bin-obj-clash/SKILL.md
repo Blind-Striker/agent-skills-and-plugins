@@ -41,6 +41,8 @@ Clashes can occur between:
 - Intermittent build failures that succeed on retry
 - Missing output files or unexpected overwriting
 
+If a running process, such as an Aspire AppHost, holds the locked file, stop that process first and build again: a lock held by a running app is not an output-path clash.
+
 ## Step 1: Generate a Binary Log
 
 Follow the binlog-generation reference of the `$deniz-dotnet-general:msbuild` skill to capture a binary log under an unused, explicit file name.
@@ -223,9 +225,9 @@ Either way this forks a distinct instance of the target project (`path` + `{_IsP
 
 **How to detect:** Follow the Primary workflow above — the `evaluations` and `evaluation_global_properties` tools surface two evaluations of the target project that share the same `OutputPath`/`IntermediateOutputPath` but differ only by a path-neutral publish flag such as `_IsPublishing`, and the `double_writes` tool flags the resulting shared-file writes directly. To tell case (a) from (b), see which project the extra `{_IsPublishing=true}` evaluation runs *under* in the build tree (from the overview/projects tools): the target project itself for (a), or a consumer project that invoked the `<MSBuild>` task for (b).
 
-**Fix:** Depends on where the call lives:
+**Fix:** When publish is the requested outcome, prefer an explicit publish operation (`dotnet publish <project>`) over publish-on-build orchestration. Otherwise the fix depends on where the call lives:
 
-- **Same project (a):** you can't strip the property with `RemoveGlobalProperties` (the project injects it on itself). Set the flag as a **static** (non-global) property and run the target in the **same** instance via `DependsOnTargets`/`CallTarget`, with a guard against a target cycle when publish is the entry point:
+- **Same project (a):** you can't strip the property with `RemoveGlobalProperties` (the project injects it on itself). If the repository genuinely needs publish-on-build, set the flag as a **static** (non-global) property and run the target in the **same** instance via `DependsOnTargets`/`CallTarget`, with a guard against a target cycle when publish is the entry point. This is not a universal repair: it relies on the private `_IsPublishing` flag, and it can still fail with `MSB4006` through `dotnet msbuild -t:Publish`, so validate the target graph and every supported entry command:
 
 ```xml
 <PropertyGroup>
@@ -238,7 +240,7 @@ Either way this forks a distinct instance of the target project (`path` + `{_IsP
         Condition="'$(_PublishWasInvokedDirectly)' != 'true'" />
 ```
 
-- **Cross-project (b):** the consumer must not fork the producer with path-neutral global properties. Make the producer publish as part of its own build (the (a) fix in *its* project), then have the consumer **sequence** it and read its output instead of re-publishing it:
+- **Cross-project (b):** the consumer must not fork the producer with path-neutral global properties. Have the consumer **sequence** the producer and read its output instead of re-publishing it. A build-order reference schedules the producer's **build**, not its Publish target, so the producer's own publish step (an explicit publish, or the validated (a) pattern in *its* project) must produce that output:
 
 ```xml
 <ItemGroup>

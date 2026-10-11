@@ -1,0 +1,27 @@
+diff --git a/SKILL.md b/SKILL.md
+index c542480..1f439d9 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,11 +1,11 @@
+ ---
+ name: target-authoring
+-description: "Canonical patterns for writing custom MSBuild targets. USE FOR: diagnosing and fixing custom target authoring anti-patterns; broken SDK target chains across files (e.g., Directory.Build.targets silently redefining SDK targets); targets that replace CompileDependsOn instead of extending it with $(CompileDependsOn); query targets returning stale results from Outputs vs Returns misuse; missing Inputs/Outputs causing unnecessary rebuilds; missing FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn) chain-extension pattern. DO NOT USE FOR: incremental build tuning (use incremental-build), parallelization (use build-parallelism), general anti-patterns (use msbuild-antipatterns), non-MSBuild build systems."
++description: "Canonical patterns for writing custom MSBuild targets. USE FOR: diagnosing and fixing custom target authoring anti-patterns; broken SDK target chains across files (e.g., Directory.Build.targets silently redefining SDK targets); targets that replace CompileDependsOn instead of extending it with $(CompileDependsOn); query targets returning stale results from Outputs vs Returns misuse; writing a target's Inputs/Outputs; missing FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn) chain-extension pattern. DO NOT USE FOR: finding why a target reruns or skips, incremental build diagnosis, or general anti-pattern review (use msbuild), parallelization (use build-parallelism), non-MSBuild build systems."
+ license: MIT
+ ---
+ 
+ # Custom Target Authoring Patterns
+ 
+ Canonical patterns from `Microsoft.Common.CurrentVersion.targets` in the MSBuild repository.
+ 
+ ## The Three-Level Target Chain
+@@ -154,8 +154,9 @@ Validation targets use `BeforeTargets` to intercept all entry points:
+ ```
+ 
+ ## Common Pitfalls
+ 
+ - **Overwriting `DependsOn` properties** drops SDK targets silently. Always include `$(ExistingProperty)` when appending.
+ - **Using `Outputs` on query targets** causes MSBuild to skip them when "up to date," returning stale data. Use `Returns`.
+ - **Defining targets in `.props`** means `BeforeTargets` on SDK targets have nothing to hook into yet. Move targets to `.targets`.
+ - **Forgetting `OnError`** in orchestrating targets means file tracking fails on build errors, breaking subsequent incremental builds.
++- **A target that reruns on every build, or skips when it should run,** needs a diagnosis before its `Inputs`/`Outputs` change: load the `dotnet:msbuild` skill for that, then write the fix here.

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.12.1",
-  "digest": "sha256:a90cd6f7c14ec434e6d12c73062025d1be01e725ba29784d681e94e8643f88c0",
+  "version": "0.13.0",
+  "digest": "sha256:7f5dc01a1a9be43874da6495e6d9949caf8a09f733eee78b234a1914a115589d",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -73,7 +73,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.check-bin-obj-clash/SKILL.md": {
-      "sha256": "sha256:fe9b1c0462f25d09274d8aec3f2b5acd6891b6e21aec8e2628aa5fb38fa4e56e",
+      "sha256": "sha256:63b656bdd57d12619e7f7450ea5ac52e7dd535c68796b76e6dee1dae463e9ca0",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.code-testing/SKILL.md": {
@@ -409,7 +409,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.msbuild/SKILL.md": {
-      "sha256": "sha256:e96485d926cc45e0b8d509255d1ec60b940b2ce9a8e102a93bcb8d9dc7d8f271",
+      "sha256": "sha256:6932d5b6b22aa1055244c0ebddb5505fdc64f9271f057748c2a46bc5c02e348c",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.msbuild/references/antipatterns/additional-antipatterns.md": {
@@ -553,7 +553,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.target-authoring/SKILL.md": {
-      "sha256": "sha256:eacb48e63a1f5938e4a80e9bd9e1d46b45c7229996ca64fe9bf2c23e8f3b9f21",
+      "sha256": "sha256:abc7dd93b8fae2f9f16b95bffa64f3c6bc3c545e9f5d0d77f885061d4f0b6b1e",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.test-analysis-extensions/SKILL.md": {

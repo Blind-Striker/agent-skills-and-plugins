@@ -2974,7 +2974,7 @@
       "property-patterns",
       "target-authoring"
     ],
-    "description": "Use only for MSBuild failure investigation, build-performance analysis, or review of existing build XML/extension contracts. A plan to convert a working legacy/non-SDK project to SDK style or migrate packages.config is a project-system migration, NOT a build-file review: do not activate, even to check scope. Framework/API upgrades are also excluded. Activate for advisory Import/Exists hook and NuGet packed-import questions even without a checkout or failed build; .csproj/.fsproj/.vbproj/.props/.targets conditions; custom-target inputs/outputs; .binlog capture/replay; failing dotnet build/restore/pack/publish or MSBuild-based test builds; slow evaluation, compilation, copying, or no-change builds; and controlled timing comparisons. Exclude SDK installation alone, C# refactoring, runtime profiling, assertions after successful builds, and non-MSBuild builds.",
+    "description": "Use only for MSBuild failure investigation, build-performance analysis, or review of existing build XML/extension contracts. A plan to convert a working legacy/non-SDK project to SDK style or migrate packages.config is a project-system migration, NOT a build-file review: do not activate, even to check scope. Framework/API upgrades are also excluded. Activate for advisory Import/Exists hook and NuGet packed-import questions even without a checkout or failed build; .csproj/.fsproj/.vbproj/.props/.targets conditions; custom targets that rerun or skip; .binlog capture/replay; failing dotnet build/restore/pack/publish or MSBuild-based test builds; slow evaluation, compilation, copying, or no-change builds; and controlled timing comparisons. Exclude SDK installation alone, C# refactoring, runtime profiling, assertions after successful builds, and non-MSBuild builds.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3709,13 +3709,19 @@
   "deniz-dotnet-general/skill/target-authoring": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/target-authoring",
     "invocation": "auto",
-    "description": "Canonical patterns for writing custom MSBuild targets. USE FOR: diagnosing and fixing custom target authoring anti-patterns; broken SDK target chains across files (e.g., Directory.Build.targets silently redefining SDK targets); targets that replace CompileDependsOn instead of extending it with $(CompileDependsOn); query targets returning stale results from Outputs vs Returns misuse; missing Inputs/Outputs causing unnecessary rebuilds; missing FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn) chain-extension pattern. DO NOT USE FOR: incremental build diagnosis or general anti-pattern review (use msbuild), parallelization (use build-parallelism), non-MSBuild build systems.",
+    "body": "patch",
+    "dependsOn": [
+      "msbuild"
+    ],
+    "description": "Canonical patterns for writing custom MSBuild targets. USE FOR: diagnosing and fixing custom target authoring anti-patterns; broken SDK target chains across files (e.g., Directory.Build.targets silently redefining SDK targets); targets that replace CompileDependsOn instead of extending it with $(CompileDependsOn); query targets returning stale results from Outputs vs Returns misuse; writing a target's Inputs/Outputs; missing FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn) chain-extension pattern. DO NOT USE FOR: finding why a target reruns or skips, incremental build diagnosis, or general anti-pattern review (use msbuild), parallelization (use build-parallelism), non-MSBuild build systems.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
         "pointer": []
       },
       "flags": {
@@ -3729,7 +3735,9 @@
       "identity": "deniz-dotnet-general.target-authoring",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.msbuild"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -3748,7 +3756,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:msbuild"
+        ],
         "pointer": []
       },
       "dropped": [],

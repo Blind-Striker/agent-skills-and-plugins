@@ -31,7 +31,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.12.1
+  version: 0.13.0
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -186,7 +186,10 @@ items:
     # seconds and percentages as starting hints for where to look, not pass/fail thresholds, so the
     # two references agree. It also carries the AP-11 exception from the excluded
     # msbuild-quality-reviewer agent (message-only, validation, orchestration, and intentionally
-    # always-running targets need no Inputs/Outputs)
+    # always-running targets need no Inputs/Outputs). It restores the merged msbuild-antipatterns'
+    # contract that a review only reports unless fixes are asked for, because "review this .csproj"
+    # now auto-loads an entry whose route reads as improvement. Its description claims custom targets
+    # that rerun or skip, the diagnosis, and its target-authoring row takes the Inputs/Outputs fix
     depends_on:
       - check-bin-obj-clash
       - build-parallelism
@@ -212,10 +215,13 @@ items:
     invocation: auto
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/target-authoring
     invocation: auto
-    frontmatter: # upstream's description routes incremental-build and msbuild-antipatterns, which are
-      # merged into msbuild here; the override routes both jobs to msbuild in its DO NOT USE list and
-      # keeps the rest verbatim
-      description: "Canonical patterns for writing custom MSBuild targets. USE FOR: diagnosing and fixing custom target authoring anti-patterns; broken SDK target chains across files (e.g., Directory.Build.targets silently redefining SDK targets); targets that replace CompileDependsOn instead of extending it with $(CompileDependsOn); query targets returning stale results from Outputs vs Returns misuse; missing Inputs/Outputs causing unnecessary rebuilds; missing FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn) chain-extension pattern. DO NOT USE FOR: incremental build diagnosis or general anti-pattern review (use msbuild), parallelization (use build-parallelism), non-MSBuild build systems."
+    body: patch # upstream's description routes incremental-build and msbuild-antipatterns, which are
+    # merged into msbuild here, so the patched description routes both jobs to msbuild in its DO NOT
+    # USE list. Inputs/Outputs had two owners, curator's call to split them: this item writes a
+    # target's Inputs/Outputs, and msbuild finds why a target reruns or skips. Its description says
+    # so, and one pitfall line hands that diagnosis to msbuild as a checked fact, the way back that
+    # msbuild's routing row lacked
+    depends_on: [msbuild]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/extension-points
     exclude: true # merged into msbuild: its references/extension-points.md carries upstream's later
     # hook-chaining fix (an aggregation file with a guard per import) and NU5129, which this copy lacks
@@ -243,7 +249,11 @@ items:
     invocation: auto # output-path collision diagnosis — the classic file-lock culprit
     body: patch # its binlog capture and its see-also routes pointed at specialists that are now
     # merged into msbuild, so they name msbuild's binlog-generation and AP-22/AP-23 references, and
-    # the capture instruction is a checked fact
+    # the capture instruction is a checked fact. Its publish-on-build fix carries msbuild's AP-22
+    # caveat, which it links to: an explicit publish comes first, the private-flag pattern is not a
+    # universal repair and can hit MSB4006 through `dotnet msbuild -t:Publish`, and a build-order
+    # reference schedules the producer's build, not its Publish. A lock held by a running process,
+    # such as an Aspire AppHost, is not a path clash: the process stops first
     depends_on: [msbuild]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance
     exclude: true # merged into msbuild: its references/eval-performance.md corrects this copy's
