@@ -5215,6 +5215,7 @@
   "deniz-process/skill/receiving-code-review": {
     "source": "superpowers/skills/receiving-code-review",
     "invocation": "auto",
+    "body": "patch",
     "description": "Use when receiving code review feedback, before implementing suggestions, especially if feedback seems unclear or technically questionable - requires technical rigor and verification, not performative agreement or blind implementation",
     "claude": {
       "artifacts": [

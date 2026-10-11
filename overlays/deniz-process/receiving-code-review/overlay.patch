@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index 950da7b..0fe65b2 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -6,16 +6,18 @@ description: Use when receiving code review feedback, before implementing sugges
+ # Code Review Reception
+ 
+ ## Overview
+ 
+ Code review requires technical evaluation, not emotional performance.
+ 
+ **Core principle:** Verify before implementing. Ask before assuming. Technical correctness over social comfort.
+ 
++While a plan executor runs (executing-plans or subagent-driven-development), the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself steps; this skill governs human review feedback.
++
+ ## The Response Pattern
+ 
+ ```
+ WHEN receiving code review feedback:
+ 
+ 1. READ: Complete feedback without reacting
+ 2. UNDERSTAND: Restate requirement in own words (or ask)
+ 3. VERIFY: Check against codebase reality

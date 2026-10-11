@@ -113,12 +113,18 @@ items:
     # where the spec is silent may cite a reasonable user's expectation.
     # The description names only the body's mandatory moments (each subagent-driven-development
     # task, a major feature, a merge to main) and the typed range review, where upstream's
-    # "completing a task" dispatched a reviewer after every small edit.
+    # "completing a task" dispatched a reviewer after every small edit. Its route to
+    # receiving-code-review excepts a plan executor's run, whose ruling rules win there, as that
+    # skill's patch says.
     body: overlay
     merged_from: [mattpocock-skills/skills/engineering/code-review] # same-filename rule suffices — matt ships only a SKILL.md
     depends_on: [receiving-code-review] # taking the feedback is its own discipline, and it is taken
   - source: superpowers/skills/receiving-code-review
     invocation: auto # behavioural discipline that should kick in whenever review feedback arrives — never typed
+    body: patch # one sentence, curator's call: while executing-plans or subagent-driven-development
+    # runs, the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself
+    # steps, which would otherwise stall the run or fix findings in the controller session; this
+    # skill governs human review feedback
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
     invocation: auto # invoked from systematic-debugging's body and from implement's

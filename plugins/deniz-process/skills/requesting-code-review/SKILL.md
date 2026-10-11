@@ -124,7 +124,8 @@ Minor only because the spec was silent is graded again.
 
 How to take the feedback — what to accept, what to question, how to push back without
 capitulating or getting defensive — is the deniz-process:receiving-code-review skill's job. It
-applies to a subagent's findings exactly as it applies to a human's.
+applies to a subagent's findings exactly as it applies to a human's, except inside an
+executing-plans or subagent-driven-development run, where the executor's ruling rules win.
 
 ## Common Rationalizations
 

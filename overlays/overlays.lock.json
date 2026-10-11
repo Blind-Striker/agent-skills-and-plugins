@@ -364,6 +364,12 @@
       }
     }
   },
+  "deniz-process/receiving-code-review": {
+    "source": "superpowers/skills/receiving-code-review",
+    "files": {
+      "SKILL.md": "950da7b74bf6dbed6b8726d12ddadd65a9f5fda7"
+    }
+  },
   "deniz-process/requesting-code-review": {
     "source": "superpowers/skills/requesting-code-review",
     "files": {
