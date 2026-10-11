@@ -149,26 +149,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Shorten the model-reachable descriptions.** Two of the three harnesses cut this estate's
-   descriptions under a skill-listing budget, measured on 2026-10-11 against the installed
-   versions:
-
-   - Claude Code 2.1.296 lists skills within `skillListingBudgetFraction`, by default 0.01, about
-     30,000 characters on a 1M-context model. Over budget, a skill that is not bundled drops to its
-     name, and descriptions come back in usage order: 39 of the 82 deniz skills were name-only in
-     one Claude Code profile and 30 of 82 in the other.
-   - Codex 0.153.4 gives skills 2% of a 272k window, 5,440 tokens. Over budget it cuts every
-     description to one equal prefix: 78 of the 84 deniz descriptions were cut to about 140
-     characters, and all 35 exclusion clauses were lost.
-   - OpenCode 2.0.26 has no budget.
-
+1. **Shorten the model-reachable descriptions.** Claude Code and Codex cut this estate's
+   descriptions under a skill-listing budget, at their defaults and even with the per-machine
+   raises, while OpenCode 2 has no budget; the mechanisms, their sources, and the measurements are
+   in the [catalog-budget record](../experiments/harness-invocation/records/2026-10-11-skill-catalog-budgets.md).
    Shorten every model-reachable deniz description to about 190 characters or fewer, with the
    clause that tells it apart from its neighbours in the first 130 or so, through the item's
    existing `frontmatter:` override or its patch; the curator approves the drafts as one table.
    `aot-trimming` (210 characters, kept over the target for its existing-library and in-code
    warning qualifiers) and `sdk-container-publishing` (190) already follow it.
    Add a `validate` check so an upstream sync cannot bring a long description back, and remove the
-   per-machine listing-budget raises once this lands.
+   per-machine listing-budget raises the record lists once this lands.
 2. **Iteration 2: dependency automation and original-skill declarations.** The upstream sync
    waves are complete, so address automatic dependency installation, cascade remove, version-range
    resolution, and the `original_skills` declaration. These four workstreams belong to the
@@ -251,8 +242,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Codex catalog pressure is real:** every call in the 117-skill Luna panel warned that descriptions
   were shortened to fit the skills context budget. The tested explicit, implicit, manual, handoff,
   reference, and generated-skill paths passed, but that bounded panel is not proof for every skill,
-  model, or future catalog size. The listing-budget measurement of both Claude Code and Codex, and
-  the shortening it calls for, are Next Up item 1.
+  model, or future catalog size. The listing budgets of both Claude Code and Codex are measured in
+  the [catalog-budget record](../experiments/harness-invocation/records/2026-10-11-skill-catalog-budgets.md),
+  and the shortening they call for is Next Up item 1.
 - **Codex update re-enables a disabled plugin:** on Codex CLI 0.153.4, upgrading an installed
   plugin with `codex plugin add <plugin>@deniz-skills` set a plugin the user had disabled back to
   `enabled = true` in the Codex configuration; the rollout restored the line by hand
