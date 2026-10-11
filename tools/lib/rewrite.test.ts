@@ -404,7 +404,7 @@ test("an underscore-emphasized general-purpose subagent renders like the star fo
   assert.equal(renderHarnessPhrasing("a snake_general-purpose subagent", "codex"), "a snake_general-purpose subagent");
 });
 
-test("Claude Code's TodoWrite tool name is Claude-only vocabulary; OpenCode's own lowercase word is not", () => {
+test("Claude Code's TodoWrite tool name is Claude-only vocabulary; OpenCode 1's lowercase word is not", () => {
   assert.deepEqual(
     claudeOnlyVocabulary("Track it with TodoWrite, or `TodoWrite`.").map((hit) => hit.match),
     ["TodoWrite", "TodoWrite"],
@@ -505,7 +505,48 @@ test("a paraphrase no table row renders still fails the OpenCode todo check", ()
     assert.equal(renderHarnessPhrasing(paraphrase, "opencode"), paraphrase, `no row renders "${paraphrase}"`);
     assert.equal(openCodeTodoWords(paraphrase).length, 1, paraphrase);
   }
-  assert.deepEqual(openCodeTodoWords("TodoWrite, todowrite, and a todo_list"), [{ index: 28, match: "todo" }]);
+  assert.deepEqual(openCodeTodoWords("a todo_list, and a todos_x"), [
+    { index: 2, match: "todo" },
+    { index: 19, match: "todos" },
+  ]);
+});
+
+test("OpenCode 1's todo tool names are todo words in prose; OpenCode 2 has no such tool", () => {
+  assert.deepEqual(
+    openCodeTodoWords("Track it with todowrite, read it with todoread, or call TodoWrite and TODOREAD.").map(
+      (hit) => hit.match,
+    ),
+    ["todowrite", "todoread", "TodoWrite", "TODOREAD"],
+  );
+  assert.deepEqual(openCodeTodoWords("The OpenCode 1 `todowrite` and `todoread` tools were removed."), []);
+});
+
+test("a todo word spelled with a non-ASCII hyphen or dash is still a todo word", () => {
+  assert.deepEqual(
+    openCodeTodoWords("Keep a to‐do, a to‑do list, a to–do, and two to—dos.").map((hit) => hit.match),
+    ["to‐do", "to‑do", "to–do", "to—dos"],
+  );
+});
+
+test("the two-word 'to do' is ordinary English, not a todo word", () => {
+  for (const prose of ["List the things to do next.", "What to do when the build fails", "To do this, run it."]) {
+    assert.deepEqual(openCodeTodoWords(prose), [], prose);
+  }
+});
+
+test("a todo word in a URL is part of an address, not prose", () => {
+  for (const url of [
+    "See https://example.com/docs/to-do for the list.",
+    "Read <https://example.com/guides/todo> first.",
+    "Follow [the guide](https://example.com/to-do) and [the other](http://example.com/a/todos?x=1).",
+  ]) {
+    assert.deepEqual(openCodeTodoWords(url), [], url);
+  }
+  assert.deepEqual(
+    openCodeTodoWords("Open https://example.com/to-do, then add a todo.").map((hit) => hit.match),
+    ["todo"],
+    "prose after the URL is still read",
+  );
 });
 
 test("a TODO marker is code only when it is written as code", () => {
@@ -525,4 +566,60 @@ test("a TODO marker is code only when it is written as code", () => {
   const literal = "Write `create a todo per item` as the example.";
   assert.deepEqual(openCodeTodoWords(literal), [], "a code span is literal");
   assert.equal(renderHarnessPhrasing(literal, "opencode"), literal, "a code span is left whole");
+});
+
+test("a TODO marker is code in every CommonMark code block and in HTML code", () => {
+  for (const code of [
+    // A fence in a list item, indented four or more spaces to the item's content.
+    "1. Add the guard:\n\n    ```csharp\n    // TODO: guard param\n    ```\n",
+    "- Add the guard:\n\n      ~~~\n      TODO: later\n      ~~~\n",
+    "1. Step\n   - Nested:\n\n       ```\n       TODO: later\n       ```\n",
+    // A fence in a blockquote, and in a list item inside one.
+    "> Quoted:\n>\n> ```\n> TODO: later\n> ```\n",
+    "> - Item\n>\n>   ```\n>   TODO: later\n>   ```\n",
+    // An indented code block, at the top level and in a list item.
+    "Before.\n\n    // TODO: guard param\n    var x = param;\n",
+    "Before.\n\n    // TODO: one\n\n    // TODO: two after a blank line\n",
+    "- Item\n\n      // TODO: code in the item\n",
+    // HTML code.
+    "Write <code>// TODO: guard</code> at the site.",
+    'Write <code class="x">TODO</code> and <CODE>todo</CODE>.',
+  ]) {
+    assert.deepEqual(openCodeTodoWords(code), [], code);
+  }
+});
+
+test("prose around and after CommonMark code is still read", () => {
+  const prose = (text: string, expected: string[]): void => {
+    assert.deepEqual(
+      openCodeTodoWords(text).map((hit) => hit.match),
+      expected,
+      text,
+    );
+  };
+  // An indented line that continues a list item or a paragraph is prose, not code.
+  prose("1. Step one\n\n    Then keep a todo list.\n", ["todo"]);
+  prose("- Item\n\n    Add a todo here.\n", ["todo"]);
+  prose("A paragraph\n    with an indented todo line.\n", ["todo"]);
+  prose("> Quoted prose with a todo.\n", ["todo"]);
+  // A blockquote or list item that ends closes the fence it held.
+  prose("> ```\n> TODO: code\nA todo after the quote.\n", ["todo"]);
+  prose("- Step\n\n  ```\n  TODO: code\nA todo after the item.\n", ["todo"]);
+  // An indented code block ends at the first less-indented line.
+  prose("Before.\n\n    TODO: code\nA todo after the code.\n", ["todo"]);
+  // HTML code covers only its own element.
+  prose("<code>todo</code>, but a todo outside it.", ["todo"]);
+  prose("An unclosed <code>todo stays prose.", ["todo"]);
+  // Inside a top-level fence, a fence line indented four spaces closes nothing.
+  prose("```\n    ```\nTODO: still in the fence\n```\nA todo after it.\n", ["todo"]);
+});
+
+test("a fence in a list item or a blockquote holds no code span", () => {
+  const text = "1. Prompt:\n\n    ```text\n    dispatch a general-purpose subagent, `x`\n    ```\n";
+  assert.equal(
+    renderHarnessPhrasing(text, "opencode"),
+    "1. Prompt:\n\n    ```text\n    dispatch a `general` subagent, `x`\n    ```\n",
+  );
+  const quoted = "> ```\n> dispatch a general-purpose subagent, `x`\n> ```\n";
+  assert.equal(renderHarnessPhrasing(quoted, "codex"), "> ```\n> dispatch a subagent, `x`\n> ```\n");
 });

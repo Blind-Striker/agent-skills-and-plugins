@@ -116,16 +116,60 @@ const CODEX_VERB = { Call: "Invoke", call: "invoke", calls: "invokes", calling: 
 
 /** A line that opens a new Markdown block: a list item, quote, heading, or table row. */
 const BLOCK_START = /^[ \t]*(?:[-*+][ \t]|>|#|\||\d+[.)][ \t])/;
+/** One blockquote marker: up to three spaces, `>`, and the one space that may follow it. */
+const QUOTE_MARKER = /^ {0,3}> ?/;
+/** A list item marker, followed by a space, a tab, or the end of the line. */
+const LIST_MARKER = /^(?:[-*+]|\d{1,9}[.)])(?=[ \t]|$)/;
+/** A code fence line: three or more backticks or tildes, then the rest of the line. */
+const FENCE = /^(`{3,}|~{3,})(.*)$/;
+/** An HTML code element that closes before the next blank line. */
+const HTML_CODE = /<code(?:\s[^<>]*)?>(?:(?!\n[ \t]*\n)[\s\S])*?<\/code\s*>/gi;
+
+/** Strips up to `limit` blockquote markers from the start of a line. */
+function unquote(line: string, limit = Number.POSITIVE_INFINITY): { quotes: number; rest: string } {
+  let quotes = 0;
+  let rest = line;
+  for (let marker = QUOTE_MARKER.exec(rest); marker && quotes < limit; marker = QUOTE_MARKER.exec(rest)) {
+    rest = rest.slice(marker[0].length);
+    quotes += 1;
+  }
+  return { quotes, rest };
+}
+
+/** The column a line's text starts at, a tab advancing to the next multiple of four, and the text. */
+function indentOf(line: string): { column: number; text: string } {
+  let column = 0;
+  let at = 0;
+  for (; at < line.length && (line[at] === " " || line[at] === "\t"); at += 1) {
+    column += line[at] === "\t" ? 4 - (column % 4) : 1;
+  }
+  return { column, text: line.slice(at) };
+}
+
+/** The run of a fence opener; a backtick fence's info string holds no backtick. */
+function fenceOpener(text: string): string | undefined {
+  const fence = FENCE.exec(text);
+  const run = fence?.[1];
+  return run !== undefined && !(run.startsWith("`") && (fence?.[2] ?? "").includes("`")) ? run : undefined;
+}
 
 /**
- * The code of Markdown text, as `[start, end)` offsets. Inline spans include their backticks: as in
- * CommonMark, a run of backticks opens a span that the next run of the same length closes within
- * its block, and a run with no closer is literal. Fenced blocks include their fence lines, and a
- * fence that never closes runs to the end of the text; a fenced block holds no span.
+ * The code of Markdown text, as `[start, end)` offsets, read the way CommonMark reads it. Inline
+ * spans include their backticks: a run of backticks opens a span that the next run of the same
+ * length closes within its block, and a run with no closer is literal. Code blocks are whole
+ * lines: a fenced block with its fence lines, and an indented block, four columns past its
+ * container and not continuing a paragraph. A fence or indented block may sit in a list item or a
+ * blockquote; it ends when its container ends, and a fence that never closes runs to the end of
+ * the text. A code block holds no span. HTML code is a `<code>` element closed before the next
+ * blank line, outside the other code.
  */
-function markdownCode(content: string): { inline: [number, number][]; fenced: [number, number][] } {
+function markdownCode(content: string): {
+  inline: [number, number][];
+  blocks: [number, number][];
+  html: [number, number][];
+} {
   const inline: [number, number][] = [];
-  const fenced: [number, number][] = [];
+  const blocks: [number, number][] = [];
   const scan = (start: number, end: number): void => {
     const runs = [...content.slice(start, end).matchAll(/`+/g)].map((m) => ({
       at: start + m.index,
@@ -141,39 +185,115 @@ function markdownCode(content: string): { inline: [number, number][]; fenced: [n
     }
   };
   let offset = 0;
+  // The inline block being read, the open fence, and the open indented block.
   let block: number | undefined;
-  let fence: { char: string; length: number; start: number } | undefined;
+  let fence: { char: string; length: number; start: number; quotes: number; column: number } | undefined;
+  let codeBlock: [number, number] | undefined;
+  // The content columns of the open list items, innermost last, and the quote depth they sit at.
+  let items: number[] = [];
+  let itemQuotes = 0;
+  // Whether the line before continues a paragraph: an indented line then continues it too.
+  let paragraph = false;
   const endBlock = (end: number): void => {
     if (block !== undefined) {
       scan(block, end);
     }
     block = undefined;
   };
+  const endCodeBlock = (): void => {
+    if (codeBlock) {
+      blocks.push(codeBlock);
+    }
+    codeBlock = undefined;
+  };
   for (const line of content.split("\n")) {
-    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-    const run = marker?.[1] ?? "";
-    const rest = marker?.[2] ?? "";
+    const end = offset + line.length;
     if (fence) {
-      if (run.startsWith(fence.char) && run.length >= fence.length && rest.trim() === "") {
-        fenced.push([fence.start, offset + line.length]);
-        fence = undefined;
+      const inner = unquote(line, fence.quotes);
+      const { column, text } = indentOf(inner.rest);
+      if (inner.quotes === fence.quotes && (text.trim() === "" || column >= fence.column)) {
+        const close = FENCE.exec(text);
+        const run = close?.[1] ?? "";
+        if (
+          column - fence.column <= 3 &&
+          run.startsWith(fence.char) &&
+          run.length >= fence.length &&
+          (close?.[2] ?? "").trim() === ""
+        ) {
+          blocks.push([fence.start, end]);
+          fence = undefined;
+        }
+        offset = end + 1;
+        continue;
       }
-    } else if (marker && !(run.startsWith("`") && rest.includes("`"))) {
+      // The blockquote or list item that held the fence ended on the line before, and the fence with it.
+      blocks.push([fence.start, offset - 1]);
+      fence = undefined;
+    }
+    const { quotes, rest } = unquote(line);
+    if (quotes !== itemQuotes) {
+      items = [];
+      itemQuotes = quotes;
+    }
+    let { column, text } = indentOf(rest);
+    if (text.trim() === "") {
       endBlock(offset);
-      fence = { char: run.charAt(0), length: run.length, start: offset };
-    } else if (line.trim() === "" || BLOCK_START.test(line)) {
+      paragraph = false;
+      offset = end + 1;
+      continue;
+    }
+    // A less-indented line ends each list item it is not inside, unless it lazily continues a paragraph.
+    const lazy = paragraph && fenceOpener(text) === undefined && !BLOCK_START.test(text);
+    while (!lazy && items.length > 0 && column < (items.at(-1) ?? 0)) {
+      items.pop();
+    }
+    let container = items.at(-1) ?? 0;
+    const marker = !lazy && column - container <= 3 ? LIST_MARKER.exec(text)?.[0] : undefined;
+    if (marker !== undefined) {
+      // The item's content starts after the marker and its spaces; past four of them, one space
+      // starts it and the rest indents code.
+      const after = indentOf(text.slice(marker.length));
+      const gap = after.text === "" || after.column > 4 ? 1 : after.column;
+      container = column + marker.length + gap;
+      items.push(container);
+      column = container + after.column - gap;
+      text = after.text;
+      paragraph = false;
+    }
+    if (!paragraph && text !== "" && column - container >= 4) {
       endBlock(offset);
-      block = line.trim() === "" ? undefined : offset;
+      codeBlock = codeBlock ? [codeBlock[0], end] : [offset, end];
+      offset = end + 1;
+      continue;
+    }
+    endCodeBlock();
+    const run = column - container <= 3 ? fenceOpener(text) : undefined;
+    if (run !== undefined) {
+      endBlock(offset);
+      fence = { char: run.charAt(0), length: run.length, start: offset, quotes, column: container };
+      paragraph = false;
+      offset = end + 1;
+      continue;
+    }
+    if (BLOCK_START.test(line)) {
+      endBlock(offset);
+      block = offset;
     } else {
       block ??= offset;
     }
-    offset += line.length + 1;
+    paragraph = text !== "" && !/^#{1,6}(?:[ \t]|$)/.test(text);
+    offset = end + 1;
   }
   endBlock(content.length);
+  endCodeBlock();
   if (fence) {
-    fenced.push([fence.start, content.length]);
+    blocks.push([fence.start, content.length]);
   }
-  return { inline, fenced };
+  const code = [...inline, ...blocks];
+  const html = [...content.matchAll(HTML_CODE)]
+    .filter((m) => !code.some(([start, end]) => m.index >= start && m.index < end))
+    .map((m): [number, number] => [m.index, m.index + m[0].length]);
+  return { inline, blocks, html };
 }
 
 /** The inline code spans of Markdown text, as `[start, end)` offsets that include their backticks. */
@@ -242,8 +362,15 @@ const OPENCODE_TODO: { pattern: RegExp; opencode: Replacement }[] = [
   { pattern: /\ba todo-list record\b/g, opencode: "a Markdown checklist" },
 ];
 
-/** `todo`, `todos`, `to-do`, or `to-dos` in any letter case, not inside a longer word. */
-const TODO_WORD = /(?<![A-Za-z0-9])to-?dos?(?![A-Za-z0-9])/gi;
+/**
+ * `todo` or `todos`, joined or with any hyphen or dash between `to` and `do`, or OpenCode 1's
+ * removed `todowrite` and `todoread` tools, in any letter case and not inside a longer word. The
+ * two words "to do" are ordinary English and are not one.
+ */
+const TODO_WORD = /(?<![A-Za-z0-9])to\p{Pd}?do(?:s|write|read)?(?![A-Za-z0-9])/giu;
+
+/** A URL with a scheme, which ends at whitespace, a bracket, a quote, or a backtick. */
+const SCHEME_URL = /\b[A-Za-z][A-Za-z0-9+.-]*:\/\/[^\s<>()[\]"'`]+/g;
 
 /**
  * The one OpenCode file that may say todo, below `opencode/`: using-superpowers' OpenCode tool
@@ -252,15 +379,16 @@ const TODO_WORD = /(?<![A-Za-z0-9])to-?dos?(?![A-Za-z0-9])/gi;
 export const OPENCODE_TODO_NOTES = "deniz-process/skills/deniz-process.using-superpowers/references/harness-tools.md";
 
 /**
- * Every todo word outside inline code and fenced code. OpenCode 2 has no todo tool, so prose that
- * names a todo, a `TODO` included, asks for something the harness lacks; a marker written as code
- * is code.
+ * Every todo word outside code and outside a URL. OpenCode 2 has no todo tool, so prose that names
+ * a todo, a `TODO` included, asks for something the harness lacks; a marker written as code is code,
+ * and a URL is an address.
  */
 export function openCodeTodoWords(content: string): { index: number; match: string }[] {
-  const { inline, fenced } = markdownCode(content);
-  const code = [...inline, ...fenced];
+  const { inline, blocks, html } = markdownCode(content);
+  const urls = [...content.matchAll(SCHEME_URL)].map((m): [number, number] => [m.index, m.index + m[0].length]);
+  const skipped = [...inline, ...blocks, ...html, ...urls];
   return [...content.matchAll(TODO_WORD)]
-    .filter((m) => !code.some(([start, end]) => m.index >= start && m.index < end))
+    .filter((m) => !skipped.some(([start, end]) => m.index >= start && m.index < end))
     .map((m) => ({ index: m.index, match: m[0] }));
 }
 

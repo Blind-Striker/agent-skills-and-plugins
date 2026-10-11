@@ -207,8 +207,8 @@ OpenCode and "Dispatch a fresh subagent" in Codex. The same words anywhere insid
 span, as in `` `dispatch a general-purpose subagent` ``, are left alone in every harness, because a
 backtick inserted there would break the span; the vocabulary check rejects them instead. A span is
 found as CommonMark finds it: a run of backticks closed by the next run of the same length within
-its block. A fenced code block holds no span, so the words are rendered there, where a backtick is
-literal (`inlineCodeSpans`).
+its block. A fenced or indented code block holds no span, in a list item or a blockquote too, so the
+words are rendered there, where a backtick is literal (`inlineCodeSpans`).
 
 The tool names come from recorded evidence. OpenCode 2's model tool `skill` takes an exact skill
 ID, its subagent tool is `subagent`, and its built-in general subagent is `general`
@@ -294,19 +294,27 @@ skills.
 underscores allowed between, `` `Agent` ``, `Agent tool`, `Task tool`, `subagent_type`, and
 `TodoWrite`, Claude Code's todo tool, in that letter case. The rendered OpenCode
 ``the `skill` tool`` does not match, because a backtick separates the words, and neither does
-OpenCode's own lowercase `todowrite`. The check reads code spans too, so it rejects the words the
-phrasing leaves whole there. The patterns sit beside the phrasing tables in
+OpenCode 1's lowercase `todowrite`, which the todo check below rejects in prose. The check reads
+code spans too, so it rejects the words the phrasing leaves whole there. The patterns sit beside
+the phrasing tables in
 [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every non-Claude rendering in those tables
 must pass them. A new upstream phrasing therefore fails the build instead of reaching a harness that
 has no such tool; the fix is a curated rewording or a new table row.
 
-Every Markdown file under `opencode/` is also checked for a todo word: `todo`, `todos`, `to-do`, or
-`to-dos`, in any letter case and not inside a longer word (`openCodeTodoWords`). So `TodoWrite`,
-which the check above rejects, and OpenCode 1's `todowrite` hold none, while `todo_list` holds one.
-The check skips inline code spans and fenced code blocks, which are literal, and a fence that never
-closes runs to the end of the file. The all-caps `TODO` marker follows the same rule: written as
-code, as in ``insert a `// TODO: guard` comment``, it is code, while "Create a TODO per step" in prose
-fails. Other bundled files are code and are not read. One file is exempt: `using-superpowers`'
+Every Markdown file under `opencode/` is also checked for a todo word: `todo` or `todos`, written
+joined or with any hyphen or dash between `to` and `do` (`to-do`, `to‑do`, `to–do`), and the names of
+OpenCode 1's removed todo tools, `todowrite` and `todoread`, in any letter case and not inside a
+longer word (`openCodeTodoWords`). OpenCode 2 has neither tool, so a body that names one in prose
+fails, `TodoWrite` included, which the check above also rejects; `todo_list` holds a todo word too.
+The two words "to do", as in "things to do", are ordinary English and are not one.
+
+The check skips code, which is literal, and URLs, which are addresses. It reads code as CommonMark
+does: inline code spans; fenced code blocks, also in a list item or a blockquote, where a fence
+ends with its container and a fence that never closes runs to the end of the file; indented code
+blocks; and HTML `<code>` elements. A URL with a scheme, such as `https://example.com/to-do`, is
+skipped whole. The all-caps `TODO` marker follows the same rule: written as code, as in
+``insert a `// TODO: guard` comment``, it is code, while "Create a TODO per step" in prose fails.
+Other bundled files are code and are not read. One file is exempt: `using-superpowers`'
 OpenCode tool notes, `references/harness-tools.md`, which must name the todo tool OpenCode 2 removed
 (`OPENCODE_TODO_NOTES`). Every OpenCode rendering in the todo table must pass the check, so a todo
 phrase no row renders fails instead of shipping. Codex keeps upstream's todo words and is not
