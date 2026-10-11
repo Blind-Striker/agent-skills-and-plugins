@@ -18,9 +18,9 @@ For a quick human-facing route through the mature process and general .NET sets,
 ## Why this mix
 
 `deniz-process` is a transformed personal mix, not either upstream framework wholesale. At the
-current pins it takes all 15 Superpowers skills and 22 of Matt Pocock's 35 scanned skills directly;
+current pins it takes all 15 Superpowers skills and 24 of Matt Pocock's 38 scanned skills directly;
 Matt's TDD, debugging, and code-review material is folded into three corresponding
-Superpowers-based skills, while ten other Matt items are excluded. Superpowers supplies most of the
+Superpowers-based skills, while 11 other Matt skills are excluded. Superpowers supplies most of the
 plan, build, and verify spine; Matt supplies mostly human-started ceremonies plus routing,
 domain/design, research, and teaching tools. The Superpowers SessionStart bootstrap is not shipped,
 and ASD-STE100 contributes one additional controlled-English skill. Exact item decisions and reasons
@@ -65,8 +65,8 @@ pinned upstream repos + original skills
   flags. OpenCode 2 receives one artifact per item at its `<plugin>.<name>` ID: a skill, unless
   curation chose `as: command` or `as: agent`. A `manual` skill carries
   `opencode/autoinvoke: false`, so the model is not offered it and the user attaches it with
-  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 115
-  skills, 26 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
+  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 122
+  skills, 30 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
   native explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto`
   because its native skill surface has no implicit-only posture.
 - Surgical patches, owned overlays, and declared multi-source merges are stamped against their
@@ -104,7 +104,8 @@ Vincent, [Matt Pocock's skills](https://github.com/mattpocock/skills),
 [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard,
 [Microsoft's Aspire skills](https://github.com/microsoft/aspire-skills),
 [the .NET agent skills](https://github.com/dotnet/skills), and
-[ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng.
+[ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng. `pr`'s
+Summary guidance comes from [HumanLayer's `show-me`](https://github.com/humanlayer/skills).
 
 This repository's original work is MIT licensed. Each generated Claude Plugin, OpenCode Bundle, and
 Codex Plugin carries its exact source-specific license texts. See [LICENSE](LICENSE) and
