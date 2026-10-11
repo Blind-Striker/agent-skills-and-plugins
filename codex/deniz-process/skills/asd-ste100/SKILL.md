@@ -1,34 +1,33 @@
 ---
 name: asd-ste100
-description: "Use when English text must be parsed without a human to resolve
-  ambiguity — tool descriptions, error messages, inter-agent instructions,
-  system prompts, status reports — and misreading has a real cost, or when text
-  reads as dense, hedged, or easy to misparse. Triggers: disambiguate, STE100
-  rewrite, apply Simplified Technical English, plain-language rewrite,
-  controlled-language rewrite, rewrite so an agent cannot misread this. Not for
-  creative or marketing copy."
+description: "Use when English prose a person reads — docs, messages,
+  explanations, status reports, error messages — must not be misread and
+  misreading has a real cost, or when it reads as dense, hedged, or easy to
+  misparse. Triggers: disambiguate, STE100 rewrite, apply Simplified Technical
+  English, plain-language rewrite, controlled-language rewrite. Not for text
+  meant for an agent (prompts, skill descriptions, steering files; use
+  writing-for-agents), or for creative or marketing copy."
 ---
 
 # Simplified Technical English (ASD-STE100)
 
 ASD-STE100 is a controlled-language standard built by the aerospace and defense industry (ASD, the AeroSpace and Defense Industries Association of Europe) to stop maintenance technicians from misreading English instructions. The standard removes the two biggest sources of misreading: words with more than one meaning, and sentences with more than one possible structure.
 
-This skill borrows that same discipline for a different reader: an **AI agent or a downstream system** that has to parse an English string — an error message, a tool description, an inter-agent instruction, a status report — without a human in the loop to resolve ambiguity. If a maintenance technician can misread "close the valve" as an adjective ("the valve that is near") instead of a command, so can a language model.
+This skill borrows that same discipline for prose a person reads — an error message, a status report, a doc, an explanation — with no one at hand to resolve an ambiguity. If a maintenance technician can misread "close the valve" as an adjective ("the valve that is near") instead of a command, so can any reader.
 
 ## When to Use This Skill
 
-- An agent's output (explanation, instruction, log message, tool description) reads as dense, jargon-heavy, or ambiguous.
-- Text will be consumed by another agent, a translation pipeline, or a non-native English reader, and misparsing has a real cost.
-- You are writing a prompt, system message, or tool description and want to remove ambiguity before a model ever sees it.
+- An agent's output (explanation, instruction, log message) reads as dense, jargon-heavy, or ambiguous.
+- Text will be consumed by a translation pipeline or a non-native English reader, and misparsing has a real cost.
 - You want a **before/after** comparison showing exactly which rule was violated and how the rewrite fixes it. Ask for it — the default output is the rewritten text alone (see Output Format).
 
-This skill is not for creative or marketing copy — STE is deliberately flat and literal. Do not apply it to text where voice, nuance, or persuasion is the point.
+This skill is not for creative or marketing copy — STE is deliberately flat and literal. Do not apply it to text where voice, nuance, or persuasion is the point. Nor is it for text meant for an agent — a prompt, a skill description, a steering file such as `AGENTS.md`: $deniz-process:writing-for-agents covers that.
 
 ## Two Modes
 
 Pick a mode before rewriting. If the user does not say which, infer it from the text type. Keep the choice internal unless the user asks for the rule table (see Output Format).
 
-**Strict** — procedures, error messages, tool and function descriptions, inter-agent instructions, safety text. Anywhere a wrong reading has a cost. Apply every rule below, including the hard length caps and one-word-one-meaning discipline.
+**Strict** — procedures, error messages, safety text. Anywhere a wrong reading has a cost. Apply every rule below, including the hard length caps and one-word-one-meaning discipline.
 
 **STE-flavored** — READMEs, PR descriptions, changelogs, explanatory prose. Apply the structural rules in full and treat the lexical rules as advisory (see Core Rewrite Rules for that split). In practice that means keeping the sentence length caps, active voice, simple tenses, no phrasal verbs, no semicolons, no nominalization and no marketing adjectives, while dropping the one-word-one-meaning lockdown: prose needs some range, and a strict rewrite of prose reads as a personality transplant rather than a clarification.
 
@@ -102,7 +101,7 @@ These six habits cover most of what makes machine-written English hard to parse.
 
 ## Output Format
 
-**Default: the rewritten text, and nothing else.** Most callers want a result they can paste straight into a tool description, an error string, or a prompt. Print the simplified text on its own. Do not add a preamble about this skill, a mode announcement, a violation count, a summary of what changed, a rule table, or a closing offer to explain further.
+**Default: the rewritten text, and nothing else.** Most callers want a result they can paste straight into a doc, an error string, or a message. Print the simplified text on its own. Do not add a preamble about this skill, a mode announcement, a violation count, a summary of what changed, a rule table, or a closing offer to explain further.
 
 The one permitted addition: if step 4 kept a longer phrasing on purpose, add a single line after the text, prefixed `Kept as-is:`, naming the phrase and the precision that would have been lost. Omit the line when there is nothing to report.
 

@@ -4075,13 +4075,18 @@
     "source": "asd-ste100",
     "invocation": "auto",
     "body": "patch",
-    "description": "Use when English text must be parsed without a human to resolve ambiguity — tool descriptions, error messages, inter-agent instructions, system prompts, status reports — and misreading has a real cost, or when text reads as dense, hedged, or easy to misparse. Triggers: disambiguate, STE100 rewrite, apply Simplified Technical English, plain-language rewrite, controlled-language rewrite, rewrite so an agent cannot misread this. Not for creative or marketing copy.",
+    "dependsOn": [
+      "writing-for-agents"
+    ],
+    "description": "Use when English prose a person reads — docs, messages, explanations, status reports, error messages — must not be misread and misreading has a real cost, or when it reads as dense, hedged, or easy to misparse. Triggers: disambiguate, STE100 rewrite, apply Simplified Technical English, plain-language rewrite, controlled-language rewrite. Not for text meant for an agent (prompts, skill descriptions, steering files; use writing-for-agents), or for creative or marketing copy.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:writing-for-agents"
+        ],
         "pointer": []
       },
       "flags": {
@@ -4095,7 +4100,9 @@
       "identity": "deniz-process.asd-ste100",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.writing-for-agents"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -4114,7 +4121,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:writing-for-agents"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -6349,13 +6358,18 @@
     "source": "mattpocock-skills/skills/productivity/writing-for-agents",
     "invocation": "both",
     "body": "patch",
+    "dependsOn": [
+      "asd-ste100"
+    ],
     "description": "Writing documents an agent consumes. Use when designing or rewording a skill, an AGENTS.md or CLAUDE.md, or an agent prompt for how reliably an agent follows it — not for routine content edits to those files.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:asd-ste100"
+        ],
         "pointer": []
       }
     },
@@ -6366,7 +6380,9 @@
       "identity": "deniz-process.writing-for-agents",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.asd-ste100"
+        ],
         "pointer": []
       },
       "dropped": []
@@ -6383,7 +6399,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:asd-ste100"
+        ],
         "pointer": []
       },
       "dropped": [],
