@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.7.0, General 0.11.0, Akka 0.4.1, and Aspire 0.4.1. Their item
+  Checkout Module versions are Process 0.7.0, General 0.11.0, Akka 0.4.1, and Aspire 0.5.0. Their item
   posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -60,10 +60,16 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   fixes upstream defects verified against Microsoft Learn and the dotnet/sdk source.
   `testcontainers-integration-tests` flows unowned now that upstream teaches the Testcontainers 4.x
   API. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key rename.
-- Aspire follows the reviewed merged `aspire-skills` commit `c9d042e`, whose source metadata is
-  0.0.2 and guidance targets Aspire 13.5.3. This is a reviewed main-commit choice, not a claim that
-  upstream published a 0.0.2 tag or Release. The eight-skill set and declared dependency closure are
-  unchanged; the six official workflow patches continue to own only package-local routing.
+- `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);
+  wave W3 is done. Its source metadata is 0.0.3 and its guidance covers the Aspire 13.5 and 13.6
+  release family; the post-tag commit carries the 13.6 agent-setup and MCP opt-in guidance that
+  `aspire-init` and the router need. Following merged main ahead of release tags is the reviewed
+  choice, not a claim about upstream Releases. The six official workflow patches still own only
+  package-local routing, and those items now state `both`, which keeps their passthrough posture.
+  Aspire takes `aspire-project-v2-migration` as `manual`, reached by a user-pointer in the router,
+  and `aspire-init` declares its edge to the router. Description length is now checked in every
+  harness tree, so `aspireify` and `aspire-orchestration` shorten their rendered descriptions
+  instead of Codex truncating them.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -97,27 +103,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Upstream sync waves W3 to W6, in this order.** The five remaining pins are frozen at their
+1. **Upstream sync waves W4 to W6, in this order.** The four remaining pins are frozen at their
    2026-09-06 positions. A cross-upstream review on 2026-10-08 read one decision packet per
    upstream; the packets recommend a treatment for each item; every take, skip, merge, or
    modification is still the curator's decision, and each wave measures its upstream again before
    it starts. A wave moves one submodule, except that W4 moves `superpowers` and `asd-ste100`
    together.
-   - **W3 `aspire-skills`** (29 commits ahead). Upstream published v0.0.3 (2026-09-23); HEAD is
-     three commits past it and targets Aspire 13.6, and the packet recommends HEAD because the
-     post-tag commit fixes `aspire-init` guidance for 13.6. All six taken items changed and 12
-     stamps drift, so all six patches need recutting with their current intent; most rejects are
-     context-only, which makes this the first live test of `eject --patch --rebase`. A 3-way replay
-     measured at `da1230c`: every Aspire patch fails a direct apply and four keep `SKILL.md`
-     conflicts. The wave also lands description validation for every harness: check the rendered
-     1,024-character limit in every tree, not only Codex, where `aspireify` and
-     `aspire-orchestration` are already truncated after localization, together with the Aspire
-     shortening decision; the boundary of a tag or angle-bracket rule is still open. Add a
-     frontmatter-override staleness stamp only if a description-only change without a patch
-     appears.
-     `aspire-project-v2-migration` is a new candidate (packet: `manual`, reached by a checked
-     user-pointer from the router); `pr-review` stays excluded. The wave also decides stated
-     invocation for the six items, which pass upstream posture through today.
    - **W4 `superpowers` v6.3.0 to v6.4.2, with `asd-ste100`.** Nine of 14 taken superpowers items
      changed; six stamps drift. `executing-plans`, `subagent-driven-development`, `writing-plans`,
      and the `requesting-code-review` overlay share one contract and land together.
@@ -309,9 +300,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Symlink-boundary patches:** emitted copies skip symlinks while `git apply` cannot patch through
   them.
 - **Frontmatter override staleness:** sync reports body movement beneath an override, but no stamp or
-  build-time guard exists.
-- **Unstated Aspire invocation:** six official workflow items still pass upstream Claude posture
-  through because their manifests state no invocation intent.
+  build-time guard exists. Add a stamp only if a description-only change without a patch appears.
+- **Description content beyond length:** the build and `validate` check the rendered
+  1,024-character description limit in every tree; whether a tag or angle-bracket rule for
+  descriptions should be checked too, and where its boundary lies, is still open.
 - **Aspireify activation tension remains upstream-owned:**
   `external/aspire-skills/skills/aspireify/SKILL.md` advertises integration/authoring and toolchain
   work while its Detection section still requires an unwired AppHost and its header says one-time.

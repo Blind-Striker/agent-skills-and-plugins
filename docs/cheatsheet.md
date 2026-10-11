@@ -92,7 +92,7 @@ Most reference skills activate when their topic appears. These are the useful de
 | Module | Start here | What follows |
 |---|---|---|
 | `deniz-dotnet-akka` | `akka-net-specialist` for delegated diagnosis; `akka-net-best-practices` for passive rules | Hosting, Management, testing, and Aspire-configuration specialists |
-| `deniz-dotnet-aspire` | `aspire` when an AppHost or Aspire workflow is detected | `aspire-init`, `aspireify`, orchestration, deployment, monitoring, integration testing, and ServiceDefaults |
+| `deniz-dotnet-aspire` | `aspire` when an AppHost or Aspire workflow is detected | `aspire-init`, `aspireify`, orchestration, deployment, monitoring, integration testing, and ServiceDefaults; the manual `aspire-project-v2-migration` runs only when you invoke it to move existing project resources to Project v2 |
 
 The Aspire bodies remain mostly upstream-owned. Their presence and linkage are verified; this
 repository does not claim every upstream CLI, TypeScript, testing, or package example was executed in
