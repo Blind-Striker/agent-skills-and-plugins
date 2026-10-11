@@ -242,10 +242,21 @@ An ordinary Codex skill is implicitly eligible and explicitly addressable. `manu
 the catalog the model is offered while `$plugin:skill` still injects it (measured on Codex CLI
 0.153.4, [record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md));
 `auto` and `both` write no disabling policy. Absent invocation uses the Codex target default. The
-policy file's `interface.short_description` is a menu label, not the trigger description: as many
-whole sentences of the rendered description as fit in 64 characters, or, when the first sentence
-alone is longer, its leading whole words and an ellipsis, so a label never ends inside a word
-([`createCodexSkillAgentManifest`](../../tools/lib/codex-plugin.ts)).
+policy file's `interface.short_description` is a menu label, not the trigger description. It fits
+the Codex guideline of 64 characters and is cut from the rendered description with its Markdown
+emphasis and code markers (`**`, `__`, and backticks) removed:
+
+1. the whole description, when it fits;
+2. else as many whole sentences as fit;
+3. else the text before the last clause boundary (`,`, `;`, `:`, or `—`) that fits, outside any
+   parentheses or brackets and leaving at least 25 characters;
+4. else whole words, cut before a bracket the cut would leave open when at least 25 characters
+   precede it, and with trailing function words (`by`, `to`, `and`, `or`, `for`, `of`, `the`, `a`,
+   `an`, `with`, `in`, `on`, `from`, `through`, `when`, `that`, `which`, `into`, `as`, `at`, `via`)
+   and trailing punctuation dropped.
+
+Every cut that does not end a sentence ends with an ellipsis, so a label never ends inside a word or
+on a word that promises more ([`createCodexSkillAgentManifest`](../../tools/lib/codex-plugin.ts)).
 Codex does not expose an implicit-only skill policy, so `auto` retains native explicit invocation
 without being mislabeled model-only.
 

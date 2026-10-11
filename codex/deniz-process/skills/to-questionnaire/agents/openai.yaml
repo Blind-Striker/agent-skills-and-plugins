@@ -1,6 +1,6 @@
 interface:
   display_name: "To Questionnaire"
-  short_description: "Turn a decision you can't fully answer into a questionnaire for…"
+  short_description: "Turn a decision you can't fully answer into a questionnaire…"
   default_prompt: "Use $deniz-process:to-questionnaire for this task."
 policy:
   allow_implicit_invocation: false

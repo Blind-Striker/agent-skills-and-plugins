@@ -110,18 +110,115 @@ export function adaptCodexSkillDocument(name: string, doc: ParsedDoc): { documen
   };
 }
 
-/** The longest `interface.short_description` the emitter writes. */
+/** The longest `interface.short_description` the emitter writes, the Codex guideline. */
 const SHORT_DESCRIPTION_LIMIT = 64;
+/** A cut ends with an ellipsis, which takes one character, so the text before it keeps one less. */
+const CUT_LIMIT = SHORT_DESCRIPTION_LIMIT - 1;
+/** The shortest text a clause or bracket cut may leave, so a label still says something. */
+const MEANINGFUL_LABEL = 25;
 /** A sentence ends at `.`, `!`, or `?` before the end of the text or before a capital. */
 const SENTENCE_END = /[.!?](?=$|\s+[A-Z])/g;
+/** Markdown emphasis and code markers, which a plain-text menu label shows literally. */
+const MARKUP = /\*\*|__|`/g;
+const CLAUSE_BOUNDARIES = new Set([",", ";", ":", "—"]);
+/** Words a cut label must not end on, because they promise a continuation the label lacks. */
+const FUNCTION_WORDS = new Set([
+  "by",
+  "to",
+  "and",
+  "or",
+  "for",
+  "of",
+  "the",
+  "a",
+  "an",
+  "with",
+  "in",
+  "on",
+  "from",
+  "through",
+  "when",
+  "that",
+  "which",
+  "into",
+  "as",
+  "at",
+  "via",
+]);
+const TRAILING_PUNCTUATION = /[\s,;:—–([-]+$/;
+
+/** Bracket depth before each index: `depth[i]` is how many `(` or `[` are open before `text[i]`. */
+function bracketDepths(text: string): number[] {
+  const depths: number[] = [];
+  let depth = 0;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charAt(i);
+    depths.push(depth);
+    if (ch === "(" || ch === "[") {
+      depth++;
+    } else if ((ch === ")" || ch === "]") && depth > 0) {
+      depth--;
+    }
+  }
+  depths.push(depth);
+  return depths;
+}
+
+/** The last clause boundary outside brackets whose leading text fits and still says something. */
+function clauseCut(text: string): string | undefined {
+  const depths = bracketDepths(text);
+  let cut: string | undefined;
+  for (let i = 0; i < text.length; i++) {
+    if (!CLAUSE_BOUNDARIES.has(text.charAt(i)) || depths[i] !== 0) {
+      continue;
+    }
+    const lead = text.slice(0, i).trimEnd();
+    if (lead.length > CUT_LIMIT) {
+      break;
+    }
+    if (lead.length >= MEANINGFUL_LABEL) {
+      cut = lead;
+    }
+  }
+  return cut;
+}
+
+/** Drop trailing punctuation and function words until the cut ends on a word that carries meaning. */
+function trimCut(words: string): string {
+  let text = words.replace(TRAILING_PUNCTUATION, "");
+  for (;;) {
+    const space = text.lastIndexOf(" ");
+    if (space <= 0 || !FUNCTION_WORDS.has(text.slice(space + 1).toLowerCase())) {
+      return text;
+    }
+    text = text.slice(0, space).replace(TRAILING_PUNCTUATION, "");
+  }
+}
+
+/** Whole words that fit, never ending inside an open bracket when the text before it says enough. */
+function wordCut(text: string): string {
+  const wordEnd = text.lastIndexOf(" ", CUT_LIMIT);
+  const words = wordEnd > 0 ? text.slice(0, wordEnd) : text.slice(0, CUT_LIMIT);
+  const depths = bracketDepths(words);
+  if (depths.at(-1) !== 0) {
+    // The bracket still open at the cut is the last one opened from depth zero.
+    const open = depths.findLastIndex((depth, i) => depth === 0 && depths[i + 1] !== 0);
+    const lead = trimCut(words.slice(0, open));
+    if (lead.length >= MEANINGFUL_LABEL) {
+      return lead;
+    }
+  }
+  return trimCut(words);
+}
 
 /**
- * The menu label of a manual skill: as many whole sentences of its description as fit. A first
- * sentence that alone is too long is cut after its last whole word, marked with an ellipsis, so no
- * label ends inside a word.
+ * The menu label of a manual skill, measured without Markdown markers: the whole description when
+ * it fits, else as many whole sentences as fit, else the text before the last clause boundary that
+ * fits outside brackets, else whole words with trailing function words dropped. A cut that does not
+ * end a sentence ends with an ellipsis, so no label ends inside a word or on a dangling `by`.
  */
 function shortSkillDescription(name: string, description: string): string {
-  const normalized = description.replace(/\s+/g, " ").trim();
+  const normalized = description.replace(MARKUP, "").replace(/\s+/g, " ").trim();
   const candidate = normalized.length >= 25 ? normalized : `Use ${codexDisplayName(name)} for relevant Codex tasks.`;
   if (candidate.length <= SHORT_DESCRIPTION_LIMIT) {
     return candidate;
@@ -133,10 +230,7 @@ function shortSkillDescription(name: string, description: string): string {
   if (sentenceEnd !== undefined) {
     return candidate.slice(0, sentenceEnd);
   }
-  // The ellipsis takes one character, so the words keep at most the limit minus one.
-  const wordEnd = candidate.lastIndexOf(" ", SHORT_DESCRIPTION_LIMIT - 1);
-  const words = wordEnd > 0 ? candidate.slice(0, wordEnd) : candidate.slice(0, SHORT_DESCRIPTION_LIMIT - 1);
-  return `${words.replace(/[\s,;:—-]+$/, "")}…`;
+  return `${clauseCut(candidate) ?? wordCut(candidate)}…`;
 }
 
 export function createCodexSkillAgentManifest(

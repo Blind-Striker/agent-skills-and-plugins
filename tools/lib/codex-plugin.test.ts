@@ -169,9 +169,10 @@ test("Codex skill adaptation never shortens a description; the length rule fails
   assert.deepEqual(Object.keys(result).sort(), ["document", "dropped"]);
 });
 
+const short = (description: string): string =>
+  createCodexSkillAgentManifest("deniz-process", "alpha", description, "manual")?.interface.short_description ?? "";
+
 test("a manual skill's short description ends at a sentence boundary, never mid-word", () => {
-  const short = (description: string): string =>
-    createCodexSkillAgentManifest("deniz-process", "alpha", description, "manual")?.interface.short_description ?? "";
   assert.equal(
     short("Ask which skill or flow fits your situation. A router over the module's skills and flows."),
     "Ask which skill or flow fits your situation.",
@@ -190,11 +191,96 @@ test("a manual skill's short description ends at a sentence boundary, never mid-
     "Use the build tool, e.g. Make, to run every target in one place.",
     "an abbreviation before a capital is a boundary only when a sentence fits there",
   );
-  const long = "A relentless interview to sharpen a plan or design, which also records decisions as they land.";
-  const cut = short(long);
-  assert.equal(cut, "A relentless interview to sharpen a plan or design, which also…");
-  assert.ok(cut.length <= 64);
+  assert.equal(
+    short("Configure and collect crash dumps for modern .NET applications. USE FOR: enabling automatic crash dumps."),
+    "Configure and collect crash dumps for modern .NET applications.",
+    "a sentence end takes no ellipsis",
+  );
+});
+
+test("a menu label is measured without Markdown emphasis or code markers", () => {
+  assert.equal(
+    short(
+      "**WORKFLOW SKILL** - Safely migrates eligible Aspire 13.6+ AppHosts from legacy ProjectResource APIs to experimental DotnetProjectResource APIs after a per-resource assessment.",
+    ),
+    "WORKFLOW SKILL - Safely migrates eligible Aspire 13.6+ AppHosts…",
+  );
+  assert.equal(short("Run `npm test` and __read__ every failing line."), "Run npm test and read every failing line.");
+});
+
+test("a menu label with no sentence that fits cuts at the last clause boundary that fits", () => {
+  const cut = short(
+    "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",
+  );
+  assert.equal(cut, "A relentless interview to sharpen a plan or design…");
   assert.ok(!cut.includes("..."), "no ASCII ellipsis");
+  assert.equal(
+    short(
+      "Configure this repo for the engineering skills: set up its issue tracker, triage label vocabulary, and domain doc layout. Run once before first use of the other engineering skills.",
+    ),
+    "Configure this repo for the engineering skills…",
+    "a colon is a boundary, and the last boundary that fits wins",
+  );
+  assert.equal(
+    short("Use when creating new skills, editing existing skills, or verifying skills work before deployment"),
+    "Use when creating new skills, editing existing skills…",
+  );
+  assert.equal(
+    short("Ship the release candidate to the staging cluster — then wait for every smoke check to pass."),
+    "Ship the release candidate to the staging cluster…",
+    "an em dash is a boundary",
+  );
+});
+
+test("a clause boundary inside brackets, or one that leaves under 25 characters, is no cut", () => {
+  assert.equal(
+    short(
+      "Convert .NET projects and solutions (.sln, .slnx) to NuGet Central Package Management (CPM) using Directory.Packages.props.",
+    ),
+    "Convert .NET projects and solutions (.sln, .slnx) to NuGet…",
+  );
+  assert.equal(
+    short("Inspect the build [targets, props] graph and list each target whose inputs never change."),
+    "Inspect the build [targets, props] graph and list each target…",
+  );
+  assert.equal(
+    short(
+      "Break a plan, spec, or the current conversation into a set of tracer-bullet tickets, each declaring its blocking edges.",
+    ),
+    "Break a plan, spec, or the current conversation into a set…",
+    "a boundary after 'Break a plan' leaves too little to be a label",
+  );
+});
+
+test("a word cut drops trailing function words and punctuation before the ellipsis", () => {
+  assert.equal(
+    short(
+      "Make .NET projects compatible with Native AOT and trimming by systematically resolving IL trim/AOT analyzer warnings.",
+    ),
+    "Make .NET projects compatible with Native AOT and trimming…",
+  );
+  assert.equal(
+    short("Enable nullable reference types in a C# project and systematically resolve all warnings."),
+    "Enable nullable reference types in a C# project…",
+  );
+  assert.equal(
+    short("Turn the current conversation into a spec and publish it to the project issue tracker: no interview."),
+    "Turn the current conversation into a spec and publish it…",
+    "every trailing function word goes, not only the last",
+  );
+  assert.equal(
+    short("Generate an interactive bash wizard that walks a human through steps only they can perform."),
+    "Generate an interactive bash wizard that walks a human…",
+  );
+});
+
+test("a word cut never leaves a bracket open", () => {
+  assert.equal(
+    short(
+      "Plan a huge chunk of work (more than one agent session can hold) as a shared map of decision tickets on your issue tracker.",
+    ),
+    "Plan a huge chunk of work…",
+  );
 });
 
 test("a short description keeps a word that ends exactly where the ellipsis starts", () => {
