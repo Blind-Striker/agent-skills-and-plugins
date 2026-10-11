@@ -317,7 +317,8 @@ items:
     # to systematic-debugging instead. The patch removes the test-engineer delegation and the
     # code-testing-extensions reads, keeps the inline Research, Plan, Implement path as the only
     # path with the guards ported from the excluded workers, points C# generation at
-    # writing-tunit-tests (TUnit first), and loads every sibling it names through a checked fact
+    # writing-tunit-tests (TUnit first), and loads every sibling it names through a checked fact.
+    # Framework migration stays out of scope with no route: every test migration is excluded
     depends_on: [run-tests, systematic-debugging, test-anti-patterns, test-gap-analysis, writing-tunit-tests]
     # writing-tunit-tests is a guarded original-skill target: C# generation loads the TUnit-first
     # framework guide after this manual ceremony has established scope. systematic-debugging is an

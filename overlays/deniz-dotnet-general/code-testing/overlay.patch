@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index b5a9140..b6513b7 100644
+index b5a9140..520c185 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,68 +1,63 @@
@@ -152,12 +152,13 @@ index b5a9140..b6513b7 100644
  ## When Not to Use
  
 -- Running or executing existing tests (use the `run-tests` skill)
+-- Migrating between test frameworks (use migration skills)
+-- Answering an MSTest API/pattern or modernization question that does not ask to
+-  generate tests (use `writing-mstest-tests`)
 +- Repairing a failing, erroring, or flaky test (load the
 +  `superpowers:systematic-debugging` skill)
 +- Running or executing existing tests (use the `dotnet-test:run-tests` skill)
- - Migrating between test frameworks (use migration skills)
--- Answering an MSTest API/pattern or modernization question that does not ask to
--  generate tests (use `writing-mstest-tests`)
++- Migrating between test frameworks
 +- Answering a framework API or modernization question that does not ask to
 +  generate tests
  - Analysis-only diagnosis of failing tests when no code or test changes are

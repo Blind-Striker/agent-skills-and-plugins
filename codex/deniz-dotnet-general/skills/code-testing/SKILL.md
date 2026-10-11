@@ -118,7 +118,7 @@ Use this skill when you need to:
 - Repairing a failing, erroring, or flaky test (load the
   `$deniz-process:systematic-debugging` skill)
 - Running or executing existing tests (use the `$deniz-dotnet-general:run-tests` skill)
-- Migrating between test frameworks (use migration skills)
+- Migrating between test frameworks
 - Answering a framework API or modernization question that does not ask to
   generate tests
 - Analysis-only diagnosis of failing tests when no code or test changes are
