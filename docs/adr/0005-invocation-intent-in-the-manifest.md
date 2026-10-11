@@ -103,5 +103,6 @@ could also remove the explicit path `manual` requires.
   argument surface while it stays a skill; whether `as: command` is worth its cost is a per-item
   curation decision.
 - One assembled body currently feeds all three harnesses; the overlay mechanism has no per-harness body
-  ownership. That capability limit can make target-specific prose or paths costly, and remains
-  visible rather than narrowing the accepted neutral intent.
+  ownership, and `harness_files` only selects whole assembled files per harness at one path. That
+  capability limit can make target-specific prose or paths costly, and remains visible rather than
+  narrowing the accepted neutral intent.

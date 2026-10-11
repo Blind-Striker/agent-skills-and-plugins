@@ -80,6 +80,7 @@ product definition relayed by `AGENTS.md`.
   harnesses grow, so new incompatibilities create new emitter work or explicit curation decisions.
 - Adapting content the emitter cannot reconcile mechanically implies per-harness body edits, which
   the overlay mechanism (ADR-0001) does not currently express — it produces one body for all three
-  trees. That gap is now a named cost of this decision rather than an oversight.
+  trees; `harness_files` can give each harness its own whole file at one path, not its own body. That
+  gap is now a named cost of this decision rather than an oversight.
 - A new harness stays localized to a new emitter but is not free: it must
   answer all three axes, not just the output format.

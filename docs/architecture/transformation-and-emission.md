@@ -114,20 +114,27 @@ There is one neutral assembled item for all three targets. It retains the full s
 closure even when the resolved Claude/OpenCode kind is a single-file command or agent. `body: patch`,
 `body: overlay`, `omit`, and `merged_from` all act once before harness emission. The internal
 temporary assembly is pipeline state, not a fourth output format, and no finalized target tree is
-another target's source. The repository does **not** currently express a per-target body overlay.
-The one per-target prose seam is localization's closed harness phrasing: the skill-tool call
-sentence and the subagent-dispatch words are rendered for each harness from upstream's Claude
-wording, and nothing else is reworded
-([References and linking](references-and-linking.md#harness-phrasing)). When target fit requires
-irreconcilable prose beyond that table, that is a named capability gap rather than permission to
-hand-edit one generated tree.
+another target's source. The repository does **not** express a per-target body overlay. Two seams
+are per target. Localization's closed harness phrasing renders the skill-tool call sentence and
+the subagent-dispatch words for each harness from upstream's Claude wording, and rewords nothing
+else ([References and linking](references-and-linking.md#harness-phrasing)). An item's
+[`harness_files`](../../curation/SCHEMA.md#harness_files) select, for one output path, a whole
+assembled file per harness, such as each harness's own tool notes; the emitters place them
+(`placeHarnessFiles` in [`tools/lib/harness-files.ts`](../../tools/lib/harness-files.ts)) right
+after copying the assembly, so each tree is localized with only its own file. When target fit
+requires irreconcilable prose beyond those two seams, that is a named capability gap rather than
+permission to hand-edit one generated tree.
 
 ## Harness emission
 
 The three emitters consume the same pre-localization assembly and make target decisions
 independently. They filter frontmatter, choose native artifact shape and invocation policy, and
-rewrite their own copies. Final Claude, OpenCode, or Codex output is never mirrored into another
-target. See [`buildAll`](../../tools/build.ts) and [`assembleItems`](../../tools/lib/assemble.ts).
+rewrite their own copies. Each places an item's `harness_files` for its own harness right after
+copying the skill folder, after a preflight that stops the build before any deletion when a mapped
+source is missing from the assembly or the output path is already taken
+(`collectHarnessFileProblems`). Final Claude, OpenCode, or Codex output is never mirrored into
+another target. See [`buildAll`](../../tools/build.ts) and
+[`assembleItems`](../../tools/lib/assemble.ts).
 
 ### Claude Code
 
@@ -291,8 +298,9 @@ to committed `dist/` JavaScript using
   [Codex estate audit](../research/codex-generated-estate-audit.md) classified slash-shaped text and
   promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
   localizes those facts, so no Codex-only body-patch seam is currently justified. The harness
-  phrasing table is emitter localization of a closed set of sentences, not per-harness body
-  ownership.
+  phrasing table is emitter localization of a closed set of sentences, and `harness_files` selects
+  whole assembled files per harness; neither edits a body per harness. The `depends_on` check reads
+  only the Claude tree, so it does not see a fact that only another harness's mapped file holds.
 - A source command or agent still cannot be resolved as a skill through `as:`. Codex's emitter-level
   adaptation of already resolved commands and agents is supported and retains their closure.
   Non-empty `hooks.include` remains rejected.

@@ -36,7 +36,18 @@ export interface CurationItem {
    * overlay does not itself own, which the filename rule cannot see.
    */
   merged_from?: MergeSource[];
+  /**
+   * Output path -> the item-relative file each harness ships there (curation/SCHEMA.md
+   * `harness_files`). `null` states that a harness ships no file at that path. The mapped sources
+   * themselves ship in no tree.
+   */
+  harness_files?: HarnessFiles;
 }
+
+/** The three emitted harness trees, in the order the manifest names them. */
+export const HARNESSES = ["claude", "codex", "opencode"] as const;
+export type Harness = (typeof HARNESSES)[number];
+export type HarnessFiles = Record<string, Record<Harness, string | null>>;
 
 /** A declared merge source, normalized: the bare-address spelling arrives here as `{source}`. */
 export interface MergeSource {
@@ -66,6 +77,69 @@ function requireEnum(path: string, source: string, field: string, value: unknown
   if (typeof value !== "string" || !allowed.includes(value)) {
     throw new Error(`${path}: ${source}: ${field} must be one of ${allowed.join("|")} (got ${JSON.stringify(value)})`);
   }
+}
+
+/** An item-relative POSIX path that stays inside the item folder. */
+function itemRelativePath(value: string): boolean {
+  return (
+    value.length > 0 &&
+    !value.startsWith("/") &&
+    !value.includes("\\") &&
+    !/^[A-Za-z]:/.test(value) &&
+    value.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..")
+  );
+}
+
+/** The `harness_files` grammar, checked at load so every consumer reads one shape. */
+function checkHarnessFiles(path: string, source: string, raw: unknown): HarnessFiles {
+  const where = `${path}: ${source}: harness_files`;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new Error(`${where} must map an output path to its sources`);
+  }
+  const files = raw as Record<string, unknown>;
+  const sources = new Set<string>();
+  for (const [output, mapping] of Object.entries(files)) {
+    if (typeof mapping !== "object" || mapping === null || Array.isArray(mapping)) {
+      throw new Error(`${where} ${output} must map claude, codex, and opencode to a source or null`);
+    }
+    if (!itemRelativePath(output)) {
+      throw new Error(`${where} ${output} is not an item-relative path inside the item folder`);
+    }
+    if (output === "SKILL.md") {
+      throw new Error(`${where} cannot replace SKILL.md, the body every harness shares`);
+    }
+    const byHarness = mapping as Record<string, unknown>;
+    for (const key of Object.keys(byHarness)) {
+      if (!(HARNESSES as readonly string[]).includes(key)) {
+        throw new Error(`${where} ${output} names an unknown harness ${key}`);
+      }
+    }
+    for (const harness of HARNESSES) {
+      if (!(harness in byHarness)) {
+        throw new Error(`${where} ${output} states no source for ${harness} — name one, or null to ship no file there`);
+      }
+      const value = byHarness[harness];
+      if (value === null) {
+        continue;
+      }
+      if (typeof value !== "string" || !itemRelativePath(value)) {
+        throw new Error(`${where} ${output}: ${harness} source ${JSON.stringify(value)} is not an item-relative path`);
+      }
+      if (value === "SKILL.md") {
+        throw new Error(`${where} ${output}: ${harness} cannot take SKILL.md as a source; the body ships everywhere`);
+      }
+      sources.add(value);
+    }
+    if (HARNESSES.every((harness) => byHarness[harness] === null)) {
+      throw new Error(`${where} ${output} maps no harness — drop it`);
+    }
+  }
+  for (const output of Object.keys(files)) {
+    if (sources.has(output)) {
+      throw new Error(`${where} ${output} is also a mapped source, which ships under no name of its own`);
+    }
+  }
+  return files as HarnessFiles;
 }
 
 export function loadManifest(path: string): CurationManifest {
@@ -104,6 +178,9 @@ export function loadManifest(path: string): CurationManifest {
         }
         return entry;
       });
+    }
+    if (item.harness_files !== undefined) {
+      item.harness_files = checkHarnessFiles(path, item.source, item.harness_files);
     }
   }
   return raw;

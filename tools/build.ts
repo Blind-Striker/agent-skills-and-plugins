@@ -31,6 +31,7 @@ import {
 } from "./lib/codex-plugin.ts";
 import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
+import { collectHarnessFileProblems, placeHarnessFiles } from "./lib/harness-files.ts";
 import { writeLedger } from "./lib/ledger.ts";
 import { type CurationItem, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
@@ -130,6 +131,14 @@ export function buildAll(root: string): string[] {
           : "";
       throw new Error(header + openCodeProblems.join("\n"));
     }
+    const harnessFileProblems = collectHarnessFileProblems(assembled);
+    if (harnessFileProblems.length) {
+      const header =
+        harnessFileProblems.length > 1
+          ? `${harnessFileProblems.length} unplaceable harness files, nothing deleted:\n`
+          : "";
+      throw new Error(header + harnessFileProblems.join("\n"));
+    }
     const descriptionProblems = collectDescriptionProblems(assembled, rewriteMap);
     if (descriptionProblems.length) {
       const header =
@@ -198,6 +207,7 @@ function emitCodex(
       .sort((left, right) => left.outName.localeCompare(right.outName))) {
       const destination = join(pluginRoot, "skills", item.outName);
       cpSync(item.dir, destination, { recursive: true });
+      placeHarnessFiles(item.dir, destination, item.item?.harness_files, "codex");
       const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
       const adapted = adaptCodexSkillDocument(item.outName, doc);
       writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
@@ -339,6 +349,7 @@ function emitClaudeItem(root: string, assembled: AssembledItem): void {
   if (assembled.outType === "skill") {
     const destination = join(pluginDir, "skills", assembled.outName);
     cpSync(assembled.dir, destination, { recursive: true });
+    placeHarnessFiles(assembled.dir, destination, assembled.item?.harness_files, "claude");
     // Original skills were byte-preserving copies before this refactor and remain so. Curated
     // skills are serialized by assembly, then receive only Claude's invocation adaptation here.
     if (!assembled.own) {
@@ -658,6 +669,7 @@ function emitOpenCode(root: string, manifests: CurationManifest[], assembled: As
       const destination = join(moduleRoot, openCodeBundlePath(item.outType, module, item.outName));
       if (item.outType === "skill") {
         cpSync(item.dir, destination, { recursive: true });
+        placeHarnessFiles(item.dir, destination, item.item?.harness_files, "opencode");
         const adapted = adaptOpenCodeSkillDocument(id, neutral, item.item?.invocation);
         writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
         if (adapted.dropped.length) {

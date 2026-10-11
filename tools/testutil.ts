@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { loadLock, lockKey, type OverlayLock, saveLock, stampFiles } from "./lib/overlay.ts";
@@ -203,4 +203,30 @@ export function restampFrontmatter(root: string): void {
     }
   }
   saveLock(root, lock);
+}
+
+/** delta ships references/tools.md from a different source in each tree (curation/SCHEMA.md harness_files). */
+export function makeHarnessFilesRepo(opencode = "references/opencode.md"): string {
+  const root = makeRepo();
+  const refs = join(root, "external", "sp", "skills", "delta", "references");
+  writeFileSync(join(refs, "claude.md"), "# Claude notes\n\n`Agent` calls; see superpowers:gamma.\n");
+  writeFileSync(join(refs, "codex.md"), "# Codex notes\n\nUse spawn_agent.\n");
+  writeFileSync(join(refs, "opencode.md"), "# OpenCode notes\n\nUse the `subagent` tool.\n");
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "  - source: sp/skills/delta\n",
+      [
+        "  - source: sp/skills/delta",
+        "    harness_files:",
+        "      references/tools.md:",
+        "        claude: references/claude.md",
+        "        codex: references/codex.md",
+        `        opencode: ${opencode}`,
+        "",
+      ].join("\n"),
+    ),
+  );
+  return root;
 }

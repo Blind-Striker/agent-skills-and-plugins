@@ -9,7 +9,14 @@ import { loadModuleManifest, verifyModuleManifest } from "./lib/opencode-bundle.
 import { loadManifest } from "./lib/manifest.ts";
 import { parse as parseYaml, stringify } from "yaml";
 import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
-import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath, restampFrontmatter } from "./testutil.ts";
+import {
+  codexPluginPath,
+  makeHarnessFilesRepo,
+  makeRepo,
+  opencodeIdPath,
+  opencodeModulePath,
+  restampFrontmatter,
+} from "./testutil.ts";
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
@@ -1553,4 +1560,90 @@ test("a taken source missing from external/ names the deleted-source rule", () =
     () => buildAll(root),
     /source not found in external\/: sp\/skills\/vanished — the current pin has no such source/,
   );
+});
+
+test("harness_files ships each tree its own file at one output path and no mapped source", () => {
+  const root = makeHarnessFilesRepo();
+  buildAll(root);
+  const trees = {
+    plugins: join(root, "plugins", "deniz-process", "skills", "delta"),
+    opencode: opencodeIdPath(root, "deniz-process", "skill", "delta"),
+    codex: codexPluginPath(root, "deniz-process", "skills", "delta"),
+  };
+  assert.equal(
+    readFileSync(join(trees.plugins, "references", "tools.md"), "utf8"),
+    "# Claude notes\n\n`Agent` calls; see deniz-process:gamma.\n",
+  );
+  assert.equal(
+    readFileSync(join(trees.codex, "references", "tools.md"), "utf8"),
+    "# Codex notes\n\nUse spawn_agent.\n",
+  );
+  assert.equal(
+    readFileSync(join(trees.opencode, "references", "tools.md"), "utf8"),
+    "# OpenCode notes\n\nUse the `subagent` tool.\n",
+  );
+  for (const [tree, dir] of Object.entries(trees)) {
+    for (const source of ["claude.md", "codex.md", "opencode.md"]) {
+      assert.ok(!existsSync(join(dir, "references", source)), `${tree} ships ${source}`);
+    }
+    assert.ok(existsSync(join(dir, "references", "notes.md")), `${tree} keeps the unmapped file`);
+  }
+  const manifest = loadModuleManifest(join(opencodeModulePath(root, "deniz-process"), "manifest.json"));
+  assert.ok(manifest.files["skills/deniz-process.delta/references/tools.md"]);
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  const entry = ledger["deniz-process/skill/delta"];
+  assert.deepEqual(entry.harnessFiles, {
+    "references/tools.md": {
+      claude: "references/claude.md",
+      codex: "references/codex.md",
+      opencode: "references/opencode.md",
+    },
+  });
+  assert.deepEqual(entry.claude.edges.model, ["deniz-process:gamma"]);
+  assert.deepEqual(entry.opencode.edges.model, [], "the Claude notes ship only in the Claude tree");
+  assert.deepEqual(entry.codex.edges.model, []);
+});
+
+test("harness_files with a null harness ships nothing at the output path in that tree", () => {
+  const root = makeHarnessFilesRepo("null");
+  buildAll(root);
+  const dir = opencodeIdPath(root, "deniz-process", "skill", "delta", "references");
+  assert.ok(!existsSync(join(dir, "tools.md")));
+  assert.ok(!existsSync(join(dir, "claude.md")), "the other harnesses' sources still ship nowhere");
+  assert.ok(!existsSync(join(dir, "codex.md")));
+  assert.ok(existsSync(join(dir, "opencode.md")), "a file no mapping names is an ordinary file");
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "references", "tools.md")));
+});
+
+test("harness_files preflight stops the build before deleting anything", () => {
+  const cases: [(root: string) => void, RegExp][] = [
+    [
+      (root) => rmSync(join(root, "external", "sp", "skills", "delta", "references", "codex.md")),
+      /deniz-process\/delta: harness_files references\/tools\.md: the codex source references\/codex\.md is not in the assembled item/,
+    ],
+    [
+      (root) => writeFileSync(join(root, "external", "sp", "skills", "delta", "references", "tools.md"), "upstream\n"),
+      /deniz-process\/delta: harness_files references\/tools\.md is already a file of the assembled item/,
+    ],
+    [
+      (root) => {
+        const p = join(root, "curation", "deniz-process.yaml");
+        writeFileSync(
+          p,
+          readFileSync(p, "utf8").replace(
+            "  - source: sp/skills/delta\n",
+            "  - source: sp/skills/delta\n    as: command\n",
+          ),
+        );
+      },
+      /deniz-process\/delta: harness_files applies to skill output only/,
+    ],
+  ];
+  for (const [mutate, message] of cases) {
+    const root = makeHarnessFilesRepo();
+    buildAll(root);
+    mutate(root);
+    assert.throws(() => buildAll(root), message);
+    assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "references", "tools.md")));
+  }
 });

@@ -110,3 +110,48 @@ test("item without source throws", () => {
   const p = write("plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - name: x\n");
   assert.throws(() => loadManifest(p), /source/);
 });
+
+const withHarnessFiles = (block: string): string =>
+  write(
+    `plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    harness_files:\n${block}`,
+  );
+
+test("harness_files maps one output path to a source per harness, null stating a gap", () => {
+  const m = loadManifest(
+    withHarnessFiles(
+      "      references/harness-tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: null\n",
+    ),
+  );
+  assert.deepEqual(m.items[0]?.harness_files, {
+    "references/harness-tools.md": { claude: "references/claude.md", codex: "references/codex.md", opencode: null },
+  });
+});
+
+test("harness_files rejects a harness it does not name, and every malformed path", () => {
+  const cases: [string, RegExp][] = [
+    [
+      "      out.md:\n        claude: a.md\n        codex: b.md\n",
+      /harness_files out\.md states no source for opencode — name one, or null to ship no file there/,
+    ],
+    [
+      "      out.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n        cursor: d.md\n",
+      /harness_files out\.md names an unknown harness cursor/,
+    ],
+    ["      out.md: a.md\n", /harness_files out\.md must map claude, codex, and opencode to a source or null/],
+    [
+      "      ../out.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n",
+      /not an item-relative path/,
+    ],
+    [
+      "      out.md:\n        claude: /a.md\n        codex: b.md\n        opencode: c.md\n",
+      /not an item-relative path/,
+    ],
+    ["      SKILL.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n", /SKILL\.md/],
+    ["      out.md:\n        claude: SKILL.md\n        codex: b.md\n        opencode: c.md\n", /SKILL\.md/],
+    ["      out.md:\n        claude: out.md\n        codex: b.md\n        opencode: c.md\n", /is also a mapped source/],
+    ["      out.md:\n        claude: null\n        codex: null\n        opencode: null\n", /maps no harness/],
+  ];
+  for (const [block, message] of cases) {
+    assert.throws(() => loadManifest(withHarnessFiles(block)), message, block);
+  }
+});

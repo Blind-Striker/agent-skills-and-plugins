@@ -46,6 +46,7 @@ body ownership adds review cost whenever upstream moves.
 | Change metadata | `frontmatter:` | On an item with no `body:`, the upstream document it rewrites is hash-stamped; drift blocks the build |
 | Change the output name | item-level `name:` | References and output identity use the new name |
 | Change who triggers it | `invocation:` | Harness-neutral intent; each emitter chooses its mechanism |
+| Ship a different file per harness at one path | `harness_files:` | Each tree gets only its own harness's source; the sources ship under no name of their own |
 | Change the artifact shape | `as:` | Independent of who triggers it |
 | Edit part of a skill body | `body: patch` | Touched upstream files are hash-stamped; drift blocks the build |
 | Own replacement files | `body: overlay` | Replaced upstream files are hash-stamped; later upstream improvements do not flow into owned files |
@@ -93,6 +94,37 @@ The build filters the upstream copy before applying an overlay or patch and prun
 directories. An `omit` pattern that removes a patch target is contradictory and stops the build.
 Use `omit` for authoring residue, fixtures, or other files the shipped item does not need; do not
 take ownership of the whole body merely to remove a file.
+
+## `harness_files`
+
+`harness_files` maps an item-relative output path to the file each harness ships there:
+
+```yaml
+harness_files:
+  references/harness-tools.md:
+    claude: references/claude-code-tools.md
+    codex: references/codex-tools.md
+    opencode: references/opencode-tools.md
+```
+
+Name all three harnesses. A source is an item-relative path in the assembled item, so it can come
+from upstream or from the item's patch or overlay; `null` states that the harness ships no file at
+that path. Each tree gets its own harness's source at the output path, and no tree ships a mapped
+source under its own name, so a body points every harness at the one output path. The emitters place
+the files after body assembly and before localization, so each tree's harness phrasing, reference
+rendering, and vocabulary check read only that tree's own file
+([Transformation and emission](../docs/architecture/transformation-and-emission.md#harness-emission)).
+
+The manifest loader rejects a harness it does not know, a path that leaves the item folder,
+`SKILL.md` on either side, an output path that is also a mapped source, and a mapping whose
+harnesses are all `null`. The build stops before deleting output when the item is not
+skill-shaped, when a non-null source is not in the assembled item (an `omit` can remove one), or
+when the item already ships a file at the output path. `validate` checks every tree for its own file
+at the output path and for any mapped source shipped under its own name. The `depends_on` check
+reads the Claude tree, so it sees only the `claude` source of a mapping; a fact in another harness's
+source must still resolve in that tree, but it is outside the declaration check
+([References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability)).
+Keep a load-bearing fact in a file every harness ships.
 
 ## `invocation` and `as` are orthogonal
 

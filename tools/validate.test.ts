@@ -8,7 +8,14 @@ import { buildAll } from "./build.ts";
 import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
-import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath, restampFrontmatter } from "./testutil.ts";
+import {
+  codexPluginPath,
+  makeHarnessFilesRepo,
+  makeRepo,
+  opencodeIdPath,
+  opencodeModulePath,
+  restampFrontmatter,
+} from "./testutil.ts";
 import { scanOpenCodeIds, validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
@@ -1668,4 +1675,58 @@ test("an unknown source, taken or excluded, names the deleted-source rule", () =
     assert.match(msg.message, /in that item's comment/);
     assert.match(msg.message, /lands with or after that pin move/);
   }
+});
+
+test("harness files: each tree holds its own file at the output path and no mapped source", () => {
+  const root = makeHarnessFilesRepo();
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace("    harness_files:\n", "    depends_on: [gamma]\n    harness_files:\n"),
+  );
+  buildAll(root);
+  const errors = () =>
+    validateRepo(root)
+      .filter((f) => f.level === "error")
+      .map((f) => f.message);
+  const before = errors();
+  assert.ok(!before.some((m) => m.includes("Claude-only vocabulary")), "the Claude notes reach only the Claude tree");
+  assert.ok(!before.some((m) => m.includes("delta")), before.join("\n"));
+
+  rmSync(opencodeIdPath(root, "deniz-process", "skill", "delta", "references", "tools.md"));
+  writeFileSync(codexPluginPath(root, "deniz-process", "skills", "delta", "references", "claude.md"), "stray\n");
+  const after = errors();
+  assert.ok(
+    after.some((m) =>
+      m.includes(
+        "opencode/deniz-process/skills/deniz-process.delta/references/tools.md: harness_files places references/opencode.md here, but the file is missing",
+      ),
+    ),
+    after.join("\n"),
+  );
+  assert.ok(
+    after.some((m) =>
+      m.includes(
+        "codex/deniz-process/skills/delta/references/claude.md: a harness_files source ships under its own name",
+      ),
+    ),
+    after.join("\n"),
+  );
+});
+
+test("harness files: a tree whose harness maps null holds nothing at the output path", () => {
+  const root = makeHarnessFilesRepo("null");
+  buildAll(root);
+  writeFileSync(opencodeIdPath(root, "deniz-process", "skill", "delta", "references", "tools.md"), "stray\n");
+  const errors = validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+  assert.ok(
+    errors.some((m) =>
+      m.includes(
+        "opencode/deniz-process/skills/deniz-process.delta/references/tools.md: harness_files maps no opencode source here, but the file exists",
+      ),
+    ),
+    errors.join("\n"),
+  );
 });

@@ -14,7 +14,14 @@ import {
 import { parseDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { everListedNames } from "./lib/ledger.ts";
-import { type ComponentType, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
+import {
+  type ComponentType,
+  type CurationManifest,
+  type Harness,
+  loadManifest,
+  UNKNOWN_SOURCE_RULE,
+} from "./lib/manifest.ts";
+import { mappedSources } from "./lib/harness-files.ts";
 import {
   findMissingModuleRequirements,
   loadModuleManifest,
@@ -492,6 +499,53 @@ export function validateRepo(root: string): Finding[] {
             level: "warn",
             message: `${id}: omit pattern ${pattern} matches nothing under ${item.source} — check the spelling, it is dropping no file`,
           });
+        }
+      }
+    }
+  }
+
+  // 1f. harness files (curation/SCHEMA.md `harness_files`): each tree holds its own harness's file at
+  // the output path, nothing there when its harness maps null, and no mapped source under its own name.
+  for (const m of manifests) {
+    for (const item of m.items) {
+      if (item.exclude || !item.harness_files) {
+        continue;
+      }
+      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
+      if (outType !== "skill") {
+        continue; // the build refuses it before emitting anything
+      }
+      const folders: [Harness, string][] = [
+        ["claude", `plugins/${m.plugin.name}/skills/${outName}`],
+        ["opencode", `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}`],
+        ["codex", `codex/${m.plugin.name}/skills/${outName}`],
+      ];
+      for (const [harness, folder] of folders) {
+        if (!existsSync(join(root, folder))) {
+          continue;
+        }
+        for (const [output, byHarness] of Object.entries(item.harness_files)) {
+          const source = byHarness[harness];
+          const placed = existsSync(join(root, folder, output));
+          if (source !== null && !placed) {
+            findings.push({
+              level: "error",
+              message: `${folder}/${output}: harness_files places ${source} here, but the file is missing`,
+            });
+          } else if (source === null && placed) {
+            findings.push({
+              level: "error",
+              message: `${folder}/${output}: harness_files maps no ${harness} source here, but the file exists`,
+            });
+          }
+        }
+        for (const source of mappedSources(item.harness_files)) {
+          if (existsSync(join(root, folder, source))) {
+            findings.push({
+              level: "error",
+              message: `${folder}/${source}: a harness_files source ships under its own name — each tree gets it only at its output path`,
+            });
+          }
         }
       }
     }

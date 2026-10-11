@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-10-09
+Date: 2026-10-11
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field

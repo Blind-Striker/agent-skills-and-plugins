@@ -266,9 +266,12 @@ has no such tool; the fix is a curated rewording or a new table row.
 
 `depends_on` is the manifest-side declaration of model-edge facts only. It contains resolved output
 names, while bodies keep neutral namespaced addresses. The linker derives model targets from all
-Markdown shipped by each non-excluded manifest item and enforces exact agreement in both directions:
-an undeclared fact and a declaration with no shipped fact are both errors. User-pointers, paths, and
-candidates are not dependency declarations.
+Markdown each non-excluded manifest item ships in the Claude tree and enforces exact agreement in
+both directions: an undeclared fact and a declaration with no shipped fact are both errors.
+User-pointers, paths, and candidates are not dependency declarations. Only an item's
+[`harness_files`](../../curation/SCHEMA.md#harness_files) make the trees differ in Markdown: the
+Claude tree holds the `claude` source of each mapping, so a fact in another harness's source is
+outside this check, although that tree's rendered-ID check still requires it to resolve.
 
 For each fact, the linker checks the canonical neutral kind and asks whether the target has the
 required audience surface. Claude reachability comes from emitted invocation flags and artifact
@@ -299,7 +302,10 @@ in each harness spelling, emitted Claude boolean invocation flags, OpenCode iden
 (`<plugin>.<name>`), whether an OpenCode skill is advertised to the model (`advertised`, false when
 it carries the hiding key), OpenCode drops and metadata transformations, and Codex identity, source/resolved/emitted kinds, material kind transformation, invocation
 capabilities, policy files, metadata drops, and body transformations. OpenCode and Codex edges are
-respelled from the known neutral facts rather than rediscovered from final text.
+respelled from the known neutral facts rather than rediscovered from final text. An item with
+`harness_files` also records that mapping, and each tree's edges come from the Markdown that tree
+ships: the shared files plus its own harness's sources, read in their neutral form from the
+assembly.
 
 The ledger is deterministic but intentionally incomplete. It does not serialize complete emitted
 files, path-tier findings, candidates, overlay stamp filenames, or Module install dependencies.

@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
-import type { ComponentType, CurationManifest } from "./manifest.ts";
+import { type ComponentType, type CurationManifest, type Harness, type HarnessFiles, HARNESSES } from "./manifest.ts";
 import {
   adaptOpenCodeAgentDocument,
   adaptOpenCodeCommandDocument,
@@ -16,6 +16,7 @@ import { listFiles } from "./overlay.ts";
 import { ownSkillIdentities } from "./own-skills.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
 import { resolveItem } from "./resolve.ts";
+import { buildRewriteMap, rewriteRefs } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 interface HarnessState {
@@ -45,6 +46,7 @@ interface LedgerEntry {
   body?: string;
   mergedFrom?: string[];
   dependsOn?: string[];
+  harnessFiles?: HarnessFiles;
   description: string;
   claude: HarnessState;
   opencode: OpenCodeState;
@@ -84,10 +86,17 @@ function emittedClaudeFlags(outType: string, frontmatter: Record<string, unknown
 
 /** Facts in one built artifact set, filtered to our own output namespaces, spelled as found. */
 function edgesIn(files: string[], ownNs: Set<string>): Record<RefKind, string[]> {
+  return edgesInTexts(
+    files.map((f) => readFileSync(f, "utf8")),
+    ownNs,
+  );
+}
+
+function edgesInTexts(texts: string[], ownNs: Set<string>): Record<RefKind, string[]> {
   const model: string[] = [];
   const pointer: string[] = [];
-  for (const f of files) {
-    for (const r of extractRefs(readFileSync(f, "utf8"))) {
+  for (const text of texts) {
+    for (const r of extractRefs(text)) {
       if (ownNs.has(r.ns)) {
         (r.kind === "model" ? model : pointer).push(r.address);
       }
@@ -114,9 +123,13 @@ export function writeLedger(
       }
     }
   }
-  for (const own of ownSkillIdentities(root, manifests)) {
+  const ownSkills = ownSkillIdentities(root, manifests);
+  for (const own of ownSkills) {
     kindOf.set(own.address, "skill");
   }
+  // Claude spelling of a neutral harness file that only another tree ships, so its facts are read
+  // as the Claude tree would read them (ADR-0008: detection never runs on rendered output).
+  const rewriteMap = buildRewriteMap(manifests, components, ownSkills);
   const ledger: Record<string, LedgerEntry> = {};
   for (const m of manifests) {
     for (const item of m.items) {
@@ -159,6 +172,23 @@ export function writeLedger(
       const codexInvocation = resolveCodexInvocation(item.invocation);
       const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);
       const claudeEdges = edgesIn(claudeFiles, ownNs);
+      // Each tree ships its own harness files (curation/SCHEMA.md harness_files), so a tree's edges are
+      // the shared Markdown plus that tree's own sources; without a mapping every tree ships the same.
+      const harnessFiles = item.harness_files;
+      const edgesOf = (harness: Exclude<Harness, "claude">): Record<RefKind, string[]> => {
+        if (!harnessFiles) {
+          return claudeEdges;
+        }
+        const outputs = new Set(Object.keys(harnessFiles));
+        const shared = claudeFiles.filter((f) => !outputs.has(relative(claudeDir, f).split(sep).join("/")));
+        const own = Object.values(harnessFiles)
+          .map((byHarness) => byHarness[harness])
+          .filter((source): source is string => source?.endsWith(".md") === true)
+          .map((source) => rewriteRefs(readFileSync(join(neutral.dir, source), "utf8"), rewriteMap, "claude"));
+        return edgesInTexts([...shared.map((f) => readFileSync(f, "utf8")), ...own], ownNs);
+      };
+      const openCodeEdges = edgesOf("opencode");
+      const codexEdges = edgesOf("codex");
       // OpenCode text is dotted — respell the Claude facts through the known mapping instead of
       // parsing rendered text back (ADR-0008: detection never runs on rendered output).
       const ocId = (address: string) => {
@@ -184,6 +214,21 @@ export function writeLedger(
         // `mergeSources` map is already the review surface for it.
         ...(item.merged_from ? { mergedFrom: item.merged_from.map((ms) => ms.source).sort() } : {}),
         ...(item.depends_on ? { dependsOn: [...item.depends_on].sort() } : {}),
+        ...(harnessFiles
+          ? {
+              harnessFiles: Object.fromEntries(
+                Object.keys(harnessFiles)
+                  .sort()
+                  .map((output) => [
+                    output,
+                    Object.fromEntries(HARNESSES.map((h) => [h, harnessFiles[output]?.[h] ?? null])) as Record<
+                      Harness,
+                      string | null
+                    >,
+                  ]),
+              ),
+            }
+          : {}),
         description: String(doc.frontmatter.description ?? ""),
         claude: { artifacts: [outType], edges: claudeEdges, ...(claudeFlags ? { flags: claudeFlags } : {}) },
         opencode: {
@@ -191,8 +236,8 @@ export function writeLedger(
           identity,
           ...(ocSkill ? { advertised: ocSkill.advertised } : {}),
           edges: {
-            model: sortedUnique(claudeEdges.model.map(ocId)),
-            pointer: sortedUnique(claudeEdges.pointer.map(ocPointer)),
+            model: sortedUnique(openCodeEdges.model.map(ocId)),
+            pointer: sortedUnique(openCodeEdges.pointer.map(ocPointer)),
           },
           dropped: ocDropped,
           ...(ocTransformations.length ? { metadataTransformations: ocTransformations } : {}),
@@ -208,8 +253,8 @@ export function writeLedger(
           explicit: codexInvocation.explicit,
           policyFiles: codexInvocation.agentManifest ? ["agents/openai.yaml"] : [],
           edges: {
-            model: claudeEdges.model.map((address) => `$${address}`),
-            pointer: claudeEdges.pointer.map((address) => `$${address}`),
+            model: codexEdges.model.map((address) => `$${address}`),
+            pointer: codexEdges.pointer.map((address) => `$${address}`),
           },
           dropped: codexAdaptation.dropped,
           bodyTransformations: [],
