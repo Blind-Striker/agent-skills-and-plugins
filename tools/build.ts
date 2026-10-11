@@ -157,7 +157,7 @@ export function buildAll(root: string): string[] {
 
     for (const manifest of manifests) {
       for (const item of assembled.filter((candidate) => candidate.plugin === manifest.plugin.name)) {
-        emitClaudeItem(root, item);
+        emitClaudeItem(root, item, report);
       }
       const pluginDir = join(root, "plugins", manifest.plugin.name);
       writeDistributionNotices(root, pluginDir, notices.get(manifest.plugin.name) ?? []);
@@ -326,41 +326,106 @@ function claudeInvocation(item: CurationItem): Record<string, unknown> {
   }
 }
 
-/** Apply Claude-only invocation posture to a copy of the neutral assembled document. */
-function claudeDocument(assembled: AssembledItem): ParsedDoc {
+/**
+ * Frontmatter Claude Code reads from a skill or a command: the keys of its skill frontmatter
+ * reference, which includes the Agent Skills fields `license`, `compatibility`, and `metadata`
+ * (code.claude.com/docs/en/skills). Any other key is dropped and reported, as the OpenCode and
+ * Codex emitters do (ADR-0002, ADR-0006).
+ */
+export const CLAUDE_SKILL_KEYS: ReadonlySet<string> = new Set([
+  "name",
+  "description",
+  "when_to_use",
+  "argument-hint",
+  "arguments",
+  "disable-model-invocation",
+  "user-invocable",
+  "allowed-tools",
+  "disallowed-tools",
+  "model",
+  "effort",
+  "context",
+  "agent",
+  "background",
+  "hooks",
+  "paths",
+  "shell",
+  "metadata",
+  "license",
+  "compatibility",
+]);
+/**
+ * Frontmatter Claude Code reads from a plugin agent: its subagent reference without `hooks`,
+ * `mcpServers`, `permissionMode`, and `initialPrompt`, which it ignores in an agent a plugin ships
+ * (code.claude.com/docs/en/sub-agents). Any other key is dropped and reported.
+ */
+export const CLAUDE_AGENT_KEYS: ReadonlySet<string> = new Set([
+  "name",
+  "description",
+  "tools",
+  "disallowedTools",
+  "model",
+  "maxTurns",
+  "skills",
+  "memory",
+  "background",
+  "omitClaudeMd",
+  "effort",
+  "isolation",
+  "color",
+  "experimental",
+]);
+
+/**
+ * Adapt a copy of the neutral assembled document to Claude Code: a skill takes the invocation
+ * posture its item states, and every document keeps only the frontmatter keys its kind reads.
+ */
+function claudeDocument(assembled: AssembledItem): { document: ParsedDoc; dropped: string[] } {
   const doc = parseDoc(readFileSync(join(assembled.dir, "SKILL.md"), "utf8"));
   const item = assembled.item;
-  if (assembled.outType !== "skill" || !item?.invocation) {
-    return doc;
+  let frontmatter: Record<string, unknown> = { ...doc.frontmatter };
+  if (assembled.outType === "skill" && item?.invocation) {
+    for (const key of CLAUDE_INVOCATION_KEYS) {
+      delete frontmatter[key];
+    }
+    frontmatter = { ...frontmatter, ...claudeInvocation(item), name: assembled.outName };
   }
-  const frontmatter = { ...doc.frontmatter };
-  for (const key of CLAUDE_INVOCATION_KEYS) {
+  const keys = assembled.outType === "agent" ? CLAUDE_AGENT_KEYS : CLAUDE_SKILL_KEYS;
+  const dropped = Object.keys(frontmatter)
+    .filter((key) => !keys.has(key))
+    .sort();
+  for (const key of dropped) {
     delete frontmatter[key];
   }
-  return {
-    frontmatter: { ...frontmatter, ...claudeInvocation(item), name: assembled.outName },
-    body: doc.body,
-  };
+  return { document: { frontmatter, body: doc.body }, dropped };
 }
 
 /** Emit one shared assembled item in Claude Code's native Plugin shape. */
-function emitClaudeItem(root: string, assembled: AssembledItem): void {
+function emitClaudeItem(root: string, assembled: AssembledItem, report: string[]): void {
   const pluginDir = join(root, "plugins", assembled.plugin);
+  let target: string;
   if (assembled.outType === "skill") {
     const destination = join(pluginDir, "skills", assembled.outName);
     cpSync(assembled.dir, destination, { recursive: true });
     placeHarnessFiles(assembled.dir, destination, assembled.item?.harness_files, "claude");
-    // Original skills were byte-preserving copies before this refactor and remain so. Curated
-    // skills are serialized by assembly, then receive only Claude's invocation adaptation here.
-    if (!assembled.own) {
-      writeFileSync(join(destination, "SKILL.md"), serializeDoc(claudeDocument(assembled)));
+    // Original skills are authored here and stay byte-preserving copies. Curated skills are
+    // serialized by assembly, then receive only Claude's adaptation here.
+    if (assembled.own) {
+      return;
     }
-    return;
+    target = join(destination, "SKILL.md");
+  } else {
+    const kindDir = assembled.outType === "command" ? "commands" : "agents";
+    mkdirSync(join(pluginDir, kindDir), { recursive: true });
+    target = join(pluginDir, kindDir, `${assembled.outName}.md`);
   }
-
-  const kindDir = assembled.outType === "command" ? "commands" : "agents";
-  mkdirSync(join(pluginDir, kindDir), { recursive: true });
-  writeFileSync(join(pluginDir, kindDir, `${assembled.outName}.md`), readFileSync(join(assembled.dir, "SKILL.md")));
+  const adapted = claudeDocument(assembled);
+  writeFileSync(target, serializeDoc(adapted.document));
+  if (adapted.dropped.length) {
+    report.push(
+      `claude ${assembled.outType} ${assembled.plugin}:${assembled.outName}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`,
+    );
+  }
 }
 
 /**

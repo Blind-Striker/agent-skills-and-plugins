@@ -326,8 +326,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   project in its solution, or diagnoses a CI run that discovers zero tests.
 - **`dotnet-agent-skills` has no release-shaped current pin:** its rolling tool tag and stale v1.0.0
   are not suitable boundaries, so each sync is a reviewed hold-or-main-commit decision.
-- **Dead Claude `invocable:` metadata:** it is not a target-harness field; OpenCode drops and reports
-  it while Claude passthrough still carries it as harmless noise.
 - **Non-empty `hooks.include` is unsupported:** implement it only for a concrete wanted hook.
 - **Frontmatter reserialization adds drift:** passthrough skills are parsed and emitted, not promised
   byte-identical to upstream.

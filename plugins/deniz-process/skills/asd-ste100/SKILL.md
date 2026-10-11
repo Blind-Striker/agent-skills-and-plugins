@@ -7,7 +7,6 @@ description: "Use when English text must be parsed without a human to resolve
   rewrite, apply Simplified Technical English, plain-language rewrite,
   controlled-language rewrite, rewrite so an agent cannot misread this. Not for
   creative or marketing copy."
-version: 0.4.0
 user-invocable: false
 ---
 

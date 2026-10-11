@@ -7,13 +7,6 @@ description: "Apply C# nullable-reference-type semantics where nullable context
   nullable-aware C#. DO NOT USE FOR: enabling NRT across an existing project,
   systematic CS86xx cleanup, or migration planning; the user invokes
   migrate-nullable-references separately."
-version: 1.0.0
-tags:
-  - csharp
-  - nullable
-  - nrt
-  - code-quality
-  - api-design
 user-invocable: false
 ---
 

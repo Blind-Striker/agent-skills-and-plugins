@@ -148,6 +148,14 @@ alter Claude output, although Codex consumes the same intent after adapting them
 The compiler forces a skill's frontmatter name to its output directory name and an agent's name to
 its output file identity. This keeps generated identity, localization, and review state aligned.
 
+A curated skill or command then keeps only the keys of Claude Code's skill frontmatter reference,
+which includes the Agent Skills fields `license`, `compatibility`, and `metadata` that Claude Code
+accepts without acting on. An agent keeps only the keys of its subagent reference, less `hooks`,
+`mcpServers`, `permissionMode`, and `initialPrompt`, which Claude Code ignores in an agent a plugin
+ships. Every other key, such as an upstream `invocable`, `version`, or `tags`, is dropped and
+reported by the build, as in the other two emitters (`CLAUDE_SKILL_KEYS` and `CLAUDE_AGENT_KEYS` in
+[`tools/build.ts`](../../tools/build.ts)). An original skill is authored here and stays a byte copy.
+
 ### OpenCode
 
 The OpenCode emitter writes OpenCode 2 output. The shapes below need OpenCode 2 at v2.0.4 or later:

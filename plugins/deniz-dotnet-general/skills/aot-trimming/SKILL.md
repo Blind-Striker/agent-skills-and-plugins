@@ -13,14 +13,6 @@ description: "Apply .NET trimming and Native AOT semantics to code being written
   IL warnings that code raises. DO NOT USE FOR: enabling
   IsTrimmable/IsAotCompatible/PublishAot across an existing project or
   systematic IL-warning cleanup; the user invokes dotnet-aot-compat separately."
-version: 1.0.0
-tags:
-  - csharp
-  - dotnet
-  - aot
-  - trimming
-  - nativeaot
-  - code-quality
 user-invocable: false
 ---
 

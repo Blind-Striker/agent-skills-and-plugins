@@ -9,7 +9,6 @@ description: "Publish .NET services as container images with the built-in SDK
   (aspire-deployment), running containers in tests
   (testcontainers-integration-tests), or turning on PublishAot in an existing
   project."
-invocable: false
 user-invocable: false
 ---
 

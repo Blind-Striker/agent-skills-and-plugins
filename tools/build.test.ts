@@ -350,6 +350,68 @@ test("the OpenCode skill path adapts rather than mirrors", () => {
   assert.match(codex.body, /\$deniz-process:beta/, "Codex uses its native plugin skill address");
 });
 
+// ADR-0006 axis 3, for the Claude tree: upstream frontmatter Claude Code does not read, such as
+// dotnet-skills' `invocable: false`, used to reach the Claude Plugin as dead metadata.
+test("the Claude tree keeps only the frontmatter Claude Code reads and reports the rest", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    [
+      "---",
+      "name: delta",
+      "description: Delta upstream",
+      "invocable: false",
+      "version: 1.0.0",
+      "tags: [x]",
+      "license: MIT",
+      "compatibility: Requires git",
+      "metadata:",
+      "  owner: x",
+      "argument-hint: '[file]'",
+      "allowed-tools: Read",
+      "---",
+      "",
+      "Delta body.",
+      "",
+    ].join("\n"),
+  );
+  const manifestPath = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    manifestPath,
+    readFileSync(manifestPath, "utf8").replace(
+      "      model: opus\n",
+      "      model: opus\n      permissionMode: plan\n      mode: subagent\n",
+    ),
+  );
+  const report = buildAll(root);
+
+  // a skill with no stated invocation keeps every key of Claude Code's skill frontmatter reference
+  const delta = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md"), "utf8"));
+  assert.deepEqual(Object.keys(delta.frontmatter).sort(), [
+    "allowed-tools",
+    "argument-hint",
+    "compatibility",
+    "description",
+    "license",
+    "metadata",
+    "name",
+  ]);
+  assert.ok(
+    report.includes("claude skill deniz-process:delta: dropped frontmatter keys: invocable, tags, version"),
+    `every dropped key is reported, never silently lost — got ${JSON.stringify(report, null, 2)}`,
+  );
+
+  // a plugin agent keeps its subagent keys; one a plugin agent ignores is dropped like any other
+  const agent = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "agents", "beta-agent.md"), "utf8"));
+  assert.deepEqual(agent.frontmatter, { name: "beta-agent", description: "Beta upstream", model: "opus" });
+  assert.ok(report.includes("claude agent deniz-process:beta-agent: dropped frontmatter keys: mode, permissionMode"));
+
+  // a command reads the skill reference; a clean document reports nothing
+  const cmd = parseDoc(readFileSync(join(root, "plugins", "deniz-process", "commands", "deniz-beta.md"), "utf8"));
+  assert.deepEqual(cmd.frontmatter, { description: "Beta overlay" });
+  assert.ok(!report.some((line) => line.startsWith("claude command ")));
+});
+
 // ADR-0005: one word per item says who pulls the trigger, and each emitter derives its own
 // mechanism — a frontmatter flag in Claude Code, the metadata hide key in OpenCode 2.
 test("invocation sets the Claude flags and the OpenCode frontmatter", () => {

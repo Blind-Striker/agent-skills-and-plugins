@@ -4,15 +4,6 @@ description: Provides guidance for implementing OpenTelemetry instrumentation in
   .NET codebases, covering tracing (Activities/Spans), metrics, logs, naming
   conventions, error handling, performance, SDK setup, resources, context
   propagation, and API design best practices.
-version: 2.0.0
-tags:
-  - opentelemetry
-  - dotnet
-  - observability
-  - tracing
-  - metrics
-  - logs
-  - performance
 user-invocable: false
 ---
 
