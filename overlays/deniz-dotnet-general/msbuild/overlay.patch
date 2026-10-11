@@ -100,10 +100,10 @@ index 81347bd..ada1e09 100644
  ## Completion
  
 diff --git a/references/build-perf-baseline.md b/references/build-perf-baseline.md
-index 58bdb77..8b192ec 100644
+index 58bdb77..c393530 100644
 --- a/references/build-perf-baseline.md
 +++ b/references/build-perf-baseline.md
-@@ -83,26 +83,47 @@ Do not use `Rebuild`, `-t:Rebuild`, or `--no-incremental` for the second build:
+@@ -83,26 +83,48 @@ Do not use `Rebuild`, `-t:Rebuild`, or `--no-incremental` for the second build:
  forced full work is a separate benchmark, not a no-op or proof of cold caches.
  
  ### What Good Looks Like
@@ -125,9 +125,10 @@ index 58bdb77..8b192ec 100644
  - Long cold restore: investigate feed/network work and cache state, not just
    package-cache problems.
  
-+Do not use universal duration or percentage thresholds to declare a bottleneck.
-+Rank costs against the controlled samples and the build's own target and task
-+timings.
++Do not use universal duration or percentage thresholds to declare a bottleneck:
++the seconds and percentages in [build-perf-diagnostics.md](build-perf-diagnostics.md)
++are starting hints for where to look, not pass/fail thresholds. Rank costs
++against the controlled samples and the build's own target and task timings.
 +
 +### Capture analyzer evidence
 +

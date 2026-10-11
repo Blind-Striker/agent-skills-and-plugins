@@ -168,9 +168,11 @@ items:
     # specialists, so it is rewritten to route to them, and routing rows reach each one as a checked
     # fact. It also carries what its bundled copies lost against the specialists they replace: the
     # analyzer-evidence step (ReportAnalyzer) and the no-universal-thresholds rule in
-    # build-perf-baseline, whose 5s/30s no-op hints it drops, and the AP-11 exception from the
-    # excluded msbuild-quality-reviewer agent (message-only, validation, orchestration, and
-    # intentionally always-running targets need no Inputs/Outputs)
+    # build-perf-baseline, whose 5s/30s no-op hints it drops; that rule reads build-perf-diagnostics'
+    # seconds and percentages as starting hints for where to look, not pass/fail thresholds, so the
+    # two references agree. It also carries the AP-11 exception from the excluded
+    # msbuild-quality-reviewer agent (message-only, validation, orchestration, and intentionally
+    # always-running targets need no Inputs/Outputs)
     depends_on:
       - check-bin-obj-clash
       - build-parallelism

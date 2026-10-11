@@ -98,9 +98,10 @@ forced full work is a separate benchmark, not a no-op or proof of cold caches.
 - Long cold restore: investigate feed/network work and cache state, not just
   package-cache problems.
 
-Do not use universal duration or percentage thresholds to declare a bottleneck.
-Rank costs against the controlled samples and the build's own target and task
-timings.
+Do not use universal duration or percentage thresholds to declare a bottleneck:
+the seconds and percentages in [build-perf-diagnostics.md](build-perf-diagnostics.md)
+are starting hints for where to look, not pass/fail thresholds. Rank costs
+against the controlled samples and the build's own target and task timings.
 
 ### Capture analyzer evidence
 
