@@ -16,3 +16,6 @@
 [submodule "external/asd-ste100"]
 	path = external/asd-ste100
 	url = https://github.com/danyuchn/asd-ste100-skill.git
+[submodule "external/humanlayer-skills"]
+	path = external/humanlayer-skills
+	url = https://github.com/humanlayer/skills.git

@@ -27,6 +27,13 @@
     "copyright": "Copyright (c) 2025 Aaron Stannard <https://aaronstannard.com/>",
     "licenseFile": "LICENSE"
   },
+  "humanlayer-skills": {
+    "name": "HumanLayer skills",
+    "repository": "https://github.com/humanlayer/skills",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 HumanLayer",
+    "licenseFile": "LICENSE"
+  },
   "mattpocock-skills": {
     "name": "Matt Pocock skills",
     "repository": "https://github.com/mattpocock/skills",
