@@ -9,7 +9,7 @@ happened. "Plan" here means any agreed course of action, not git commits.
 1. Find the agreed plan: a design or plan agreed in chat (look for the
    assistant text preceding a human "yes/ok/go ahead"), a spec or plan file
    written during the session (tool calls that write under `docs/`,
-   `plans/`, `specs/`, or any file the human named), a todo-list record whose
+   `plans/`, `specs/`, or any file the human named), a Markdown checklist whose
    meaning was established in the case file, or any numbered checklist in
    assistant text. Quote each plan step with its `path:line`.
 2. Mark structural events between the plan and its execution: compaction

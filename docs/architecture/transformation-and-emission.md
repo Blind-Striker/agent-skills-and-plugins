@@ -116,8 +116,9 @@ closure even when the resolved Claude/OpenCode kind is a single-file command or 
 temporary assembly is pipeline state, not a fourth output format, and no finalized target tree is
 another target's source. The repository does **not** express a per-target body overlay. Two seams
 are per target. Localization's closed harness phrasing renders the skill-tool call sentence and
-the subagent-dispatch words for each harness from upstream's Claude wording, and rewords nothing
-else ([References and linking](references-and-linking.md#harness-phrasing)). An item's
+the subagent-dispatch words for each harness, and OpenCode's todo instructions as Markdown-checklist
+wording, from upstream's Claude wording, and rewords nothing else
+([References and linking](references-and-linking.md#harness-phrasing)). An item's
 [`harness_files`](../../curation/SCHEMA.md#harness_files) select, for one output path, a whole
 assembled file per harness, such as each harness's own tool notes; the emitters place them
 (`placeHarnessFiles` in [`tools/lib/harness-files.ts`](../../tools/lib/harness-files.ts)) right

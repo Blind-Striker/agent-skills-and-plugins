@@ -6,6 +6,7 @@ import {
   claudeOnlyVocabulary,
   isBundledText,
   localize,
+  openCodeTodoInstructions,
   type RewriteTarget,
   renderHarnessPhrasing,
   rewriteOpenCodePaths,
@@ -409,4 +410,80 @@ test("Claude Code's TodoWrite tool name is Claude-only vocabulary; OpenCode's ow
     ["TodoWrite", "TodoWrite"],
   );
   assert.deepEqual(claudeOnlyVocabulary("The OpenCode 1 `todowrite` tool was removed."), []);
+});
+
+// Every upstream todo phrase the Process bodies carry, in their own line breaks.
+const TODO_PHRASES = [
+  '"task-done: run tests, ledger the result; mark todo complete" [shape=box];',
+  '"Append completion to ledger, mark todo complete" [shape=box];',
+  "Track progress in a ledger file, not only in todos. Harness todos are a",
+  "live view; the ledger is the record.",
+  "Read the plan once, note its context and Global Constraints, and create a",
+  "todo per task. If the plan names a Spec, read that too.",
+  "- Mark the task's todo in_progress.",
+  "A failing run records nothing. When it records,",
+  "mark the todo complete and take the next task.",
+  "[Create todos for all tasks]",
+  "Create a todo per step. Steps 5–7 run only on their stated condition.",
+  "If it has a checklist, create a todo per item.",
+  "**IMPORTANT: Create a todo for EACH checklist item below.**",
+  "- Use tracking: todos for checklists",
+  "✅ Checklists without todo tracking = steps get skipped. Every time.",
+  "❌ Some people find a todo list helpful for checklists.",
+  "a spec or plan file, a todo-list record whose",
+].join("\n");
+
+test("OpenCode todo phrasing: Claude Code and Codex keep upstream's todo words", () => {
+  assert.equal(renderHarnessPhrasing(TODO_PHRASES, "claude"), TODO_PHRASES);
+  assert.equal(renderHarnessPhrasing(TODO_PHRASES, "codex"), TODO_PHRASES);
+});
+
+test("OpenCode todo phrasing: a ledger skill keeps its checklist in the ledger, any other a visible one", () => {
+  assert.equal(
+    renderHarnessPhrasing(TODO_PHRASES, "opencode"),
+    [
+      `"task-done: run tests, ledger the result; tick the task's checklist line" [shape=box];`,
+      `"Append completion to ledger, tick the task's checklist line" [shape=box];`,
+      "Track progress in a ledger file. Its checklist is a",
+      "live view; the ledger is the record.",
+      "Read the plan once, note its context and Global Constraints, and add a",
+      "Markdown checklist with one line per task to the ledger. If the plan names a Spec, read that too.",
+      "- Mark the task's checklist line as in progress.",
+      "A failing run records nothing. When it records,",
+      "tick the task's checklist line and take the next task.",
+      "[Add a checklist of all tasks to the ledger]",
+      "Keep a visible Markdown checklist with one line per step, and tick each line as it is done. Steps 5–7 run only on their stated condition.",
+      "If it has a checklist, keep a visible Markdown checklist with one line per item, and tick each line as it is done.",
+      "**IMPORTANT: Copy EACH checklist item below into a visible Markdown checklist, and tick each line as it is done.**",
+      "- Use tracking: a visible Markdown checklist, ticked line by line",
+      "✅ Checklists without line-by-line ticking = steps get skipped. Every time.",
+      "❌ Some people find ticking lines off helpful for checklists.",
+      "a spec or plan file, a Markdown checklist whose",
+    ].join("\n"),
+  );
+});
+
+test("an instruction to create or mark a todo is caught outside code spans; OpenCode's rendering has none", () => {
+  assert.deepEqual(
+    openCodeTodoInstructions(TODO_PHRASES).map((hit) => hit.match),
+    [
+      "mark todo",
+      "mark todo",
+      "create a\ntodo",
+      "Mark the task's todo",
+      "mark the todo",
+      "Create todos",
+      "Create a todo",
+      "create a todo",
+      "Create a todo",
+    ],
+  );
+  assert.deepEqual(openCodeTodoInstructions(renderHarnessPhrasing(TODO_PHRASES, "opencode")), []);
+  assert.deepEqual(openCodeTodoInstructions("Then add a new todo, or update the todo list."), [
+    { index: 5, match: "add a new todo" },
+    { index: 24, match: "update the todo" },
+  ]);
+  const literal = "Write `create a todo per item` as the example, and add a TODO comment to the stub.";
+  assert.deepEqual(openCodeTodoInstructions(literal), [], "a code span is literal, and TODO is a code marker");
+  assert.equal(renderHarnessPhrasing(literal, "opencode"), literal, "a code span is left whole");
 });

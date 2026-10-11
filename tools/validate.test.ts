@@ -1464,6 +1464,36 @@ test("V: a general-purpose subagent inside a code span ships whole and is reject
   assert.ok(!errors.some((m) => m.includes("`general` subagent")), errors.join("\n"));
 });
 
+test("V: OpenCode renders a known todo phrase and rejects any other instruction to create or mark a todo", () => {
+  const errors = ocErrors("Create a todo per step.\n\nThen add a todo for the review.", [
+    "  - source: sp/skills/alpha",
+  ]);
+  const todo = errors.filter((m) => m.includes("todo instruction"));
+  assert.deepEqual(
+    todo,
+    [
+      'opencode/deniz-process/skills/deniz-process.alpha/SKILL.md:8: todo instruction "add a todo" in opencode/ — OpenCode 2 has no todo tool: reword it, or add a row to the OpenCode todo table (references-and-linking.md Harness phrasing)',
+    ],
+    errors.join("\n"),
+  );
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: D\n---\nCreate a todo per step.\n",
+  );
+  buildAll(root);
+  const line = (file: string): string | undefined =>
+    readFileSync(file, "utf8")
+      .split("\n")
+      .find((l) => l.endsWith("."));
+  assert.equal(line(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md")), "Create a todo per step.");
+  assert.equal(
+    line(opencodeIdPath(root, "deniz-process", "skill", "delta", "SKILL.md")),
+    "Keep a visible Markdown checklist with one line per step, and tick each line as it is done.",
+  );
+  assert.equal(line(codexPluginPath(root, "deniz-process", "skills", "delta", "SKILL.md")), "Create a todo per step.");
+});
+
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
   const errors = ocErrors(
     "Body.",

@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.0",
-  "digest": "sha256:8e7f18a4d858b1249b6a84f1c1aaf8a1dc7cbf54c0e8065702a16d0434118942",
+  "digest": "sha256:ffb80a7c08f6ef16a5719f50e154aadbf48d529ce39bca5e5d101d323342e7f6",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -86,7 +86,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {
-      "sha256": "sha256:7fd6517f1d0973baeeb0fb400eb58f5eb15a347dc85ae51fab786798bb98cd4d",
+      "sha256": "sha256:bfb309608505760b07240c6a81e1fc544e38f69cd9f4e4a4f3ee9568c132b14e",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/prompts/analyst-common.md": {
@@ -98,7 +98,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/prompts/plan-adherence.md": {
-      "sha256": "sha256:1dcbab82033598a2e9c9ee42e950d4b1822d2c871c02cef9e102cdd5cbbda113",
+      "sha256": "sha256:4b57684b6b26153f108cef337579d8349b5f189b020a9efbb26391bf0cbe2707",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/prompts/quality-evidence.md": {
@@ -182,7 +182,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:9ff069467c1c4b1776ebd1f3aeeb2728f21c6631003d7b8f587af4e60a95a187",
+      "sha256": "sha256:ca84aa94b8539f4589082d814f7a31d8a106a96bac047477631e655ce57b1fd3",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/scripts/task-done": {
@@ -282,7 +282,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:63baef5df1a6ac2578e5c93b5e7e74709d2b21e5a99c9fe335cfde5d06496e90",
+      "sha256": "sha256:0c21653abe560d42881ca830e1239ba197d5ead3657a96afc12189490157ff09",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {
@@ -390,11 +390,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.using-superpowers/SKILL.md": {
-      "sha256": "sha256:7c7a8f56c9d258140a680f686e67616122b1b7a6254cb0ac6c439808cae0f8a7",
+      "sha256": "sha256:7ca3bfc673638da1ca6bd903e8c43d901858b2235eecde66ddd6f9e56348f0d4",
       "mode": "100644"
     },
     "skills/deniz-process.using-superpowers/references/harness-tools.md": {
-      "sha256": "sha256:74ff6414586905306269d61199f58be3863a95c32d8b5570bbb9d9103335491f",
+      "sha256": "sha256:2998d7440bcd8e158cc91de4925952846246faff7c03391032056f6f69c79aaf",
       "mode": "100644"
     },
     "skills/deniz-process.verification-before-completion/SKILL.md": {
@@ -430,7 +430,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {
-      "sha256": "sha256:7a5db5a53bda349d7118ab63ce2503176b59f7add60a362617423445d905e78e",
+      "sha256": "sha256:3c09e0c6c512f83ac3c189b2dacd9ac35096345e201029bbc95a9ddbc33010f2",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/anthropic-best-practices.md": {
@@ -446,7 +446,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/persuasion-principles.md": {
-      "sha256": "sha256:a51bc9bf75189ea73a27b3fb504a2fdfdb966fb1f7f1cdf03203230a216ccc03",
+      "sha256": "sha256:54737d5668b8b0ff0788011f8d33fe8e2b3d046a53e093166c95eecd6d513b82",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/render-graphs.js": {

@@ -59,7 +59,13 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { addressOf, buildRewriteMap, claudeOnlyVocabulary, isBundledText } from "./lib/rewrite.ts";
+import {
+  addressOf,
+  buildRewriteMap,
+  claudeOnlyVocabulary,
+  isBundledText,
+  openCodeTodoInstructions,
+} from "./lib/rewrite.ts";
 import {
   type BundledScript,
   type Interpreter,
@@ -1210,6 +1216,13 @@ export function validateRepo(root: string): Finding[] {
         findings.push({
           level: "error",
           message: `${rel}:${lineOf(text, hit.index)}: Claude-only vocabulary "${hit.match}" in ${tree}/ — reword it into a form the harness phrasing renders (curation/SCHEMA.md Dependencies)`,
+        });
+      }
+      // OpenCode 2 has no todo tool; the OpenCode todo table renders every known phrase.
+      for (const hit of tree === "opencode" ? openCodeTodoInstructions(text) : []) {
+        findings.push({
+          level: "error",
+          message: `${rel}:${lineOf(text, hit.index)}: todo instruction "${hit.match}" in opencode/ — OpenCode 2 has no todo tool: reword it, or add a row to the OpenCode todo table (references-and-linking.md Harness phrasing)`,
         });
       }
     }

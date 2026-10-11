@@ -23,7 +23,7 @@ never from memory.
 
 ## Workflow
 
-Create a todo per step. Steps 5–7 run only on their stated condition.
+Keep a visible Markdown checklist with one line per step, and tick each line as it is done. Steps 5–7 run only on their stated condition.
 
 1. **Problem intake.** Ask one question at a time until you can write a
    statement naming the session(s), the turn range if known, what your

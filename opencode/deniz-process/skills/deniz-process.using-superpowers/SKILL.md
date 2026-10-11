@@ -16,7 +16,7 @@ Check for a relevant skill before starting any task, and invoke the ones that ap
 
 **Before entering plan mode:** if you haven't already brainstormed, invoke the brainstorming skill first.
 
-Then announce "Using [skill] to [purpose]" and follow the skill. If it has a checklist, create a todo per item.
+Then announce "Using [skill] to [purpose]" and follow the skill. If it has a checklist, keep a visible Markdown checklist with one line per item, and tick each line as it is done.
 
 ## Skill Priority
 

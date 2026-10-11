@@ -188,6 +188,66 @@ const DISPATCH: { pattern: RegExp; opencode: string; codex: string; outsideCode?
   { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1" },
 ];
 
+type Replacement = string | ((match: string, ...groups: string[]) => string);
+
+// Closed OpenCode todo table (references-and-linking.md "Harness phrasing"), matched exactly.
+// OpenCode 2 has no todo tool, so each upstream phrase that creates, marks, or names a todo renders
+// as Markdown-checklist wording: the plan executors keep the checklist in the ledger they already
+// keep, and every other skill keeps a visible checklist ticked line by line. Claude Code and Codex
+// keep upstream's words. A match inside an inline code span is left whole, as the check skips it.
+const OPENCODE_TODO: { pattern: RegExp; opencode: Replacement }[] = [
+  // executing-plans and subagent-driven-development: the ledger holds the checklist.
+  {
+    pattern: /\bcreate a(\s+)todo per task\b/g,
+    opencode: "add a$1Markdown checklist with one line per task to the ledger",
+  },
+  { pattern: /\[Create todos for all tasks\]/g, opencode: "[Add a checklist of all tasks to the ledger]" },
+  { pattern: /\bMark the task's todo in_progress\b/g, opencode: "Mark the task's checklist line as in progress" },
+  { pattern: /\bmark (?:the )?todo complete\b/g, opencode: "tick the task's checklist line" },
+  { pattern: /\bledger file, not only in todos\./g, opencode: "ledger file." },
+  { pattern: /\bHarness todos are a(\s+)live view;/g, opencode: "Its checklist is a$1live view;" },
+  // diagnosing-superpowers, using-superpowers, writing-skills: a visible checklist.
+  {
+    pattern: /\b([Cc])reate a todo per (step|item)\./g,
+    opencode: (_match, c, unit) =>
+      `${c === "C" ? "K" : "k"}eep a visible Markdown checklist with one line per ${unit}, and tick each line as it is done.`,
+  },
+  {
+    pattern: /\bCreate a todo for EACH checklist item below\./g,
+    opencode: "Copy EACH checklist item below into a visible Markdown checklist, and tick each line as it is done.",
+  },
+  { pattern: /\btodos for checklists\b/g, opencode: "a visible Markdown checklist, ticked line by line" },
+  { pattern: /\bwithout todo tracking\b/g, opencode: "without line-by-line ticking" },
+  { pattern: /\bfind a todo list helpful\b/g, opencode: "find ticking lines off helpful" },
+  // diagnosing-superpowers' plan-adherence prompt: what an agreed plan looks like in a session.
+  { pattern: /\ba todo-list record\b/g, opencode: "a Markdown checklist" },
+];
+
+/** Wording that tells the model to create or mark a todo; `TODO`, a code marker, is not one. */
+const TODO_INSTRUCTION =
+  /\b(?:[Cc]reate|[Aa]dd|[Mm]ark|[Uu]pdate|[Tt]ick|[Cc]omplete)\s+(?:[\w'-]+\s+){0,2}?[Tt]odos?\b/g;
+
+/** Instructions to create or mark a todo outside inline code spans, which OpenCode 2 has no tool for. */
+export function openCodeTodoInstructions(content: string): { index: number; match: string }[] {
+  const spans = inlineCodeSpans(content);
+  return [...content.matchAll(TODO_INSTRUCTION)]
+    .filter((m) => !spans.some(([start, end]) => m.index >= start && m.index < end))
+    .map((m) => ({ index: m.index, match: m[0] }));
+}
+
+/** Replaces each match of a row that starts outside every inline code span. */
+function replaceOutsideCode(text: string, pattern: RegExp, replacement: Replacement): string {
+  const spans = inlineCodeSpans(text);
+  const single = new RegExp(pattern.source, pattern.flags.replace("g", ""));
+  return text.replace(pattern, (match: string, ...args: unknown[]) => {
+    const at = args.find((arg) => typeof arg === "number") as number;
+    if (spans.some(([start, end]) => at >= start && at < end)) {
+      return match;
+    }
+    return typeof replacement === "string" ? match.replace(single, replacement) : match.replace(single, replacement);
+  });
+}
+
 /** Claude Code tool words that must not survive in an OpenCode or Codex tree. */
 export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
   /\bskill tool/gi,
@@ -230,17 +290,12 @@ export function renderHarnessPhrasing(content: string, style: RefStyle): string 
   }
   out += content.slice(cut);
   for (const row of DISPATCH) {
-    if (!row.outsideCode) {
-      out = out.replace(row.pattern, row[style]);
-      continue;
+    out = row.outsideCode ? replaceOutsideCode(out, row.pattern, row[style]) : out.replace(row.pattern, row[style]);
+  }
+  if (style === "opencode") {
+    for (const row of OPENCODE_TODO) {
+      out = replaceOutsideCode(out, row.pattern, row.opencode);
     }
-    const spans = inlineCodeSpans(out);
-    out = out.replace(row.pattern, (match: string, ...args: unknown[]) => {
-      const at = args.find((arg) => typeof arg === "number") as number;
-      return spans.some(([start, end]) => at >= start && at < end)
-        ? match
-        : match.replace(new RegExp(row.pattern.source), row[style]);
-    });
   }
   return out;
 }

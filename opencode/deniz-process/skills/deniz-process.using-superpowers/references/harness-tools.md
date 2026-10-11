@@ -91,9 +91,9 @@ not summarize it. Do this only for a whole plan, never for one task.
 ## Todos
 
 OpenCode 2 has no todo tool. The OpenCode 1 `todowrite` tool was removed:
-never call it. When a skill says to create or mark a todo, track that
-checklist in the ledger or plan file the skill already keeps. If there is
-none, track it in a Markdown file.
+never call it. Track a skill's checklist in Markdown instead: in the ledger
+or plan file the skill already keeps, or, when it keeps none, in a visible
+Markdown checklist whose lines you tick as each is done.
 
 ## Step limits
 

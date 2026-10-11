@@ -72,7 +72,7 @@ index 069d578..fd0a8e4 100644
  User instructions (CLAUDE.md, AGENTS.md, GEMINI.md, etc, direct requests) take precedence over skills, which in turn override default behavior. Only skip skill workflows or instructions when your human partner has explicitly told you to.
 diff --git b/references/opencode-tools.md b/references/opencode-tools.md
 new file mode 100644
-index 0000000..1fdd496
+index 0000000..b949e10
 --- /dev/null
 +++ b/references/opencode-tools.md
 @@ -0,0 +1,102 @@
@@ -169,9 +169,9 @@ index 0000000..1fdd496
 +## Todos
 +
 +OpenCode 2 has no todo tool. The OpenCode 1 `todowrite` tool was removed:
-+never call it. When a skill says to create or mark a todo, track that
-+checklist in the ledger or plan file the skill already keeps. If there is
-+none, track it in a Markdown file.
++never call it. Track a skill's checklist in Markdown instead: in the ledger
++or plan file the skill already keeps, or, when it keeps none, in a visible
++Markdown checklist whose lines you tick as each is done.
 +
 +## Step limits
 +

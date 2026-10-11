@@ -26,8 +26,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   committed `opencode/` tree is OpenCode 2 output: one skill folder per skill item under its
   `<plugin>.<name>` ID, `manual` skills hidden with `opencode/autoinvoke: false`, namespaced
   agents, and no stubs, `both` duplicate commands, inline manual commands, or parked `BODY.md`
-  files. Localization renders the skill-tool call and the subagent-dispatch words per harness, and
-  `validate` runs the handoff-template, harness-vocabulary, and path-claim checks of
+  files. Localization renders the skill-tool call and the subagent-dispatch words per harness and
+  OpenCode's todo instructions as Markdown checklists, and `validate` runs the handoff-template,
+  harness-vocabulary, OpenCode todo, and path-claim checks of
   [references and linking](architecture/references-and-linking.md). The OpenCode experiment
   scripts target OpenCode 2: the OpenCode 1 probes are retired, and `oc2-discovery.ps1` checks
   discovery against an isolated `opencode serve`. On v2.0.23 that check discovered the installed
@@ -274,11 +275,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `Subagent (general)` dispatch label, the rendered unbackticked `general-purpose subagent`, or
   the tool-free Codex dispatch wording. No Codex subagent
   tool or agent type is recorded in repository research, so Codex wording names neither.
-- **OpenCode has no todo tool, but Process bodies still say to create or mark todos:** the OpenCode
-  tool notes `using-superpowers` ships tell the model to track such a checklist in the ledger or
-  plan file instead, but only a session that loaded that `manual` skill reads them. The bodies of
-  `executing-plans`, `subagent-driven-development`, `writing-skills`, `diagnosing-superpowers`,
-  and `using-superpowers` itself keep upstream's todo wording in every tree.
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
 - **Original-skill declarations are absent:** `manual`/`both` posture and outgoing edge-source scans

@@ -176,9 +176,10 @@ last item; the warning is not a proof that the ambiguity is harmless.
 
 ### Harness phrasing
 
-Two phrasings name a harness tool, so localization renders each as a unit around its neutral facts,
-before the facts themselves are rendered. Authors write upstream's Claude Code wording, and the
-Claude Code rendering is identity. Every other sentence is left as written. The renderer and its
+Three phrasings name a harness tool, so localization renders each as a unit around its neutral
+facts, before the facts themselves are rendered: the skill-tool call, the subagent-dispatch words,
+and, in OpenCode alone, an instruction to create or mark a todo. Authors write upstream's Claude
+Code wording, and the Claude Code rendering is identity. Every other sentence is left as written. The renderer and its
 closed tables are `localize` in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts); the skill-tool
 call grammar is the template in [Handoff templates](#handoff-templates). Phrasing is rendered in
 Markdown files only.
@@ -216,6 +217,34 @@ tool: explicit selection is `$plugin:skill`
 ([Codex surfaces](../research/codex-native-plugin-and-skill-surfaces.md#skill-invocation)).
 This repository's research records no Codex subagent tool or agent type, so Codex wording names
 neither.
+
+OpenCode 2 has no todo tool: its pull request `anomalyco/opencode#35989` removed OpenCode 1's
+`todowrite` with no replacement, and its built-in Plan agent is a read-only mode, not a tracker.
+Upstream superpowers' own OpenCode plugin tracks the plan in a Markdown file instead. OpenCode
+therefore renders each todo phrase as Markdown-checklist wording, from a closed table matched
+exactly, outside inline code spans; Claude Code and Codex keep upstream's words. A skill that keeps
+a ledger, `executing-plans` and `subagent-driven-development`, keeps the checklist there; every
+other skill keeps a visible Markdown checklist and ticks each line as it is done:
+
+| Claude Code and Codex (upstream) | OpenCode 2 |
+|---|---|
+| `create a todo per task` | `add a Markdown checklist with one line per task to the ledger` |
+| `[Create todos for all tasks]` | `[Add a checklist of all tasks to the ledger]` |
+| `Mark the task's todo in_progress` | `Mark the task's checklist line as in progress` |
+| `mark todo complete`, `mark the todo complete` | `tick the task's checklist line` |
+| `ledger file, not only in todos.` | `ledger file.` |
+| `Harness todos are a live view;` | `Its checklist is a live view;` |
+| `Create a todo per step.`, `create a todo per item.` | `Keep a visible Markdown checklist with one line per step, and tick each line as it is done.`, with `item` and a lowercase `keep` in the second |
+| `Create a todo for EACH checklist item below.` | `Copy EACH checklist item below into a visible Markdown checklist, and tick each line as it is done.` |
+| `todos for checklists` | `a visible Markdown checklist, ticked line by line` |
+| `without todo tracking` | `without line-by-line ticking` |
+| `find a todo list helpful` | `find ticking lines off helpful` |
+| `a todo-list record` | `a Markdown checklist` |
+
+Each row is the exact upstream phrase, whitespace between its words kept as written, so a reworded
+phrase stops matching and the [OpenCode todo check](#harness-vocabulary-check) rejects it rather
+than a broad word swap rendering it into a sentence that no longer reads. The `using-superpowers`
+OpenCode tool notes say the same for a session that loads them.
 
 Whether a model follows a rendered sentence is runtime evidence, bounded to one model
 (`gpt-5.6-luna` at low effort):
@@ -261,13 +290,19 @@ skills.
 `skill tool` in any letter case, `Subagent (general-purpose)`, `` `general-purpose` ``,
 `general-purpose` followed by whitespace and `agent` or `subagent`, with emphasis stars or
 underscores allowed between, `` `Agent` ``, `Agent tool`, `Task tool`, `subagent_type`, and
-`TodoWrite`, Claude Code's todo tool, in that letter case. The rendered OpenCode ``the `skill` tool`` does not match, because
-a backtick separates the words, and neither does OpenCode's own lowercase `todowrite`. The check
-reads code spans too, so it rejects the words the phrasing leaves whole there. The patterns sit
-beside the phrasing tables in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every
-non-Claude rendering in those tables must pass them. A new upstream phrasing therefore fails the
-build instead of reaching a harness that has no such tool; the fix is a curated rewording or a new
-table row.
+`TodoWrite`, Claude Code's todo tool, in that letter case. The rendered OpenCode
+``the `skill` tool`` does not match, because a backtick separates the words, and neither does
+OpenCode's own lowercase `todowrite`. The check reads code spans too, so it rejects the words the
+phrasing leaves whole there. The patterns sit beside the phrasing tables in
+[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every non-Claude rendering in those tables
+must pass them. A new upstream phrasing therefore fails the build instead of reaching a harness that
+has no such tool; the fix is a curated rewording or a new table row.
+
+Every Markdown file under `opencode/` is also checked for an instruction to create or mark a todo:
+`create`, `add`, `mark`, `update`, `tick`, or `complete`, with either initial case, then up to two
+words, then `todo` or `todos` (`openCodeTodoInstructions`). The check skips inline code spans, which
+are literal, and does not read the code marker `TODO`. Every OpenCode rendering in the todo table
+must pass it. Codex keeps upstream's todo words and is not checked.
 
 ## `depends_on` and audience reachability
 
