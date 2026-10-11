@@ -820,13 +820,19 @@
   "deniz-dotnet-aspire/skill/aspire-service-defaults": {
     "source": "dotnet-skills/skills/aspire-service-defaults",
     "invocation": "auto",
-    "description": "Create a shared ServiceDefaults project for Aspire applications. Centralizes OpenTelemetry, health checks, resilience, and service discovery configuration across all services.",
+    "body": "patch",
+    "dependsOn": [
+      "aspireify"
+    ],
+    "description": "Customize the shared ServiceDefaults project of an Aspire application, which centralizes OpenTelemetry, health checks, resilience, and service discovery configuration across all services. A missing project comes from aspireify or the aspire-servicedefaults template, not a hand-written one.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-aspire:aspireify"
+        ],
         "pointer": []
       },
       "flags": {
@@ -840,7 +846,9 @@
       "identity": "deniz-dotnet-aspire.aspire-service-defaults",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-aspire.aspireify"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -859,7 +867,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-aspire:aspireify"
+        ],
         "pointer": []
       },
       "dropped": [

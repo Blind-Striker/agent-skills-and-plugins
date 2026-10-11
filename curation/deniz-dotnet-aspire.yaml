@@ -6,7 +6,7 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.5.1
+  version: 0.6.0
 items:
   - source: aspire-skills/skills/aspire
     invocation: both # stated so the passthrough posture is explicit: the model routes Aspire work here and
@@ -59,6 +59,12 @@ items:
     # its current upstream body and companions remain unowned despite known example/API proof limits
   - source: dotnet-skills/skills/aspire-service-defaults
     invocation: auto # canonical shared OTel, health, resilience, and HTTP service-discovery guidance
+    body: patch # its description led with "Create a shared ServiceDefaults project" and its body
+    # hand-writes a net9.0 project with a fixed package list, beside the one aspire init or the
+    # installed template makes. The description now names customizing the project, and a missing
+    # one defers to aspireify or the aspire-servicedefaults template, which also keeps aspireify's
+    # legacy-host guard in the path; the hand-written files stay as a reading of what the project holds
+    depends_on: [aspireify] # the deferral is a checked fact
 
   # --- exclusions ---
   - source: aspire-skills/.github/skills/pr-review

@@ -61,6 +61,12 @@
       "SKILL.md": "66c71ee6a0d8df8cf741275f61e2bb3776437d16"
     }
   },
+  "deniz-dotnet-aspire/aspire-service-defaults": {
+    "source": "dotnet-skills/skills/aspire-service-defaults",
+    "files": {
+      "SKILL.md": "524473322418f887ab0850a0ea66dd6b57dbddc0"
+    }
+  },
   "deniz-dotnet-aspire/aspireify": {
     "source": "aspire-skills/skills/aspireify",
     "files": {

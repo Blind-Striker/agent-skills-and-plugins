@@ -1,8 +1,9 @@
 ---
 name: aspire-service-defaults
-description: Create a shared ServiceDefaults project for Aspire applications.
-  Centralizes OpenTelemetry, health checks, resilience, and service discovery
-  configuration across all services.
+description: Customize the shared ServiceDefaults project of an Aspire
+  application, which centralizes OpenTelemetry, health checks, resilience, and
+  service discovery configuration across all services. A missing project comes
+  from aspireify or the aspire-servicedefaults template, not a hand-written one.
 ---
 
 # Aspire Service Defaults
@@ -48,6 +49,11 @@ src/
 ---
 
 ## ServiceDefaults Project
+
+If the solution has no ServiceDefaults project yet, do not write one by hand: `aspire init` may already
+have generated it; otherwise use the `$deniz-dotnet-aspire:aspireify` skill, which creates it from the installed
+`dotnet new aspire-servicedefaults` template and wires each service. The project file and
+`Extensions.cs` below show what such a project contains, for reading and customizing one that exists.
 
 ### Project File
 
