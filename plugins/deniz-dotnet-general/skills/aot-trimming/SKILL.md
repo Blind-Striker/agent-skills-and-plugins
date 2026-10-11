@@ -10,21 +10,25 @@ description: "Apply .NET trimming and Native AOT semantics to code being written
   object-to-generic overloads, migration analyzers). For System.Text.Json AOT
   scenarios, see also the serialization skill. USE FOR: writing, refactoring, or
   reviewing reflection-touching code that must stay trim/AOT-safe, including the
-  IL warnings that code raises. DO NOT USE FOR: enabling
-  IsTrimmable/IsAotCompatible/PublishAot across an existing project or
-  systematic IL-warning cleanup; the user invokes dotnet-aot-compat separately."
+  IL warnings in code you write or change; turning on PublishAot or
+  PublishTrimmed in a new or existing app. DO NOT USE FOR: adopting
+  IsTrimmable/IsAotCompatible in an existing library, or a systematic migration
+  of a project-wide IL-warning list; the user invokes dotnet-aot-compat
+  separately."
 user-invocable: false
 ---
 
 # .NET Trimming and Native AOT
 
-This skill assumes trim/AOT analysis is already in effect for the code in scope. To enable trimming or
-AOT across an existing project, or for systematic IL-warning cleanup, ask the user to invoke
-`/deniz-dotnet-general:dotnet-aot-compat`; do not perform that work through this skill.
+This skill assumes trim/AOT analysis is already in effect for the code in scope, or that you are
+turning on `PublishAot` or `PublishTrimmed` in an app. To adopt `IsTrimmable` or `IsAotCompatible` in
+an existing library, or for a systematic migration of a project-wide IL-warning list, ask the user to
+invoke `/deniz-dotnet-general:dotnet-aot-compat`; do not perform that work through this skill.
 
 ## When to Use
 
-- Resolving the `IL2xxx` (trimming) and `IL3xxx` (AOT/single-file) warnings raised by the code in scope
+- Turning on `PublishAot` or `PublishTrimmed` in an app, new or existing
+- Resolving the `IL2xxx` (trimming) and `IL3xxx` (AOT/single-file) warnings raised by the code you are writing or changing
 - Making reflection-heavy code trimming-safe
 - Replacing runtime reflection, assembly scanning, or `Reflection.Emit` with compile-time alternatives
 - Reviewing a codebase or PR for trimming/AOT compatibility, including generated interceptors and analyzer suppressors
@@ -61,9 +65,11 @@ Reflection is a legitimate technique and is completely fine in ordinary JIT appl
 
 ## Project Configuration
 
-Declare these properties only on a **new** project you are creating. Adopting them in an existing
-project is the job of the manual ceremony named above; for existing code, confirm what the project
-already declares before applying this guidance.
+Declare the library properties only on a **new** library you are creating; adopting them in an
+existing library is the job of the manual ceremony named above. An app may turn on `PublishTrimmed` or
+`PublishAot` whether it is new or existing. When its publish raises a project-wide warning list rather
+than warnings in the code you are changing, migrating that list is the manual ceremony's job. For
+existing code, confirm what the project already declares before applying this guidance.
 
 For a new **library**, declare compatibility so the analyzers surface warnings and consumers know:
 
@@ -77,7 +83,7 @@ For a new **library**, declare compatibility so the analyzers surface warnings a
 </PropertyGroup>
 ```
 
-For a new **application**, publish trimmed or AOT:
+For an **application**, new or existing, publish trimmed or AOT:
 
 ```xml
 <PropertyGroup>
@@ -157,7 +163,7 @@ See [aot-trimming-playbook-reference.md](aot-trimming-playbook-reference.md) for
 
 ## Generation Checklist (Summary)
 
-1. **Project** — trim/AOT analysis is already in effect for the code in scope, or you are creating a new project that declares it (`IsTrimmable`/`IsAotCompatible` on libraries; `PublishTrimmed`/`PublishAot` on apps); otherwise route the user to the manual ceremony. Zero warnings on publish.
+1. **Project** — trim/AOT analysis is already in effect for the code in scope, or you are creating a new library that declares `IsTrimmable`/`IsAotCompatible`, or turning on `PublishTrimmed`/`PublishAot` in an app; otherwise route the user to the manual ceremony. Zero warnings on publish.
 2. **Make reflection visible (or replace it)** — annotate the reflection you keep (`DynamicallyAccessedMembers`/`RequiresUnreferencedCode`/`RequiresDynamicCode`); replace it with source generators, generic (`typeof(T)`) APIs, or `[UnsafeAccessor]` only where you want the reflective surface gone.
 3. **Annotate** — narrowest `DynamicallyAccessedMembers` on every `Type`/`string` source; propagate through the chain; `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]` on unsafe entry points.
 4. **Isolate** — keep unsafe reflective/emit code behind a boundary; gate *dynamic-code* paths with `RuntimeFeature.IsDynamicCodeSupported`, and separate *trimming* paths with `#if` or annotations.

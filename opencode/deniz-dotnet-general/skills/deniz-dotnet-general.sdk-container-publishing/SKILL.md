@@ -7,8 +7,7 @@ description: "Publish .NET services as container images with the built-in SDK
   configuring or troubleshooting SDK-built container images and their CI publish
   step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost
   (aspire-deployment), running containers in tests
-  (testcontainers-integration-tests), or turning on PublishAot in an existing
-  project."
+  (testcontainers-integration-tests), or turning on PublishAot (aot-trimming)."
 ---
 
 # .NET SDK Container Publishing
@@ -145,8 +144,8 @@ For more, see [references/troubleshooting.md](references/troubleshooting.md).
 
 Self-contained projects default to the `runtime-deps` base image. AOT projects get a chiseled AOT runtime-deps variant for smaller, more secure images. See [references/self-contained-and-aot.md](references/self-contained-and-aot.md).
 
-This skill does not turn `PublishAot` on in an existing project. To make an existing project
-AOT-compatible, ask the user to invoke `@deniz-dotnet-general.dotnet-aot-compat`.
+This skill does not turn `PublishAot` on. To turn it on in a new or existing project, use the
+`deniz-dotnet-general.aot-trimming` skill.
 
 ## Verification
 

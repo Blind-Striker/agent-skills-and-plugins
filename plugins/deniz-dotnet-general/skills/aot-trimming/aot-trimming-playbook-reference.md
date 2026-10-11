@@ -520,12 +520,12 @@ AppContext.SetSwitch("MyLibrary.StrictMode", true);
 
 ## Full generation checklist
 
-When introducing trimming/AOT support in a new project or resolving warnings:
+When introducing trimming/AOT support in a new library or an app, or resolving warnings:
 
 1. **Project configuration**
    - New libraries: set `IsTrimmable` (and `IsAotCompatible` on `net8.0+`) so warnings surface.
-   - New apps: set `PublishTrimmed`/`PublishAot`; publish and confirm **zero** warnings.
-   - Existing projects: confirm what the project already declares. To adopt these properties in one, ask the user to invoke `/deniz-dotnet-general:dotnet-aot-compat`; do not set them through this playbook.
+   - Apps, new or existing: set `PublishTrimmed`/`PublishAot`; publish and confirm **zero** warnings.
+   - Existing libraries: confirm what the library already declares. To adopt `IsTrimmable`/`IsAotCompatible` in one, or to migrate a project-wide warning list, ask the user to invoke `/deniz-dotnet-general:dotnet-aot-compat`; do not do that through this playbook.
    - Consider `TrimmerSingleWarn=false` while fixing, then restore per-assembly collapse.
 
 2. **Make reflection visible (or selectively replace it)**

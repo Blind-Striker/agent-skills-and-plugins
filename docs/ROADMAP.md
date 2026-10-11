@@ -74,10 +74,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   General keeps its report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
 - `dotnet-skills` is reviewed through v1.7.1 (`84b5bee`); waves W2 and W2b are done. General
   takes `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which
-  now carries the warning-approval baseline, plus `cscheck` and `sdk-container-publishing`.
+  now carries the warning-approval baseline; `aot-trimming` also owns turning on `PublishAot` in an
+  app. General also takes `cscheck` and `sdk-container-publishing`.
   Upstream v1.7.1 fixed the `sdk-container-publishing` defects this repository reported, so its
-  patch keeps only this curation's own guard, AOT ceremony pointer, and trigger description; its
-  real-world examples file now ships.
+  patch keeps only this curation's own guard, its `PublishAot` route to `aot-trimming`, and its
+  trigger description; its real-world examples file now ships.
   `testcontainers-integration-tests` flows unowned now that upstream teaches the Testcontainers 4.x
   API. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key rename.
 - `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);

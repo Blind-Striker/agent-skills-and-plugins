@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.12.1",
-  "digest": "sha256:b137c715966cf485c93fa3f86c88945beb905a648f71b18fc3734daa1b160a41",
+  "digest": "sha256:ef47a156728d03fe1dbe0697d784c396fa9abefd81ffe159a2dee7c19fa9cea0",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -53,11 +53,11 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.aot-trimming/SKILL.md": {
-      "sha256": "sha256:a49e92adce86facf392e36f9afd74d4fc1d0803839ce25ad50ead44b6ff5cf6f",
+      "sha256": "sha256:e0bcada9afa69667a4feb2812db4d39504b50519daf029a51181fbbbfb829a64",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.aot-trimming/aot-trimming-playbook-reference.md": {
-      "sha256": "sha256:29599bbf8ffb2615db9372bf12d665b2a01e0f11db17a5a6e4fa0bc6493d482b",
+      "sha256": "sha256:65d3e3c6699d7cbc178ff9d0f85ad20a21ef1a9bea9c55a4eeca007a93a9c472",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.aot-trimming/trimming-attributes-reference.md": {
@@ -221,7 +221,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-aot-compat/SKILL.md": {
-      "sha256": "sha256:86dd5017d5014dd736f304dd2a12cb4deecc89e5fe5aea4de312fe64dd6e0e35",
+      "sha256": "sha256:2613f6b325ab04bdca6b539cbbffc99c8f12b64ce00791b4bd045fa7c61ca2db",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-aot-compat/references/polyfills.md": {
@@ -521,7 +521,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/SKILL.md": {
-      "sha256": "sha256:d43032c3d483cb656d2da0ddba5ac2d6731d617339aab2fb46e6820302b813c4",
+      "sha256": "sha256:ca6caf2324c52b7377ddfbb9609d7217fc9540ac9eed138f3a5af912f3370c25",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/references/ci-cd.md": {

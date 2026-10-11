@@ -1029,7 +1029,7 @@
     "source": "dotnet-skills/skills/aot-trimming",
     "invocation": "auto",
     "body": "patch",
-    "description": "Apply .NET trimming and Native AOT semantics to code being written or reviewed where trim/AOT analysis is already in effect: the trimming/AOT model, RequiresUnreferencedCode / RequiresDynamicCode / DynamicallyAccessedMembers / UnconditionalSuppressMessage / DynamicDependency semantics, IL2xxx/IL3xxx meaning, and design patterns (source-generated registration, UnsafeAccessor, generated-interception suppressors, intentional scanning boundaries, trimming-safe islands and feature switches, object-to-generic overloads, migration analyzers). For System.Text.Json AOT scenarios, see also the serialization skill. USE FOR: writing, refactoring, or reviewing reflection-touching code that must stay trim/AOT-safe, including the IL warnings that code raises. DO NOT USE FOR: enabling IsTrimmable/IsAotCompatible/PublishAot across an existing project or systematic IL-warning cleanup; the user invokes dotnet-aot-compat separately.",
+    "description": "Apply .NET trimming and Native AOT semantics to code being written or reviewed where trim/AOT analysis is already in effect: the trimming/AOT model, RequiresUnreferencedCode / RequiresDynamicCode / DynamicallyAccessedMembers / UnconditionalSuppressMessage / DynamicDependency semantics, IL2xxx/IL3xxx meaning, and design patterns (source-generated registration, UnsafeAccessor, generated-interception suppressors, intentional scanning boundaries, trimming-safe islands and feature switches, object-to-generic overloads, migration analyzers). For System.Text.Json AOT scenarios, see also the serialization skill. USE FOR: writing, refactoring, or reviewing reflection-touching code that must stay trim/AOT-safe, including the IL warnings in code you write or change; turning on PublishAot or PublishTrimmed in a new or existing app. DO NOT USE FOR: adopting IsTrimmable/IsAotCompatible in an existing library, or a systematic migration of a project-wide IL-warning list; the user invokes dotnet-aot-compat separately.",
     "claude": {
       "artifacts": [
         "skill"
@@ -1921,7 +1921,7 @@
     "mergedFrom": [
       "dotnet-skills/skills/aot-trimming"
     ],
-    "description": "Make .NET projects compatible with Native AOT and trimming by systematically resolving IL trim/AOT analyzer warnings. USE FOR: making projects AOT-compatible, fixing trimming warnings, resolving IL warnings (IL2026, IL2070, IL2067, IL2072, IL3050), adding DynamicallyAccessedMembers annotations, enabling IsAotCompatible. DO NOT USE FOR: publishing native AOT binaries, optimizing binary size, replacing reflection-heavy libraries with alternatives. INVOKES: no tools — pure knowledge skill.\n",
+    "description": "Make .NET projects compatible with Native AOT and trimming by systematically resolving IL trim/AOT analyzer warnings. USE FOR: making projects AOT-compatible, fixing trimming warnings, resolving IL warnings (IL2026, IL2070, IL2067, IL2072, IL3050), adding DynamicallyAccessedMembers annotations, enabling IsAotCompatible. DO NOT USE FOR: publishing native AOT binaries, optimizing binary size, replacing reflection-heavy libraries with alternatives. INVOKES: dotnet build, grep, project and source edits, and sub-agents where available.\n",
     "claude": {
       "artifacts": [
         "skill"
@@ -3526,7 +3526,7 @@
       "aot-trimming",
       "testcontainers-integration-tests"
     ],
-    "description": "Publish .NET services as container images with the built-in SDK tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) - no Dockerfile required. Covers the MSBuild property surface, base-image inference, self-contained and AOT implications, and CI/CD publishing. USE FOR: configuring or troubleshooting SDK-built container images and their CI publish step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost (aspire-deployment), running containers in tests (testcontainers-integration-tests), or turning on PublishAot in an existing project.",
+    "description": "Publish .NET services as container images with the built-in SDK tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) - no Dockerfile required. Covers the MSBuild property surface, base-image inference, self-contained and AOT implications, and CI/CD publishing. USE FOR: configuring or troubleshooting SDK-built container images and their CI publish step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost (aspire-deployment), running containers in tests (testcontainers-integration-tests), or turning on PublishAot (aot-trimming).",
     "claude": {
       "artifacts": [
         "skill"
@@ -3536,9 +3536,7 @@
           "deniz-dotnet-general:aot-trimming",
           "deniz-dotnet-general:testcontainers-integration-tests"
         ],
-        "pointer": [
-          "deniz-dotnet-general:dotnet-aot-compat"
-        ]
+        "pointer": []
       },
       "flags": {
         "user-invocable": false
@@ -3555,9 +3553,7 @@
           "deniz-dotnet-general.aot-trimming",
           "deniz-dotnet-general.testcontainers-integration-tests"
         ],
-        "pointer": [
-          "@deniz-dotnet-general.dotnet-aot-compat"
-        ]
+        "pointer": []
       },
       "dropped": [
         "invocable"
@@ -3579,9 +3575,7 @@
           "$deniz-dotnet-general:aot-trimming",
           "$deniz-dotnet-general:testcontainers-integration-tests"
         ],
-        "pointer": [
-          "$deniz-dotnet-general:dotnet-aot-compat"
-        ]
+        "pointer": []
       },
       "dropped": [
         "invocable"

@@ -1,12 +1,12 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8285296..7a13640 100644
+index 8285296..90ee400 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,11 +1,11 @@
  ---
  name: sdk-container-publishing
 -description: Publish .NET services as container images with the built-in SDK tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) - no Dockerfile required. Covers the MSBuild property surface, base-image inference, self-contained and AOT implications, and CI/CD publishing.
-+description: "Publish .NET services as container images with the built-in SDK tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) - no Dockerfile required. Covers the MSBuild property surface, base-image inference, self-contained and AOT implications, and CI/CD publishing. USE FOR: configuring or troubleshooting SDK-built container images and their CI publish step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost (aspire-deployment), running containers in tests (testcontainers-integration-tests), or turning on PublishAot in an existing project."
++description: "Publish .NET services as container images with the built-in SDK tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) - no Dockerfile required. Covers the MSBuild property surface, base-image inference, self-contained and AOT implications, and CI/CD publishing. USE FOR: configuring or troubleshooting SDK-built container images and their CI publish step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost (aspire-deployment), running containers in tests (testcontainers-integration-tests), or turning on PublishAot (aot-trimming)."
  invocable: false
  ---
  
@@ -45,8 +45,8 @@ index 8285296..7a13640 100644
  
  Self-contained projects default to the `runtime-deps` base image. AOT projects get a chiseled AOT runtime-deps variant for smaller, more secure images. See [references/self-contained-and-aot.md](references/self-contained-and-aot.md).
  
-+This skill does not turn `PublishAot` on in an existing project. To make an existing project
-+AOT-compatible, ask the user to invoke `/dotnet-upgrade:dotnet-aot-compat`.
++This skill does not turn `PublishAot` on. To turn it on in a new or existing project, use the
++`dotnet-skills:aot-trimming` skill.
 +
  ## Verification
  

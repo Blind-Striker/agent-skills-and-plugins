@@ -7,7 +7,8 @@ description: >
   IL2070, IL2067, IL2072, IL3050), adding DynamicallyAccessedMembers
   annotations, enabling IsAotCompatible. DO NOT USE FOR: publishing native AOT
   binaries, optimizing binary size, replacing reflection-heavy libraries with
-  alternatives. INVOKES: no tools — pure knowledge skill.
+  alternatives. INVOKES: dotnet build, grep, project and source edits, and
+  sub-agents where available.
 license: MIT
 ---
 
@@ -167,7 +168,6 @@ When most warnings are IL2026/IL3050 from `JsonSerializer.Serialize`/`Deserializ
 2. **Create one `JsonSerializerContext`** with `[JsonSerializable]` for every type found. **Skip types from external packages** (e.g., `ResponseError` from `Azure.Core`) — they won't source-generate for types you don't own. Handle external types separately via Gotcha #1 below.
 
 ```csharp
-[JsonSerializerContext]
 [JsonSerializable(typeof(ManagedServiceIdentity))]
 [JsonSerializable(typeof(SystemData))]
 // ... one attribute per type YOU OWN
@@ -224,7 +224,7 @@ example, when the Stop Signals below leave warnings that need architectural refa
 wants the remaining set locked. A baseline neither fixes nor suppresses a warning: every baselined
 warning still appears in the build, and the Critical Rules above still apply to every fix.
 
-1. Keep the analyzers from Step 1 enabled (`IsAotCompatible` implies `EnableTrimAnalyzer` and `EnableAotAnalyzer`).
+1. Keep the analyzers from Step 1 enabled (`IsAotCompatible` implies `EnableTrimAnalyzer` and `EnableAotAnalyzer`). If the repository treats warnings as errors, list the baselined IL codes in `WarningsNotAsErrors` so they stay warnings; never add them to `NoWarn`, which removes them from the build the baseline compares against.
 2. Build, capture the `IL2xxx`/`IL3xxx` diagnostics, scrub volatile parts (absolute paths, line numbers), normalize separators, and group by file.
 3. Store the result as an approved baseline (a checked-in text file).
 4. Add an approval test that compares the current warnings against the baseline on every build. A new warning fails the build: fix it with the strategies above. Only the user approves a new warning into the baseline, in the same PR; never extend the baseline to make a build pass.
