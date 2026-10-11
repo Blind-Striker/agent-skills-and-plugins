@@ -84,3 +84,23 @@ test("an ellipsis standing for the account name is a placeholder, not a machine 
     [{ path: "docs/real.md", line: 1, kind: "machine-path" }],
   );
 });
+
+test("only an account segment that is exactly an ellipsis is a placeholder", () => {
+  const placeholders = [
+    ["C:", "\\", "Users", "\\", "...", "\\", "repo"].join(""),
+    ["C:", "/", "Users", "/", ".../"].join(""),
+    ["/home", "/...", "/repo"].join(""),
+  ];
+  const accounts = [
+    ["C:", "/", "Users", "/", "...x/"].join(""),
+    ["C:", "\\", "Users", "\\", "....", "\\", "repo"].join(""),
+    ["/Users", "/...x", "/repo"].join(""),
+  ];
+  assert.deepEqual(
+    findPublicContentFindings([
+      { path: "docs/placeholders.md", text: `${placeholders.join("\n")}\n` },
+      { path: "docs/accounts.md", text: `${accounts.join("\n")}\n` },
+    ]),
+    [1, 2, 3].map((line) => ({ path: "docs/accounts.md", line, kind: "machine-path" })),
+  );
+});

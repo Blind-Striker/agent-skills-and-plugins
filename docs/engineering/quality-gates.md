@@ -48,11 +48,11 @@ A separate least-privilege job checks out full superproject history and runs Git
 reporting and no uploaded report artifact. The validation job scans current tracked and untracked
 authored/generated files for Gmail identities, user-profile paths, and machine-specific workspace
 paths; only the named synthetic detector fixture is exempt. A user-profile path whose account name
-is a placeholder, `<user>` or a literal `...`, names no machine and is not a finding
-([`check-public-safety.ts`](../../tools/check-public-safety.ts)). Commit identity is not repository
-documentation and is outside that current-tree policy. Submodule histories remain upstream
-responsibility, while copied generated output and Package content remain inside this repository's
-build and package gates.
+is a placeholder, `<user>` or a path segment that is exactly `...`, names no machine and is not a
+finding ([`check-public-safety.ts`](../../tools/check-public-safety.ts)). Commit identity is not
+repository documentation and is outside that current-tree policy. Submodule histories remain
+upstream responsibility, while copied generated output and Package content remain inside this
+repository's build and package gates.
 
 After generation, CI mechanically stages only `plugins/`, `opencode/`, `codex/`, `dist/`,
 `.claude-plugin/`, `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json`,
