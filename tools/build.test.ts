@@ -700,6 +700,40 @@ test("a description that rendering pushes over 1,024 characters aborts before an
   }
 });
 
+test("the build limit is 1,024 characters of each harness's own rendering: 1,024 passes, 1,025 fails", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const codexSkill = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
+  const before = readFileSync(codexSkill);
+  // 1,005 + " superpowers:beta" = 1,022 neutral characters. Claude Code and OpenCode render the fact
+  // in 18 characters (1,024, at the limit); Codex's $deniz-process:beta takes 19 (1,025, over it).
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    `---\nname: alpha\ndescription: ${"x".repeat(1005)} superpowers:beta\n---\n\nBody.\n`,
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+
+  assert.throws(
+    () => buildAll(root),
+    (caught: unknown) =>
+      caught instanceof Error &&
+      caught.message ===
+        "codex/deniz-process/skills/alpha/SKILL.md: description is 1025 characters, over the 1024-character skill limit",
+  );
+  assert.equal(readFileSync(codexSkill).equals(before), true);
+});
+
 test("successful Codex marketplace generation preserves unrelated .agents content", () => {
   const root = makeRepo();
   mkdirSync(join(root, ".agents"), { recursive: true });
