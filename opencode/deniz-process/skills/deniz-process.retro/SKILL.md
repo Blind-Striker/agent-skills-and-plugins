@@ -11,7 +11,7 @@ The user has asked for a **retrospective**. You are suggesting improvements to t
 
 1. Call the `skill` tool with "deniz-process.writing-for-agents" for the writing style guide.
 
-2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine: find and confirm the session as [session-discovery.md](../deniz-process.diagnosing-superpowers/references/session-discovery.md) describes, and read its log only as [context-safety.md](../deniz-process.diagnosing-superpowers/references/context-safety.md) allows, since one log line can fill your context window. If the user doesn't specify a session, default to the current one.
+2. Read the primary sources for the session the user specifies. This may mean searching through session logs on this machine: find and confirm the session as [session-discovery.md](../deniz-process.diagnosing-superpowers/references/session-discovery.md) describes, and read its log only as [context-safety.md](../deniz-process.diagnosing-superpowers/references/context-safety.md) allows, since one log line can fill your context window; skip those notes' case-file steps, because a retrospective keeps no case file. If the user doesn't specify a session, default to the current one.
 
 3. Look for candidates for improvement in these categories.
 

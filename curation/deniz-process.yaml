@@ -332,7 +332,8 @@ items:
     # namespaced fact, a load upstream makes on every run because it judges steering files by that
     # skill's yardstick. Its log-reading step points at diagnosing-superpowers' session-discovery
     # and context-safety notes, curator's call: both are harness-neutral, and context-safety keeps a
-    # megabyte-long transcript line out of the window. Those are bundled files, not its body.
+    # megabyte-long transcript line out of the window. Those are bundled files, not its body. Retro
+    # keeps no case file, so the step skips the notes' case-file steps.
     body: patch
     depends_on: [writing-for-agents]
     omit: ["agents/**"]

@@ -282,8 +282,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   git where the harness gives a subagent none, which OpenCode 2 does not, and no run has exercised
   that path. Codex has no subagent tool in this repository's research, so there it is upstream's
   "only a slower implement", and the two-reviewer dispatch of `requesting-code-review` is likewise
-  unmeasured there. `retro` reads its session log through `diagnosing-superpowers`' discovery and
-  context-safety notes, whose discovery steps also speak of that skill's case file.
+  unmeasured there.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again.

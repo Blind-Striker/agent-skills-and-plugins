@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.0",
-  "digest": "sha256:dd6a24b2e027dc212b0f1e0719d16a6b78eea519eb6247ebe6a8a220334d3200",
+  "digest": "sha256:3756cc2bdaa42806c91a4344fc2e5783eb3f92a6e564f7bafd19442f5e1fbd8c",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -266,7 +266,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.retro/SKILL.md": {
-      "sha256": "sha256:0ec99dbbba7fb2463f15d13b1a0b37b783fd5b5f385b67b201b9c8740c4e4ce4",
+      "sha256": "sha256:8ca1f7b4ee6dfc6eff9ab271e4b3bc5f8a3a5ac3dd3c416dad88047dbf809925",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/SKILL.md": {
