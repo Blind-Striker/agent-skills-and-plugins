@@ -1069,7 +1069,7 @@ test("a link to a file the build dropped is an error; a path upstream never had 
   const root = makeRepo();
   writeFileSync(
     join(root, "external", "sp", "skills", "delta", "SKILL.md"),
-    `---\nname: delta\ndescription: Delta upstream\n---\n\nReal: [notes](references/notes.md).\nIllustrative: [forms](FORMS.md) and [ctx](./src/ordering/CONTEXT.md).\n`,
+    `---\nname: delta\ndescription: Delta upstream\n---\n\nReal: [notes](references/notes.md).\nIllustrative: [forms](FORMS.md) and [glossary](./src/ordering/GLOSSARY.md).\n`,
   );
   writeFileSync(
     join(root, "curation", "deniz-process.yaml"),
@@ -1091,7 +1091,7 @@ test("a link to a file the build dropped is an error; a path upstream never had 
     3,
     `dropped by omit, in all three trees — ${JSON.stringify(findings, null, 2)}`,
   );
-  for (const quiet of ["FORMS.md", "CONTEXT.md"]) {
+  for (const quiet of ["FORMS.md", "GLOSSARY.md"]) {
     assert.equal(
       findings.filter((f) => f.message.includes(quiet)).length,
       0,

@@ -1344,7 +1344,7 @@ export function validateRepo(root: string): Finding[] {
   // reference is a fact the linker resolves; a bare name is irreducibly heuristic and stays a
   // candidate. A path is neither: resolving it is deterministic. What is NOT deterministic is
   // whether a broken one is our fault — upstream bodies are full of illustrative paths
-  // (`./src/ordering/CONTEXT.md`, `FORMS.md`) that never resolved anywhere and never will, and
+  // (`./src/ordering/GLOSSARY.md`, `FORMS.md`) that never resolved anywhere and never will, and
   // reporting those is the green-build warning nobody reads. So both rules below ask the same
   // narrowing question: could OUR transformation have broken this?
   interface EmittedItem {
