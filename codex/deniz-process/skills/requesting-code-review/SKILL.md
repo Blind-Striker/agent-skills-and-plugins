@@ -81,8 +81,8 @@ is a judgement call**, never a hard violation.
 
 ## 4. Dispatch
 
-Fill the template at [code-reviewer.md](code-reviewer.md) and dispatch a subagent. **Placeholders:** `{DESCRIPTION}`, `{SPEC}`, `{STANDARDS_SOURCES}`, `{BASE_SHA}`,
-`{HEAD_SHA}`.
+Fill the template at [code-reviewer.md](code-reviewer.md) and dispatch a subagent. **Placeholders:** `[DESCRIPTION]`, `[SPEC]`, `[STANDARDS_SOURCES]`, `[BASE_SHA]`,
+`[HEAD_SHA]`.
 
 **One reviewer by default.** It holds both axes and reports them separately.
 
@@ -101,6 +101,12 @@ single worst issue across both.** Severity within an axis is the reviewer's job;
 axes against each other is exactly the masking this separation exists to prevent.
 
 A merge verdict is still one decision — but it must name what each axis contributed to it.
+
+The reviewer that holds the spec also returns a **Declined to judge** list: behaviors it set aside
+as outside the spec. Rule on every line — it stands, or it is now a finding — and say which; nothing
+on it is dropped silently. Then **re-grade by effect** before acting: a finding's grade is what a
+person using the software gets if it ships, not whether the spec names its trigger. A Minor that was
+Minor only because the spec was silent is graded again.
 
 ## 6. Act on Feedback
 

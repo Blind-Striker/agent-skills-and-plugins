@@ -1,7 +1,8 @@
-# Intended sources: all 14 Superpowers skills, 22 direct Matt Pocock skills, three Matt merge
+# Intended sources: every Superpowers skill, the selected Matt Pocock skills and Matt merge
 # sources, and the ASD-STE100 root skill. The result is a personal transformation, not either
-# upstream framework wholesale: overlapping TDD, debugging, and review material is merged; ten Matt
-# items are excluded; no upstream hooks ship; triggers are tuned per item.
+# upstream framework wholesale: overlapping TDD, debugging, and review material is merged; the Matt
+# items read and rejected stay listed as excludes; no upstream hooks ship; triggers are tuned per
+# item.
 #
 # Batch 1: the daily-flow spine — brainstorm/grill → plan →
 # execute → review/verify — plus the passive disciplines. Invocation rule that shaped it:
@@ -18,33 +19,52 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.7.1
+  version: 0.8.0
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
     invocation: both # curator's call: reachable both ways — typed by hand, and a
     # skill-driven session may open the ceremony itself (using-superpowers routes "build X" here);
-    # its exit invokes writing-plans (taken). Measured before flipping: the only jump-pressure was
-    # the upstream description (overridden below); the body's one "You MUST" is in-ceremony
-    # discipline and stays.
+    # a project's exit invokes writing-plans (taken). Measured before flipping: the only
+    # jump-pressure was the upstream description (overridden below); the v7 body carries no
+    # "You MUST" of its own.
+    # Body taken pristine, curator's call: v7 rebuilt it around drawing out intent first and sizing
+    # the work after, which fits the no-heavy-ceremony-for-small-asks taste better than v6 did, and
+    # patching a body upstream says it will keep tuning would cost a rebase on every tune. The patch
+    # that namespaced the writing-plans handoff retired with it: v7 writes superpowers:writing-plans
+    # itself.
     frontmatter:
       # replaces upstream's coercive trigger prose ("You MUST use this before any creative work");
       # read by a human browsing the / menu and by the model matching triggers — honest, no pressure.
-      # Names all three upstream paths: the earlier wording promised a spec, which only the
-      # architectural path produces — spike answers a question and bounded designs in chat.
-      description: "Collaborative design session, scaled to the task: a feasibility answer, a short in-chat design, or a full written design and spec — each one ending in approval before implementation."
-    body: patch # formalize the architectural path's load-bearing writing-plans exit without changing its behavior
+      # Names v7's three sizes and the reach of its approval gate: a quick task is just done, a small
+      # change is agreed in chat, and a project gets a written design. No body is owned here, so the
+      # lock stamps upstream's SKILL.md under this override and an upstream rewrite stops the build.
+      description: "Draws out what you want before anything is built, then sizes the work: a quick task is just done, a small change is agreed in chat, a project gets a written design. Nothing past a quick task is built before you approve."
     depends_on: [writing-plans]
   - source: superpowers/skills/writing-plans
     invocation: both # typed directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
+    body: patch # drops "(recommended)" from the plan header's subagent-driven-development option: the
+    # handoff now recommends an executor for each plan, and a fixed label in every plan header would
+    # pre-empt that choice
     depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
     invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
+    body: patch # two edits that keep the shared review contract whole; the description stays
+    # upstream's. Fix rounds run the project's whole suite after the covering tests, as the
+    # test-driven-development overlay requires, where upstream said a one-line fix needs only the
+    # covering tests. The final whole-branch review triages the reviewer's "Declined to judge" list
+    # as ledgered rulings, as executing-plans does; upstream's SDD never read that list.
     depends_on: [finishing-a-development-branch, requesting-code-review, using-git-worktrees] # end-of-run finish, the reviewer template, worktree setup
   - source: superpowers/skills/executing-plans
-    invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain
-    body: patch # drops the per-platform tool-ref clause: using-superpowers omits references/** and is manual, so the path was dead in every tree and would read a manual body
-    depends_on: [finishing-a-development-branch, subagent-driven-development, using-git-worktrees]
+    invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain.
+    # v7 made it an autonomous inline executor — rule, ledger, continue; only four conditions stop
+    # it — accepted, curator's call: a bad ruling surfaces in the closing "Rulings I made" list.
+    body: patch # two edits. The prose runs this skill's scripts and SDD's through `bash`, and the
+    # scripts exec SDD's helpers through "${BASH:-bash}" as SDD's own helpers do, so a packager that
+    # strips executable bits cannot break the chain (upstream's own writing-skills rule). The
+    # no-subagent pointer names the one tool-notes file using-superpowers ships to every tree
+    # (references/harness-tools.md) instead of the folder of per-platform maps.
+    depends_on: [finishing-a-development-branch, requesting-code-review, subagent-driven-development, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion, writing-plans] # the plan's source, TDD per task, debugging on a mismatch, verification before each claim, the final review's template, the finish
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
   - source: superpowers/skills/using-git-worktrees
@@ -66,6 +86,11 @@ items:
     # in a skill that already warns its final-review fix wave outcosts all its tasks.
     # code-reviewer.md keeps its name and place: SDD reaches it by relative path from three spots
     # including a flowchart, and validate now guards that (ADR-0008 path tier).
+    # Superpowers v7's two reviewer sections are ported into that design, curator's call. "The spec
+    # is a vision document" is split: its silence-is-not-permission half sits in the Spec axis and
+    # reads only a supplied spec, its grade-by-effect half in Calibration for both axes. The
+    # "Declined to judge" list goes to whichever reviewer holds the spec, and the typed "review
+    # since X" path also rules on that list and re-grades by effect, as both executors do.
     body: overlay
     merged_from: [mattpocock-skills/skills/engineering/code-review] # same-filename rule suffices — matt ships only a SKILL.md
     depends_on: [receiving-code-review] # taking the feedback is its own discipline, and it is taken
@@ -90,6 +115,8 @@ items:
     # example — verifying around the interface instead of through it — was written fresh.
     # writing-good-tests.md is owned rather than patched because its citation of writing-skills is
     # a dangling model-edge in our set (that target is manual), so the file could not flow pristine.
+    # Superpowers v7's whole-suite paragraph is ported verbatim under GREEN, with a one-line relay at
+    # the checklist; subagent-driven-development's fix rounds are patched to match it.
     body: overlay
     merged_from:
       - source: mattpocock-skills/skills/engineering/tdd
@@ -119,16 +146,30 @@ items:
       - "test-pressure-*.md"
   - source: superpowers/skills/using-superpowers
     invocation: manual # the opt-in "work skill-driven this session" switch — flipped by hand, never a bootstrap hook (ADR-0007)
-    # Softened body, curator's call (level ii of three): the "1% chance" coercion
-    # block, the Red Flags rationalization table and the Codex/Pi platform section are cut; the
-    # ordering rule (process skills before implementation), the announce habit and the subagent
-    # guard stay. It is invoked by hand, so the persuasion apparatus has no one left to persuade.
+    # Softened body, curator's call (level ii of three): the "1% chance" coercion block and the Red
+    # Flags rationalization table are cut; the ordering rule (process skills before implementation),
+    # the announce habit and the subagent guard stay. It is invoked by hand, so the persuasion
+    # apparatus has no one left to persuade.
+    # Platform Adaptation stays, as one neutral line: each harness reads only its own tool notes at
+    # references/harness-tools.md (harness_files below), so no tree carries another harness's tool
+    # words. Claude Code and Codex get upstream's notes. OpenCode gets ours, added by the patch:
+    # upstream's OpenCode 2 map lives only in its bootstrap plugin, which does not ship here.
     body: patch
-    depends_on: [brainstorming, systematic-debugging] # the ordering rule's two worked examples route to them
+    depends_on: [brainstorming, subagent-driven-development, systematic-debugging] # the ordering rule's two worked examples; Claude Code's notes run subagent-driven development one layer down
     frontmatter:
       # manual → the description's only reader is a human browsing the menu
       description: "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first."
-    omit: ["references/**"] # codex/pi/antigravity/gemini tool maps — dead in both target harnesses
+    harness_files:
+      references/harness-tools.md:
+        claude: references/claude-code-tools.md
+        codex: references/codex-tools.md
+        opencode: references/opencode-tools.md # authored in overlay.patch
+    omit: # tool notes for harnesses this estate does not emit
+      - references/antigravity-tools.md
+      - references/gemini-tools.md
+      - references/hermes-tools.md
+      - references/muse-tools.md
+      - references/pi-tools.md
   # --- mattpocock grilling core ---
   # All matt items omit agents/** — every matt skill bundles an agents/openai.yaml, which is
   # Codex/OpenAI harness config; dead weight in both of our target harnesses.
@@ -230,8 +271,17 @@ items:
     invocation: auto # passive controlled-English rewrite knowledge and wait-what's model-reachable
     # handoff target. This single-purpose root-skill repo stays a submodule so pin drift reaches the
     # normal sync review machinery instead of becoming an untracked original-skill fork.
-    omit: [README.md] # installation prose with stale examples is not a runtime asset; the compiler
-    # drops submodule git metadata from every source tree before item-specific omission
+    body: patch # step 3 only, curator's call. The bundled linter runs for multi-sentence or
+    # document-length input, never for a one-line rewrite or a short conversational re-pitch, which
+    # is wait-what's use. One sentence states its limits (a short fixed phrasal-verb list, no
+    # noun-cluster check, so a clean run proves neither compliance nor kept meaning), because the
+    # omitted README was the only place that said so. And it names the interpreter: python3, or
+    # py -3 on Windows, where python3 resolves to the Store stub.
+    omit:
+      - README.md # installation prose with stale examples is not a runtime asset; the compiler drops
+      # submodule git metadata from every source tree before item-specific omission
+      - examples/linter-edge-cases.md # the linter's deliberately invalid test fixture: no step reads
+      # it, and beside before-after.md a model could take it for an example to imitate
   - source: mattpocock-skills/skills/productivity/wait-what
     invocation: manual # upstream's own flag, and the right one: a mid-conversation corrective typed
     # when a message did not land. Its STE request now loads the curated rules rather than naming a
@@ -301,8 +351,15 @@ items:
   - source: superpowers/skills/writing-skills
     invocation: manual # authoring ceremony, opened by hand — its body then reaches the two auto disciplines below
     depends_on: [systematic-debugging, test-driven-development]
-    # One-line patch, finishing a decision already made: using-superpowers omits references/**
-    # (dead harness tool maps), and this body still sent the reader to two of those files. The
+    # One-line patch: the clause sent the reader to codex-tools.md or gemini-tools.md for the
+    # personal-skills path "on those runtimes", but codex-tools.md names no skills path and
+    # gemini-tools.md is for a harness this estate does not ship (using-superpowers omits it). The
     # clause named nothing but those two links; the runtime paths it wrapped stay, because they are
     # the ones our harnesses actually use.
     body: patch
+  - source: superpowers/skills/diagnosing-superpowers
+    invocation: both # curator's call: upstream designs it to be selected when the human describes a
+    # session that went wrong ("it took too long", "a skill that didn't fire"), and it can be typed.
+    # Body taken unchanged: its post-mortem dimensions, the skill timeline included, are the field
+    # evidence trigger tuning needs. It files a GitHub issue only after the human approves the exact
+    # text, so upstream's maintainer-triage framing rides along as written.

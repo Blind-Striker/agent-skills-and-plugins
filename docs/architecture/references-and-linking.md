@@ -362,7 +362,8 @@ installation state have their own manifests and are owned by
   claim. A claim's depth is measured from the file that holds it. A climb behind a script-directory
   anchor does resolve against the script's folder; an unanchored script climb, which the shell
   resolves against its working directory, is still judged and respelled as if it resolved against
-  the file. No bundled non-Markdown file holds a claim at the current pins. The anchor set is closed,
+  the file. At the current pins the only bundled non-Markdown claims are the anchored climbs in
+  `executing-plans`' `scripts/task-start` and `scripts/task-done`. The anchor set is closed,
   so a script that builds its directory some other way, for example `HERE=$(dirname "$0")` and then
   `$HERE/../x/`, is neither respelled nor checked.
 - The linker proves symbol existence and audience reachability, not model behavior. Runtime samples

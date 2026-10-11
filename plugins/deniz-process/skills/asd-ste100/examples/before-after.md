@@ -17,6 +17,8 @@ These illustrate real ASD-STE100 rules, drawn from public secondary sources (see
 
 These are original examples built for this skill's actual use case: rewriting AI agent output so another agent, a translation layer, or a non-native reader can parse it without ambiguity. They are illustrations, not quotes from any real system.
 
+Word counts below are whitespace-separated tokens (`text.split()`), punctuation not counted separately. A different tokenizer will produce a different number.
+
 ### Example A — Tool description
 
 **Before:**
@@ -25,7 +27,7 @@ These are original examples built for this skill's actual use case: rewriting AI
 **Violations flagged:**
 - Two instructions in one sentence (sync + resolve/surface).
 - Present perfect in the relative clauses ("have been configured", "has been set").
-- 55 words, far over the 25-word descriptive cap.
+- 44 words, far over the 25-word descriptive cap.
 
 Note what is *not* flagged: "will attempt to" and "may resolve". Those are hedges, not violations. The tool is not promised to succeed, and the rewrite must not promise it either.
 
@@ -40,7 +42,7 @@ The last sentence branches on whether the conflict was resolved, not on what the
 > An error may have occurred while processing your request due to a possible mismatch in the expected data format, which could be caused by an outdated client version.
 
 **Violations flagged:**
-- One sentence carrying three separate claims (an error occurred; a format mismatch; a client version).
+- One sentence carrying three separate claims (an error occurred, a format mismatch, a client version).
 - 28 words, over the descriptive cap.
 
 Not flagged: "may have occurred" and "could be caused by". The message is written by a system that does not know what went wrong. Both hedges are accurate reporting of that ignorance.
@@ -60,7 +62,7 @@ Note also that "may have failed" keeps a compound verb form that the simple-tens
 **Violations flagged:**
 - Present perfect ("has completed") and subordinate-clause stacking ("assuming...", "though it is worth noting...").
 - One sentence, three separate facts (completion condition, next action, edge-case warning).
-- 42 words, over the 20-word instruction cap.
+- 36 words, over the 20-word instruction cap.
 
 **After:**
 > Wait for the upstream job to finish with no errors. Then read the output artifact. Warning: a timeout can produce a partial artifact. Check that the artifact is complete before you use it.
@@ -78,7 +80,7 @@ Two deliberate calls worth stating rather than hiding:
 - Marketing adjectives and claims without measurement ("seamlessly", "minimal friction", "dramatically").
 - Semicolon joining two separate ideas.
 - Nominalization and soft phrasing ("is designed to slot into", "leverages").
-- 36 words, over the 25-word descriptive cap.
+- 34 words, over the 25-word descriptive cap.
 
 **After:**
 > A normal cache matches requests by exact text, so a small change in wording causes a cache miss. This cache compares the meaning of a new prompt against the prompts it already holds. It runs alongside your current stack and stores no data outside it.

@@ -1,0 +1,57 @@
+diff --git a/SKILL.md b/SKILL.md
+index f7bbf6a..c53b8f4 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -381,22 +381,23 @@ and the findings — the report file is the persistent memory either way.
+ **Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
+ Model Selection), with the brief path, the report-file path, the open
+ findings, and this framing: "A prior implementer attempted this task
+ [N] times; you own it now. Read the report file for what was tried." A loop
+ that survives three resumes usually means the implementer cannot see its
+ own problem — fresh eyes and a capability bump in one move.
+ 
+ **Every round, either way:** the implementer fixes, re-runs the tests
+-covering the amended code, appends its fix report to the same report file,
+-and returns the short contract. Before re-dispatching the reviewer, confirm
+-the fix report contains the covering tests, the command run, and the
+-output; dispatch the re-review once all three are present. Name the
+-covering test files in the fix message — a one-line fix does not need the
+-whole suite.
++covering the amended code and then the project's whole suite, appends its
++fix report to the same report file, and returns the short contract. Before
++re-dispatching the reviewer, confirm the fix report contains the covering
++tests, the commands run, and their output; dispatch the re-review once all
++three are present. Name the covering test files in the fix message — even
++a one-line fix runs the whole suite, and any failure it shows goes in the
++report by name.
+ 
+ **The re-review is scoped.** Run `bash scripts/review-package PLAN_FILE FIX_BASE HEAD`
+ where FIX_BASE is the head the previous review saw, and dispatch
+ [re-review-prompt.md](re-review-prompt.md) with the findings list, the
+ brief, the report file, and the printed diff path. The re-reviewer verdicts
+ each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
+ diff only. New Critical/Important breakage in the fix diff joins the open
+ findings list. Out-of-scope observations go to the ledger as deferred
+@@ -450,16 +451,22 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
+ printed path in the final review dispatch, so the final reviewer reads
+ one file instead of re-deriving the branch diff with git commands. Dispatch
+ on the most capable available model (see Model Selection), using
+ superpowers:requesting-code-review's
+ [code-reviewer.md](../requesting-code-review/code-reviewer.md). Point it at
+ the ledger's deferred-minor and parked lines so it can triage which must be
+ fixed before merge.
+ 
++Its "Declined to judge" list is yours to triage: every line there is a
++ruling you make and ledger — `Final: Ruling: <behavior the reviewer set
++aside> — <what a reasonable person using this software gets, and why that
++stands or why it is now a finding> — <cost if wrong>`. A line that is now a
++finding joins the findings below; nothing on the list is dropped silently.
++
+ If the final whole-branch review returns findings, dispatch ONE fix subagent
+ with the complete findings list — not one fixer per finding.
+ Per-finding fixers each rebuild context and re-run suites; a real
+ session's final-review fix wave cost more than all its tasks combined.
+ Then run exactly one scoped re-review of the fix wave
+ (`bash scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range,
+ [re-review-prompt.md](re-review-prompt.md)).
+ Adjudicate any residual findings as in the task loop's breaker: park with

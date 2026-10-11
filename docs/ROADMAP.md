@@ -12,8 +12,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.7.1, General 0.11.1, Akka 0.4.1, and Aspire 0.5.1. Their item
-  posture, source pins, transformations, exclusions, and reasons live in
+  Checkout Module versions are Process 0.8.0, General 0.11.1, Akka 0.4.1, and Aspire 0.5.1. Their
+  item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
   floor and dropped OpenCode 1 support in
@@ -70,6 +70,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and `aspire-init` declares its edge to the router. Description length is now checked in every
   harness tree, so `aspireify` and `aspire-orchestration` shorten their rendered descriptions
   instead of Codex truncating them.
+- `superpowers` is reviewed through v7.0.0 (`bb92a77`, released 2026-10-09) and `asd-ste100`
+  through `32511c6`; wave W4 is done. v7 rebuilt `brainstorming`, which now flows pristine under a
+  description override stamped against its upstream body; its namespacing patch retired. The four
+  items that share one review contract landed together: `executing-plans` is the autonomous inline
+  executor, `subagent-driven-development` and `writing-plans` carry small patches, and the
+  `requesting-code-review` overlay holds v7's two reviewer sections in its two-axis design. Each
+  harness gets only its own tool notes from `using-superpowers`, OpenCode's authored here. Process
+  takes `diagnosing-superpowers` as `both`. `asd-ste100` names its linter's interpreter, bounds when
+  it runs, and states its limits; its invalid test fixture is omitted.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -103,31 +112,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Upstream sync waves W4 to W6, in this order.** The four remaining pins are frozen at their
+1. **Upstream sync waves W5 and W6, in this order.** The two remaining pins are frozen at their
    2026-09-06 positions. A cross-upstream review on 2026-10-08 read one decision packet per
    upstream; the packets recommend a treatment for each item; every take, skip, merge, or
    modification is still the curator's decision, and each wave measures its upstream again before
-   it starts. A wave moves one submodule, except that W4 moves `superpowers` and `asd-ste100`
-   together.
-   - **W4 `superpowers` v6.3.0 to v6.4.2, with `asd-ste100`.** Nine of 14 taken superpowers items
-     changed; six stamps drift. `executing-plans`, `subagent-driven-development`, `writing-plans`,
-     and the `requesting-code-review` overlay share one contract and land together.
-     `writing-plans` drops `plan-document-reviewer-prompt.md`; `executing-plans` becomes an
-     autonomous inline executor and gains executable `scripts/task-start` and `scripts/task-done`
-     (mode 100755, which the Codex mode check covers) that climb into
-     `subagent-driven-development/scripts`; `using-superpowers` gains references and its patch no
-     longer applies; `diagnosing-superpowers` is a new candidate. A 3-way replay measured at
-     `8ca22db` keeps conflicts in 2 patch items. `asd-ste100` is 12 commits ahead, no tags: its
-     single taken root item changed in every shipped path and adds
-     `examples/linter-edge-cases.md` (packet: add it to `omit` in the pin-move commit) and a
-     non-executable `scripts/ste-lint.py` whose interpreter and invocation fit need review. No
-     overlay-lock stamp covers it, so these changes pass straight through on a pin move. Both
-     upstreams raise one question: how a body names a bundled script's interpreter. Decide that
-     convention once, with a `validate` gate, and fix the two dotnet/skills `.ps1` items at their
-     current pin in the same change. Decide before the wave: the overlay questions shared with
-     mattpocock (`requesting-code-review`, `test-driven-development`, `systematic-debugging`), the
-     interpreter convention and Python spelling, and whether `diagnosing-superpowers` and
-     mattpocock's `retro` become one post-mortem item or two.
+   it starts. A wave moves one submodule.
    - **W5 `mattpocock-skills`** (92 commits ahead, v1.3.0 and v1.3.1). `resolving-merge-conflicts`
      was deleted upstream and is still taken in `curation/deniz-process.yaml`; the packet
      recommends dropping it together with its `ask-deniz` route and its authored
@@ -139,8 +128,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new candidates; `pr` first needs
      attribution for an origin outside the submodules. The wave also decides the
      `setup-matt-pocock-skills` question of patching it to prefer `AGENTS.md`, since OpenCode 2
-     loads `AGENTS.md` and never `CLAUDE.md`. It follows W4 because `ask-deniz` also routes
-     superpowers items and needs their final shape.
+     loads `AGENTS.md` and never `CLAUDE.md`. W4 settled the superpowers shape `ask-deniz` routes,
+     and its recut works against that shape. W4 took `diagnosing-superpowers` unchanged as its own
+     `both` item; how `retro` relates to it is this wave's question. The `requesting-code-review`,
+     `test-driven-development`, and `systematic-debugging` overlays absorb their mattpocock merge
+     sources' drift when this pin moves.
    - **W6 `dotnet/skills`** (339 commits ahead with no new stable release).
      `configuring-opentelemetry-dotnet`, `minimal-api-file-upload`, and `msbuild-server` were
      deleted upstream and are still taken in `curation/deniz-dotnet-general.yaml`.
@@ -208,7 +200,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    five trigger-competition cases for it: `subagent-driven-development` against `executing-plans`,
    `aot-trimming` against `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild
    specialists, `directory-build-organization` against `convert-to-cpm`, and `code-testing` against
-   `systematic-debugging`; W4 or W6 is the natural first run.
+   `systematic-debugging`; W5 or W6 is the natural first run.
 4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
@@ -263,8 +255,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   must resolve in its own tree but is never compared with `depends_on`
   ([`validateRepo`](../tools/validate.ts) linker). No such source holds a fact today.
 - **Bare references outside the handoff templates are review-only:** ordinary names, "see the `x`
-  skill" references, routing hints without the word `skill`, unbackticked imperatives (for example
-  `brainstorming`'s "the writing-plans skill"), and "Hand off to `x`" (`aspire-init` to
+  skill" references, routing hints without the word `skill`, unbackticked imperatives such as
+  "invoke the writing-plans skill", and "Hand off to `x`" (`aspire-init` to
   `aspireify`) are candidates, not build state. Promote load-bearing cases through an authored
   namespaced fact and matching dependency; the sync wave that recuts the item is the natural point.
 - **Ledger-history names need Git history:** a shallow or archived checkout knows only the names
@@ -283,11 +275,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   skill that triggers on "grill", a no-token "Grill me" prompt loaded it on Codex, and the OpenCode
   control dropped that word together with the attachment. Closing this needs, on each harness, a
   rendered handoff fixture whose source and target share no trigger words. No run covers the
-  `Subagent (general)` dispatch label or the tool-free Codex dispatch wording. No Codex subagent
+  `Subagent (general)` dispatch label, the rendered unbackticked `general-purpose subagent`, or
+  the tool-free Codex dispatch wording. No Codex subagent
   tool or agent type is recorded in repository research, so Codex wording names neither.
-- **Optional writing-style reference remains external:** `brainstorming` names
-  `elements-of-style:writing-clearly-and-concisely` when available, but that namespace is not curated
-  here; validation keeps the unresolved optional route visible.
+- **OpenCode has no todo tool, but Process bodies still say to create or mark todos:** the OpenCode
+  tool notes `using-superpowers` ships tell the model to track such a checklist in the ledger or
+  plan file instead, but only a session that loaded that `manual` skill reads them. The bodies of
+  `executing-plans`, `subagent-driven-development`, `writing-skills`, `diagnosing-superpowers`,
+  and `using-superpowers` itself keep upstream's todo wording in every tree.
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
 - **Original-skill declarations are absent:** `manual`/`both` posture and outgoing edge-source scans

@@ -1,23 +1,138 @@
 diff --git a/SKILL.md b/SKILL.md
-index b51d97d..a9686bd 100644
+index 49077ad..c5edc25 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -6,17 +6,17 @@ description: Use when you have a written implementation plan to execute in a sep
- # Executing Plans
+@@ -41,18 +41,18 @@ operation; a security-sensitive action; a side effect outside this worktree
+ that norms say you ask about first (a merge, a push to a shared branch, a
+ publish); and a plan so broken that every path forward is a guess. For
+ those, stop and ask.
  
- ## Overview
+ ## When to Use
  
- Load plan, review critically, execute all tasks, report when complete.
+ - You have a plan from superpowers:writing-plans and your human partner
+   chose inline execution at the handoff.
+-- Your harness has no subagent tool (see the per-platform references in
+-  `../using-superpowers/references/`). Never fabricate a dispatch; run
++- Your harness has no subagent tool (see your harness's tool notes in
++  `../using-superpowers/references/harness-tools.md`). Never fabricate a dispatch; run
+   the plan here.
+ - Tasks are mostly independent — the same precondition as
+   superpowers:subagent-driven-development.
  
- **Announce at start:** "I'm using the executing-plans skill to implement this plan."
+ A fully specified plan makes inline execution transcription plus testing:
+ it runs well on a mid-tier session model, and the one place the most
+ capable model earns its cost is the final review, which this skill
+ dispatches separately. Tell your human partner so when they choose inline.
+@@ -118,17 +118,17 @@ failure as a controller re-dispatching them, paid for in your own context.
+ Track progress in a ledger file, not only in todos. Harness todos are a
+ live view; the ledger is the record.
  
--**Note:** Tell your human partner that Superpowers works much better with access to subagents (Claude Code, Codex CLI, Codex App, Copilot CLI, and Gemini CLI all qualify; see the per-platform tool refs in `../using-superpowers/references/`). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
-+**Note:** Tell your human partner that Superpowers works much better with access to subagents (Claude Code, Codex CLI, Codex App, Copilot CLI, and Gemini CLI all qualify). If subagents are available, use superpowers:subagent-driven-development instead of this skill.
+ The workspace and ledger are shared with superpowers:subagent-driven-development
+ — same directory, same format — so a plan can change executors mid-flight
+ and the new one resumes from the same ledger.
  
- ## The Process
+ - Each plan owns a workspace: at skill start, run
+-  `../subagent-driven-development/scripts/sdd-workspace PLAN_FILE` — it
++  `bash ../subagent-driven-development/scripts/sdd-workspace PLAN_FILE` — it
+   prints the plan's git-ignored directory
+   (`<repo-root>/.superpowers/sdd/<plan-basename>/`), home to every
+   artifact for THIS plan: ledger, briefs, review packages. Another plan's
+   directory is never yours to read or write.
+ - Check for this plan's ledger at `<workspace>/progress.md`. If its first
+   line names your plan file, tasks with a `Task <N>: complete` line are
+   DONE — do not redo them; resume at the first task without one. Their
+   commits exist in git even when your context no longer remembers making
+@@ -164,17 +164,17 @@ its brief, not here.
+ ## The Task Loop
  
- ### Step 1: Load and Review Plan
- 1. Ensure an isolated workspace: use superpowers:using-git-worktrees to create one or verify the existing one
- 2. Read plan file
- 3. Review critically - identify any questions or concerns about the plan
- 4. If concerns: Raise them with your human partner before starting
+ Everything you print, and every tool result, stays resident in your
+ context for the rest of the session. Redirect long test output to a file
+ in the workspace and read its tail; read a brief, not the whole plan.
+ 
+ ### 1. Take the task
+ 
+-- Run this skill's `scripts/task-start PLAN_FILE N`. It prints the brief
++- Run this skill's `bash scripts/task-start PLAN_FILE N`. It prints the brief
+   path and BASE (the commit the task's range is cut from) in one call.
+   Read the brief for every task, including ones you remember from setup:
+   what you remember is a summary, the brief has the exact values,
+   signatures, and test cases.
+ - Mark the task's todo in_progress.
+ 
+ Every tool call is a turn that re-reads your whole context. Bookkeeping
+ rides along with work — a ledger append in the same call as the commit,
+@@ -216,29 +216,29 @@ in this session — not inferred from the diff looking right:
+ - Every `Expected:` line in the brief was compared against real output.
+ - Every deviation from the brief has a `Ruling:` line in the ledger.
+ 
+ **REQUIRED SUB-SKILL:** superpowers:verification-before-completion governs
+ the claim. If any item is missing, the task is not complete: finish it.
+ 
+ ### 4. Complete the task
+ 
+-Run this skill's `scripts/task-done PLAN_FILE N BASE -- <test command>`
++Run this skill's `bash scripts/task-done PLAN_FILE N BASE -- <test command>`
+ with the test command the brief names for the whole task. It runs the
+ tests, keeps the full output in the workspace, prints the tail, and — only
+ if they pass — appends the completion line to the ledger:
+ 
+ `Task <N>: complete (commits <base7>..<head7>, tests: <command> → <result>)`
+ 
+ A failing run records nothing; the task is not complete. When it records,
+ mark the todo complete and take the next task.
+ 
+ ## Final Review
+ 
+-Run `../subagent-driven-development/scripts/review-package PLAN_FILE MERGE_BASE HEAD`
++Run `bash ../subagent-driven-development/scripts/review-package PLAN_FILE MERGE_BASE HEAD`
+ (MERGE_BASE = the commit the branch started from, e.g.
+ `git merge-base main HEAD`) and review from the file it prints.
+ 
+ **With a subagent tool:** dispatch the reviewer on the most capable
+ available model — the whole-branch review is a judgment task — using
+ superpowers:requesting-code-review's
+ [code-reviewer.md](../requesting-code-review/code-reviewer.md), with the
+ package path, the plan and spec paths, the plan's Review Focus section
+diff --git a/scripts/task-done b/scripts/task-done
+index e5fc6a9..1789126 100644
+--- a/scripts/task-done
++++ b/scripts/task-done
+@@ -17,17 +17,17 @@ fi
+ plan=$1
+ n=$2
+ base=$3
+ shift 4
+ sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"
+ 
+ git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
+ 
+-dir=$("$sdd/sdd-workspace" "$plan")
++dir=$("${BASH:-bash}" "$sdd/sdd-workspace" "$plan")
+ log="$dir/task-${n}-tests.log"
+ ledger="$dir/progress.md"
+ 
+ # Render the command the way a person would type it, for the ledger line.
+ cmd=""
+ for a in "$@"; do
+   case "$a" in
+     *[[:space:]\"\;\|\&]*) cmd="$cmd '$a'" ;;
+diff --git a/scripts/task-start b/scripts/task-start
+index fab75b5..25c0541 100644
+--- a/scripts/task-start
++++ b/scripts/task-start
+@@ -15,14 +15,14 @@ if [ $# -ne 2 ]; then
+   echo "usage: task-start PLAN_FILE TASK_NUMBER" >&2
+   exit 2
+ fi
+ 
+ plan=$1
+ n=$2
+ sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"
+ 
+-out=$("$sdd/task-brief" "$plan" "$n")
++out=$("${BASH:-bash}" "$sdd/task-brief" "$plan" "$n")
+ brief=$(printf '%s\n' "$out" | sed -n 's/^wrote \(.*\): [0-9][0-9]* lines$/\1/p')
+ [ -n "$brief" ] || { echo "task-brief did not report a path: $out" >&2; exit 1; }
+ 
+ echo "brief: $brief"
+ echo "base: $(git rev-parse HEAD)"

@@ -29,10 +29,10 @@ find environment facts rather than asking you for them.
 
 ### 2. Decide, and get the gate
 
-**`/superpowers:brainstorming`** is where an idea becomes an approved design. It classifies the request out loud
-first and scales the ceremony to it — a feasibility spike, a bounded change designed in chat, or an
-architectural piece that earns a written spec. All three end the same way: **it does not implement
-until you approve.** That gate is the reason to route through it rather than around it.
+**`/superpowers:brainstorming`** is where an idea becomes an approved design. It draws out what you
+want first, then sizes the work out loud — a quick, clear task it simply does, a small change it
+agrees with you in chat, and a project gets a written design document. Past a quick task, **it does
+not build until you approve.** That gate is the reason to route through it rather than around it.
 
 Grilling and brainstorming are not rivals. Grilling sharpens what you think; brainstorming decides
 what to do about it and makes you say yes. On small work you will often only want one of them.
@@ -49,9 +49,9 @@ The `implement` skill drives the test-first loop and the review itself; you do n
 
 **`/superpowers:writing-plans`** turns the approved spec into a plan of checkbox tasks → then either
 **`/superpowers:executing-plans`** to work it in this session, or **`/superpowers:subagent-driven-development`** to dispatch
-each task to its own window. SDD now **rules rather than stalls**: it decides conflicts, ambiguities
-and plan defects itself, records each ruling with its cost-if-wrong, and reports every one at the
-end. It still stops for anything destructive, security-sensitive, or externally visible.
+each task to its own window. Both executors now **rule rather than stall**: they decide conflicts,
+ambiguities and plan defects themselves, record each ruling with its cost-if-wrong, and report every
+one at the end. They still stop for anything destructive, security-sensitive, or externally visible.
 
 Pick by whether the plan needs to survive a context window. One feature, one sitting: light ladder.
 Something you will still be building next week: heavy ladder.
@@ -129,6 +129,7 @@ Reach for these directly; they are not on any flow.
 | **`/mattpocock-skills:writing-for-agents`** | The design vocabulary for any document an agent reads: a skill, an `AGENTS.md`, a doc behind a pointer. |
 | **`/superpowers:writing-skills`** | The testing methodology for skills: pressure scenarios, baselines, closing loopholes. Pairs with the one above rather than competing with it. |
 | **`/superpowers:using-superpowers`** | Switch this session to skill-driven working. Flipped by hand, never automatically. |
+| **`/superpowers:diagnosing-superpowers`** | A session went wrong — repeated work, an ignored plan, a skill that did not fire, too slow or too costly. It finds out why, with cited evidence, and drafts an issue for the superpowers maintainers only when you approve the text. |
 | **`/mattpocock-skills:setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |
 | `dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. |
 

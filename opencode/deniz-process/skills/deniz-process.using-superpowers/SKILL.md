@@ -25,6 +25,10 @@ When multiple skills apply, process skills come first — they set the approach,
 - "Let's build X" → deniz-process.brainstorming first, then implementation skills.
 - "Fix this bug" → deniz-process.systematic-debugging first, then domain skills.
 
+## Platform Adaptation
+
+Tool notes for this harness are in `references/harness-tools.md`.
+
 ## User Instructions
 
 User instructions (CLAUDE.md, AGENTS.md, GEMINI.md, etc, direct requests) take precedence over skills, which in turn override default behavior. Only skip skill workflows or instructions when your human partner has explicitly told you to.

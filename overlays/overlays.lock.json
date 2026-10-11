@@ -280,6 +280,12 @@
       "references/mutation-catalog.md": "78d6d94310fb3e232f726760f6989a436e3b570d"
     }
   },
+  "deniz-process/asd-ste100": {
+    "source": "asd-ste100",
+    "files": {
+      "SKILL.md": "f100b709038129b83d85b3d9f5f9707965956894"
+    }
+  },
   "deniz-process/ask-deniz": {
     "source": "mattpocock-skills/skills/engineering/ask-matt",
     "files": {
@@ -290,13 +296,16 @@
   "deniz-process/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "files": {
-      "SKILL.md": "b56a3b5ed6ea0d6216501e0e401ecb00a1b4675f"
-    }
+      "SKILL.md": "22b98fc5bac68d46bc8f066df90155aa3815262d"
+    },
+    "frontmatter": true
   },
   "deniz-process/executing-plans": {
     "source": "superpowers/skills/executing-plans",
     "files": {
-      "SKILL.md": "b51d97d2cc4c2ecc5eabecf27e499aa8c933efac"
+      "SKILL.md": "49077ad961268a840d7dcb5d8c5d06c46fc276ae",
+      "scripts/task-done": "e5fc6a992fb41745a4113a55a5da5cbb11ddde55",
+      "scripts/task-start": "fab75b55b2e51c0de1a1331d19c3124924380eac"
     }
   },
   "deniz-process/grill-me": {
@@ -327,8 +336,8 @@
   "deniz-process/requesting-code-review": {
     "source": "superpowers/skills/requesting-code-review",
     "files": {
-      "SKILL.md": "fa4f2f9965591d6d8a7ef4ad47e6ba4d5ac344d0",
-      "code-reviewer.md": "b898cb982e8a368e847d31136ac106001173b1d5"
+      "SKILL.md": "68d338a58ecdd8b77bfbb519b781ef223dbbb842",
+      "code-reviewer.md": "6d358b5d7d450c83cacbe450b7dbd4e673b694ad"
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/code-review": {
@@ -352,10 +361,16 @@
       "issue-tracker-local.md": "0209a19af92c9c485cf3acc3d9e253171517ea17"
     }
   },
+  "deniz-process/subagent-driven-development": {
+    "source": "superpowers/skills/subagent-driven-development",
+    "files": {
+      "SKILL.md": "f7bbf6a01b519807ec00baf5e98522bed33f8834"
+    }
+  },
   "deniz-process/systematic-debugging": {
     "source": "superpowers/skills/systematic-debugging",
     "files": {
-      "SKILL.md": "095d194ac041502905f15b01d22d294fb94db8b2"
+      "SKILL.md": "62fc752aaef59a8bbed5d305f4cadc60f8ae07ed"
     },
     "mergeSources": {
       "mattpocock-skills/skills/engineering/diagnosing-bugs": {
@@ -366,7 +381,7 @@
   "deniz-process/test-driven-development": {
     "source": "superpowers/skills/test-driven-development",
     "files": {
-      "SKILL.md": "4320d8879a639d0536c2239bb80c9d7257ad8947",
+      "SKILL.md": "46838cc9e893c06259e3bdad0fc2425b36242f15",
       "writing-good-tests.md": "d3c4482fd30b4f9084bb61545fe73939a7502c28"
     },
     "mergeSources": {
@@ -398,7 +413,7 @@
   "deniz-process/using-superpowers": {
     "source": "superpowers/skills/using-superpowers",
     "files": {
-      "SKILL.md": "7ab2eb678f649c8befb94512359ee0b6e9a9a9a4"
+      "SKILL.md": "069d578445805a28b8dacbf70cdf045e1673def0"
     }
   },
   "deniz-process/wait-what": {
@@ -419,10 +434,16 @@
       "SKILL.md": "a37608daf6e835e767deecfb498facecaaba82ba"
     }
   },
+  "deniz-process/writing-plans": {
+    "source": "superpowers/skills/writing-plans",
+    "files": {
+      "SKILL.md": "4cf0275d88d67aa4ef09f4bbca9970ed6ff74a00"
+    }
+  },
   "deniz-process/writing-skills": {
     "source": "superpowers/skills/writing-skills",
     "files": {
-      "SKILL.md": "f33f39f523c8a3ae2ec0eaf365a524571df8ff3d"
+      "SKILL.md": "182dfad177c9940d8ea388be322aadddd6c4db5f"
     }
   }
 }

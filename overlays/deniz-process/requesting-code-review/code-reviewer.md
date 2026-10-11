@@ -7,8 +7,10 @@ do what was asked — before either failure cascades into more work.
 
 Dispatching **two** subagents (only when the spec is a genuinely separate document — see the
 skill): give each the same range, the Read-Only, You Do Not Dispatch Subagents, Calibration and
-Output sections, and only its own axis's material. Neither gets the other's brief. Otherwise
-dispatch one with the whole template.
+Output sections, and only its own axis's material. The Declined to judge section and its output
+heading are Spec material: they go to the reviewer that holds the spec, because the Standards
+reviewer never sees it and has nothing to set aside against it. Neither gets the other's brief.
+Otherwise dispatch one with the whole template.
 
 ```
 Subagent (general-purpose):
@@ -111,19 +113,40 @@ Subagent (general-purpose):
 
     ## Axis 2 — Spec
 
+    The spec is a vision document. It says what the software must do. It
+    does not enumerate every input, environment, or condition the software
+    will meet. For behavior a supplied spec is silent on, judge by what a
+    reasonable person using this software would expect: a reasonable
+    person's expectation is a requirement, and a spec's silence is not
+    permission. This reads the spec you were given; it never stands in for
+    a missing one.
+
     - Requirements the spec asked for that are missing or partial.
-    - Behaviour in the diff nobody asked for (scope creep).
+    - Behaviour in the diff that neither the spec nor a reasonable user's
+      expectation asked for (scope creep).
     - Requirements that look implemented but where the implementation looks wrong.
     - Deviations from the plan: justified improvements, or problematic departures?
 
-    Quote the spec line for each finding. If you find issues with the spec
-    itself rather than the implementation, say so.
+    Quote the spec line for each finding, or, where the spec is silent,
+    name the reasonable-user expectation the finding rests on. If you find
+    issues with the spec itself rather than the implementation, say so.
+
+    ## Declined to judge
+
+    Before your verdict, list every behavior you considered and set aside
+    as outside the plan or spec, one line each, with the reason. Whoever
+    requested this review rules on each line; nothing you set aside is
+    dropped silently. An empty list means you set nothing aside.
 
     ## Calibration
 
     Categorize issues by actual severity. Not everything is Critical.
     Acknowledge what was done well before listing issues — accurate praise
     helps the implementer trust the rest of the feedback.
+
+    Grade a finding by its effect on a person using this software, not by
+    whether the spec mentions its trigger. That holds on both axes, and
+    when no spec was supplied.
 
     Severity is judged WITHIN an axis. Do not rank the two axes against each
     other and do not merge their findings: a change can follow every standard
@@ -153,6 +176,10 @@ Subagent (general-purpose):
     - Why it matters
     - Which standard or spec line it comes from
     - How to fix (if not obvious)
+
+    ### Declined to judge
+    [The reviewer that holds the spec: one line per behavior set aside as
+    outside the plan or spec, with the reason — or "None".]
 
     ### Recommendations
     [Improvements for code quality, architecture, or process]
@@ -192,7 +219,8 @@ Subagent (general-purpose):
 - `[BASE_SHA]` — starting commit
 - `[HEAD_SHA]` — ending commit
 
-**Reviewer returns:** Strengths, Standards issues, Spec issues, Recommendations, Assessment
+**Reviewer returns:** Strengths, Standards issues, Spec issues, Declined to judge (the spec holder),
+Recommendations, Assessment
 
 ## Example Output
 
@@ -228,8 +256,11 @@ Subagent (general-purpose):
 #### Minor
 1. **Progress indicators not requested**
    - File: indexer.ts:130
-   - Issue: scope creep — no spec line asks for this
+   - Issue: scope creep — no spec line asks for this, and nobody searching would expect it
    - Impact: harmless, but it is untested surface
+
+### Declined to judge
+- Concurrent writes to the index: the spec covers a single local user, so locking was set aside.
 
 ### Assessment
 

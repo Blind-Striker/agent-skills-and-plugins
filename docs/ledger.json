@@ -4499,6 +4499,7 @@
   "deniz-process/skill/asd-ste100": {
     "source": "asd-ste100",
     "invocation": "auto",
+    "body": "patch",
     "description": "Use when English text must be parsed without a human to resolve ambiguity — tool descriptions, error messages, inter-agent instructions, system prompts, status reports — and misreading has a real cost, or when text reads as dense, hedged, or easy to misparse. Triggers: disambiguate, STE100 rewrite, apply Simplified Technical English, plain-language rewrite, controlled-language rewrite, rewrite so an agent cannot misread this. Not for creative or marketing copy.",
     "claude": {
       "artifacts": [
@@ -4567,6 +4568,7 @@
         ],
         "pointer": [
           "deniz-process:brainstorming",
+          "deniz-process:diagnosing-superpowers",
           "deniz-process:executing-plans",
           "deniz-process:finishing-a-development-branch",
           "deniz-process:grill-me",
@@ -4610,6 +4612,7 @@
         ],
         "pointer": [
           "@deniz-process.brainstorming",
+          "@deniz-process.diagnosing-superpowers",
           "@deniz-process.executing-plans",
           "@deniz-process.finishing-a-development-branch",
           "@deniz-process.grill-me",
@@ -4658,6 +4661,7 @@
         ],
         "pointer": [
           "$deniz-process:brainstorming",
+          "$deniz-process:diagnosing-superpowers",
           "$deniz-process:executing-plans",
           "$deniz-process:finishing-a-development-branch",
           "$deniz-process:grill-me",
@@ -4691,11 +4695,10 @@
   "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
-    "body": "patch",
     "dependsOn": [
       "writing-plans"
     ],
-    "description": "Collaborative design session, scaled to the task: a feasibility answer, a short in-chat design, or a full written design and spec — each one ending in approval before implementation.",
+    "description": "Draws out what you want before anything is built, then sizes the work: a quick task is just done, a small change is agreed in chat, a project gets a written design. Nothing past a quick task is built before you approve.",
     "claude": {
       "artifacts": [
         "skill"
@@ -4775,6 +4778,50 @@
         "skill"
       ],
       "identity": "deniz-process:codebase-design",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-process/skill/diagnosing-superpowers": {
+    "source": "superpowers/skills/diagnosing-superpowers",
+    "invocation": "both",
+    "description": "Use when a superpowers session went wrong and your human partner wants to know why — repeated work, ignored plans, stumbles, poor results, a skill that didn't fire, \"it took too long\", \"why is it so expensive\", \"what is it doing\" — or wants to build a bug report for the superpowers maintainers, for the current session or a past one identified by id or path, on any harness.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process.diagnosing-superpowers",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:diagnosing-superpowers",
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
@@ -4889,10 +4936,15 @@
     "body": "patch",
     "dependsOn": [
       "finishing-a-development-branch",
+      "requesting-code-review",
       "subagent-driven-development",
-      "using-git-worktrees"
+      "systematic-debugging",
+      "test-driven-development",
+      "using-git-worktrees",
+      "verification-before-completion",
+      "writing-plans"
     ],
-    "description": "Use when you have a written implementation plan to execute in a separate session with review checkpoints",
+    "description": "Use when executing an implementation plan in the current session as the implementer yourself — your human partner chose inline execution, or no subagent tool is available",
     "claude": {
       "artifacts": [
         "skill"
@@ -4900,8 +4952,13 @@
       "edges": {
         "model": [
           "deniz-process:finishing-a-development-branch",
+          "deniz-process:requesting-code-review",
           "deniz-process:subagent-driven-development",
-          "deniz-process:using-git-worktrees"
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development",
+          "deniz-process:using-git-worktrees",
+          "deniz-process:verification-before-completion",
+          "deniz-process:writing-plans"
         ],
         "pointer": []
       }
@@ -4915,8 +4972,13 @@
       "edges": {
         "model": [
           "deniz-process.finishing-a-development-branch",
+          "deniz-process.requesting-code-review",
           "deniz-process.subagent-driven-development",
-          "deniz-process.using-git-worktrees"
+          "deniz-process.systematic-debugging",
+          "deniz-process.test-driven-development",
+          "deniz-process.using-git-worktrees",
+          "deniz-process.verification-before-completion",
+          "deniz-process.writing-plans"
         ],
         "pointer": []
       },
@@ -4936,8 +4998,13 @@
       "edges": {
         "model": [
           "$deniz-process:finishing-a-development-branch",
+          "$deniz-process:requesting-code-review",
           "$deniz-process:subagent-driven-development",
-          "$deniz-process:using-git-worktrees"
+          "$deniz-process:systematic-debugging",
+          "$deniz-process:test-driven-development",
+          "$deniz-process:using-git-worktrees",
+          "$deniz-process:verification-before-completion",
+          "$deniz-process:writing-plans"
         ],
         "pointer": []
       },
@@ -5671,6 +5738,7 @@
   "deniz-process/skill/subagent-driven-development": {
     "source": "superpowers/skills/subagent-driven-development",
     "invocation": "both",
+    "body": "patch",
     "dependsOn": [
       "finishing-a-development-branch",
       "requesting-code-review",
@@ -6211,8 +6279,16 @@
     "body": "patch",
     "dependsOn": [
       "brainstorming",
+      "subagent-driven-development",
       "systematic-debugging"
     ],
+    "harnessFiles": {
+      "references/harness-tools.md": {
+        "claude": "references/claude-code-tools.md",
+        "codex": "references/codex-tools.md",
+        "opencode": "references/opencode-tools.md"
+      }
+    },
     "description": "Switch this session to skill-driven working: check for a relevant skill before each task, process skills first.",
     "claude": {
       "artifacts": [
@@ -6221,6 +6297,7 @@
       "edges": {
         "model": [
           "deniz-process:brainstorming",
+          "deniz-process:subagent-driven-development",
           "deniz-process:systematic-debugging"
         ],
         "pointer": []
@@ -6556,6 +6633,7 @@
   "deniz-process/skill/writing-plans": {
     "source": "superpowers/skills/writing-plans",
     "invocation": "both",
+    "body": "patch",
     "dependsOn": [
       "executing-plans",
       "subagent-driven-development",

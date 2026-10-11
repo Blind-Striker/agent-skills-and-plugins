@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index f100b70..861aa49 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -83,17 +83,17 @@ These six habits cover most of what makes machine-written English hard to parse.
+ 4. **Marketing adjectives** — words that claim quality instead of showing it: seamless, robust, powerful, cutting-edge, effortless, blazing-fast. Fix: delete, or replace with the measurement that earns the claim.
+ 5. **Run-on sentences** — several ideas joined by semicolons or em dashes. Fix: one idea per sentence.
+ 6. **Soft phrasal verbs** — spin up, reach out, dive into, kick off. Fix: use the single plain verb (start, contact, read, begin).
+ 
+ ## Process
+ 
+ 1. Pick the mode (Strict or STE-flavored). Say which only when the user asked for the rule table — see Output Format.
+ 2. Read the input text once for meaning — do not start rewriting before you understand what it must still say afterward.
+-3. Walk it sentence by sentence. Flag every rule violation from the Core Rewrite Rules tables and every habit from the Scan Checklist. In STE-flavored mode, flag the lexical rules but do not enforce them. For a mechanical first pass over the structural rules, run `scripts/ste-lint.py` (stdin or file args, `--json` for structured output); it checks semicolons, sentence length, phrasal verbs, nominalization, marketing adjectives, synonym rotation, dangling-conjunction in supported list items, passive voice, and compound tenses, and by design never flags hedges or modality. `--baseline N` tolerates N hard violations (for adopting on existing docs); `--disable rule1,rule2` silences named rules.
++3. Walk it sentence by sentence. Flag every rule violation from the Core Rewrite Rules tables and every habit from the Scan Checklist. In STE-flavored mode, flag the lexical rules but do not enforce them. For multi-sentence or document-length input, a mechanical first pass over the structural rules can run `python3 scripts/ste-lint.py` (on Windows, `py -3 scripts/ste-lint.py`) on stdin or file args, with `--json` for structured output; never run it for a one-line rewrite or a short conversational re-pitch. It checks semicolons, sentence length, phrasal verbs, nominalization, marketing adjectives, synonym rotation, dangling-conjunction in supported list items, passive voice, and compound tenses, and by design never flags hedges or modality. Its phrasal-verb list is short and fixed and it does not check noun-cluster length, so a clean run proves neither compliance nor that the meaning survived. `--baseline N` tolerates N hard violations (for adopting on existing docs); `--disable rule1,rule2` silences named rules.
+ 4. Rewrite each flagged sentence to fix the violation while preserving the original meaning exactly. If a rewrite would drop necessary precision (a safety condition, a scope qualifier, a number), keep the longer phrasing and flag it instead of silently simplifying.
+    - **Check modality before you commit to a rewrite.** Hedges ("may", "could", "sometimes", "is likely to") carry the author's confidence, and confidence is content. A shorter sentence that upgrades a hedge to a fact is not a simplification — it is a different claim. This is the most common way a well-intentioned STE rewrite goes wrong, because hedges are exactly what a length cap tempts you to cut.
+    - Never add a fact the source did not state. A rewrite that reads better because it supplies a cause, a frequency, or a mechanism has stopped being a rewrite.
+ 5. Output the rewritten text (see Output Format). Keep the mode choice and the rule analysis internal unless the user asked to see them.
+ 6. If the input already complies, say so — do not force changes onto compliant text.
+ 
+ ## Output Format
+ 
