@@ -435,17 +435,9 @@ After migration, consider enabling modern C# features:
 
 Centralizes NuGet version management across a multi-project solution. See [https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management](https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management) for details.
 
-**Step 1:** Create `Directory.Packages.props` at the repository root with `<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>` and `<PackageVersion>` items for all packages.
-
-**Step 2:** Remove `Version` from each project's `PackageReference`:
-
-```xml
-<!-- BEFORE -->
-<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-
-<!-- AFTER -->
-<PackageReference Include="Newtonsoft.Json" />
-```
+Do not convert the projects to Central Package Management here. That conversion is the manual
+`@deniz-dotnet-general.convert-to-cpm` ceremony: tell the user to invoke it once the modernized projects
+build. An existing `Directory.Packages.props` stays in scope for its placement and layering.
 
 ## Directory.Build Consolidation
 

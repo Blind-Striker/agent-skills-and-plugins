@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.12.1",
-  "digest": "sha256:ef47a156728d03fe1dbe0697d784c396fa9abefd81ffe159a2dee7c19fa9cea0",
+  "digest": "sha256:a90cd6f7c14ec434e6d12c73062025d1be01e725ba29784d681e94e8643f88c0",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -205,7 +205,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.directory-build-organization/SKILL.md": {
-      "sha256": "sha256:9380f5cf33333cb82c865c5d88548ebcdecd51624fcc766b3a8f960178a81742",
+      "sha256": "sha256:34bb03d2aae5dd54d72c0f324dce88f60406d3b48ccb423eafde54166da1315f",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.directory-build-organization/references/common-patterns.md": {
@@ -249,7 +249,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-project-structure/SKILL.md": {
-      "sha256": "sha256:8bda540aec93b87cda51e49020e5de2c1772d4dc42c020033b39293ff707357f",
+      "sha256": "sha256:57cc53a1ce9f94e451de8fc1490687b1c39703e1b62b39076ff1ec1156c53b83",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.dotnet-slopwatch/SKILL.md": {
@@ -405,7 +405,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.msbuild-modernization/SKILL.md": {
-      "sha256": "sha256:42b59a610488bd0837b317697e376cff7db15473ecef6a67d228948993a068b3",
+      "sha256": "sha256:d832bfbd835f5fa48933a43a0d243d74a14803399494388525d63a187b338466",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.msbuild/SKILL.md": {
@@ -481,7 +481,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.package-management/SKILL.md": {
-      "sha256": "sha256:2e73eb47906492954a78dcc5bdbe97a2948e00bdfe1e110c53ffbd00eec37fa2",
+      "sha256": "sha256:8098f4f36ce0bea861b8d5606b34476cc9fbfd598057b47e047dd7a2eebfe88f",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.platform-detection/SKILL.md": {

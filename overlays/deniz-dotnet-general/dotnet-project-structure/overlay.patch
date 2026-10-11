@@ -1,0 +1,44 @@
+diff --git a/SKILL.md b/SKILL.md
+index ae884c2..2c3ec6f 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -6,17 +6,17 @@ user-invocable: false
+ 
+ # .NET Project Structure and Build Configuration
+ 
+ ## When to Use This Skill
+ 
+ Use this skill when:
+ - Setting up a new .NET solution with modern best practices
+ - Configuring centralized build properties across multiple projects
+-- Implementing central package version management
++- Implementing central package version management in a new solution
+ - Setting up SourceLink for debugging and NuGet packages
+ - Automating version management with release notes
+ - Pinning SDK versions for consistent builds
+ 
+ ## Related Skills
+ 
+ - **`dotnet-local-tools`** - Managing local .NET tools with dotnet-tools.json
+ - **`microsoft-extensions-configuration`** - Configuration validation patterns
+@@ -239,16 +239,20 @@ SourceLink enables step-through debugging of NuGet packages:
+ ---
+ 
+ ## Directory.Packages.props - Central Package Management
+ 
+ Central Package Management (CPM) provides a single source of truth for all NuGet package versions.
+ 
+ ### Setup
+ 
++A new solution can start with this file. Converting an existing solution's projects to CPM is the
++manual `/dotnet-nuget:convert-to-cpm` ceremony: tell the user to invoke it, and do not convert them
++here. An existing `Directory.Packages.props` stays in scope for its placement and layering.
++
+ ```xml
+ <Project>
+   <PropertyGroup>
+     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+   </PropertyGroup>
+ 
+   <!-- Define version variables for related packages -->
+   <PropertyGroup>

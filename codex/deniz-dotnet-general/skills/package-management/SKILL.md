@@ -11,7 +11,7 @@ description: Manage NuGet packages using Central Package Management (CPM) and
 
 Use this skill when:
 - Adding, removing, or updating NuGet packages
-- Setting up Central Package Management (CPM) for a solution
+- Setting up Central Package Management (CPM) for a new solution
 - Managing package versions across multiple projects
 - Troubleshooting package conflicts or restore issues
 
@@ -44,9 +44,11 @@ dotnet list package --outdated
 
 CPM centralizes all package versions in one file, eliminating version conflicts across projects.
 
-### Enable CPM
+### Directory.Packages.props
 
-Create `Directory.Packages.props` in solution root:
+A new solution can start with `Directory.Packages.props` at its root. Converting existing projects to
+CPM is the manual `$deniz-dotnet-general:convert-to-cpm` ceremony: tell the user to invoke it, and do not
+convert them here. An existing `Directory.Packages.props` stays in scope for its placement and layering.
 
 ```xml
 <Project>

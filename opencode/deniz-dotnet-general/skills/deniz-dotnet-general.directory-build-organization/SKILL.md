@@ -104,7 +104,7 @@ Good candidates: custom build targets, late-bound property overrides (values dep
 
 Central Package Management (CPM) provides a single source of truth for all NuGet package versions. See [https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management](https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management) for details.
 
-**Enable CPM in `Directory.Packages.props` at the repo root:**
+**The shape of a `Directory.Packages.props` at the repo root:**
 
 ```xml
 <Project>

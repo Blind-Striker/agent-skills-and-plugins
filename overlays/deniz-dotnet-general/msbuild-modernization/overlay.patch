@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index e88cd17..921a61d 100644
+index e88cd17..4ef254a 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -206,17 +206,17 @@ Delete `Properties\AssemblyInfo.cs` — the SDK auto-generates assembly attribut
@@ -21,3 +21,34 @@ index e88cd17..921a61d 100644
  
  ```xml
  <!-- DELETE: SDK imports (replaced by Sdk attribute) -->
+@@ -422,27 +422,19 @@ After migration, consider enabling modern C# features:
+   </ItemGroup>
+ </Project>
+ ```
+ 
+ ## Central Package Management Migration
+ 
+ Centralizes NuGet version management across a multi-project solution. See [https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management](https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management) for details.
+ 
+-**Step 1:** Create `Directory.Packages.props` at the repository root with `<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>` and `<PackageVersion>` items for all packages.
+-
+-**Step 2:** Remove `Version` from each project's `PackageReference`:
+-
+-```xml
+-<!-- BEFORE -->
+-<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+-
+-<!-- AFTER -->
+-<PackageReference Include="Newtonsoft.Json" />
+-```
++Do not convert the projects to Central Package Management here. That conversion is the manual
++`/dotnet-nuget:convert-to-cpm` ceremony: tell the user to invoke it once the modernized projects
++build. An existing `Directory.Packages.props` stays in scope for its placement and layering.
+ 
+ ## Directory.Build Consolidation
+ 
+ Identify properties repeated across multiple `.csproj` files and move them to shared files.
+ 
+ **`Directory.Build.props`** (for properties — placed at repo or src root):
+ 
+ ```xml

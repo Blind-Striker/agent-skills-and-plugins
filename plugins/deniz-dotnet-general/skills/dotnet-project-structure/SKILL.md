@@ -13,7 +13,7 @@ user-invocable: false
 Use this skill when:
 - Setting up a new .NET solution with modern best practices
 - Configuring centralized build properties across multiple projects
-- Implementing central package version management
+- Implementing central package version management in a new solution
 - Setting up SourceLink for debugging and NuGet packages
 - Automating version management with release notes
 - Pinning SDK versions for consistent builds
@@ -245,6 +245,10 @@ SourceLink enables step-through debugging of NuGet packages:
 Central Package Management (CPM) provides a single source of truth for all NuGet package versions.
 
 ### Setup
+
+A new solution can start with this file. Converting an existing solution's projects to CPM is the
+manual `/deniz-dotnet-general:convert-to-cpm` ceremony: tell the user to invoke it, and do not convert them
+here. An existing `Directory.Packages.props` stays in scope for its placement and layering.
 
 ```xml
 <Project>

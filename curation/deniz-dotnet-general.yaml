@@ -131,8 +131,17 @@ items:
   # --- project / package / build ---
   - source: dotnet-skills/skills/project-structure
     invocation: auto # the curator's opinionated repo layout (slnx, Directory.Build.props, CPM, SourceLink, global.json)
+    body: patch # its CPM setup converted an existing solution inline; a new solution may still start
+    # with Directory.Packages.props, but converting existing projects points the user at the manual
+    # convert-to-cpm ceremony, as directory-build-organization's patch does: a repository-mutating
+    # conversion never runs on the model's initiative. An existing Directory.Packages.props stays in
+    # scope for its placement and layering
   - source: dotnet-skills/skills/package-management
     invocation: auto # daily CPM/NuGet CLI discipline; its "never edit XML" absolutism is upstream content, tolerated
+    body: patch # its "Enable CPM" section converted an existing solution inline; a new solution may
+    # still start with Directory.Packages.props, but converting existing projects points the user at
+    # the manual convert-to-cpm ceremony, as directory-build-organization's patch does. An existing
+    # Directory.Packages.props stays in scope for its placement and layering
   - source: dotnet-skills/skills/local-tools
     invocation: auto # dotnet-tools.json manifest discipline; pairs with project-structure
   - source: dotnet-skills/skills/sdk-container-publishing
@@ -195,7 +204,8 @@ items:
     # Its TFM-in-.props pitfall overlaps property-patterns; that fuzzy split is left as upstream drew it
     body: patch # its workflow step that converted the repository to Central Package Management now
     # points the user at the manual convert-to-cpm ceremony: a repository-mutating conversion never
-    # runs on the model's initiative
+    # runs on the model's initiative. The CPM section's "Enable CPM" imperative heading now labels its
+    # example as the shape of the file, which stays in scope for placement and layering
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/property-patterns
     invocation: auto
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/item-management
@@ -241,7 +251,10 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-modernization
     invocation: auto # SDK-style conversion
     body: patch # upstream names a nonexistent `dotnet migrate-packages-config` command; the patch names
-    # the real routes, Visual Studio's migration or a manual conversion
+    # the real routes, Visual Studio's migration or a manual conversion. Its Central Package
+    # Management Migration section converted the projects inline, and msbuild reaches this item
+    # through a model fact, so the section points the user at the manual convert-to-cpm ceremony
+    # instead, as directory-build-organization's patch does
   # --- testing ---
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/run-tests
     invocation: auto # the operational core: current upstream owns exact classic/VSTest/MTP syntax

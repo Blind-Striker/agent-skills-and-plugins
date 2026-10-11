@@ -150,6 +150,12 @@
       "SKILL.md": "4fd62ed5ed98a19bb5feb0ddc599c8f5d08bb342"
     }
   },
+  "deniz-dotnet-general/dotnet-project-structure": {
+    "source": "dotnet-skills/skills/project-structure",
+    "files": {
+      "SKILL.md": "ae884c2fb479de1a4b21a4952dec1c471f38b825"
+    }
+  },
   "deniz-dotnet-general/dotnet-trace-collect": {
     "source": "dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect",
     "files": {
@@ -215,6 +221,12 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload",
     "files": {
       "SKILL.md": "239c1d3fe37249b0f17b852e7794b96b5226333d"
+    }
+  },
+  "deniz-dotnet-general/package-management": {
+    "source": "dotnet-skills/skills/package-management",
+    "files": {
+      "SKILL.md": "ec6ccb1e241b12c632679d6e5b81c20dce3c51d5"
     }
   },
   "deniz-dotnet-general/platform-detection": {

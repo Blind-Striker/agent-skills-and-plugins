@@ -1,0 +1,47 @@
+diff --git a/SKILL.md b/SKILL.md
+index ec6ccb1..56e9956 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -5,17 +5,17 @@ user-invocable: false
+ ---
+ 
+ # NuGet Package Management
+ 
+ ## When to Use This Skill
+ 
+ Use this skill when:
+ - Adding, removing, or updating NuGet packages
+-- Setting up Central Package Management (CPM) for a solution
++- Setting up Central Package Management (CPM) for a new solution
+ - Managing package versions across multiple projects
+ - Troubleshooting package conflicts or restore issues
+ 
+ ---
+ 
+ ## Golden Rule: Never Edit XML Directly
+ 
+ **Always use `dotnet` CLI commands to manage packages.** Never manually edit `.csproj` or `Directory.Packages.props` files.
+@@ -38,19 +38,21 @@ dotnet list package --outdated
+ - Works correctly with CPM
+ 
+ ---
+ 
+ ## Central Package Management (CPM)
+ 
+ CPM centralizes all package versions in one file, eliminating version conflicts across projects.
+ 
+-### Enable CPM
++### Directory.Packages.props
+ 
+-Create `Directory.Packages.props` in solution root:
++A new solution can start with `Directory.Packages.props` at its root. Converting existing projects to
++CPM is the manual `/dotnet-nuget:convert-to-cpm` ceremony: tell the user to invoke it, and do not
++convert them here. An existing `Directory.Packages.props` stays in scope for its placement and layering.
+ 
+ ```xml
+ <Project>
+   <PropertyGroup>
+     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+   </PropertyGroup>
+ 
+   <ItemGroup>

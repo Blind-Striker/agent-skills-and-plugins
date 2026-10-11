@@ -1,7 +1,26 @@
 diff --git a/SKILL.md b/SKILL.md
-index c6adfb7..337af02 100644
+index c6adfb7..ec24985 100644
 --- a/SKILL.md
 +++ b/SKILL.md
+@@ -91,17 +91,17 @@ Good candidates: custom build targets, late-bound property overrides (values dep
+   </PropertyGroup>
+ </Project>
+ ```
+ 
+ ## Directory.Packages.props (Central Package Management)
+ 
+ Central Package Management (CPM) provides a single source of truth for all NuGet package versions. See [https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management](https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management) for details.
+ 
+-**Enable CPM in `Directory.Packages.props` at the repo root:**
++**The shape of a `Directory.Packages.props` at the repo root:**
+ 
+ ```xml
+ <Project>
+   <PropertyGroup>
+     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+   </PropertyGroup>
+ 
+   <ItemGroup>
 @@ -166,19 +166,19 @@ repo/
  
  Set `<ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>` in `Directory.Build.props` to automatically produce project-name-separated `bin/`, `obj/`, and `publish/` directories under a single `artifacts/` folder, avoiding bin/obj clashes by default. See [common-patterns](references/common-patterns.md) for the directory layout and additional patterns (conditional settings by project type, post-pack validation).
