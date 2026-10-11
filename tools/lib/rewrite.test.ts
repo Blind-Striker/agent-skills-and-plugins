@@ -6,7 +6,7 @@ import {
   claudeOnlyVocabulary,
   isBundledText,
   localize,
-  openCodeTodoInstructions,
+  openCodeTodoWords,
   type RewriteTarget,
   renderHarnessPhrasing,
   rewriteOpenCodePaths,
@@ -463,27 +463,66 @@ test("OpenCode todo phrasing: a ledger skill keeps its checklist in the ledger, 
   );
 });
 
-test("an instruction to create or mark a todo is caught outside code spans; OpenCode's rendering has none", () => {
+test("every todo word outside code is caught; OpenCode's rendering of the table has none", () => {
   assert.deepEqual(
-    openCodeTodoInstructions(TODO_PHRASES).map((hit) => hit.match),
+    openCodeTodoWords(TODO_PHRASES).map((hit) => hit.match),
     [
-      "mark todo",
-      "mark todo",
-      "create a\ntodo",
-      "Mark the task's todo",
-      "mark the todo",
-      "Create todos",
-      "Create a todo",
-      "create a todo",
-      "Create a todo",
+      "todo",
+      "todo",
+      "todos",
+      "todos",
+      "todo",
+      "todo",
+      "todo",
+      "todos",
+      "todo",
+      "todo",
+      "todo",
+      "todos",
+      "todo",
+      "todo",
+      "todo",
     ],
+    "a todo word in every row of the table",
   );
-  assert.deepEqual(openCodeTodoInstructions(renderHarnessPhrasing(TODO_PHRASES, "opencode")), []);
-  assert.deepEqual(openCodeTodoInstructions("Then add a new todo, or update the todo list."), [
-    { index: 5, match: "add a new todo" },
-    { index: 24, match: "update the todo" },
+  assert.deepEqual(openCodeTodoWords(renderHarnessPhrasing(TODO_PHRASES, "opencode")), []);
+  assert.deepEqual(openCodeTodoWords("Then add a new todo, or update the To-Do list."), [
+    { index: 15, match: "todo" },
+    { index: 35, match: "To-Do" },
   ]);
-  const literal = "Write `create a todo per item` as the example, and add a TODO comment to the stub.";
-  assert.deepEqual(openCodeTodoInstructions(literal), [], "a code span is literal, and TODO is a code marker");
+});
+
+test("a paraphrase no table row renders still fails the OpenCode todo check", () => {
+  for (const paraphrase of [
+    "Use the todo list to track the plan.",
+    "Track each task as a todo.",
+    "Check off each todo as it is done.",
+    "Make a todo for the review.",
+    "Write todos for every step.",
+    "Create a to-do list first.",
+    "Create a TODO per step.",
+  ]) {
+    assert.equal(renderHarnessPhrasing(paraphrase, "opencode"), paraphrase, `no row renders "${paraphrase}"`);
+    assert.equal(openCodeTodoWords(paraphrase).length, 1, paraphrase);
+  }
+  assert.deepEqual(openCodeTodoWords("TodoWrite, todowrite, and a todo_list"), [{ index: 28, match: "todo" }]);
+});
+
+test("a TODO marker is code only when it is written as code", () => {
+  for (const code of [
+    "Insert a `// TODO: guard param` comment at the site.",
+    "Vitest skips `test.todo` cases.",
+    "```csharp\n// TODO: guard param\nvar x = param;\n```\n",
+    "~~~\nTODO: later\n~~~\n",
+    "Before.\n\n```\nTODO: an unclosed fence runs to the end\n",
+  ]) {
+    assert.deepEqual(openCodeTodoWords(code), [], code);
+  }
+  assert.deepEqual(
+    openCodeTodoWords("Leave a TODO: marker in prose, and add a TODO comment to the stub.").map((hit) => hit.match),
+    ["TODO", "TODO"],
+  );
+  const literal = "Write `create a todo per item` as the example.";
+  assert.deepEqual(openCodeTodoWords(literal), [], "a code span is literal");
   assert.equal(renderHarnessPhrasing(literal, "opencode"), literal, "a code span is left whole");
 });

@@ -118,12 +118,14 @@ const CODEX_VERB = { Call: "Invoke", call: "invoke", calls: "invokes", calling: 
 const BLOCK_START = /^[ \t]*(?:[-*+][ \t]|>|#|\||\d+[.)][ \t])/;
 
 /**
- * The inline code spans of Markdown text, as `[start, end)` offsets that include their backticks.
- * As in CommonMark, a run of backticks opens a span that the next run of the same length closes
- * within its block; a run with no closer is literal, and a fenced code block holds no span.
+ * The code of Markdown text, as `[start, end)` offsets. Inline spans include their backticks: as in
+ * CommonMark, a run of backticks opens a span that the next run of the same length closes within
+ * its block, and a run with no closer is literal. Fenced blocks include their fence lines, and a
+ * fence that never closes runs to the end of the text; a fenced block holds no span.
  */
-export function inlineCodeSpans(content: string): [number, number][] {
-  const spans: [number, number][] = [];
+function markdownCode(content: string): { inline: [number, number][]; fenced: [number, number][] } {
+  const inline: [number, number][] = [];
+  const fenced: [number, number][] = [];
   const scan = (start: number, end: number): void => {
     const runs = [...content.slice(start, end).matchAll(/`+/g)].map((m) => ({
       at: start + m.index,
@@ -133,14 +135,14 @@ export function inlineCodeSpans(content: string): [number, number][] {
       const open = runs[i] as { at: number; length: number };
       const close = runs.findIndex((run, k) => k > i && run.length === open.length);
       if (close !== -1) {
-        spans.push([open.at, (runs[close]?.at ?? 0) + open.length]);
+        inline.push([open.at, (runs[close]?.at ?? 0) + open.length]);
         i = close;
       }
     }
   };
   let offset = 0;
   let block: number | undefined;
-  let fence: { char: string; length: number } | undefined;
+  let fence: { char: string; length: number; start: number } | undefined;
   const endBlock = (end: number): void => {
     if (block !== undefined) {
       scan(block, end);
@@ -153,11 +155,12 @@ export function inlineCodeSpans(content: string): [number, number][] {
     const rest = marker?.[2] ?? "";
     if (fence) {
       if (run.startsWith(fence.char) && run.length >= fence.length && rest.trim() === "") {
+        fenced.push([fence.start, offset + line.length]);
         fence = undefined;
       }
     } else if (marker && !(run.startsWith("`") && rest.includes("`"))) {
       endBlock(offset);
-      fence = { char: run.charAt(0), length: run.length };
+      fence = { char: run.charAt(0), length: run.length, start: offset };
     } else if (line.trim() === "" || BLOCK_START.test(line)) {
       endBlock(offset);
       block = line.trim() === "" ? undefined : offset;
@@ -167,7 +170,15 @@ export function inlineCodeSpans(content: string): [number, number][] {
     offset += line.length + 1;
   }
   endBlock(content.length);
-  return spans;
+  if (fence) {
+    fenced.push([fence.start, content.length]);
+  }
+  return { inline, fenced };
+}
+
+/** The inline code spans of Markdown text, as `[start, end)` offsets that include their backticks. */
+export function inlineCodeSpans(content: string): [number, number][] {
+  return markdownCode(content).inline;
 }
 
 // Closed dispatch table (references-and-linking.md "Harness phrasing"). Codex names no subagent tool
@@ -223,15 +234,25 @@ const OPENCODE_TODO: { pattern: RegExp; opencode: Replacement }[] = [
   { pattern: /\ba todo-list record\b/g, opencode: "a Markdown checklist" },
 ];
 
-/** Wording that tells the model to create or mark a todo; `TODO`, a code marker, is not one. */
-const TODO_INSTRUCTION =
-  /\b(?:[Cc]reate|[Aa]dd|[Mm]ark|[Uu]pdate|[Tt]ick|[Cc]omplete)\s+(?:[\w'-]+\s+){0,2}?[Tt]odos?\b/g;
+/** `todo`, `todos`, `to-do`, or `to-dos` in any letter case, not inside a longer word. */
+const TODO_WORD = /(?<![A-Za-z0-9])to-?dos?(?![A-Za-z0-9])/gi;
 
-/** Instructions to create or mark a todo outside inline code spans, which OpenCode 2 has no tool for. */
-export function openCodeTodoInstructions(content: string): { index: number; match: string }[] {
-  const spans = inlineCodeSpans(content);
-  return [...content.matchAll(TODO_INSTRUCTION)]
-    .filter((m) => !spans.some(([start, end]) => m.index >= start && m.index < end))
+/**
+ * The one OpenCode file that may say todo, below `opencode/`: using-superpowers' OpenCode tool
+ * notes, which must name the todo tool OpenCode 2 removed.
+ */
+export const OPENCODE_TODO_NOTES = "deniz-process/skills/deniz-process.using-superpowers/references/harness-tools.md";
+
+/**
+ * Every todo word outside inline code and fenced code. OpenCode 2 has no todo tool, so prose that
+ * names a todo, a `TODO` included, asks for something the harness lacks; a marker written as code
+ * is code.
+ */
+export function openCodeTodoWords(content: string): { index: number; match: string }[] {
+  const { inline, fenced } = markdownCode(content);
+  const code = [...inline, ...fenced];
+  return [...content.matchAll(TODO_WORD)]
+    .filter((m) => !code.some(([start, end]) => m.index >= start && m.index < end))
     .map((m) => ({ index: m.index, match: m[0] }));
 }
 

@@ -1464,18 +1464,26 @@ test("V: a general-purpose subagent inside a code span ships whole and is reject
   assert.ok(!errors.some((m) => m.includes("`general` subagent")), errors.join("\n"));
 });
 
-test("V: OpenCode renders a known todo phrase and rejects any other instruction to create or mark a todo", () => {
-  const errors = ocErrors("Create a todo per step.\n\nThen add a todo for the review.", [
-    "  - source: sp/skills/alpha",
-  ]);
-  const todo = errors.filter((m) => m.includes("todo instruction"));
-  assert.deepEqual(
-    todo,
+test("V: OpenCode renders a known todo phrase and rejects any other todo word outside code", () => {
+  const errors = ocErrors(
     [
-      'opencode/deniz-process/skills/deniz-process.alpha/SKILL.md:8: todo instruction "add a todo" in opencode/ — OpenCode 2 has no todo tool: reword it, or add a row to the OpenCode todo table (references-and-linking.md Harness phrasing)',
-    ],
-    errors.join("\n"),
+      "Create a todo per step.",
+      "",
+      "Then add a todo for the review. Track each task as a to-do.",
+      "",
+      "Create a TODO per step, but insert `// TODO: guard` where the guard belongs:",
+      "",
+      "```csharp",
+      "// TODO: guard param",
+      "```",
+    ].join("\n"),
+    ["  - source: sp/skills/alpha"],
   );
+  const todo = errors.filter((m) => m.includes("todo word"));
+  const message = (line: number, word: string): string =>
+    `opencode/deniz-process/skills/deniz-process.alpha/SKILL.md:${line}: todo word "${word}" outside code in opencode/ — OpenCode 2 has no todo tool: reword it, write a code marker as code, or add a row to the OpenCode todo table (references-and-linking.md Harness phrasing)`;
+  assert.deepEqual(todo, [message(8, "todo"), message(8, "to-do"), message(10, "TODO")], errors.join("\n"));
+  assert.ok(!errors.some((m) => m.includes("codex/") && m.includes("todo")), "Codex keeps upstream's todo words");
   const root = makeRepo();
   writeFileSync(
     join(root, "external", "sp", "skills", "delta", "SKILL.md"),
@@ -1492,6 +1500,23 @@ test("V: OpenCode renders a known todo phrase and rejects any other instruction 
     "Keep a visible Markdown checklist with one line per step, and tick each line as it is done.",
   );
   assert.equal(line(codexPluginPath(root, "deniz-process", "skills", "delta", "SKILL.md")), "Create a todo per step.");
+});
+
+test("V: only using-superpowers' OpenCode tool notes may name the removed todo tool", () => {
+  const root = makeRepo();
+  const notes = "# OpenCode notes\n\nOpenCode 2 has no todo tool. The OpenCode 1 `todowrite` tool was removed.\n";
+  const skill = join(root, "external", "sp", "skills", "using-superpowers");
+  mkdirSync(join(skill, "references"), { recursive: true });
+  writeFileSync(join(skill, "SKILL.md"), "---\nname: using-superpowers\ndescription: U\n---\nRead the notes.\n");
+  writeFileSync(join(skill, "references", "harness-tools.md"), notes);
+  writeFileSync(join(root, "external", "sp", "skills", "delta", "references", "notes.md"), notes);
+  const manifest = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(manifest, `${readFileSync(manifest, "utf8")}  - source: sp/skills/using-superpowers\n`);
+  buildAll(root);
+  const todo = validateRepo(root)
+    .filter((f) => f.level === "error" && f.message.includes("todo word"))
+    .map((f) => f.message.slice(0, f.message.indexOf(":", f.message.indexOf(".md"))));
+  assert.deepEqual(todo, ["opencode/deniz-process/skills/deniz-process.delta/references/notes.md"]);
 });
 
 test("O4–O6: phantom skills, skill name, and agent keys", () => {

@@ -178,7 +178,7 @@ last item; the warning is not a proof that the ambiguity is harmless.
 
 Three phrasings name a harness tool, so localization renders each as a unit around its neutral
 facts, before the facts themselves are rendered: the skill-tool call, the subagent-dispatch words,
-and, in OpenCode alone, an instruction to create or mark a todo. Authors write upstream's Claude
+and, in OpenCode alone, a phrase that names a todo. Authors write upstream's Claude
 Code wording, and the Claude Code rendering is identity. Every other sentence is left as written. The renderer and its
 closed tables are `localize` in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts); the skill-tool
 call grammar is the template in [Handoff templates](#handoff-templates). Phrasing is rendered in
@@ -241,10 +241,10 @@ other skill keeps a visible Markdown checklist and ticks each line as it is done
 | `find a todo list helpful` | `find ticking lines off helpful` |
 | `a todo-list record` | `a Markdown checklist` |
 
-Each row is the exact upstream phrase, whitespace between its words kept as written, so a reworded
-phrase stops matching and the [OpenCode todo check](#harness-vocabulary-check) rejects it rather
-than a broad word swap rendering it into a sentence that no longer reads. The `using-superpowers`
-OpenCode tool notes say the same for a session that loads them.
+Each row is the exact upstream phrase, whitespace between its words kept as written. A reworded
+phrase stops matching, and the [OpenCode todo check](#harness-vocabulary-check) rejects the todo word
+it still holds, rather than a broad word swap rendering it into a sentence that no longer reads. The
+`using-superpowers` OpenCode tool notes say the same for a session that loads them.
 
 Whether a model follows a rendered sentence is runtime evidence, bounded to one model
 (`gpt-5.6-luna` at low effort):
@@ -298,11 +298,17 @@ phrasing leaves whole there. The patterns sit beside the phrasing tables in
 must pass them. A new upstream phrasing therefore fails the build instead of reaching a harness that
 has no such tool; the fix is a curated rewording or a new table row.
 
-Every Markdown file under `opencode/` is also checked for an instruction to create or mark a todo:
-`create`, `add`, `mark`, `update`, `tick`, or `complete`, with either initial case, then up to two
-words, then `todo` or `todos` (`openCodeTodoInstructions`). The check skips inline code spans, which
-are literal, and does not read the code marker `TODO`. Every OpenCode rendering in the todo table
-must pass it. Codex keeps upstream's todo words and is not checked.
+Every Markdown file under `opencode/` is also checked for a todo word: `todo`, `todos`, `to-do`, or
+`to-dos`, in any letter case and not inside a longer word (`openCodeTodoWords`). So `TodoWrite`,
+which the check above rejects, and OpenCode 1's `todowrite` hold none, while `todo_list` holds one.
+The check skips inline code spans and fenced code blocks, which are literal, and a fence that never
+closes runs to the end of the file. The all-caps `TODO` marker follows the same rule: written as
+code, as in ``insert a `// TODO: guard` comment``, it is code, while "Create a TODO per step" in prose
+fails. Other bundled files are code and are not read. One file is exempt: `using-superpowers`'
+OpenCode tool notes, `references/harness-tools.md`, which must name the todo tool OpenCode 2 removed
+(`OPENCODE_TODO_NOTES`). Every OpenCode rendering in the todo table must pass the check, so a todo
+phrase no row renders fails instead of shipping. Codex keeps upstream's todo words and is not
+checked.
 
 ## `depends_on` and audience reachability
 
