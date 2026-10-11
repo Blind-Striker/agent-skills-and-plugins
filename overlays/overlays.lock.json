@@ -370,7 +370,9 @@
   "deniz-process/subagent-driven-development": {
     "source": "superpowers/skills/subagent-driven-development",
     "files": {
-      "SKILL.md": "f7bbf6a01b519807ec00baf5e98522bed33f8834"
+      "SKILL.md": "f7bbf6a01b519807ec00baf5e98522bed33f8834",
+      "implementer-prompt.md": "5c8ecd61fba036263bf88d0af24d47125780efa0",
+      "re-review-prompt.md": "d49c1825f01e79641ba37e5e942d1d2bbaad1a3c"
     }
   },
   "deniz-process/systematic-debugging": {

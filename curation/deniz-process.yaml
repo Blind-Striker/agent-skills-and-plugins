@@ -52,8 +52,10 @@ items:
     body: patch # two edits that keep the shared review contract whole; the description stays
     # upstream's. Fix rounds run the project's whole suite after the covering tests, as the
     # test-driven-development overlay requires, where upstream said a one-line fix needs only the
-    # covering tests. The final whole-branch review triages the reviewer's "Declined to judge" list
-    # as ledgered rulings, as executing-plans does; upstream's SDD never read that list.
+    # covering tests: SKILL.md says so, the implementer prompt's fix round runs and reports both,
+    # and the re-review prompt checks the whole suite's output as the evidence. The final
+    # whole-branch review triages the reviewer's "Declined to judge" list as ledgered rulings, as
+    # executing-plans does; upstream's SDD never read that list.
     depends_on: [finishing-a-development-branch, requesting-code-review, using-git-worktrees] # end-of-run finish, the reviewer template, worktree setup
   - source: superpowers/skills/executing-plans
     invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain.
