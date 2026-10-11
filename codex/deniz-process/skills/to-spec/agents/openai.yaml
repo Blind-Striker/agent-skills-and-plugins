@@ -1,6 +1,6 @@
 interface:
   display_name: "To Spec"
-  short_description: "Turn the current conversation into a spec and publish it to t..."
+  short_description: "Turn the current conversation into a spec and publish it to the…"
   default_prompt: "Use $deniz-process:to-spec for this task."
 policy:
   allow_implicit_invocation: false

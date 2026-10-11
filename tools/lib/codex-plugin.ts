@@ -110,10 +110,33 @@ export function adaptCodexSkillDocument(name: string, doc: ParsedDoc): { documen
   };
 }
 
+/** The longest `interface.short_description` the emitter writes. */
+const SHORT_DESCRIPTION_LIMIT = 64;
+/** A sentence ends at `.`, `!`, or `?` before the end of the text or before a capital. */
+const SENTENCE_END = /[.!?](?=$|\s+[A-Z])/g;
+
+/**
+ * The menu label of a manual skill: as many whole sentences of its description as fit. A first
+ * sentence that alone is too long is cut after its last whole word, marked with an ellipsis, so no
+ * label ends inside a word.
+ */
 function shortSkillDescription(name: string, description: string): string {
   const normalized = description.replace(/\s+/g, " ").trim();
   const candidate = normalized.length >= 25 ? normalized : `Use ${codexDisplayName(name)} for relevant Codex tasks.`;
-  return candidate.length <= 64 ? candidate : `${candidate.slice(0, 61).trimEnd()}...`;
+  if (candidate.length <= SHORT_DESCRIPTION_LIMIT) {
+    return candidate;
+  }
+  const ends = [...candidate.matchAll(SENTENCE_END)]
+    .map((m) => m.index + 1)
+    .filter((end) => end <= SHORT_DESCRIPTION_LIMIT);
+  const sentenceEnd = ends.at(-1);
+  if (sentenceEnd !== undefined) {
+    return candidate.slice(0, sentenceEnd);
+  }
+  // The ellipsis takes one character, so the words keep at most the limit minus one.
+  const wordEnd = candidate.lastIndexOf(" ", SHORT_DESCRIPTION_LIMIT - 1);
+  const words = wordEnd > 0 ? candidate.slice(0, wordEnd) : candidate.slice(0, SHORT_DESCRIPTION_LIMIT - 1);
+  return `${words.replace(/[\s,;:—-]+$/, "")}…`;
 }
 
 export function createCodexSkillAgentManifest(

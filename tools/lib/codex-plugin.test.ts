@@ -168,3 +168,39 @@ test("Codex skill adaptation never shortens a description; the length rule fails
   assert.equal(result.document.frontmatter.description, long);
   assert.deepEqual(Object.keys(result).sort(), ["document", "dropped"]);
 });
+
+test("a manual skill's short description ends at a sentence boundary, never mid-word", () => {
+  const short = (description: string): string =>
+    createCodexSkillAgentManifest("deniz-process", "alpha", description, "manual")?.interface.short_description ?? "";
+  assert.equal(
+    short("Ask which skill or flow fits your situation. A router over the module's skills and flows."),
+    "Ask which skill or flow fits your situation.",
+  );
+  assert.equal(
+    short("Stop. That last message did not land. Re-pitch it so it lands with the reader this time."),
+    "Stop. That last message did not land.",
+    "as many whole sentences as fit",
+  );
+  assert.equal(
+    short("Stop. That last message did not land: re-pitch it."),
+    "Stop. That last message did not land: re-pitch it.",
+  );
+  assert.equal(
+    short("Use the build tool, e.g. Make, to run every target in one place. Second sentence here."),
+    "Use the build tool, e.g. Make, to run every target in one place.",
+    "an abbreviation before a capital is a boundary only when a sentence fits there",
+  );
+  const long = "A relentless interview to sharpen a plan or design, which also records decisions as they land.";
+  const cut = short(long);
+  assert.equal(cut, "A relentless interview to sharpen a plan or design, which also…");
+  assert.ok(cut.length <= 64);
+  assert.ok(!cut.includes("..."), "no ASCII ellipsis");
+});
+
+test("a short description keeps a word that ends exactly where the ellipsis starts", () => {
+  const sixtyThree = `${"word ".repeat(12)}abc`; // 63 characters, the last word whole
+  assert.equal(sixtyThree.length, 63);
+  const label = createCodexSkillAgentManifest("p", "s", `${sixtyThree} and more text`, "manual")?.interface
+    .short_description;
+  assert.equal(label, `${sixtyThree}…`);
+});

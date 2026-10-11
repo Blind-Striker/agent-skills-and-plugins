@@ -234,7 +234,11 @@ An ordinary Codex skill is implicitly eligible and explicitly addressable. `manu
 `agents/openai.yaml` with `policy.allow_implicit_invocation: false`, which keeps the skill out of
 the catalog the model is offered while `$plugin:skill` still injects it (measured on Codex CLI
 0.153.4, [record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md));
-`auto` and `both` write no disabling policy. Absent invocation uses the Codex target default.
+`auto` and `both` write no disabling policy. Absent invocation uses the Codex target default. The
+policy file's `interface.short_description` is a menu label, not the trigger description: as many
+whole sentences of the rendered description as fit in 64 characters, or, when the first sentence
+alone is longer, its leading whole words and an ellipsis, so a label never ends inside a word
+([`createCodexSkillAgentManifest`](../../tools/lib/codex-plugin.ts)).
 Codex does not expose an implicit-only skill policy, so `auto` retains native explicit invocation
 without being mislabeled model-only.
 

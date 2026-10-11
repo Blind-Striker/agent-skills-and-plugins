@@ -1,6 +1,6 @@
 interface:
   display_name: "Aspire Project V2 Migration"
-  short_description: "**WORKFLOW SKILL** - Safely migrates eligible Aspire 13.6+ Ap..."
+  short_description: "**WORKFLOW SKILL** - Safely migrates eligible Aspire 13.6+…"
   default_prompt: "Use $deniz-dotnet-aspire:aspire-project-v2-migration for this task."
 policy:
   allow_implicit_invocation: false

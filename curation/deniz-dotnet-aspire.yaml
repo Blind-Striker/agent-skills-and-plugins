@@ -6,7 +6,7 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.5.0
+  version: 0.5.1
 items:
   - source: aspire-skills/skills/aspire
     invocation: both # stated so the passthrough posture is explicit: the model routes Aspire work here and
