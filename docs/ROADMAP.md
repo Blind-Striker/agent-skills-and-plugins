@@ -117,14 +117,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    upstream; the packets recommend a treatment for each item; every take, skip, merge, or
    modification is still the curator's decision, and each wave measures its upstream again before
    it starts. A wave moves one submodule.
-   - **W5 `mattpocock-skills`** (92 commits ahead, v1.3.0 and v1.3.1). `resolving-merge-conflicts`
-     was deleted upstream and is still taken in `curation/deniz-process.yaml`; the packet
-     recommends dropping it together with its `ask-deniz` route and its authored
-     `docs/cheatsheet.md` line. Eighteen of 25 taken or merge-source items changed;
-     the 11 drifted overlays need recuts, and a 3-way replay measured at `b0618bc` keeps conflicts
-     in 5 patch items. `domain-modeling` replaced `CONTEXT-FORMAT.md` with `GLOSSARY-FORMAT.md`,
-     and adopting GLOSSARY needs this repository's own `CONTEXT.md` relocation before the pin
-     moves.
+   - **W5 `mattpocock-skills`** (releases v1.3.0 and v1.3.1 since the pin).
+     `resolving-merge-conflicts` was deleted upstream and is still taken in
+     `curation/deniz-process.yaml`; the packet recommends dropping it together with its `ask-deniz`
+     route and its authored `docs/cheatsheet.md` line. Eighteen of 25 taken or merge-source items
+     changed; the 11 drifted overlays need recuts, and a 3-way replay measured at `b0618bc` keeps
+     conflicts in 5 patch items. `domain-modeling` replaced `CONTEXT-FORMAT.md` with
+     `GLOSSARY-FORMAT.md`, and adopting GLOSSARY needs this repository's own `CONTEXT.md`
+     relocation before the pin moves.
      `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new candidates; `pr` first needs
      attribution for an origin outside the submodules. The wave also decides the
      `setup-matt-pocock-skills` question of patching it to prefer `AGENTS.md`, since OpenCode 2

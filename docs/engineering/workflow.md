@@ -121,9 +121,9 @@ Read every displayed upstream diff. If drift exists, the command stops before ch
 rerun with `--bless --yes` only after that review. Blessing records the current primary and declared
 merge inputs as reviewed. It does not merge new upstream content into an owned overlay or prove that
 the body still serves its curation intent; for a frontmatter override, reread the new body and
-rewrite the override first when it no longer describes it. A patch that no longer applies to the current upstream
-cannot be blessed: `--bless` refuses before it shows any drift, even with `--yes`, and names the
-rebase.
+rewrite the override first when it no longer describes it. A patch that no longer applies to the
+current upstream cannot be blessed: `--bless` refuses before it shows any drift, even with `--yes`,
+and names the rebase.
 
 These are the only two review ceremonies, and every message names them in one spelling. The build
 and `eject` name `npm run eject -- <plugin> <item> --bless` while the overlay or patch still applies,
