@@ -10,6 +10,9 @@ metadata:
 
 You don't remember every skill, so ask.
 
+These summaries orient you; they are not the skills. Never recommend skipping a step on the strength
+of a summary here: say what that step produces and let the user decide.
+
 A **flow** is a path through the skills. Most work travels one **main flow**, two **on-ramps** merge
 onto it, and everything else is standalone or a vocabulary layer running underneath.
 
@@ -22,11 +25,11 @@ pulls it in. The generated package renders explicit pointers in each harness's n
 ### 1. Sharpen the idea
 
 - **`@deniz-process.grill-with-docs`** when you are in a working directory. It interviews you and records
-  qualifying terms in `CONTEXT.md` and qualifying decisions in ADRs, creating either lazily.
+  qualifying terms in `GLOSSARY.md` and qualifying decisions in ADRs, creating either lazily.
   Stateful, and the better of the two whenever a repo is there to write into.
 - **`@deniz-process.grill-me`** when there is no working directory — same interview, no paper trail.
 
-Both drive the same `grilling` primitive underneath. It works the design tree in **rounds**: the
+Both drive the same `deniz-process.grilling` primitive underneath. It works the design tree in **rounds**: the
 whole frontier at once, numbered, each with a recommended answer, and it dispatches subagents to
 find environment facts rather than asking you for them.
 
@@ -45,8 +48,12 @@ what to do about it and makes you say yes. On small work you will often only wan
 **The light ladder**, when the work is a feature you can hold in your head:
 
 **`@deniz-process.to-spec`** turns the thread into a spec → **`@deniz-process.to-tickets`** splits it into tracer-bullet tickets
-with blocking edges → **`@deniz-process.implement`** builds one ticket at a time, clearing context between them.
-The `implement` skill drives the test-first loop and the review itself; you do not need to invoke those.
+with blocking edges → then either **`@deniz-process.implement`** builds one ticket at a time, clearing context
+between them, or **`@deniz-process.implement-spec`** builds the whole spec in one run: it reads the tickets as
+a task graph, runs implementer subagents across the ready frontier in parallel, and lands
+everything on one integration branch. Its input is the ticket graph, which is also what separates
+it from subagent-driven development below, which works a plan. Both drive the test-first loop and
+the review themselves; you do not need to invoke those.
 
 **The heavy ladder**, when the work is multi-session or several people's worth:
 
@@ -61,20 +68,36 @@ Something you will still be building next week: heavy ladder.
 
 ### 4. Build
 
-Inside either ladder, the test-first loop is `test-driven-development` — model-reachable, so it
-arrives when you are writing a behaviour rather than because you typed it. Reach for
-`using-git-worktrees` when a piece of work wants isolation from what is already in your tree.
+Inside either ladder, the test-first loop is `deniz-process.test-driven-development` — model-reachable,
+so it arrives when you are writing a behaviour rather than because you typed it. Reach for
+`deniz-process.using-git-worktrees` when a piece of work wants isolation from what is already in your
+tree.
 
 ### 5. Close out
 
 - **`@deniz-process.requesting-code-review`** reviews the diff on two axes, Standards and Spec, against a fixed
   point. Ask for it on a branch or a PR whenever you want the two-axis read.
-- `receiving-code-review` is the other half: how to take findings without capitulating or getting
+- `deniz-process.receiving-code-review` is the other half: how to take findings without capitulating or getting
   defensive.
-- `verification-before-completion` is the discipline that stops "it works" from being a claim you
+- `deniz-process.verification-before-completion` is the discipline that stops "it works" from being a claim you
   did not run. It fires on its own when you are about to say done.
 - **`@deniz-process.finishing-a-development-branch`** decides how the work integrates, and refuses to remove a
   worktree with uncommitted files behind your back.
+- **`@deniz-process.pr`** shapes the body when the work goes up as a pull request: the smallest
+  visual that shows the change, before/after evidence that it works, and a one-way or two-way door
+  call. A pull request template the repo already has wins; it fills only that template's sections.
+
+### 6. Look back
+
+**`@deniz-process.retro`** closes the loop. After a build, and especially one that went sideways, it
+looks back over the session and proposes changes to the agent's **environment**, not the code:
+navigation pointers, automated checks, coding standards, steering files, tooling. It edits nothing
+itself. Run it in the session it looks back on, before you clear; after clearing, point it at that
+session's log.
+
+When a session went wrong, retro pairs with **`@deniz-process.diagnosing-superpowers`**:
+diagnosing-superpowers gathers the evidence, cited line by line, and gives no advice; retro proposes
+the environment changes.
 
 ## On-ramps
 
@@ -87,16 +110,14 @@ A starting situation that generates work, then merges onto the main flow.
 - **Something's broken** → `deniz-process.systematic-debugging`. Model-reachable, because the trigger is the
   situation rather than a wish. It refuses to theorise until it has a tight feedback loop — one
   command that already goes red on *this* bug — then fixes with a regression test. It redacts
-  secrets from everything it shows you along the way.
+  secrets from everything it shows you along the way. Once the fix is in, run
+  **`@deniz-process.retro`** in the same session to ask what would have prevented the bug.
 
 - **A huge, foggy effort** — greenfield, or a build too big to see the end of → **`@deniz-process.wayfinder`**.
   The most demanding flow here. It charts a shared map of decision tickets and resolves them one at
   a time, producing **decisions, not deliverables**, until the way is clear. Then it hands off: join
   the main flow at `to-spec` or `brainstorming`, depending on which ladder the cleared work wants.
   Never reach for it on a well-scoped feature.
-
-- **A merge went sideways** → `deniz-process.resolving-merge-conflicts`. Model-reachable; the conflict is the
-  trigger.
 
 ## Codebase health
 
@@ -109,10 +130,10 @@ picking one *generates an idea* you take back to step 1.
 Two model-reachable references that run *beneath* the other skills, each the single source of truth
 for its words. You get them by naming the confusion, not by typing a command.
 
-- `domain-modeling` sharpens the project's **domain** language: challenge a fuzzy term, resolve one
+- `deniz-process.domain-modeling` sharpens the project's **domain** language: challenge a fuzzy term, resolve one
   word doing three jobs, record a hard-to-reverse decision as an ADR. It is what `grill-with-docs`
-  drives to keep `CONTEXT.md` a clean glossary.
-- `codebase-design` is the deep-module vocabulary — module, interface, depth, seam, adapter,
+  drives to keep `GLOSSARY.md` a clean glossary.
+- `deniz-process.codebase-design` is the deep-module vocabulary — module, interface, depth, seam, adapter,
   leverage, locality — for designing a module's **shape**: a lot of behaviour behind a small
   interface at a clean seam.
 
@@ -134,7 +155,7 @@ Reach for these directly; they are not on any flow.
 | **`@deniz-process.using-superpowers`** | Switch this session to skill-driven working. Flipped by hand, never automatically. |
 | **`@deniz-process.diagnosing-superpowers`** | A session went wrong — repeated work, an ignored plan, a skill that did not fire, too slow or too costly. It finds out why, with cited evidence, and drafts an issue for the superpowers maintainers only when you approve the text. |
 | **`@deniz-process.setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |
-| `dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. |
+| `deniz-process.dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. |
 
 ## Phase boundaries
 

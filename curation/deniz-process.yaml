@@ -83,9 +83,11 @@ items:
     # X" use work at all. His two-axis separation is kept as a reporting rule — severity within an
     # axis, never across — because that insight is about masking, not about topology.
     # Topology is the one place we diverge from him: one reviewer by default, two only when the
-    # spec is a genuinely separate document. Every review inside subagent-driven-development has
-    # the plan AS the requirements, so a second subagent would read one document twice per range,
-    # in a skill that already warns its final-review fix wave outcosts all its tasks.
+    # spec is a genuinely separate document. subagent-driven-development's final whole-branch review,
+    # the one review there that fills this template (its per-task reviews use its own
+    # task-reviewer-prompt.md), has the plan AS the requirements, so a second subagent would read one
+    # document twice for the range, in a skill that already warns its final-review fix wave outcosts
+    # all its tasks.
     # code-reviewer.md keeps its name and place: SDD reaches it by relative path from three spots
     # including a flowchart, and validate now guards that (ADR-0008 path tier).
     # Superpowers v7's two reviewer sections are ported into that design, curator's call. "The spec
@@ -93,6 +95,12 @@ items:
     # reads only a supplied spec, its grade-by-effect half in Calibration for both axes. The
     # "Declined to judge" list goes to whichever reviewer holds the spec, and the typed "review
     # since X" path also rules on that list and re-grades by effect, as both executors do.
+    # From code-review's later revisions, curator's call: the standards search must list
+    # CODING_STANDARDS.md, where retro's judgement rules land, and CONTRIBUTING.md whenever they
+    # exist, in SKILL.md and in the template's placeholder; and the coordinator waits for every
+    # reviewer before reading or acting on any review, the outcome behind upstream's "foreground",
+    # which is a Claude Code mechanism. The scope-creep and spec-quote wording stays ours: a finding
+    # where the spec is silent may cite a reasonable user's expectation.
     body: overlay
     merged_from: [mattpocock-skills/skills/engineering/code-review] # same-filename rule suffices — matt ships only a SKILL.md
     depends_on: [receiving-code-review] # taking the feedback is its own discipline, and it is taken
@@ -119,6 +127,8 @@ items:
     # a dangling model-edge in our set (that target is manual), so the file could not flow pristine.
     # Superpowers v7's whole-suite paragraph is ported verbatim under GREEN, with a one-line relay at
     # the checklist; subagent-driven-development's fix rounds are patched to match it.
+    # matt tdd's later seam note is ported into the conditional seam paragraph: each proposed seam
+    # gets a one-line note on what it catches and what it misses.
     body: overlay
     merged_from:
       - source: mattpocock-skills/skills/engineering/tdd
@@ -137,6 +147,9 @@ items:
     # diagnosing-bugs' feedback-loop engineering, in seven phases. The overlay covers SKILL.md
     # only, so the sibling technique files keep flowing from upstream; the merge source is
     # blessed below — its drift stops the build exactly like the primary's.
+    # diagnosing-bugs' later forced-red check sits in Phase 6 step 1 only: a red forced by mutating
+    # code or a fixture is diffed against a pristine copy before it is trusted. Its route to retro
+    # lives in ask-deniz, as upstream's lives in its router.
     body: overlay
     merged_from: [mattpocock-skills/skills/engineering/diagnosing-bugs]
     frontmatter:
@@ -184,7 +197,7 @@ items:
     invocation: auto # the knowledge grill-me/grill-with-docs invoke; upstream marks it model-invoked for exactly this reason
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/grill-with-docs
-    invocation: manual # stateful grill (CONTEXT.md + ADRs); entry point, drags domain-modeling (taken)
+    invocation: manual # stateful grill (GLOSSARY.md + ADRs); entry point, drags domain-modeling (taken)
     body: patch # namespaces both handles, so each harness renders a skill-tool sentence it can follow
     depends_on: [domain-modeling, grilling]
     omit: ["agents/**"]
@@ -211,7 +224,9 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/triage
     invocation: manual # upstream's own flag; issue-tracker state machine
-    body: patch # replace host-specific Skill-tool prose and make setup/grilling handoffs deterministic
+    body: patch # upstream's own skill-tool sentence for the grill, its two handles namespaced so each
+    # harness renders the call natively; the setup handoff is a namespaced user pointer, and the
+    # two `/triage` self-references read as prose, since no harness spells this skill that way
     depends_on: [grilling, domain-modeling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/wayfinder
@@ -221,16 +236,56 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/implement
     invocation: manual # upstream's own flag; the ceremony that opens an implementation run
-    # Two-line patch, curator's call: upstream's bare `/tdd` and `/code-review` are matt's own
-    # convention for "the model invokes this", which collides with our grammar where a slash means
-    # the human is the audience — and both targets are model-reachable here, so a pointer would
-    # not even link. Repointed to neutral-space model-edges; each tree localizes them.
+    # Two-line patch, curator's call: upstream's own skill-tool sentences, their handles namespaced to
+    # the merged TDD and review items that replace matt's tdd and code-review here; each harness
+    # renders the call natively. No setup pointer for the ticket fetch.
     body: patch
     depends_on: [requesting-code-review, test-driven-development]
     omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/implement-spec
+    invocation: manual # upstream's own flag; the parallel executor for a spec's ticket graph, where
+    # subagent-driven-development works a plan and forbids parallel implementers.
+    # Body patch, curator's call: the two skill-tool sentences name the merged TDD and review items,
+    # as implement's do; the setup handoff is a namespaced user pointer; the description is one
+    # sentence of 64 characters or fewer, so the Codex menu label shows it whole; one line creates
+    # each implementer's worktree with git where the harness has no per-subagent worktree (OpenCode 2
+    # records none). Upstream's own documented run rules land as one sentence each: seams come from
+    # the spec or ticket, and a background implementer reports back rather than guess one; the
+    # frontier comes from what merged into the integration branch; two frontier tickets sharing a
+    # file run in order or share fixed names; a ticket that needs untracked fixtures runs in the
+    # main checkout; and after the single fix subagent only the fixed findings are re-checked, with
+    # no second broad review, while the project's whole test suite still runs, as the TDD overlay
+    # and subagent-driven-development's fix rounds require. Codex has no subagent tool recorded in
+    # this repository's research, so there it is "only a slower implement", upstream's own words.
+    body: patch
+    depends_on: [requesting-code-review, test-driven-development]
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/pr
+    invocation: manual # curator's call, diverging from upstream's model-invoked default: it shapes a
+    # pull request body only when typed. superpowers' finishing-a-development-branch already follows
+    # a repository's own template, so a PR the agent opens unasked still has a shape.
+    # Body patch: a pull request template the repository already has wins, and this skill fills
+    # only that template's matching sections; the nested metadata.credits leaves the frontmatter,
+    # because the credit lives in CREDITS.md and the notice packs; CREDITS.md links to show-me in
+    # humanlayer/skills, where upstream's link pointed at humanlayer/humanlayer.
+    body: patch
+    merged_from:
+      # attribution only, never curated: the Summary section reproduces HumanLayer's show-me
+      # almost word for word by upstream's own credit, so its MIT license ships in every notice pack
+      - source: humanlayer-skills/plugins/show-me/skills/show-me
+        files: [SKILL.md]
+    omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/setup-matt-pocock-skills
     invocation: manual # curator's call: the wizard comes too — useful, harmless, pure runtime
-    body: patch # normalize references in the installed tracker/domain templates across harnesses
+    body: patch # normalize references in the installed tracker/domain templates across harnesses:
+    # they are copied into a consumer repo, so they keep bare names, never this repo's namespace.
+    # SKILL.md, curator's call: the "Agent skills" block goes to AGENTS.md, created when missing,
+    # and the draft proposes a bare `@AGENTS.md` line for a CLAUDE.md that does not import it,
+    # because OpenCode and Codex never read CLAUDE.md, so tracker settings written there would leave
+    # the ticket skills blind in both. Section B always runs, since triage ships in this plugin: the
+    # "is triage installed?" probe could miss OpenCode's unadvertised deniz-process.triage, and a
+    # model edge into a manual item cannot be declared. The draft lists the labels step 4 will
+    # create on a remote tracker, so that change is approved before it runs.
     omit: ["agents/**"]
   # --- mattpocock design & standalone (batch 2) ---
   - source: mattpocock-skills/skills/engineering/codebase-design
@@ -251,13 +306,12 @@ items:
   - source: mattpocock-skills/skills/engineering/prototype
     invocation: both # curator's call: a deliberate "bir prototip yap" is as real as the model reaching for it
     omit: ["agents/**"]
-  - source: mattpocock-skills/skills/engineering/resolving-merge-conflicts
-    invocation: auto # the trigger is the situation (an in-progress conflict), not a wish
-    omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/teach
     invocation: manual # upstream's own flag; stateful learning workspace, wanted around. Stays a
     # skill, not as: command: upstream ships /teach as a skill body, and a command would drop its
     # four *-FORMAT.md files in OpenCode
+    body: patch # one line: workspace paths resolve from "the directory this skill was started in",
+    # where upstream named `/teach`, a spelling no harness uses for this skill
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/productivity/writing-for-agents
     invocation: both # curator's call now, not upstream's flag: upstream deleted writing-great-skills,
@@ -268,6 +322,19 @@ items:
     # rewording such documents. Still the complement, not the substitute, of writing-skills: that one
     # is a TDD-for-skills testing methodology opened by hand, this one is the design vocabulary.
     body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build
+    omit: ["agents/**"]
+  - source: mattpocock-skills/skills/engineering/retro
+    invocation: manual # upstream's own flag; a look back over a session that proposes changes to the
+    # agent's environment and edits nothing. Kept separate from diagnosing-superpowers, curator's
+    # call: that one gathers cited evidence and refuses to advise, this one advises, and ask-deniz
+    # names them as a pair.
+    # Body patch: its two writing-for-agents references become a namespaced skill-tool call and a
+    # namespaced fact, a load upstream makes on every run because it judges steering files by that
+    # skill's yardstick. Its log-reading step points at diagnosing-superpowers' session-discovery
+    # and context-safety notes, curator's call: both are harness-neutral, and context-safety keeps a
+    # megabyte-long transcript line out of the window. Those are bundled files, not its body.
+    body: patch
+    depends_on: [writing-for-agents]
     omit: ["agents/**"]
   - source: asd-ste100
     invocation: auto # passive controlled-English rewrite knowledge and wait-what's model-reachable
@@ -287,7 +354,7 @@ items:
   - source: mattpocock-skills/skills/productivity/wait-what
     invocation: manual # upstream's own flag, and the right one: a mid-conversation corrective typed
     # when a message did not land. Its STE request now loads the curated rules rather than naming a
-    # standard with nothing behind it; CONTEXT.md remains the second half of the repitch.
+    # standard with nothing behind it; GLOSSARY.md remains the second half of the repitch.
     body: patch
     depends_on: [asd-ste100]
     omit: ["agents/**"]
@@ -321,8 +388,14 @@ items:
     # /clear and /compact are Claude-only spellings. The shape is upstream's and worth keeping — main
     # flow, on-ramps, vocabulary underneath, phase boundaries — the routing is ours.
     # Stateful routing names only qualifying vocabulary and decisions because domain-modeling creates
-    # CONTEXT.md and ADRs lazily; the router must not promise files that the delegated skill may skip.
-    depends_on: [resolving-merge-conflicts, systematic-debugging] # both routes are model-reachable facts, so a target deleted upstream fails as a dangling reference
+    # GLOSSARY.md and ADRs lazily; the router must not promise files that the delegated skill may skip.
+    # Upstream's read-first fix lands as its intent, curator's call: a summary is never grounds to
+    # skip a step, so say what the step produces and let the user decide. Upstream sends the model to
+    # open each skill's SKILL.md, a path this repo forbids into a manual body, and a load would start
+    # the skill rather than read it. implement-spec, pr and retro get routes; retro pairs with
+    # diagnosing-superpowers, which gathers evidence and gives no advice while retro proposes the
+    # environment changes.
+    depends_on: [codebase-design, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # every model-reachable skill the router names is a fact, so a target deleted or renamed upstream fails the build instead of leaving a dead route
     omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---
   # --- mattpocock components read and rejected, kept visible so a pin move does not re-raise them ---
@@ -339,6 +412,11 @@ items:
     exclude: true # article-writing hat trick (exploit) — same reason as writing-fragments
   - source: mattpocock-skills/skills/in-progress/claude-handoff
     exclude: true # overlaps the taken handoff, and its name binds it to one harness
+  - source: mattpocock-skills/skills/in-progress/chief-of-staff
+    exclude: true # once started it runs an environment pass on every turn and asks for convention
+    # fixes before feature work, against the smallest correct change; its dispatch parts are taken
+    # already (subagent-driven-development, dispatching-parallel-agents, research), and retro covers
+    # its environment track as a skill you start. Re-raise it if it graduates out of in-progress.
   - source: mattpocock-skills/skills/misc/git-guardrails-claude-code
     exclude: true # installs Claude Code hooks; harness-specific setup with no OpenCode equivalent,
     # and hook installation is deliberately off here (hooks.include stays empty)

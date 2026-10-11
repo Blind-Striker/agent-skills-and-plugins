@@ -4554,8 +4554,15 @@
     "invocation": "manual",
     "body": "overlay",
     "dependsOn": [
-      "resolving-merge-conflicts",
-      "systematic-debugging"
+      "codebase-design",
+      "dispatching-parallel-agents",
+      "domain-modeling",
+      "grilling",
+      "receiving-code-review",
+      "systematic-debugging",
+      "test-driven-development",
+      "using-git-worktrees",
+      "verification-before-completion"
     ],
     "description": "Ask which skill or flow fits your situation. A router over the skills in this module.",
     "claude": {
@@ -4564,8 +4571,15 @@
       ],
       "edges": {
         "model": [
-          "deniz-process:resolving-merge-conflicts",
-          "deniz-process:systematic-debugging"
+          "deniz-process:codebase-design",
+          "deniz-process:dispatching-parallel-agents",
+          "deniz-process:domain-modeling",
+          "deniz-process:grilling",
+          "deniz-process:receiving-code-review",
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development",
+          "deniz-process:using-git-worktrees",
+          "deniz-process:verification-before-completion"
         ],
         "pointer": [
           "deniz-process:brainstorming",
@@ -4576,10 +4590,13 @@
           "deniz-process:grill-with-docs",
           "deniz-process:handoff",
           "deniz-process:implement",
+          "deniz-process:implement-spec",
           "deniz-process:improve-codebase-architecture",
+          "deniz-process:pr",
           "deniz-process:prototype",
           "deniz-process:requesting-code-review",
           "deniz-process:research",
+          "deniz-process:retro",
           "deniz-process:setup-matt-pocock-skills",
           "deniz-process:subagent-driven-development",
           "deniz-process:teach",
@@ -4608,8 +4625,15 @@
       "advertised": false,
       "edges": {
         "model": [
-          "deniz-process.resolving-merge-conflicts",
-          "deniz-process.systematic-debugging"
+          "deniz-process.codebase-design",
+          "deniz-process.dispatching-parallel-agents",
+          "deniz-process.domain-modeling",
+          "deniz-process.grilling",
+          "deniz-process.receiving-code-review",
+          "deniz-process.systematic-debugging",
+          "deniz-process.test-driven-development",
+          "deniz-process.using-git-worktrees",
+          "deniz-process.verification-before-completion"
         ],
         "pointer": [
           "@deniz-process.brainstorming",
@@ -4620,10 +4644,13 @@
           "@deniz-process.grill-with-docs",
           "@deniz-process.handoff",
           "@deniz-process.implement",
+          "@deniz-process.implement-spec",
           "@deniz-process.improve-codebase-architecture",
+          "@deniz-process.pr",
           "@deniz-process.prototype",
           "@deniz-process.requesting-code-review",
           "@deniz-process.research",
+          "@deniz-process.retro",
           "@deniz-process.setup-matt-pocock-skills",
           "@deniz-process.subagent-driven-development",
           "@deniz-process.teach",
@@ -4657,8 +4684,15 @@
       ],
       "edges": {
         "model": [
-          "$deniz-process:resolving-merge-conflicts",
-          "$deniz-process:systematic-debugging"
+          "$deniz-process:codebase-design",
+          "$deniz-process:dispatching-parallel-agents",
+          "$deniz-process:domain-modeling",
+          "$deniz-process:grilling",
+          "$deniz-process:receiving-code-review",
+          "$deniz-process:systematic-debugging",
+          "$deniz-process:test-driven-development",
+          "$deniz-process:using-git-worktrees",
+          "$deniz-process:verification-before-completion"
         ],
         "pointer": [
           "$deniz-process:brainstorming",
@@ -4669,10 +4703,13 @@
           "$deniz-process:grill-with-docs",
           "$deniz-process:handoff",
           "$deniz-process:implement",
+          "$deniz-process:implement-spec",
           "$deniz-process:improve-codebase-architecture",
+          "$deniz-process:pr",
           "$deniz-process:prototype",
           "$deniz-process:requesting-code-review",
           "$deniz-process:research",
+          "$deniz-process:retro",
           "$deniz-process:setup-matt-pocock-skills",
           "$deniz-process:subagent-driven-development",
           "$deniz-process:teach",
@@ -4887,7 +4924,7 @@
   "deniz-process/skill/domain-modeling": {
     "source": "mattpocock-skills/skills/engineering/domain-modeling",
     "invocation": "auto",
-    "description": "Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a CONTEXT.md, or recording or editing an ADR.",
+    "description": "Build and sharpen a project's domain model. Use when discussing codebase terminology, writing or editing a GLOSSARY.md, or recording or editing an ADR.",
     "claude": {
       "artifacts": [
         "skill"
@@ -5356,6 +5393,79 @@
       "bodyTransformations": []
     }
   },
+  "deniz-process/skill/implement-spec": {
+    "source": "mattpocock-skills/skills/engineering/implement-spec",
+    "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "requesting-code-review",
+      "test-driven-development"
+    ],
+    "description": "Build a spec's tickets in parallel on one integration branch.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:requesting-code-review",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": [
+          "deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process.implement-spec",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-process.requesting-code-review",
+          "deniz-process.test-driven-development"
+        ],
+        "pointer": [
+          "@deniz-process.setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:implement-spec",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-process:requesting-code-review",
+          "$deniz-process:test-driven-development"
+        ],
+        "pointer": [
+          "$deniz-process:setup-matt-pocock-skills"
+        ]
+      },
+      "dropped": [
+        "disable-model-invocation"
+      ],
+      "bodyTransformations": []
+    }
+  },
   "deniz-process/skill/improve-codebase-architecture": {
     "source": "mattpocock-skills/skills/engineering/improve-codebase-architecture",
     "invocation": "manual",
@@ -5424,6 +5534,59 @@
       "dropped": [
         "disable-model-invocation"
       ],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-process/skill/pr": {
+    "source": "mattpocock-skills/skills/engineering/pr",
+    "invocation": "manual",
+    "body": "patch",
+    "mergedFrom": [
+      "humanlayer-skills/plugins/show-me/skills/show-me"
+    ],
+    "description": "Use when writing a PR body.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process.pr",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:pr",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
       "bodyTransformations": []
     }
   },
@@ -5635,50 +5798,66 @@
       "bodyTransformations": []
     }
   },
-  "deniz-process/skill/resolving-merge-conflicts": {
-    "source": "mattpocock-skills/skills/engineering/resolving-merge-conflicts",
-    "invocation": "auto",
-    "description": "Use when you need to resolve an in-progress git merge/rebase conflict.",
+  "deniz-process/skill/retro": {
+    "source": "mattpocock-skills/skills/engineering/retro",
+    "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "writing-for-agents"
+    ],
+    "description": "Conduct a retrospective on a coding session.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process:writing-for-agents"
+        ],
         "pointer": []
       },
       "flags": {
-        "user-invocable": false
+        "disable-model-invocation": true
       }
     },
     "opencode": {
       "artifacts": [
         "skill"
       ],
-      "identity": "deniz-process.resolving-merge-conflicts",
-      "advertised": true,
+      "identity": "deniz-process.retro",
+      "advertised": false,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-process.writing-for-agents"
+        ],
         "pointer": []
       },
-      "dropped": []
+      "dropped": [
+        "disable-model-invocation"
+      ]
     },
     "codex": {
       "artifacts": [
         "skill"
       ],
-      "identity": "deniz-process:resolving-merge-conflicts",
+      "identity": "deniz-process:retro",
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "enabled",
+      "implicit": "disabled",
       "explicit": "available",
-      "policyFiles": [],
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-process:writing-for-agents"
+        ],
         "pointer": []
       },
-      "dropped": [],
+      "dropped": [
+        "disable-model-invocation"
+      ],
       "bodyTransformations": []
     }
   },
@@ -5865,6 +6044,7 @@
   "deniz-process/skill/teach": {
     "source": "mattpocock-skills/skills/productivity/teach",
     "invocation": "manual",
+    "body": "patch",
     "description": "Teach the user a new skill or concept, within this workspace.",
     "claude": {
       "artifacts": [

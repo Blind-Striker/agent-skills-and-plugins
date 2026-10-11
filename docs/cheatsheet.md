@@ -17,7 +17,7 @@ emitted as a command. Each target's identity rules live in
 
 | Curated Module | Main upstream sources | What this collection changes |
 |---|---|---|
-| [`deniz-process`](../curation/deniz-process.yaml) | [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent; [Matt Pocock's skills](https://github.com/mattpocock/skills); [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng | Combines the workflow sets, merges overlapping TDD/debug/review material, chooses invocation per item, replaces the upstream router with `ask-deniz`, omits upstream hooks and dead harness metadata |
+| [`deniz-process`](../curation/deniz-process.yaml) | [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent; [Matt Pocock's skills](https://github.com/mattpocock/skills); [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng; `pr`'s Summary guidance from [HumanLayer's `show-me`](https://github.com/humanlayer/skills) | Combines the workflow sets, merges overlapping TDD/debug/review material, chooses invocation per item, replaces the upstream router with `ask-deniz`, omits upstream hooks and dead harness metadata |
 | [`deniz-dotnet-general`](../curation/deniz-dotnet-general.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard; [dotnet/skills](https://github.com/dotnet/skills) by .NET Foundation contributors | Selects the .NET areas used here, merges a few overlapping skills, adapts manual ceremonies, and adds the original `writing-tunit-tests` skill |
 | [`deniz-dotnet-akka`](../curation/deniz-dotnet-akka.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Keeps the Akka specialist and reference set together, repairs/localizes handoffs, and links the cross-Module Aspire and General dependencies |
 | [`deniz-dotnet-aspire`](../curation/deniz-dotnet-aspire.yaml) | [Microsoft Aspire skills](https://github.com/microsoft/aspire-skills); selected Aspire material from [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Packages the official Aspire workflow closure, localizes its internal routes, and adds the selected testing and ServiceDefaults specialists |
@@ -47,10 +47,12 @@ with topic-outline inspiration credited in [`skills/deniz-dotnet-general/NOTICE.
 | Specify | `to-spec` | The conversation is settled enough to become a specification without another interview |
 | Plan | `writing-plans` / `to-tickets` | Turn sealed decisions into executable steps or tracer-bullet issue tickets |
 | Map a long effort | `wayfinder` | The work is larger than one agent session and needs a decision/ticket map |
-| Build | `implement`, `executing-plans`, `subagent-driven-development`, `test-driven-development` | A plan or tickets exist: `implement` works tickets, `executing-plans` runs a written plan inline in this session, `subagent-driven-development` runs it with a fresh subagent per task, and `test-driven-development` is the test-first discipline under each |
+| Build | `implement`, `implement-spec`, `executing-plans`, `subagent-driven-development`, `test-driven-development` | A plan or tickets exist: `implement` works tickets one at a time, `implement-spec` builds a spec's whole ticket graph with parallel subagents on one integration branch, `executing-plans` runs a written plan inline in this session, `subagent-driven-development` runs it with a fresh subagent per task, and `test-driven-development` is the test-first discipline under each |
 | Verify | `verification-before-completion` | Before saying done, fixed, passing, or complete |
 | Review | `requesting-code-review` then `receiving-code-review` | At task/branch close and when acting on review feedback |
 | Close | `finishing-a-development-branch` | Decide integration and perform merge/cleanup checks |
+| Publish | `pr` | The work goes up as a pull request: shape its body with the smallest visual, before/after evidence, and a one-way or two-way door call, inside any template the repository already has |
+| Look back | `retro` | A build is done, especially one that went sideways: propose changes to the agent's environment (checks, standards, steering files, tooling); it edits nothing |
 | Suspend | `handoff` | A session ends with unfinished work that another session must resume |
 
 Cross-cutting routes:
@@ -59,15 +61,14 @@ Cross-cutting routes:
 - `codebase-design`: use deep-module/interface vocabulary and design-it-twice at a real seam.
 - `improve-codebase-architecture`: periodically inspect existing code for deepening opportunities.
 - `systematic-debugging`: a bug, test failure, regression, or unexpected behavior needs isolation.
-- `diagnosing-superpowers`: a session went wrong (repeated work, an ignored plan, a skill that did not fire, too slow or too costly) and you want the evidence; it drafts an upstream issue only when you approve the text.
+- `diagnosing-superpowers`: a session went wrong (repeated work, an ignored plan, a skill that did not fire, too slow or too costly) and you want the evidence; it drafts an upstream issue only when you approve the text. It gives no advice; `retro` is the one that proposes environment changes.
 - `dispatching-parallel-agents` / `using-git-worktrees`: independent tasks or branches can proceed in parallel.
 - `triage`: move issues and external PRs through the repository's intake state machine.
 - `wizard`: generate a human-operated setup script for credentials, infrastructure, or CI steps; it is deliberately manual.
 - `writing-for-agents`: design any document consumed by an agent, including `AGENTS.md` and skill prose.
 - `writing-skills`: develop and pressure-test a skill as behavior-shaping software.
 - `teach`: create and maintain a stateful learning workspace for a concept.
-- `resolving-merge-conflicts`: an actual merge or rebase conflict is in progress.
-- `setup-matt-pocock-skills`: configure issue-tracker routing, triage vocabulary, and domain-document conventions in a repository.
+- `setup-matt-pocock-skills`: configure issue-tracker routing, triage vocabulary, and domain-document conventions in a repository; it writes them to `AGENTS.md` and proposes importing that file into `CLAUDE.md`.
 - `asd-ste100`: passive controlled-English knowledge used by `wait-what`; normally reached through the handoff rather than invoked directly.
 - `using-superpowers`: optional manual switch into the stricter skill-driven session discipline; no SessionStart hook is shipped, and each harness gets only its own tool notes.
 
@@ -103,5 +104,5 @@ every consumer environment.
 
 `research` -> `brainstorming` -> optional `prototype` -> `grilling` -> `writing-plans` or
 `to-tickets` -> execution with TDD/SDD -> `dotnet-slopwatch` plus verification -> review -> finish
-branch. This is a route through the selected upstream methods, not a claim that every task needs every
-ceremony.
+branch -> `retro`. This is a route through the selected upstream methods, not a claim that every
+task needs every ceremony.

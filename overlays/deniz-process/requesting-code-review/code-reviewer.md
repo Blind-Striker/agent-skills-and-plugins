@@ -215,7 +215,8 @@ Subagent (general-purpose):
 **Placeholders:**
 - `[DESCRIPTION]` — brief summary of what was built
 - `[SPEC]` — what it should do (plan file path, task text, issue contents), or "no spec available"
-- `[STANDARDS_SOURCES]` — paths to what this repo documents about how code should be written
+- `[STANDARDS_SOURCES]` — paths to every file this repo documents about how code should be written;
+  `CODING_STANDARDS.md` and `CONTRIBUTING.md` are always on it when they exist
 - `[BASE_SHA]` — starting commit
 - `[HEAD_SHA]` — ending commit
 

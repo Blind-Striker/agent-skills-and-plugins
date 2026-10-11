@@ -1,0 +1,35 @@
+diff --git a/CREDITS.md b/CREDITS.md
+index 5314bda..8a88522 100644
+--- a/CREDITS.md
++++ b/CREDITS.md
+@@ -1,3 +1,3 @@
+ # Credits
+ 
+-The **Summary** section's menu of visuals (pseudocode, call trees, component trees, file trees, Mermaid, diffs) and its placement guidance come from [Dex Horthy](https://github.com/dexhorthy)'s [`show-me`](https://github.com/humanlayer/humanlayer) skill, reproduced almost word for word and aimed at a diff instead of a live conversation. `pr` does not depend on `show-me` as a skill (it isn't part of this repo, and a hard dependency would break standalone installs), so the content is copied in rather than pointed at; this file is the attribution a dependency would otherwise have carried.
++The **Summary** section's menu of visuals (pseudocode, call trees, component trees, file trees, Mermaid, diffs) and its placement guidance come from [Dex Horthy](https://github.com/dexhorthy)'s [`show-me`](https://github.com/humanlayer/skills/tree/main/plugins/show-me) skill, reproduced almost word for word and aimed at a diff instead of a live conversation. `pr` does not depend on `show-me` as a skill (it isn't part of this repo, and a hard dependency would break standalone installs), so the content is copied in rather than pointed at; this file is the attribution a dependency would otherwise have carried.
+diff --git a/SKILL.md b/SKILL.md
+index 84dd4fb..2983180 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,20 +1,14 @@
+ ---
+ name: pr
+ description: "Use when writing a PR body."
+-metadata:
+-  credits:
+-    skill: show-me
+-    author: Dex Horthy
+-    organisation: Humanlayer
+-    url: "https://github.com/humanlayer/skills/blob/main/plugins/show-me/skills/show-me/SKILL.md"
+ ---
+ 
+-Use this template for writing the PR body:
++If the repository has its own pull request template (such as `.github/pull_request_template.md`), its sections and their order win: write the guidance below only into the sections of that template that match it, and fill every other section as the template asks. Otherwise, use this template for writing the PR body:
+ 
+ ```markdown
+ ## Summary
+ 
+ <diagram, diff-sketch, or tree>
+ 
+ ## Evidence
+ 

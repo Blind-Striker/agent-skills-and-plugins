@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index f8854f1..34f0638 100644
+index 9b15cd1..23e6d18 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,7 +1,7 @@
@@ -9,5 +9,5 @@ index f8854f1..34f0638 100644
  disable-model-invocation: true
  ---
  
--Wait, I don't understand where you've got to here. Re-pitch that: give me a little bit of context, talk in ASD-STE100 Simplified Technical English, and use the ubiquitous language from `CONTEXT.md` (follow `CONTEXT-MAP.md` to the right one if the repo has more than one).
-+Wait, I don't understand where you've got to here. Re-pitch that: give me a little bit of context, load asd-ste100:asd-ste100 and use its Simplified Technical English rules, and use the ubiquitous language from `CONTEXT.md` (follow `CONTEXT-MAP.md` to the right one if the repo has more than one).
+-Wait, I don't understand where you've got to here. Re-pitch that: give me a little bit of context, talk in ASD-STE100 Simplified Technical English, and use the ubiquitous language from `GLOSSARY.md` (follow `GLOSSARY-MAP.md` to the right one if the repo has more than one).
++Wait, I don't understand where you've got to here. Re-pitch that: give me a little bit of context, load asd-ste100:asd-ste100 and use its Simplified Technical English rules, and use the ubiquitous language from `GLOSSARY.md` (follow `GLOSSARY-MAP.md` to the right one if the repo has more than one).

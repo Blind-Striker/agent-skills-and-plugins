@@ -1,22 +1,22 @@
 diff --git a/SKILL.md b/SKILL.md
-index 7a0b11f..09e71c3 100644
+index bd49e47..5391937 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,15 +1,15 @@
- ---
- name: implement
+@@ -3,15 +3,15 @@ name: implement
  description: "Implement a piece of work based on a spec or set of tickets."
  disable-model-invocation: true
  ---
  
  Implement the work described by the user in the spec or tickets.
  
--Use /tdd where possible, at pre-agreed seams.
-+Use the superpowers:test-driven-development skill where possible, at pre-agreed seams.
+ If the user passes a ticket reference, fetch it from the issue tracker and state its title before starting. If the reference is ambiguous, ask.
+ 
+-Call the Skill tool with "tdd" where possible, at pre-agreed seams.
++Call the Skill tool with "superpowers:test-driven-development" where possible, at pre-agreed seams.
  
  Run typechecking regularly, single test files regularly, and the full test suite once at the end.
  
--Once done, use /code-review to review the work.
-+Once done, use the superpowers:requesting-code-review skill to review the work.
+-Once done, call the Skill tool with "code-review" to review the work.
++Once done, call the Skill tool with "superpowers:requesting-code-review" to review the work.
  
  Commit your work to the current branch.

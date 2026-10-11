@@ -187,7 +187,9 @@ grep. Untagged logs survive; tagged logs die.
    using the deniz-process:test-driven-development skill. A correct seam exercises the real bug
    pattern as it occurs at the call site; a too-shallow seam gives false confidence. **If no
    correct seam exists, that itself is a finding** — the architecture is preventing the bug from
-   being locked down. Document it and raise it with your human partner.
+   being locked down. Document it and raise it with your human partner. If you forced the red by
+   mutating code or a fixture, `diff` against a pristine copy to prove the mutation landed before
+   you trust it.
 2. **Implement a single fix** at the root cause. ONE change; no "while I'm here" improvements,
    no bundled refactoring.
 3. **Verify.** Test passes, no other tests broken, and the Phase 1 loop goes green against the

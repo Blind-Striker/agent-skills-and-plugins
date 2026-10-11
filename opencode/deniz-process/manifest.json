@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.0",
-  "digest": "sha256:ffb80a7c08f6ef16a5719f50e154aadbf48d529ce39bca5e5d101d323342e7f6",
+  "digest": "sha256:f2a3925d81438a2ec47f72da303d574725773e01004e96db55533ef702e78ef0",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -10,7 +10,7 @@
       "mode": "100644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "sha256:725fd088595b9bec157340205a950bbf4ccfd7086ffdee91b1304ed6cd4832ff",
+      "sha256": "sha256:434cd399ff449d7d01b538b299b802db5a8ee395a7a1eade1bdfc2667165404f",
       "mode": "100644"
     },
     "skills/deniz-process.asd-ste100/LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:2e80769233e86e5a827ade23d35e93b23d86c73b7703d32a7aaf0d575fe1c7ca",
+      "sha256": "sha256:16adcadea9b3cc55b62175029b85c2d2c2923952e48456121f20fad8a2e3b04f",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {
@@ -78,7 +78,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.codebase-design/DESIGN-IT-TWICE.md": {
-      "sha256": "sha256:8e740bf98446dbd4dfdc132ac4346d9a7eedaf93de6a495889171cf7f99f16bd",
+      "sha256": "sha256:52b52e75655a27aea59c6966b410bac82448968ad46ef1ebb9f07c274e3ae010",
       "mode": "100644"
     },
     "skills/deniz-process.codebase-design/SKILL.md": {
@@ -173,12 +173,12 @@
       "sha256": "sha256:944c92aa790e8fbdc9199640b170979abb8a34ba8d0fe18c2a01a63bce140ca0",
       "mode": "100644"
     },
-    "skills/deniz-process.domain-modeling/CONTEXT-FORMAT.md": {
-      "sha256": "sha256:17ab16ce783e4d2801ee52fd9acdf550cbf44de65ae76797a93943bbedf22a13",
+    "skills/deniz-process.domain-modeling/GLOSSARY-FORMAT.md": {
+      "sha256": "sha256:21dcc40cdec8e151a829b98ab1517c1867bc444e3665134a98c6983411996801",
       "mode": "100644"
     },
     "skills/deniz-process.domain-modeling/SKILL.md": {
-      "sha256": "sha256:304beefb903ae0f682d7eb6da5a3a5648dc623c24027c69d2288ce5fe147d985",
+      "sha256": "sha256:d04fbadb11c9a80e6d559bd3048b6b690665e6017683e770e1daa7b1a15afaee",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
@@ -206,15 +206,19 @@
       "mode": "100644"
     },
     "skills/deniz-process.grilling/SKILL.md": {
-      "sha256": "sha256:9152cb2b5decb297e2e9ae76caaa3cff9d1eac1ea7b6bea556f98ede1828b01f",
+      "sha256": "sha256:a46cd56cbd97e1f61ce1cf3ae332e1dd14ab70d149735f3890db00085850734c",
       "mode": "100644"
     },
     "skills/deniz-process.handoff/SKILL.md": {
-      "sha256": "sha256:16b3fe71f1e0a792ff1979020f923bd4d1d11962714c84c484c41ac053b53954",
+      "sha256": "sha256:d8d6095fb093a1565990b4e67db170cfcef6eaf3379c94f252effa0a1854b419",
+      "mode": "100644"
+    },
+    "skills/deniz-process.implement-spec/SKILL.md": {
+      "sha256": "sha256:2a82ff04015a34fb15a3246992c891efd73a9a13823effd06f8a019839825951",
       "mode": "100644"
     },
     "skills/deniz-process.implement/SKILL.md": {
-      "sha256": "sha256:d4923b3afcf93ff4ba1d4442be3b5954dba5e308de10aa99ac4646c2b80ae958",
+      "sha256": "sha256:a5b7f9eff338b02d19d442a4bb79097355dbb56544a5e1148c18e32c09741105",
       "mode": "100644"
     },
     "skills/deniz-process.improve-codebase-architecture/HTML-REPORT.md": {
@@ -222,7 +226,15 @@
       "mode": "100644"
     },
     "skills/deniz-process.improve-codebase-architecture/SKILL.md": {
-      "sha256": "sha256:e516bf9213e567681518f8512555e1917b1022e883ca61fa67e4ad71857bb58a",
+      "sha256": "sha256:9e3b20d803162c54ca86165ce19ad2213875e6c00835b913ff2d8291500ce9be",
+      "mode": "100644"
+    },
+    "skills/deniz-process.pr/CREDITS.md": {
+      "sha256": "sha256:454ea58e8205155f585c3ab1ac938caf8d4aad69c0dc0eddfd4483a8e1a2918a",
+      "mode": "100644"
+    },
+    "skills/deniz-process.pr/SKILL.md": {
+      "sha256": "sha256:e24c6577ecbaec826f1953f948ba95a4b5c3eedb053718512ea344f3ae3c6504",
       "mode": "100644"
     },
     "skills/deniz-process.prototype/LOGIC.md": {
@@ -242,35 +254,35 @@
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
-      "sha256": "sha256:aae50501b531ab3abe228ff95a6cb023e863d7683528be3944bbbf9f9bfbcce6",
+      "sha256": "sha256:6af4b32311d32b7a47bcb7b41f2881ddcd7becb54019468bc3bd0400dc72752a",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/code-reviewer.md": {
-      "sha256": "sha256:48ddfecb5de11129e284a2b116013d6c4948379c33c2cab4fd97a2df3fdd11eb",
+      "sha256": "sha256:fe29deff2359d64fc45427f1bfc297b27aaab8a0c7a15758971a16886dc6d03e",
       "mode": "100644"
     },
     "skills/deniz-process.research/SKILL.md": {
       "sha256": "sha256:d07191e03963bba98da1b065cee9f198d12053371f2e32191366dfea9c6b52f5",
       "mode": "100644"
     },
-    "skills/deniz-process.resolving-merge-conflicts/SKILL.md": {
-      "sha256": "sha256:79aea7ba2c319aa460a1158e5ecfdbf37e324f2f2c72b49f740cb0c285d1d7a1",
+    "skills/deniz-process.retro/SKILL.md": {
+      "sha256": "sha256:0ec99dbbba7fb2463f15d13b1a0b37b783fd5b5f385b67b201b9c8740c4e4ce4",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/SKILL.md": {
-      "sha256": "sha256:ea7b89d2a20ce241a3f0f09d8fdea92c36ed81651d6175d0c5ed624916e5267b",
+      "sha256": "sha256:731f3b2856052479113e9c3a7b5d2a830aec4ca4748c54ffcea18154336cf0e7",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/domain.md": {
-      "sha256": "sha256:af5705612c55b67cb76b2050a14b29df397dcb93739ce2c72a7fbe8fe87ace69",
+      "sha256": "sha256:5a1c1ab4df011876bc5e68c4300967018f5941fbaccaeafda2c0be4060618177",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/issue-tracker-github.md": {
-      "sha256": "sha256:238f621ea6be6a2d79698eab01c9f9c240c53de8f4efb9b245beea28bf52cfab",
+      "sha256": "sha256:368a0ca1299b9d28614c3a870bee2b44ae97794504982dc115990ce82028a41c",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/issue-tracker-gitlab.md": {
-      "sha256": "sha256:92f58c36779c7a002b3a4bc3576cc7b2932e8ce1f69e7dcd7a184fde29cc914a",
+      "sha256": "sha256:52e678ed0da3651c7181d6a62081763aaf2eacd1056b23fb394d5f27f7883a6d",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/issue-tracker-local.md": {
@@ -278,7 +290,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/triage-labels.md": {
-      "sha256": "sha256:4f53c9b40ce2651e3611aa090eaedbd6dbc9b71ef8c5f7e65eac0d8263190d0d",
+      "sha256": "sha256:ae512af838c78b8750471c42cd2b20fa32319553e61d84c9a23d171b40ce14aa",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
@@ -310,7 +322,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.systematic-debugging/SKILL.md": {
-      "sha256": "sha256:77d4b3480d78204871edbf93c4f88fde3c7507707350986572cf39454c384ba1",
+      "sha256": "sha256:05cfaec60bdcba01589c1dd4d483f901171bda6deb475fc06291ca6577967463",
       "mode": "100644"
     },
     "skills/deniz-process.systematic-debugging/condition-based-waiting-example.ts": {
@@ -350,11 +362,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.teach/SKILL.md": {
-      "sha256": "sha256:31121ae71dbb02514718ce08f4346de390acfba2b30fdbb0484e2b0b843846c8",
+      "sha256": "sha256:45479fc7331f325e5543a86a29af9ddb562e540a0a1131607beec34f6e9510d7",
       "mode": "100644"
     },
     "skills/deniz-process.test-driven-development/SKILL.md": {
-      "sha256": "sha256:b721b4a60e16560aa0bb2bb6aadb800beb1f22a0943fda3d5517bc441d56c299",
+      "sha256": "sha256:973b750c1b0598145bf71592115d099ac0a9da8a95b9f5468157d7f8c09b4f37",
       "mode": "100644"
     },
     "skills/deniz-process.test-driven-development/writing-good-tests.md": {
@@ -370,7 +382,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.to-tickets/SKILL.md": {
-      "sha256": "sha256:90df74452ffbad6156ab2fe4212f9a282c38bd348fd4a936b58bc3ee677abcfb",
+      "sha256": "sha256:44c95afbf5cba49ee3fed3686b7567ea90193666110c96f3ab4c817cae98e425",
       "mode": "100644"
     },
     "skills/deniz-process.triage/AGENT-BRIEF.md": {
@@ -382,7 +394,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.triage/SKILL.md": {
-      "sha256": "sha256:de536aa990d583dbddfd09ef189635587e4cb5c05e95178920bb524ef3386059",
+      "sha256": "sha256:46a310029ea323f290ecc7571eecb243368343871ee1ae920a81b082dc8e3c4f",
       "mode": "100644"
     },
     "skills/deniz-process.using-git-worktrees/SKILL.md": {
@@ -402,11 +414,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.wait-what/SKILL.md": {
-      "sha256": "sha256:12f8923c67d192a12ba594233952467328b117b68b07e12e0f96619fbadaf5e9",
+      "sha256": "sha256:2f26bd96e81ca6cd0ce30c362b36760cd03e9b8fcfe42c09afb0b3cc5d01d282",
       "mode": "100644"
     },
     "skills/deniz-process.wayfinder/SKILL.md": {
-      "sha256": "sha256:455035e07ded02d76c68691d910d1bf48d45e0d3a6e84e839b0bc9498c62c1cb",
+      "sha256": "sha256:fe00443b551b23b76d78bd1279d3ae9a2253bd7ebe34f4b694f5ea9dd865d6d9",
       "mode": "100644"
     },
     "skills/deniz-process.wizard/SKILL.md": {
@@ -414,7 +426,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.wizard/template.sh": {
-      "sha256": "sha256:33cbe9dfb1d0e9185b60248a52aabed14bc64785a00cac695e302e739dd6c153",
+      "sha256": "sha256:6566f147299bc6f1d941e64591ed04385416d543e11f96f564c7228f5018d0ed",
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL-MECHANICS.md": {
@@ -459,6 +471,10 @@
     },
     "third_party/asd-ste100/LICENSE": {
       "sha256": "sha256:d3c674e8592076c9021a59b55177adbcba6fd7e1710082becb922522b22ec672",
+      "mode": "100644"
+    },
+    "third_party/humanlayer-skills/LICENSE": {
+      "sha256": "sha256:5f13c18ea00ea5c1384f41745feeca774079164f7f59a92e4ac0899ad217b26f",
       "mode": "100644"
     },
     "third_party/mattpocock-skills/LICENSE": {

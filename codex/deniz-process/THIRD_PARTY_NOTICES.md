@@ -10,6 +10,13 @@ The exact license text for each project is included at the listed path.
 - Copyright: Copyright (c) 2026 Dustin Yuchen Teng
 - License text: `third_party/asd-ste100/LICENSE`
 
+## HumanLayer skills
+
+- Source: <https://github.com/humanlayer/skills>
+- License: MIT
+- Copyright: Copyright (c) 2026 HumanLayer
+- License text: `third_party/humanlayer-skills/LICENSE`
+
 ## Matt Pocock skills
 
 - Source: <https://github.com/mattpocock/skills>

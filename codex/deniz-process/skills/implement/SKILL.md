@@ -5,10 +5,12 @@ description: Implement a piece of work based on a spec or set of tickets.
 
 Implement the work described by the user in the spec or tickets.
 
-Use the $deniz-process:test-driven-development skill where possible, at pre-agreed seams.
+If the user passes a ticket reference, fetch it from the issue tracker and state its title before starting. If the reference is ambiguous, ask.
+
+Invoke `$deniz-process:test-driven-development` where possible, at pre-agreed seams.
 
 Run typechecking regularly, single test files regularly, and the full test suite once at the end.
 
-Once done, use the $deniz-process:requesting-code-review skill to review the work.
+Once done, invoke `$deniz-process:requesting-code-review` to review the work.
 
 Commit your work to the current branch.

@@ -22,7 +22,7 @@ index 1462fcd..aa7b8ba 100644
  - **Good:** "Running `gh issue list --label needs-triage` returns issues that have been through initial classification"
  - **Bad:** "Triage should work correctly"
 diff --git a/SKILL.md b/SKILL.md
-index 37ddea1..f33fa03 100644
+index 3fd5617..73739c1 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -35,23 +35,23 @@ Five **state** roles:
@@ -60,8 +60,8 @@ index 37ddea1..f33fa03 100644
  
  3. **Verify the claim.** Before any grilling, check that the claim holds up. For a bug, reproduce it from the reporter's steps. For a PR, confirm the diff does what it claims: check it out, run the relevant tests or commands. Report what happened: confirmed (with code path), failed, or insufficient detail (a strong `needs-info` signal). A confirmed verification makes a much stronger agent brief.
  
--4. **Grill (if needed).** If the request needs fleshing out, call the Skill tool twice, for "grilling" and "domain-modeling", and grill it into shape a round of questions at a time, sharpening domain terms and updating `CONTEXT.md`/ADRs inline as decisions land.
-+4. **Grill (if needed).** If the request needs fleshing out, use `mattpocock-skills:grilling` and `mattpocock-skills:domain-modeling`, and grill it into shape a round of questions at a time, sharpening domain terms and updating `CONTEXT.md`/ADRs inline as decisions land.
+-4. **Grill (if needed).** If the request needs fleshing out, call the Skill tool twice, for "grilling" and "domain-modeling", and grill it into shape a round of questions at a time, sharpening domain terms and updating `GLOSSARY.md`/ADRs inline as decisions land.
++4. **Grill (if needed).** If the request needs fleshing out, call the Skill tool twice, for "mattpocock-skills:grilling" and "mattpocock-skills:domain-modeling", and grill it into shape a round of questions at a time, sharpening domain terms and updating `GLOSSARY.md`/ADRs inline as decisions land.
  
  5. **Apply the outcome:**
     - `ready-for-agent`: post an agent brief comment ([AGENT-BRIEF.md](AGENT-BRIEF.md)).

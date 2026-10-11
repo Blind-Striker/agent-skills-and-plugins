@@ -70,8 +70,9 @@ What the change was *supposed* to do, in this order:
 
 ## 3. Find the Standards
 
-Whatever this repo documents about how code should be written — `CONTRIBUTING.md`,
-`CODING_STANDARDS.md`, the agent contract, a house style file. Pass the paths to the reviewer.
+Search this repo for every file that documents how code should be written — `CONTRIBUTING.md`,
+`CODING_STANDARDS.md`, the agent contract, a house style file. When `CODING_STANDARDS.md` or
+`CONTRIBUTING.md` exists, it must be on the list. Pass the paths to the reviewer.
 
 You do **not** need to supply a baseline: [code-reviewer.md](code-reviewer.md) carries a fixed set
 of code smells that applies even when a repo documents nothing. Two rules bind it, and the template
@@ -91,10 +92,14 @@ file that the Standards sources are not. Then send one message with two subagent
 the range and only its own axis's material, and neither seeing the other's brief. Isolation is the
 point: two long documents in one context is where one axis starts masking the other.
 
-When the plan *is* the requirements — the common case, and every review inside subagent-driven
-development — a second subagent would read the same document twice for the same range. Dispatch one.
+When the plan *is* the requirements — the common case, and subagent-driven development's final
+whole-branch review — a second subagent would read the same document twice for the same range.
+Dispatch one.
 
 ## 5. Read the Report
+
+Wait until every reviewer has reported. Never read, merge, or act on any review while another is
+still out, and never write your own in place of a missing one.
 
 Both axes come back under their own headings. **Do not merge or rerank them, and do not pick a
 single worst issue across both.** Severity within an axis is the reviewer's job; ordering the two

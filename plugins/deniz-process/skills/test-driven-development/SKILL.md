@@ -64,7 +64,8 @@ refactor while sleeping through real bugs.
 **Put the seam to your human partner when the choice is consequential** — several boundaries would
 work, the obvious one is expensive or slow, or testing there would drive a design change. You can't
 test everything; agreeing the seams is how effort lands on critical paths and complex logic instead
-of on every edge case. Ask: "What's the public interface, and which seams should we test?"
+of on every edge case. Ask: "What's the public interface, and which seams should we test?" Give each
+proposed seam a one-line note on what it catches and what it misses.
 
 A too-shallow seam gives false confidence: it exercises a stand-in rather than the pattern as it
 occurs at the call site. **If no correct seam exists, that itself is a finding** — the architecture
