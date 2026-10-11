@@ -12,7 +12,7 @@ import {
 
 // Reading upstream at both pins is the only impure thing the report needs, so it arrives as a
 // parameter: these tests hand it fixtures where the CLI hands it `git show` and `git ls-tree`.
-const NO_IO: SyncIO = { readFile: () => null, exists: () => true, ledgerNames: [] };
+const NO_IO: SyncIO = { readFile: () => null, exists: () => true, ledgerNames: [], lock: {} };
 
 /** One readable file at both pins; everything else unreadable, as an added or deleted path is. */
 function oneFile(rel: string, atOld: string, atNew: string): SyncIO["readFile"] {
@@ -48,6 +48,7 @@ function treeIO(opts: {
     },
     movedTo: (rel) => opts.moved?.[rel] ?? null,
     ledgerNames: opts.ledgerNames ?? [],
+    lock: {},
   };
 }
 
@@ -65,6 +66,11 @@ const manifests: CurationManifest[] = [
       { source: "sp/skills/host", body: "overlay", merged_from: [{ source: "mp/skills/beta" }] },
       { source: "sp/skills/overridden", frontmatter: { description: "ours" } },
       { source: "sp/skills/owned", body: "overlay", frontmatter: { description: "ours" } },
+      // Overrides on bodies whose overlay or patch stamps SKILL.md, and on bodies whose stamps leave
+      // it out: only the stamp on the document the override describes stops the build.
+      { source: "sp/skills/patched", body: "patch", frontmatter: { description: "ours" } },
+      { source: "sp/skills/patched-elsewhere", body: "patch", frontmatter: { description: "ours" } },
+      { source: "sp/skills/owned-elsewhere", body: "overlay", frontmatter: { description: "ours" } },
       { source: "sp/skills/pinned", invocation: "auto" },
     ],
   },
@@ -508,12 +514,66 @@ test("a stamped frontmatter override names the stop, not an automatic update", (
   assert.doesNotMatch(drift, /nothing checks it/);
 });
 
-// An overlay shadows upstream until it is re-blessed, so the SHIPPED body did not move and the
-// OVERLAY tag already asked for that review. Claiming the body moved under the override would be the
-// same false statement the excluded-item guard removes.
+/** The lock entries the override cases need: which upstream files each body's stamps cover. */
+const OVERRIDE_LOCK: SyncIO["lock"] = {
+  "deniz-process/owned": { source: "sp/skills/owned", files: { "SKILL.md": "a" } },
+  "deniz-process/patched": { source: "sp/skills/patched", files: { "SKILL.md": "b" } },
+  "deniz-process/patched-elsewhere": { source: "sp/skills/patched-elsewhere", files: { "notes.md": "c" } },
+  "deniz-process/owned-elsewhere": { source: "sp/skills/owned-elsewhere", files: { "notes.md": "d" } },
+};
+
+/** The OVERRIDE line for one item whose upstream SKILL.md body moved under its override. */
+function overrideLine(name: string): string | undefined {
+  const rel = `skills/${name}/SKILL.md`;
+  const lines = syncReport("sp", [rel], manifests, {
+    ...NO_IO,
+    lock: OVERRIDE_LOCK,
+    readFile: oneFile(
+      rel,
+      `---
+name: ${name}
+description: same
+---
+One path.
+`,
+      `---
+name: ${name}
+description: same
+---
+Three paths now.
+`,
+    ),
+  });
+  return lines.find((l) => l.includes("OVERRIDE"));
+}
+
+// A patch that edits SKILL.md stamps it, so the build stops on this move just as the PATCH tag says:
+// "nothing checks it" would contradict the line above it.
+test("an override on a patch that stamps SKILL.md names the patch's stop", () => {
+  const line = overrideLine("patched");
+  assert.ok(line);
+  assert.match(line, /the patch's stamp on SKILL\.md stops the next build/);
+  assert.doesNotMatch(line, /nothing checks it/);
+});
+
+// A patch or overlay that never touches SKILL.md stamps nothing there: upstream's new body ships
+// under the override and no build check sees it.
+test("an override on a body whose stamps leave SKILL.md out says nothing checks it", () => {
+  for (const name of ["patched-elsewhere", "owned-elsewhere"]) {
+    const line = overrideLine(name);
+    assert.ok(line, name);
+    assert.match(line, /nothing checks it/, name);
+    assert.doesNotMatch(line, /stops the next build/, name);
+  }
+});
+
+// An overlay that owns SKILL.md shadows upstream until it is re-blessed, so the SHIPPED body did not
+// move and the OVERLAY tag already asked for that review. Claiming the body moved under the override
+// would be the same false statement the excluded-item guard removes.
 test("an owned body is exempt from the override line", () => {
   const lines = syncReport("sp", ["skills/owned/SKILL.md"], manifests, {
     ...NO_IO,
+    lock: OVERRIDE_LOCK,
     readFile: oneFile(
       "skills/owned/SKILL.md",
       "---\nname: owned\ndescription: same\n---\nupstream one.\n",

@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import { type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
-import { PATCH_FILE, stampsFrontmatter } from "./lib/overlay.ts";
+import { loadLock, type OverlayLock, PATCH_FILE, stampsFrontmatter } from "./lib/overlay.ts";
 import { type OwnSkillIdentity, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { candidateHits } from "./lib/refs.ts";
@@ -40,6 +40,25 @@ export interface SyncIO {
   movedTo?: (rel: string) => string | null;
   /** Output names in the current ledger — the candidate universe. */
   ledgerNames: string[];
+  /** The overlay lock: which upstream files each overlay or patch stamps. */
+  lock: OverlayLock;
+}
+
+/**
+ * The item-relative upstream files an item's overlay or patch stamps, read from its lock entry: the
+ * entry for the same source in the same plugin, keyed by the item's own name when it states one.
+ */
+function bodyStamps(lock: OverlayLock, plugin: string, item: { source: string; name?: string }): Set<string> {
+  const stamped = new Set<string>();
+  for (const [key, entry] of Object.entries(lock)) {
+    const named = item.name === undefined || key === `${plugin}/${item.name}`;
+    if (key.startsWith(`${plugin}/`) && entry.source === item.source && !entry.frontmatter && named) {
+      for (const file of Object.keys(entry.files)) {
+        stamped.add(file);
+      }
+    }
+  }
+  return stamped;
 }
 
 function show(v: unknown): string {
@@ -234,26 +253,30 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
           );
         }
         // An override merges in AFTER body assembly, so an upstream rewrite never makes it drift on
-        // its own: it goes on describing the body it was written against. On an item that owns no
-        // body, its own stamp stops the build until it is blessed again; on a patched item, only a
-        // patch target's stamp does. Either way the body has to be reread, and this says so.
+        // its own: it goes on describing the body it was written against. What stops the build is
+        // a stamp on SKILL.md: the override's own on an item that owns no body, or the overlay's or
+        // patch's when it covers SKILL.md. Either way the body has to be reread, and this says so.
         //
         // The trigger is the BODY moving, not the overridden key moving. Upstream can restructure a
         // skill end to end and leave its description untouched — which is exactly how an override
         // ends up describing one branch of a body that now has three, with every key still equal.
         //
-        // An owned body is exempt: the overlay shadows upstream until it is blessed again, so the
-        // shipped body did not move, and the OVERLAY tag above already asked for that review. A
-        // patched body is not exempt — upstream still flows everywhere the patch does not reach.
+        // An overlay that owns SKILL.md is exempt: it shadows upstream until it is blessed again, so
+        // the shipped body did not move, and the OVERLAY tag above already asked for that review. A
+        // patch is not exempt, nor an overlay that owns other files: upstream still flows everywhere
+        // they do not reach.
         const overridden = Object.keys(item.frontmatter ?? {});
-        if (overridden.length && item.body !== "overlay") {
+        const stamped = bodyStamps(io.lock, m.plugin.name, item).has("SKILL.md");
+        if (overridden.length && !(item.body === "overlay" && stamped)) {
           const moved = overridden.filter((k) => JSON.stringify(fa[k]) !== JSON.stringify(fb[k]));
           const detail = moved.length
             ? `upstream moved it too — ${moved.map((k) => `${k}: ${show(fa[k])} -> ${show(fb[k])}`).join("; ")}`
             : "upstream's own value is unchanged, so the body moved underneath it instead";
           const guard = stampsFrontmatter(item)
             ? "its stamp stops the next build until it is blessed again, so reread the new body before blessing"
-            : "nothing checks it, so reread the new body";
+            : item.body === "patch" && stamped
+              ? "the patch's stamp on SKILL.md stops the next build, so reread the new body before the eject step it names"
+              : `nothing checks it, because the ${item.body} does not cover SKILL.md and the new body ships under the override, so reread the new body`;
           lines.push(
             `${m.plugin.name}: ${item.source} OVERRIDE ${overridden.join(", ")} — upstream's SKILL.md moved under a frontmatter override and ${guard} (${detail})`,
           );
@@ -377,6 +400,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
       exists: (rev, rel) => (rev === "old" ? atOld(rel) : atNew(rel)),
       movedTo,
       ledgerNames,
+      lock: loadLock(root),
     });
     for (const l of lines) {
       console.log(`  ${l.replace("<old>", before.slice(0, 7)).replace("<new>", after.slice(0, 7))}`);

@@ -335,9 +335,11 @@ to committed `dist/` JavaScript using
   upstream rewrite does not make an old override drift on its own
   ([`normalizePrimary`](../../tools/lib/assemble.ts)). On an item with no `body:`, a stamp of the
   primary upstream document stops the build when it moves (`frontmatterDrift` in
-  [`buildAll`](../../tools/build.ts)'s preflight). On an item with `body:`, only the overlay or
-  patch stamp guards it, so an override on an overlay that does not own `SKILL.md` stays unguarded;
-  `npm run sync` still reports every override whose item's `SKILL.md` moved.
+  [`buildAll`](../../tools/build.ts)'s preflight). On an item with `body:`, only the overlay's or
+  patch's stamp guards it, so an override on a body that does not cover `SKILL.md` stays
+  unguarded. `npm run sync` reports every override whose upstream `SKILL.md` moved, except under an
+  overlay that owns `SKILL.md`, whose shipped body did not move, and says which stamp, if any,
+  stops the build ([`syncReport`](../../tools/sync.ts)).
 - Ledger projection semantics and limits are owned by
   [References and linking](references-and-linking.md#ledger-semantics).
 - A build report proves what was emitted or dropped. It does not prove that a harness will select a
