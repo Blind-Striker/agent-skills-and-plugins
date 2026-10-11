@@ -427,6 +427,10 @@ items:
     exclude: true # scaffolds course exercise directories — upstream author's own teaching workflow
   - source: mattpocock-skills/skills/misc/setup-pre-commit
     exclude: true # installs Husky + lint-staged + Prettier; this estate formats with Biome
+  - source: mattpocock-skills/docs/agents/triage-labels.md
+    exclude: true # upstream's own repository configuration: the label strings of its own issue
+    # tracker, which the scanner lists as an agent; setup-matt-pocock-skills writes a consumer's own
+    # from its bundled template
   - source: superpowers/skills/dispatching-parallel-agents
     invocation: auto # dependency-free dispatch knowledge; research's stitch points at it
   - source: superpowers/skills/writing-skills
