@@ -80,6 +80,16 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   harness gets only its own tool notes from `using-superpowers`, OpenCode's authored here. Process
   takes `diagnosing-superpowers` as `both`. `asd-ste100` names its linter's interpreter, bounds when
   it runs, and states its limits; its invalid test fixture is omitted.
+- `mattpocock-skills` is reviewed through `49dd158` (2026-10-09), 46 commits past the v1.3.1 tag
+  with no later tag; wave W5 is done. Process adopts upstream's `GLOSSARY.md` name for the domain
+  glossary with no read of the old one, and this repository's own glossary moved with it.
+  `resolving-merge-conflicts` left with its upstream deletion, its `ask-deniz` route included.
+  Process takes `implement-spec`, `retro`, and `pr` as `manual`; `pr`'s Summary guidance comes
+  from HumanLayer's `show-me`, so `humanlayer/skills` is an attribution-only submodule whose
+  license ships in every Process notice pack. `chief-of-staff` is excluded while it is in
+  progress upstream. `setup-matt-pocock-skills` writes its block to `AGENTS.md`, which OpenCode and
+  Codex read, and proposes importing it into `CLAUDE.md`. `ask-deniz` is recut by hand, and the
+  eight model-reachable skills it named in plain text are now checked facts.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -113,27 +123,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Upstream sync waves W5 and W6, in this order.** The two remaining pins are frozen at their
-   2026-09-06 positions. A cross-upstream review on 2026-10-08 read one decision packet per
+1. **Upstream sync wave W6.** The remaining pin, `dotnet/skills`, is frozen at its 2026-09-06
+   position. A cross-upstream review on 2026-10-08 read one decision packet per
    upstream; the packets recommend a treatment for each item; every take, skip, merge, or
    modification is still the curator's decision, and each wave measures its upstream again before
    it starts. A wave moves one submodule.
-   - **W5 `mattpocock-skills`** (releases v1.3.0 and v1.3.1 since the pin).
-     `resolving-merge-conflicts` was deleted upstream and is still taken in
-     `curation/deniz-process.yaml`; the packet recommends dropping it together with its `ask-deniz`
-     route and its authored `docs/cheatsheet.md` line. Eighteen of 25 taken or merge-source items
-     changed; the 11 drifted overlays need recuts, and a 3-way replay measured at `b0618bc` keeps
-     conflicts in 5 patch items. `domain-modeling` replaced `CONTEXT-FORMAT.md` with
-     `GLOSSARY-FORMAT.md`; this repository's own glossary moved to `GLOSSARY.md` ahead of the
-     pin move.
-     `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new candidates; `pr` first needs
-     attribution for an origin outside the submodules. The wave also decides the
-     `setup-matt-pocock-skills` question of patching it to prefer `AGENTS.md`, since OpenCode 2
-     loads `AGENTS.md` and never `CLAUDE.md`. W4 settled the superpowers shape `ask-deniz` routes,
-     and its recut works against that shape. W4 took `diagnosing-superpowers` unchanged as its own
-     `both` item; how `retro` relates to it is this wave's question. The `requesting-code-review`,
-     `test-driven-development`, and `systematic-debugging` overlays absorb their mattpocock merge
-     sources' drift when this pin moves.
    - **W6 `dotnet/skills`** (339 commits ahead with no new stable release).
      `configuring-opentelemetry-dotnet`, `minimal-api-file-upload`, and `msbuild-server` were
      deleted upstream and are still taken in `curation/deniz-dotnet-general.yaml`.
@@ -201,7 +195,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    five trigger-competition cases for it: `subagent-driven-development` against `executing-plans`,
    `aot-trimming` against `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild
    specialists, `directory-build-organization` against `convert-to-cpm`, and `code-testing` against
-   `systematic-debugging`; W5 or W6 is the natural first run.
+   `systematic-debugging`; W6 is the natural first run.
 4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
@@ -282,9 +276,23 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Clean-fixture debt is filtered by finding name:** split the fixture so tests prove those findings
   still exist instead of tolerating their disappearance.
 - **Full-file overlays have no replay:** an upstream move under a full-file overlay is reviewed
-  through the `--bless` diff and ported by hand. This applies to the four full-file overlays among
-  the W5 items (`ask-deniz`, `requesting-code-review`, `systematic-debugging`,
-  `test-driven-development`); `ask-deniz` would replay with 6 conflicts.
+  through the `--bless` diff and ported by hand, as W5 ported `ask-deniz`, `requesting-code-review`,
+  `systematic-debugging`, and `test-driven-development`.
+- **W5's runtime paths are unmeasured:** `implement-spec` creates each implementer's worktree with
+  git where the harness gives a subagent none, which OpenCode 2 does not, and no run has exercised
+  that path. Codex has no subagent tool in this repository's research, so there it is upstream's
+  "only a slower implement", and the two-reviewer dispatch of `requesting-code-review` is likewise
+  unmeasured there. `retro` reads its session log through `diagnosing-superpowers`' discovery and
+  context-safety notes, whose discovery steps also speak of that skill's case file.
+- **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
+  a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
+  glossary renamed and `setup-matt-pocock-skills` run again.
+- **`to-tickets` sub-issues are GitHub-only upstream:** the GitLab and local tracker templates name
+  no sub-issue operation, and the rule against modifying a parent issue sits beside the operation
+  that attaches its sub-issues. Both are upstream's; neither is patched.
+- **HumanLayer's components are listed but undecided:** `humanlayer/skills` is a submodule only for
+  `pr`'s attribution, so the inventory lists its 12 components with no curation decision. No tool
+  requires one.
 - **Scanner layout blind spots:** grouped commands and agents are missed, while nested component
   directories can be double-counted.
 - **Overlay mode drift:** overlay locks hash bytes but not executable mode.
