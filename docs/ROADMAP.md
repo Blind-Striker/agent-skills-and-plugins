@@ -299,8 +299,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Overlay mode drift:** overlay locks hash bytes but not executable mode.
 - **Symlink-boundary patches:** emitted copies skip symlinks while `git apply` cannot patch through
   them.
-- **Frontmatter override staleness:** sync reports body movement beneath an override, but no stamp or
-  build-time guard exists. Add a stamp only if a description-only change without a patch appears.
+- **Frontmatter override on an owned body:** an override on an item with no `body:` is stamped and
+  stops the build when upstream moves, but one on an item with `body:` is guarded only by that
+  overlay's or patch's stamps, so an overlay or patch that never touches `SKILL.md` leaves it
+  unguarded. Every current override on such an item sits on a body that stamps `SKILL.md`.
 - **Description content beyond length:** the build and `validate` check the rendered
   1,024-character description limit in every tree; whether a tag or angle-bracket rule for
   descriptions should be checked too, and where its boundary lies, is still open.

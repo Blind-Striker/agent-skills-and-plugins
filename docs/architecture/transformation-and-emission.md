@@ -320,11 +320,13 @@ to committed `dist/` JavaScript using
 - Patch application cannot touch a path at or beyond a symlink: `git apply` rejects those paths while
   emitted copies skip symlinks ([`gitApply`](../../tools/lib/overlay.ts#L162-L197),
   [`skipSymlinks`](../../tools/lib/assemble.ts)).
-- Manifest `frontmatter:` overrides have no upstream-staleness guard. They merge into the assembled
-  document after body assembly, so an upstream rewrite does not make an old override drift
-  ([`normalizePrimary`](../../tools/lib/assemble.ts)). `npm run sync` reports an override whose
-  item's `SKILL.md` moved, which is a prompt to reread the body — not a stamp, and nothing stops the
-  build.
+- Manifest `frontmatter:` overrides merge into the assembled document after body assembly, so an
+  upstream rewrite does not make an old override drift on its own
+  ([`normalizePrimary`](../../tools/lib/assemble.ts)). On an item with no `body:`, a stamp of the
+  primary upstream document stops the build when it moves (`frontmatterDrift` in
+  [`buildAll`](../../tools/build.ts)'s preflight). On an item with `body:`, only the overlay or
+  patch stamp guards it, so an override on an overlay that does not own `SKILL.md` stays unguarded;
+  `npm run sync` still reports every override whose item's `SKILL.md` moved.
 - Ledger projection semantics and limits are owned by
   [References and linking](references-and-linking.md#ledger-semantics).
 - A build report proves what was emitted or dropped. It does not prove that a harness will select a

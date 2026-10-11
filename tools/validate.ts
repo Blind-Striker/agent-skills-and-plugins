@@ -30,7 +30,7 @@ import {
   splitOpenCodeId,
 } from "./lib/opencode-target.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
-import { LOCK_FILE, listFiles, loadLock, PATCH_FILE } from "./lib/overlay.ts";
+import { LOCK_FILE, listFiles, loadLock, PATCH_FILE, stampsFrontmatter } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
   extractRefs,
@@ -384,11 +384,19 @@ export function validateRepo(root: string): Finding[] {
   // overlay no item claims is skipped in silence and pristine upstream ships in its place — every
   // hash and patch guard ADR-0001 specifies bypassed by simply never being consulted. That is the
   // one overlay failure the build cannot report, because from its side nothing happened.
-  const claimed = new Map<string, { body: "overlay" | "patch" | undefined; exclude: boolean; overlayDir: string }>();
+  const claimed = new Map<
+    string,
+    { body: "overlay" | "patch" | undefined; exclude: boolean; overlayDir: string; frontmatterStamp: boolean }
+  >();
   for (const m of manifests) {
     for (const item of m.items) {
       const { id, overlayDir } = resolveItem(root, m.plugin.name, item, components);
-      claimed.set(id, { body: item.body, exclude: item.exclude === true, overlayDir });
+      claimed.set(id, {
+        body: item.body,
+        exclude: item.exclude === true,
+        overlayDir,
+        frontmatterStamp: stampsFrontmatter(item),
+      });
     }
   }
   const overlaysDir = join(root, "overlays");
@@ -422,6 +430,17 @@ export function validateRepo(root: string): Finding[] {
   // stale entry hides.
   const lock = loadLock(root);
   for (const key of Object.keys(lock)) {
+    // A frontmatter stamp guards an override, not an overlay directory, so it is rot only once its
+    // item no longer has an override without a body.
+    if (lock[key]?.frontmatter === true) {
+      if (!claimed.get(key)?.frontmatterStamp) {
+        findings.push({
+          level: "warn",
+          message: `overlays/${LOCK_FILE} records a frontmatter stamp for ${key}, but that item has no frontmatter override without a body: — drop the entry`,
+        });
+      }
+      continue;
+    }
     if (!existsSync(join(overlaysDir, ...key.split("/")))) {
       findings.push({
         level: "warn",

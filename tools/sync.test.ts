@@ -487,6 +487,27 @@ test("an override is reported when only the body moved beneath it", () => {
   assert.match(drift, /the body moved underneath it instead/);
 });
 
+// An override on an item with no body carries its own stamp, so the build stops on this move: the
+// report must not promise an automatic update or claim that nothing checks the override.
+test("a stamped frontmatter override names the stop, not an automatic update", () => {
+  const lines = syncReport("sp", ["skills/overridden/SKILL.md"], manifests, {
+    ...NO_IO,
+    readFile: oneFile(
+      "skills/overridden/SKILL.md",
+      "---\nname: overridden\ndescription: same\n---\nOne path.\n",
+      "---\nname: overridden\ndescription: same\n---\nThree paths now.\n",
+    ),
+  });
+  const changed = lines.find((l) => l.includes("sp/skills/overridden changed upstream"));
+  assert.ok(changed);
+  assert.match(changed, /FRONTMATTER STAMP — a change to the document the override rewrites stops the build/);
+  assert.doesNotMatch(changed, /auto-updated/);
+  const drift = lines.find((l) => l.includes("OVERRIDE"));
+  assert.ok(drift);
+  assert.match(drift, /its stamp stops the next build until it is blessed again/);
+  assert.doesNotMatch(drift, /nothing checks it/);
+});
+
 // An overlay shadows upstream until it is re-blessed, so the SHIPPED body did not move and the
 // OVERLAY tag already asked for that review. Claiming the body moved under the override would be the
 // same false statement the excluded-item guard removes.

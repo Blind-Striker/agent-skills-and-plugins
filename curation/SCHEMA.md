@@ -43,7 +43,7 @@ body ownership adds review cost whenever upstream moves.
 |---|---|---|
 | Do not take the item | `exclude: true` | Keep the reason beside it; no output is emitted |
 | Take it without some files | `omit:` | Patterns can go stale; `validate` warns when one matches nothing |
-| Change metadata | `frontmatter:` | No upstream-staleness guard |
+| Change metadata | `frontmatter:` | On an item with no `body:`, the upstream document it rewrites is hash-stamped; drift blocks the build |
 | Change the output name | item-level `name:` | References and output identity use the new name |
 | Change who triggers it | `invocation:` | Harness-neutral intent; each emitter chooses its mechanism |
 | Change the artifact shape | `as:` | Independent of who triggers it |
@@ -154,6 +154,14 @@ Re-blessing stamps the primary and all declared merge sources together. Before c
 hashes, the build requires the primary lock keys to exactly match the upstream-backed overlay files
 or patch targets that `eject --bless` would stamp. Overlay-only additions and pure-add patch targets
 have no upstream counterpart, so they remain outside that set.
+
+A `frontmatter:` override merges in after body assembly, so an upstream rewrite never makes it
+drift on its own. On an item with no `body:`, the override is stamped in the same lock: the entry is
+marked `"frontmatter": true` and records only the item's primary upstream document, its `SKILL.md`
+or its source command or agent file. A change to that document stops the build until
+`npm run eject -- <plugin> <item> --bless` shows it and records it; no overlay directory exists for
+such an item. An item with `body:` takes no frontmatter stamp: its override is guarded only as far
+as its overlay or patch stamps the same document.
 
 ## Dependencies
 

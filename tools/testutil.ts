@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
+import { loadLock, lockKey, type OverlayLock, saveLock, stampFiles } from "./lib/overlay.ts";
 
 /** A file or directory inside one OpenCode Module bundle: opencode/<module>/<parts...>. */
 export function opencodeModulePath(root: string, module: string, ...parts: string[]): string {
@@ -167,10 +167,20 @@ export function makeRepo(): string {
       "",
     ].join("\n"),
   );
-  // Both overlay kinds are blessed against the upstream content they were written from.
+  // Both overlay kinds are blessed against the upstream content they were written from, and so is
+  // each frontmatter override on an item that owns no body (alpha, beta-agent).
+  const frontmatterBlessed = (item: string, source: string): OverlayLock => ({
+    [lockKey("deniz-process", item)]: {
+      source,
+      files: stampFiles(join(root, "external", ...source.split("/")), ["SKILL.md"]),
+      frontmatter: true,
+    },
+  });
   saveLock(root, {
     ...blessed("deniz-beta", "sp/skills/beta", ["SKILL.md"]),
     ...blessed("gamma", "sp/skills/gamma", ["SKILL.md"]),
+    ...frontmatterBlessed("alpha", "sp/skills/alpha"),
+    ...frontmatterBlessed("beta-agent", "sp/skills/beta"),
   });
   // own skill
   mkdirSync(join(root, "skills", "deniz-process", "my-own"), { recursive: true });
@@ -179,4 +189,18 @@ export function makeRepo(): string {
     "---\nname: my-own\ndescription: Mine\n---\n\nMine.\n",
   );
   return root;
+}
+
+/**
+ * Records every frontmatter stamp in the fixture lock against current upstream, as a reviewed
+ * `eject --bless` would, for a test that rewrites an upstream document under such an override.
+ */
+export function restampFrontmatter(root: string): void {
+  const lock = loadLock(root);
+  for (const entry of Object.values(lock)) {
+    if (entry.frontmatter === true) {
+      entry.files = stampFiles(join(root, "external", ...entry.source.split("/")), Object.keys(entry.files));
+    }
+  }
+  saveLock(root, lock);
 }

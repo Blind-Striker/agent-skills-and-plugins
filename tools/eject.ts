@@ -36,6 +36,7 @@ import {
   saveLock,
   stampFiles,
   stampMergeFiles,
+  stampsFrontmatter,
 } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { scanSubmodule } from "./lib/scan.ts";
@@ -101,6 +102,14 @@ function stamp(): void {
     );
   }
   lock[lockKey(plugin, name)] = entry;
+  saveLock(root, lock);
+}
+
+/** The stamp of a frontmatter override on an item that owns no body: its primary upstream document. */
+function stampFrontmatter(): void {
+  const lock = loadLock(root);
+  const document = isDir ? "SKILL.md" : basename(src);
+  lock[lockKey(plugin, name)] = { source: item.source, files: stampFiles(base, [document]), frontmatter: true };
   saveLock(root, lock);
 }
 
@@ -192,13 +201,16 @@ function replayLine(r: ReplayResult): string {
 }
 
 if (flags.has("--bless")) {
-  if (!existsSync(dest)) {
+  // An item that owns no body but overrides frontmatter is blessed against the one upstream document
+  // its override rewrites; there is no overlay directory to require.
+  const frontmatterOnly = stampsFrontmatter(item);
+  if (!frontmatterOnly && !existsSync(dest)) {
     console.error(`Nothing to bless: overlays/${plugin}/${name}/ does not exist`);
     process.exit(1);
   }
   // A stamp says "reviewed against this upstream". Recording it for a patch the build cannot apply
   // would bless a state the next build still refuses, so the rebase comes first.
-  if (existsSync(patchFile)) {
+  if (!frontmatterOnly && existsSync(patchFile)) {
     const bad = checkPatch(base, patchFile);
     if (bad) {
       console.error(
@@ -216,6 +228,11 @@ if (flags.has("--bless")) {
   if (moved && !flags.has("--yes")) {
     console.error("Re-blessing records the content above as reviewed. Re-run with --yes to accept it.");
     process.exit(1);
+  }
+  if (frontmatterOnly) {
+    stampFrontmatter();
+    console.log(`Blessed the frontmatter override of ${plugin}/${name} against current upstream (${item.source}).`);
+    process.exit(0);
   }
   stamp();
   const against = [item.source, ...(item.merged_from ?? []).map((ms) => ms.source)].join(", ");

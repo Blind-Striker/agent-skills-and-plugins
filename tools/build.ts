@@ -51,6 +51,7 @@ import {
   driftedFiles,
   driftedMergeSources,
   ejectCommand,
+  LOCK_FILE,
   listFiles,
   liveStampKeys,
   loadLock,
@@ -58,6 +59,7 @@ import {
   type OverlayLock,
   PATCH_FILE,
   patchTargets,
+  stampsFrontmatter,
 } from "./lib/overlay.ts";
 import {
   collectIdentityProblems,
@@ -507,12 +509,50 @@ function collectProblems(root: string, manifests: CurationManifest[], components
         const next = ejectCommand(m.plugin.name, outName, "bless");
         problems.push(...overlayDrift(root, item, comp, m.plugin.name, outName, overlayDir, lock, next));
       }
+      if (stampsFrontmatter(item)) {
+        problems.push(...frontmatterDrift(root, item, comp, m.plugin.name, outName, lock));
+      }
       if (outType === "skill" && comp.type !== "skill") {
         problems.push(`${item.source}: ${comp.type} -> skill conversion not supported`);
       }
     }
   }
   return problems;
+}
+
+/**
+ * A `frontmatter:` override merges in after body assembly, so an upstream rewrite never makes it
+ * drift on its own: it goes on describing the body it was written against. An item that owns its
+ * body is guarded by that overlay's stamp; one that owns nothing records the upstream document the
+ * override rewrites, and that document moving stops the build until the override is reviewed.
+ */
+function frontmatterDrift(
+  root: string,
+  item: CurationItem,
+  comp: ComponentInfo,
+  plugin: string,
+  outName: string,
+  lock: OverlayLock,
+): string[] {
+  const id = `${plugin}/${outName}`;
+  const next = ejectCommand(plugin, outName, "bless");
+  const entry = lock[lockKey(plugin, outName)];
+  const document = overlayBodyFile(comp, item);
+  if (entry?.frontmatter !== true) {
+    return [`${id}: frontmatter override is not stamped in overlays/${LOCK_FILE} — run: ${next}`];
+  }
+  if (entry.source !== item.source) {
+    return [
+      `${id}: frontmatter stamp was blessed against ${entry.source}, but the item now curates ${item.source} — run: ${next}`,
+    ];
+  }
+  if (Object.keys(entry.files).join("\n") !== document) {
+    return [`${id}: frontmatter stamp must record ${document} and nothing else — run: ${next}`];
+  }
+  if (driftedFiles(upstreamBase(root, item, comp), entry).length) {
+    return [`${id}: upstream changed ${document} under the frontmatter override — review the diff, then: ${next}`];
+  }
+  return [];
 }
 
 function writeMarketplace(root: string, manifests: CurationManifest[]): void {

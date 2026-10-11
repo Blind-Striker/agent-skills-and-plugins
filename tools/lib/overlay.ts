@@ -13,6 +13,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, relative, resolve } from "node:path";
+import type { CurationItem } from "./manifest.ts";
 
 const INHERITED_REPOSITORY = [
   "GIT_DIR",
@@ -48,8 +49,21 @@ export interface LockEntry {
   files: Record<string, string>;
   /** merge source address -> same-filename stamps; null records "absent when blessed". */
   mergeSources?: Record<string, Record<string, string | null>>;
+  /**
+   * True when the entry stamps a `frontmatter:` override on an item that owns no body: `files` then
+   * holds the one upstream document the override rewrites, and no overlay directory exists.
+   */
+  frontmatter?: boolean;
 }
 export type OverlayLock = Record<string, LockEntry>;
+
+/**
+ * An item whose `frontmatter:` override needs its own stamp: it owns no body, so no overlay or patch
+ * stamp notices upstream rewriting the document the override describes (curation/SCHEMA.md).
+ */
+export function stampsFrontmatter(item: CurationItem): boolean {
+  return !item.exclude && !item.body && Object.keys(item.frontmatter ?? {}).length > 0;
+}
 
 export function lockKey(plugin: string, name: string): string {
   return `${plugin}/${name}`;

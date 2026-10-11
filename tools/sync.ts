@@ -5,7 +5,7 @@ import { pathToFileURL } from "node:url";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import { type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
-import { PATCH_FILE } from "./lib/overlay.ts";
+import { PATCH_FILE, stampsFrontmatter } from "./lib/overlay.ts";
 import { type OwnSkillIdentity, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import { candidateHits } from "./lib/refs.ts";
@@ -180,6 +180,9 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
         // file it lands; a change to any other file of the item flows through on the next build.
         // Neither is the "auto-updated" the default tag promises.
         tag = `PATCH — a change to a file ${PATCH_FILE} edits stops the build; changes elsewhere in the item flow through. Review: ${review}; ${NEXT_STEP}`;
+      } else if (stampsFrontmatter(item) && changed.includes(documentRel)) {
+        // The override's own stamp covers the document it rewrites (curation/SCHEMA.md).
+        tag = `FRONTMATTER STAMP — a change to the document the override rewrites stops the build; changes elsewhere in the item flow through. Review: ${review}; ${NEXT_STEP}`;
       }
       lines.push(`${m.plugin.name}: ${item.source} changed upstream (${tag})`);
       // An excluded item emits nothing, so everything below — posture that "flows straight into
@@ -230,9 +233,10 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
             `${m.plugin.name}: ${item.source} POSTURE ${k}: ${show(fa[k])} -> ${show(fb[k])} (${consequence})`,
           );
         }
-        // An override merges in AFTER body assembly and carries no upstream stamp, so an upstream
-        // rewrite never makes it drift: it goes on describing the body it was written against, and
-        // the build cannot tell. This report is the only place that can say so.
+        // An override merges in AFTER body assembly, so an upstream rewrite never makes it drift on
+        // its own: it goes on describing the body it was written against. On an item that owns no
+        // body, its own stamp stops the build until it is blessed again; on a patched item, only a
+        // patch target's stamp does. Either way the body has to be reread, and this says so.
         //
         // The trigger is the BODY moving, not the overridden key moving. Upstream can restructure a
         // skill end to end and leave its description untouched — which is exactly how an override
@@ -247,8 +251,11 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
           const detail = moved.length
             ? `upstream moved it too — ${moved.map((k) => `${k}: ${show(fa[k])} -> ${show(fb[k])}`).join("; ")}`
             : "upstream's own value is unchanged, so the body moved underneath it instead";
+          const guard = stampsFrontmatter(item)
+            ? "its stamp stops the next build until it is blessed again, so reread the new body before blessing"
+            : "nothing checks it, so reread the new body";
           lines.push(
-            `${m.plugin.name}: ${item.source} OVERRIDE ${overridden.join(", ")} — upstream's SKILL.md moved under a frontmatter override and nothing checks it, so reread the new body (${detail})`,
+            `${m.plugin.name}: ${item.source} OVERRIDE ${overridden.join(", ")} — upstream's SKILL.md moved under a frontmatter override and ${guard} (${detail})`,
           );
         }
       }

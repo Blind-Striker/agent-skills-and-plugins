@@ -8,8 +8,8 @@ import { parseDoc } from "./lib/frontmatter.ts";
 import { loadModuleManifest, verifyModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { parse as parseYaml, stringify } from "yaml";
-import { stampFiles, stampMergeFiles } from "./lib/overlay.ts";
-import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath } from "./testutil.ts";
+import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
+import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath, restampFrontmatter } from "./testutil.ts";
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
@@ -999,6 +999,54 @@ test("a full-file overlay with no lock entry aborts", () => {
   assert.throws(() => buildAll(root), /not recorded in overlays\/overlays\.lock\.json/);
 });
 
+// A frontmatter override with no body ownership has no overlay stamp to stand behind, so it carries
+// its own: the upstream document it was written against.
+test("upstream moving under a frontmatter override without a body stops the build before deleting", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const up = join(root, "external", "sp", "skills", "alpha", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Use superpowers:beta next.", "Three paths now."));
+  assert.throws(
+    () => buildAll(root),
+    (e: Error) =>
+      e.message.includes(
+        "deniz-process/alpha: upstream changed SKILL.md under the frontmatter override — review the diff, then: npm run eject -- deniz-process alpha --bless",
+      ),
+  );
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md")), "nothing deleted");
+});
+
+test("a frontmatter override without a body needs its stamp, from the source it curates", () => {
+  const root = makeRepo();
+  const lock = loadLock(root);
+  const stamp = lock[lockKey("deniz-process", "beta-agent")];
+  assert.ok(stamp?.frontmatter, "makeRepo stamps beta-agent's override");
+  delete lock[lockKey("deniz-process", "beta-agent")];
+  saveLock(root, lock);
+  assert.throws(
+    () => buildAll(root),
+    /deniz-process\/beta-agent: frontmatter override is not stamped in overlays\/overlays\.lock\.json — run: npm run eject -- deniz-process beta-agent --bless/,
+  );
+  saveLock(root, { ...lock, [lockKey("deniz-process", "beta-agent")]: { ...stamp, source: "sp/skills/delta" } });
+  assert.throws(() => buildAll(root), /frontmatter stamp was blessed against sp\/skills\/delta/);
+  const overlayStamp = { source: "sp/skills/beta", files: stamp.files };
+  saveLock(root, { ...lock, [lockKey("deniz-process", "beta-agent")]: overlayStamp });
+  assert.throws(() => buildAll(root), /beta-agent: frontmatter override is not stamped/, "an overlay stamp is not one");
+});
+
+test("an item that owns its body needs no frontmatter stamp", () => {
+  const root = makeRepo();
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "  - source: sp/skills/gamma\n",
+      "  - source: sp/skills/gamma\n    frontmatter:\n      description: G\n",
+    ),
+  );
+  assert.doesNotThrow(() => buildAll(root));
+});
+
 test("an upstream-backed file added to an overlay requires re-blessing", () => {
   const root = makeRepo();
   const overlay = join(root, "overlays", "deniz-process", "deniz-beta");
@@ -1451,6 +1499,7 @@ test("buildAll emits requiredModules for a guarded cross-Module edge", () => {
     join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
     "---\nname: alpha\ndescription: Alpha\n---\nUse superpowers:delta.\n",
   );
+  restampFrontmatter(root);
   writeFileSync(
     join(root, "curation", "deniz-provider.yaml"),
     stringify({

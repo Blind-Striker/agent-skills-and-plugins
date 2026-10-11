@@ -8,7 +8,7 @@ import { buildAll } from "./build.ts";
 import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
-import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath } from "./testutil.ts";
+import { codexPluginPath, makeRepo, opencodeIdPath, opencodeModulePath, restampFrontmatter } from "./testutil.ts";
 import { scanOpenCodeIds, validateRepo } from "./validate.ts";
 
 // The fixture curates sp/skills/beta twice, so the rewrite (last-write-wins) points alpha's
@@ -491,6 +491,26 @@ test("a lock entry with no overlay directory is a warning", () => {
   assert.ok(
     findings.some((f) => f.level === "warn" && f.message.includes("deniz-process/vanished")),
     `expected a stale-lock warning, got ${JSON.stringify(findings, null, 2)}`,
+  );
+});
+
+test("a frontmatter stamp is not lock rot until its item stops needing one", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const stale = (findings: ReturnType<typeof validateRepo>) =>
+    findings.filter((f) => f.level === "warn" && f.message.includes("overlays/overlays.lock.json records"));
+  assert.deepEqual(stale(validateRepo(root)), [], "alpha's override stands, with no overlay directory");
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace("    frontmatter:\n      description: Alpha curated\n      name: sneaky\n", ""),
+  );
+  assert.ok(
+    stale(validateRepo(root)).some((f) =>
+      f.message.includes(
+        "records a frontmatter stamp for deniz-process/alpha, but that item has no frontmatter override without a body: — drop the entry",
+      ),
+    ),
   );
 });
 
@@ -1230,6 +1250,7 @@ test("module manifest: re-signed requiredModules still must match curation", () 
     join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
     "---\nname: alpha\ndescription: Alpha\n---\nUse superpowers:delta.\n",
   );
+  restampFrontmatter(root);
   writeFileSync(
     join(root, "curation", "deniz-provider.yaml"),
     stringify({

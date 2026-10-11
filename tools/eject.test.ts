@@ -295,6 +295,9 @@ test("eject --bless re-stamps a drifted full-file overlay and unblocks the build
 
   const r = eject(root, ["deniz-process", "deniz-beta", "--bless", "--yes"]);
   assert.ok(r.ok, r.out);
+  // beta also backs beta-agent, whose frontmatter override is stamped on its own.
+  assert.throws(() => buildAll(root), /beta-agent: upstream changed SKILL\.md under the frontmatter override/);
+  assert.ok(eject(root, ["deniz-process", "beta-agent", "--bless", "--yes"]).ok);
   assert.doesNotThrow(() => buildAll(root));
 });
 
@@ -415,6 +418,48 @@ test("eject --bless records a first blessing without asking for confirmation", (
   const r = eject(root, ["deniz-process", "delta", "--bless"]);
   assert.ok(r.ok, r.out);
   assert.ok(loadLock(root)[lockKey("deniz-process", "delta")]?.files["SKILL.md"], "the first bless still stamps");
+});
+
+test("eject --bless re-stamps a frontmatter override without a body, with no overlay directory", () => {
+  const root = makeRepo();
+  const up = join(root, "external", "sp", "skills", "alpha", "SKILL.md");
+  writeFileSync(up, readFileSync(up, "utf8").replace("Use superpowers:beta next.", "Three paths now."));
+  assert.throws(() => buildAll(root), /under the frontmatter override/);
+
+  const unconfirmed = eject(root, ["deniz-process", "alpha", "--bless"]);
+  assert.equal(unconfirmed.ok, false, "what upstream did is shown for review before it is recorded");
+  assert.match(unconfirmed.out, /DRIFTED sp\/skills\/alpha: SKILL\.md/);
+
+  const r = eject(root, ["deniz-process", "alpha", "--bless", "--yes"]);
+  assert.ok(r.ok, r.out);
+  assert.match(
+    r.out,
+    /Blessed the frontmatter override of deniz-process\/alpha against current upstream \(sp\/skills\/alpha\)/,
+  );
+  assert.deepEqual(loadLock(root)[lockKey("deniz-process", "alpha")], {
+    source: "sp/skills/alpha",
+    files: { "SKILL.md": blobSha(up) },
+    frontmatter: true,
+  });
+  assert.ok(!existsSync(join(root, "overlays", "deniz-process", "alpha")), "no overlay directory is made");
+  assert.doesNotThrow(() => buildAll(root));
+});
+
+test("eject --bless records a first frontmatter stamp without asking for confirmation", () => {
+  const root = makeRepo();
+  const lock = loadLock(root);
+  delete lock[lockKey("deniz-process", "alpha")];
+  saveLock(root, lock);
+  const r = eject(root, ["deniz-process", "alpha", "--bless"]);
+  assert.ok(r.ok, r.out);
+  assert.equal(loadLock(root)[lockKey("deniz-process", "alpha")]?.frontmatter, true);
+});
+
+test("eject --bless on an item with neither a body nor a frontmatter override has nothing to bless", () => {
+  const root = makeRepo();
+  const r = eject(root, ["deniz-process", "delta", "--bless"]);
+  assert.equal(r.ok, false);
+  assert.match(r.out, /Nothing to bless/);
 });
 
 // --- eject --patch --rebase -------------------------------------------------------------------
@@ -682,8 +727,10 @@ test("R8 merge-source drift is shown, and the cut stamps it", () => {
     loadLock(root)[lockKey("deniz-process", "delta")]?.mergeSources?.["sp/skills/beta"]?.["SKILL.md"],
     blobSha(beta),
   );
-  // beta also backs the deniz-beta full-file overlay, whose own review is the bless.
+  // beta also backs the deniz-beta full-file overlay and the beta-agent frontmatter override, whose
+  // own reviews are their blesses.
   assert.ok(eject(root, ["deniz-process", "deniz-beta", "--bless", "--yes"]).ok);
+  assert.ok(eject(root, ["deniz-process", "beta-agent", "--bless", "--yes"]).ok);
   assert.doesNotThrow(() => buildAll(root));
 });
 
