@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.0",
-  "digest": "sha256:f2a3925d81438a2ec47f72da303d574725773e01004e96db55533ef702e78ef0",
+  "digest": "sha256:dd6a24b2e027dc212b0f1e0719d16a6b78eea519eb6247ebe6a8a220334d3200",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -182,7 +182,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:ca84aa94b8539f4589082d814f7a31d8a106a96bac047477631e655ce57b1fd3",
+      "sha256": "sha256:2ff075d3532a142162f205665159a98d46825fb7692159cf721a9f5b007f21d5",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/scripts/task-done": {
@@ -294,7 +294,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:0c21653abe560d42881ca830e1239ba197d5ead3657a96afc12189490157ff09",
+      "sha256": "sha256:dcb8c6e4f377a0b17b18e929096a130a422006a28059154dc24f33a05546d060",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {

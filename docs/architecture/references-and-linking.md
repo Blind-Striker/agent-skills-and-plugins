@@ -223,17 +223,19 @@ OpenCode 2 has no todo tool: its pull request `anomalyco/opencode#35989` removed
 Upstream superpowers' own OpenCode plugin tracks the plan in a Markdown file instead. OpenCode
 therefore renders each todo phrase as Markdown-checklist wording, from a closed table matched
 exactly, outside inline code spans; Claude Code and Codex keep upstream's words. A skill that keeps
-a ledger, `executing-plans` and `subagent-driven-development`, keeps the checklist there; every
-other skill keeps a visible Markdown checklist and ticks each line as it is done:
+a ledger, `executing-plans` and `subagent-driven-development`, keeps the checklist there. Setup runs
+again on a resume, so it adds the checklist only when the ledger has none yet, and a task's line
+stays unticked until the task is recorded, because a checkbox has no in-progress state. Every other
+skill keeps a visible Markdown checklist and ticks each line as it is done:
 
 | Claude Code and Codex (upstream) | OpenCode 2 |
 |---|---|
-| `create a todo per task` | `add a Markdown checklist with one line per task to the ledger` |
+| `create a todo per task` | `add a Markdown checklist with one line per task to the ledger, unless the ledger already has one` |
 | `[Create todos for all tasks]` | `[Add a checklist of all tasks to the ledger]` |
-| `Mark the task's todo in_progress` | `Mark the task's checklist line as in progress` |
+| `Mark the task's todo in_progress` | `Leave the task's checklist line unticked until task-done records it` |
 | `mark todo complete`, `mark the todo complete` | `tick the task's checklist line` |
 | `ledger file, not only in todos.` | `ledger file.` |
-| `Harness todos are a live view;` | `Its checklist is a live view;` |
+| `Harness todos are a live view; the ledger is the record.` | `The ledger is both the live view and the record.` |
 | `Create a todo per step.`, `create a todo per item.` | `Keep a visible Markdown checklist with one line per step, and tick each line as it is done.`, with `item` and a lowercase `keep` in the second |
 | `Create a todo for EACH checklist item below.` | `Copy EACH checklist item below into a visible Markdown checklist, and tick each line as it is done.` |
 | `todos for checklists` | `a visible Markdown checklist, ticked line by line` |

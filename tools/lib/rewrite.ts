@@ -207,16 +207,24 @@ type Replacement = string | ((match: string, ...groups: string[]) => string);
 // keep, and every other skill keeps a visible checklist ticked line by line. Claude Code and Codex
 // keep upstream's words. A match inside an inline code span is left whole, as the check skips it.
 const OPENCODE_TODO: { pattern: RegExp; opencode: Replacement }[] = [
-  // executing-plans and subagent-driven-development: the ledger holds the checklist.
+  // executing-plans and subagent-driven-development: the ledger holds the checklist. Setup runs again
+  // on every resume and the ledger survives it, so a resumed run keeps the checklist it has. A
+  // Markdown checkbox is ticked or not, so a task in progress is one whose line is not yet ticked.
   {
     pattern: /\bcreate a(\s+)todo per task\b/g,
-    opencode: "add a$1Markdown checklist with one line per task to the ledger",
+    opencode: "add a$1Markdown checklist with one line per task to the ledger, unless the ledger already has one",
   },
   { pattern: /\[Create todos for all tasks\]/g, opencode: "[Add a checklist of all tasks to the ledger]" },
-  { pattern: /\bMark the task's todo in_progress\b/g, opencode: "Mark the task's checklist line as in progress" },
+  {
+    pattern: /\bMark the task's todo in_progress\b/g,
+    opencode: "Leave the task's checklist line unticked until task-done records it",
+  },
   { pattern: /\bmark (?:the )?todo complete\b/g, opencode: "tick the task's checklist line" },
   { pattern: /\bledger file, not only in todos\./g, opencode: "ledger file." },
-  { pattern: /\bHarness todos are a(\s+)live view;/g, opencode: "Its checklist is a$1live view;" },
+  {
+    pattern: /\bHarness todos are a(\s+)live view; the ledger is the record\./g,
+    opencode: "The ledger is both the$1live view and the record.",
+  },
   // diagnosing-superpowers, using-superpowers, writing-skills: a visible checklist.
   {
     pattern: /\b([Cc])reate a todo per (step|item)\./g,

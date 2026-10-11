@@ -117,8 +117,8 @@ partner's explicit consent.
 Conversation memory does not survive compaction. An inline executor that
 loses its place re-implements tasks whose commits already exist — the same
 failure as a controller re-dispatching them, paid for in your own context.
-Track progress in a ledger file. Its checklist is a
-live view; the ledger is the record.
+Track progress in a ledger file. The ledger is both the
+live view and the record.
 
 The workspace and ledger are shared with deniz-process.subagent-driven-development
 — same directory, same format — so a plan can change executors mid-flight
@@ -143,7 +143,7 @@ and the new one resumes from the same ledger.
   if that happens, recover from `git log`.
 
 Read the plan once, note its context and Global Constraints, and add a
-Markdown checklist with one line per task to the ledger. If the plan names a Spec, read that too: the spec is the
+Markdown checklist with one line per task to the ledger, unless the ledger already has one. If the plan names a Spec, read that too: the spec is the
 authority the plan argues from, and conflicts inside the plan resolve
 against it. A plan with no reachable spec gets a ledger note saying so —
 rulings made without one are provisional.
@@ -176,7 +176,7 @@ in the workspace and read its tail; read a brief, not the whole plan.
   Read the brief for every task, including ones you remember from setup:
   what you remember is a summary, the brief has the exact values,
   signatures, and test cases.
-- Mark the task's checklist line as in progress.
+- Leave the task's checklist line unticked until task-done records it.
 
 Every tool call is a turn that re-reads your whole context. Bookkeeping
 rides along with work — a ledger append in the same call as the commit,

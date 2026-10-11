@@ -155,7 +155,7 @@ a ledger file.
   that happens, recover from `git log`.
 
 Read the plan once, note its context and Global Constraints, and add a
-Markdown checklist with one line per task to the ledger. If the plan names a Spec, read that too: the spec is the
+Markdown checklist with one line per task to the ledger, unless the ledger already has one. If the plan names a Spec, read that too: the spec is the
 authority the plan argues from, and conflicts inside the plan resolve
 against it. A plan with no reachable spec gets a ledger note saying so —
 rulings made without one are provisional.
