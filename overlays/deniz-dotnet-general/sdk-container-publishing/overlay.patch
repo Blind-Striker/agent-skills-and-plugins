@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8285296..5855549 100644
+index 8285296..7a13640 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,11 +1,11 @@
@@ -36,25 +36,6 @@ index 8285296..5855549 100644
  
  ```bash
  dotnet publish /t:PublishContainer -c Release
-@@ -85,17 +89,17 @@ In CI, publish against a registry and tag with the release name. The tag-driven
- dotnet publish src/MyService/MyService.csproj \
-   -p:VersionPrefix=${{ github.ref_name }} \
-   -p:ContainerRegistry=docker.example.internal \
-   -c Release /t:PublishContainer
- ```
- 
- `-p:VersionPrefix` feeds the `ContainerImageTags` list set in the project, so the image is tagged with the release name and `latest`. Do not also pass `-p:ContainerImageTag` - the SDK rejects `ContainerImageTag` and `ContainerImageTags` together (`CONTAINER2008`). See [references/ci-cd.md](references/ci-cd.md) for the full workflow and registry auth notes.
- 
--If you centralize image settings across a repo, put them in a `Directory.Build.props` with CI conditionals. We do this for version tags and labels. See [references/real-world-examples.md](references/real-world-examples.md).
-+If you centralize image settings across a repo, put them in a `Directory.Build.props` with CI conditionals. We do this for version tags and labels. See [references/ci-cd.md](references/ci-cd.md).
- 
- ## Troubleshooting
- 
- The common failures (tag drift, wrong image name or registry, unavailable `RUN`, no daemon on the build host, insecure registry rejection, multi-RID publish races, and multi-target publishing) are covered in depth in [references/troubleshooting.md](references/troubleshooting.md). In short: set your tag (`ContainerImageTag` or `ContainerImageTags`) explicitly, set `ContainerRepository` and `ContainerRegistry` explicitly, and use `ContainerArchiveOutputPath` when no daemon is available.
- 
- ### Tag drift
- 
- **Symptom:** Your pipeline publishes an image but you cannot find the version you expect, only `latest`.
 @@ -129,16 +133,19 @@ The common failures (tag drift, wrong image name or registry, unavailable `RUN`,
  **Fix:** Set `ContainerArchiveOutputPath` to write a tarball instead. No daemon needed.
  

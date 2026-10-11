@@ -121,6 +121,7 @@ const NON_SYMBOL_REF_ADDRESSES = new Set([
   "main:app",
   "monitor:latest",
   "my-app:latest",
+  "my-service:latest",
   "myapp:latest",
   "name:name",
   "node:test",

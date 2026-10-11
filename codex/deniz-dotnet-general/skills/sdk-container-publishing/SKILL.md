@@ -101,7 +101,7 @@ dotnet publish src/MyService/MyService.csproj \
 
 `-p:VersionPrefix` feeds the `ContainerImageTags` list set in the project, so the image is tagged with the release name and `latest`. Do not also pass `-p:ContainerImageTag` - the SDK rejects `ContainerImageTag` and `ContainerImageTags` together (`CONTAINER2008`). See [references/ci-cd.md](references/ci-cd.md) for the full workflow and registry auth notes.
 
-If you centralize image settings across a repo, put them in a `Directory.Build.props` with CI conditionals. We do this for version tags and labels. See [references/ci-cd.md](references/ci-cd.md).
+If you centralize image settings across a repo, put them in a `Directory.Build.props` with CI conditionals. We do this for version tags and labels. See [references/real-world-examples.md](references/real-world-examples.md).
 
 ## Troubleshooting
 

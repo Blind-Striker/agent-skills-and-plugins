@@ -135,12 +135,12 @@ items:
     invocation: auto # SDK-built container images (PublishContainer and the Container* properties) and
     # their CI publish step; no other item carries this knowledge, and aspire-deployment covers only
     # images deployed through an Aspire AppHost
-    omit: [references/real-world-examples.md] # duplicates ci-cd.md with upstream-organization detail;
-    # the patch re-points its one link to ci-cd.md
+    # references/real-world-examples.md ships, curator's call: its worked csproj, CI, and
+    # Directory.Build.props examples back the body's centralized-settings link, which keeps
+    # upstream's target
     body: patch # adds only what upstream never had: an external-action guard, a user pointer to the
-    # manual AOT ceremony for turning PublishAot on, and a USE FOR / DO NOT USE FOR description; it
-    # also re-points the one link to the omitted file. The defects this patch used to correct were
-    # reported from this curation (Aaronontheweb/dotnet-skills#93) and fixed upstream in v1.7.1
+    # manual AOT ceremony for turning PublishAot on, and a USE FOR / DO NOT USE FOR description.
+    # The defects this patch used to correct were reported from this curation (Aaronontheweb/dotnet-skills#93) and fixed upstream in v1.7.1
     # (#94): CONTAINER2008 between the csproj tag list and the CI tag flag, the VersionPrefix order
     # that tags a plain publish only `latest`, the `latest` default dating from .NET 8, the scope of
     # ContainerPublishInParallel, the daemon claim for a registry push, the dead registry-auth link,
