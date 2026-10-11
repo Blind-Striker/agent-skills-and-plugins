@@ -119,6 +119,9 @@ const CODEX_VERB = { Call: "Invoke", call: "invoke", calls: "invokes", calling: 
 const DISPATCH: { pattern: RegExp; opencode: string; codex: string }[] = [
   { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
   { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
+  // The same words unbackticked. A backtick before them is a code span, which this cannot rewrite
+  // without breaking, so that case is left for the vocabulary check to reject.
+  { pattern: /(?<!`)\bgeneral-purpose(\s+)subagent\b/g, opencode: "`general`$1subagent", codex: "subagent" },
   { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1" },
 ];
 

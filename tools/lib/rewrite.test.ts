@@ -251,6 +251,7 @@ const PHRASES = [
   "naming which skills the next agent should call the Skill tool for.",
   "Subagent (general-purpose):",
   "dispatch a `general-purpose`\nsubagent. Then send one message with two `Agent` calls, one `Agent` call",
+  "Dispatch a fresh general-purpose subagent with this prompt.",
 ].join("\n");
 
 test("harness phrasing: Claude Code is identity", () => {
@@ -267,6 +268,7 @@ test("harness phrasing: OpenCode names its skill and subagent tools", () => {
       "naming which skills the next agent should call the `skill` tool for.",
       "Subagent (general):",
       "dispatch a `general`\nsubagent. Then send one message with two `subagent` calls, one `subagent` call",
+      "Dispatch a fresh `general` subagent with this prompt.",
     ].join("\n"),
   );
 });
@@ -281,6 +283,7 @@ test("harness phrasing: Codex invokes and names no subagent tool or type", () =>
       "naming which skills the next agent should invoke.",
       "Subagent:",
       "dispatch a subagent. Then send one message with two subagent calls, one subagent call",
+      "Dispatch a fresh subagent with this prompt.",
     ].join("\n"),
   );
 });
@@ -308,9 +311,23 @@ test("every non-Claude rendering is free of Claude-only vocabulary", () => {
       "`Agent`",
       "`Agent`",
       "`general-purpose`",
+      "general-purpose subagent",
     ].sort(),
   );
   for (const style of ["opencode", "codex"] as const) {
     assert.deepEqual(claudeOnlyVocabulary(renderHarnessPhrasing(PHRASES, style)), [], style);
+  }
+});
+
+test("an unbackticked general-purpose subagent inside a code span is left for the vocabulary check", () => {
+  const span = "Run `general-purpose subagent` here.";
+  for (const style of ["opencode", "codex"] as const) {
+    const rendered = renderHarnessPhrasing(span, style);
+    assert.equal(rendered, span, style);
+    assert.deepEqual(
+      claudeOnlyVocabulary(rendered).map((hit) => hit.match),
+      ["general-purpose subagent"],
+      style,
+    );
   }
 });

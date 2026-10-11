@@ -194,7 +194,13 @@ Subagent dispatch words are a closed table, matched exactly:
 |---|---|---|
 | `Subagent (general-purpose)` | `Subagent (general)` | `Subagent` |
 | `` `general-purpose` ``, whitespace, `subagent` | `` `general` ``, the same whitespace, `subagent` | `subagent` |
+| `general-purpose`, whitespace, `subagent`, unbackticked and not opening a code span | `` `general` ``, the same whitespace, `subagent` | `subagent` |
 | `` `Agent` call `` or `` `Agent` calls `` | `` `subagent` call `` or `` `subagent` calls `` | `subagent call` or `subagent calls` |
+
+So "Dispatch a fresh general-purpose subagent" reads "Dispatch a fresh `general` subagent" in
+OpenCode and "Dispatch a fresh subagent" in Codex. Words that a backtick opens, as in
+`` `general-purpose subagent` ``, are left alone, because a backtick inserted there would break the
+code span; the vocabulary check rejects them instead.
 
 The tool names come from recorded evidence. OpenCode 2's model tool `skill` takes an exact skill
 ID, its subagent tool is `subagent`, and its built-in general subagent is `general`

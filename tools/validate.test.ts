@@ -1367,6 +1367,35 @@ test("V: Claude-only dispatch words in a generated tree are errors", () => {
   }
 });
 
+test("V: an unbackticked general-purpose subagent renders per harness and leaks into neither tree", () => {
+  const errors = ocErrors("Dispatch a fresh general-purpose subagent with this prompt.", [
+    "  - source: sp/skills/alpha",
+  ]);
+  assert.ok(!errors.some((m) => m.includes("Claude-only vocabulary")), errors.join("\n"));
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: D\n---\nDispatch a fresh general-purpose subagent with this prompt.\n",
+  );
+  buildAll(root);
+  const line = (file: string): string | undefined =>
+    readFileSync(file, "utf8")
+      .split("\n")
+      .find((l) => l.startsWith("Dispatch"));
+  assert.equal(
+    line(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md")),
+    "Dispatch a fresh general-purpose subagent with this prompt.",
+  );
+  assert.equal(
+    line(opencodeIdPath(root, "deniz-process", "skill", "delta", "SKILL.md")),
+    "Dispatch a fresh `general` subagent with this prompt.",
+  );
+  assert.equal(
+    line(codexPluginPath(root, "deniz-process", "skills", "delta", "SKILL.md")),
+    "Dispatch a fresh subagent with this prompt.",
+  );
+});
+
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
   const errors = ocErrors(
     "Body.",
