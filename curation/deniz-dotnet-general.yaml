@@ -39,6 +39,11 @@ items:
     # content inconsistency: the Result-type summary now prefers a domain-specific result type, while
     # the DO list, the Code Organization example, and performance-and-api-design.md still use a
     # generic Result<T, TError> — runtime content, flows as shipped
+    body: patch # one boundary sentence, curator's call: its When to Use claims refactoring existing
+    # code, while its record and value-object preferences change equality and copying, so a
+    # behavior-preserving "modernize" goes to csharp-refactoring, which applies only the idioms the
+    # repository's analyzers enforce
+    depends_on: [csharp-refactoring] # the boundary sentence names it as a checked fact
   - source: dotnet-skills/skills/csharp-nullable-reference-types
     invocation: auto # passive NRT semantics for writing and review where nullable context is already
     # enabled. Project/solution adoption and systematic CS86xx cleanup remain the existing manual
@@ -82,7 +87,11 @@ items:
     # continued as ordinary work when it clearly asks for it, or asked about once. It also names a
     # generic C# language server instead of upstream's plugin LSP, drops the dotnet-upgrade route,
     # resolves the baseline and pass-count contradiction and the duplicated on-red sentence, and turns
-    # the catalog's nullable pointer into a user pointer to the manual migrate-nullable-references
+    # the catalog's nullable pointer into a user pointer to the manual migrate-nullable-references.
+    # The catalog's "Modernize" section adds one boundary sentence, curator's call: converting to a
+    # record or a readonly record struct, which modern-csharp-coding-standards prefers for new code,
+    # changes equality, copying, and ToString, so it is not a modernize step here
+    depends_on: [modern-csharp-coding-standards] # the boundary sentence names it as a checked fact
   - source: dotnet-skills/agents/roslyn-incremental-generator-specialist.md
     # the one persona worth keeping: deep IIncrementalGenerator pipeline discipline with no skill
     # equivalent anywhere in the corpus. An agent in Claude Code and OpenCode; Codex emits it as a

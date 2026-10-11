@@ -209,6 +209,12 @@
       "SKILL.md": "187da5aafa02d4e355e681eff27193b1b13e000b"
     }
   },
+  "deniz-dotnet-general/modern-csharp-coding-standards": {
+    "source": "dotnet-skills/skills/csharp-coding-standards",
+    "files": {
+      "SKILL.md": "fc15be9a339342a015706f0ea2f1ed6993f09e9c"
+    }
+  },
   "deniz-dotnet-general/msbuild": {
     "source": "dotnet-agent-skills/plugins/dotnet/skills/msbuild",
     "files": {

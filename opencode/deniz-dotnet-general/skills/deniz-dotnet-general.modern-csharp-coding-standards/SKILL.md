@@ -17,6 +17,8 @@ Use this skill when:
 - Building async/await-heavy applications
 - Working with binary data, buffers, or high-throughput scenarios
 
+A request to modernize existing code without changing its behavior belongs to the `deniz-dotnet-general.csharp-refactoring` skill, which applies only the idioms the repository's analyzers enforce: this skill's record and value-object preferences change equality and copying, so they are for new code or a requested redesign.
+
 ## Reference Files
 
 - [value-objects-and-patterns.md](value-objects-and-patterns.md): Full value object examples and pattern matching code

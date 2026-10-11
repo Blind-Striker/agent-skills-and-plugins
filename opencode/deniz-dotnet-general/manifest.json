@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.13.0",
-  "digest": "sha256:53f6518485047fde1563cf346386c84d549891c2232adfca61e6a31bbe1ace23",
+  "digest": "sha256:731b3f8f83c5f538ab41c406ad7da50959031ea693f43496f903e7b9138e785f",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -181,7 +181,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.csharp-refactoring/references/operation-catalog.md": {
-      "sha256": "sha256:4fc9cb907f22bb524531fc039ce33bc39a8f1e598cb5c7d7245a28f5144ca0f3",
+      "sha256": "sha256:587e63bc89718556fa75b7fcec9715013c07e16328a0aa0ad1c85482bfd72e9e",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.csharp-scripts/SKILL.md": {
@@ -385,7 +385,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.modern-csharp-coding-standards/SKILL.md": {
-      "sha256": "sha256:f4c5e576bb2ac9aafbe57089fb8a854b2713618c6decc56b625b3bafdbbfd3ac",
+      "sha256": "sha256:51727d58788f1c51513c110c77e28d57d6b3018b4503cd8556b747a00ef4f60d",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.modern-csharp-coding-standards/anti-patterns-and-reflection.md": {

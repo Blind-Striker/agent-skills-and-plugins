@@ -35,4 +35,7 @@ EnforceOnBuild values for code style analyzers"). Apply the fixes the repo's own
 blanket-suppress diagnostics to make an edit "pass." _Adopting_ nullable annotations is the manual
 `$deniz-dotnet-general:migrate-nullable-references` ceremony, which the user invokes; enabling nullable across a
 project or changing public API annotations is a migration or contract change, not a canonical
-behavior-preserving refactoring operation.
+behavior-preserving refactoring operation. The record and value-object preferences of the
+`$deniz-dotnet-general:modern-csharp-coding-standards` skill are for new code: converting a class to a `record`, or a
+type to a `readonly record struct`, changes equality, copying, and `ToString`, so it is not a
+modernize step here.

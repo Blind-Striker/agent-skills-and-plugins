@@ -144,10 +144,10 @@ index e383626..88adbd6 100644
  PublicApiAnalyzers, and/or `ApiCompat`/`<EnablePackageValidation>` — not interchangeable),
  `<TargetFrameworks>`/`#if` branches, and `InternalsVisibleTo`. Moving a public type to another assembly
 diff --git a/references/operation-catalog.md b/references/operation-catalog.md
-index 340eed2..71adc7a 100644
+index 340eed2..e9d84db 100644
 --- a/references/operation-catalog.md
 +++ b/references/operation-catalog.md
-@@ -27,11 +27,12 @@ ladder in SKILL.md.
+@@ -27,11 +27,15 @@ ladder in SKILL.md.
  | **Pull up / push down** member | `PullMemberUp` | tail | move members between a type and its base/interface |
  | **Sync namespace** to folder | `SyncNamespace` | tail | align `namespace` with folder layout after a move |
  
@@ -162,4 +162,7 @@ index 340eed2..71adc7a 100644
 +blanket-suppress diagnostics to make an edit "pass." _Adopting_ nullable annotations is the manual
 +`/dotnet-upgrade:migrate-nullable-references` ceremony, which the user invokes; enabling nullable across a
 +project or changing public API annotations is a migration or contract change, not a canonical
-+behavior-preserving refactoring operation.
++behavior-preserving refactoring operation. The record and value-object preferences of the
++`dotnet-skills:csharp-coding-standards` skill are for new code: converting a class to a `record`, or a
++type to a `readonly record struct`, changes equality, copying, and `ToString`, so it is not a
++modernize step here.

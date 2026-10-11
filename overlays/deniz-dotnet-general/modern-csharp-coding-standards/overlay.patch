@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index fc15be9..1dba860 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -11,16 +11,18 @@ user-invocable: false
+ Use this skill when:
+ - Writing new C# code or refactoring existing code
+ - Designing public APIs for libraries or services
+ - Optimizing performance-critical code paths
+ - Implementing domain models with strong typing
+ - Building async/await-heavy applications
+ - Working with binary data, buffers, or high-throughput scenarios
+ 
++A request to modernize existing code without changing its behavior belongs to the `dotnet:csharp-refactoring` skill, which applies only the idioms the repository's analyzers enforce: this skill's record and value-object preferences change equality and copying, so they are for new code or a requested redesign.
++
+ ## Reference Files
+ 
+ - [value-objects-and-patterns.md](value-objects-and-patterns.md): Full value object examples and pattern matching code
+ - [performance-and-api-design.md](performance-and-api-design.md): Span<T>/Memory<T> examples and API design principles
+ - [composition-and-error-handling.md](composition-and-error-handling.md): Composition over inheritance, Result type, testing patterns
+ - [anti-patterns-and-reflection.md](anti-patterns-and-reflection.md): Reflection avoidance and common anti-patterns
+ 
+ ## Core Principles

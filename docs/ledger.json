@@ -1603,13 +1603,18 @@
     "source": "dotnet-agent-skills/plugins/dotnet/skills/csharp-refactoring",
     "invocation": "both",
     "body": "patch",
+    "dependsOn": [
+      "modern-csharp-coding-standards"
+    ],
     "description": "Safely refactors C#/.NET code without changing behavior. USE FOR any request to refactor, rename, move, extract, inline, merge, consolidate, deduplicate, split, or modernize C# code, including partial/generated declarations, wrappers, public APIs, serialization/reflection/configuration names, friend assemblies, conditional compilation, and multi-targeted projects. Also use when a request calls a feature, bug fix, package/framework upgrade, or public nullability change a refactor and the behavior-changing part must be separated or declined. DO NOT USE FOR ordinary feature or bug fixes not presented as refactoring; standalone upgrades after reclassification; adding tests; or formatting-only work.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:modern-csharp-coding-standards"
+        ],
         "pointer": [
           "deniz-dotnet-general:migrate-nullable-references"
         ]
@@ -1622,7 +1627,9 @@
       "identity": "deniz-dotnet-general.csharp-refactoring",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.modern-csharp-coding-standards"
+        ],
         "pointer": [
           "@deniz-dotnet-general.migrate-nullable-references"
         ]
@@ -1643,7 +1650,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:modern-csharp-coding-standards"
+        ],
         "pointer": [
           "$deniz-dotnet-general:migrate-nullable-references"
         ]
@@ -2922,13 +2931,19 @@
   "deniz-dotnet-general/skill/modern-csharp-coding-standards": {
     "source": "dotnet-skills/skills/csharp-coding-standards",
     "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "csharp-refactoring"
+    ],
     "description": "Write modern, high-performance C# code using records, pattern matching, value objects, async/await, Span<T>/Memory<T>, and best-practice API design patterns. Emphasizes functional-style programming with C# 12+ features.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general:csharp-refactoring"
+        ],
         "pointer": []
       },
       "flags": {
@@ -2942,7 +2957,9 @@
       "identity": "deniz-dotnet-general.modern-csharp-coding-standards",
       "advertised": true,
       "edges": {
-        "model": [],
+        "model": [
+          "deniz-dotnet-general.csharp-refactoring"
+        ],
         "pointer": []
       },
       "dropped": [
@@ -2961,7 +2978,9 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
+        "model": [
+          "$deniz-dotnet-general:csharp-refactoring"
+        ],
         "pointer": []
       },
       "dropped": [
