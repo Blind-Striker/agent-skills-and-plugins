@@ -1,6 +1,6 @@
 # Documentation
 
-Date: 2026-08-19
+Date: 2026-10-11
 
 This document owns documentation authority, placement, lifecycle, and maintenance. Verification
 commands live in [quality-gates.md](quality-gates.md), repository task flow lives in
@@ -25,7 +25,7 @@ plans, handovers, and dated evidence never outrank live repository sources.
 | Accepted decision context, rationale, trade-offs, and consequences | `docs/adr/` |
 | Dated evidence, prior art, and decision history, including superseded positions | `docs/research/` |
 | Repeatable measurement method and committed measurement records | `experiments/` |
-| Current domain vocabulary and avoided synonyms | `CONTEXT.md` |
+| Current domain vocabulary and avoided synonyms | `GLOSSARY.md` |
 | Operational status, next work, open questions, and known gaps | `docs/ROADMAP.md` |
 | Guidance needed only by an AI agent | `docs/agents/` |
 | Temporary plans and specifications | `docs/superpowers/` |

@@ -7,7 +7,7 @@ Date: 2026-10-11
 This document owns the current compile-time mechanics: how authored inputs become separate Claude
 Code, OpenCode, and Codex artifacts, where body ownership sits, and where compilation hands off to
 installation and runtime. Distribution terms retain the precise meanings in
-[`CONTEXT.md`](../../CONTEXT.md); manifest grammar and authoring choices remain in
+[`GLOSSARY.md`](../../GLOSSARY.md); manifest grammar and authoring choices remain in
 [`curation/SCHEMA.md`](../../curation/SCHEMA.md).
 
 The rationale is split across the ADRs: [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md)

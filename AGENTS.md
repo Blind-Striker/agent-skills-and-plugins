@@ -66,11 +66,11 @@ dated research supplies evidence and may intentionally preserve superseded posit
 |---|---|
 | Item curation, invocation, shape, body ownership, overlays, or harness emission | `docs/architecture/transformation-and-emission.md`, `curation/SCHEMA.md`, and `docs/engineering/workflow.md` |
 | References, localization, `depends_on`, reachability, candidates, or ledger semantics | `docs/architecture/references-and-linking.md` and `curation/SCHEMA.md` |
-| Module Bundles, Package transport, Selection, Ownership, installer Plan/Apply/Recovery, or Destination | `docs/architecture/distribution-and-installation.md` and `CONTEXT.md` |
+| Module Bundles, Package transport, Selection, Ownership, installer Plan/Apply/Recovery, or Destination | `docs/architecture/distribution-and-installation.md` and `GLOSSARY.md` |
 | Repository workflow, upstream sync, generated-output discipline, or task closeout | `docs/engineering/workflow.md` |
 | Tests, CI, formatting, generation review, or completion claims | `docs/engineering/quality-gates.md` and the scripts in `package.json` |
 | Documentation placement/lifecycle or ADR creation/revision | `docs/engineering/documentation.md` and `docs/adr/README.md` |
-| Domain terminology | `CONTEXT.md` |
+| Domain terminology | `GLOSSARY.md` |
 | Dated research or evidence | `docs/research/README.md`; for repeatable harness measurements, `experiments/harness-invocation/protocol.md` and `experiments/harness-invocation/records/README.md` |
 | Agent-only playbooks or handovers | `docs/agents/README.md` and `docs/engineering/documentation.md` |
 | Current status, queue, open questions, known gaps, or deferred work | `docs/ROADMAP.md` and any active handover under `docs/agents/handover-prompts/` |
@@ -85,7 +85,7 @@ dated research supplies evidence and may intentionally preserve superseded posit
   mechanics manual.
 - `docs/research/` is dated evidence and decision history, not current policy. `experiments/` owns
   repeatable methods and committed measurement records.
-- `CONTEXT.md` owns vocabulary; `docs/ROADMAP.md` owns operational state; `docs/agents/` owns
+- `GLOSSARY.md` owns vocabulary; `docs/ROADMAP.md` owns operational state; `docs/agents/` owns
   agent-only operation and temporary handovers.
 - Generated inventory and ledger files are projections to regenerate and review, not authored truth
   to repair by hand. Memory, transient plans, handovers, and dated evidence never outrank live

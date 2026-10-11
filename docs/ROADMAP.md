@@ -124,8 +124,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
      route and its authored `docs/cheatsheet.md` line. Eighteen of 25 taken or merge-source items
      changed; the 11 drifted overlays need recuts, and a 3-way replay measured at `b0618bc` keeps
      conflicts in 5 patch items. `domain-modeling` replaced `CONTEXT-FORMAT.md` with
-     `GLOSSARY-FORMAT.md`, and adopting GLOSSARY needs this repository's own `CONTEXT.md`
-     relocation before the pin moves.
+     `GLOSSARY-FORMAT.md`; this repository's own glossary moved to `GLOSSARY.md` ahead of the
+     pin move.
      `implement-spec`, `pr`, `retro`, and `chief-of-staff` are new candidates; `pr` first needs
      attribution for an origin outside the submodules. The wave also decides the
      `setup-matt-pocock-skills` question of patching it to prefer `AGENTS.md`, since OpenCode 2

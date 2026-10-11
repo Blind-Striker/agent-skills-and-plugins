@@ -1,14 +1,14 @@
 # Distribution and installation
 
-Date: 2026-10-09
+Date: 2026-10-11
 
 ## Responsibility
 
 This document owns the mechanics after OpenCode emission: Bundle identity, Package contents and
 transport, global Native-tree composition, the OpenCode runtime the installed tree targets, and the
 Selection/Ownership/Plan/Apply/Recovery lifecycle.
-Capitalized terms keep their definitions in [`CONTEXT.md`](../../CONTEXT.md); this document describes
-how the implementation composes them. [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md)
+Capitalized terms keep their definitions in [`GLOSSARY.md`](../../GLOSSARY.md); this document
+describes how the implementation composes them. [ADR-0001](../adr/0001-submodule-manifest-overlay-architecture.md)
 records why generated Bundles and installer output are committed,
 [ADR-0002](../adr/0002-multi-harness-output.md) records why OpenCode receives native files rather
 than a runtime adapter, and [ADR-0004](../adr/0004-minimal-toolchain.md) records the consumer-side
