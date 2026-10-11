@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 96ae187..07adc68 100644
+index 780390c..d95b8d0 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -5,18 +5,18 @@ description: >-
+@@ -5,20 +5,20 @@ description: >-
    WHEN: "start or stop my Aspire app", "aspire_apphost_start",
    "aspire_apphost_stop", "notEditorOwned", "ambiguousSession", "aspire start",
    "aspire stop", "aspire wait", resource restart, file-lock errors (MSB3491 or
@@ -16,12 +16,15 @@ index 96ae187..07adc68 100644
 +  DO NOT USE FOR: deploy/publish/destroy (aspire:aspire-deployment), logs/traces/metrics
 +  (aspire:aspire-monitoring), or AppHost code and resource wiring (aspire:aspireify).
    FOR SINGLE OPERATIONS: Load the matching editor tool first, then obey the
-   exact-target, worktree-isolation, and stop-result rules below.
+-  exact-target, worktree-isolation, and stop-result rules below.
++  exact-target, worktree-isolation, and stop-result rules.
  license: MIT
  metadata:
    author: Microsoft
-   version: "0.0.2"
+   version: "0.0.3"
  ---
+ 
+ # Aspire Orchestration
  
 @@ -155,17 +155,17 @@ See [safety-guardrails.md](references/safety-guardrails.md) for detailed rules a
  | Wait for resource | `aspire wait <resource>` |

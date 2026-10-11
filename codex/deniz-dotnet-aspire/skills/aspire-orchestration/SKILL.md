@@ -14,11 +14,11 @@ description: '**WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the
   ($deniz-dotnet-aspire:aspire-monitoring), or AppHost code and resource wiring
   ($deniz-dotnet-aspire:aspireify). FOR SINGLE OPERATIONS: Load the matching
   editor tool first, then obey the exact-target, worktree-isolation, and
-  stop-result rule...'
+  stop-result rules.'
 license: MIT
 metadata:
   author: Microsoft
-  version: 0.0.2
+  version: 0.0.3
 ---
 
 # Aspire Orchestration

@@ -574,12 +574,13 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
         agents = @($all  | Where-Object { $_.opencode.artifacts -contains "agent" }).Count
         model  = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
     }
-    # The OpenCode 2 projection emits every non-agent item as a skill: 119 ledger entries are 117
+    # The OpenCode 2 projection emits every non-agent item as a skill: 120 ledger entries are 118
     # skills and 2 agents (akka-net-specialist, roslyn-incremental-generator-specialist). Wave W2 took
-    # aot-trimming, cscheck, and sdk-container-publishing into General (65 to 68 taken items). It emits no
+    # aot-trimming, cscheck, and sdk-container-publishing into General (65 to 68 taken items), and wave
+    # W3 took aspire-project-v2-migration into Aspire (8 to 9). It emits no
     # command and records no parked body, so the former commands and parked counts name nothing and
     # are dropped. deniz-process model is 11 auto + 9 both: writing-for-agents moved from manual to both.
-    $want = @{ skills = 117; agents = 2; model = 20 }
+    $want = @{ skills = 118; agents = 2; model = 20 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }

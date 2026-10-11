@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8f9fb19..8574305 100644
+index 5c6266c..66307ac 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -125,17 +125,17 @@ Migrate obsolete 13.5 surfaces while editing deployment code:
+@@ -129,17 +129,17 @@ Migrate obsolete 13.5 surfaces while editing deployment code:
  - use `.Services` instead of hosting context `.ServiceProvider`;
  - use `AddConnectionString` instead of `PublishAsConnectionString`; and
  - migrate deprecated `Aspire.Hosting.GitHub.Models` resources to Azure AI Foundry.
@@ -21,7 +21,7 @@ index 8f9fb19..8574305 100644
     - If exactly one target environment already exists, use it and state what was detected.
     - If multiple targets exist, none exists, or the user says only "Azure", ask where to deploy using the choices above.
  3. **Load target and app-type references.**
-@@ -213,31 +213,31 @@ Use `aspire secret list` for AppHost user secrets when appropriate, but do not p
+@@ -217,31 +217,31 @@ Use `aspire secret list` for AppHost user secrets when appropriate, but do not p
  
  - [references/docker-compose.md](references/docker-compose.md) - Docker Compose target, generated files, environment variables, cleanup.
  - [references/kubernetes.md](references/kubernetes.md) - Kubernetes and Azure Kubernetes Service (AKS) target selection, Helm output, registry requirements, kubectl/Helm checks.
@@ -30,8 +30,8 @@ index 8f9fb19..8574305 100644
  - [references/javascript.md](references/javascript.md) - JavaScript app deployment models, including Vite/static assets, Node/SSR servers, Next.js, and gateway/backend serving patterns.
  - [references/cicd.md](references/cicd.md) - CI/CD and GitHub Actions workflow guidance for Aspire publish/deploy, parameters, secrets, registry auth, and cloud auth.
  - [references/preflight.md](references/preflight.md) - Common preflight, preview, parameter, destroy, and validation checklist.
--- [aspire-13-5-breaking-changes.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire/references/aspire-13-5-breaking-changes.md) - 13.5.3 package, API, and CLI migration rules.
-+- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) - 13.5.3 package, API, and CLI migration rules.
+-- [aspire-13-5-breaking-changes.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire/references/aspire-13-5-breaking-changes.md) - 13.5 package, API, and CLI migration rules.
++- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) - 13.5 package, API, and CLI migration rules.
  
  ## Agent execution
  

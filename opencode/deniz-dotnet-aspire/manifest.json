@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-aspire",
-  "version": "0.4.1",
-  "digest": "sha256:6f4d92ddad0e37cc0eee0ae63e1e03e1cdb1b88877002bb6060dba0f7f746ab5",
+  "version": "0.5.0",
+  "digest": "sha256:f36d6607ef28788471c75892264371541dc155d2d95325bae817ab8e5e1d270c",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -14,7 +14,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-deployment/SKILL.md": {
-      "sha256": "sha256:6bb3aaa0d6012cc4d27fd710475b994f2b4ae8eb3807504533e2d28f7ed21ec4",
+      "sha256": "sha256:eca4ea95fef974908479c578a711a22379ba1c9ceade6cc5744bf25d99932de1",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-deployment/references/aws.md": {
@@ -22,15 +22,15 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-deployment/references/azure.md": {
-      "sha256": "sha256:92c20d25d188202340a2f7c0c742c022c405da9b4090f67a6de5727c7a6a434d",
+      "sha256": "sha256:ad28d5d3a48084cad4ec403dd4f4a6b0a93998bfb73218f3624d0e5a69baf12c",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-deployment/references/cicd.md": {
-      "sha256": "sha256:d393d636b24246a84d8421787ff0bc99d7bea8cb12137ffe4129e6303991d351",
+      "sha256": "sha256:14734e8baff415834414885919db56830abdeadc0086e62e81c56b7856c5fd36",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-deployment/references/docker-compose.md": {
-      "sha256": "sha256:0fecea36281f9ba6d17cd7b2d8388a713a8a61e56743687aeae0262e247cc868",
+      "sha256": "sha256:928c00a52ed97cff3e93344f631a971c55799d521a5b74bb6f2c52d39cec1b1b",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-deployment/references/github-actions-azure-csharp.yml": {
@@ -54,11 +54,11 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-init/SKILL.md": {
-      "sha256": "sha256:a870412aeaf6ac4fdbd837c611542ddf7a7fd77f565966def409c6ba2a6d2b00",
+      "sha256": "sha256:141ea4a0b6ed728a0c6bd766e4e1381088a86b1c505c67ce1a6cdbc079e1a8f5",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-init/references/init-workflow.md": {
-      "sha256": "sha256:77c854f732f4da7d4c9148eea7d238f17d3a3846b2531618596553cd1d33453f",
+      "sha256": "sha256:782ce18f98e7f7c0f6d878f6c8a4a36253a60d38583a49865576ca32ffbbe221",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-init/references/templates.md": {
@@ -78,15 +78,15 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/SKILL.md": {
-      "sha256": "sha256:10ca6c400f347e26097dd63c05a511971f0b297f337beefea3ee33f6f8068879",
+      "sha256": "sha256:f8d562a2a023cde515ac56e2e5a30f880a77f626bae08f822e7b159e6f678eec",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/references/diagnostics-bridge.md": {
-      "sha256": "sha256:f828053387611e09aa0115e11e8fa302233ad2ea4dbb809d4112297738b38296",
+      "sha256": "sha256:db19b823aa785fcd888b35e7a37bbcf8ccb0ff4a05e73ce997e93608276b8bbd",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/references/monitoring.md": {
-      "sha256": "sha256:8d16aab8742f43198c6533c3a16a5eb5d026fa30a6b03bc1effcf1e9ebc8b111",
+      "sha256": "sha256:63811d28f56060665922365a978725ca4ecd417c593df21cc984edbce3dc629b",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/references/playwright-handoff.md": {
@@ -94,7 +94,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-orchestration/SKILL.md": {
-      "sha256": "sha256:b68f4eb975cfe4fe8e7d68baf6f967c6b79359bcb97daf2027697b13b47e9f6c",
+      "sha256": "sha256:125cd2832593f0f8fdd5b633fdba6226d74a4f63d05ec77bb90d8ba789945766",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-orchestration/references/agent-workflows.md": {
@@ -106,7 +106,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-orchestration/references/detection.md": {
-      "sha256": "sha256:1d5a4f302af362964c2c361b64c94586ace2b7d85a61bb04c429280b81f5936e",
+      "sha256": "sha256:dce9a27493dfdd33f6beb3f8372013a403b38c96a7efce9103d29a44e5b3c979",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-orchestration/references/resource-management.md": {
@@ -117,32 +117,44 @@
       "sha256": "sha256:cbd18cc7dd3decdd3a7003d081f888145ad02eef2080e66c597c1fc204e94cfd",
       "mode": "100644"
     },
+    "skills/deniz-dotnet-aspire.aspire-project-v2-migration/SKILL.md": {
+      "sha256": "sha256:91eb3d02e77c96132c885710266d8a5760b6575fe305cef7f1bb0a045d9b84e7",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-aspire.aspire-project-v2-migration/references/compatibility-and-validation.md": {
+      "sha256": "sha256:2710d7706b8f10b7a570ef3765cdc42da680deb3d5b6eaefd6d5c7ef93e3824e",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-aspire.aspire-project-v2-migration/references/migration-patterns.md": {
+      "sha256": "sha256:f6dc53200d282f8530bae6a87efdc30d3ca23a318fcb4a9e0e62491835ce5131",
+      "mode": "100644"
+    },
     "skills/deniz-dotnet-aspire.aspire-service-defaults/SKILL.md": {
       "sha256": "sha256:bc36a484dfc76e522b60d04c944471772a6b9ab849bf1ca01922b71b2a98bd51",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire/SKILL.md": {
-      "sha256": "sha256:406c630be7a9fbf14185c045d8b4557b42cac60ec214309b950cec0bb3c02c12",
+      "sha256": "sha256:85326808c371c28767b758513f0b72d96228f463eadfcdcb6a1be5fc8fb4eb59",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire/references/aspire-13-3-breaking-changes.md": {
-      "sha256": "sha256:97281d12b7beb7acdbc4d6c6483768eed17c209ba769c61d82daaaba5e4c0887",
+      "sha256": "sha256:c19b464781635227c7d449e010d17655d0804eda314da2c2b505f04b5ca86d2c",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire/references/aspire-13-5-breaking-changes.md": {
-      "sha256": "sha256:a671945010aa751b7af1d27f258fc770c702f0b1ada607e61d7d5cdf9267b52f",
+      "sha256": "sha256:2db89145403f939bf23a060d72a63b4273652b9a02863e9c02e84933c6f4a744",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/SKILL.md": {
-      "sha256": "sha256:9e8e0639cdbf5051d37e5179154ca5d68cd37091f61b9beac22d12d63b5df504",
+      "sha256": "sha256:2574873f4b2e740887946abbec2c28f659e0f1aaceaf008ac37daa35cb33bb34",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/apphost-wiring.md": {
-      "sha256": "sha256:a8f51ea67809b8c6802ee6ff65fa86a9f34fba598f5e2d9f8e25c8b90730bb60",
+      "sha256": "sha256:2755b02093acebc6c583cb549ccb8713137f973c85ae37024879094d7eb72995",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/csharp-authoring.md": {
-      "sha256": "sha256:19391f5a0ae7398ed2a4f4005b64b066b6a978208c7e7f101bfc068ebac761c4",
+      "sha256": "sha256:f925947d4f95440c184dfa84ac08adddaa953491f68c421391c6e125e0f57179",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/docker-compose.md": {
@@ -150,7 +162,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/full-solution-apphosts.md": {
-      "sha256": "sha256:0b48337d70e09d27ae877ac894b901ea57978efb1808e36a2c9b810b47c227e0",
+      "sha256": "sha256:3d6e838f618dd81c2e67065ba4a1c08dc6082e778b75908bae58bb180a5c42a6",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/javascript-apps.md": {
@@ -170,7 +182,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/typescript-authoring.md": {
-      "sha256": "sha256:b9c892d8dd9c056e9cfebbf3d0c6404fd986ca449e727613a41170adcda5ebf5",
+      "sha256": "sha256:9ba68e3fe9943713975c73446eb825c55580ffea54fd59d5ef259869cef66685",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspireify/references/validation.md": {

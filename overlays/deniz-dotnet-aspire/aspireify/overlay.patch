@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 30eac9f..d2c0c1c 100644
+index 501aa33..83e57e3 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -4,19 +4,19 @@ description: >-
+@@ -4,20 +4,19 @@ description: >-
    **WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript AppHost toolchains.
    Scans the repo, proposes a resource graph, edits C#, file-based C#, or TypeScript
    AppHosts, wires ServiceDefaults + OTel, validates with `aspire start`, then stops.
@@ -14,18 +14,19 @@ index 30eac9f..d2c0c1c 100644
 -  DO NOT USE FOR: skeleton drop (aspire-init), lifecycle-only start/stop/wait/restart
 -  or `aspire update --migrate` (aspire-orchestration), publish/deploy/destroy
 -  (aspire-deployment), logs/traces (aspire-monitoring).
+-  INVOKES: aspire CLI, AppHost source edits, ServiceDefaults wiring.
 +  DO NOT USE FOR: skeleton drop (aspire:aspire-init), lifecycle-only start/stop/wait/restart
 +  or `aspire update --migrate` (aspire:aspire-orchestration), publish/deploy/destroy
 +  (aspire:aspire-deployment), logs/traces (aspire:aspire-monitoring).
-   INVOKES: aspire CLI, AppHost source edits, ServiceDefaults wiring.
    FOR SINGLE OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration.
  license: MIT
  metadata:
    author: Microsoft
-   version: "0.0.2"
+   version: "0.0.3"
  ---
  
-@@ -130,30 +130,30 @@ declared beyond the stub):
+ # Aspireify
+@@ -130,30 +129,30 @@ declared beyond the stub):
  | Skeleton just dropped | `aspire init` just ran in this session | ✅ Definitive |
  | Empty AppHost stub | `apphost.cs` / `Program.cs` / current `apphost.mts` (or legacy `apphost.ts`) only contains `Build().Run()` | ✅ Definitive |
  | `aspire.config.json` without resources | Config present, AppHost has no `AddProject`/`addProject` | High |
@@ -58,7 +59,7 @@ index 30eac9f..d2c0c1c 100644
  Dependency and toolchain failures belong to this skill. Before recommending a command,
  inspect the AppHost directory and then its immediate eligible parent. Within each directory,
  the first recognized marker wins in this order:
-@@ -184,17 +184,17 @@ command matrix and resolver details.
+@@ -184,17 +183,17 @@ command matrix and resolver details.
  
  ## Workflow Phases
  
@@ -77,7 +78,7 @@ index 30eac9f..d2c0c1c 100644
  - [docker-compose.md](references/docker-compose.md) — docker-compose migration, profiles, image mapping, ports, volumes, and `depends_on`.
  - [full-solution-apphosts.md](references/full-solution-apphosts.md) — large solution triage, mixed SDK boundaries, solution membership, ServiceDefaults placement, and legacy host migration.
  - [javascript-apps.md](references/javascript-apps.md) — JavaScript resource selection, workspace/monorepo package-manager handling, ports, scripts, and TS AppHost package config.
-@@ -238,17 +238,17 @@ aspire describe --format Json   # sanity check graph
+@@ -238,17 +237,17 @@ aspire describe --format Json   # sanity check graph
  
  Full validation flow + recovery in [references/validation.md](references/validation.md).
  
@@ -96,7 +97,7 @@ index 30eac9f..d2c0c1c 100644
  Map detected services → Aspire integrations. See
  [references/scan-and-propose.md](references/scan-and-propose.md) for the full
  catalog.
-@@ -323,31 +323,31 @@ builder.AddNextJsApp("web", "./web")
+@@ -323,31 +322,31 @@ builder.AddNextJsApp("web", "./web")
      .WithBrowserLogs();        // browser console + screenshots
  ```
  
@@ -133,7 +134,7 @@ index 30eac9f..d2c0c1c 100644
  - **Ask before modifying service code**, especially OpenTelemetry and ServiceDefaults injection.
  - **Respect existing project structure** — do not reorganize the repo.
  - **If stuck, use `aspire doctor`** to diagnose environment issues.
-@@ -361,9 +361,9 @@ Full flow in [references/validation.md](references/validation.md).
+@@ -361,9 +360,9 @@ Full flow in [references/validation.md](references/validation.md).
  - [full-solution-apphosts.md](references/full-solution-apphosts.md) — Large/full-solution AppHost guidance
  - [javascript-apps.md](references/javascript-apps.md) — JavaScript/TypeScript app and workspace handling
  - [opentelemetry.md](references/opentelemetry.md) — Non-.NET OpenTelemetry setup
@@ -142,10 +143,10 @@ index 30eac9f..d2c0c1c 100644
  - [typescript-authoring.md](references/typescript-authoring.md) — TS AppHost patterns + parity APIs
  - [service-defaults.md](references/service-defaults.md) — Wire OTel, health checks, service discovery
  - [validation.md](references/validation.md) — End-to-end validation + recovery
--- [aspire-13-5-breaking-changes.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire/references/aspire-13-5-breaking-changes.md) — 13.5.3 migrations, command changes, and experimental surfaces
-+- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) — 13.5.3 migrations, command changes, and experimental surfaces
+-- [aspire-13-5-breaking-changes.md](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire/references/aspire-13-5-breaking-changes.md) — Breaking changes introduced in 13.5 and fixes for affected releases
++- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) — Breaking changes introduced in 13.5 and fixes for affected releases
 diff --git a/references/typescript-authoring.md b/references/typescript-authoring.md
-index 47e2d20..b0f368e 100644
+index 60b418a..6fc03e7 100644
 --- a/references/typescript-authoring.md
 +++ b/references/typescript-authoring.md
 @@ -1,13 +1,13 @@

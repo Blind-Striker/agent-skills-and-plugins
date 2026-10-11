@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 325f674..69f6357 100644
+index 0265bb1..a6264a8 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -3,18 +3,18 @@ name: aspire-monitoring
@@ -21,7 +21,7 @@ index 325f674..69f6357 100644
  license: MIT
  metadata:
    author: Microsoft
-   version: "0.0.2"
+   version: "0.0.3"
  ---
 @@ -31,25 +31,25 @@ metadata:
  | Structured logs | Local dev | Aspire CLI | `aspire otel logs [resource]` |
@@ -51,7 +51,7 @@ index 325f674..69f6357 100644
  See [diagnostics-bridge.md](references/diagnostics-bridge.md) for detailed routing.
  
  ## Investigation Workflow
-@@ -172,17 +172,17 @@ are sent to that child resource's console log stream, not to the frontend's Open
+@@ -177,17 +177,17 @@ are sent to that child resource's console log stream, not to the frontend's Open
  Do **not** use `aspire otel logs <frontend>` for browser output; it does not return that child
  resource's browser diagnostics.
  
@@ -70,7 +70,7 @@ index 325f674..69f6357 100644
  - **Notification center** (bell icon, top-right) — surfaces results of resource commands and lifecycle events. Inline command responses appear here instead of being scraped from the logs panel.
  - **Rebuild command** — available on container and project resources; rebuilds the image and restarts the resource without restarting the whole AppHost. Result lands in the notification center.
  - **Structured command results** — custom resource commands return `ExecuteCommandResult` with a `Message` payload that the dashboard renders inline; HTTP commands set `HttpCommandResultMode.Auto | Json | Text | None` to control how the response body is shown.
-@@ -191,31 +191,31 @@ Agents inspecting a running dashboard should know:
+@@ -196,31 +196,31 @@ Agents inspecting a running dashboard should know:
  - **Terminal view** — resources configured with experimental `WithTerminal()` open as
    interactive sessions in the dashboard.
  - **No dashboard AI Assistant** — it was removed in 13.5. Use `aspire agent init` and the
@@ -107,7 +107,7 @@ index 325f674..69f6357 100644
  If `.agents/skills/aspire/SKILL.md` exists (from `aspire agent init`), see its
  `references/monitoring.md` for deeper telemetry workflow guidance.
 diff --git a/references/diagnostics-bridge.md b/references/diagnostics-bridge.md
-index 389a819..c4e4db5 100644
+index 115d77e..2a4f723 100644
 --- a/references/diagnostics-bridge.md
 +++ b/references/diagnostics-bridge.md
 @@ -2,17 +2,17 @@
@@ -149,7 +149,7 @@ index 389a819..c4e4db5 100644
  
  ---
 diff --git a/references/monitoring.md b/references/monitoring.md
-index 96b2cef..b91b0c8 100644
+index 43a1bd6..b81b9cb 100644
 --- a/references/monitoring.md
 +++ b/references/monitoring.md
 @@ -69,17 +69,17 @@ Keep these points in mind:
@@ -171,7 +171,7 @@ index 96b2cef..b91b0c8 100644
  - Multiple words are AND'd — all fragments must match.
  - Use `"quoted phrases"` for multi-word fragments: `--search "\"connection timeout\""`.
  - Qualifiers support quoted values: `--search "message:\"connection failed\""`.
-@@ -234,15 +234,15 @@ console stream contains browser console logs, errors, exceptions, and network di
+@@ -238,15 +238,15 @@ console stream contains browser console logs, errors, exceptions, and network di
  `aspire resource <frontend>-browser-logs open-tracked-browser` to start a tracked browser session,
  then inspect `aspire logs <frontend>-browser-logs`.
  

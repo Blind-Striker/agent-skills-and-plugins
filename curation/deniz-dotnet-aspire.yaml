@@ -1,16 +1,19 @@
 # Intended sources: the complete Microsoft Aspire workflow package plus the
 # selected Aspire specialists from dotnet-skills.
-# Follow the reviewed merged Aspire 13.5.3 guidance without waiting for an upstream release tag.
+# Follow reviewed merged upstream main ahead of release tags.
 # Runtime behavior stays upstream-owned; patches only bind in-package routes while preserving
 # project-local skill precedence. Upstream eval and plugin-level hook machinery is not shipped.
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.4.1
+  version: 0.5.0
 items:
   - source: aspire-skills/skills/aspire
+    invocation: both # stated so the passthrough posture is explicit: the model routes Aspire work here and
+    # the user keeps the slash command, which auto would remove
     omit: ["evals/**"] # upstream Copilot/vally evaluation assets are not harness runtime content
-    body: patch # guard the router and both migration references' in-package routes in every harness
+    body: patch # guard the router and both migration references' in-package routes in every harness;
+    # the manual Project v2 migration is a body-only user-pointer, so it stays out of INVOKES and depends_on
     depends_on:
       - aspire-init
       - aspireify
@@ -18,25 +21,39 @@ items:
       - aspire-deployment
       - aspire-monitoring
   - source: aspire-skills/skills/aspire-init
+    invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize the bootstrap handoffs without changing the upstream workflow
-    depends_on: [aspireify, aspire-orchestration, aspire-deployment, aspire-monitoring]
+    # aspire: the 13.5 no-`--mcp` branch lives only in the router's Skills vs. MCP guidance
+    depends_on: [aspire, aspireify, aspire-orchestration, aspire-deployment, aspire-monitoring]
   - source: aspire-skills/skills/aspireify
+    invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
-    body: patch # localize authoring handoffs, including the CLI migration owned by orchestration
+    body: patch # localize authoring handoffs, including the CLI migration owned by orchestration; drop the
+    # description's INVOKES line, which repeats its summary, so the rendered description fits 1,024 characters
     depends_on: [aspire-init, aspire-orchestration, aspire-deployment, aspire-monitoring]
   - source: aspire-skills/skills/aspire-orchestration
+    invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
-    body: patch # localize lifecycle routing while preserving project-local precedence
+    body: patch # localize lifecycle routing while preserving project-local precedence; drop the
+    # description's trailing "below" so the rendered description fits 1,024 characters
     depends_on: [aspireify, aspire-init, aspire-deployment, aspire-monitoring]
   - source: aspire-skills/skills/aspire-deployment
+    invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize deployment's retained sibling handoffs
     depends_on: [aspireify, aspire-orchestration, aspire-monitoring]
   - source: aspire-skills/skills/aspire-monitoring
+    invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize diagnostics routing to the packaged sibling skills
     depends_on: [aspire-orchestration, aspire-deployment, aspireify]
+  - source: aspire-skills/skills/aspire-project-v2-migration
+    invocation: manual # approval-first rewrite of experimental 13.6+ project resources; only an explicit user
+    # decision starts it, unlike the primary workflows above, which the model must be able to reach
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize the sibling handoffs; approval gates and project-local precedence stay upstream-owned
+    depends_on: [aspire-orchestration, aspire-init, aspireify, aspire-deployment, aspire-monitoring]
   - source: dotnet-skills/skills/aspire-integration-testing
     invocation: auto # Aspire-native testing target required by the guarded Akka/Aspire cookbook handoff;
     # its current upstream body and companions remain unowned despite known example/API proof limits

@@ -345,6 +345,7 @@
   },
   "deniz-dotnet-aspire/skill/aspire": {
     "source": "aspire-skills/skills/aspire",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "aspire-deployment",
@@ -353,7 +354,7 @@
       "aspire-orchestration",
       "aspireify"
     ],
-    "description": "**WORKFLOW SKILL** - Aspire 13.5.3 router. Detects AppHosts, enforces guardrails, and selects the right sub-skill. USE FOR: Aspire AppHost, Aspire CLI, distributed app, cloud-native .NET, aspire start/stop/resource/deploy/destroy/publish/init/new/add/wait/describe/ps/logs/otel, aspire agent init, WithBrowserLogs, WithTerminal, Interaction Service, apphost.mts, TS package managers, Yarn Classic, custom resource commands, .aspire/modules recovery, or Playwright URL discovery. DO NOT USE FOR: non-Aspire projects or ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init, deniz-dotnet-aspire:aspireify, deniz-dotnet-aspire:aspire-orchestration, deniz-dotnet-aspire:aspire-deployment, deniz-dotnet-aspire:aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.",
+    "description": "**WORKFLOW SKILL** - Aspire router. Detects AppHosts, enforces guardrails, and selects the right sub-skill. USE FOR: Aspire AppHost, Aspire CLI, distributed app, cloud-native .NET, aspire start/stop/resource/deploy/destroy/publish/init/new/add/wait/describe/ps/logs/otel, aspire agent init, WithBrowserLogs, WithTerminal, Interaction Service, apphost.mts, TS package managers, Yarn Classic, custom resource commands, .aspire/modules recovery, ProjectResource to DotnetProjectResource migration, or Playwright URL discovery. DO NOT USE FOR: non-Aspire projects or ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init, deniz-dotnet-aspire:aspireify, deniz-dotnet-aspire:aspire-orchestration, deniz-dotnet-aspire:aspire-deployment, deniz-dotnet-aspire:aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.",
     "claude": {
       "artifacts": [
         "skill"
@@ -366,7 +367,9 @@
           "deniz-dotnet-aspire:aspire-orchestration",
           "deniz-dotnet-aspire:aspireify"
         ],
-        "pointer": []
+        "pointer": [
+          "deniz-dotnet-aspire:aspire-project-v2-migration"
+        ]
       }
     },
     "opencode": {
@@ -383,7 +386,9 @@
           "deniz-dotnet-aspire.aspire-orchestration",
           "deniz-dotnet-aspire.aspireify"
         ],
-        "pointer": []
+        "pointer": [
+          "@deniz-dotnet-aspire.aspire-project-v2-migration"
+        ]
       },
       "dropped": [
         "license"
@@ -397,7 +402,7 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "target-default",
+      "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
       "edges": {
@@ -408,7 +413,9 @@
           "$deniz-dotnet-aspire:aspire-orchestration",
           "$deniz-dotnet-aspire:aspireify"
         ],
-        "pointer": []
+        "pointer": [
+          "$deniz-dotnet-aspire:aspire-project-v2-migration"
+        ]
       },
       "dropped": [],
       "bodyTransformations": []
@@ -416,6 +423,7 @@
   },
   "deniz-dotnet-aspire/skill/aspire-deployment": {
     "source": "aspire-skills/skills/aspire-deployment",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "aspire-monitoring",
@@ -462,7 +470,7 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "target-default",
+      "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
       "edges": {
@@ -479,8 +487,10 @@
   },
   "deniz-dotnet-aspire/skill/aspire-init": {
     "source": "aspire-skills/skills/aspire-init",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
+      "aspire",
       "aspire-deployment",
       "aspire-monitoring",
       "aspire-orchestration",
@@ -493,6 +503,7 @@
       ],
       "edges": {
         "model": [
+          "deniz-dotnet-aspire:aspire",
           "deniz-dotnet-aspire:aspire-deployment",
           "deniz-dotnet-aspire:aspire-monitoring",
           "deniz-dotnet-aspire:aspire-orchestration",
@@ -509,6 +520,7 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-dotnet-aspire.aspire",
           "deniz-dotnet-aspire.aspire-deployment",
           "deniz-dotnet-aspire.aspire-monitoring",
           "deniz-dotnet-aspire.aspire-orchestration",
@@ -528,11 +540,12 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "target-default",
+      "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-dotnet-aspire:aspire",
           "$deniz-dotnet-aspire:aspire-deployment",
           "$deniz-dotnet-aspire:aspire-monitoring",
           "$deniz-dotnet-aspire:aspire-orchestration",
@@ -597,6 +610,7 @@
   },
   "deniz-dotnet-aspire/skill/aspire-monitoring": {
     "source": "aspire-skills/skills/aspire-monitoring",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "aspire-deployment",
@@ -643,7 +657,7 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "target-default",
+      "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
       "edges": {
@@ -660,6 +674,7 @@
   },
   "deniz-dotnet-aspire/skill/aspire-orchestration": {
     "source": "aspire-skills/skills/aspire-orchestration",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "aspire-deployment",
@@ -667,7 +682,7 @@
       "aspire-monitoring",
       "aspireify"
     ],
-    "description": "**WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the CLI. WHEN: \"start or stop my Aspire app\", \"aspire_apphost_start\", \"aspire_apphost_stop\", \"notEditorOwned\", \"ambiguousSession\", \"aspire start\", \"aspire stop\", \"aspire wait\", resource restart, file-lock errors (MSB3491 or CS2012), port conflicts, git worktrees, \"--isolated\", \"aspire update --self\", \"aspire update --migrate\", \"aspire describe --include-hidden\", \"aspire stop --force\", \"aspire terminal\", integration discovery, default watch, or hot reload. INVOKES: VS Code lifecycle tools first when exposed; Aspire CLI for readiness, inspection, resource operations, isolated worktree starts, and allowed fallbacks. DO NOT USE FOR: deploy/publish/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces/metrics (deniz-dotnet-aspire:aspire-monitoring), or AppHost code and resource wiring (deniz-dotnet-aspire:aspireify). FOR SINGLE OPERATIONS: Load the matching editor tool first, then obey the exact-target, worktree-isolation, and stop-result rules below.",
+    "description": "**WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the CLI. WHEN: \"start or stop my Aspire app\", \"aspire_apphost_start\", \"aspire_apphost_stop\", \"notEditorOwned\", \"ambiguousSession\", \"aspire start\", \"aspire stop\", \"aspire wait\", resource restart, file-lock errors (MSB3491 or CS2012), port conflicts, git worktrees, \"--isolated\", \"aspire update --self\", \"aspire update --migrate\", \"aspire describe --include-hidden\", \"aspire stop --force\", \"aspire terminal\", integration discovery, default watch, or hot reload. INVOKES: VS Code lifecycle tools first when exposed; Aspire CLI for readiness, inspection, resource operations, isolated worktree starts, and allowed fallbacks. DO NOT USE FOR: deploy/publish/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces/metrics (deniz-dotnet-aspire:aspire-monitoring), or AppHost code and resource wiring (deniz-dotnet-aspire:aspireify). FOR SINGLE OPERATIONS: Load the matching editor tool first, then obey the exact-target, worktree-isolation, and stop-result rules.",
     "claude": {
       "artifacts": [
         "skill"
@@ -709,7 +724,7 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "target-default",
+      "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
       "edges": {
@@ -722,9 +737,83 @@
         "pointer": []
       },
       "dropped": [],
-      "metadataTransformations": [
-        "description truncated to 1024 characters"
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-aspire/skill/aspire-project-v2-migration": {
+    "source": "aspire-skills/skills/aspire-project-v2-migration",
+    "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "aspire-deployment",
+      "aspire-init",
+      "aspire-monitoring",
+      "aspire-orchestration",
+      "aspireify"
+    ],
+    "description": "**WORKFLOW SKILL** - Safely migrates eligible Aspire 13.6+ AppHosts from legacy ProjectResource APIs to experimental DotnetProjectResource APIs after a per-resource assessment and explicit approval of exact edits. USE FOR: assess or migrate existing AddProject, addProject, AddCSharpApp, addCSharpApp, or AddBlazorGateway resources to Project v2; migrate ProjectResource to DotnetProjectResource; clean up the resulting obsolete AppHost ProjectReference edges. DO NOT USE FOR: upgrading Aspire versions, creating/wiring a new AppHost, Azure Functions migration, generic source modernization, ordinary C# resource wiring or adding a new AddProject resource (use deniz-dotnet-aspire:aspireify), publishing, or build/lifecycle diagnostics. INVOKES: Aspire docs/API lookup, aspire add/restore/start/wait, AppHost and package edits. FOR SINGLE OPERATIONS: Assess first; never edit from a generic migration request alone.",
+    "claude": {
+      "artifacts": [
+        "skill"
       ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire.aspire-project-v2-migration",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-init",
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-project-v2-migration",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-init",
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
       "bodyTransformations": []
     }
   },
@@ -781,6 +870,7 @@
   },
   "deniz-dotnet-aspire/skill/aspireify": {
     "source": "aspire-skills/skills/aspireify",
+    "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "aspire-deployment",
@@ -788,7 +878,7 @@
       "aspire-monitoring",
       "aspire-orchestration"
     ],
-    "description": "**WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript AppHost toolchains. Scans the repo, proposes a resource graph, edits C#, file-based C#, or TypeScript AppHosts, wires ServiceDefaults + OTel, validates with `aspire start`, then stops. USE FOR: wire/scaffold AppHost, add Postgres/Redis/Rabbit/Mongo, connect frontend to API, after `aspire init`, AddNextJsApp, AddViteApp, WithBrowserLogs, WithTerminal, Interaction Service, command arguments, apphost.cs, apphost.mts, unified withEnvironment, .aspire/modules refusal, config/secrets, TS dependency restore, pnpm/yarn/bun, or Yarn Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init), lifecycle-only start/stop/wait/restart or `aspire update --migrate` (deniz-dotnet-aspire:aspire-orchestration), publish/deploy/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring). INVOKES: aspire CLI, AppHost source edits, ServiceDefaults wiring. FOR SINGLE OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration.",
+    "description": "**WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript AppHost toolchains. Scans the repo, proposes a resource graph, edits C#, file-based C#, or TypeScript AppHosts, wires ServiceDefaults + OTel, validates with `aspire start`, then stops. USE FOR: wire/scaffold AppHost, add Postgres/Redis/Rabbit/Mongo, connect frontend to API, after `aspire init`, AddNextJsApp, AddViteApp, WithBrowserLogs, WithTerminal, Interaction Service, command arguments, apphost.cs, apphost.mts, unified withEnvironment, .aspire/modules refusal, config/secrets, TS dependency restore, pnpm/yarn/bun, or Yarn Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init), lifecycle-only start/stop/wait/restart or `aspire update --migrate` (deniz-dotnet-aspire:aspire-orchestration), publish/deploy/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring). FOR SINGLE OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration.",
     "claude": {
       "artifacts": [
         "skill"
@@ -830,7 +920,7 @@
       "sourceKind": "skill",
       "resolvedKind": "skill",
       "emittedKind": "skill",
-      "implicit": "target-default",
+      "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
       "edges": {
@@ -843,9 +933,6 @@
         "pointer": []
       },
       "dropped": [],
-      "metadataTransformations": [
-        "description truncated to 1024 characters"
-      ],
       "bodyTransformations": []
     }
   },

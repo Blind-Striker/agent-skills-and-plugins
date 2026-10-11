@@ -11,13 +11,12 @@ description: "**WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript
   or Yarn Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init),
   lifecycle-only start/stop/wait/restart or `aspire update --migrate`
   (deniz-dotnet-aspire:aspire-orchestration), publish/deploy/destroy
-  (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring). INVOKES:
-  aspire CLI, AppHost source edits, ServiceDefaults wiring. FOR SINGLE
+  (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring). FOR SINGLE
   OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration."
 license: MIT
 metadata:
   author: Microsoft
-  version: 0.0.2
+  version: 0.0.3
 ---
 
 # Aspireify
@@ -25,7 +24,7 @@ metadata:
 > **One-time wiring skill.** `aspire init` drops a skeleton; `aspireify` turns
 > that skeleton into a working AppHost by scanning the repo, proposing a resource
 > graph, editing the AppHost, wiring `Aspire.ServiceDefaults`, and validating end
-> to end. Self-deactivates after a clean `aspire start`. Aligned with Aspire 13.5.3.
+> to end. Self-deactivates after a clean `aspire start`.
 
 ## 🚫 Hard Refusal: Never Edit `.aspire/modules/`
 
@@ -54,7 +53,7 @@ This rule applies even if the user insists, even for "one-line" changes, even fo
 "just to test something." The TS AppHost regenerates `.aspire/modules/` deterministically;
 edits are unrecoverable noise.
 
-## Guiding Principles From Aspire 13.5
+## Guiding Principles
 
 ### Minimize changes to the user's code
 
@@ -283,7 +282,7 @@ catalog.
 | Use `AddConnectionString` for external connection strings | `PublishAsConnectionString` is obsolete |
 | Check `IInteractionService.IsAvailable` before prompting | CLI-invoked commands may be noninteractive; prefer command arguments for dashboard + CLI input |
 | Treat `WithTerminal()` as experimental | Suppress `ASPIRETERMINAL001`; do not generate removed `TerminalOptions.Shell` or TypeScript dimension options |
-| Keep all Aspire SDK and `Aspire.Hosting.*` packages on the same 13.5 family | Mixed 13.4/13.5 graphs can fail at startup |
+| Keep all Aspire SDK and `Aspire.Hosting.*` packages on the same release family | Mixed release families can fail at startup |
 | Migrate GitHub Models integrations to Azure AI Foundry | `Aspire.Hosting.GitHub.Models` is deprecated and absent from integration discovery |
 | Use `WithModule(RedisModules.*)` for Redis 8 modules | Prefer typed JSON, Search, Bloom Filter, and TimeSeries constants over raw module paths |
 | Use Foundry `AsHostedAgent(...)` for hosted executable/container agents | Current Azure AI Foundry path replaces deprecated GitHub Models |
@@ -366,4 +365,4 @@ Full flow in [references/validation.md](references/validation.md).
 - [typescript-authoring.md](references/typescript-authoring.md) — TS AppHost patterns + parity APIs
 - [service-defaults.md](references/service-defaults.md) — Wire OTel, health checks, service discovery
 - [validation.md](references/validation.md) — End-to-end validation + recovery
-- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) — 13.5.3 migrations, command changes, and experimental surfaces
+- [aspire-13-5-breaking-changes.md](../aspire/references/aspire-13-5-breaking-changes.md) — Breaking changes introduced in 13.5 and fixes for affected releases
