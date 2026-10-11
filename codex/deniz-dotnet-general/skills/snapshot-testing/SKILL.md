@@ -35,6 +35,8 @@ This catches **unintended changes** while allowing **intentional changes** throu
 
 ### Add Verify Package
 
+In a TUnit project, add `Verify.TUnit`, never `Verify.Xunit`, the xUnit packages, or `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. Use TUnit's equivalents of the xUnit examples below.
+
 ```bash
 dotnet add package Verify.Xunit
 # or for other test frameworks:

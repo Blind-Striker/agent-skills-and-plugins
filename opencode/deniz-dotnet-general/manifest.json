@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.13.0",
-  "digest": "sha256:6bd69a8002c8307f235ccdbadf17a607640ade0de85c36571185e01f6dde527c",
+  "digest": "sha256:c53aafb7a264ac7fa6f8ac77026b966eda627249b23733a98a79f926aee69755",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -493,7 +493,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.playwright-blazor-testing/SKILL.md": {
-      "sha256": "sha256:da12991d97111f900a0fbae5ac07d77d1ff69c8d9b0e8474a9f6ea7951634ba2",
+      "sha256": "sha256:c22eb2d79639467ef30cff8e1d7662039681fce04807692f111de4879c4bd2d4",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.property-patterns/SKILL.md": {
@@ -549,7 +549,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.snapshot-testing/SKILL.md": {
-      "sha256": "sha256:febc2f3afd588dc95c8f7a90e57eccd370b40836de7a7bcc54327cc2cd7e4de2",
+      "sha256": "sha256:c2692de00c94cd078c8185cdc60fc91ae453dfd8bdedccdca64c89ce1bb2b352",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.target-authoring/SKILL.md": {
@@ -617,7 +617,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.testcontainers-integration-tests/SKILL.md": {
-      "sha256": "sha256:91490e48ef87dfe7d6f726ffb0b6d96fd8dbace049c8d14a2186a9c2e4ea2815",
+      "sha256": "sha256:e31c6886069cf6da940b67988fed30c37cbfafade5924e77d41e2cd22e9b1e94",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.testcontainers-integration-tests/database-patterns.md": {

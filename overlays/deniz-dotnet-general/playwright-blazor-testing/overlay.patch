@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index c8267fe..49b77ec 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -23,16 +23,18 @@ Use this skill when:
+ 2. **Test Attributes** - Use `data-test` or `data-testid` attributes for stable selectors
+ 3. **Headless by Default** - Run tests headless in CI, headed for local debugging
+ 4. **Handle Error UI** - Always check for `#blazor-error-ui` to catch unhandled exceptions
+ 5. **Avoid Network Wait States** - Blazor navigation doesn't trigger network loads; wait for DOM changes
+ 6. **Pin Browser Channels** - Use specific browser channels (msedge, chrome) for reproducibility
+ 
+ ## Required NuGet Packages
+ 
++In a TUnit project, add none of the xUnit packages below and no `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. Use TUnit's equivalents instead, such as `[Test]` and its lifecycle hooks in place of `IAsyncLifetime`.
++
+ ```xml
+ <ItemGroup>
+   <PackageReference Include="Microsoft.Playwright" Version="*" />
+   <PackageReference Include="Microsoft.Playwright.MSTest" Version="*" />
+   <!-- OR for xUnit -->
+   <PackageReference Include="xunit" Version="*" />
+   <PackageReference Include="xunit.runner.visualstudio" Version="*" />
+ </ItemGroup>

@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-aspire",
   "version": "0.6.0",
-  "digest": "sha256:52631ae662fc013f3358f1235a4dbc09008d53c64f575e7db27e7e23bfee0b52",
+  "digest": "sha256:f3d3d8f8545f35cb1d04784b602f75f9df64773f81757c108021bca76e2eea95",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -66,7 +66,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-integration-testing/SKILL.md": {
-      "sha256": "sha256:4e524b05b7c748f273b3ef345c4a98e7d9faf936211de12459b28e70effe0ee8",
+      "sha256": "sha256:31db65cf12b52bf2718cfd4b2d4aa6fe344f3fab5c038197cdaa930d4960f880",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-integration-testing/advanced-patterns.md": {

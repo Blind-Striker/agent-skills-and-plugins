@@ -560,6 +560,7 @@
   "deniz-dotnet-aspire/skill/aspire-integration-testing": {
     "source": "dotnet-skills/skills/aspire-integration-testing",
     "invocation": "auto",
+    "body": "patch",
     "description": "Write integration tests using .NET Aspire's testing facilities with xUnit. Covers test fixtures, distributed application setup, endpoint discovery, and patterns for testing ASP.NET Core apps with real dependencies.",
     "claude": {
       "artifacts": [
@@ -3358,6 +3359,7 @@
   "deniz-dotnet-general/skill/playwright-blazor-testing": {
     "source": "dotnet-skills/skills/playwright-blazor",
     "invocation": "auto",
+    "body": "patch",
     "description": "Write UI tests for Blazor applications (Server or WebAssembly) using Playwright. Covers navigation, interaction, authentication, selectors, and common Blazor-specific patterns.",
     "claude": {
       "artifacts": [
@@ -3978,6 +3980,7 @@
   "deniz-dotnet-general/skill/testcontainers-integration-tests": {
     "source": "dotnet-skills/skills/testcontainers",
     "invocation": "auto",
+    "body": "patch",
     "description": "Write integration tests using TestContainers for .NET with xUnit. Covers infrastructure testing with real databases, message queues, and caches in Docker containers instead of mocks.",
     "claude": {
       "artifacts": [

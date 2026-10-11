@@ -56,7 +56,10 @@ items:
     depends_on: [aspire-orchestration, aspire-init, aspireify, aspire-deployment, aspire-monitoring]
   - source: dotnet-skills/skills/aspire-integration-testing
     invocation: auto # Aspire-native testing target required by the guarded Akka/Aspire cookbook handoff;
-    # its current upstream body and companions remain unowned despite known example/API proof limits
+    # its upstream companions remain unowned despite known example/API proof limits
+    body: patch # one
+    # TUnit guard, curator's call: in a TUnit project, never add xUnit or Microsoft.NET.Test.Sdk,
+    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written
   - source: dotnet-skills/skills/aspire-service-defaults
     invocation: auto # canonical shared OTel, health, resilience, and HTTP service-discovery guidance
     body: patch # its description led with "Create a shared ServiceDefaults project" and its body

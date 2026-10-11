@@ -60,6 +60,8 @@ Use this skill when:
 
 ## Required NuGet Packages
 
+In a TUnit project, add none of the xUnit packages below and no `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. Use TUnit's equivalents instead, such as `[Test]` and its lifecycle hooks in place of `IAsyncLifetime`.
+
 ```xml
 <ItemGroup>
   <PackageReference Include="Aspire.Hosting.Testing" Version="$(AspireVersion)" />

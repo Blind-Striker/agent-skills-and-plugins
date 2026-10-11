@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index 080023d..2644d0f 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -131,16 +131,18 @@ public class OrderRepositoryTests : IAsyncLifetime
+ ```
+ 
+ See [database-patterns.md](database-patterns.md) for complete SQL Server, PostgreSQL, and migration testing examples.
+ 
+ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ, multi-container networks, container reuse, and Respawn database reset patterns.
+ 
+ ## Required NuGet Packages
+ 
++In a TUnit project, add none of the xUnit packages below and no `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. Use TUnit's equivalents instead, such as `[Test]` and its lifecycle hooks in place of `IAsyncLifetime`.
++
+ Use the **module packages** — one per provider. They replace the special-casing you'd otherwise write against the core `Testcontainers` package:
+ 
+ ```xml
+ <ItemGroup>
+   <!-- Core TestContainers -->
+   <PackageReference Include="Testcontainers" Version="*" />
+ 
+   <!-- Provider modules -->

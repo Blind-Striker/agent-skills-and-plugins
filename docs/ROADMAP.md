@@ -79,8 +79,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Upstream v1.7.1 fixed the `sdk-container-publishing` defects this repository reported, so its
   patch keeps only this curation's own guard, its `PublishAot` route to `aot-trimming`, and its
   trigger description; its real-world examples file now ships.
-  `testcontainers-integration-tests` flows unowned now that upstream teaches the Testcontainers 4.x
-  API. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key rename.
+  Upstream now teaches the Testcontainers 4.x API, so `testcontainers-integration-tests` owns only
+  a TUnit guard, as `aspire-integration-testing`, `snapshot-testing`, and
+  `playwright-blazor-testing` do. Akka and Aspire moved only through upstream's `invocable:` to
+  `user-invocable:` key rename.
 - `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);
   wave W3 is done. Its source metadata is 0.0.3 and its guidance covers the Aspire 13.5 and 13.6
   release family; the post-tag commit carries the 13.6 agent-setup and MCP opt-in guidance that

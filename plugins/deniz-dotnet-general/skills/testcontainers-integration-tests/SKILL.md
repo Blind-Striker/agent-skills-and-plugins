@@ -138,6 +138,8 @@ See [infrastructure-patterns.md](infrastructure-patterns.md) for Redis, RabbitMQ
 
 ## Required NuGet Packages
 
+In a TUnit project, add none of the xUnit packages below and no `Microsoft.NET.Test.Sdk`: xUnit is a second test framework, and the VSTest SDK breaks TUnit's test discovery. Use TUnit's equivalents instead, such as `[Test]` and its lifecycle hooks in place of `IAsyncLifetime`.
+
 Use the **module packages** — one per provider. They replace the special-casing you'd otherwise write against the core `Testcontainers` package:
 
 ```xml

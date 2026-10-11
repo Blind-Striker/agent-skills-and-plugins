@@ -373,10 +373,14 @@ items:
   - source: dotnet-skills/skills/snapshot-testing
     invocation: auto # general Verify knowledge: API, HTTP, serialization, objects, rendered output
     body: patch # email-authoring branches and their handoff to the excluded email skills are outside
-    # the curator's flow
+    # the curator's flow. Its install step also carries a TUnit guard, curator's call: Verify.TUnit,
+    # never Verify.Xunit, the xUnit packages, or Microsoft.NET.Test.Sdk in a TUnit project
   - source: dotnet-skills/skills/testcontainers
     invocation: auto # real-infra integration testing without Aspire — no substitute in the corpus.
-    # Upstream now teaches the Testcontainers 4.x module-builder API itself, so the body flows unowned
+    # Upstream now teaches the Testcontainers 4.x module-builder API itself
+    body: patch # one
+    # TUnit guard, curator's call: in a TUnit project, never add xUnit or Microsoft.NET.Test.Sdk,
+    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written
   - source: dotnet-skills/skills/cscheck
     invocation: auto # CsCheck property-based, model-based, and Spec test knowledge, unique in the corpus;
     # the curator chose CsCheck as the property-testing library. Its body is framework-neutral by its
@@ -384,6 +388,9 @@ items:
     # awaited assertion goes inside SampleAsync, because an unawaited one fails the build loudly
   - source: dotnet-skills/skills/playwright-blazor
     invocation: auto # Blazor UI *testing* knowledge; the Blazor authoring estate is deferred, this is not
+    body: patch # one
+    # TUnit guard, curator's call: in a TUnit project, never add xUnit or Microsoft.NET.Test.Sdk,
+    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written
   - source: dotnet-skills/skills/slopwatch
     invocation: both # the curator runs Slopwatch after LLM code changes — the description's
     # "run after every code modification" pressure matches the curator's actual working style, so it

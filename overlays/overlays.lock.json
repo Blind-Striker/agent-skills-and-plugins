@@ -40,6 +40,12 @@
       "references/templates.md": "83bace71a6b586b109857f646db53bb2ae21f45f"
     }
   },
+  "deniz-dotnet-aspire/aspire-integration-testing": {
+    "source": "dotnet-skills/skills/aspire-integration-testing",
+    "files": {
+      "SKILL.md": "db6000bd4acb5b4124f36c429582d350c568b5b4"
+    }
+  },
   "deniz-dotnet-aspire/aspire-monitoring": {
     "source": "aspire-skills/skills/aspire-monitoring",
     "files": {
@@ -260,6 +266,12 @@
       "references/command-mode.md": "9a3eed04c0c7c9895d7211a5d964d4ef65f440ba"
     }
   },
+  "deniz-dotnet-general/playwright-blazor-testing": {
+    "source": "dotnet-skills/skills/playwright-blazor",
+    "files": {
+      "SKILL.md": "c8267fe30b7c30d8a5e4758861b8368f08c02e00"
+    }
+  },
   "deniz-dotnet-general/run-tests": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
     "files": {
@@ -312,6 +324,12 @@
     "files": {
       "SKILL.md": "25de7f61787e3c88b56e1085d9877cd8d3c1ea70",
       "references/mutation-catalog.md": "34cc79c40213f072d9aec138fe391b9552f9bef6"
+    }
+  },
+  "deniz-dotnet-general/testcontainers-integration-tests": {
+    "source": "dotnet-skills/skills/testcontainers",
+    "files": {
+      "SKILL.md": "080023d95138f2945b41f072c1825b9c7e027004"
     }
   },
   "deniz-process/asd-ste100": {
