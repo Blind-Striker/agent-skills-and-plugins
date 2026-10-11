@@ -299,6 +299,20 @@
     },
     "frontmatter": true
   },
+  "deniz-process/diagnosing-superpowers": {
+    "source": "superpowers/skills/diagnosing-superpowers",
+    "files": {
+      "SKILL.md": "f1d479fbc49e29b1984ef5ffa00ad20334445a14"
+    },
+    "frontmatter": true
+  },
+  "deniz-process/dispatching-parallel-agents": {
+    "source": "superpowers/skills/dispatching-parallel-agents",
+    "files": {
+      "SKILL.md": "3fa091b348bbe0a18eaa0e17e9092c97f7005cbe"
+    },
+    "frontmatter": true
+  },
   "deniz-process/executing-plans": {
     "source": "superpowers/skills/executing-plans",
     "files": {

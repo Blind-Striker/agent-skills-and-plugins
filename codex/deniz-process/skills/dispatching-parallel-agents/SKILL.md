@@ -1,7 +1,7 @@
 ---
 name: dispatching-parallel-agents
-description: Use when facing 2+ independent tasks that can be worked on without
-  shared state or sequential dependencies
+description: Use when facing 2+ independent failures or investigations that can
+  be worked on without shared state or sequential dependencies
 ---
 
 # Dispatching Parallel Agents

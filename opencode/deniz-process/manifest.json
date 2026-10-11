@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.1",
-  "digest": "sha256:73afadffedf575940b72a266bf59312b1ee4135683302e80eb276f185ee78b3b",
+  "digest": "sha256:ebacd618f6618e7029745b4a14f15ec32905bacfb955beb1fbcd6b7c4d027191",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -86,7 +86,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {
-      "sha256": "sha256:bfb309608505760b07240c6a81e1fc544e38f69cd9f4e4a4f3ee9568c132b14e",
+      "sha256": "sha256:3b5777dceeccceaaac6ee64554eb55f711f70e6231e9f1eff9be752bd8e77560",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/prompts/analyst-common.md": {
@@ -166,7 +166,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.dispatching-parallel-agents/SKILL.md": {
-      "sha256": "sha256:65af5b7878bb381255be435bb5f6279b52c90f5d2f512490d859a34be5d6d7fe",
+      "sha256": "sha256:a3658269f1fdf7bcb080be2ef05a5f55be80772ca3fadaa469c3672395538df4",
       "mode": "100644"
     },
     "skills/deniz-process.domain-modeling/ADR-FORMAT.md": {
@@ -254,7 +254,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
-      "sha256": "sha256:6af4b32311d32b7a47bcb7b41f2881ddcd7becb54019468bc3bd0400dc72752a",
+      "sha256": "sha256:8f111a2370e7a11032f4adb8f9012a29d08cf2a20b24685dfaeb4d8e6a39cae6",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/code-reviewer.md": {
@@ -438,7 +438,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:7668096ae53a5ff204449e7f03f0d16f070127ca1b8ff701743d20832349081d",
+      "sha256": "sha256:025759926e2decbcc89dbb1b4eb2f9e6d8ccf3ca6bc39fd051c2d693503d83bf",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {

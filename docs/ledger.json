@@ -4411,7 +4411,7 @@
   "deniz-process/skill/diagnosing-superpowers": {
     "source": "superpowers/skills/diagnosing-superpowers",
     "invocation": "both",
-    "description": "Use when a superpowers session went wrong and your human partner wants to know why — repeated work, ignored plans, stumbles, poor results, a skill that didn't fire, \"it took too long\", \"why is it so expensive\", \"what is it doing\" — or wants to build a bug report for the superpowers maintainers, for the current session or a past one identified by id or path, on any harness.",
+    "description": "Use when a session that used the deniz-process skills (brainstorming, planning, the plan executors, TDD, debugging, code review) went wrong and your human partner wants to know why — repeated work, ignored plans, stumbles, poor results, a skill that didn't fire, \"it took too long\", \"why is it so expensive\", \"what is it doing\" — or wants to build a bug report for the superpowers maintainers, for the current session or a past one identified by id or path, on any harness.",
     "claude": {
       "artifacts": [
         "skill"
@@ -4455,7 +4455,7 @@
   "deniz-process/skill/dispatching-parallel-agents": {
     "source": "superpowers/skills/dispatching-parallel-agents",
     "invocation": "auto",
-    "description": "Use when facing 2+ independent tasks that can be worked on without shared state or sequential dependencies",
+    "description": "Use when facing 2+ independent failures or investigations that can be worked on without shared state or sequential dependencies",
     "claude": {
       "artifacts": [
         "skill"
@@ -5269,7 +5269,7 @@
     "dependsOn": [
       "receiving-code-review"
     ],
-    "description": "Use when completing a task, finishing a feature, before merging, or when asked to review changes since a commit, branch or tag — pins the range, then reports Standards and Spec separately",
+    "description": "Use after each task in subagent-driven development, after completing a major feature, before merging to main, or when asked to review changes since a commit, branch or tag — pins the range, then reports Standards and Spec separately",
     "claude": {
       "artifacts": [
         "skill"
@@ -6398,7 +6398,7 @@
       "subagent-driven-development",
       "using-git-worktrees"
     ],
-    "description": "Use when you have a spec or requirements for a multi-step task, before touching code",
+    "description": "Use when you have a spec or requirements for multi-session work, or several people's worth, before touching code — not for a change that fits one sitting",
     "claude": {
       "artifacts": [
         "skill"

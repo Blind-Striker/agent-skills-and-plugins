@@ -1,6 +1,6 @@
 ---
 name: requesting-code-review
-description: Use when completing a task, finishing a feature, before merging, or when asked to review changes since a commit, branch or tag — pins the range, then reports Standards and Spec separately
+description: Use after each task in subagent-driven development, after completing a major feature, before merging to main, or when asked to review changes since a commit, branch or tag — pins the range, then reports Standards and Spec separately
 ---
 
 # Requesting Code Review

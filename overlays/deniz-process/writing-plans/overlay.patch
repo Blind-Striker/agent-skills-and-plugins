@@ -1,7 +1,20 @@
 diff --git a/SKILL.md b/SKILL.md
-index 4cf0275..c1e19ef 100644
+index 4cf0275..05ea7e4 100644
 --- a/SKILL.md
 +++ b/SKILL.md
+@@ -1,11 +1,11 @@
+ ---
+ name: writing-plans
+-description: Use when you have a spec or requirements for a multi-step task, before touching code
++description: Use when you have a spec or requirements for multi-session work, or several people's worth, before touching code — not for a change that fits one sitting
+ ---
+ 
+ # Writing Plans
+ 
+ ## Overview
+ 
+ Write implementation plans for an engineer who has not seen this codebase or this spec. Assume they write idiomatic code in the project's language once they know the exact interface and the exact test, and that they will make a reasonable choice wherever the plan leaves one open. What they cannot know is what you decided: which files, which names and signatures, which values from the spec, which tests prove each task. Document those. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+ 
 @@ -51,17 +51,17 @@ independently testable deliverable.
  
  ## Plan Document Header

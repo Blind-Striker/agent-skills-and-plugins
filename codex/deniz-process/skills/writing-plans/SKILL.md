@@ -1,7 +1,8 @@
 ---
 name: writing-plans
-description: Use when you have a spec or requirements for a multi-step task,
-  before touching code
+description: Use when you have a spec or requirements for multi-session work, or
+  several people's worth, before touching code — not for a change that fits one
+  sitting
 ---
 
 # Writing Plans

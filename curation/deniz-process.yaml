@@ -45,7 +45,9 @@ items:
     invocation: both # typed directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
     body: patch # drops "(recommended)" from the plan header's subagent-driven-development option: the
     # handoff now recommends an executor for each plan, and a fixed label in every plan header would
-    # pre-empt that choice
+    # pre-empt that choice. The description narrows upstream's "a multi-step task" to multi-session
+    # work, or several people's worth, as ask-deniz's heavy ladder and brainstorming's sizing put it,
+    # so a change that fits one sitting never opens a plan document
     depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
     invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
@@ -101,6 +103,9 @@ items:
     # reviewer before reading or acting on any review, the outcome behind upstream's "foreground",
     # which is a Claude Code mechanism. The scope-creep and spec-quote wording stays ours: a finding
     # where the spec is silent may cite a reasonable user's expectation.
+    # The description names only the body's mandatory moments (each subagent-driven-development
+    # task, a major feature, a merge to main) and the typed range review, where upstream's
+    # "completing a task" dispatched a reviewer after every small edit.
     body: overlay
     merged_from: [mattpocock-skills/skills/engineering/code-review] # same-filename rule suffices — matt ships only a SKILL.md
     depends_on: [receiving-code-review] # taking the feedback is its own discipline, and it is taken
@@ -433,6 +438,12 @@ items:
     # from its bundled template
   - source: superpowers/skills/dispatching-parallel-agents
     invocation: auto # dependency-free dispatch knowledge; research's stitch points at it
+    frontmatter:
+      # upstream's "2+ independent tasks" also matched executing a plan's tasks with subagents, which
+      # subagent-driven-development owns and which forbids parallel implementers; the body covers
+      # independent failures and investigations only, so the trigger says that. No body is owned
+      # here, so the lock stamps upstream's SKILL.md under this override
+      description: "Use when facing 2+ independent failures or investigations that can be worked on without shared state or sequential dependencies"
   - source: superpowers/skills/writing-skills
     invocation: manual # authoring ceremony, opened by hand — its body then reaches the two auto disciplines below
     depends_on: [systematic-debugging, test-driven-development]
@@ -448,6 +459,11 @@ items:
     # Body taken unchanged: its post-mortem dimensions, the skill timeline included, are the field
     # evidence trigger tuning needs. It files a GitHub issue only after the human approves the exact
     # text, so upstream's maintainer-triage framing rides along as written.
+    frontmatter:
+      # upstream keys the trigger to "a superpowers session", a label no catalog entry here shows:
+      # every process skill this estate offers is a deniz-process one, so the trigger names them. The
+      # lock stamps upstream's SKILL.md under this override
+      description: "Use when a session that used the deniz-process skills (brainstorming, planning, the plan executors, TDD, debugging, code review) went wrong and your human partner wants to know why — repeated work, ignored plans, stumbles, poor results, a skill that didn't fire, \"it took too long\", \"why is it so expensive\", \"what is it doing\" — or wants to build a bug report for the superpowers maintainers, for the current session or a past one identified by id or path, on any harness."
   # --- humanlayer-skills: attribution-only source ---
   - source: humanlayer-skills/plugins/show-me/skills/show-me
     exclude: true # not rejected — attribution source of pr: pr's Summary section reproduces
