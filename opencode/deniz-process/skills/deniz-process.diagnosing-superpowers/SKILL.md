@@ -1,12 +1,11 @@
 ---
 name: deniz-process.diagnosing-superpowers
-description: Use when a session that used the deniz-process skills
-  (brainstorming, planning, the plan executors, TDD, debugging, code review)
-  went wrong and your human partner wants to know why — repeated work, ignored
-  plans, stumbles, poor results, a skill that didn't fire, "it took too long",
-  "why is it so expensive", "what is it doing" — or wants to build a bug report
-  for the superpowers maintainers, for the current session or a past one
-  identified by id or path, on any harness.
+description: Use when a deniz-process session went wrong and your human partner
+  wants to know why — repeated work, ignored plans, stumbles, poor results, a
+  skill that didn't fire, "it took too long", "why is it so expensive", "what is
+  it doing" — or wants to build a bug report for the superpowers maintainers,
+  for the current session or a past one identified by id or path, on any
+  harness.
 ---
 
 # Diagnosing Superpowers

@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.1",
-  "digest": "sha256:7c37e73ad7fbc6da5a8ca595d46fd994822b74603ca546fd0b6ccac292bd26c5",
+  "digest": "sha256:30a92a97b801499044876050221a777dd12c9822b6f090b3c177c32bad97d0bf",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -86,7 +86,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {
-      "sha256": "sha256:3b5777dceeccceaaac6ee64554eb55f711f70e6231e9f1eff9be752bd8e77560",
+      "sha256": "sha256:f531d6a7216f1870b90fa073923dd68dace5989110eb8c689b92f894a64aa510",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/prompts/analyst-common.md": {
