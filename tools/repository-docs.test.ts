@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
@@ -55,6 +55,29 @@ test("README verifies the current Release digest before package execution", () =
     [...positions].sort((left, right) => left - right),
   );
   assert.equal(section.indexOf("npm exec"), positions.at(-1), "no package execution may precede digest verification");
+});
+
+test("README lists each checkout Module's required Modules as its Bundle records them", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const start = readme.indexOf("### OpenCode from this checkout");
+  const section = readme.slice(start, readme.indexOf("\n### ", start + 1));
+  const listed = Object.fromEntries(
+    [...section.matchAll(/^\| `(deniz-[a-z-]+)` \| ([^|\n]+) \|$/gm)].map((row) => [
+      row[1],
+      row[2] === "none" ? [] : [...(row[2] ?? "").matchAll(/`(deniz-[a-z-]+)`/g)].map((name) => name[1]),
+    ]),
+  );
+  const recorded = Object.fromEntries(
+    readdirSync(join(root, "opencode")).map((module) => [
+      module,
+      (
+        JSON.parse(readFileSync(join(root, "opencode", module, "manifest.json"), "utf8")) as {
+          requiredModules: string[];
+        }
+      ).requiredModules,
+    ]),
+  );
+  assert.deepEqual(listed, recorded);
 });
 
 test("OpenCode lab describes installer composition rather than a mounted build tree", () => {

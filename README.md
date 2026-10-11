@@ -159,7 +159,9 @@ change, yours or upstream's, shows up in review.
 
 Claude Code: `/plugin marketplace add Blind-Striker/agent-skills-and-plugins` then install `deniz-*`
 plugins. Once a `deniz-*` plugin covers an upstream source, uninstall the
-upstream plugin (avoid duplicate similar skills).
+upstream plugin (avoid duplicate similar skills). General and Akka need other plugins installed
+beside them in every harness; the requirement table is under
+[OpenCode from this checkout](#opencode-from-this-checkout).
 
 ### Codex from this repository marketplace
 
@@ -223,6 +225,23 @@ including Modules added by that same request; requirements need not already be s
 request. `--yes` recomputes under the lock and never reapplies a previously printed Plan. A
 finding-free metadata-only Plan still commits next Install state. Interrupted Apply rolls back
 exact prior bytes or finalizes already-committed state; schema-1 Install-state evidence is refused.
+
+The build derives each Module's required Modules from its items' `depends_on` and records them in
+its Bundle manifest. The checkout's Bundles record:
+
+| Module | Requires |
+|---|---|
+| `deniz-process` | none |
+| `deniz-dotnet-general` | `deniz-dotnet-aspire`, `deniz-process` |
+| `deniz-dotnet-akka` | `deniz-dotnet-aspire`, `deniz-dotnet-general` |
+| `deniz-dotnet-aspire` | none |
+
+General requires Process because `code-testing` hands a repair or flaky-test request to Process's
+`systematic-debugging`. So the installer refuses a Selection that has General without Aspire and
+Process, or Akka without Aspire and General. Claude Code and Codex install each Plugin on its own,
+and these Plugins declare no requirement there, so install the required Plugins yourself:
+`deniz-process` and `deniz-dotnet-aspire` alongside `deniz-dotnet-general`, and
+`deniz-dotnet-aspire` and `deniz-dotnet-general` alongside `deniz-dotnet-akka`.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing
