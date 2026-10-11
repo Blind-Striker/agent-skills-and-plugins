@@ -26,10 +26,12 @@ import {
   applyRecovery,
   acquireInstallerLock,
   inspectRecovery,
+  renameWithWindowsRetry,
   type AppliedMutation,
   type ApplyOptions,
   type InstallerLock,
   type RecoveryPlan,
+  type RenameHost,
   type TransactionJournal,
 } from "./opencode-install-apply.ts";
 import { planReconcile, type Plan } from "./opencode-install-plan.ts";
@@ -1859,6 +1861,97 @@ test("fresh acquire builds owner metadata in a candidate before exposing lock", 
   assert.ok(sawCandidate);
   assert.ok(lstatSync(join(lock.path, "owner.json")).isFile());
   lock.release();
+});
+
+/**
+ * A rename host that fails with each code in `failures` in turn, then succeeds. `exists` answers
+ * whether the destination is present when the helper asks after a failure.
+ */
+function failingRenameHost(
+  platform: NodeJS.Platform,
+  failures: string[],
+  exists: () => boolean = () => false,
+): { host: RenameHost; renames: number; sleeps: number[] } {
+  const record = { renames: 0, sleeps: [] as number[] };
+  const host: RenameHost = {
+    platform,
+    rename(from: string, to: string): void {
+      record.renames += 1;
+      const code = failures.shift();
+      if (code !== undefined) {
+        throw Object.assign(new Error(`${code}: operation not permitted, rename '${from}' -> '${to}'`), { code });
+      }
+    },
+    exists,
+    sleep(ms: number): void {
+      record.sleeps.push(ms);
+    },
+  };
+  return Object.assign(record, { host });
+}
+
+test("a Windows rename retries a transient EPERM, EACCES, or EBUSY while its destination is absent", () => {
+  for (const code of ["EPERM", "EACCES", "EBUSY"]) {
+    const fake = failingRenameHost("win32", [code, code]);
+    renameWithWindowsRetry("lock.candidate-x", "lock", fake.host);
+    assert.equal(fake.renames, 3, code);
+    assert.equal(fake.sleeps.length, 2, code);
+  }
+});
+
+test("a Windows rename onto an existing destination fails at once with its own error", () => {
+  const fake = failingRenameHost("win32", ["EPERM"], () => true);
+  assert.throws(() => renameWithWindowsRetry("lock.candidate-x", "lock", fake.host), /^Error: EPERM: /);
+  assert.equal(fake.renames, 1);
+  assert.deepEqual(fake.sleeps, []);
+});
+
+test("a destination that appears while a Windows rename retries stops the retries", () => {
+  let checks = 0;
+  const fake = failingRenameHost("win32", ["EPERM", "EPERM"], () => {
+    checks += 1;
+    return checks > 1;
+  });
+  assert.throws(() => renameWithWindowsRetry("lock.candidate-x", "lock", fake.host), /EPERM/);
+  assert.equal(fake.renames, 2);
+  assert.equal(fake.sleeps.length, 1);
+});
+
+test("a destination whose presence cannot be read is not retried", () => {
+  const fake = failingRenameHost("win32", ["EPERM"], () => {
+    throw Object.assign(new Error("EACCES: permission denied, lstat 'lock'"), { code: "EACCES" });
+  });
+  assert.throws(() => renameWithWindowsRetry("lock.candidate-x", "lock", fake.host), /^Error: EPERM: /);
+  assert.equal(fake.renames, 1);
+});
+
+test("a Windows rename gives up after about one second and throws the last error", () => {
+  const fake = failingRenameHost(
+    "win32",
+    Array.from({ length: 50 }, () => "EBUSY"),
+  );
+  assert.throws(() => renameWithWindowsRetry("txn.candidate-x", "txn-x", fake.host), /EBUSY/);
+  const total = fake.sleeps.reduce((sum, ms) => sum + ms, 0);
+  assert.ok(total >= 900 && total <= 1100, `retried for ${total} ms in all`);
+  assert.equal(fake.renames, fake.sleeps.length + 1);
+  assert.deepEqual(
+    fake.sleeps,
+    [...fake.sleeps].sort((left, right) => left - right),
+    "the backoff never shrinks",
+  );
+});
+
+test("a rename off Windows, or one failing with another code, is not retried", () => {
+  for (const platform of ["linux", "darwin"] as const) {
+    const fake = failingRenameHost(platform, ["EPERM"]);
+    assert.throws(() => renameWithWindowsRetry("a", "b", fake.host), /EPERM/);
+    assert.equal(fake.renames, 1, platform);
+  }
+  for (const code of ["ENOENT", "EXDEV", "ENOTEMPTY"]) {
+    const fake = failingRenameHost("win32", [code]);
+    assert.throws(() => renameWithWindowsRetry("a", "b", fake.host), new RegExp(code));
+    assert.equal(fake.renames, 1, code);
+  }
 });
 
 test("release retry deletes only its tombstone after a replacement lock exists", () => {

@@ -162,6 +162,64 @@ function existsLstat(path: string): boolean {
   }
 }
 
+/** What a rename needs from the host; a test replaces it to inject a failure. */
+export interface RenameHost {
+  platform: NodeJS.Platform;
+  rename(from: string, to: string): void;
+  exists(path: string): boolean;
+  sleep(ms: number): void;
+}
+
+const NODE_RENAME_HOST: RenameHost = {
+  platform: process.platform,
+  rename: renameSync,
+  exists: existsLstat,
+  sleep(ms: number): void {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  },
+};
+
+/** The waits between Windows rename attempts: about one second in all. */
+const WINDOWS_RENAME_RETRY_MS = [10, 20, 40, 80, 160, 320, 370] as const;
+const TRANSIENT_WINDOWS_RENAME_CODES = new Set(["EPERM", "EACCES", "EBUSY"]);
+
+/**
+ * Renames `from` to `to`. On Windows a scanner or indexer can hold a short-lived handle on a file
+ * just written, and the rename then fails with EPERM, EACCES, or EBUSY; such a failure is retried
+ * with short backoff for about one second, but only while `to` is absent. Windows reports EPERM
+ * for an existing destination too, and that error is thrown at once, so a rename never takes a
+ * path that already exists and the installer lock stays exclusive. No other platform retries.
+ */
+export function renameWithWindowsRetry(from: string, to: string, host: RenameHost = NODE_RENAME_HOST): void {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      host.rename(from, to);
+      return;
+    } catch (error) {
+      const wait = WINDOWS_RENAME_RETRY_MS[attempt];
+      const code = error instanceof Error && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
+      if (
+        wait === undefined ||
+        host.platform !== "win32" ||
+        !TRANSIENT_WINDOWS_RENAME_CODES.has(code ?? "") ||
+        !destinationAbsent(host, to)
+      ) {
+        throw error;
+      }
+      host.sleep(wait);
+    }
+  }
+}
+
+/** True only when `path` is known to be absent; a presence that cannot be read is not absence. */
+function destinationAbsent(host: RenameHost, path: string): boolean {
+  try {
+    return !host.exists(path);
+  } catch {
+    return false;
+  }
+}
+
 function processExists(pid: number): boolean {
   if (!Number.isInteger(pid) || pid <= 0) {
     return false;
@@ -331,7 +389,7 @@ function createHeldLock(lockPath: string, token: string, io?: ApplyIo): Installe
         const owner = readOwner(lockPath);
         if (owner && owner.token === token) {
           try {
-            renameSync(lockPath, expectedTombstone);
+            renameWithWindowsRetry(lockPath, expectedTombstone);
             tombstonePath = expectedTombstone;
           } catch (error) {
             if (!isENOENT(error)) {
@@ -393,7 +451,7 @@ function releaseOwnedDirectory(path: string, token: string, label: string): void
     return;
   }
   const tombstone = `${path}.released-${token}`;
-  renameSync(path, tombstone);
+  renameWithWindowsRetry(path, tombstone);
   const movedOwner = readOwner(tombstone);
   if (!movedOwner || movedOwner.token !== token) {
     throw new Error(`${label} token changed during release`);
@@ -420,7 +478,7 @@ function acquireReclaimGuard(deniz: string, io?: ApplyIo): InstallerLock {
       }
       const tombstone = `${guardPath}.reclaimed-${owner.token}-${randomUUID()}`;
       try {
-        renameSync(guardPath, tombstone);
+        renameWithWindowsRetry(guardPath, tombstone);
       } catch (error) {
         if (isENOENT(error)) {
           continue;
@@ -444,7 +502,7 @@ function acquireReclaimGuard(deniz: string, io?: ApplyIo): InstallerLock {
       fsyncDirectory(candidate);
       io?.beforeAcquireGuardRename?.(candidate, guardPath);
       try {
-        renameSync(candidate, guardPath);
+        renameWithWindowsRetry(candidate, guardPath);
       } catch (error) {
         if (existsLstat(guardPath)) {
           rmSync(candidate, { recursive: true, force: true });
@@ -508,7 +566,7 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
         throw new Error("installer lock token changed during reclaim");
       }
       const moved = `${lockPath}.reclaimed-${reread.token}`;
-      renameSync(lockPath, moved);
+      renameWithWindowsRetry(lockPath, moved);
       rmSync(moved, { recursive: true, force: true });
     }
     cleanCandidateDebris(deniz);
@@ -517,7 +575,7 @@ export function acquireInstallerLock(destination: string, options: AcquireLockOp
     mkdirSync(candidate);
     writeOwner(candidate, { pid: process.pid, startedAt: new Date().toISOString(), token });
     options.io?.beforeAcquireRename?.(candidate, lockPath);
-    renameSync(candidate, lockPath);
+    renameWithWindowsRetry(candidate, lockPath);
     requireOrdinaryDir(lockPath, "installer lock");
     return createHeldLock(lockPath, token, options.io);
   } finally {
@@ -1626,7 +1684,7 @@ function writeSnapshot(transactionDir: string, journal: TransactionJournal, seq:
   const name = String(seq.value).padStart(6, "0");
   const tmp = join(dir, `${name}.${randomUUID()}.tmp`);
   writeFlushed(tmp, `${JSON.stringify(journal, null, 2)}\n`);
-  renameSync(tmp, join(dir, `${name}.json`));
+  renameWithWindowsRetry(tmp, join(dir, `${name}.json`));
   fsyncDirectory(dir);
 }
 
@@ -2124,7 +2182,7 @@ function requireDestinationTopology(
 
 function renameOrThrow(from: string, to: string): void {
   try {
-    renameSync(from, to);
+    renameWithWindowsRetry(from, to);
   } catch (error) {
     if (isEXDEV(error)) {
       throw new Error(`EXDEV: ${to} is not on the same filesystem as ${from}`);

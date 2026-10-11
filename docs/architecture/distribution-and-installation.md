@@ -255,7 +255,16 @@ requirements or Module identity changed. Apply does not invent a dummy file muta
 Unknown files and non-empty directories survive pruning, and the top-level Native roots are retained.
 Apply refuses a Plan with findings, a stale or unheld lock, cross-filesystem rename topology,
 ambiguous path evidence, or a pending transaction
-([`applyPlan`](../../tools/lib/opencode-install-apply.ts#L2200-L2460)).
+([`applyPlan`](../../tools/lib/opencode-install-apply.ts#L2258-L2518)).
+
+Every rename of the lock and the transaction, from taking and releasing the lock to journal
+snapshots, backups, placement, and the Install-state commit, goes through one helper. On Windows a
+scanner or indexer can briefly hold a handle on a file just written, and the rename then fails with
+EPERM, EACCES, or EBUSY. The helper retries such a failure with short backoff for about one second,
+but only while the destination is absent. Windows also reports EPERM when the destination exists;
+that error is thrown at once, so a rename never takes a path that already exists and the lock stays
+exclusive. Other platforms do not retry
+([`renameWithWindowsRetry`](../../tools/lib/opencode-install-apply.ts)).
 
 ## Recovery
 
@@ -273,8 +282,8 @@ journal and persisted evidence before classifying Recovery:
 
 Recovery restores the prior state or finalizes cleanup of an already committed state. It does not
 resume or finish the original Install, Update, or Remove request. The classification and execution
-are in [`inspectRecovery`](../../tools/lib/opencode-install-apply.ts#L1469-L1545) and
-[`applyRecovery`](../../tools/lib/opencode-install-apply.ts#L2462-L2502).
+are in [`inspectRecovery`](../../tools/lib/opencode-install-apply.ts#L1527-L1603) and
+[`applyRecovery`](../../tools/lib/opencode-install-apply.ts#L2520-L2560).
 
 ## Full estate versus installed Selection
 
