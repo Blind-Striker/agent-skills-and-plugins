@@ -183,12 +183,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    confidence, and one of `retain`, `narrow`, `reconsider`, or `ambiguous`; preserve disagreements.
    Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
    not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
-   Run it after a body-ownership pass and before declaring a Module closed. The sync packets name
-   five trigger-competition cases for it: `subagent-driven-development` against `executing-plans`,
-   `aot-trimming` against `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild
-   specialists, `directory-build-organization` against `convert-to-cpm`, and `code-testing` against
-   `systematic-debugging`. W6 was its natural first run but closed without one; the first run is
-   still pending.
+   Run it after a body-ownership pass and before declaring a Module closed. The trigger-competition
+   cases for it are `subagent-driven-development` against `executing-plans`, `aot-trimming` against
+   `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild specialists, and
+   `directory-build-organization` against `convert-to-cpm`. The sync packets also named
+   `code-testing` against `systematic-debugging`, but `code-testing` is `manual` in all three
+   harnesses, so no model chooses between them. W6 was the panel's natural first run but closed
+   without one; the first run is still pending.
 3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
