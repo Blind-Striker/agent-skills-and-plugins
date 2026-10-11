@@ -79,12 +79,13 @@ Most reference skills activate when their topic appears. These are the useful de
 | Cluster | Deliberate entry points | Supporting auto-routes |
 |---|---|---|
 | API and public surface | `api-design`, `snapshot-testing` | modern C#, DI, Options, serialization, concurrency, R3 |
-| Test generation and authoring | `code-testing-agent`, `writing-tunit-tests` | framework/platform detection, test-analysis extensions, and CsCheck property-based tests |
+| Refactoring | `csharp-refactoring` for a behavior-preserving rename, move, extract, or consolidation | modern C# standards for what the result should look like |
+| Test generation and authoring | `code-testing` writes and strengthens tests (a failing or flaky test goes to `systematic-debugging`), `writing-tunit-tests` | framework/platform detection, test-analysis extensions, and CsCheck property-based tests |
 | Test execution and quality | `run-tests`, `mtp-hot-reload`, `coverage-analysis` | anti-patterns, pseudo-mutation gap analysis, Testcontainers, Playwright, filter syntax |
 | Nullable adoption | `migrate-nullable-references` for project migration | `csharp-nullable-reference-types` for ordinary nullable-enabled code |
 | Trim/AOT adoption | `dotnet-aot-compat` for project enablement and IL-warning cleanup | `aot-trimming` for trim/AOT-safe code where analysis is already in effect |
 | Testability migrations | `generate-testability-wrappers`, then `migrate-static-to-wrapper` when approved | `detect-static-dependencies` identifies the obstacles without mutating code |
-| Build and MSBuild | `binlog-generation` then `binlog-failure-analysis`; `build-perf-baseline` first for slow builds | antipatterns, incrementality, parallelism, evaluation, props, items, targets, extensions, SDK container publishing |
+| Build and MSBuild | `msbuild` for a failing build, a slow build, or a build-file review; it captures and replays binlogs and routes to the specialists | output-path clashes, parallelism, props, items, targets, generated files, Directory.Build layout, SDK-style modernization, SDK container publishing |
 | Performance | `microbenchmarking`, `analyzing-dotnet-performance` | vectorization, database performance, EF Core, serialization and allocation guidance |
 | Diagnostics and upgrade | `dotnet-trace-collect`, `dump-collect`, `thread-abort-migration` | ILSpy and focused framework references |
 | Guardrail | `dotnet-slopwatch` after code changes | static-dependency detection and other passive review knowledge |

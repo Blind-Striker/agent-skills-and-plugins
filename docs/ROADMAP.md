@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.8.0, General 0.11.1, Akka 0.4.1, and Aspire 0.5.1. Their
+  Checkout Module versions are Process 0.8.0, General 0.12.0, Akka 0.4.1, and Aspire 0.5.1. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -52,9 +52,20 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   self-diagnostics and 10 of 10 skill tries with `openai/gpt-5.6-luna` at variant `low`; and the
   migration backups were deleted
   ([rollout record](../experiments/harness-invocation/records/2026-10-09-opencode2-rollout.md)).
-- `dotnet/skills` is reviewed through `d68dd708`. General carries the current test-execution,
-  coverage, test-quality, and testability bodies, takes the promoted `vectorization` specialist, and
-  retains curator-owned report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
+- `dotnet/skills` is reviewed through `1d40f95` (main, 2026-10-09; it has no release-shaped
+  tag); wave W6 is done, and with it every upstream sync wave of the 2026-10-08 review. General
+  takes upstream's consolidated `msbuild` skill as the auto entry for build failures, build
+  performance, and build-file review; it routes to eight kept MSBuild specialists through checked
+  facts, and nine former specialists are excluded as merged into it. `code-testing` succeeds the
+  `code-testing-agent` alias as a `manual` ceremony that writes and strengthens tests only: it runs
+  its pipeline inline, writes TUnit-first, and hands a repair or flaky-test request to Process's
+  `systematic-debugging`, so General now requires the Process Module as well as Aspire.
+  `csharp-refactoring` is taken as `both` and `mtp-hot-reload` moved to `both`.
+  `configuring-opentelemetry-dotnet`, `minimal-api-file-upload`, and `msbuild-server` left with
+  their upstream deletion. `run-tests` and `platform-detection` state that SDK 10 with
+  Microsoft.Testing.Platform 2.x has no VSTest bridge, `run-tests` collects coverage as Cobertura,
+  and the reference husks stay loadable through facts against upstream's new read-only stance.
+  General keeps its report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
 - `dotnet-skills` is reviewed through v1.7.0 (`29878f2`); wave W2 is done. General takes
   `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which now
   carries the warning-approval baseline, plus `cscheck` and `sdk-container-publishing`, whose patch
@@ -124,33 +135,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Upstream sync wave W6.** The remaining pin, `dotnet/skills`, is frozen at its 2026-09-06
-   position. A cross-upstream review on 2026-10-08 read one decision packet per
-   upstream; the packets recommend a treatment for each item; every take, skip, merge, or
-   modification is still the curator's decision, and each wave measures its upstream again before
-   it starts. A wave moves one submodule.
-   - **W6 `dotnet/skills`** (339 commits ahead with no new stable release).
-     `configuring-opentelemetry-dotnet`, `minimal-api-file-upload`, and `msbuild-server` were
-     deleted upstream and are still taken in `curation/deniz-dotnet-general.yaml`.
-     `code-testing-agent` is now a legacy alias that redirects to the new `code-testing` skill
-     (packet: re-source to it, rename the output to `code-testing`, keep it `manual`), and a
-     consolidated `dotnet/msbuild` skill sits beside the individual MSBuild skills, whose
-     descriptions were recut. Thirty-one of 48 taken items changed and 20 stamps drift. A 3-way
-     replay measured at `0608d892`: 15 of the 20 patch items fail a direct apply and 8 keep
-     conflicts, one of them (`code-testing-agent`) also patching a file upstream deleted. Decide
-     before the wave: the MSBuild estate shape, which decides whether four MCP patches are recut or
-     retired; MCP posture (build MCP-server emission for every harness, or record a no-ship
-     decision); and the `code-testing` name and scope.
-
-   Measured on 2026-10-08, moving the W3 to W6 pins together failed the build: the four taken
-   sources deleted upstream failed as unknown sources, and 47 stamped upstream files across 34 of
-   the then 48 overlay-lock items no longer matched. Patches added since are not in that count.
-   Whether to exclude, relocate, or replace each deleted source is a curator decision.
-2. **Iteration 2: dependency automation and original-skill declarations.** After the upstream sync
-   waves, address automatic dependency installation, cascade remove, version-range resolution, and
-   the `original_skills` declaration. These four workstreams belong to the follow-up iteration, not
-   the first feature. Selection/Ownership semantics, user approval for automatic changes, and version
-   constraint/conflict policy must be designed in that iteration rather than assumed by the first.
+1. **Iteration 2: dependency automation and original-skill declarations.** The upstream sync
+   waves are complete, so address automatic dependency installation, cascade remove, version-range
+   resolution, and the `original_skills` declaration. These four workstreams belong to the
+   follow-up iteration, not the first feature. Selection/Ownership semantics, user approval for
+   automatic changes, and version constraint/conflict policy must be designed in that iteration
+   rather than assumed by the first.
    For original skills, the pressure points are additional original skills, manual original posture,
    and load-bearing outgoing edges that review-only protection cannot guard. Original skills can
    already be guarded targets, but their invocation and outgoing model edges have no manifest
@@ -179,10 +169,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in all three harness trees.
 
-   One consequence needs a curator decision when this lands. The example's `test-driven-development`
-   edge targets a Process item, so it would add a General -> Process `requiredModules` edge; General
-   requires only Aspire today.
-3. **Prototype the curation sanity panel only when another curation wave needs it.** Deterministic
+   The example's `test-driven-development` edge targets a Process item. General already requires
+   Process since W6 (`code-testing` hands a repair request to `systematic-debugging`), so that edge
+   adds no new Module requirement.
+2. **Prototype the curation sanity panel only when a curation change needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
    intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
@@ -196,8 +186,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    five trigger-competition cases for it: `subagent-driven-development` against `executing-plans`,
    `aot-trimming` against `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild
    specialists, `directory-build-organization` against `convert-to-cpm`, and `code-testing` against
-   `systematic-debugging`; W6 is the natural first run.
-4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+   `systematic-debugging`. W6 was its natural first run but closed without one; the first run is
+   still pending.
+3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -250,7 +241,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   skill" references, routing hints without the word `skill`, unbackticked imperatives such as
   "invoke the writing-plans skill", and "Hand off to `x`" (`aspire-init` to
   `aspireify`) are candidates, not build state. Promote load-bearing cases through an authored
-  namespaced fact and matching dependency; the sync wave that recuts the item is the natural point.
+  namespaced fact and matching dependency; the next recut of that item is the natural point.
 - **Ledger-history names need Git history:** a shallow or archived checkout knows only the names
   its history holds; a name deleted before any ledger listed it is unknown; a renamed taken item
   keeps only its output name
@@ -303,7 +294,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   unguarded. Every current override on such an item sits on a body that stamps `SKILL.md`.
 - **Description content beyond length:** the build and `validate` check the rendered
   1,024-character description limit in every tree; whether a tag or angle-bracket rule for
-  descriptions should be checked too, and where its boundary lies, is still open.
+  descriptions should be checked too, and where its boundary lies, is still open. At the current
+  pins a tag-only rule would flag two descriptions, both from dotnet-skills:
+  `modern-csharp-coding-standards` and `r3-reactive-extensions`.
 - **Aspireify activation tension remains upstream-owned:**
   `external/aspire-skills/skills/aspireify/SKILL.md` advertises integration/authoring and toolchain
   work while its Detection section still requires an unwired AppHost and its header says one-time.
@@ -313,6 +306,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   the Bundle digest detects it, but validation does not enforce the human-facing version rule.
 - **Inventory descriptions truncate silently:** long descriptions stop at 140 characters without an
   ellipsis marker.
+- **Test-project scaffolding repair is uncovered:** `scaffold-dotnet-test-project` stays excluded
+  because it has no TUnit path, and no taken item adds a missing project reference, registers a test
+  project in its solution, or diagnoses a CI run that discovers zero tests.
 - **`dotnet-agent-skills` has no release-shaped current pin:** its rolling tool tag and stale v1.0.0
   are not suitable boundaries, so each sync is a reviewed hold-or-main-commit decision.
 - **Dead Claude `invocable:` metadata:** it is not a target-harness field; OpenCode drops and reports
@@ -330,3 +326,14 @@ skill permission rules, which needs configuration mutation; Cursor and Gemini ou
 scheduled upstream sync; the Blazor and MAUI skill estates; specialist mobile diagnostics; NuGet
 trusted-publishing guidance; and packaging this repository's documentation structure as an original
 skill.
+
+- **MCP servers:** this repository ships none, in any harness. dotnet/skills registers its BinlogMcp
+  server at its own plugin level, as an auto-downloaded prerelease, and that registration does not
+  travel with curated items; OpenCode would also need an installer change to own an `opencode.json`
+  fragment. The `msbuild` skill reads binlogs through text-log replay, and a kept specialist that
+  offers the MCP server as its first workflow falls back to replay where no server is configured.
+  A user who installs the server separately gets it wherever a body offers it.
+- **.NET 11 skills:** `system-text-json-net11` and `migrate-dotnet10-to-dotnet11` stay excluded
+  as preview-era content until .NET 11 reaches general availability; revisit both then. A taken
+  migration would be `manual`, and `system-text-json-net11` would need its dotnet-install block
+  and its unconditional "not done until the program runs" mandate removed.
