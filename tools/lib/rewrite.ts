@@ -135,6 +135,8 @@ export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
   /\bAgent tool\b/g,
   /\bTask tool\b/g,
   /\bsubagent_type\b/g,
+  // Claude Code's todo tool. OpenCode 2 has none, and this repository's research names no Codex one.
+  /\bTodoWrite\b/g,
 ];
 
 export function claudeOnlyVocabulary(content: string): { index: number; match: string }[] {

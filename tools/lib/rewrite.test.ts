@@ -331,3 +331,11 @@ test("an unbackticked general-purpose subagent inside a code span is left for th
     );
   }
 });
+
+test("Claude Code's TodoWrite tool name is Claude-only vocabulary; OpenCode's own lowercase word is not", () => {
+  assert.deepEqual(
+    claudeOnlyVocabulary("Track it with TodoWrite, or `TodoWrite`.").map((hit) => hit.match),
+    ["TodoWrite", "TodoWrite"],
+  );
+  assert.deepEqual(claudeOnlyVocabulary("The OpenCode 1 `todowrite` tool was removed."), []);
+});

@@ -253,8 +253,9 @@ skills.
 `validate` rejects Claude Code tool vocabulary in every Markdown file under `opencode/` and `codex/`:
 `skill tool` in any letter case, `Subagent (general-purpose)`, `` `general-purpose` ``,
 `general-purpose` followed by whitespace and `agent` or `subagent`, `` `Agent` ``, `Agent tool`,
-`Task tool`, and `subagent_type`. The rendered OpenCode ``the `skill` tool`` does not match, because
-a backtick separates the words. The patterns sit beside the phrasing tables in
+`Task tool`, `subagent_type`, and `TodoWrite`, Claude Code's todo tool, in that letter case. The
+rendered OpenCode ``the `skill` tool`` does not match, because a backtick separates the words, and
+neither does OpenCode's own lowercase `todowrite`. The patterns sit beside the phrasing tables in
 [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every non-Claude rendering in those tables
 must pass them. A new upstream phrasing therefore fails the build instead of reaching a harness that
 has no such tool; the fix is a curated rewording or a new table row.
