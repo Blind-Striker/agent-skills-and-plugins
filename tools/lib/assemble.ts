@@ -255,6 +255,20 @@ function assembleOwnSkills(
   return assembled;
 }
 
+/**
+ * Assembles one curated item into `stagingRoot` exactly as the build does, for a reader that needs
+ * its neutral files rather than any emitted tree's: undefined for an excluded item.
+ */
+export function assembleItem(
+  root: string,
+  stagingRoot: string,
+  manifest: CurationManifest,
+  item: CurationItem,
+  components: ComponentInfo[],
+): AssembledItem | undefined {
+  return assembleCuratedItem(root, stagingRoot, manifest, item, components, []);
+}
+
 /** Resolve and assemble the complete authored estate once for every target emitter. */
 export function assembleItems(
   root: string,

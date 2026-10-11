@@ -1727,6 +1727,84 @@ test("harness files: each tree holds its own file at the output path and no mapp
   );
 });
 
+/** makeHarnessFilesRepo with each harness's notes rewritten and delta's depends_on set. */
+function harnessFactsRepo(
+  notes: Partial<Record<"claude" | "codex" | "opencode", string>>,
+  dependsOn: string[],
+): string {
+  const root = makeHarnessFilesRepo();
+  const refs = join(root, "external", "sp", "skills", "delta", "references");
+  for (const [harness, text] of Object.entries(notes)) {
+    writeFileSync(join(refs, `${harness}.md`), `# Notes\n\n${text}\n`);
+  }
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "    harness_files:\n",
+      `    depends_on: [${dependsOn.join(", ")}]\n    harness_files:\n`,
+    ),
+  );
+  return root;
+}
+
+const errorsOf = (root: string): string[] =>
+  validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+
+test("linker: a fact only another harness's file holds counts toward depends_on", () => {
+  const declared = harnessFactsRepo({ claude: "See superpowers:gamma.", opencode: "Then load superpowers:alpha." }, [
+    "alpha",
+    "gamma",
+  ]);
+  buildAll(declared);
+  const passing = errorsOf(declared);
+  assert.ok(!passing.some((m) => m.includes("delta")), passing.join("\n"));
+
+  const undeclared = harnessFactsRepo({ claude: "See superpowers:gamma.", codex: "Then load superpowers:alpha." }, [
+    "gamma",
+  ]);
+  buildAll(undeclared);
+  const failing = errorsOf(undeclared);
+  assert.ok(
+    failing.includes(
+      "deniz-process/delta: undeclared dependency: alpha — add it to depends_on in curation/deniz-process.yaml",
+    ),
+    failing.join("\n"),
+  );
+});
+
+test("linker: a fact in one harness's file is reached in that harness's tree", () => {
+  const root = harnessFactsRepo(
+    {
+      claude: "See superpowers:gamma.",
+      opencode: "Then load superpowers:alpha.",
+      codex: "Then load superpowers:alpha.",
+    },
+    ["alpha", "gamma"],
+  );
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "  - source: sp/skills/alpha\n",
+      "  - source: sp/skills/alpha\n    invocation: manual\n",
+    ),
+  );
+  buildAll(root);
+  const errors = errorsOf(root).filter((m) => m.includes("model-edge to a target the model cannot reach: alpha"));
+  assert.deepEqual(
+    errors.map((m) => m.slice(0, m.indexOf(": model-edge"))),
+    [
+      "opencode/deniz-process/skills/deniz-process.delta/references/tools.md",
+      "codex/deniz-process/skills/delta/references/tools.md",
+    ],
+  );
+  assert.match(errors[0] ?? "", /\(hidden from the OpenCode model \(opencode\/autoinvoke\)\)/);
+  assert.match(errors[1] ?? "", /\(allow_implicit_invocation: false in the Codex tree\)/);
+});
+
 test("harness files: a tree whose harness maps null holds nothing at the output path", () => {
   const root = makeHarnessFilesRepo("null");
   buildAll(root);

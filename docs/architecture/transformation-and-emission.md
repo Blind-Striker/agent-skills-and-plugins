@@ -299,8 +299,7 @@ to committed `dist/` JavaScript using
   promoted actual skill pointers to namespaced authored facts in that common layer. Each emitter
   localizes those facts, so no Codex-only body-patch seam is currently justified. The harness
   phrasing table is emitter localization of a closed set of sentences, and `harness_files` selects
-  whole assembled files per harness; neither edits a body per harness. The `depends_on` check reads
-  only the Claude tree, so it does not see a fact that only another harness's mapped file holds.
+  whole assembled files per harness; neither edits a body per harness.
 - A source command or agent still cannot be resolved as a skill through `as:`. Codex's emitter-level
   adaptation of already resolved commands and agents is supported and retains their closure.
   Non-empty `hooks.include` remains rejected.

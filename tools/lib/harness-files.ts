@@ -2,6 +2,7 @@ import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync } from "n
 import { dirname, join, relative, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { type Harness, type HarnessFiles, HARNESSES } from "./manifest.ts";
+import { type RewriteTarget, rewriteRefs } from "./rewrite.ts";
 
 /**
  * Every file a `harness_files` mapping reads (curation/SCHEMA.md). A mapped source ships in no tree
@@ -12,6 +13,42 @@ export function mappedSources(files: HarnessFiles): string[] {
     HARNESSES.map((harness) => byHarness[harness]).filter((source): source is string => source !== null),
   );
   return [...new Set(sources)].sort();
+}
+
+/** One Markdown file a harness's tree ships for an item, in the Claude tree's spelling. */
+export interface TreeMarkdown {
+  /** POSIX item-relative path in that tree. */
+  path: string;
+  text: string;
+  /** True for a file the item's `harness_files` places for this harness alone. */
+  own: boolean;
+}
+
+/**
+ * The Markdown one harness's tree ships for an item, as the Claude tree spells it, so facts are read
+ * before any rendering (ADR-0008). Every tree ships the Claude tree's files, except that a
+ * `harness_files` output holds that harness's own source, read from the assembly through
+ * `readSource` and respelled for Claude.
+ */
+export function treeMarkdown(
+  claude: { path: string; text: string }[],
+  files: HarnessFiles | undefined,
+  harness: Harness,
+  readSource: (source: string) => string,
+  map: Map<string, RewriteTarget>,
+): TreeMarkdown[] {
+  const outputs = new Set(Object.keys(files ?? {}));
+  if (!files || harness === "claude") {
+    return claude.map((file) => ({ ...file, own: outputs.has(file.path) }));
+  }
+  const shared = claude.filter((file) => !outputs.has(file.path)).map((file) => ({ ...file, own: false }));
+  const own = Object.entries(files).flatMap(([output, byHarness]) => {
+    const source = byHarness[harness];
+    return source !== null && output.endsWith(".md")
+      ? [{ path: output, text: rewriteRefs(readSource(source), map, "claude"), own: true }]
+      : [];
+  });
+  return [...shared, ...own];
 }
 
 function isFile(path: string): boolean {

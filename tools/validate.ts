@@ -1,8 +1,10 @@
-import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
+import { assembleItem } from "./lib/assemble.ts";
 import {
   CODEX_SKILL_KEYS,
   createCodexMarketplace,
@@ -16,12 +18,13 @@ import { indexModes } from "./lib/git.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import {
   type ComponentType,
+  type CurationItem,
   type CurationManifest,
   type Harness,
   loadManifest,
   UNKNOWN_SOURCE_RULE,
 } from "./lib/manifest.ts";
-import { mappedSources } from "./lib/harness-files.ts";
+import { mappedSources, treeMarkdown } from "./lib/harness-files.ts";
 import {
   findMissingModuleRequirements,
   loadModuleManifest,
@@ -56,7 +59,7 @@ import {
   resolveItem,
   upstreamBase,
 } from "./lib/resolve.ts";
-import { addressOf, claudeOnlyVocabulary, isBundledText } from "./lib/rewrite.ts";
+import { addressOf, buildRewriteMap, claudeOnlyVocabulary, isBundledText } from "./lib/rewrite.ts";
 import {
   type BundledScript,
   type Interpreter,
@@ -833,10 +836,13 @@ export function validateRepo(root: string): Finding[] {
     });
   }
 
-  // 4b. reference linking (ADR-0008). plugins/ carries the canonical namespaced text; opencode/ is
-  // derived from it, so facts are read once and each target's reach is checked in both harnesses.
-  // OpenCode 2 gives every item one artifact at its ID whatever its invocation: the model reaches a
-  // skill unless it carries the hide key, and a user can attach any skill or agent or run a command.
+  // 4b. reference linking (ADR-0008). Facts are read in the Claude tree's spelling, before rendering.
+  // Every tree ships an item's Markdown except its harness_files outputs, so a fact in a shared file
+  // is checked against every harness's reach, and a fact in a harness's own file against that
+  // harness's alone. OpenCode 2 gives every item one artifact at its ID whatever its invocation: the
+  // model reaches a skill unless it carries the hide key, and a user can attach any skill or agent or
+  // run a command. Codex emits every item as a skill: the model reaches it unless its policy turns
+  // implicit invocation off, and the user can always invoke it.
   const ocIndex = openCodeIndex(root, manifests, components);
   interface TargetState {
     modelReachClaude: boolean;
@@ -844,12 +850,33 @@ export function validateRepo(root: string): Finding[] {
     ocModel: boolean;
     ocUser: boolean;
     ocKind?: ComponentType;
+    codexModel: boolean;
+    codexUser: boolean;
   }
   const ocState = (plugin: string, name: string): Pick<TargetState, "ocModel" | "ocUser" | "ocKind"> => {
     const entry = ocIndex.get(openCodeId(plugin, name));
     return entry
       ? { ocModel: entry.kind === "skill" && !entry.hidden, ocUser: true, ocKind: entry.kind }
       : { ocModel: false, ocUser: false };
+  };
+  const codexState = (plugin: string, name: string): Pick<TargetState, "codexModel" | "codexUser"> => {
+    const skill = join(root, "codex", plugin, "skills", name);
+    if (!existsSync(join(skill, "SKILL.md"))) {
+      return { codexModel: false, codexUser: false };
+    }
+    const policyFile = join(skill, "agents", "openai.yaml");
+    let implicit = true;
+    if (existsSync(policyFile)) {
+      try {
+        const policy = parseYaml(readFileSync(policyFile, "utf8")) as {
+          policy?: { allow_implicit_invocation?: unknown };
+        };
+        implicit = policy?.policy?.allow_implicit_invocation !== false;
+      } catch {
+        // The Codex policy check reports an unreadable file.
+      }
+    }
+    return { codexModel: implicit, codexUser: true };
   };
   const targetState = new Map<string, TargetState>();
   for (const plugin of existsSync(pluginsDir) ? readdirSync(pluginsDir) : []) {
@@ -860,6 +887,7 @@ export function validateRepo(root: string): Finding[] {
         modelReachClaude: doc.frontmatter["disable-model-invocation"] !== true,
         userReachClaude: doc.frontmatter["user-invocable"] !== false,
         ...ocState(plugin, name),
+        ...codexState(plugin, name),
       });
     }
     for (const kind of ["commands", "agents"] as const) {
@@ -870,6 +898,7 @@ export function validateRepo(root: string): Finding[] {
           modelReachClaude: kind === "commands", // agents are dispatched, not skill-invoked
           userReachClaude: true,
           ...ocState(plugin, name),
+          ...codexState(plugin, name),
         });
       }
     }
@@ -899,72 +928,153 @@ export function validateRepo(root: string): Finding[] {
       : t.ocKind === "skill"
         ? `hidden from the OpenCode model (${OPENCODE_HIDE_KEY})`
         : `an OpenCode ${t.ocKind ?? "artifact"}, not a skill`;
+  /** Why the model cannot reach `t` in one harness's tree, or undefined when it can. */
+  const modelMiss = (t: TargetState, harness: Harness): string | undefined => {
+    switch (harness) {
+      case "claude":
+        return t.modelReachClaude ? undefined : "disable-model-invocation in the Claude tree";
+      case "opencode":
+        return t.ocModel ? undefined : ocModelCause(t);
+      case "codex":
+        return t.codexModel
+          ? undefined
+          : t.codexUser
+            ? "allow_implicit_invocation: false in the Codex tree"
+            : "no Codex skill";
+    }
+  };
+  /** Why the user cannot reach `t` in one harness's tree, or undefined when they can. */
+  const userMiss = (t: TargetState, harness: Harness): string | undefined => {
+    switch (harness) {
+      case "claude":
+        return t.userReachClaude ? undefined : "user-invocable: false in the Claude tree";
+      case "opencode":
+        return t.ocUser ? undefined : "no OpenCode artifact";
+      case "codex":
+        return t.codexUser ? undefined : "no Codex skill";
+    }
+  };
+  /** Links every own fact of one shipped file against the harnesses whose trees ship it. */
+  const linkFacts = (rel: string, text: string, harnesses: readonly Harness[], derived: Set<string>): void => {
+    for (const ref of extractRefs(text)) {
+      if (!ownNs.has(ref.ns)) {
+        continue; // upstream-namespace leftovers stay section 4's warning, not the linker's
+      }
+      const t = targetState.get(ref.name);
+      if (!t) {
+        findings.push({
+          level: "error",
+          message: `${rel}: dangling reference ${ref.address} — no built output has that name`,
+        });
+        continue;
+      }
+      if (ref.kind === "model") {
+        derived.add(ref.name);
+        const cause = harnesses.map((harness) => modelMiss(t, harness)).find((miss) => miss !== undefined);
+        if (cause) {
+          findings.push({
+            level: "error",
+            message: `${rel}: model-edge to a target the model cannot reach: ${ref.name} (${cause}) — make the target auto/both, or spell the reference /${ref.address} if the human is the audience`,
+          });
+        }
+      } else {
+        const cause = harnesses.map((harness) => userMiss(t, harness)).find((miss) => miss !== undefined);
+        if (cause) {
+          findings.push({
+            level: "error",
+            message: `${rel}: pointer to a target the user cannot reach: ${ref.name} (${cause}) — make the target manual/both, or drop the slash if the model is the audience`,
+          });
+        }
+      }
+    }
+  };
+  // A non-Claude harness_files source ships in no tree in the Claude spelling facts are read in, so
+  // its item is assembled again, as the build assembles it, to read the source itself.
+  const rewriteMap = buildRewriteMap(manifests, components, ownSkills);
+  let staging: string | undefined;
+  const harnessSourceReader = (m: CurationManifest, item: CurationItem, id: string) => {
+    try {
+      staging ??= mkdtempSync(join(tmpdir(), "validate-harness-files-"));
+      const assembled = assembleItem(root, staging, m, item, components);
+      return assembled
+        ? (source: string) => readFileSync(join(assembled.dir, ...source.split("/")), "utf8")
+        : undefined;
+    } catch (error) {
+      findings.push({
+        level: "error",
+        message: `${id}: cannot assemble the item to read its harness_files sources — ${error instanceof Error ? error.message : String(error)}`,
+      });
+      return undefined;
+    }
+  };
+  const LINKED_HARNESSES = ["claude", "opencode", "codex"] as const;
 
-  for (const m of manifests) {
-    for (const item of m.items) {
-      if (item.exclude) {
-        continue;
-      }
-      const { outName, outType, id } = resolveItem(root, m.plugin.name, item, components);
-      const built = join(
-        pluginsDir,
-        m.plugin.name,
-        outType === "skill" ? join("skills", outName) : join(`${outType}s`, `${outName}.md`),
-      );
-      if (!existsSync(built)) {
-        continue;
-      }
-      const files = outType === "skill" ? [...walk(built)].filter((f) => f.endsWith(".md")) : [built];
-      const derived = new Set<string>();
-      for (const file of files) {
-        const rel = relative(root, file).replaceAll("\\", "/");
-        for (const ref of extractRefs(readFileSync(file, "utf8"))) {
-          if (!ownNs.has(ref.ns)) {
-            continue; // upstream-namespace leftovers stay section 4's warning, not the linker's
-          }
-          const t = targetState.get(ref.name);
-          if (!t) {
-            findings.push({
-              level: "error",
-              message: `${rel}: dangling reference ${ref.address} — no built output has that name`,
-            });
+  try {
+    for (const m of manifests) {
+      for (const item of m.items) {
+        if (item.exclude) {
+          continue;
+        }
+        const { outName, outType, id } = resolveItem(root, m.plugin.name, item, components);
+        const built = join(
+          pluginsDir,
+          m.plugin.name,
+          outType === "skill" ? join("skills", outName) : join(`${outType}s`, `${outName}.md`),
+        );
+        if (!existsSync(built)) {
+          continue;
+        }
+        const shipped =
+          outType === "skill"
+            ? [...walk(built)]
+                .filter((f) => f.endsWith(".md"))
+                .map((f) => ({ path: relative(built, f).replaceAll("\\", "/"), text: readFileSync(f, "utf8") }))
+            : [{ path: "", text: readFileSync(built, "utf8") }];
+        const folder: Record<Harness, string> = {
+          claude: relative(root, built).replaceAll("\\", "/"),
+          opencode: `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}`,
+          codex: `codex/${m.plugin.name}/skills/${outName}`,
+        };
+        const relIn = (harness: Harness, path: string): string =>
+          path === "" ? folder[harness] : `${folder[harness]}/${path}`;
+        const derived = new Set<string>();
+        const files = item.harness_files;
+        const readSource = files ? harnessSourceReader(m, item, id) : undefined;
+        for (const file of treeMarkdown(shipped, files, "claude", () => "", rewriteMap)) {
+          linkFacts(relIn("claude", file.path), file.text, file.own ? ["claude"] : LINKED_HARNESSES, derived);
+        }
+        for (const harness of ["opencode", "codex"] as const) {
+          if (!files || !readSource) {
             continue;
           }
-          if (ref.kind === "model") {
-            derived.add(ref.name);
-            if (!t.modelReachClaude || !t.ocModel) {
-              const cause = !t.modelReachClaude ? "disable-model-invocation in the Claude tree" : ocModelCause(t);
-              findings.push({
-                level: "error",
-                message: `${rel}: model-edge to a target the model cannot reach: ${ref.name} (${cause}) — make the target auto/both, or spell the reference /${ref.address} if the human is the audience`,
-              });
+          for (const file of treeMarkdown(shipped, files, harness, readSource, rewriteMap)) {
+            if (file.own) {
+              linkFacts(relIn(harness, file.path), file.text, [harness], derived);
             }
-          } else if (!t.userReachClaude || !t.ocUser) {
-            const cause = !t.userReachClaude ? "user-invocable: false in the Claude tree" : "no OpenCode artifact";
+          }
+        }
+        const declared = new Set(item.depends_on ?? []);
+        for (const d of derived) {
+          if (!declared.has(d)) {
             findings.push({
               level: "error",
-              message: `${rel}: pointer to a target the user cannot reach: ${ref.name} (${cause}) — make the target manual/both, or drop the slash if the model is the audience`,
+              message: `${id}: undeclared dependency: ${d} — add it to depends_on in curation/${m.plugin.name}.yaml`,
+            });
+          }
+        }
+        for (const d of declared) {
+          if (!derived.has(d)) {
+            findings.push({
+              level: "error",
+              message: `${id}: stale depends_on: ${d} — no model-edge in any tree's shipped body references it`,
             });
           }
         }
       }
-      const declared = new Set(item.depends_on ?? []);
-      for (const d of derived) {
-        if (!declared.has(d)) {
-          findings.push({
-            level: "error",
-            message: `${id}: undeclared dependency: ${d} — add it to depends_on in curation/${m.plugin.name}.yaml`,
-          });
-        }
-      }
-      for (const d of declared) {
-        if (!derived.has(d)) {
-          findings.push({
-            level: "error",
-            message: `${id}: stale depends_on: ${d} — no model-edge in the shipped body references it`,
-          });
-        }
-      }
+    }
+  } finally {
+    if (staging) {
+      rmSync(staging, { recursive: true, force: true });
     }
   }
 

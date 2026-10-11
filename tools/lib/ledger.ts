@@ -4,6 +4,7 @@ import { join, relative, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
+import { treeMarkdown } from "./harness-files.ts";
 import { type ComponentType, type CurationManifest, type Harness, type HarnessFiles, HARNESSES } from "./manifest.ts";
 import {
   adaptOpenCodeAgentDocument,
@@ -16,7 +17,7 @@ import { listFiles } from "./overlay.ts";
 import { ownSkillIdentities } from "./own-skills.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
 import { resolveItem } from "./resolve.ts";
-import { buildRewriteMap, rewriteRefs } from "./rewrite.ts";
+import { buildRewriteMap } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 interface HarnessState {
@@ -175,18 +176,23 @@ export function writeLedger(
       // Each tree ships its own harness files (curation/SCHEMA.md harness_files), so a tree's edges are
       // the shared Markdown plus that tree's own sources; without a mapping every tree ships the same.
       const harnessFiles = item.harness_files;
-      const edgesOf = (harness: Exclude<Harness, "claude">): Record<RefKind, string[]> => {
-        if (!harnessFiles) {
-          return claudeEdges;
-        }
-        const outputs = new Set(Object.keys(harnessFiles));
-        const shared = claudeFiles.filter((f) => !outputs.has(relative(claudeDir, f).split(sep).join("/")));
-        const own = Object.values(harnessFiles)
-          .map((byHarness) => byHarness[harness])
-          .filter((source): source is string => source?.endsWith(".md") === true)
-          .map((source) => rewriteRefs(readFileSync(join(neutral.dir, source), "utf8"), rewriteMap, "claude"));
-        return edgesInTexts([...shared.map((f) => readFileSync(f, "utf8")), ...own], ownNs);
-      };
+      const shipped = claudeFiles.map((f) => ({
+        path: relative(claudeDir, f).split(sep).join("/"),
+        text: readFileSync(f, "utf8"),
+      }));
+      const edgesOf = (harness: Exclude<Harness, "claude">): Record<RefKind, string[]> =>
+        harnessFiles
+          ? edgesInTexts(
+              treeMarkdown(
+                shipped,
+                harnessFiles,
+                harness,
+                (source) => readFileSync(join(neutral.dir, source), "utf8"),
+                rewriteMap,
+              ).map((file) => file.text),
+              ownNs,
+            )
+          : claudeEdges;
       const openCodeEdges = edgesOf("opencode");
       const codexEdges = edgesOf("codex");
       // OpenCode text is dotted — respell the Claude facts through the known mapping instead of

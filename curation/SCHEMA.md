@@ -120,11 +120,9 @@ The manifest loader rejects a harness it does not know, a path that leaves the i
 harnesses are all `null`. The build stops before deleting output when the item is not
 skill-shaped, when a non-null source is not in the assembled item (an `omit` can remove one), or
 when the item already ships a file at the output path. `validate` checks every tree for its own file
-at the output path and for any mapped source shipped under its own name. The `depends_on` check
-reads the Claude tree, so it sees only the `claude` source of a mapping; a fact in another harness's
-source must still resolve in that tree, but it is outside the declaration check
-([References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability)).
-Keep a load-bearing fact in a file every harness ships.
+at the output path and for any mapped source shipped under its own name. How `depends_on` and
+reachability read each harness's source is owned by
+[References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability).
 
 ## Bundled scripts
 

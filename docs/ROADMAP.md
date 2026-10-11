@@ -250,10 +250,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   universal-directory submission remain separate distribution work, not requirements for repository
   marketplace installation.
 - **Case-sensitive fact scan:** capitalized namespaced spellings can evade the lowercase scanner.
-- **Harness files sit partly outside the dependency check:** `validate` derives `depends_on` facts
-  from the Claude tree only, so a fact that only an OpenCode or Codex `harness_files` source holds
-  must resolve in its own tree but is never compared with `depends_on`
-  ([`validateRepo`](../tools/validate.ts) linker). No such source holds a fact today.
 - **Bare references outside the handoff templates are review-only:** ordinary names, "see the `x`
   skill" references, routing hints without the word `skill`, unbackticked imperatives such as
   "invoke the writing-plans skill", and "Hand off to `x`" (`aspire-init` to

@@ -271,20 +271,24 @@ table row.
 
 `depends_on` is the manifest-side declaration of model-edge facts only. It contains resolved output
 names, while bodies keep neutral namespaced addresses. The linker derives model targets from all
-Markdown each non-excluded manifest item ships in the Claude tree and enforces exact agreement in
-both directions: an undeclared fact and a declaration with no shipped fact are both errors.
-User-pointers, paths, and candidates are not dependency declarations. Only an item's
-[`harness_files`](../../curation/SCHEMA.md#harness_files) make the trees differ in Markdown: the
-Claude tree holds the `claude` source of each mapping, so a fact in another harness's source is
-outside this check, although that tree's rendered-ID check still requires it to resolve.
+Markdown each non-excluded manifest item ships in any of the three trees, read in the Claude tree's
+spelling before rendering, and enforces exact agreement in both directions: a fact no declaration
+names and a declaration no tree's fact names are both errors. User-pointers, paths, and candidates
+are not dependency declarations. Only an item's
+[`harness_files`](../../curation/SCHEMA.md#harness_files) make the trees differ in Markdown. The
+Claude tree holds the `claude` source of each mapping; no tree ships another harness's source in
+that spelling, so the linker assembles the item again, as the build does, and reads that source
+from the assembly.
 
 For each fact, the linker checks the canonical neutral kind and asks whether the target has the
-required audience surface. Claude reachability comes from emitted invocation flags and artifact
-posture. OpenCode model reachability comes from an advertised skill, one without the
-`opencode/autoinvoke: false` hiding key; OpenCode user reachability comes from any skill or agent,
-which the user attaches with `@`, or a command, which the user runs with `/`. Codex reachability
-comes from the skill plus its implicit policy, while explicit invocation remains available for every
-skill. This is a generated-estate link, not a runtime call graph (the reference-linking section of
+required audience surface in every tree that ships the fact: all three for a file every tree ships,
+and only its own harness for a `harness_files` source. Claude reachability comes from emitted
+invocation flags and artifact posture. OpenCode model reachability comes from an advertised skill,
+one without the `opencode/autoinvoke: false` hiding key; OpenCode user reachability comes from any
+skill or agent, which the user attaches with `@`, or a command, which the user runs with `/`. Codex
+emits every item as a skill: the model reaches it unless its `agents/openai.yaml` sets
+`allow_implicit_invocation: false`, and explicit invocation remains available for every skill. This
+is a generated-estate link, not a runtime call graph (the reference-linking section of
 [`validateRepo`](../../tools/validate.ts)).
 
 Reachability is not propensity. A green link proves that the intended audience has a mechanism to
