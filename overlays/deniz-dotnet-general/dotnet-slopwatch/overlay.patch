@@ -1,0 +1,25 @@
+diff --git a/SKILL.md b/SKILL.md
+index 0738989..be574be 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -31,16 +31,20 @@ Run slopwatch to validate the changes don't introduce "slop."
+ | CPM bypass | `Version="1.0.0"` inline | Undermines central package management |
+ 
+ **Never accept these patterns.** If an LLM introduces slop, reject the change and require a proper fix.
+ 
+ ---
+ 
+ ## Installation
+ 
++Ask the user before you install slopwatch, create or update its baseline, or commit: each changes the
++repository or the machine. When the tool or the baseline is missing, say so and wait for the answer;
++running `slopwatch analyze` against an existing setup needs no question.
++
+ ### As a Local Tool (Recommended)
+ 
+ Add to `.config/dotnet-tools.json`:
+ 
+ ```json
+ {
+   "version": 1,
+   "isRoot": true,

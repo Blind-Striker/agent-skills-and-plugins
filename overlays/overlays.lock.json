@@ -162,6 +162,12 @@
       "SKILL.md": "ae884c2fb479de1a4b21a4952dec1c471f38b825"
     }
   },
+  "deniz-dotnet-general/dotnet-slopwatch": {
+    "source": "dotnet-skills/skills/slopwatch",
+    "files": {
+      "SKILL.md": "0738989e9dbd1cbf8ab69b46590335c00a91788b"
+    }
+  },
   "deniz-dotnet-general/dotnet-trace-collect": {
     "source": "dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect",
     "files": {
