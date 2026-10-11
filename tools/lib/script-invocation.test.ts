@@ -41,6 +41,17 @@ test("an inline command that runs a bundled script by bare path is a problem", (
   ]);
 });
 
+test("inline code is read as Markdown finds its spans, a wrapped or double-backtick span included", () => {
+  assert.deepEqual(problems("Run `scripts/tool.sh\n--all` first."), [
+    "runs bundled script scripts/tool.sh by bare path — write `bash scripts/tool.sh`",
+  ]);
+  assert.deepEqual(
+    problems("Run ``echo `x` `` then `scripts/tool.sh`."),
+    ["runs bundled script scripts/tool.sh by bare path — write `bash scripts/tool.sh`"],
+    "a double-backtick span closes only at a double backtick, so the next span is the run",
+  );
+});
+
 test("a mention of a bundled script that runs nothing is not a problem", () => {
   assert.deepEqual(problems("- Helper script (client-side): `scripts/tool.sh`"), []);
   assert.deepEqual(problems("Use `render.js` in this directory to render flowcharts."), []);

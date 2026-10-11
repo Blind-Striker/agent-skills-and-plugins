@@ -139,9 +139,12 @@ packager can strip the executable bit and a Windows shell honors no shebang. Ups
 
 `validate` checks every Markdown file of a skill folder in the Claude tree, whose prose the other
 trees share, and each other harness's own `harness_files` source, whose paths resolve as if it sat
-in the Claude folder. A run is inline code that starts with the script's path and carries
-arguments, or that a run verb (`run`, `re-run`, `execute`) precedes on its line, and a path at
-command position on a fenced line or after a separator such as `&&` in inline code. Inline code
+in the Claude folder. Inline code is a code span as the harness phrasing finds one, so a span may
+wrap a line or open with more than one backtick
+([References and linking](../docs/architecture/references-and-linking.md#harness-phrasing)). A run
+is inline code that starts with the script's path and carries arguments, or that a run verb
+(`run`, `re-run`, `execute`) precedes on its line, and a path at command position on a fenced line
+or after a separator such as `&&` in inline code. Inline code
 that only names the path is a mention. The path resolves from the Markdown file's folder or the
 skill folder; a `<skill-directory>/`-style placeholder or a leading `./` is spelling.
 

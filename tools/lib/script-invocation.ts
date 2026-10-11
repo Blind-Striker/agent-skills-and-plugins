@@ -1,4 +1,5 @@
 import { extname } from "node:path";
+import { inlineCodeSpans } from "./rewrite.ts";
 
 /**
  * The bundled-script interpreter convention (curation/SCHEMA.md "Bundled scripts"): a body that
@@ -208,6 +209,8 @@ export function scriptInvocationProblems(
     }
   };
 
+  // The same CommonMark spans the harness phrasing reads: a span may wrap a line or open with more backticks.
+  const spans = inlineCodeSpans(markdown);
   let offset = 0;
   let fence: string | undefined;
   for (const line of markdown.split("\n")) {
@@ -217,8 +220,10 @@ export function scriptInvocationProblems(
     } else if (fence !== undefined) {
       judgeLine(line, offset, fence, false);
     } else {
-      for (const m of line.matchAll(/`([^`]+)`/g)) {
-        judgeLine(m[1] ?? "", offset + m.index + 1, undefined, RUN_VERB.test(line.slice(0, m.index)));
+      for (const [start, end] of spans.filter(([start]) => start >= offset && start <= offset + line.length)) {
+        const ticks = /^`+/.exec(markdown.slice(start))?.[0].length ?? 1;
+        const runVerb = RUN_VERB.test(markdown.slice(offset, start));
+        judgeLine(markdown.slice(start + ticks, end - ticks), start + ticks, undefined, runVerb);
       }
     }
     offset += line.length + 1;
