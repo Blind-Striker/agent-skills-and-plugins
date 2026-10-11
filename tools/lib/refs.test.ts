@@ -137,14 +137,14 @@ test("a climb anchored at the script's own directory is a claim even though a sl
   );
   for (const anchor of [
     '$(dirname -- "$0")',
-    '$(dirname "${BASH_SOURCE[0]}")',
+    `$(dirname "\${BASH_SOURCE[0]}")`,
     '$(dirname "$BASH_SOURCE")',
-    "${BASH_SOURCE%/*}",
-    "${0%/*}",
+    `\${BASH_SOURCE%/*}`,
+    `\${0%/*}`,
     "$SCRIPT_DIR",
-    "${SCRIPT_DIR}",
+    `\${SCRIPT_DIR}`,
     "$PSScriptRoot",
-    "${__dirname}",
+    `\${__dirname}`,
   ]) {
     assert.deepEqual(claims(`x="${anchor}/../../subagent-driven-development/scripts"`, 1), [sdd], anchor);
   }
