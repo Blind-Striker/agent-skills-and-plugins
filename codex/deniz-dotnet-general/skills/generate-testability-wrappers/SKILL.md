@@ -1,17 +1,18 @@
 ---
 name: generate-testability-wrappers
 description: >
-  Generate C# testability abstractions and DI registration when none exists:
-  minimal Environment/Console/Process wrappers, or first-time TimeProvider,
-  IHttpClientFactory, and System.IO.Abstractions adoption. USE FOR: generate a
-  wrapper for statics, make a class testable, wrap DateTime/File/Process, create
-  IProcessRunner, add DI registration, or preserve a static API with an ambient
-  seam. DO NOT USE FOR: wrapping an API already consumed through an interface or
-  built-in abstraction such as IFileSystem or TimeProvider; detecting statics
-  (detect-static-dependencies); migrating call sites to an existing/registered
-  abstraction (after wrapper creation, the user invokes
-  `migrate-static-to-wrapper` separately); behavior-test requests whose seam is
-  still open; or general interface design.
+  Generate C# testability wrappers and their DI registration. Use only when C#
+  source calls an ambient/static dependency and no injectable seam exists:
+  first-time TimeProvider, IHttpClientFactory, or System.IO.Abstractions
+  adoption; minimal Environment/Console/Process wrappers; IProcessRunner; DI
+  registration; or an ambient seam that preserves a static API. DO NOT USE when
+  the target already consumes an injected interface or built-in abstraction such
+  as IFileSystem or TimeProvider, even if the request says "generate a wrapper";
+  no new wrapper is needed. Exclude static detection
+  (detect-static-dependencies), migration to an existing/registered abstraction
+  (after wrapper creation, the user invokes
+  $deniz-dotnet-general:migrate-static-to-wrapper separately), behavior-test
+  requests whose seam is still open, and general interface design.
 license: MIT
 ---
 
@@ -31,8 +32,11 @@ Generate wrapper interfaces, default implementations, and DI service registratio
 
 - The user wants to find statics first (use `detect-static-dependencies`)
 - The user wants to bulk-replace call sites (after wrapper creation, the user
-  invokes `migrate-static-to-wrapper` separately)
+  invokes `$deniz-dotnet-general:migrate-static-to-wrapper` separately)
 - The static is already behind an interface
+
+If the target already consumes an injected interface or built-in abstraction, stop:
+do not add a second wrapper, project, registration, or test around that seam.
 
 > A missing DI package does not by itself force an ambient seam. For an
 > instantiable class, prefer constructor injection and compose it explicitly or
@@ -75,6 +79,25 @@ separate axis:
 Check for a host builder, `IServiceCollection`, existing registrations, and
 construction sites. Do not infer "must remain static" merely because the project
 currently has no container.
+
+An existing manual factory passes the real dependency explicitly (for example,
+`new ExpirationPolicy(TimeProvider.System)`). Do not move that responsibility into
+an optional constructor parameter or add an optional provider parameter to the
+factory.
+
+Constructor injection through a public constructor is the default. Only when all
+three hold, take the narrower branch: the type is released public API, the user
+has not authorized an API change, and the exact test assembly is known. Then keep
+the public parameterless constructor as the real-dependency default, make the
+injecting constructor `internal`, and add `InternalsVisibleTo` for that one
+test assembly, or follow an existing friend-assembly convention. Outside that
+branch, add no `InternalsVisibleTo`.
+
+Write every generated test in the test project's existing framework,
+global-using, and assertion conventions, with the framework packages it already
+references; the examples in this skill use xUnit-style assertions. Never add a
+hand-rolled `FactAttribute`, a substitute test-framework type, or unrelated
+test-project plumbing to make a test compile.
 
 ### Step 2: Generate built-in abstraction adoption (Time, HTTP)
 
@@ -134,6 +157,11 @@ returns a deterministic `HttpResponseMessage`, construct `HttpClient` with that
 handler, and exercise the typed client without network access. Compile and run
 the focused test when the task asks for implementation; do not stop at a
 schematic handler method.
+
+When production uses a typed-client registration, test that same registration
+pipeline: configure its primary handler in `ServiceCollection`, resolve the typed
+client, and call it. A test that manually constructs `HttpClient` proves the class
+but not the DI registration the task asked to adopt.
 
 ### Step 3: Generate custom wrappers (Environment, Console, Process)
 
@@ -346,6 +374,9 @@ Before reporting completion, verify the delivered output contains every item
 the prompt requested. In particular, do not summarize "singleton registration"
 when no registration code was added or shown, and do not claim testability
 without demonstrating how the consumer receives a fake.
+For console wrappers, exercise the consumer with a fake that both captures the
+prompt and supplies the returned input; a build or banner-only run does not prove
+the prompt flow.
 
 ## Validation
 

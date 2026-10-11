@@ -12,7 +12,9 @@ user-invocable: false
 
 # Test Analysis Extensions
 
-This skill provides access to per-language reference files used by the polyglot test analysis skills. Call this skill to get the list of available extension files, then read the one matching the target codebase's language and test framework.
+This catalog lists the bundled extension files used by test analysis. Read the
+extension file that matches the target language and framework. Resolve these
+resource paths relative to this catalog, not the project workspace.
 
 ## Available Extension Files
 

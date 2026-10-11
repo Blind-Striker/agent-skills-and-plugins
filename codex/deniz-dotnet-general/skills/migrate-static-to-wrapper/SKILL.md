@@ -1,15 +1,17 @@
 ---
 name: migrate-static-to-wrapper
 description: >
-  Migrate C# static calls to a wrapper or built-in abstraction the user already
-  named, within named files/projects, including affected fake-based test
-  updates. USE FOR explicit DateTime.UtcNow/Now to TimeProvider, File.* to
-  IFileSystem, existing IEnvironmentReader/ITextFileStore, scoped migrations,
-  constructor injection, or a static API seam that keeps callers compiling and
-  DateTimeKind unchanged. DO NOT USE for detecting statics
-  (detect-static-dependencies), designing a new wrapper (the user invokes
-  `generate-testability-wrappers` separately first), behavior-test requests
-  whose seam is still open, or test-framework migration.
+  Migrate C# static calls to a named wrapper or abstraction. Works within a
+  named or inferred file/project scope, including affected fake-based test
+  updates and the minimal constructor, caller, and DI-registration changes that
+  keep that scope runnable. USE FOR explicit DateTime.UtcNow/Now to
+  TimeProvider, File.* to IFileSystem, existing
+  IEnvironmentReader/ITextFileStore, scoped migrations, constructor injection,
+  or a static API seam that keeps callers compiling and DateTimeKind unchanged.
+  DO NOT USE for detecting statics (detect-static-dependencies), designing a new
+  wrapper (the user invokes $deniz-dotnet-general:generate-testability-wrappers
+  separately first), behavior-test requests whose seam is still open, or
+  test-framework migration.
 license: MIT
 ---
 
@@ -19,7 +21,7 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
 
 ## When to Use
 
-- After wrappers have been generated (via `generate-testability-wrappers`) or built-in abstractions identified
+- After wrappers have been generated (the user invokes `$deniz-dotnet-general:generate-testability-wrappers` for that) or built-in abstractions identified
 - Migrating `DateTime.UtcNow` → `TimeProvider.GetUtcNow()` across a project
 - Migrating `File.*` → `IFileSystem.File.*` across a namespace
 - Adding constructor injection for the new abstraction to affected classes
@@ -32,7 +34,7 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
 ## When Not to Use
 
 - No wrapper or abstraction exists yet and one must be designed from scratch
-  (the user invokes `generate-testability-wrappers` separately first).
+  (the user invokes `$deniz-dotnet-general:generate-testability-wrappers` separately first).
   A built-in abstraction such as `TimeProvider` or `IFileSystem` always counts as existing.
 - The user wants to detect statics, not migrate them (use `detect-static-dependencies`)
 - Migrating between test frameworks (use the appropriate migration skill)
@@ -46,12 +48,40 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
 
 | Input | Required | Description |
 |-------|----------|-------------|
-| Static pattern | Yes | What to replace (e.g., `DateTime.UtcNow`, `File.ReadAllText`) |
-| Replacement abstraction | Yes | What to use instead (e.g., `TimeProvider`, `IFileSystem`) |
-| Scope | Yes | File path, project (.csproj), namespace, or directory to migrate |
+| Static pattern | No | Infer from the request and discovered call sites (e.g., `DateTime.UtcNow`, `File.ReadAllText`) |
+| Replacement abstraction | No | Infer from the request and existing project abstractions; stop only when no named/existing abstraction is available |
+| Scope | No | Infer from the requested file/project/namespace, otherwise discover the narrowest relevant workspace scope |
 | Injection strategy | No | `constructor` (default), `primary-constructor`, or `ambient` |
 
 ## Workflow
+
+### Non-negotiable migration boundaries
+
+- **Missing abstraction means stop.** If the named interface/package is absent and
+  the request only authorizes call-site replacement, do not add a package, invent
+  a local lookalike interface, or edit production code. Report the exact missing
+  prerequisite and the authorization needed to continue.
+- **One source read stays one replacement read.** Do not hoist or coalesce calls,
+  even when sharing a captured timestamp looks cleaner.
+- **The requested scope is exhaustive and exclusive.** Replace every named call
+  in scope and no adjacent member or file.
+- **Repository-backed requests require repository work.** Start by discovering
+  files from the current workspace. Do not claim the repository is unavailable
+  or ask the user for a path or file contents until workspace-relative discovery
+  found no target. Do not say work was implemented unless the diff proves it.
+- **Discovered workspace files must be completed in this turn when permitted.**
+  Use a host-native shell reader (`sed`/`cat` or `Get-Content`) only after a
+  confirmed reader availability, transport, or path-normalization failure and
+  only after verifying the canonical path remains inside the current workspace.
+  Stop on content-exclusion, permission/policy, workspace-boundary, or unknown
+  read failures. Use a shell edit fallback only for a confirmed editor
+  availability, transport, or path-normalization failure, never for a stale
+  context, concurrent change, permission/policy denial, or path-boundary error.
+  Before fallback, resolve the canonical path inside the current workspace,
+  freshly read the file, and require an anchored replacement with the expected
+  old text and exact match count; abort if either changed. Then re-open the file,
+  inspect the diff, and validate. Do not ask the user to paste a readable
+  discovered file or report a proposed patch as completed work.
 
 ### Step 1: Verify prerequisites
 
@@ -59,17 +89,27 @@ Before modifying any code:
 
 1. **Confirm the wrapper/abstraction exists**: Check that the interface or built-in abstraction is available in the project. For `TimeProvider`, verify the target framework is .NET 8+ or `Microsoft.Bcl.TimeProvider` is referenced. For `System.IO.Abstractions`, verify the NuGet package is referenced. A package that could provide an abstraction is not the same as an abstraction already available to this project.
 
-2. **Confirm production composition exists**: Check `Program.cs`, `Startup.cs`, or manual construction sites. If package, wrapper, or registration work is missing, add it only when the user explicitly authorized those dependency/composition changes. Otherwise stop before editing call sites and report the exact prerequisite; do not turn a scoped migration into first-time abstraction design.
+2. **Trace production composition**: Check `Program.cs`, `Startup.cs`, factories,
+   and manual construction sites before editing. An explicit migration to an
+   available seam includes the minimal constructor/caller/registration changes
+   needed to keep that scope runnable, unless the user forbids those edits.
+   Register `TimeProvider.System` in an existing DI host when the new dependency
+   is not already registered; update manual callers instead of introducing DI
+   to a library. Missing packages or new wrapper design still require separate
+   authorization. Do not stop after an injectable class while leaving its real
+   construction path broken.
 
 3. **Identify all files in scope**: List the `.cs` files that will be modified. Exclude test projects, `obj/`, `bin/`, and generated code.
 
-4. **Count every in-scope occurrence before editing**: Search the exact member
-   named by the user and record its file/line inventory. Do not infer the count
-   from a partial read or from how many methods were initially noticed.
+4. **Lock and count the member set before editing**: Use the exact member named
+   by the user, or infer the smallest unambiguous set from the request and
+   discovered call sites. Record that set, then search every member and capture
+   the file/line inventory. Do not change the set mid-edit or infer counts from
+   a partial read.
 
 ### Step 2: Plan the migration for each file
 
-**Migrate exactly what was asked — nothing adjacent.** If the user named a member (`DateTime.UtcNow`), migrate only that member and leave siblings such as `DateTime.Now` untouched. If the user named files, do not touch other files. Never migrate a call site whose comment or name marks it as deliberate (e.g. `// intentional local time`). List everything you deliberately left alone under "Remaining (out of scope)" so the user can ask for it in a follow-up; suggesting is fine, silently widening the scope is not.
+**Migrate exactly what was asked — nothing adjacent.** If the user named a member (`DateTime.UtcNow`), migrate only that member and leave siblings such as `DateTime.Now` untouched. If the user named files, do not touch other files. Preserve a call site whose comment or name marks it as deliberate (e.g. `// intentional local time`) unless the user explicitly names that site and requests a semantics-preserving migration. List everything you deliberately left alone under "Remaining (out of scope)" so the user can ask for it in a follow-up; suggesting is fine, silently widening the scope is not.
 
 For each file containing the static pattern, determine:
 
@@ -176,6 +216,12 @@ in-scope production file. Re-open each changed file and compare the result to
 the pre-edit inventory. A summary count is not evidence if one method was
 silently missed.
 
+Also verify the exclusive side of the scope: search or compare every file the
+user explicitly said to leave alone and require its original static calls and
+content to remain. For a single-file migration, report both numbers even when
+they are small: `N/N` in-scope calls replaced and `M` named out-of-scope calls
+preserved.
+
 #### Adding using directives
 
 | Abstraction | Using directive |
@@ -199,6 +245,18 @@ Preserve every observable branch that depended on the original static result. Fo
 example, migrating `Environment.GetEnvironmentVariable(name) ?? "production"`
 requires tests for both a configured value and `null`/missing input selecting the
 fallback. A fake-only happy path is not enough to prove a mechanical migration.
+When tests already exist, preserve their framework and assertion style, but make
+the replacement dependency observable: include at least one configured/fake
+value assertion and one fallback or error-path assertion where the original
+static API exposed both outcomes. Merely making the old tests compile is not
+complete migration evidence.
+
+When the request explicitly converts affected unit tests away from real file or
+environment access, prove those tests no longer touch the process-global
+dependency: search them for temp-file, real-disk, or environment-mutation APIs
+after editing. Preserve intentional integration tests outside that requested
+scope. Report the deterministic fake's configured and fallback/error cases
+rather than only saying that a fake was added.
 
 ### Step 6: Build verification
 
@@ -226,7 +284,9 @@ that blocker rather than claiming the migration is fully validated.
 
 ### Step 7: Report changes
 
-Summarize what was done:
+Summarize what was done. Even for one production file and one test file, include
+the exact in-scope replacement count, the named out-of-scope files or calls
+verified unchanged, and the targeted build/test result:
 
 ```
 ## Migration Summary
@@ -255,7 +315,8 @@ Summarize what was done:
 - [ ] A before/after exact-member search proves the in-scope occurrence count
       reached zero
 - [ ] No call site outside the requested member/file scope was modified
-- [ ] Call sites documented as intentional (e.g. local time) were left untouched and reported
+- [ ] Call sites documented as intentional were left untouched and reported unless
+      the user explicitly named them for semantics-preserving migration
 - [ ] Constructor injection added to all affected classes
 - [ ] Field naming follows existing class conventions
 - [ ] Required `using` directives added
@@ -280,5 +341,5 @@ Summarize what was done:
 | Migrating too much at once | Stick to the defined scope — one project or namespace per run |
 | Migrating `DateTime.Now` when only `UtcNow` was requested | Respect the literal request; list the other call sites as out-of-scope suggestions instead of rewriting them |
 | Claiming "Build succeeded" after a failed restore | Read the exit code and output; report the real failure and fix it or surface it as a blocker |
-| Adding a package during a call-site-only migration | Stop and request authorization or run wrapper/adoption setup first |
+| Adding a package during a call-site-only migration | Stop and ask; the user may run `$deniz-dotnet-general:generate-testability-wrappers` for the wrapper or adoption setup |
 | Forgetting production composition | Verify DI registration, manual construction, or the ambient production default before replacing call sites |

@@ -24,7 +24,7 @@ Parses one or more Cobertura code coverage XML files and extracts per-method cov
 - Branch coverage percentage  
 - Lines covered / total
 - Branches covered / total
-- Complexity (if available)
+- Complexity, with ComplexityKnown false when the method carries no complexity attribute
 
 When multiple files are provided, line hits are merged across files so a line is counted
 as covered if any test project covered it.
@@ -88,7 +88,8 @@ foreach ($p in $CoberturaPath) {
                 $key = "$className|$($method.name)|$($method.signature)|$classFilename"
                 
                 if (-not $methodMap.ContainsKey($key)) {
-                    $complexity = if ($null -ne $method.complexity) { [int]$method.complexity } else { 1 }
+                    $complexityKnown = $null -ne $method.complexity
+                    $complexity = if ($complexityKnown) { [int]$method.complexity } else { 1 }
                     if ($complexity -lt 1) { $complexity = 1 }
                     $methodMap[$key] = @{
                         Class          = $className
@@ -96,6 +97,7 @@ foreach ($p in $CoberturaPath) {
                         Signature      = $method.signature
                         File           = $classFilename
                         Complexity     = $complexity
+                        ComplexityKnown = $complexityKnown
                         LineHits       = @{}
                         BranchData     = @{}
                     }
@@ -166,6 +168,7 @@ foreach ($entry in $methodMap.Values) {
         Signature           = $entry.Signature
         File                = $entry.File
         Complexity          = $entry.Complexity
+        ComplexityKnown     = $entry.ComplexityKnown
         LineCoverage        = $lineCoveragePercent
         BranchCoverage      = $branchCoveragePercent
         CoveredLines        = $coveredLineCount

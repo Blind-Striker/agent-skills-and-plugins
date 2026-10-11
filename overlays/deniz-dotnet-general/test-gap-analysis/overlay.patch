@@ -1,21 +1,22 @@
 diff --git a/SKILL.md b/SKILL.md
-index 37d6654..475e9d8 100644
+index 25de7f6..c7ac5a1 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,21 +1,17 @@
+@@ -1,83 +1,60 @@
  ---
  name: test-gap-analysis
  description: >-
--  Pseudo-mutation analysis ONLY: find caller-visible production-code changes
--  that existing assertions would not catch, then optionally close verified
--  gaps. Activate only when the request asks whether a bug/change/mutation could
--  survive, names behavioral blind spots, or asks for missing edge cases tied to
--  production behavior. Polyglot. DO NOT USE FOR: suite organization, taxonomy,
+-  Pseudo-mutation analysis ONLY: answer whether tests would catch a bug if
+-  production code changed, which meaningful changes would still pass, or which
+-  caller-visible mutations existing assertions would miss; verify candidates
+-  when requested, then optionally close verified gaps. Includes explicit
+-  read-only per-test composition for grading. Activate for behavioral blind
+-  spots tied to production behavior. Polyglot. DO NOT USE FOR: suite taxonomy,
 -  metadata, or distribution reports (test-tagging); .NET line-vs-branch or
 -  Cobertura interpretation, arithmetic, plateaus, project-wide coverage gaps,
 -  or coverage-backed test/CRAP priorities (coverage-analysis; use native
 -  coverage tooling outside .NET); named-target CRAP (crap-score); new suites
--  (code-testing-agent); assertion/smell audits; or mutation tools.
+-  (code-testing); assertion/smell audits; or mutation tools.
 +  Performs report-only pseudo-mutation analysis of existing tests: find
 +  caller-visible production-code changes that current assertions would not
 +  catch. Use when asked whether a bug or mutation could survive, where tests are
@@ -30,7 +31,28 @@ index 37d6654..475e9d8 100644
  Answer one question: **which caller-visible production behaviors could change
  without an existing test failing?** Mutation reasoning is a probe, not the goal.
  Inventory public outcomes first, then verify only credible gaps.
-@@ -28,46 +24,45 @@ Discover production and test files from manifests and file types. After a narrow
+ 
+-## Composition dispatch
+-
+-Before entering the decision flow, check the caller's mode. An explicit
+-`per-test-read-only` request (including composition from `grade-tests`) uses
+-only [references/per-test-read-only.md](references/per-test-read-only.md).
+-This mode is assessment context conveyed through the host's supported caller
+-instructions, not a new skill-loader parameter or a mode-specific skill name.
+-Read that reference and return its per-test assessment inline; **do not enter
+-the standalone workflow below**. Loading this mode does not authorize a
+-baseline run, mutation execution, file edits, suite discovery, or delegation.
+-If the bundled reference is unavailable, allow at most one listing of the known
+-`references/` directory, then return **N/A / unverified** with the reason.
+-
+-Requests without this mode retain the standalone analysis, verification, and
+-test-addition paths below.
+-
+ ## Decision flow
+ 
+ ### 1. Set scope
+ 
+ Discover production and test files from manifests and file types. After a narrow
  search misses, inspect the current directory broadly before asking for paths.
  
  | Request | Action |
@@ -40,7 +62,7 @@ index 37d6654..475e9d8 100644
  | Explicit survivor verification | Inventory all requested outcomes; execute one representative observable candidate for each distinct high-risk outcome under verification, then classify it as **Survived** or **Killed** |
  | Explicit exhaustive audit | Read [references/mutation-catalog.md](references/mutation-catalog.md) and classify all meaningful candidates |
 -| Add tests to an existing suite | Analyze first; add tests only for verified survivors or demonstrated no-coverage outcomes |
--| Create a new suite | Stop and use `code-testing-agent` |
+-| Create a new suite | Stop and use `code-testing` |
 +| Add or create tests | Report the verified gaps; test writing is outside this skill |
  
  When the request names a risk, turn it into a one-line public-outcome allowlist
@@ -51,20 +73,35 @@ index 37d6654..475e9d8 100644
  code is in scope only to trace an allowed outcome.
  
  Do not expand a focused request into a repository audit, plan artifact, or
- dashboard. Use source and tests directly for familiar frameworks. Invoke
--`test-analysis-extensions` only when discovery or assertion semantics are
-+`dotnet-test:test-analysis-extensions` only when discovery or assertion semantics are
- unclear.
+ dashboard. Use source and tests directly for familiar frameworks. When discovery
+-or assertion semantics are unclear, read the matching language file relative
+-to the caller-provided or runtime-listed `test-analysis-extensions` catalog;
+-do not invoke the reference-only helper or search installation directories.
+-If absent, state the limitation and use the pinned APIs and rules here.
++or assertion semantics are unclear, load the `dotnet-test:test-analysis-extensions`
++skill and read its matching language file; do not search installation
++directories. If it is absent, state the limitation and use the pinned APIs and
++rules here.
  
  ### 2. Establish one baseline
  
- Run the narrowest existing test command once. Choose it from the project
+ For a source-only advisory review, skip execution and label empirical survival
+ unverified. A baseline is required when the user requests execution or survivor
+-verification, or when closing gaps with tests. Run the narrowest existing test
+-command once. Choose it from the project
++verification. Run the narrowest existing test command once. Choose it from the project
  manifest; Microsoft.Testing.Platform executables may require `dotnet run`.
  Confirm tests executed: exit 0 with build-only output is not green. If that one
  attempt cannot run the suite, do not troubleshoot the runner or try alternate
  commands for an advisory review; continue statically and label all candidates
  **unverified**. Do not infer a project-configuration cause from missing output;
  name a cause only when the command reports it.
+ 
+ Missing runner output limits only claims of empirical mutation survival. It does
+@@ -86,17 +63,17 @@ is still **No coverage**, and an exact expected value derived from the
+ unmodified implementation is still actionable. State the baseline limitation
+ once, then give the static source/assertion conclusion directly instead of
+ hedging every row.
  
  For an advisory review such as "would tests catch this?", stop execution after
  that baseline. Source-to-assertion mapping is sufficient evidence for **No
@@ -80,11 +117,11 @@ index 37d6654..475e9d8 100644
  
  For each public entry point, map:
  
-@@ -181,64 +176,42 @@ calculate a score.
- | Result | Meaning |
+@@ -225,27 +202,26 @@ calculate a score.
  |---|---|
  | **Likely killed** | An existing assertion observes the changed outcome |
  | **Candidate survivor (unverified)** | Observable change appears unasserted; not executed |
+ | **Killed** | Exact observable mutation executed and a relevant assertion failed |
  | **Survived** | Exact observable mutation executed and tests stayed green |
  | **No coverage** | No test reaches the public outcome; report the missing branch without inventing a survivor |
  | **Equivalent** | No public observation changes; omit from findings |
@@ -106,11 +143,12 @@ index 37d6654..475e9d8 100644
  
  1. Apply one candidate and confirm the diff changes exactly one intended
     expression.
- 2. Run the narrowest covering test: green means **Survived**, red means
-    **Killed**, for that edit only.
+ 2. Run the narrowest covering test and confirm tests executed: green means
+    **Survived**; a failure at a relevant assertion means **Killed**, for that
+    edit only. Build, discovery, infrastructure, or unrelated failures leave
+    the candidate **unverified**, not Killed.
  3. Revert immediately and confirm the clean source/test baseline.
- 4. After a green run, re-check the public counterfactual. Execution proves the
-    suite missed the edit, not that the edit changes behavior; drop inert or
+@@ -254,42 +230,16 @@ requested test addition.
     unobservable mutants.
  
  Never leave mutations in the workspace. Before reporting, reconcile every
@@ -139,6 +177,11 @@ index 37d6654..475e9d8 100644
 -   increase do not replace the supplied oracle. Once every requested survivor
 -   maps to a focused test and the canonical verifier passes, stop; extra tests
 -   are not an advantage.
+-8. When the request requires existing source or test files to remain unchanged,
+-   compare each protected file byte-for-byte with its pre-edit snapshot and
+-   report that evidence. Before adding a test, prove its witness differs from
+-   every existing case on the relevant branch, boundary, or rounded result so a
+-   nominally new test does not duplicate existing coverage.
 -
  ## Output contract
  
@@ -147,15 +190,15 @@ index 37d6654..475e9d8 100644
  For focused or small analysis, return:
  
  1. A one-line verdict: **Strong**, **Mixed**, or **Weak**, with the reason.
- 2. One compact row per actionable **Survived**, **Candidate survivor
-@@ -257,19 +230,16 @@ For focused or small analysis, return:
- 
+ 2. For a **Strong** suite, one short strengths sentence naming the concrete
+@@ -315,19 +265,16 @@ For focused or small analysis, return:
  Do not repeat the table in prose or report discarded mutants, tool chronology,
  or in-flight reasoning.
  
- For an exhaustive audit, add counts for Killed / Survived / No coverage /
- Equivalent and group findings by risk. Count only executed or definitively
- classified candidates.
+ For an exhaustive audit, separate executed **Killed / Survived** counts from
+ static **Likely killed / Candidate survivor (unverified)** classifications and
+ **No coverage / Equivalent** inventory counts. Never include static reasoning
+ in an empirical killed/total ratio. Group findings by risk.
  
 -For test additions, name the tests added, the verified mutations they kill, and
 -the successful final command.
@@ -168,11 +211,40 @@ index 37d6654..475e9d8 100644
    does not prove siblings: allow does not prove deny; read does not prove write;
    null does not prove empty or whitespace when those inputs have different
    caller-visible outcomes. A kill clears only the edit and path that ran.
+@@ -350,10 +297,8 @@ the successful final command.
+ - [ ] Original and mutant have different caller-visible observations
+ - [ ] Every outcome labeled **Survived** was executed; unexecuted candidates use
+       **Candidate survivor (unverified)**
+ - [ ] Every temporary mutation was reverted
+ - [ ] Findings exclude trivial, generated, and equivalent changes
+ - [ ] Recommendations target only demonstrated gaps
+ - [ ] Every public entry-point branch and each accepted exception type in scope
+       is explicitly accounted for
+-- [ ] A supplied canonical mutation verifier was run and reported, not replaced
+-      with an ad-hoc proxy
 diff --git a/references/mutation-catalog.md b/references/mutation-catalog.md
-index 78d6d94..38eaadb 100644
+index 34cc79c..69236ed 100644
 --- a/references/mutation-catalog.md
 +++ b/references/mutation-catalog.md
-@@ -23,17 +23,17 @@ risk-ranked table in `SKILL.md`.
+@@ -1,14 +1,13 @@
+ # Mutation Candidate Catalog
+ 
+ Read this reference only for an explicitly exhaustive audit or when a language's
+-mutation semantics are unfamiliar, or for the applicable categories in
+-[per-test read-only composition](per-test-read-only.md). Reading the catalog
+-does not authorize the exhaustive execution procedure below.
++mutation semantics are unfamiliar. Reading the catalog does not authorize the
++exhaustive execution procedure below.
+ 
+ ## Candidate categories
+ 
+ | Category | Typical changes | What a killing test must observe |
+ |---|---|---|
+ | Boundary | `<` ↔ `<=`, `>` ↔ `>=`, zero/one, first/last index | Exact value at and immediately around the boundary |
+ | Boolean/logic | `&&` ↔ &#124;&#124;, negate/remove one condition, `true` ↔ `false` | Each condition independently changes asserted behavior |
+ | Return value | value ↔ default/empty/null, true ↔ false, count ±1 | The returned value or downstream state |
+@@ -23,19 +22,18 @@ does not authorize the exhaustive execution procedure below.
+ |---|---|
  | C#/.NET | Remove null/range guards; change exception type; replace `??` fallback; change null-conditional access; return `default`; alter async cancellation/error propagation |
  | Rust | Replace `?` with `unwrap()`/`expect()`; swap `Ok`/`Err` or `Some`/`None`; remove `if let`/`match` arm; change inclusive range; alter error mapping |
  | Go | Remove or swallow a meaningful `err` branch; change wrapped error; alter `(value, err)` result. Do not flag a bare idiomatic passthrough unless behavior changes |
@@ -180,9 +252,11 @@ index 78d6d94..38eaadb 100644
  | TypeScript/JavaScript | Remove rejected-promise/error path; alter nullish coalescing; confuse truthiness with exact value; skip awaited behavior |
  | Java/Kotlin | Remove validation/exception; change nullable/default handling; alter collection or stream predicate |
  
- When framework-specific test discovery or assertion APIs are unclear, invoke
--`test-analysis-extensions` and read only the matching language extension.
-+`dotnet-test:test-analysis-extensions` and read only the matching language extension.
+-When framework-specific discovery or assertion APIs are unclear, read only the
+-matching language file relative to the supplied `test-analysis-extensions`
+-catalog. The helper is reference-only, not an invocable skill.
++When framework-specific test discovery or assertion APIs are unclear, load the
++`dotnet-test:test-analysis-extensions` skill and read only the matching language extension.
  
  ## Equivalence and noise filters
  

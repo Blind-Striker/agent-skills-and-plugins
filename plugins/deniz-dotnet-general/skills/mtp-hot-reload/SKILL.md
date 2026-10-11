@@ -1,15 +1,15 @@
 ---
 name: mtp-hot-reload
 description: >
-  Set up or recover MTP hot reload for a long-lived edit/re-run loop. Use for
-  "hot reload tests", "dotnet run or dotnet test for hot reload", a host that
-  keeps running, unsupported/rude edits, or a watch-based VSTest fallback.
-  Covers setup, run/watch, restarts, filters, and the VSTest no-mutation
-  fallback. Never mutate VSTest for hot reload. For one-time runs, exact
-  commands, filter errors, TRX/dumps, or merely a failing test, use run-tests.
-  Excludes writing/debugging tests, CI, and Test Explorer hot reload.
+  Set up or recover MTP hot reload for a long-lived console-host edit/re-run
+  loop in a Microsoft Testing Platform project. Use for explicit MTP console
+  requests such as "enable hot reload", "dotnet run to rerun on edit", or
+  unsupported/rude edits. Covers setup, run/watch, restarts, filters, and the
+  VSTest no-mutation fallback. For one-time runs, exact commands, filter errors,
+  TRX/dumps, or merely a failing test, use run-tests. Do not use when Test
+  Explorer or an IDE should rerun tests without an MTP console host. Excludes
+  editor integration, CI, and writing/debugging tests.
 license: MIT
-user-invocable: false
 ---
 
 # MTP Hot Reload for Iterative Test Fixing
@@ -27,7 +27,8 @@ edits and automatically reruns tests.
 
 - User needs to write new tests from scratch (use general coding assistance)
 - User needs to diagnose why a test is failing (use diagnostic skills)
-- User wants Visual Studio Test Explorer hot reload (different feature, built into VS)
+- User asks about Visual Studio or VS Code Test Explorer hot reload or an IDE-integrated rerun experience (different feature, not MTP console-host hot reload)
+- User asks whether the editor can auto-rerun affected tests after source edits without using an MTP console host
 - User wants one normal run without rebuilding (use `run-tests`)
 - User needs CI/CD pipeline configuration
 
@@ -50,6 +51,10 @@ edits and automatically reruns tests.
 - For a named test, identify the framework and return one runnable command with
   that framework's filter syntax. Never substitute MSTest/NUnit `--filter` for
   xUnit v3 `--filter-method` or TUnit `--treenode-filter`.
+- A directly launched MTP host is itself the persistent watcher: `dotnet run`
+  stays alive and the HotReload extension reacts to edits. Do not replace it
+  with `dotnet watch run` for the normal MTP path; reserve `dotnet watch` for the
+  explicit restart fallback below.
 
 ## Workflow
 
@@ -128,7 +133,9 @@ Run the test project directly (not through `dotnet test`) to use hot reload in c
 dotnet run --project <project-path>
 ```
 
-To filter to specific failing tests, pass the filter after `--`. The syntax depends on the test framework -- see the `filter-syntax` skill for full details. Quick examples:
+To filter to specific failing tests, pass the filter after `--`. Load
+`deniz-dotnet-general:filter-syntax` only when the examples below do not resolve the
+framework's syntax. Quick examples:
 
 | Framework | Filter syntax |
 |-----------|--------------|
@@ -175,6 +182,11 @@ dotnet watch --project <project-path> run -- <existing-MTP-arguments>
 `dotnet watch` restarts the process when a rude edit cannot be applied. Without
 the auto-restart variable, accept the restart prompt or press `Ctrl+R`. Preserve
 any existing test filter after `--`.
+`DOTNET_WATCH_RESTART_ON_RUDE_EDIT` is a documented .NET SDK switch, not an MTP
+extension setting. When correctness may be questioned, cite the `dotnet watch`
+documentation and say that it makes the watcher restart instead of prompting.
+Never omit the original filter or replace the requested watch-managed fallback
+with a one-shot `dotnet run`.
 
 ### Step 6: Finalize
 

@@ -76,58 +76,38 @@
       "aot-trimming-playbook-reference.md": "1d1ed9d4d4235fff4ef1d0df3ad053e91e8ca327"
     }
   },
-  "deniz-dotnet-general/binlog-failure-analysis": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis",
-    "files": {
-      "SKILL.md": "c667959482c8b68f31509f8dcc415e36099c1684"
-    }
-  },
-  "deniz-dotnet-general/build-parallelism": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-parallelism",
-    "files": {
-      "SKILL.md": "96fdc2008c6e963bae45de2505a21660ded7ce01"
-    }
-  },
-  "deniz-dotnet-general/build-perf-baseline": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-baseline",
-    "files": {
-      "SKILL.md": "43bf74f62965a78f7810716798263aaa0806a55e"
-    }
-  },
-  "deniz-dotnet-general/build-perf-diagnostics": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-diagnostics",
-    "files": {
-      "SKILL.md": "4e9d3c112d92716654074dcc05c1f269bd801313"
-    },
-    "mergeSources": {
-      "dotnet-agent-skills/plugins/dotnet-msbuild/skills/resolve-project-references": {
-        "SKILL.md": "8bede1448512634e91643eb97191a6a31f78936f"
-      }
-    }
-  },
   "deniz-dotnet-general/check-bin-obj-clash": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash",
     "files": {
-      "SKILL.md": "8d1007cfde8104ca1c991fdddd76727892a4ac38"
+      "SKILL.md": "48be61270517bf2bf6f2adbf738734a15caffb46"
     }
   },
-  "deniz-dotnet-general/code-testing-agent": {
-    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/code-testing-agent",
+  "deniz-dotnet-general/code-testing": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/code-testing",
     "files": {
-      "SKILL.md": "8419ae9a0051af1110930078a75aa0f117bfc1ef",
-      "unit-test-generation.prompt.md": "18525a86135af37ecbfd2b495272a71b83c6b4f2"
+      "SKILL.md": "b5a914096157615bcb8850c2a23b7def3e4bfbb3",
+      "unit-test-generation.prompt.md": "ab79ec91d9347e267e124c38d23d3ee9ec070195"
     }
   },
   "deniz-dotnet-general/coverage-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {
-      "SKILL.md": "ce5b4807bc45ef0b610173933188ed7525596b39"
+      "SKILL.md": "a09d36cee78a6a1e21ff8c6d869450727c644f39",
+      "references/setup-discovery.md": "220d6f3e2a20013c104d8d0ec362b1d6e8a56a20",
+      "scripts/Extract-MethodCoverage.ps1": "999a8273d1459180d28d74612da90b2a093fa917"
     }
   },
   "deniz-dotnet-general/csharp-nullable-reference-types": {
     "source": "dotnet-skills/skills/csharp-nullable-reference-types",
     "files": {
       "SKILL.md": "a39a1fbbb00898d563f66525979d8065faef2a7c"
+    }
+  },
+  "deniz-dotnet-general/csharp-refactoring": {
+    "source": "dotnet-agent-skills/plugins/dotnet/skills/csharp-refactoring",
+    "files": {
+      "SKILL.md": "e383626307341fabed40f255056c27dff6f9faf1",
+      "references/operation-catalog.md": "340eed23a741c817aff916db52ecc28f292c0a34"
     }
   },
   "deniz-dotnet-general/database-performance": {
@@ -144,7 +124,13 @@
   "deniz-dotnet-general/detect-static-dependencies": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies",
     "files": {
-      "SKILL.md": "7d15517a9cd259ac71e7556e986697c235c58cbc"
+      "SKILL.md": "048fc1a21d8f1af60082250f73abc87c79ff1879"
+    }
+  },
+  "deniz-dotnet-general/directory-build-organization": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/directory-build-organization",
+    "files": {
+      "SKILL.md": "c6adfb782e23e3d2dd1848349b2a4c7f0106acac"
     }
   },
   "deniz-dotnet-general/dotnet-aot-compat": {
@@ -188,27 +174,15 @@
       }
     }
   },
-  "deniz-dotnet-general/eval-performance": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance",
-    "files": {
-      "SKILL.md": "562168369bff01db1566875011a64bcb1b110f2a"
-    }
-  },
   "deniz-dotnet-general/generate-testability-wrappers": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/generate-testability-wrappers",
     "files": {
-      "SKILL.md": "8bed06c046fadb64bf374720a696f19166aeddbc"
+      "SKILL.md": "c9b6dd7f49b5387d41b32c99c794492f4291c633"
     },
     "mergeSources": {
       "dotnet-agent-skills/plugins/dotnet-test/skills/testability-obstacle": {
-        "SKILL.md": "3a1674312fd3dc87282cacb8c197c9e9f9421810"
+        "SKILL.md": "93ace48ab3f1fdc5d67cada0aebe8f4b6538a365"
       }
-    }
-  },
-  "deniz-dotnet-general/incremental-build": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/incremental-build",
-    "files": {
-      "SKILL.md": "ed5656a4832ab95ba03296cf672be30c4005c087"
     }
   },
   "deniz-dotnet-general/migrate-nullable-references": {
@@ -220,25 +194,40 @@
   "deniz-dotnet-general/migrate-static-to-wrapper": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper",
     "files": {
-      "SKILL.md": "fe4ba95343c21b23493722564207d9b58e025331"
+      "SKILL.md": "187da5aafa02d4e355e681eff27193b1b13e000b"
     }
   },
-  "deniz-dotnet-general/msbuild-antipatterns": {
-    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-antipatterns",
+  "deniz-dotnet-general/msbuild": {
+    "source": "dotnet-agent-skills/plugins/dotnet/skills/msbuild",
     "files": {
-      "references/additional-antipatterns.md": "9ad2e8e9f0137a7a9e94ef89042e31bbdc125df1"
+      "SKILL.md": "81347bdac90ae3972889b2ea7e495ffc172fd3e8",
+      "references/build-perf-baseline.md": "58bdb77937901db79ef360b76b06ca5503e67e3a",
+      "references/msbuild-antipatterns.md": "23fd3ec81bfd7272c066eed8c1ba5d3a5e8562f1"
+    }
+  },
+  "deniz-dotnet-general/msbuild-modernization": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-modernization",
+    "files": {
+      "SKILL.md": "e88cd17c7c3abbd15e328af65ed17e74822edc5f"
     }
   },
   "deniz-dotnet-general/mtp-hot-reload": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/mtp-hot-reload",
     "files": {
-      "SKILL.md": "df5b9a5a8780f13d920e52dd2c70e4728218c8a0"
+      "SKILL.md": "239c1d3fe37249b0f17b852e7794b96b5226333d"
+    }
+  },
+  "deniz-dotnet-general/platform-detection": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/platform-detection",
+    "files": {
+      "SKILL.md": "28bd0a616d49221a8e70bcab8d89226f725cd06e",
+      "references/command-mode.md": "9a3eed04c0c7c9895d7211a5d964d4ef65f440ba"
     }
   },
   "deniz-dotnet-general/run-tests": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/run-tests",
     "files": {
-      "SKILL.md": "0dcb1d26ad939a66eb31350db5e13a82a290311b"
+      "SKILL.md": "f77df06a386c7b678ca5ff1aa94f754571a65d28"
     }
   },
   "deniz-dotnet-general/sdk-container-publishing": {
@@ -256,10 +245,17 @@
       "SKILL.md": "7ff25dbcb86f2691ea2e37e31c08e1decf63067e"
     }
   },
+  "deniz-dotnet-general/target-authoring": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/target-authoring",
+    "files": {
+      "SKILL.md": "c54248036d84353376ecf62a3aa189cc53ef4984"
+    },
+    "frontmatter": true
+  },
   "deniz-dotnet-general/test-analysis-extensions": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-analysis-extensions",
     "files": {
-      "SKILL.md": "960b086ee510e5011a440bfc07980f48f24f8916",
+      "SKILL.md": "19477fc4ca58d32a6e856812ef78359d3fe65c65",
       "extensions/cpp.md": "eecd42a32b2a21e437eb625a6cd2ab2e65c5a1e2",
       "extensions/dotnet.md": "54a6ce332da4c2f5c16bfdf7dd5256c4a056079a",
       "extensions/go.md": "e8debae9f6e2cb694747e68305c3ae233e54dfcf",
@@ -276,14 +272,14 @@
   "deniz-dotnet-general/test-anti-patterns": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-anti-patterns",
     "files": {
-      "SKILL.md": "94b0e1083bcc7f4e24ab3a0501a5f6f980414efc"
+      "SKILL.md": "22667837176e7b16e443c991c8961574acf5dea7"
     }
   },
   "deniz-dotnet-general/test-gap-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "files": {
-      "SKILL.md": "37d6654c6b94f9c2d3274d59e90be6e4e3cef9c0",
-      "references/mutation-catalog.md": "78d6d94310fb3e232f726760f6989a436e3b570d"
+      "SKILL.md": "25de7f61787e3c88b56e1085d9877cd8d3c1ea70",
+      "references/mutation-catalog.md": "34cc79c40213f072d9aec138fe391b9552f9bef6"
     }
   },
   "deniz-process/asd-ste100": {

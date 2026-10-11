@@ -6,9 +6,11 @@ description: Identify a .NET project's test platform, framework, command mode,
   use?", including bridge settings, UseVSTest opt-outs, and incompatible or
   conflicting VSTest/MTP configuration. Resolves global.json, project,
   packages.config, Directory.Build.props, and Directory.Packages.props
-  precedence for MSTest/xUnit/NUnit/TUnit. For running/filtering tests, exact
-  commands or flags, TRX/dumps, and test-command/filter errors, use run-tests.
-  Do not use for hot reload or migration.
+  precedence for MSTest/xUnit/NUnit/TUnit. DO NOT USE when the user asks to
+  run/filter tests or for commands, flags, TRX/dumps, or test-command/filter
+  errors; use run-tests directly. Do not route hot-reload or migration requests
+  here as the entry skill; mtp-hot-reload may use this skill internally for
+  platform detection.
 license: MIT
 ---
 
@@ -30,6 +32,12 @@ incomplete configuration, or target-framework-specific differences.
 **MTP**. If conflicting or incomplete configuration prevents execution, report
 it as unavailable rather than inventing a successful platform.
 
+Never classify the executed platform from `global.json` `test.runner` alone.
+That setting selects `dotnet test` command mode; even an explicit `VSTest`
+value can bridge to an executable MTP application, except on SDK 10+ with
+Microsoft.Testing.Platform 2.x (see the classification order below). Continue through the project
+runner, bridge, and output-shape signals before writing `Platform:`.
+
 Apply this scope gate before drafting the evidence:
 
 | User asks for | Evidence to include | Omit |
@@ -43,6 +51,10 @@ Apply this scope gate before drafting the evidence:
 If the requested labels omit `dotnet test mode`, do not state or explain command
 mode anywhere in the response. An exact bridge property may still be decisive
 platform evidence, but do not turn it into SDK or CLI-mode commentary.
+When the user asks which single signal decides between an explicit runner
+property and `Microsoft.NET.Test.Sdk`, the evidence sentence must say both that
+the runner property selects MTP and that `Microsoft.NET.Test.Sdk` does not
+select or imply VSTest.
 
 When import precedence decides a property, state why the winning source wins
 (for example, it is imported later or its condition applies), not merely that it
@@ -146,12 +158,20 @@ After resolving final property values, classify in this order:
 3. On SDK 8/9, an enabled MTP runner plus final
    `TestingPlatformDotnetTestSupport=true` plus final `OutputType=Exe` executes
    on MTP.
-4. If the runner is enabled but the bridge is absent or false, a dual-capable
+4. On SDK 10+ in VSTest command mode, an MTP runner from
+   Microsoft.Testing.Platform 2.x (current TUnit brings it in transitively) is
+   unavailable. The `_MTPBeforeVSTest` target of Microsoft.Testing.Platform.MSBuild
+   fails the build ("Testing with VSTest target is no longer supported by
+   Microsoft.Testing.Platform on .NET 10 SDK and later") whatever
+   `TestingPlatformDotnetTestSupport` says, so no bridge executes it. Name the
+   remedy: `global.json` `"test": { "runner": "Microsoft.Testing.Platform" }`
+   selects native MTP mode (step 2).
+5. If the runner is enabled but the bridge is absent or false, a dual-capable
    MSTest, NUnit, or xUnit project remains on VSTest: the runner establishes MTP
    capability, but SDK 8/9 `dotnet test` cannot reach it and the VSTest adapter
    executes the tests instead. If the bridge is true but no runner is enabled,
    the project also remains on VSTest.
-5. A runner and bridge with non-executable output is incomplete and unavailable.
+6. A runner and bridge with non-executable output is incomplete and unavailable.
    An MTP-only framework that cannot be reached by the selected SDK path is also
    unavailable, not VSTest.
 
@@ -196,6 +216,11 @@ the runner-selection signal; never say that this property alone enables the
 bridge. For a request asking which single signal decides, stop there. Omit
 bridge or host-shape prerequisites when the configuration is complete, and add
 them only when needed to explain why the selected runner cannot execute.
+Likewise, when an enabled runner is overridden or unreachable, state both axes
+causally: the runner property makes the project MTP-capable, but the final
+`UseVSTest`/bridge/output setting determines which platform actually executes.
+Name the runner selector before using a package reference only to identify the
+framework.
 
 Use causal evidence, not a bag of signals. For example:
 

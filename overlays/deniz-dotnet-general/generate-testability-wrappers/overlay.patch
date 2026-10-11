@@ -1,22 +1,32 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8bed06c..e48a99f 100644
+index c9b6dd7..c52667d 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -4,19 +4,19 @@ description: >
-   Generate C# testability abstractions and DI registration when none exists:
-   minimal Environment/Console/Process wrappers, or first-time TimeProvider,
-   IHttpClientFactory, and System.IO.Abstractions adoption. USE FOR: generate a
-   wrapper for statics, make a class testable, wrap DateTime/File/Process, create
-   IProcessRunner, add DI registration, or preserve a static API with an ambient
-   seam. DO NOT USE FOR: wrapping an API already consumed through an interface or
-   built-in abstraction such as IFileSystem or TimeProvider; detecting statics
-   (detect-static-dependencies); migrating call sites to an existing/registered
--  abstraction (migrate-static-to-wrapper); a single blocked behavior where the
--  request includes adding deterministic tests (testability-obstacle); or general
--  interface design.
-+  abstraction (after wrapper creation, the user invokes
-+  `migrate-static-to-wrapper` separately); behavior-test requests whose seam is
-+  still open; or general interface design.
+@@ -1,21 +1,23 @@
+ ---
+ name: generate-testability-wrappers
+ description: >
+-  DO NOT USE when the target already consumes an injected interface or built-in
+-  abstraction such as IFileSystem or TimeProvider, even if the request says
+-  "generate a wrapper"; no new wrapper is needed. Use only when C# source calls
+-  an ambient/static dependency and no injectable seam exists: first-time
+-  TimeProvider, IHttpClientFactory, or System.IO.Abstractions adoption; minimal
+-  Environment/Console/Process wrappers; IProcessRunner; DI registration; or an
+-  ambient seam that preserves a static API. Exclude static detection
++  Generate C# testability wrappers and their DI registration. Use only when C#
++  source calls an ambient/static dependency and no injectable seam exists:
++  first-time TimeProvider, IHttpClientFactory, or System.IO.Abstractions
++  adoption; minimal Environment/Console/Process wrappers; IProcessRunner; DI
++  registration; or an ambient seam that preserves a static API. DO NOT USE when
++  the target already consumes an injected interface or built-in abstraction such
++  as IFileSystem or TimeProvider, even if the request says "generate a wrapper";
++  no new wrapper is needed. Exclude static detection
+   (detect-static-dependencies), migration to an existing/registered abstraction
+-  (migrate-static-to-wrapper), one blocked behavior plus deterministic tests
+-  (testability-obstacle), and general interface design.
++  (after wrapper creation, the user invokes
++  /dotnet-test:migrate-static-to-wrapper separately), behavior-test requests
++  whose seam is still open, and general interface design.
  license: MIT
  ---
  
@@ -25,7 +35,7 @@ index 8bed06c..e48a99f 100644
  Generate wrapper interfaces, default implementations, and DI service registration code for untestable static dependencies. For statics that already have .NET built-in abstractions (`TimeProvider`, `IHttpClientFactory`), guide adoption of the built-in. For statics without built-in alternatives, generate custom minimal wrappers.
  
  ## When to Use
-@@ -25,17 +25,18 @@ Generate wrapper interfaces, default implementations, and DI service registratio
+@@ -24,17 +26,18 @@ Generate wrapper interfaces, default implementations, and DI service registratio
  - When the user asks to make a class testable by replacing statics with injected abstractions
  - When adopting `TimeProvider` (.NET 8+) or `System.IO.Abstractions`
  - When creating a custom wrapper for `Environment.*`, `Console.*`, or `Process.*`
@@ -36,16 +46,52 @@ index 8bed06c..e48a99f 100644
  - The user wants to find statics first (use `detect-static-dependencies`)
 -- The user wants to bulk-replace call sites (use `migrate-static-to-wrapper`)
 +- The user wants to bulk-replace call sites (after wrapper creation, the user
-+  invokes `migrate-static-to-wrapper` separately)
++  invokes `/dotnet-test:migrate-static-to-wrapper` separately)
  - The static is already behind an interface
+ 
+ If the target already consumes an injected interface or built-in abstraction, stop:
+ do not add a second wrapper, project, registration, or test around that seam.
  
  > A missing DI package does not by itself force an ambient seam. For an
  > instantiable class, prefer constructor injection and compose it explicitly or
  > show the requested registration. Use Step 5 when the API is static and its
- > signatures must stay static, or when the user explicitly forbids caller
- > construction/DI changes.
+@@ -72,16 +75,35 @@ separate axis:
+   object manually;
+ - existing container: add compile-ready registration following its conventions;
+ - public static API/signatures that cannot change: Step 5's ambient seam.
  
-@@ -243,55 +244,90 @@ public static class Clock
+ Check for a host builder, `IServiceCollection`, existing registrations, and
+ construction sites. Do not infer "must remain static" merely because the project
+ currently has no container.
+ 
++An existing manual factory passes the real dependency explicitly (for example,
++`new ExpirationPolicy(TimeProvider.System)`). Do not move that responsibility into
++an optional constructor parameter or add an optional provider parameter to the
++factory.
++
++Constructor injection through a public constructor is the default. Only when all
++three hold, take the narrower branch: the type is released public API, the user
++has not authorized an API change, and the exact test assembly is known. Then keep
++the public parameterless constructor as the real-dependency default, make the
++injecting constructor `internal`, and add `InternalsVisibleTo` for that one
++test assembly, or follow an existing friend-assembly convention. Outside that
++branch, add no `InternalsVisibleTo`.
++
++Write every generated test in the test project's existing framework,
++global-using, and assertion conventions, with the framework packages it already
++references; the examples in this skill use xUnit-style assertions. Never add a
++hand-rolled `FactAttribute`, a substitute test-framework type, or unrelated
++test-project plumbing to make a test compile.
++
+ ### Step 2: Generate built-in abstraction adoption (Time, HTTP)
+ 
+ #### TimeProvider (.NET 8+)
+ 
+ No wrapper code needed. Complete all four parts: production registration,
+ constructor injection, a `FakeTimeProvider` test, and the testing package.
+ 
+ 1. Register in DI:
+@@ -250,55 +272,90 @@ public static class Clock
  
      internal static IDisposable Override(DateTime fixedUtcTime)
      {
@@ -149,7 +195,7 @@ index 8bed06c..e48a99f 100644
  - Otherwise, create files next to the code that uses the static
  
  Always generate:
-@@ -321,16 +357,17 @@ without demonstrating how the consumer receives a fake.
+@@ -331,16 +388,17 @@ the prompt flow.
  - [ ] TimeProvider adoption includes injection, production composition,
        `FakeTimeProvider`, its testing package, and an assertion on a
        time-dependent result

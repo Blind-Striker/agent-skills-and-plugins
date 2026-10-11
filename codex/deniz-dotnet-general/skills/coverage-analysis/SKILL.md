@@ -1,15 +1,18 @@
 ---
 name: coverage-analysis
 description: >
-  Analyzes .NET Cobertura line, branch, and condition evidence. Use for coverage
-  plateaus, target arithmetic, project-wide CRAP/refactoring-risk hotspots, or a
-  targeted CRAP calculation on one exact method, class, or source file. A
-  supplied report is analyzed directly without rerunning tests, installing
-  tools, or generating reports. Project-wide requests rank complex,
-  under-covered members; targeted requests filter existing method rows and
-  report only the requested scope. DO NOT USE FOR: behavioral/pseudo-mutation
-  gaps, test-code audits, writing tests, or running tests without coverage
-  context.
+  Analyzes .NET Cobertura line, branch, and condition evidence. Activation
+  requires supplied .NET coverage evidence (a report, percentages, or line,
+  branch, or condition metrics), an explicit request to collect .NET coverage
+  for analysis, or an explicit CRAP request. Use for coverage plateaus, target
+  arithmetic, project-wide CRAP/refactoring-risk hotspots, or a targeted CRAP
+  calculation on one exact method, class, or source file. A supplied report is
+  analyzed directly without rerunning tests, installing tools, or generating
+  reports. Project-wide requests rank complex, under-covered members; targeted
+  requests filter existing method rows and report only the requested scope. DO
+  NOT USE FOR: requests with none of that evidence or intent, including
+  hypothetical change-survival questions; behavioral/pseudo-mutation gaps,
+  test-code audits, writing tests, or running tests without coverage context.
 license: MIT
 ---
 
@@ -58,7 +61,7 @@ the current directory or a supplied report is sufficient.
 | Interpret a supplied Cobertura path or diagnose a plateau | Read that report, reconcile totals, name all material gaps, answer directly | Rerun tests, install tools, compute CRAP, or generate files unless explicitly requested |
 | Compute CRAP for one exact method, class, or file | Resolve the Cobertura rows for that target and compute CRAP only for those rows | Project-wide hotspot ranking or report generation |
 | Rank risk hotspots, compute project-wide CRAP, or assess refactoring safety | Use the supplied/existing report, read `references/guidelines.md`, and compute CRAP before ranking | Coverage-only ranking or a full report template unless requested |
-| Analyze coverage when no report exists | Read `references/setup-discovery.md`; collect once using `references/test-execution.md` if safe | CRAP unless risk was requested |
+| Analyze coverage when no report exists | Invoke `$deniz-dotnet-general:run-tests` to collect Cobertura coverage with the repository-compatible runner, then analyze the generated report | Choose or execute a test command independently; CRAP unless risk was requested |
 | Produce a full markdown/HTML/CSV report | First deliver the direct answer; then read `references/output-format.md` or `references/report-generation.md` | Report generation before the answer |
 
 Words such as **analyze coverage**, **what is blocking coverage**, or **why is
@@ -70,13 +73,26 @@ or an equivalent request to combine complexity with coverage.
 
 When the user names one exact method, class, or source file, use supplied or
 existing Cobertura data when available; otherwise follow the normal collection
-path once. Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
+path once. Before using a report, verify that it parses, contains at least one
+class and method, and contains the requested target. An empty report, one that
+omits the target, or one whose covered counts exceed its valid counts is failed
+collection or filtering, not 0% coverage: regenerate coverage when possible,
+otherwise stop without publishing a CRAP score.
+
+Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
 filter the returned rows by exact `Method`, exact `Class`, or normalized `File`
-path. For each matching row calculate:
+path. A row with `ComplexityKnown: false` came from a Cobertura method with no
+`complexity` attribute, and its `Complexity` of 1 is a placeholder, not a
+measurement: count that method's decision points in the current source and label
+the result a manual count, or report its CRAP score as unavailable. For each
+matching row with a known or counted complexity, calculate:
 
 ```text
 CRAP(m) = complexity^2 * (1 - lineCoverage)^3 + complexity
 ```
+
+Here `lineCoverage` is a fraction: the row's `LineCoverage` percentage divided by
+100.
 
 If no row matches, report that the target is absent from the Cobertura data and
 do not invent a score. Otherwise report only the selected rows, the formula
@@ -91,19 +107,20 @@ When the user supplies a coverage excerpt, summary, or valid Cobertura path:
 - Treat it as authoritative input and start there.
 - Do not discover the solution or test projects unless source mapping is necessary.
 - Do not run `dotnet test`, install ReportGenerator, add a coverage package, or
-  read `references/setup-discovery.md`, `references/test-execution.md`, or
-  `references/report-generation.md`.
+  read `references/setup-discovery.md` or `references/report-generation.md`.
 - Do not write `coverage-analysis.md` or create a report directory unless the user
   requested a saved/full report.
 - For interpretation and plateau questions, parse only the evidence needed to
   answer. For explicit project-wide risk requests, use the bundled scripts as
   described in `references/guidelines.md`.
 
-A failed read/view operation is not proof that a named path does not exist. After
-one fails, make one allowed targeted existence probe, such as a workspace-relative
-glob, and retry the same artifact with a normalized path or alternate reader.
-Report the exact missing-path problem only when that independent check also fails.
-Do not broaden the search to unrelated coverage files or present a substitute
+A failed read/view operation is not proof that a named path does not exist.
+Classify the failure, then make one targeted existence probe and use a normalized
+path or alternate reader only for confirmed tool availability, transport, or
+path-normalization failures and only after verifying the canonical path remains
+inside the workspace. Stop on content-exclusion, permission/policy,
+workspace-boundary, or unknown failures. Report a missing path only when the
+independent probe also fails; do not broaden the search or substitute another
 artifact.
 
 ## Collection path
@@ -113,15 +130,21 @@ analysis that requires it.
 
 1. Read `references/setup-discovery.md`.
 2. Prefer existing Cobertura discovered under the requested root.
-3. If none exists, read `references/test-execution.md` and run the selected
-   coverage command once per entry point.
+3. If none exists, invoke `$deniz-dotnet-general:run-tests` for repository overlay, platform,
+   runner, and command selection, and have it collect Cobertura once per entry point.
 4. Analyze the resulting Cobertura. Compute CRAP only if risk analysis was
    explicitly requested.
 
-Do not modify production code. The only permitted incidental project change is
-adding one missing coverage provider to an SDK-style test project as described in
-`references/test-execution.md`; never add a second provider, and report the
-change plus its revert command.
+When the workspace contains the project/test manifests needed by this path,
+perform discovery directly and delegate collection to `$deniz-dotnet-general:run-tests`. Do not ask
+the user to attach files or pre-run coverage that the current workspace lets
+you inspect and generate.
+
+Do not modify production code. Do not add coverage packages, change project
+manifests, or install global tools unless the user explicitly authorized
+dependency or tooling changes. If the repository lacks a usable coverage
+provider, report that exact prerequisite and the compatible command shape that
+`$deniz-dotnet-general:run-tests` identified, then stop.
 
 The automatic collection path is for SDK-style projects. For classic non-SDK or
 `packages.config` projects, use only a repository-owned coverage command. If none
@@ -144,6 +167,8 @@ another assembly.
 - When asked whether one member can reach a target, show its maximum projected
   total and at least one concrete sufficient combination of supplied members or
   line gains. If no supplied combination is sufficient, say so.
+- For a multi-member target, name the exact combination and resulting covered /
+  valid total; saying only "combine it with another member" is incomplete.
 - Reconcile member gaps against project totals. Method line ranges can overlap or
   omit class-level lines, so do not sum method counts as project truth.
 - Never call one member the **sole**, **entire**, or **all** remaining gap unless

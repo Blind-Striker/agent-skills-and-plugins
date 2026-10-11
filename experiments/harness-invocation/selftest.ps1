@@ -574,7 +574,7 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
         agents = @($all  | Where-Object { $_.opencode.artifacts -contains "agent" }).Count
         model  = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
     }
-    # The OpenCode 2 projection emits every non-agent item as a skill: 123 ledger entries are 121
+    # The OpenCode 2 projection emits every non-agent item as a skill: 113 ledger entries are 111
     # skills and 2 agents (akka-net-specialist, roslyn-incremental-generator-specialist). Wave W2 took
     # aot-trimming, cscheck, and sdk-container-publishing into General (65 to 68 taken items), and wave
     # W3 took aspire-project-v2-migration into Aspire (8 to 9), and wave W4 took
@@ -583,8 +583,11 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
     # (38 to 40). It emits no command and records no parked body, so the former commands and parked
     # counts name nothing and are dropped. deniz-process model is 10 auto + 10 both: writing-for-agents
     # moved from manual to both, diagnosing-superpowers arrived as both, and resolving-merge-conflicts
-    # left as auto.
-    $want = @{ skills = 121; agents = 2; model = 20 }
+    # left as auto. Wave W6 took General from 68 to 58 taken items: three items left with their
+    # upstream deletion (configuring-opentelemetry-dotnet, minimal-api-file-upload, msbuild-server),
+    # nine MSBuild specialists were excluded as merged into the consolidated msbuild skill, msbuild and
+    # csharp-refactoring were taken, and code-testing replaced code-testing-agent one for one.
+    $want = @{ skills = 111; agents = 2; model = 20 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }

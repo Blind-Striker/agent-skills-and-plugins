@@ -1,9 +1,9 @@
 diff --git a/SKILL.md b/SKILL.md
-index df5b9a5..e1a9e80 100644
+index 239c1d3..5912e89 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -51,17 +51,17 @@ edits and automatically reruns tests.
-   xUnit v3 `--filter-method` or TUnit `--treenode-filter`.
+@@ -57,17 +57,17 @@ edits and automatically reruns tests.
+   explicit restart fallback below.
  
  ## Workflow
  
@@ -21,7 +21,7 @@ index df5b9a5..e1a9e80 100644
  project as configured and stop the MTP setup path. Do not install the extension,
  create `launchSettings.json`, set the environment variable, change runner
  properties/packages, or return a `dotnet run` hot-reload command. Never turn a
-@@ -69,19 +69,17 @@ setup request into an implicit VSTest-to-MTP migration.
+@@ -75,19 +75,17 @@ setup request into an implicit VSTest-to-MTP migration.
  
  Offer one valid non-MTP fallback that preserves the project:
  
@@ -42,7 +42,31 @@ index df5b9a5..e1a9e80 100644
  version and skip this step. Otherwise install it:
  
  ```shell
-@@ -194,12 +192,12 @@ Once all tests pass:
+@@ -130,20 +128,19 @@ Create or update `Properties/launchSettings.json` in the test project:
+ ### Step 4: Run the tests with hot reload
+ 
+ Run the test project directly (not through `dotnet test`) to use hot reload in console mode:
+ 
+ ```shell
+ dotnet run --project <project-path>
+ ```
+ 
+-To filter to specific failing tests, pass the filter after `--`. Read the
+-supplied or runtime-listed `filter-syntax` catalog file only when the examples
+-below do not resolve the framework's syntax; do not invoke this reference-only
+-helper. Quick examples:
++To filter to specific failing tests, pass the filter after `--`. Load
++`dotnet-test:filter-syntax` only when the examples below do not resolve the
++framework's syntax. Quick examples:
+ 
+ | Framework | Filter syntax |
+ |-----------|--------------|
+ | MSTest | `dotnet run --project <path> -- --filter "FullyQualifiedName~TestMethodName"` |
+ | NUnit | `dotnet run --project <path> -- --filter "FullyQualifiedName~TestMethodName"` |
+ | xUnit v3 | `dotnet run --project <path> -- --filter-method "*TestMethodName"` |
+ | TUnit | `dotnet run --project <path> -- --treenode-filter "/*/*/ClassName/TestMethodName"` |
+ 
+@@ -208,12 +205,12 @@ Once all tests pass:
  - [ ] Tests run and the host remains active waiting for changes
  - [ ] Code changes are picked up without manual restart
  

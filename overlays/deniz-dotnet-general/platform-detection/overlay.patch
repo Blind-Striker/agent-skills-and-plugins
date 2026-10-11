@@ -1,0 +1,89 @@
+diff --git a/SKILL.md b/SKILL.md
+index 28bd0a6..9adb4ed 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -30,17 +30,18 @@ or project SDK that identifies it. Use a second sentence only for a conflict, an
+ incomplete configuration, or target-framework-specific differences.
+ 
+ `Platform` means the platform that actually executes tests: **VSTest** or
+ **MTP**. If conflicting or incomplete configuration prevents execution, report
+ it as unavailable rather than inventing a successful platform.
+ 
+ Never classify the executed platform from `global.json` `test.runner` alone.
+ That setting selects `dotnet test` command mode; even an explicit `VSTest`
+-value can bridge to an executable MTP application. Continue through the project
++value can bridge to an executable MTP application, except on SDK 10+ with
++Microsoft.Testing.Platform 2.x (see the classification order below). Continue through the project
+ runner, bridge, and output-shape signals before writing `Platform:`.
+ 
+ Apply this scope gate before drafting the evidence:
+ 
+ | User asks for | Evidence to include | Omit |
+ |---------------|---------------------|------|
+ | Platform and framework | Final runner selector and its winning source; package or project SDK identifying the framework; when needed, the property that makes it executable | Command mode; common SDK facts; `OutputType` unless it is missing or conflicting |
+ | The single deciding signal | That runner-selection property, why its source wins, and why a competing package does not select or imply VSTest; still name the package or project SDK identifying a requested framework | Bridge, `OutputType`, SDK mode, and unrelated prerequisites when the configuration is complete |
+@@ -153,22 +154,30 @@ After resolving final property values, classify in this order:
+    selects native MTP command mode, report `Platform: unavailable` because the
+    command mode and project opt-out conflict.
+ 2. A native-MTP selection in `global.json` executes a compatible MTP
+    application with final `OutputType=Exe` on MTP. A VSTest-only,
+    library-output, or opted-out project is unavailable.
+ 3. On SDK 8/9, an enabled MTP runner plus final
+    `TestingPlatformDotnetTestSupport=true` plus final `OutputType=Exe` executes
+    on MTP.
+-4. If the runner is enabled but the bridge is absent or false, a dual-capable
++4. On SDK 10+ in VSTest command mode, an MTP runner from
++   Microsoft.Testing.Platform 2.x (current TUnit brings it in transitively) is
++   unavailable. The `_MTPBeforeVSTest` target of Microsoft.Testing.Platform.MSBuild
++   fails the build ("Testing with VSTest target is no longer supported by
++   Microsoft.Testing.Platform on .NET 10 SDK and later") whatever
++   `TestingPlatformDotnetTestSupport` says, so no bridge executes it. Name the
++   remedy: `global.json` `"test": { "runner": "Microsoft.Testing.Platform" }`
++   selects native MTP mode (step 2).
++5. If the runner is enabled but the bridge is absent or false, a dual-capable
+    MSTest, NUnit, or xUnit project remains on VSTest: the runner establishes MTP
+    capability, but SDK 8/9 `dotnet test` cannot reach it and the VSTest adapter
+    executes the tests instead. If the bridge is true but no runner is enabled,
+    the project also remains on VSTest.
+-5. A runner and bridge with non-executable output is incomplete and unavailable.
++6. A runner and bridge with non-executable output is incomplete and unavailable.
+    An MTP-only framework that cannot be reached by the selected SDK path is also
+    unavailable, not VSTest.
+ 
+ Keep each signal's role exact:
+ 
+ - The runner property selects the test application.
+ - `TestingPlatformDotnetTestSupport=true` lets SDK 8/9 `dotnet test` reach that
+   application.
+diff --git a/references/command-mode.md b/references/command-mode.md
+index 9a3eed0..4ae9709 100644
+--- a/references/command-mode.md
++++ b/references/command-mode.md
+@@ -1,21 +1,25 @@
+ # `dotnet test` Command Mode
+ 
+ Read this reference only when the user explicitly asks for command mode or
+ supplies a `dotnet test mode:` output label.
+ 
+ Command mode and executed test platform are separate axes. Command mode controls
+-CLI syntax; VSTest mode can still bridge to an MTP test application.
++CLI syntax; VSTest mode can still bridge to an MTP test application, except on
++SDK 10+ with Microsoft.Testing.Platform 2.x.
+ 
+ ## Selection
+ 
+ - SDK 10+ with `global.json` `"test": { "runner":
+   "Microsoft.Testing.Platform" }` selects native MTP mode.
+-- SDK 10+ with runner `VSTest` or no `test` section selects VSTest mode.
++- SDK 10+ with runner `VSTest` or no `test` section selects VSTest mode. A
++  Microsoft.Testing.Platform 2.x application cannot run in that mode: its build
++  fails, so report `Platform: unavailable` and the native MTP `global.json`
++  selection above as the remedy.
+ - SDK 8/9 supports only VSTest mode.
+ 
+ Report the requested axes separately:
+ 
+ ```text
+ dotnet test mode: VSTest
+ Platform: MTP
+ Framework: MSTest

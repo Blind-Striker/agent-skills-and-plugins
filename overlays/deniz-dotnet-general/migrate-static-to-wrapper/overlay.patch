@@ -1,24 +1,32 @@
 diff --git a/SKILL.md b/SKILL.md
-index fe4ba95..f2f8913 100644
+index 187da5a..0f3efe8 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,20 +1,20 @@
+@@ -1,49 +1,49 @@
  ---
  name: migrate-static-to-wrapper
  description: >
-   Migrate C# static calls to a wrapper or built-in abstraction the user already
-   named, within named files/projects, including affected fake-based test updates.
-   USE FOR explicit DateTime.UtcNow/Now to TimeProvider, File.* to IFileSystem,
-   existing IEnvironmentReader/ITextFileStore, scoped migrations, constructor
-   injection, or a static API seam that keeps callers compiling and DateTimeKind
--  unchanged. DO NOT USE when the user asks for behavior tests but leaves seam
--  selection open (testability-obstacle), for detecting statics
--  (detect-static-dependencies), designing a new wrapper
--  (generate-testability-wrappers), or test-framework migration.
-+  unchanged. DO NOT USE for detecting statics (detect-static-dependencies),
-+  designing a new wrapper (the user invokes `generate-testability-wrappers`
-+  separately first), behavior-test requests whose seam is still open, or
-+  test-framework migration.
+-  ALWAYS USE when asked to migrate, replace, or make testable existing C# static
+-  calls with a named wrapper or built-in abstraction: DateTime.UtcNow/Now or
+-  DateTimeOffset.UtcNow to TimeProvider/IClock, File.* to IFileSystem or an
+-  existing store such as ITextFileStore, and Environment.* to an existing reader
+-  such as IEnvironmentReader. Covers scoped files/projects, constructor
+-  injection, replacing temp-file or process-environment tests with fakes,
+-  "already registered" abstractions, and static classes whose callers/signatures
+-  must stay unchanged. Preserves DateTimeKind and call count. DO NOT USE for finding
+-  statics (detect-static-dependencies), choosing/designing a new wrapper
+-  (generate-testability-wrappers), behavior tests with no chosen seam
+-  (testability-obstacle), or test-framework migration.
++  Migrate C# static calls to a named wrapper or abstraction. Works within a
++  named or inferred file/project scope, including affected fake-based test
++  updates and the minimal constructor, caller, and DI-registration changes that
++  keep that scope runnable. USE FOR explicit DateTime.UtcNow/Now to
++  TimeProvider, File.* to IFileSystem, existing IEnvironmentReader/ITextFileStore,
++  scoped migrations, constructor injection, or a static API seam that keeps
++  callers compiling and DateTimeKind unchanged. DO NOT USE for detecting statics
++  (detect-static-dependencies), designing a new wrapper (the user invokes
++  /dotnet-test:generate-testability-wrappers separately first), behavior-test
++  requests whose seam is still open, or test-framework migration.
  license: MIT
  ---
  
@@ -27,7 +35,12 @@ index fe4ba95..f2f8913 100644
  Perform mechanical, codemod-style replacement of static dependency call sites with calls to injected wrapper interfaces or built-in abstractions. Operates on a bounded scope (single file, project, or namespace) so migrations can be done incrementally.
  
  ## When to Use
-@@ -26,22 +26,23 @@ Perform mechanical, codemod-style replacement of static dependency call sites wi
+ 
+-- After wrappers have been generated (via `generate-testability-wrappers`) or built-in abstractions identified
++- After wrappers have been generated (the user invokes `/dotnet-test:generate-testability-wrappers` for that) or built-in abstractions identified
+ - Migrating `DateTime.UtcNow` → `TimeProvider.GetUtcNow()` across a project
+ - Migrating `File.*` → `IFileSystem.File.*` across a namespace
+ - Adding constructor injection for the new abstraction to affected classes
  - Making a `static` utility class testable by adding an ambient seam (Step 3) while its existing call sites keep
    compiling unchanged
  - Incremental migration: one project or namespace at a time
@@ -38,7 +51,7 @@ index fe4ba95..f2f8913 100644
  
 -- No wrapper or abstraction exists yet and one must be designed from scratch (use `generate-testability-wrappers` first).
 +- No wrapper or abstraction exists yet and one must be designed from scratch
-+  (the user invokes `generate-testability-wrappers` separately first).
++  (the user invokes `/dotnet-test:generate-testability-wrappers` separately first).
    A built-in abstraction such as `TimeProvider` or `IFileSystem` always counts as existing.
  - The user wants to detect statics, not migrate them (use `detect-static-dependencies`)
  - Migrating between test frameworks (use the appropriate migration skill)
@@ -53,3 +66,15 @@ index fe4ba95..f2f8913 100644
  
  | Input | Required | Description |
  |-------|----------|-------------|
+@@ -335,10 +335,10 @@ verified unchanged, and the targeted build/test result:
+ | Replacing statics in test code | Only replace in production code; tests should use fakes/mocks |
+ | Breaking static classes | Static classes can't have constructors — use the ambient context seam (Step 3) instead of converting them to non-static |
+ | Missing `FakeTimeProvider` NuGet | Add `Microsoft.Extensions.TimeProvider.Testing` to test project |
+ | Replacing a `DateTime` value with `.DateTime` off a `DateTimeOffset` | `DateTimeOffset.DateTime` returns `Kind == Unspecified` — use `.UtcDateTime` (for former `DateTime.UtcNow`) or `.LocalDateTime` (for former `DateTime.Now`) to preserve the original `DateTimeKind`. Only change the field/return type to `DateTimeOffset` if the user asked for it. |
+ | Capturing one provider value for multiple original clock reads | Replace each read in place. Coalescing reads changes observable timing even when it looks cleaner. |
+ | Migrating too much at once | Stick to the defined scope — one project or namespace per run |
+ | Migrating `DateTime.Now` when only `UtcNow` was requested | Respect the literal request; list the other call sites as out-of-scope suggestions instead of rewriting them |
+ | Claiming "Build succeeded" after a failed restore | Read the exit code and output; report the real failure and fix it or surface it as a blocker |
+-| Adding a package during a call-site-only migration | Stop and request authorization or run wrapper/adoption setup first |
++| Adding a package during a call-site-only migration | Stop and ask; the user may run `/dotnet-test:generate-testability-wrappers` for the wrapper or adoption setup |
+ | Forgetting production composition | Verify DI registration, manual construction, or the ambient production default before replacing call sites |

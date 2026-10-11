@@ -39,19 +39,30 @@ state predicates (including derived booleans), identity, and formatting. Private
 code is in scope only to trace an allowed outcome.
 
 Do not expand a focused request into a repository audit, plan artifact, or
-dashboard. Use source and tests directly for familiar frameworks. Invoke
-`deniz-dotnet-general:test-analysis-extensions` only when discovery or assertion semantics are
-unclear.
+dashboard. Use source and tests directly for familiar frameworks. When discovery
+or assertion semantics are unclear, load the `deniz-dotnet-general:test-analysis-extensions`
+skill and read its matching language file; do not search installation
+directories. If it is absent, state the limitation and use the pinned APIs and
+rules here.
 
 ### 2. Establish one baseline
 
-Run the narrowest existing test command once. Choose it from the project
+For a source-only advisory review, skip execution and label empirical survival
+unverified. A baseline is required when the user requests execution or survivor
+verification. Run the narrowest existing test command once. Choose it from the project
 manifest; Microsoft.Testing.Platform executables may require `dotnet run`.
 Confirm tests executed: exit 0 with build-only output is not green. If that one
 attempt cannot run the suite, do not troubleshoot the runner or try alternate
 commands for an advisory review; continue statically and label all candidates
 **unverified**. Do not infer a project-configuration cause from missing output;
 name a cause only when the command reports it.
+
+Missing runner output limits only claims of empirical mutation survival. It does
+not make source-proven facts tentative: a public outcome with no reaching test
+is still **No coverage**, and an exact expected value derived from the
+unmodified implementation is still actionable. State the baseline limitation
+once, then give the static source/assertion conclusion directly instead of
+hedging every row.
 
 For an advisory review such as "would tests catch this?", stop execution after
 that baseline. Source-to-assertion mapping is sufficient evidence for **No
@@ -113,6 +124,13 @@ Execution never replaces the ledger. Before mutating or answering, classify
 every required outcome, including each invalid input, guard boundary,
 classifier arm, action, and denial.
 
+**Completeness checkpoint:** before selecting findings, explicitly account for
+every independent mode/flag, both zero and negative for a `<= 0` guard, every
+accepted exception class, and a representative derived accepted exception when
+matching is polymorphic. For a removed guard, trace the fallthrough: if it still
+produces the same public exception type, it is equivalent unless finer exception
+metadata is an established contract.
+
 ### 4. Admit only observable candidates
 
 First replay each exact mutation against every existing asserted input or
@@ -138,6 +156,9 @@ Exclude:
 - private representation changes that every public input sequence observes
   identically, even if the suite stays green;
 - a mutation whose proposed test passes against both original and mutant;
+- boundary edits that return the same value on the distinguishing input; for
+  example, changing `result < floor ? floor : result` to `<=` is equivalent at
+  equality because both branches return `floor`;
 - a standalone auto-property or trivial one-line wrapper/predicate with no
   meaningful branch, calculation, or side effect, unless the user names it;
 - hypothetical future impact, generated code, logging/formatting-only changes,
@@ -169,6 +190,10 @@ A handful of validation gaps does not make an otherwise broad suite **Mixed**
 unless validation is the named risk or the gaps threaten security, data, or
 other contract-critical behavior.
 
+When the inventory meets the **Strong** criteria above, lead with **Strong** and
+name the protected boundaries and dual assertions before listing minor gaps. Do
+not open with `Mixed`, "only core paths", or a risk-heavy dashboard.
+
 Stop when existing assertions kill the remaining candidates or no credible
 public survivor remains. Do not mutate every operator merely to fill a report or
 calculate a score.
@@ -177,6 +202,7 @@ calculate a score.
 |---|---|
 | **Likely killed** | An existing assertion observes the changed outcome |
 | **Candidate survivor (unverified)** | Observable change appears unasserted; not executed |
+| **Killed** | Exact observable mutation executed and a relevant assertion failed |
 | **Survived** | Exact observable mutation executed and tests stayed green |
 | **No coverage** | No test reaches the public outcome; report the missing branch without inventing a survivor |
 | **Equivalent** | No public observation changes; omit from findings |
@@ -194,8 +220,10 @@ Enter this phase only for explicit verification or an exhaustive audit.
 
 1. Apply one candidate and confirm the diff changes exactly one intended
    expression.
-2. Run the narrowest covering test: green means **Survived**, red means
-   **Killed**, for that edit only.
+2. Run the narrowest covering test and confirm tests executed: green means
+   **Survived**; a failure at a relevant assertion means **Killed**, for that
+   edit only. Build, discovery, infrastructure, or unrelated failures leave
+   the candidate **unverified**, not Killed.
 3. Revert immediately and confirm the clean source/test baseline.
 4. After a green run, re-check the public counterfactual. Execution proves the
    suite missed the edit, not that the edit changes behavior; drop inert or
@@ -214,7 +242,9 @@ Scale the response to the request.
 For focused or small analysis, return:
 
 1. A one-line verdict: **Strong**, **Mixed**, or **Weak**, with the reason.
-2. One compact row per actionable **Survived**, **Candidate survivor
+2. For a **Strong** suite, one short strengths sentence naming the concrete
+   protected boundaries, guards, or paired observations that justify the verdict.
+3. One compact row per actionable **Survived**, **Candidate survivor
    (unverified)**, or **No coverage** outcome. Before adding a row, apply the
    outcome allowlist when the request names a risk, then apply the
    observable-candidate rules; omit any candidate that fails either filter.
@@ -224,16 +254,21 @@ For focused or small analysis, return:
    | Risk | Public outcome | Change | Result/evidence | Smallest test |
    |---|---|---|---|---|
 
-3. One short strengths sentence naming important killed behavior.
-4. When the request names exclusions, one short scope sentence naming the
+   Every gap needs a distinguishing witness and a concrete smallest test. An
+   error-path gap must name an invalid input and the expected error/result.
+
+4. For a **Mixed** or **Weak** suite, one short strengths sentence naming
+   important killed behavior.
+5. When the request names exclusions, one short scope sentence naming the
    generated, trivial, or unrelated code intentionally skipped.
 
 Do not repeat the table in prose or report discarded mutants, tool chronology,
 or in-flight reasoning.
 
-For an exhaustive audit, add counts for Killed / Survived / No coverage /
-Equivalent and group findings by risk. Count only executed or definitively
-classified candidates.
+For an exhaustive audit, separate executed **Killed / Survived** counts from
+static **Likely killed / Candidate survivor (unverified)** classifications and
+**No coverage / Equivalent** inventory counts. Never include static reasoning
+in an empirical killed/total ratio. Group findings by risk.
 
 ## Reliability rules
 
@@ -267,5 +302,3 @@ classified candidates.
 - [ ] Recommendations target only demonstrated gaps
 - [ ] Every public entry-point branch and each accepted exception type in scope
       is explicitly accounted for
-- [ ] A supplied canonical mutation verifier was run and reported, not replaced
-      with an ad-hoc proxy

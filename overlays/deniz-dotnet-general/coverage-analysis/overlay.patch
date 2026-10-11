@@ -1,34 +1,34 @@
 diff --git a/SKILL.md b/SKILL.md
-index ce5b480..931e22b 100644
+index a09d36c..fb6398c 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,25 +1,20 @@
+@@ -1,22 +1,23 @@
  ---
  name: coverage-analysis
  description: >
--  Interprets .NET Cobertura line, branch, and condition evidence and, when
--  explicitly requested, computes project-wide CRAP/refactoring-risk hotspots.
--  MUST USE for "why is branch coverage lower than line coverage?",
--  condition-coverage="50% (1/2)", a supplied coverage excerpt, partially covered
--  conditions, coverage plateaus, members blocking a target, project-wide CRAP,
--  refactoring safety, or coverage-backed risk priorities. A supplied report is
--  analyzed directly without rerunning tests, installing tools, generating a
--  report, or calculating CRAP unless the request asks for risk/CRAP/refactoring
--  safety. DO NOT USE FOR: CRAP or refactoring-safety analysis of only one named
--  method, class, or file (crap-score); test trait distributions (test-tagging);
--  static source-to-test pairing (find-untested-sources);
--  behavioral/pseudo-mutation gaps (test-gap-analysis); test-code audits
--  (test-anti-patterns); raw collection/percentage-only requests or just running
--  tests (run-tests); non-.NET coverage; or writing tests.
-+  Analyzes .NET Cobertura line, branch, and condition evidence. Use for coverage
-+  plateaus, target arithmetic, project-wide CRAP/refactoring-risk hotspots, or a
-+  targeted CRAP calculation on one exact method, class, or source file. A
-+  supplied report is analyzed directly without rerunning tests, installing
-+  tools, or generating reports. Project-wide requests rank complex,
-+  under-covered members; targeted requests filter existing method rows and
-+  report only the requested scope. DO NOT USE FOR: behavioral/pseudo-mutation
-+  gaps, test-code audits, writing tests, or running tests without coverage
-+  context.
+-  Activation requires either supplied .NET coverage reports/percentages/line,
+-  branch, or condition metrics, or an explicit request to collect .NET coverage
+-  for analysis. USE FOR: interpreting that evidence, including Cobertura data,
+-  partial conditions, plateaus, target arithmetic,
+-  project-wide coverage-backed CRAP, and coverage-backed refactoring safety.
+-  Analyze supplied reports directly without rerunning tests or installing
+-  tools. DO NOT USE FOR: requests with neither coverage evidence nor explicit
+-  coverage-collection intent, including hypothetical change-survival questions
+-  (use test-gap-analysis); CRAP or refactoring safety for one named target (use
+-  crap-score); or requests owned by test-tagging, find-untested-sources,
+-  test-anti-patterns, run-tests, or code-testing.
++  Analyzes .NET Cobertura line, branch, and condition evidence. Activation
++  requires supplied .NET coverage evidence (a report, percentages, or line,
++  branch, or condition metrics), an explicit request to collect .NET coverage
++  for analysis, or an explicit CRAP request. Use for coverage plateaus, target
++  arithmetic, project-wide CRAP/refactoring-risk hotspots, or a targeted CRAP
++  calculation on one exact method, class, or source file. A supplied report is
++  analyzed directly without rerunning tests, installing tools, or generating
++  reports. Project-wide requests rank complex, under-covered members; targeted
++  requests filter existing method rows and report only the requested scope. DO
++  NOT USE FOR: requests with none of that evidence or intent, including
++  hypothetical change-survival questions; behavioral/pseudo-mutation gaps,
++  test-code audits, writing tests, or running tests without coverage context.
  license: MIT
  ---
  
@@ -37,7 +37,7 @@ index ce5b480..931e22b 100644
  ## Purpose
  
  Explain what .NET coverage evidence proves, reconcile target arithmetic, and
-@@ -30,53 +25,70 @@ safety.
+@@ -27,53 +28,83 @@ safety.
  ## When to Use
  
  Use this skill for interpreting supplied .NET line/branch/condition evidence,
@@ -77,7 +77,8 @@ index ce5b480..931e22b 100644
  | Interpret a supplied Cobertura path or diagnose a plateau | Read that report, reconcile totals, name all material gaps, answer directly | Rerun tests, install tools, compute CRAP, or generate files unless explicitly requested |
 +| Compute CRAP for one exact method, class, or file | Resolve the Cobertura rows for that target and compute CRAP only for those rows | Project-wide hotspot ranking or report generation |
  | Rank risk hotspots, compute project-wide CRAP, or assess refactoring safety | Use the supplied/existing report, read `references/guidelines.md`, and compute CRAP before ranking | Coverage-only ranking or a full report template unless requested |
- | Analyze coverage when no report exists | Read `references/setup-discovery.md`; collect once using `references/test-execution.md` if safe | CRAP unless risk was requested |
+-| Analyze coverage when no report exists | Invoke `run-tests` to collect coverage with the repository-compatible runner, then analyze the generated report | Choose or execute a test command independently; CRAP unless risk was requested |
++| Analyze coverage when no report exists | Invoke `dotnet-test:run-tests` to collect Cobertura coverage with the repository-compatible runner, then analyze the generated report | Choose or execute a test command independently; CRAP unless risk was requested |
  | Produce a full markdown/HTML/CSV report | First deliver the direct answer; then read `references/output-format.md` or `references/report-generation.md` | Report generation before the answer |
  
  Words such as **analyze coverage**, **what is blocking coverage**, or **why is
@@ -89,13 +90,26 @@ index ce5b480..931e22b 100644
 +
 +When the user names one exact method, class, or source file, use supplied or
 +existing Cobertura data when available; otherwise follow the normal collection
-+path once. Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
++path once. Before using a report, verify that it parses, contains at least one
++class and method, and contains the requested target. An empty report, one that
++omits the target, or one whose covered counts exceed its valid counts is failed
++collection or filtering, not 0% coverage: regenerate coverage when possible,
++otherwise stop without publishing a CRAP score.
++
++Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
 +filter the returned rows by exact `Method`, exact `Class`, or normalized `File`
-+path. For each matching row calculate:
++path. A row with `ComplexityKnown: false` came from a Cobertura method with no
++`complexity` attribute, and its `Complexity` of 1 is a placeholder, not a
++measurement: count that method's decision points in the current source and label
++the result a manual count, or report its CRAP score as unavailable. For each
++matching row with a known or counted complexity, calculate:
 +
 +```text
 +CRAP(m) = complexity^2 * (1 - lineCoverage)^3 + complexity
 +```
++
++Here `lineCoverage` is a fraction: the row's `LineCoverage` percentage divided by
++100.
 +
 +If no row matches, report that the target is absent from the Cobertura data and
 +do not invent a score. Otherwise report only the selected rows, the formula
@@ -110,4 +124,161 @@ index ce5b480..931e22b 100644
  - Treat it as authoritative input and start there.
  - Do not discover the solution or test projects unless source mapping is necessary.
  - Do not run `dotnet test`, install ReportGenerator, add a coverage package, or
-   read `references/setup-discovery.md`, `references/test-execution.md`, or
+   read `references/setup-discovery.md` or `references/report-generation.md`.
+@@ -94,29 +125,31 @@ artifact.
+ 
+ ## Collection path
+ 
+ Use this path only when no usable coverage evidence exists and the user asked for
+ analysis that requires it.
+ 
+ 1. Read `references/setup-discovery.md`.
+ 2. Prefer existing Cobertura discovered under the requested root.
+-3. If none exists, invoke `run-tests` for repository overlay, platform, runner,
+-   and command selection, and have it collect Cobertura once per entry point.
++3. If none exists, invoke `dotnet-test:run-tests` for repository overlay, platform,
++   runner, and command selection, and have it collect Cobertura once per entry point.
+ 4. Analyze the resulting Cobertura. Compute CRAP only if risk analysis was
+    explicitly requested.
+ 
+ When the workspace contains the project/test manifests needed by this path,
+-perform discovery directly and delegate collection to `run-tests`. Do not ask
++perform discovery directly and delegate collection to `dotnet-test:run-tests`. Do not ask
+ the user to attach files or pre-run coverage that the current workspace lets
+ you inspect and generate.
+ 
+-Do not modify production code. Any incidental test-project change needed for
+-collection is owned by `run-tests`; include that change and its revert command
+-in the final analysis.
++Do not modify production code. Do not add coverage packages, change project
++manifests, or install global tools unless the user explicitly authorized
++dependency or tooling changes. If the repository lacks a usable coverage
++provider, report that exact prerequisite and the compatible command shape that
++`dotnet-test:run-tests` identified, then stop.
+ 
+ The automatic collection path is for SDK-style projects. For classic non-SDK or
+ `packages.config` projects, use only a repository-owned coverage command. If none
+ exists, stop and request Cobertura XML. Never migrate the project, inject an
+ SDK-style provider, create a wrapper project, or report substitute coverage from
+ another assembly.
+ 
+ ## Interpretation and arithmetic invariants
+diff --git a/references/setup-discovery.md b/references/setup-discovery.md
+index 220d6f3..2b74ef2 100644
+--- a/references/setup-discovery.md
++++ b/references/setup-discovery.md
+@@ -195,17 +195,17 @@ if ($testProjects.Count -eq 0) {
+ Write-Host "TEST_OUTPUT_ROOT:$testOutputRoot"
+ ```
+ 
+ - If `ENTRY_TYPE:NotFound` and SDK-style test projects were found → use the test projects directly as `dotnet test` entry points.
+ - If `ENTRY_TYPE:NotFound` and classic test projects were found → use only the repository's documented coverage command; do not infer `dotnet test`.
+ - If `ENTRY_TYPE:NotFound` and no test projects found → stop: `No .sln, .slnx, or test projects found under <path>. Provide the path to your .NET solution, filter, or project.`
+ - A missing/unreadable requested path, failed lookup, or ambiguous entry point is a discovery blocker, not measured zero coverage or evidence of an empty suite. Do not continue collection after a discovery error.
+ - Discovery is an inventory, not permission to expand collection scope. Pass the
+-  exact selected entry point to `run-tests` and collect only its requested
++  exact selected entry point to `dotnet-test:run-tests` and collect only its requested
+   project graph. Do not replace a selected `.csproj` or `.slnf` with every test
+   project found under the containing Git root. Apply the classic-project safety
+   rules below within that selected graph.
+ - Selected-entry arrays contain only the projects targeted by that entry:
+   solution members, filter members, or one explicit project. Transitive build
+   dependencies are not additional test-run targets. For a generated or
+   nonstandard entry graph that these formats cannot represent, stop and use
+   the repository's evaluated target inventory rather than scanning siblings.
+@@ -263,23 +263,23 @@ if ($coberturaFiles.Count -eq 0) {
+ }
+ 
+ Write-Host "EXISTING_COBERTURA_COUNT:$($coberturaFiles.Count)"
+ $coberturaFiles | ForEach-Object { Write-Host "EXISTING_COBERTURA:$($_.FullName)" }
+ ```
+ 
+ - If `EXISTING_COBERTURA_COUNT` > 0 → skip fresh collection and analyze these paths.
+ - If `EXISTING_COBERTURA_COUNT` == 0 and all test projects are SDK-style →
+-  invoke `run-tests` to select the repository-compatible platform/provider
+-  command and collect Cobertura.
++  invoke `dotnet-test:run-tests` to select the repository-compatible
++  platform/provider command and collect Cobertura.
+ - If `EXISTING_COBERTURA_COUNT` == 0 and only classic/packages.config projects
+   exist → use a repository-owned coverage command that emits Cobertura;
+   otherwise stop with the message above.
+ - If `EXISTING_COBERTURA_COUNT` == 0 and both classic and SDK-style projects
+-  exist → ask `run-tests` to collect only for `SDK_TEST_PROJECTS` and mark the
++  exist → ask `dotnet-test:run-tests` to collect only for `SDK_TEST_PROJECTS` and mark the
+   result partial until classic-project Cobertura is available.
+ 
+ ## Step 2c: Recommend ignoring `TestResults/`
+ 
+ ```powershell
+ $pattern = "**/TestResults/"
+ $gitRoot = (git -C $testOutputRoot rev-parse --show-toplevel 2>$null)
+ if ($gitRoot) { $gitRoot = [System.IO.Path]::GetFullPath($gitRoot) }
+diff --git a/scripts/Extract-MethodCoverage.ps1 b/scripts/Extract-MethodCoverage.ps1
+index 999a827..297ff38 100644
+--- a/scripts/Extract-MethodCoverage.ps1
++++ b/scripts/Extract-MethodCoverage.ps1
+@@ -19,17 +19,17 @@ Extract method-level coverage from Cobertura XML and output as JSON.
+ 
+ .DESCRIPTION
+ Parses one or more Cobertura code coverage XML files and extracts per-method coverage metrics:
+ - Method name and class
+ - Line coverage percentage
+ - Branch coverage percentage  
+ - Lines covered / total
+ - Branches covered / total
+-- Complexity (if available)
++- Complexity, with ComplexityKnown false when the method carries no complexity attribute
+ 
+ When multiple files are provided, line hits are merged across files so a line is counted
+ as covered if any test project covered it.
+ 
+ Filters by coverage status (uncovered, below threshold, or all).
+ Output is JSON for easy post-processing into tables, CSV, or other formats.
+ 
+ .PARAMETER CoberturaPath
+@@ -83,24 +83,26 @@ foreach ($p in $CoberturaPath) {
+         foreach ($class in $package.classes.class) {
+             $className = $class.name
+             $classFilename = $class.filename
+             
+             foreach ($method in $class.methods.method) {
+                 $key = "$className|$($method.name)|$($method.signature)|$classFilename"
+                 
+                 if (-not $methodMap.ContainsKey($key)) {
+-                    $complexity = if ($null -ne $method.complexity) { [int]$method.complexity } else { 1 }
++                    $complexityKnown = $null -ne $method.complexity
++                    $complexity = if ($complexityKnown) { [int]$method.complexity } else { 1 }
+                     if ($complexity -lt 1) { $complexity = 1 }
+                     $methodMap[$key] = @{
+                         Class          = $className
+                         Method         = $method.name
+                         Signature      = $method.signature
+                         File           = $classFilename
+                         Complexity     = $complexity
++                        ComplexityKnown = $complexityKnown
+                         LineHits       = @{}
+                         BranchData     = @{}
+                     }
+                 }
+ 
+                 # Accumulate line hits across files
+                 foreach ($line in $method.lines.line) {
+                     $lineNo = $line.number
+@@ -161,16 +163,17 @@ foreach ($entry in $methodMap.Values) {
+     }
+     
+     $methods.Add([PSCustomObject]@{
+         Class               = $entry.Class
+         Method              = $entry.Method
+         Signature           = $entry.Signature
+         File                = $entry.File
+         Complexity          = $entry.Complexity
++        ComplexityKnown     = $entry.ComplexityKnown
+         LineCoverage        = $lineCoveragePercent
+         BranchCoverage      = $branchCoveragePercent
+         CoveredLines        = $coveredLineCount
+         TotalLines          = $totalLines
+         UncoveredLines      = ($totalLines - $coveredLineCount)
+         CoveredBranches     = $branchesCovered
+         TotalBranches       = $branchesTotal
+     })

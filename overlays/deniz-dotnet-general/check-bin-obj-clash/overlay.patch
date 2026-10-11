@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 8d1007c..a1699be 100644
+index 48be612..7093fac 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -28,21 +28,21 @@ Clashes can occur between:
+@@ -28,17 +28,17 @@ Clashes can occur between:
  **Invoke this skill immediately when you see:**
  - `Cannot create a file when that file already exists` during NuGet restore
  - `The process cannot access the file because it is being used by another process`
@@ -12,40 +12,61 @@ index 8d1007c..a1699be 100644
  ## Step 1: Generate a Binary Log
  
 -Use the `binlog-generation` skill to generate a binary log with the correct naming convention.
-+Use the `dotnet-msbuild:binlog-generation` skill to generate a binary log with the correct naming convention.
++Follow the binlog-generation reference of the `dotnet:msbuild` skill to capture a binary log under an unused, explicit file name.
  
--## Primary workflow — binlog MCP
-+## Optional workflow — binlog MCP (when configured)
+ ## Primary workflow — binlog MCP
  
--The MCP server exposes structured tools for inspecting a `.binlog` without
-+If the binlog MCP server is configured in your environment, it exposes structured tools for inspecting a `.binlog` without
+ The MCP server exposes structured tools for inspecting a `.binlog` without
  parsing text logs. Call them directly instead of replaying the binlog to a text
  file. Call `tools/list` for the MCP first if you are unsure which tools are available.
  
  **Important constraints:**
- - The `.binlog` file is a **binary format** — do NOT try to `cat`, `head`, `strings`, or read it directly. Use only the MCP tools to query it.
- - **Synthesize findings as you go.** Do not spend all available time investigating — once you have enough evidence, present your conclusions.
+@@ -232,17 +232,17 @@ Either way this forks a distinct instance of the target project (`path` + `{_IsP
  
- ### Step 2: Get an overview and list projects
-@@ -66,19 +66,19 @@ Use the MCP double_writes tool if available — it directly detects files writte
- ### Step 6: Identify clashes
- 
- Compare the `OutputPath` and `IntermediateOutputPath` values across all evaluations:
- 1. **Normalize paths** - Convert to absolute paths and normalize separators
- 2. **Group by path** - Find evaluations that share the same OutputPath or IntermediateOutputPath
- 3. **Filter out non-build evaluations** - Exclude `BuildProjectReferences=false` instances (P2P queries)
- 4. **Report clashes** - Any group with more than one evaluation indicates a clash
- 
--## Fallback workflow — text-log replay (when MCP is unavailable)
-+## Portable workflow — text-log replay
- 
--Use this only when the MCP server cannot be started.
-+This works without any MCP server, on any machine with the .NET SDK.
- 
- Replay the binlog to a diagnostic text log, then grep for the same signals the MCP tools surface:
- 
- ```bash
- dotnet msbuild build.binlog -noconlog -fl -flp:v=diag;logfile=full.log
+ ```xml
+ <ItemGroup>
+   <ProjectReference Include="..\tool\tool.csproj" ReferenceOutputAssembly="false" />
+ </ItemGroup>
+ <!-- consumer reads tool's publish dir; it does NOT invoke Publish on tool -->
  ```
  
- Then extract the clash signals:
+-See the `msbuild-antipatterns` skill (AP-22) for the authoring-time smell and rationale.
++See AP-22 in the antipatterns references of the `dotnet:msbuild` skill for the authoring-time smell and rationale.
+ 
+ ### `SetTargetFramework` re-injecting a single-targeting project's own TFM on a `ProjectReference`
+ 
+ **Problem:** A `ProjectReference` sets `SetTargetFramework="TargetFramework=<tfm>"` metadata pointing at a **single-targeting** project (one that uses singular `<TargetFramework>`, not `<TargetFrameworks>`), where the injected `<tfm>` **equals the TFM the project already targets**. `SetTargetFramework` injects `TargetFramework` as a **global property** on the referenced project's build.
+ 
+ ```xml
+ <!-- BAD: Tool.csproj single-targets net8.0 and we inject that SAME net8.0 -->
+ <ProjectReference Include="..\Tool\Tool.csproj" SetTargetFramework="TargetFramework=net8.0" />
+@@ -277,17 +277,17 @@ Injecting the TFM the project already targets is **path-neutral** — the projec
+ 
+   ```xml
+   <ProjectReference Include="..\Tool\Tool.csproj"
+                     SkipGetTargetFrameworkProperties="true"
+                     UndefineProperties="TargetFramework"
+                     ReferenceOutputAssembly="false" />
+   ```
+ 
+-See the `msbuild-antipatterns` skill (AP-23) for the authoring-time smell and rationale.
++See AP-23 in the antipatterns references of the `dotnet:msbuild` skill for the authoring-time smell and rationale.
+ 
+ ## Tips
+ 
+ - The SDK default paths include `$(TargetFramework)` — clashes often occur when projects override these defaults; normalize relative paths to absolute before comparing.
+ - **Cross-project `IntermediateOutputPath` clashes cannot be fixed with `AppendTargetFrameworkToOutputPath`** — files like `project.assets.json` are written directly to the intermediate path. For multi-targeting clashes *within the same project*, `AppendTargetFrameworkToOutputPath=true` is the correct fix.
+ - Error messages that indicate a path clash: `Cannot create a file when that file already exists` (NuGet restore), `The process cannot access the file because it is being used by another process`, or intermittent failures that succeed on retry.
+ 
+ ### Global Properties to Check When Comparing Evaluations
+@@ -307,9 +307,9 @@ When multiple evaluations share an output path, compare these global properties
+ | `CurrentSolutionConfigurationContents` | No | XML with project entries — count of entries reveals which solution |
+ | `BuildProjectReferences` | No | `false` = P2P query, not a real build - ignore these |
+ | `MSBuildRestoreSessionId` | No | Present = restore phase evaluation |
+ | `PublishReadyToRun` | No | Publish setting, doesn't change build output path but creates distinct project instances |
+ | `_IsPublishing` | No | Publish flag; an `<MSBuild>` Build/Publish call with this set (in this project or another that consumes it) forks a publish instance sharing the build output path (see "Explicit `<MSBuild>` Build/Publish with extra global properties") |
+ 
+ ## Testing Fixes
+ 
+-After making changes to fix path clashes, clean and rebuild to verify. See the `binlog-generation` skill's "Cleaning the Repository" section on how to clean the repository while preserving binlog files.
++After making changes to fix path clashes, clean and rebuild to verify. Preserve existing binlog files during that cleanup, as the binlog-generation reference of the `dotnet:msbuild` skill describes.

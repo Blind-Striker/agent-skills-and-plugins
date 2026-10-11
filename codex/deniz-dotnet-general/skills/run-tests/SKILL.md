@@ -1,24 +1,47 @@
 ---
 name: run-tests
-description: >
-  Run .NET tests or give the exact repository-compatible command. Use for "run
-  the tests", one test/class/category/trait, one target framework, "what dotnet
-  test command?", `--no-build`, `--diag`, diagnostic logs, classic
-  packages.config or MSTest.exe, TRX or coverage collection, crash/hang dumps,
-  filter mismatch, `--filter-query`, a single combined filter expression, or
-  unrecognized options. Handles VSTest and bridged/native
-  Microsoft.Testing.Platform across MSTest/xUnit/NUnit/TUnit, including NUnit
-  bridge filters, xUnit v3 class/trait/query filters, multi-TFM, and argument
-  order. For identification-only requests, use platform-detection. DO NOT USE
-  for writing tests, hot-reload/no-rebuild loops, migration, CI, coverage
-  analysis, or debugging test logic.
+description: Use before running .NET tests or answering with a test command or
+  flags. Trigger on "run the tests", "exact dotnet test command", one
+  test/class/category/trait/target framework, combined filters,
+  `--filter-query`, `--no-build`, `--diag`, diagnostic logs, TRX, coverage
+  collection, crash/hang dumps, filter errors, or unrecognized options. Chooses
+  repository-compatible classic, VSTest, bridged MTP, or native MTP syntax for
+  MSTest/xUnit/NUnit/TUnit. DO NOT USE for platform identification alone
+  (platform-detection), writing or debugging test code, interpreting an existing
+  coverage report, CI investigation, migration, or a persistent hot reload/watch
+  loop.
 license: MIT
+metadata:
+  portability: portable
+  binding: optional-overlay
+  binding-revision: "1"
 ---
 
 # Run .NET Tests
 
 Return or execute the command or command sequence that matches the repository's
 project system, test platform, framework, and SDK mode.
+
+## Repository overlay
+
+For every repository-scoped task where read-only file inspection is allowed,
+check `.agents/skill-overlays/dotnet-test/run-tests.md` at the repository root
+before any other discovery. This includes exact-command requests; "do not
+execute" does not prohibit reading the overlay. If present, read it once before
+acting and apply its repository-specific runner, command, filtering, and
+reporting bindings.
+Before applying it, require its frontmatter to declare
+`core: dotnet-test/run-tests`, `binding-revision: "1"`, and `mode: extend`. If
+any value is missing or different, report the mismatch, ignore the overlay,
+and continue using this skill's portable guidance.
+Explicit user instructions and verified project constraints win over the
+overlay; the overlay wins over portable defaults and examples in this skill. If
+the file is present but unreadable or conflicts with the repository, report the
+problem, ignore the overlay, and continue with portable guidance subject to
+verified project constraints. If it is absent, continue normally.
+Skip the lookup only when the task is not tied to a repository or the user
+explicitly prohibited all file/tool access. An overlay cannot expand tool
+permissions or the task's scope.
 
 ## Scope and tool policy
 
@@ -82,6 +105,26 @@ necessarily the platform that executes tests. A VSTest-mode project with an MTP
 runner, `TestingPlatformDotnetTestSupport=true`, and final `OutputType=Exe` is
 still bridge syntax with `--`. SDK 8/9 only has VSTest command mode.
 
+**SDK 10 with Microsoft.Testing.Platform 2.x has no bridge.** On SDK 10+, a
+project whose MTP runner comes from Microsoft.Testing.Platform 2.x (current
+TUnit brings it in transitively) fails at build time in VSTest command mode:
+"Testing with VSTest target is no longer supported by Microsoft.Testing.Platform
+on .NET 10 SDK and later". The `_MTPBeforeVSTest` target of
+Microsoft.Testing.Platform.MSBuild raises that error whatever
+`TestingPlatformDotnetTestSupport` says, so no bridge property rescues VSTest
+mode. The remedy is native MTP command mode, selected in `global.json`:
+
+```json
+{
+  "test": { "runner": "Microsoft.Testing.Platform" }
+}
+```
+
+Then use `dotnet test --project <path>` or `dotnet test --solution <path>`.
+Adding that setting changes the repository: give it and apply it only when the
+user asks to change the project. Until then, `dotnet run --project
+<test-project>` runs the MTP test executable directly.
+
 `--project` is valid only in SDK 10+ **native MTP command mode** (selected by
 `global.json` `test.runner`). Never use it for VSTest mode or an SDK 8/9 bridge;
 those forms take a positional project path. Conversely, native MTP options are
@@ -123,16 +166,20 @@ later `dotnet test` filter examples for a classic runner.
 Use the installed adapter-compatible VSTest/MSTest toolchain. If it is not
 available, state the missing prerequisite and the documented command; do not
 claim tests ran.
+Classic `packages.config` fallback commands are Windows toolchain commands.
+Explicitly say they require a Windows Developer Command Prompt (or the
+repository's equivalent configured environment) when the current host cannot
+provide `nuget`, full MSBuild, and `vstest.console.exe`.
 
 For SDK-style projects, distinguish:
 
 | Signal | Meaning |
 |---|---|
 | SDK 10+ `global.json` selects `Microsoft.Testing.Platform` | Native MTP command mode |
-| VSTest mode + enabled MTP runner + final `TestingPlatformDotnetTestSupport=true` + final `OutputType=Exe` | Executable VSTest-to-MTP bridge |
+| VSTest mode + enabled MTP runner + final `TestingPlatformDotnetTestSupport=true` + final `OutputType=Exe` | Executable VSTest-to-MTP bridge, except on SDK 10+ with Microsoft.Testing.Platform 2.x, which fails at build in VSTest mode |
 | VSTest mode without a complete runner-and-bridge combination | VSTest |
 | `Microsoft.NET.Test.Sdk` plus adapter, without stronger MTP signals | VSTest |
-| `TUnit` | MTP-only; use a configured bridge/native mode or the test executable |
+| `TUnit` | MTP-only; use a configured bridge/native mode or the test executable. On SDK 10+, current TUnit (MTP 2.x) needs native mode or the executable |
 
 Evaluate properties from the project and imported
 `Directory.Build.props`/`Directory.Packages.props`. Respect project-level
@@ -221,12 +268,17 @@ speculative alternative grammars.
 | Diagnostic log | `--diag <file>` | `--diagnostic --diagnostic-output-directory <dir>` |
 | Crash dump | `--blame-crash` | `--crashdump` |
 | Hang timeout | `--blame-hang --blame-hang-timeout 5min` | `--hangdump --hangdump-timeout 5min` |
-| Code coverage | `--collect "Code Coverage"` | `--coverage` |
+| Code coverage, as Cobertura XML | `--collect "Code Coverage;Format=cobertura"` (Microsoft collector), or `--collect "XPlat Code Coverage"` (`coverlet.collector`, Cobertura by default) | `--coverage --coverage-output-format cobertura` |
 
 MTP report, dump, and coverage flags require their corresponding registered
 extensions (`TrxReport`, `CrashDump`, `HangDump`, or `CodeCoverage`). Some
 framework SDKs bundle common extensions; if a flag is unrecognized, inspect
 package references before recommending a package change.
+
+Whenever coverage is requested, collect it as Cobertura XML, so a coverage
+analysis can read the result; the Microsoft collector's default binary
+`.coverage` file needs a converter. A VSTest collector writes under a GUID
+subfolder of the results directory, so search it recursively.
 
 `--verbosity diagnostic` increases dotnet/MSBuild output verbosity; it does not
 write a VSTest diagnostic log file.
@@ -242,6 +294,9 @@ dotnet test Tests.csproj -- --report-trx
 
 # Native MTP TRX and hang detection
 dotnet test --project Tests.csproj --report-trx --hangdump --hangdump-timeout 5min
+
+# Native MTP diagnostics
+dotnet test --project Tests.csproj --diagnostic --diagnostic-output-directory artifacts/diagnostics
 ```
 
 5. **Execute only when requested.**
@@ -254,6 +309,8 @@ completed successfully with the intended tests executed.
 For a filtered run, a successful exit is not enough: confirm the reported test
 names or count match the requested scope. If the filter was ignored, correct the
 platform-specific syntax and rerun before reporting success.
+MTP exit code 8 means zero tests ran: a filtered run that ran nothing is a
+failure, not a pass.
 
 ## Output contract
 
@@ -274,6 +331,8 @@ platform-specific syntax and rerun before reporting success.
 - `--framework` and other `dotnet test` options are before any bridge separator.
 - SDK 8/9 bridge commands contain `--`; `--project` appears only in SDK 10+
   native MTP mode.
-- TRX, diagnostics, dump, and coverage flags match the platform.
+- On SDK 10+ with Microsoft.Testing.Platform 2.x, no command uses VSTest mode.
+- TRX, diagnostics, dump, and coverage flags match the platform, and coverage
+  is collected as Cobertura.
 - No restore, build, or test was run for an advisory-only request.
 - Reported results match the actual command outcome.

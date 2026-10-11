@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index e88cd17..921a61d 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -206,17 +206,17 @@ Delete `Properties\AssemblyInfo.cs` — the SDK auto-generates assembly attribut
+ </ItemGroup>
+ ```
+ 
+ Delete `packages.config` after migration.
+ 
+ **Migration options:**
+ 
+ - **Visual Studio:** right-click `packages.config` → *Migrate packages.config to PackageReference*
+-- **CLI:** `dotnet migrate-packages-config` or manual conversion
++- **Manual:** without Visual Studio, convert each `packages.config` entry to a `<PackageReference>` by hand, as shown above; the .NET CLI has no `migrate-packages-config` command
+ - **Binding redirects:** SDK-style projects auto-generate binding redirects — remove the `<runtime>` section from `app.config` if present
+ 
+ ### Step 6: Remove Unnecessary Boilerplate
+ 
+ Delete all of the following — the SDK provides sensible defaults:
+ 
+ ```xml
+ <!-- DELETE: SDK imports (replaced by Sdk attribute) -->

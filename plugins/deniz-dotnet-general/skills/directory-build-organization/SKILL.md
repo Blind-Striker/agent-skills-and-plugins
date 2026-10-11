@@ -1,22 +1,39 @@
 ---
 name: directory-build-organization
-description: "Guide for organizing MSBuild infrastructure with
-  Directory.Build.props, Directory.Build.targets, Directory.Packages.props, and
-  Directory.Build.rsp. USE FOR: structuring multi-project repos, centralizing
-  build settings, implementing NuGet Central Package Management (CPM) with
-  ManagePackageVersionsCentrally, consolidating duplicated properties across
-  .csproj files, setting up multi-level Directory.Build hierarchy with
-  GetPathOfFileAbove, understanding evaluation order (Directory.Build.props →
-  SDK .props → .csproj → SDK .targets → Directory.Build.targets). Critical
-  pitfall: $(TargetFramework) conditions in .props silently fail for
-  single-targeting projects — must use .targets. DO NOT USE FOR: non-MSBuild
-  build systems, migrating legacy projects to SDK-style (use
-  msbuild-modernization), single-project solutions with no shared settings."
+description: USE ONLY for (1) two or more projects with repeated MSBuild policy,
+  targets, or package versions, or (2) an existing
+  Directory.Build.props/targets/rsp hierarchy with an import, placement, or
+  layering defect. A one-project repo without an existing Directory.Build file
+  is outside scope; do not load this skill. Covers centralizing shared policy
+  and targets, Directory.Packages.props across projects, parent hierarchy/import
+  structure, props-versus-targets placement, and folder/project exceptions. An
+  existing hierarchy defect remains in scope when only one project is affected.
+  For property value or condition semantics use property-patterns. Exclude
+  legacy-to-SDK migration and non-MSBuild systems.
 license: MIT
 user-invocable: false
 ---
 
 # Organizing Build Infrastructure with Directory.Build Files
+
+## Intent control
+
+- For "should we", "how should we organize", "recommend", "advise", or review
+  requests, inspect the actual project files and return a proposed layout only.
+  Do not create or edit files unless the user explicitly asks to apply, move,
+  centralize, or clean up the configuration.
+- Before summarizing, verify which project retains each project-specific
+  property, item, or target. Name the actual file; do not infer it from sibling
+  names.
+- Recommend a verification command only after discovering a real `.sln`,
+  `.slnx`, `.proj`, or project file at that path. If no repo-root entry point
+  exists, give commands for the discovered projects or state that the entry
+  point was not found.
+- Every advice response must explain that `Microsoft.Common.props` searches
+  upward from each project and automatically imports the nearest
+  `Directory.Build.props` early; project values can then override shared
+  defaults. Explain the equivalent late `Microsoft.Common.targets` import when
+  recommending `Directory.Build.targets`.
 
 ## Directory.Build.props vs Directory.Build.targets
 
@@ -25,7 +42,9 @@ Understanding which file to use is critical. They differ in **when** they are im
 **Evaluation order:**
 
 ```
-Directory.Build.props → SDK .props → YourProject.csproj → SDK .targets → Directory.Build.targets
+Microsoft.Common.props imports Directory.Build.props early
+→ project body and package/project imports evaluate
+→ Microsoft.Common.targets imports Directory.Build.targets late
 ```
 
 | Use `.props` for | Use `.targets` for |
@@ -162,10 +181,15 @@ Set `<ArtifactsPath>$(MSBuildThisFileDirectory)artifacts</ArtifactsPath>` in `Di
 1. **Audit all `.csproj` files** — Catalog every `<PropertyGroup>`, `<ItemGroup>`, and custom `<Target>` across the solution. Note which settings repeat and which are project-specific.
 2. **Create root `Directory.Build.props`** — Move shared property defaults (LangVersion, Nullable, TreatWarningsAsErrors, metadata) here. These are imported before the project file so projects can override them.
 3. **Create root `Directory.Build.targets`** — Move custom build targets, post-build validation, and any properties that depend on SDK-defined values (e.g., `OutputPath`, `TargetFramework` for single-targeting projects) here. These are imported after the SDK so all properties are available.
-4. **Create `Directory.Packages.props`** — Enable Central Package Management (`ManagePackageVersionsCentrally`), list all `PackageVersion` entries, and remove `Version=` from `PackageReference` items in `.csproj` files.
+4. **Leave package versions to the CPM ceremony** — Do not convert the repository to Central Package Management here. That conversion is the manual `/deniz-dotnet-general:convert-to-cpm` ceremony: tell the user to invoke it, and continue with the other steps. An existing `Directory.Packages.props` stays in scope for its placement and layering.
 5. **Set up multi-level hierarchy** — Create inner `Directory.Build.props` files for `src/` and `test/` folders with distinct settings. Use `GetPathOfFileAbove` to chain to the parent.
-6. **Simplify `.csproj` files** — Remove all centralized properties, version attributes, and duplicated targets. Each project should only contain what is unique to it.
-7. **Validate** — Run `dotnet restore && dotnet build` and verify no regressions. Use `dotnet msbuild -pp:output.xml` to inspect the final merged view if needed.
+6. **Simplify `.csproj` files** — Remove all centralized properties and duplicated targets. Leave `Version=` attributes to the CPM ceremony. Each project should only contain what is unique to it.
+7. **Validate** — Run restore/build against the discovered `.sln`, `.slnx`,
+   `.proj`, or project path, for example
+   `dotnet restore <entrypoint> && dotnet build <entrypoint>`. If no root
+   entrypoint exists, validate each discovered project explicitly instead of
+   claiming a repo-root build. Use
+   `dotnet msbuild <project> -pp:output.xml` to inspect the final merged view.
 
 ## Troubleshooting
 

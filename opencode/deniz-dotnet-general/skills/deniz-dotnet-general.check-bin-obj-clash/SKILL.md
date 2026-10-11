@@ -42,11 +42,11 @@ Clashes can occur between:
 
 ## Step 1: Generate a Binary Log
 
-Use the `deniz-dotnet-general.binlog-generation` skill to generate a binary log with the correct naming convention.
+Follow the binlog-generation reference of the `deniz-dotnet-general.msbuild` skill to capture a binary log under an unused, explicit file name.
 
-## Optional workflow — binlog MCP (when configured)
+## Primary workflow — binlog MCP
 
-If the binlog MCP server is configured in your environment, it exposes structured tools for inspecting a `.binlog` without
+The MCP server exposes structured tools for inspecting a `.binlog` without
 parsing text logs. Call them directly instead of replaying the binlog to a text
 file. Call `tools/list` for the MCP first if you are unsure which tools are available.
 
@@ -80,14 +80,14 @@ Compare the `OutputPath` and `IntermediateOutputPath` values across all evaluati
 3. **Filter out non-build evaluations** - Exclude `BuildProjectReferences=false` instances (P2P queries)
 4. **Report clashes** - Any group with more than one evaluation indicates a clash
 
-## Portable workflow — text-log replay
+## Fallback workflow — text-log replay (when MCP is unavailable)
 
-This works without any MCP server, on any machine with the .NET SDK.
+Use this only when the MCP server cannot be started.
 
 Replay the binlog to a diagnostic text log, then grep for the same signals the MCP tools surface:
 
 ```bash
-dotnet msbuild build.binlog -noconlog -fl -flp:v=diag;logfile=full.log
+dotnet msbuild build.binlog -noconlog -fl "-flp:v=diag;logfile=full.log"
 ```
 
 Then extract the clash signals:
@@ -246,7 +246,7 @@ Either way this forks a distinct instance of the target project (`path` + `{_IsP
 <!-- consumer reads tool's publish dir; it does NOT invoke Publish on tool -->
 ```
 
-See the `msbuild-antipatterns` skill (AP-22) for the authoring-time smell and rationale.
+See AP-22 in the antipatterns references of the `deniz-dotnet-general.msbuild` skill for the authoring-time smell and rationale.
 
 ### `SetTargetFramework` re-injecting a single-targeting project's own TFM on a `ProjectReference`
 
@@ -291,7 +291,7 @@ Injecting the TFM the project already targets is **path-neutral** — the projec
                     ReferenceOutputAssembly="false" />
   ```
 
-See the `msbuild-antipatterns` skill (AP-23) for the authoring-time smell and rationale.
+See AP-23 in the antipatterns references of the `deniz-dotnet-general.msbuild` skill for the authoring-time smell and rationale.
 
 ## Tips
 
@@ -321,4 +321,4 @@ When multiple evaluations share an output path, compare these global properties 
 
 ## Testing Fixes
 
-After making changes to fix path clashes, clean and rebuild to verify. See the `binlog-generation` skill's "Cleaning the Repository" section on how to clean the repository while preserving binlog files.
+After making changes to fix path clashes, clean and rebuild to verify. Preserve existing binlog files during that cleanup, as the binlog-generation reference of the `deniz-dotnet-general.msbuild` skill describes.

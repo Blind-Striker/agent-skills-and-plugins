@@ -1,0 +1,6 @@
+interface:
+  display_name: "Code Testing"
+  short_description: "Write or strengthen unit tests for existing code."
+  default_prompt: "Use $deniz-dotnet-general:code-testing for this task."
+policy:
+  allow_implicit_invocation: false

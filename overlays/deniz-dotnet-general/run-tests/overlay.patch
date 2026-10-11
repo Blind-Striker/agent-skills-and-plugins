@@ -1,8 +1,24 @@
 diff --git a/SKILL.md b/SKILL.md
-index 0dcb1d2..57a54f5 100644
+index f77df06..bf16e8a 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -27,17 +27,17 @@ Choose the smallest path that satisfies the request:
+@@ -1,13 +1,13 @@
+ ---
+ name: run-tests
+ description: >-
+-  ALWAYS USE before running .NET tests or answering with a test command or
+-  flags. Trigger on "run the tests", "exact dotnet test command", one
++  Use before running .NET tests or answering with a test command or flags.
++  Trigger on "run the tests", "exact dotnet test command", one
+   test/class/category/trait/target framework, combined filters,
+   `--filter-query`, `--no-build`, `--diag`, diagnostic logs, TRX, coverage
+   collection, crash/hang dumps, filter errors, or unrecognized options. Chooses
+   repository-compatible classic, VSTest, bridged MTP, or native MTP syntax for
+   MSTest/xUnit/NUnit/TUnit. DO NOT USE for platform identification alone
+   (platform-detection), writing or debugging test code, interpreting an
+   existing coverage report, CI investigation, migration, or a persistent hot
+   reload/watch loop.
+@@ -51,17 +51,17 @@ Choose the smallest path that satisfies the request:
  | Request | Action |
  |---|---|
  | Exact command or explanation; user says not to run | Inspect only the files needed to resolve syntax. Do not restore, build, or run tests. |
@@ -11,7 +27,7 @@ index 0dcb1d2..57a54f5 100644
  | One-time classic run without rebuilding | Keep the repository runner and invoke it against an existing built assembly; do not substitute `dotnet test`. |
  | Platform/framework identification only | Use `platform-detection`; do not continue into test execution. |
  | Explicit hot reload or a keep-running edit/re-run loop | Use `mtp-hot-reload`. |
--| Filter needed and the framework-specific syntax is not already clear | Load `filter-syntax`; do not load it for unfiltered runs. |
+-| Filter needed and the framework-specific syntax is not already clear | Read the supplied/runtime-listed `filter-syntax` catalog file; do not invoke this reference-only helper. |
 +| Filter needed and the framework-specific syntax is not already clear | Load `dotnet-test:filter-syntax`; do not load it for unfiltered runs. |
  
  Do not invoke a tool merely to repeat a command already determined by the
@@ -21,7 +37,7 @@ index 0dcb1d2..57a54f5 100644
  placeholder paths, exploratory alternatives, or a correction sequence. Use a
  project path only when the prompt or repository establishes it; otherwise let
  the command operate on the current project or solution when that syntax is
-@@ -55,17 +55,17 @@ arguments must follow `--`.
+@@ -79,17 +79,17 @@ arguments must follow `--`.
  - Requested output: console result, TRX, diagnostics, crash dump, or hang dump
  
  When those facts are present in the prompt, use them. Otherwise inspect only the
@@ -40,7 +56,67 @@ index 0dcb1d2..57a54f5 100644
  resolved. Route identification-only requests to `platform-detection`.
  
  ## Decision table
-@@ -164,17 +164,17 @@ only when needed to translate a human label such as "integration" or "smoke"
+@@ -101,16 +101,36 @@ resolved. Route identification-only requests to `platform-detection`.
+ | VSTest mode / executable MTP bridge | `dotnet test [<path>] [DOTNET_OPTIONS] -- [MTP_OPTIONS]` | Omitting the `--` separator, including on SDK 10 |
+ | Native MTP mode, SDK 10+ | `dotnet test --project <path> [DOTNET_OPTIONS] [MTP_OPTIONS]` | Bare positional project paths or the bridge separator |
+ 
+ `global.json` controls the `dotnet test` command mode on SDK 10+, not
+ necessarily the platform that executes tests. A VSTest-mode project with an MTP
+ runner, `TestingPlatformDotnetTestSupport=true`, and final `OutputType=Exe` is
+ still bridge syntax with `--`. SDK 8/9 only has VSTest command mode.
+ 
++**SDK 10 with Microsoft.Testing.Platform 2.x has no bridge.** On SDK 10+, a
++project whose MTP runner comes from Microsoft.Testing.Platform 2.x (current
++TUnit brings it in transitively) fails at build time in VSTest command mode:
++"Testing with VSTest target is no longer supported by Microsoft.Testing.Platform
++on .NET 10 SDK and later". The `_MTPBeforeVSTest` target of
++Microsoft.Testing.Platform.MSBuild raises that error whatever
++`TestingPlatformDotnetTestSupport` says, so no bridge property rescues VSTest
++mode. The remedy is native MTP command mode, selected in `global.json`:
++
++```json
++{
++  "test": { "runner": "Microsoft.Testing.Platform" }
++}
++```
++
++Then use `dotnet test --project <path>` or `dotnet test --solution <path>`.
++Adding that setting changes the repository: give it and apply it only when the
++user asks to change the project. Until then, `dotnet run --project
++<test-project>` runs the MTP test executable directly.
++
+ `--project` is valid only in SDK 10+ **native MTP command mode** (selected by
+ `global.json` `test.runner`). Never use it for VSTest mode or an SDK 8/9 bridge;
+ those forms take a positional project path. Conversely, native MTP options are
+ direct arguments and must not be placed after a bridge separator.
+ 
+ Keep `dotnet test`/MSBuild options such as `--framework`, `--configuration`,
+ `--no-build`, and `--verbosity` before `--`. Put only MTP application arguments
+ after `--` in bridge mode.
+@@ -152,20 +172,20 @@ Explicitly say they require a Windows Developer Command Prompt (or the
+ repository's equivalent configured environment) when the current host cannot
+ provide `nuget`, full MSBuild, and `vstest.console.exe`.
+ 
+ For SDK-style projects, distinguish:
+ 
+ | Signal | Meaning |
+ |---|---|
+ | SDK 10+ `global.json` selects `Microsoft.Testing.Platform` | Native MTP command mode |
+-| VSTest mode + enabled MTP runner + final `TestingPlatformDotnetTestSupport=true` + final `OutputType=Exe` | Executable VSTest-to-MTP bridge |
++| VSTest mode + enabled MTP runner + final `TestingPlatformDotnetTestSupport=true` + final `OutputType=Exe` | Executable VSTest-to-MTP bridge, except on SDK 10+ with Microsoft.Testing.Platform 2.x, which fails at build in VSTest mode |
+ | VSTest mode without a complete runner-and-bridge combination | VSTest |
+ | `Microsoft.NET.Test.Sdk` plus adapter, without stronger MTP signals | VSTest |
+-| `TUnit` | MTP-only; use a configured bridge/native mode or the test executable |
++| `TUnit` | MTP-only; use a configured bridge/native mode or the test executable. On SDK 10+, current TUnit (MTP 2.x) needs native mode or the executable |
+ 
+ Evaluate properties from the project and imported
+ `Directory.Build.props`/`Directory.Packages.props`. Respect project-level
+ overrides and per-target-framework conditions. A runner and bridge without an
+ executable final output are an incomplete MTP configuration, not a usable
+ bridge.
+ 
+ 2. **Select the command and requested scope.**
+@@ -192,19 +212,18 @@ only when needed to translate a human label such as "integration" or "smoke"
  into the framework's actual category/trait name.
  
  When a VSTest class filter must distinguish similarly named classes, combine
@@ -49,9 +125,11 @@ index 0dcb1d2..57a54f5 100644
  
  3. **Apply platform- and framework-correct filters.**
  
--Load `filter-syntax` only when the request is filtered and the framework-specific
+-Read the supplied or runtime-listed `filter-syntax` file only when the request
+-is filtered and framework-specific syntax is unclear. It is reference-only,
+-not an invocable skill; otherwise use the common decisions below:
 +Load `dotnet-test:filter-syntax` only when the request is filtered and the framework-specific
- syntax is not already clear. The common decisions are:
++syntax is not already clear. The common decisions are:
  
  For a file-backed filtered request, resolve the framework and SDK command mode
  from the project, `global.json`, and imported props before choosing syntax.
@@ -59,3 +137,68 @@ index 0dcb1d2..57a54f5 100644
  framework name.
  
  | Platform / framework | Filter |
+ |---|---|
+@@ -245,23 +264,28 @@ speculative alternative grammars.
+ 
+ | Outcome | VSTest | MTP |
+ |---|---|---|
+ | TRX | SDK-style: `--logger "trx;LogFileName=<name>.trx"` when an exact output file is requested, otherwise `--logger trx`; standalone `vstest.console.exe`: `/Logger:trx`; `MSTest.exe`: repository-documented results option | `--report-trx` |
+ | Results directory | `--results-directory <dir>` | `--results-directory <dir>` |
+ | Diagnostic log | `--diag <file>` | `--diagnostic --diagnostic-output-directory <dir>` |
+ | Crash dump | `--blame-crash` | `--crashdump` |
+ | Hang timeout | `--blame-hang --blame-hang-timeout 5min` | `--hangdump --hangdump-timeout 5min` |
+-| Code coverage | `--collect "Code Coverage"` | `--coverage` |
++| Code coverage, as Cobertura XML | `--collect "Code Coverage;Format=cobertura"` (Microsoft collector), or `--collect "XPlat Code Coverage"` (`coverlet.collector`, Cobertura by default) | `--coverage --coverage-output-format cobertura` |
+ 
+ MTP report, dump, and coverage flags require their corresponding registered
+ extensions (`TrxReport`, `CrashDump`, `HangDump`, or `CodeCoverage`). Some
+ framework SDKs bundle common extensions; if a flag is unrecognized, inspect
+ package references before recommending a package change.
+ 
++Whenever coverage is requested, collect it as Cobertura XML, so a coverage
++analysis can read the result; the Microsoft collector's default binary
++`.coverage` file needs a converter. A VSTest collector writes under a GUID
++subfolder of the results directory, so search it recursively.
++
+ `--verbosity diagnostic` increases dotnet/MSBuild output verbosity; it does not
+ write a VSTest diagnostic log file.
+ 
+ Examples:
+ 
+ ```shell
+ # VSTest TRX
+ dotnet test Tests.csproj --logger "trx;LogFileName=TestResults.trx"
+@@ -281,16 +305,18 @@ dotnet test --project Tests.csproj --diagnostic --diagnostic-output-directory ar
+ Run the narrowest command or sequence that answers the request. Capture each
+ command, exit code, and test summary. A failed restore/build is not a test
+ failure, and a test failure is not a tool failure. Report which phase failed and
+ include the actionable diagnostic. Never claim a clean run unless the sequence
+ completed successfully with the intended tests executed.
+ For a filtered run, a successful exit is not enough: confirm the reported test
+ names or count match the requested scope. If the filter was ignored, correct the
+ platform-specific syntax and rerun before reporting success.
++MTP exit code 8 means zero tests ran: a filtered run that ran nothing is a
++failure, not a pass.
+ 
+ ## Output contract
+ 
+ - Command-only request: lead with the exact command or command sequence, then
+   one short syntax explanation.
+ - Execution request: report the exact command or command sequence and
+   a literal `Passed: N, Failed: N, Skipped: N` summary from the completed run;
+   include the first actionable failure.
+@@ -301,11 +327,13 @@ platform-specific syntax and rerun before reporting success.
+ 
+ ## Validation
+ 
+ - The command matches classic, VSTest, bridged MTP, or native MTP mode.
+ - The framework-specific filter targets the requested subset.
+ - `--framework` and other `dotnet test` options are before any bridge separator.
+ - SDK 8/9 bridge commands contain `--`; `--project` appears only in SDK 10+
+   native MTP mode.
+-- TRX, diagnostics, dump, and coverage flags match the platform.
++- On SDK 10+ with Microsoft.Testing.Platform 2.x, no command uses VSTest mode.
++- TRX, diagnostics, dump, and coverage flags match the platform, and coverage
++  is collected as Cobertura.
+ - No restore, build, or test was run for an advisory-only request.
+ - Reported results match the actual command outcome.

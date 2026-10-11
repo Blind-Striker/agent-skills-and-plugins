@@ -1,0 +1,184 @@
+diff --git a/SKILL.md b/SKILL.md
+index 81347bd..ada1e09 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -4,16 +4,18 @@ description: "Use only for MSBuild failure investigation, build-performance anal
+ license: MIT
+ ---
+ 
+ # MSBuild troubleshooting
+ 
+ This is the entry skill. Choose **troubleshooting**, **performance**, or **authoring review**, then
+ read only the relevant local references. The references retain the content and identities of
+ the original MSBuild skills, with correctness fixes; they are not separate skills to activate.
++Eight narrow MSBuild specialists stay separate skills; the routing rows below name each one, and
++when a row matches, load that skill instead of answering from a reference.
+ 
+ ## Start with the task and evidence
+ 
+ For tasks that need a checkout, discover the relevant project/solution, shared build files, SDK
+ selection, and repository build instructions in the current workspace. Preserve the original command, working directory,
+ configuration, target framework, runtime identifier, global properties, and target.
+ Ask only for consequential information that cannot be discovered.
+ 
+@@ -32,16 +34,18 @@ an MSBuild failure.
+ 
+ | Situation | Read | Action |
+ | --- | --- | --- |
+ | A build failed and a binary log exists | [binlog-failure-analysis](references/binlog-failure-analysis.md) | Replay the log with MSBuild; connect errors to the responsible project instance, target, and task. Separate root causes from cascading failures. |
+ | The failure needs evidence and no matching log exists | [binlog-generation](references/binlog-generation.md), then [failure analysis](references/binlog-failure-analysis.md) | Capture the original invocation once, verify the artifact, and analyze it. |
+ | A project/build file has incorrect conditions, items, properties, or output paths | [msbuild-antipatterns](references/msbuild-antipatterns.md) | Select the relevant catalog entries and check their exceptions before changing anything. |
+ | Imports or build hooks are missing, overwritten, or run in the wrong order | [extension-points](references/extension-points.md) | Inspect the import contract, discovery order, and packed NuGet layout rather than hiding a required failure. |
+ | Outputs are stale or required work is skipped | [incremental-build](references/incremental-build.md) | Prove which input, output, timestamp, item, or condition makes the decision wrong. Correctness takes priority over speed. |
++| "Cannot create a file when that file already exists", "being used by another process", failures that pass on retry, or overwritten outputs across projects, TFMs, or RIDs | Load the `dotnet-msbuild:check-bin-obj-clash` skill | Find the project instances that share an `OutputPath` or `IntermediateOutputPath` before changing any path. |
++| A generated file is missing from compilation or output | Load the `dotnet-msbuild:including-generated-files` skill | Check target timing and evaluation-time globs before adding items. |
+ 
+ After a repair, rerun the original failing scenario and check affected dependents. If only a log
+ is available, provide an evidence-backed proposed fix and say it was not applied or rebuilt.
+ Do not turn a targeted failure investigation into solution-wide authoring cleanup.
+ 
+ ## 2. Diagnose and improve build performance
+ 
+ **Goal:** measure the reported scenario, identify its bottleneck, change one cause, and compare
+@@ -57,45 +61,55 @@ equivalent builds without losing required behavior.
+ 
+ | Situation | Read | Keep distinct |
+ | --- | --- | --- |
+ | No trustworthy before/after measurements, or a baseline/controlled optimization is requested | [build-perf-baseline](references/build-perf-baseline.md) | Cold-output, warm changed-input, and no-change builds; restore/cache state; ordinary Build versus forced Rebuild. |
+ | The expensive work is not yet identified, or compiler/analyzer/reference/restore time dominates | [build-perf-diagnostics](references/build-perf-diagnostics.md) | Actual task cost versus orchestration waits, overlapping durations, and missing instrumentation. |
+ | Time is spent before target execution, in globs, imports, or property evaluation | [eval-performance](references/eval-performance.md) | Evaluation versus execution; legitimate versus accidental project instances. |
+ | Content copies or output I/O dominate | [copy-to-output-directory](references/copy-to-output-directory.md) | Copy mode/version support, unchanged copies, and the intended handling of a modified destination. |
+ | A second unchanged build recompiles/regenerates, or incremental behavior is broken | [incremental-build](references/incremental-build.md) | Expected invalidation versus missing tracking; changed/added/removed inputs and missing outputs. |
++| Two or more project files build together and `-m` does not scale, nodes sit idle, or a serial ProjectReference chain sets the critical path | Load the `dotnet-msbuild:build-parallelism` skill | Required dependency order versus avoidable serialization. |
+ 
+ Stop when the suspected bottleneck is not supported by evidence, results fall within noise, or
+ correctness regresses. Report missing measurements rather than manufacturing a complete baseline.
+ 
+ ## 3. Review build authoring
+ 
+ **Goal:** improve project/build-file structure and extension contracts while preserving behavior.
+ This route means MSBuild authoring cleanup, not an implicit framework, package, language,
+ or legacy project-system migration.
+ 
+ | Requested change | Read | Preserve |
+ | --- | --- | --- |
+ | Review/clean up project files, shared properties, item declarations, or custom targets | [msbuild-antipatterns](references/msbuild-antipatterns.md) | Intentional overrides, F# source order, required imports, package assets, and actual input/output contracts. |
+ | Review/improve hooks, imports, shared-file discovery, or NuGet build extensions | [extension-points](references/extension-points.md) | Prior hooks, evaluation order, direct/transitive consumer behavior, and the packed layout. |
+ | Restructure generation or copying as part of cleanup | [incremental-build](references/incremental-build.md) and [copy-to-output-directory](references/copy-to-output-directory.md), as applicable | First-build and no-change behavior, invalidation, generated-item registration, and output completeness. |
++| Write or fix a custom target, its `DependsOnTargets`/`BeforeTargets`/`AfterTargets` ordering, a `$(XxxDependsOn)` chain, or `Outputs` versus `Returns` | Load the `dotnet-msbuild:target-authoring` skill | The SDK target chain and every existing extension of it. |
++| A concrete property defect: a condition, default, append versus overwrite, last-write-wins value, OS/TFM check, or path | Load the `dotnet-msbuild:property-patterns` skill | Intentional overrides and evaluation order. |
++| A concrete item operation: `Include`, `Remove`, `Update`, metadata, transforms, batching, or duplicate items | Load the `dotnet-msbuild:item-management` skill | SDK default globs and item identity. |
++| Organize shared settings across projects, or fix a `Directory.Build.props`/`.targets`/`.rsp` layering defect | Load the `dotnet-msbuild:directory-build-organization` skill | Props-versus-targets placement and per-project overrides. |
++
++A requested conversion of a legacy project to SDK style, or of `packages.config` to
++`PackageReference`, is a project-system migration, not this route: load the
++`dotnet-msbuild:msbuild-modernization` skill.
+ 
+ Record the existing contract before editing. Review only relevant catalog entries; a matching text
+ pattern is not proof of a defect. Leave already-correct patterns unchanged. Validate the original
+ configurations, relevant consumers, and affected incremental/pack/publish behavior.
+ 
+ ## Shared evidence and safety
+ 
+ - For capture-only requests, use [binlog-generation](references/binlog-generation.md), report the
+   new artifact and original exit code, and stop. For analysis, use
+   [MSBuild replay](references/binlog-failure-analysis.md#replay-a-binary-log), never binary-file
+   text parsing. Replay success and replay duration are not the recorded build's result or duration.
+-- Resolve these files relative to this skill. Do not load the original plugin's skills or search
+-  other installations/checkouts. If a bundled reference is missing, allow one listing of
+-  `references`, report the gap, and do not pretend its guidance was followed.
++- Resolve these files relative to this skill. Do not search other installations or checkouts for
++  MSBuild guidance; the only other skills this one hands work to are the specialists its routing
++  rows name. If a bundled reference is missing, allow one listing of `references`, report the
++  gap, and do not pretend its guidance was followed.
+ - Do not clean outputs/caches, stop shared build servers, disable diagnostics, change SDKs, or
+   serialize builds as generic fixes. Scope any necessary destructive experiment to approved,
+   owned outputs. Keep binary and replayed logs local unless sharing is authorized.
+ - Distinguish recorded facts from hypotheses. Missing source, log detail, tools, or platform
+   support must be reported explicitly, not replaced with assumed values or invented verification.
+ 
+ ## Completion
+ 
+diff --git a/references/build-perf-baseline.md b/references/build-perf-baseline.md
+index 58bdb77..8b192ec 100644
+--- a/references/build-perf-baseline.md
++++ b/references/build-perf-baseline.md
+@@ -83,26 +83,47 @@ Do not use `Rebuild`, `-t:Rebuild`, or `--no-incremental` for the second build:
+ forced full work is a separate benchmark, not a no-op or proof of cold caches.
+ 
+ ### What Good Looks Like
+ 
+ | Scenario | Expected behavior |
+ | --- | --- |
+ | Cold build | Complete required outputs, including compilation and required generation. This is the full-work baseline for the recorded cache state. |
+ | Warm build | Changed inputs and affected dependencies invalidate the appropriate work; unrelated recompilation needs explanation. |
+-| No-op build | Up-to-date expensive compilation/generation skips. Under roughly 5 seconds for small repositories or 30 seconds for large ones can be useful triage hints, not universal budgets. |
++| No-op build | Up-to-date expensive compilation/generation skips. Compare its duration with this repository's own repeated warm and cold samples. |
+ 
+ **Red flags to investigate, not automatic diagnoses:**
+-- No-op build over 30 seconds: distinguish evaluation, restore, copying, and
+-  unexpected execution before applying [incremental fixes](incremental-build.md).
++- No-op time repeatedly close to warm or cold time: distinguish evaluation, restore,
++  copying, and unexpected execution before applying [incremental fixes](incremental-build.md).
+ - Warm build recompiles everything: inspect the input/API change and dependency
+   chain; do not assume every downstream rebuild is unnecessary.
+ - Long cold restore: investigate feed/network work and cache state, not just
+   package-cache problems.
+ 
++Do not use universal duration or percentage thresholds to declare a bottleneck.
++Rank costs against the controlled samples and the build's own target and task
++timings.
++
++### Capture analyzer evidence
++
++A binlog records compiler and task timing, but per-analyzer timing needs an
++analyzer-reporting run. When the SDK and compiler support it, capture one under
++an unused name:
++
++```powershell
++dotnet build -m "-bl:analyzers-01.binlog" -p:ReportAnalyzer=true
++```
++
++[Replay the log](binlog-failure-analysis.md#replay-a-binary-log) and read the
++analyzer execution-time report that the compiler task logged, searched as in
++[performance diagnostics](build-perf-diagnostics.md). If granular timing is
++unavailable, compare otherwise identical samples with `-p:RunAnalyzers=false` as
++an attribution experiment; do not present disabling analyzers as the fix.
++Preserve analyzer enforcement in CI.
++
+ ### Recording Baselines
+ 
+ Prefer repeated measurements, such as three runs per scenario, and report their
+ median and spread. Re-establish the correct cold or warm state before each run.
+ Do not mix cold and warmed timings or silently discard inconvenient outliers.
+ 
+ | Scenario | Before median [range] | After median [range] | Improvement |
+ | --- | --- | --- | --- |
+diff --git a/references/msbuild-antipatterns.md b/references/msbuild-antipatterns.md
+index 23fd3ec..75554c4 100644
+--- a/references/msbuild-antipatterns.md
++++ b/references/msbuild-antipatterns.md
+@@ -280,18 +280,21 @@ than with an evaluation-time glob. This retains the original output-directory DL
+ **Smell:** expensive file generation runs on every no-change build because its inputs/outputs are
+ not modeled, or skips despite a relevant change.
+ 
+ **Impact:** repeated work or stale outputs. Inputs must cover actual files and relevant property,
+ configuration, generator, and import changes.
+ 
+ See [incremental-build-inputs-outputs.md](antipatterns/incremental-build-inputs-outputs.md) for a
+ correctness-oriented example, and [incremental-build](incremental-build.md) for full diagnosis.
+-Cheap validation, orchestration, and item-discovery targets may legitimately run without
+-file-based outputs; do not invent a stamp to suppress necessary work.
++Message-only, validation, orchestration, item-discovery, and intentionally always-running
++targets may legitimately run without file-based outputs: do not require `Inputs`/`Outputs` on
++them mechanically, and do not invent a stamp to suppress necessary work. A finding must name the
++specific repeated or stale work and the files involved; the absence of `Inputs`/`Outputs` alone
++is not a finding.
+ 
+ ## AP-12: Defaults defined after their consumers
+ 
+ **Smell:** a default is set in a late import after another file already used it.
+ 
+ **Impact:** consumers observe an empty or unintended earlier value.
+ 
+ ```xml

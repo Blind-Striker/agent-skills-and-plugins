@@ -8,9 +8,9 @@ description: "Canonical patterns for writing custom MSBuild targets. USE FOR:
   Returns misuse; missing Inputs/Outputs causing unnecessary rebuilds; missing
   FileWrites registration. Covers DependsOnTargets vs BeforeTargets vs
   AfterTargets, the Build→CoreBuild three-level pattern, and the $(XxxDependsOn)
-  chain-extension pattern. DO NOT USE FOR: incremental build tuning (use
-  incremental-build), parallelization (use build-parallelism), general
-  anti-patterns (use msbuild-antipatterns), non-MSBuild build systems."
+  chain-extension pattern. DO NOT USE FOR: incremental build diagnosis or
+  general anti-pattern review (use msbuild), parallelization (use
+  build-parallelism), non-MSBuild build systems."
 license: MIT
 ---
 
