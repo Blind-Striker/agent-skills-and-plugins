@@ -1,13 +1,14 @@
 # Agent handovers
 
-Date: 2026-10-08
+Date: 2026-10-11
 
 This directory holds session handover prompts and agent playbooks. For handovers, start from
 [`handover-prompts/session-pickup-template.md`](handover-prompts/session-pickup-template.md), consume
 an active handover against live git, and delete it when the follow-up ships. The
 [reference-audit playbook](reference-audit-playbook.md) is the repeatable sweep for reference
 problems the deterministic gates cannot see; run it after a curation wave and before closing a
-module.
+module. The [curation sanity panel playbook](curation-sanity-panel.md) is the read-only review of
+trigger competition, body intent, and harness fit that produces a curator decision packet.
 
 Shared current harness and product guidance lives in
 [transformation and emission](../architecture/transformation-and-emission.md),

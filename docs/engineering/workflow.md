@@ -180,8 +180,10 @@ Deterministic generation and validation establish syntax, output identity, decla
 other implemented checks. They do not decide whether two skills compete, whether an overlay still
 expresses the recorded intent, or whether candidate bare-name references matter. After a curation
 wave, before declaring a Module closed, and after a pin move, use the agent-only
-[reference-audit playbook](../agents/reference-audit-playbook.md) to surface those questions for the
-curator. The playbook informs judgement; it does not authorize an agent to change curation.
+[reference-audit playbook](../agents/reference-audit-playbook.md) to surface the reference questions
+for the curator. Trigger competition, body intent, and harness fit belong to the agent-only
+[curation sanity panel playbook](../agents/curation-sanity-panel.md), which says when it runs. Both
+inform judgement; neither authorizes an agent to change curation.
 
 ## Documentation closeout
 

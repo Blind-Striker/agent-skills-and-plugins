@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.8.0, General 0.12.0, Akka 0.4.1, and Aspire 0.5.1. Their
+  Checkout Module versions are Process 0.9.0, General 0.13.0, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -148,7 +148,25 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Iteration 2: dependency automation and original-skill declarations.** The upstream sync
+1. **Shorten the model-reachable descriptions.** Two of the three harnesses cut this estate's
+   descriptions under a skill-listing budget, measured on 2026-10-11 against the installed
+   versions:
+
+   - Claude Code 2.1.296 lists skills within `skillListingBudgetFraction`, by default 0.01, about
+     30,000 characters on a 1M-context model. Over budget, a skill that is not bundled drops to its
+     name, and descriptions come back in usage order: 39 of the 82 deniz skills were name-only in
+     one Claude Code profile and 30 of 82 in the other.
+   - Codex 0.153.4 gives skills 2% of a 272k window, 5,440 tokens. Over budget it cuts every
+     description to one equal prefix: 78 of the 84 deniz descriptions were cut to about 140
+     characters, and all 35 exclusion clauses were lost.
+   - OpenCode 2.0.26 has no budget.
+
+   Shorten every model-reachable deniz description to about 190 characters or fewer, with the
+   clause that tells it apart from its neighbours in the first 130 or so, through the item's
+   existing `frontmatter:` override or its patch; the curator approves the drafts as one table.
+   Add a `validate` check so an upstream sync cannot bring a long description back, and remove the
+   per-machine listing-budget raises once this lands.
+2. **Iteration 2: dependency automation and original-skill declarations.** The upstream sync
    waves are complete, so address automatic dependency installation, cascade remove, version-range
    resolution, and the `original_skills` declaration. These four workstreams belong to the
    follow-up iteration, not the first feature. Selection/Ownership semantics, user approval for
@@ -186,24 +204,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    repair or flaky-test request to Process's `systematic-debugging` through a checked fact. The
    example's `test-driven-development` edge also targets a Process item, so it adds no new Module
    requirement.
-2. **Prototype the curation sanity panel only when a curation change needs it.** Deterministic
-   validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
-   competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
-   intent. Keep the panel a read-only `docs/agents/` playbook, never a gate. Each run receives one
-   bounded packet: pinned upstream body and bundled dependency closure, manifest reason, overlay or
-   patch plus lock evidence, and all three emitted harness forms. Review trigger/overlap, body-intent
-   preservation, and harness fit separately. Require `file:line` evidence, a concrete consequence,
-   confidence, and one of `retain`, `narrow`, `reconsider`, or `ambiguous`; preserve disagreements.
-   Reviewers never edit, bless, bump versions, or fail CI. Success is a small curator decision packet,
-   not a repeat of deterministic validator findings or a vote that turns model agreement into policy.
-   Run it after a body-ownership pass and before declaring a Module closed. The trigger-competition
-   cases for it are `subagent-driven-development` against `executing-plans`, `aot-trimming` against
-   `dotnet-aot-compat`, the consolidated `msbuild` skill against the MSBuild specialists, and
-   `directory-build-organization` against `convert-to-cpm`. The sync packets also named
-   `code-testing` against `systematic-debugging`, but `code-testing` is `manual` in all three
-   harnesses, so no model chooses between them. W6 was the panel's natural first run but closed
-   without one; the first run is still pending.
-3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+3. **Curation sanity panel: first run done.** The read-only
+   [playbook](agents/curation-sanity-panel.md) owns the method, the standing cases, and when a run
+   is due. Its first run, at `c7e9f90`, reviewed the four standing cases and swept the Process and
+   .NET Modules for trigger competition; the curator's decisions on its packet landed as wave W7,
+   each reason beside its item in `curation/*.yaml`. The catalog-size and description-truncation
+   question it left open is measured, and its fix is item 1.
+4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -241,7 +248,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Codex catalog pressure is real:** every call in the 117-skill Luna panel warned that descriptions
   were shortened to fit the skills context budget. The tested explicit, implicit, manual, handoff,
   reference, and generated-skill paths passed, but that bounded panel is not proof for every skill,
-  model, or future catalog size.
+  model, or future catalog size. The listing-budget measurement of both Claude Code and Codex, and
+  the shortening it calls for, are Next Up item 1.
 - **Codex update re-enables a disabled plugin:** on Codex CLI 0.153.4, upgrading an installed
   plugin with `codex plugin add <plugin>@deniz-skills` set a plugin the user had disabled back to
   `enabled = true` in the Codex configuration; the rollout restored the line by hand
