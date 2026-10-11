@@ -301,10 +301,11 @@ export function inlineCodeSpans(content: string): [number, number][] {
   return markdownCode(content).inline;
 }
 
-// Closed dispatch table (references-and-linking.md "Harness phrasing"). Codex names no subagent tool
-// or agent type: neither is recorded in this repository's research. A row marked `outsideCode` would
-// put a backtick inside a code span and break it, so it skips a match there in every harness and
-// leaves the words for the vocabulary check to reject.
+// Closed dispatch table (references-and-linking.md "Harness phrasing"). The Codex rendering names no
+// subagent tool or agent type by choice, although Codex CLI ships `spawn_agent`: its companion tools
+// differ between multi-agent versions, and using-superpowers' Codex tool notes name the tools. A row
+// marked `outsideCode` would put a backtick inside a code span and break it, so it skips a match
+// there in every harness and leaves the words for the vocabulary check to reject.
 const DISPATCH: { pattern: RegExp; opencode: string; codex: string; outsideCode?: true }[] = [
   { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
   { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
