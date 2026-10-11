@@ -106,15 +106,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.4.0`. The Linux-built
-  asset carries the schema-2 OpenCode 2 Bundles of Process 0.7.0, General 0.10.0, Akka 0.4.0, and
-  Aspire 0.4.0, and passed the manual release workflow's source gate, tar-mode verifier, isolated
-  Plan/Apply/status, publication, and remote re-download checks. Its exact identity and proof
-  boundary are in the
-  [release record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md).
-  The older Releases through `installer-v0.3.0` remain schema-1 historical snapshots with OpenCode 1
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.5.0`. The Linux-built
+  asset carries the schema-2 OpenCode 2 Bundles of Process 0.8.0, General 0.12.0, Akka 0.4.1, and
+  Aspire 0.5.1 and the installer's Windows rename retry, and passed the manual release workflow's
+  source gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote re-download
+  checks. Its exact identity and proof boundary are in the
+  [release record](../experiments/harness-invocation/records/2026-10-11-opencode-installer-v0.5.0.md).
+  The previous schema-2 Release `installer-v0.4.0` remains published
+  ([record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)). The
+  older Releases through `installer-v0.3.0` remain schema-1 historical snapshots with OpenCode 1
   shapes, and their assets were not replaced.
-- Dependency-aware Module Selection is implemented in the checkout and ships in Package 0.4.0:
+- Dependency-aware Module Selection is implemented in the checkout and ships since Package 0.4.0:
   schema-2 Bundles and Install state, compile-time `requiredModules` derivation, final-Selection
   presence checks, actual-versus-proposed status, and metadata-only Apply with exact Recovery. Feature source is
   four commits through `8be80489cd721b08f0ffa3bee711d8348d1e0ac1`; the independently reviewed tree
@@ -215,7 +217,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Apply against a running server is not measured.
 - **Earlier schema-1 Releases have no upgrade path:** the Packages of Releases through
   `installer-v0.3.0` ship schema-1 Bundles in OpenCode 1 shapes, and the installer, from the
-  checkout or `installer-v0.4.0`, refuses schema-1 Install state with no compatibility reader. A
+  checkout or a Release from `installer-v0.4.0` on, refuses schema-1 Install state with no
+  compatibility reader. A
   user of such a Release has no supported route to schema-2 output; the real-profile migration is a
   recorded one-off, not a product path.
 - **Selection dependency automation:** schema-2 manifests and Install state record `requiredModules`.

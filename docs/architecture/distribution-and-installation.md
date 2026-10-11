@@ -81,9 +81,9 @@ implemented in
 [`digestModulePayload`](../../tools/lib/opencode-bundle.ts), and manifest creation is implemented in
 [`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
 
-Bundles and Install state are schema 2, in the checkout and in the current Release Package
-`installer-v0.4.0`, which carries OpenCode 2 output
-([release record](../../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)).
+Bundles and Install state are schema 2, in the checkout and in the Release Packages from
+`installer-v0.4.0` on, which carry OpenCode 2 output; the current one is `installer-v0.5.0`
+([release record](../../experiments/harness-invocation/records/2026-10-11-opencode-installer-v0.5.0.md)).
 The Packages of earlier Releases, through `installer-v0.3.0`, are schema-1 historical source
 snapshots whose Bundles carry OpenCode-1-shaped output; their assets stay published and were not
 replaced. There is no compatibility reader between the two formats: the installer has no schema-1
