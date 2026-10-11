@@ -175,9 +175,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    automatic changes, and version constraint/conflict policy must be designed in that iteration
    rather than assumed by the first.
    For original skills, the pressure points are additional original skills, manual original posture,
-   and load-bearing outgoing edges that review-only protection cannot guard. Original skills can
-   already be guarded targets, but their invocation and outgoing model edges have no manifest
-   declaration. The planned surface can be keyed by the existing top-level skill directory:
+   per-harness files for the orchestration skill of item 3, and load-bearing outgoing edges that
+   review-only protection cannot guard. Original skills can already be guarded targets, but their
+   invocation, `harness_files`, and outgoing model edges have no manifest declaration. The planned
+   surface can be keyed by the existing top-level skill directory:
 
    ```yaml
    original_skills:
@@ -206,7 +207,31 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    repair or flaky-test request to Process's `systematic-debugging` through a checked fact. The
    example's `test-driven-development` edge also targets a Process item, so it adds no new Module
    requirement.
-3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+3. **Orchestration skill.** Add one original `manual` skill that runs a request as verified
+   multi-agent waves, design A of the
+   [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs):
+   one shared body in this repository's own words, not named "ultracode", plus per-harness tool
+   notes through `harness_files`. Claude Code's notes route into the native Workflow tool, which
+   accepts a skill whose instructions say to call it as the user's opt-in; OpenCode's run background
+   `subagent` waves; Codex's run `spawn_agent` waves sized to the configured thread limit, 6 by
+   default. It needs item 2 first, and item 2's declaration must carry `harness_files` as well as
+   `invocation` (see the original-skill gap under [Known Gaps](#known-gaps)). Approaches from the
+   prior-art repositories will be adopted where they fit; a separate extraction is recording them in
+   that research note. Keyword injection (design B) is deferred below. A deterministic engine per
+   harness (design C) is rejected: it needs installer changes and one runtime per harness, and it is
+   a product rather than a skill. A claim that the skill works in a harness needs a run there
+   ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
+4. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
+   in its `workflows/` directory as `/<plugin>:<meta.name>`
+   ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a
+   repeatable playbook such as the [curation sanity panel](agents/curation-sanity-panel.md) or an
+   independent review could ship as `/deniz-process:<name>`. The build has no authored source or
+   Claude emitter path for workflow scripts yet. Open question for the curator, not decided: the
+   surface is Claude-only, so what answers the "same standard in every harness" rule
+   ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
+   Claude Code gets the scripted form, and OpenCode and Codex get item 3's model-driven form of the
+   same playbook.
+5. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -288,8 +313,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   ([references and linking](architecture/references-and-linking.md#harness-phrasing)).
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
-- **Original-skill declarations are absent:** `manual`/`both` posture and outgoing edge-source scans
-  remain unavailable until the declaration surface above exists.
+- **Original-skill declarations are absent:** an original skill has no manifest item, so it can
+  state neither `invocation` nor `harness_files`. An authored `disable-model-invocation: true` hides
+  it on Claude Code, which copies it byte for byte, and on OpenCode, whose emitter honours that key
+  when no invocation is stated, but Codex gets no explicit-only `agents/openai.yaml` and keeps
+  implicit invocation (`emitCodex` in [`tools/build.ts`](../tools/build.ts)). `manual`/`both`
+  posture, per-harness files, and outgoing edge-source scans remain unavailable until the
+  declaration surface above exists.
 - **Clean-fixture debt is filtered by finding name:** split the fixture so tests prove those findings
   still exist instead of tolerating their disappearance.
 - **Full-file overlays have no replay:** an upstream move under a full-file overlay is reviewed
@@ -360,3 +390,30 @@ skill.
   as preview-era content until .NET 11 reaches general availability; revisit both then. A taken
   migration would be `manual`, and `system-text-json-net11` would need its dotnet-install block
   and its unconditional "not done until the program runs" mandate removed.
+- **OpenSpec:** parked after the [OpenSpec evaluation](research/openspec-evaluation.md): nothing
+  recorded calls for it, and the one gap it fills, a behaviour spec that outlives the merge, is
+  absent by this repository's own [plan lifecycle](engineering/documentation.md#handovers-and-plans).
+  Reopen when:
+  - the curator decides some behaviour spec should outlive the merge; then revisit that lifecycle
+    rule, decide where living specs sit beside `GLOSSARY.md` and the ADRs, and choose between
+    borrowing WHEN/THEN scenarios through an overlay and curating OpenSpec's skills as `manual`
+    items;
+  - a real repository needs it, with several contributors or agents changing the same capabilities
+    over months; evaluate it in a throwaway sandbox first, then curate its skills;
+  - the description shortening and Iteration 2 (Next Up) land, which lowers the cost of curating its
+    skills;
+  - OpenSpec adds an invocation control to its skill generator and moves to skills-only delivery
+    ([#2022](https://github.com/Fission-AI/OpenSpec/issues/2022)); skills-only alone is not enough,
+    because on OpenCode it removes the only way to start a workflow on purpose;
+  - upstream slows down, for example with a stable 2.x skill contract, so sync cost drops; or
+  - superpowers or `mattpocock-skills` adopt living or delta specs, which makes it an ordinary
+    sync-review decision.
+- **Keyword-injected orchestration (design B):** deferred behind the orchestration skill (Next Up
+  item 3). A `manual` skill is already a one-token trigger in every harness, so the only gain is a
+  standing session mode outside Claude Code. OpenCode would need a plugin file, which the installer
+  may not own without an ADR that widens
+  [installer ownership](architecture/distribution-and-installation.md#destination-selection-and-ownership);
+  Codex would need emitted plugin hooks, a hook script, each user's trust in that hook, and the
+  Legacy plugin manifest format, since the Agent Plugins format skips plugin hooks. Revisit only if
+  the curator wants a standing session mode in OpenCode or Codex
+  ([evidence](research/claude-ultracode-and-orchestration-ports.md#port-designs)).
