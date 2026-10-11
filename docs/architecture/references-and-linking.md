@@ -118,7 +118,9 @@ not confidence in a heuristic.
 
 Some shapes tell the model to load another skill, so they are load-bearing. A closed set of handoff
 templates is checked on the canonical Claude tree, `plugins/`, where every fact still carries a
-namespace. A bare name in one of them is a build error, not a candidate:
+namespace, and on each other harness's own `harness_files` source, read in that spelling as the
+[linker](#depends_on-and-audience-reachability) reads it. A bare name in one of them is a build
+error, not a candidate:
 
 | Template | Form | Payload rule |
 |---|---|---|

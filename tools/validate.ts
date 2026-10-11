@@ -1008,6 +1008,11 @@ export function validateRepo(root: string): Finding[] {
     }
   };
   const LINKED_HARNESSES = ["claude", "opencode", "codex"] as const;
+  /**
+   * Each non-Claude harness's own harness_files sources, in the Claude spelling, for the text checks
+   * below that read the Claude tree: `claudeAbs` is the same path in the Claude skill folder.
+   */
+  const harnessOwnFiles: { rel: string; text: string; claudeAbs: string; skillFolder: string }[] = [];
 
   try {
     for (const m of manifests) {
@@ -1050,6 +1055,12 @@ export function validateRepo(root: string): Finding[] {
           for (const file of treeMarkdown(shipped, files, harness, readSource, rewriteMap)) {
             if (file.own) {
               linkFacts(relIn(harness, file.path), file.text, [harness], derived);
+              harnessOwnFiles.push({
+                rel: relIn(harness, file.path),
+                text: file.text,
+                claudeAbs: join(built, ...file.path.split("/")),
+                skillFolder: built,
+              });
             }
           }
         }
@@ -1078,11 +1089,10 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
-  // H1: the skill-tool call is a handoff template (references-and-linking.md). Checked once, on the
-  // canonical tree, where a handle still carries its namespace; the linker and O1 then check the target.
-  for (const file of existsSync(pluginsDir) ? [...walk(pluginsDir)].filter((f) => f.endsWith(".md")) : []) {
-    const rel = relative(root, file).replaceAll("\\", "/");
-    const text = readFileSync(file, "utf8");
+  // H1: the skill-tool call is a handoff template (references-and-linking.md). Checked on the
+  // canonical tree, where a handle still carries its namespace, and on every other harness's own
+  // harness_files source in that spelling; the linker and O1 then check the target.
+  const checkHandoffs = (rel: string, text: string): void => {
     for (const call of scanSkillToolCalls(text)) {
       for (const payload of call.payloads) {
         const refs = scanRefs(payload.text);
@@ -1115,6 +1125,12 @@ export function validateRepo(root: string): Finding[] {
           : `${at}: load-bearing handoff names \`${hit.name}\`, which this estate does not emit — reroute or remove it`,
       });
     }
+  };
+  for (const file of existsSync(pluginsDir) ? [...walk(pluginsDir)].filter((f) => f.endsWith(".md")) : []) {
+    checkHandoffs(relative(root, file).replaceAll("\\", "/"), readFileSync(file, "utf8"));
+  }
+  for (const own of harnessOwnFiles) {
+    checkHandoffs(own.rel, own.text);
   }
 
   // L4: output namespaces must never reach the OpenCode tree — it addresses items by dotted ID.
@@ -1130,7 +1146,8 @@ export function validateRepo(root: string): Finding[] {
   }
 
   // I: a body that runs a bundled script names its interpreter (curation/SCHEMA.md "Bundled scripts").
-  // Read on the Claude tree: the other trees carry the same prose, with OpenCode's folders respelled.
+  // Read on the Claude tree, whose prose the other trees share with OpenCode's folders respelled, and
+  // on each other harness's own harness_files source, resolved as if it sat in the Claude folder.
   const pluginsSkillDirs = existsSync(pluginsDir)
     ? readdirSync(pluginsDir).map((plugin) => join(pluginsDir, plugin, "skills"))
     : [];
@@ -1151,6 +1168,22 @@ export function validateRepo(root: string): Finding[] {
     }
     return scriptAt.get(abs);
   };
+  const checkInterpreters = (rel: string, text: string, abs: string, skillFolder: string): void => {
+    const resolveScript = (token: string): BundledScript | undefined => {
+      // A `<skill-directory>/`-style placeholder and a leading `./` are spelling, not path.
+      const spelled = token.replace(/^<[^>/\s]+>\//, "").replace(/^\.\//, "");
+      for (const base of [dirname(abs), skillFolder]) {
+        const interpreter = interpreterOf(resolve(base, spelled));
+        if (interpreter) {
+          return { path: spelled, interpreter };
+        }
+      }
+      return undefined;
+    };
+    for (const problem of scriptInvocationProblems(text, resolveScript)) {
+      findings.push({ level: "error", message: `${rel}:${lineOf(text, problem.index)}: ${problem.message}` });
+    }
+  };
   for (const skillsDir of pluginsSkillDirs) {
     for (const folder of existsSync(skillsDir) ? readdirSync(skillsDir) : []) {
       const skillFolder = join(skillsDir, folder);
@@ -1159,24 +1192,12 @@ export function validateRepo(root: string): Finding[] {
       }
       for (const file of listFiles(skillFolder).filter((f) => f.endsWith(".md"))) {
         const abs = join(skillFolder, file);
-        const text = readFileSync(abs, "utf8");
-        const resolveScript = (token: string): BundledScript | undefined => {
-          // A `<skill-directory>/`-style placeholder and a leading `./` are spelling, not path.
-          const spelled = token.replace(/^<[^>/\s]+>\//, "").replace(/^\.\//, "");
-          for (const base of [dirname(abs), skillFolder]) {
-            const interpreter = interpreterOf(resolve(base, spelled));
-            if (interpreter) {
-              return { path: spelled, interpreter };
-            }
-          }
-          return undefined;
-        };
-        const rel = relative(root, abs).replaceAll("\\", "/");
-        for (const problem of scriptInvocationProblems(text, resolveScript)) {
-          findings.push({ level: "error", message: `${rel}:${lineOf(text, problem.index)}: ${problem.message}` });
-        }
+        checkInterpreters(relative(root, abs).replaceAll("\\", "/"), readFileSync(abs, "utf8"), abs, skillFolder);
       }
     }
+  }
+  for (const own of harnessOwnFiles) {
+    checkInterpreters(own.rel, own.text, own.claudeAbs, own.skillFolder);
   }
 
   // V: Claude Code tool words must not reach a harness that has no such tool.

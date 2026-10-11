@@ -1805,6 +1805,34 @@ test("linker: a fact in one harness's file is reached in that harness's tree", (
   assert.match(errors[1] ?? "", /\(allow_implicit_invocation: false in the Codex tree\)/);
 });
 
+test("H and I: another harness's own file is held to the handoff and interpreter checks", () => {
+  const root = harnessFactsRepo(
+    {
+      claude: "See superpowers:gamma.",
+      opencode: 'Call the Skill tool with "gamma".',
+      codex: "Load `gamma` first, then run `scripts/check --all`.",
+    },
+    ["gamma"],
+  );
+  const scripts = join(root, "external", "sp", "skills", "delta", "scripts");
+  mkdirSync(scripts, { recursive: true });
+  writeFileSync(join(scripts, "check"), "#!/usr/bin/env bash\necho ok\n");
+  buildAll(root);
+  const errors = errorsOf(root);
+  const opencode = "opencode/deniz-process/skills/deniz-process.delta/references/tools.md:3";
+  const codex = "codex/deniz-process/skills/delta/references/tools.md:3";
+  for (const expected of [
+    `${opencode}: skill-tool handle "gamma" is not a namespaced fact`,
+    `${codex}: load-bearing handoff names \`gamma\` bare`,
+    `${codex}: runs bundled script scripts/check by bare path — write \`bash scripts/check\``,
+  ]) {
+    assert.ok(
+      errors.some((m) => m.startsWith(expected)),
+      `${expected}\n${errors.join("\n")}`,
+    );
+  }
+});
+
 test("harness files: a tree whose harness maps null holds nothing at the output path", () => {
   const root = makeHarnessFilesRepo("null");
   buildAll(root);

@@ -137,13 +137,13 @@ packager can strip the executable bit and a Windows shell honors no shebang. Ups
 | `.js`, `.cjs`, `.mjs`, or a `node` shebang | `node scripts/x.js` |
 | `.py`, or a `python3` shebang | `python3 scripts/x.py`, with the Windows form `py -3 scripts/x.py` beside it |
 
-`validate` checks every Markdown file of a skill folder in the Claude tree; the other trees carry
-the same prose. A run is inline code that starts with the script's path and carries arguments, or
-that a run verb (`run`, `re-run`, `execute`) precedes on its line, and a path at command position
-on a fenced line or after a separator such as `&&` in inline code. Inline code that only names the
-path is a mention. The path
-resolves from the Markdown file's folder or the skill folder; a `<skill-directory>/`-style
-placeholder or a leading `./` is spelling.
+`validate` checks every Markdown file of a skill folder in the Claude tree, whose prose the other
+trees share, and each other harness's own `harness_files` source, whose paths resolve as if it sat
+in the Claude folder. A run is inline code that starts with the script's path and carries
+arguments, or that a run verb (`run`, `re-run`, `execute`) precedes on its line, and a path at
+command position on a fenced line or after a separator such as `&&` in inline code. Inline code
+that only names the path is a mention. The path resolves from the Markdown file's folder or the
+skill folder; a `<skill-directory>/`-style placeholder or a leading `./` is spelling.
 
 An interpreter word before the path names the interpreter, and only the convention's words name it
 rightly: `bash`, `pwsh -File`, `node`, `python3`, and `py -3`, each with any flags of its own. Every
