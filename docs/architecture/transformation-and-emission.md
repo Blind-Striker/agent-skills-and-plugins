@@ -278,7 +278,9 @@ The same file's `interface.display_name`, and a Codex Plugin's `interface.displa
 skill or plugin name word by word. A word takes the spelling its description writes it in, as a
 whole word in any letter case, when that spelling has a capital past its first letter, so
 `convert-to-cpm` reads `Convert To CPM` and `pr` reads `PR`; `dotnet` reads `.NET`; every other word
-is title-cased ([`codexDisplayName`](../../tools/lib/codex-plugin.ts)).
+is title-cased ([`codexDisplayName`](../../tools/lib/codex-plugin.ts)). A word inside a dotted name
+is not whole: `.NET`, `Akka.NET`, and `AGENTS.md` lend no spelling to `net`, `akka`, or `agents`,
+while a sentence's closing period still ends a word.
 
 Codex does not expose an implicit-only skill policy, so `auto` retains native explicit invocation
 without being mislabeled model-only.

@@ -153,6 +153,12 @@ test("a Codex display name keeps the casing its description writes for a word, e
   // a word written only lower case or capitalized, inside a longer word, or not at all is title-cased
   assert.equal(label("nrt-migration", "Adopt NRTs project by project: a migration."), "Nrt Migration");
   assert.equal(label("grill-me", "Grill the plan with me."), "Grill Me");
+  // a word inside a dotted name is not a whole word: `.NET`, `Akka.NET`, and `AGENTS.md` lend no
+  // spelling, while a sentence's closing period still ends one
+  assert.equal(label("akka-net-best-practices", "Critical Akka.NET best practices."), "Akka Net Best Practices");
+  assert.equal(label("net-tools", "Tools for a .NET app."), "Net Tools");
+  assert.equal(label("writing-for-agents", "Use when editing AGENTS.md or CLAUDE.md."), "Writing For Agents");
+  assert.equal(label("convert-to-cpm", "Convert a solution to CPM."), "Convert To CPM");
   const plugin = createCodexPluginManifest(
     { plugin: { name: "deniz-msbuild", description: "Deniz's curated MSBuild skills", version: "1.0.0" }, items: [] },
     { author: { name: "Deniz İrgin" } },

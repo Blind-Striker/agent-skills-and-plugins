@@ -331,7 +331,9 @@ export function loadCodexPublisherMetadata(root: string): CodexPublisherMetadata
  * Human-facing label only; stable machine identity remains the curation plugin name. Each name part
  * takes the spelling the description writes it in when that spelling has a capital past its first
  * letter, as `CPM`, `AOT`, `TUnit`, or `MSBuild` do; `dotnet` reads `.NET`; any other part is
- * title-cased.
+ * title-cased. A whole word has no letter, digit, or `.` before it and no letter, digit, or
+ * `.`-then-letter-or-digit after it, so a dotted name such as `.NET`, `Akka.NET`, or `AGENTS.md`
+ * lends no spelling, while a sentence's closing period still ends a word.
  */
 export function codexDisplayName(name: string, description = ""): string {
   return name
@@ -342,9 +344,8 @@ export function codexDisplayName(name: string, description = ""): string {
         return ".NET";
       }
       const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const written = [...description.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "giu"))]
-        .map((m) => m[0])
-        .find((spelling) => /^.+\p{Lu}/u.test(spelling));
+      const word = new RegExp(`(?<![\\p{L}\\p{N}.])${escaped}(?![\\p{L}\\p{N}]|\\.[\\p{L}\\p{N}])`, "giu");
+      const written = [...description.matchAll(word)].map((m) => m[0]).find((spelling) => /^.+\p{Lu}/u.test(spelling));
       return written ?? `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`;
     })
     .join(" ");
