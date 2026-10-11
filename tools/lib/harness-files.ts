@@ -1,5 +1,5 @@
 import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, rmSync } from "node:fs";
-import { dirname, join, relative, sep } from "node:path";
+import { dirname, join, relative } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { type Harness, type HarnessFiles, HARNESSES } from "./manifest.ts";
 import { type RewriteTarget, rewriteRefs } from "./rewrite.ts";
@@ -133,9 +133,4 @@ export function placeHarnessFiles(
   for (const source of sources) {
     pruneEmpty(skillFolder, dirname(join(skillFolder, ...source.split("/"))));
   }
-}
-
-/** POSIX item-relative path of a file inside a skill folder. */
-export function skillRelative(skillFolder: string, file: string): string {
-  return relative(skillFolder, file).split(sep).join("/");
 }
