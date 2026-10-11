@@ -141,12 +141,24 @@ packager can strip the executable bit and a Windows shell honors no shebang. Ups
 
 `validate` checks every Markdown file of a skill folder in the Claude tree; the other trees carry
 the same prose. A run is inline code that starts with the script's path and carries arguments, or
-that a run verb (`run`, `re-run`, `execute`) precedes on its line, and a fenced line on which the
-path stands at command position. Inline code that only names the path is a mention. The path
+that a run verb (`run`, `re-run`, `execute`) precedes on its line, and a path at command position
+on a fenced line or after a separator such as `&&` in inline code. Inline code that only names the
+path is a mention. The path
 resolves from the Markdown file's folder or the skill folder; a `<skill-directory>/`-style
-placeholder or a leading `./` is spelling. In a fence labelled `powershell` or `pwsh`, PowerShell's
-call operator `&` counts as naming the interpreter. The check is lexical: a run worded outside these
-forms is not seen, and a script that runs another script is not read
+placeholder or a leading `./` is spelling.
+
+An interpreter word before the path names the interpreter, and only the convention's words name it
+rightly: `bash`, `pwsh -File`, `node`, `python3`, and `py -3`, each with any flags of its own. Every
+other word the check knows is a wrong interpreter, and its message names the convention's form:
+`sh`, `zsh`, `dash`, `ksh`, `python`, `python2`, a versioned `python3.x`, `py` without `-3`,
+`powershell`, `cmd`, an `.exe` spelling of any of these, and any other letter case. A run in the
+current shell needs no exec bit, so its fence names the interpreter. In a fence labelled `bash`,
+`source` and `.` run the script in bash. In a fence labelled `powershell`, `pwsh`, `ps1`, or `ps`,
+the call operator `&`, dot-sourcing `.`, and the bare path all run a `.ps1` in PowerShell. Bash
+sourcing a script of another interpreter is a wrong interpreter, and PowerShell hands a script of
+another interpreter to its exec bit, which is a bare run. The same current-shell forms anywhere
+else, inline code included, name no interpreter and are bare runs. The check is lexical: a run
+worded outside these forms is not seen, and a script that runs another script is not read
 ([`scriptInvocationProblems`](../tools/lib/script-invocation.ts)).
 
 ## `invocation` and `as` are orthogonal

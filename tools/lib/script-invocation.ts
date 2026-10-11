@@ -69,20 +69,24 @@ function spelled(script: BundledScript): string {
   }
 }
 
-/** What names an interpreter right before a script path, and which one it names. */
-const NAMED: [RegExp, Interpreter | "pwsh-without-file" | "py3"][] = [
-  [/(?:^|[\s;|&(])bash$/, "bash"],
-  [/(?:^|[\s;|&(])node$/, "node"],
-  [/(?:^|[\s;|&(])python3$/, "python"],
-  [/(?:^|[\s;|&(])py\s+-3$/, "py3"],
-  [/(?:^|[\s;|&(])pwsh(?:\s+-\w+)*\s+-File$/, "pwsh"],
-  [/(?:^|[\s;|&(])pwsh(?:\s+-\w+)*$/, "pwsh-without-file"],
-];
+/** The convention's name for an interpreter, as a wrong-interpreter message states it. */
+function conventionName(interpreter: Interpreter): string {
+  return interpreter === "python" ? "python3" : interpreter;
+}
+
+/**
+ * An interpreter word right before a script path, with the flags between them; a flag may carry
+ * one plain value, as `-ExecutionPolicy Bypass` does. The words are the convention's own and every
+ * other spelling this check knows, so a wrong one is named instead of passing unseen.
+ */
+const INTERPRETER =
+  /(?:^|[\s;|&(])((bash|sh|zsh|dash|ksh|node|python[\d.]*|py|pwsh|powershell|cmd)(?:\.exe)?)((?:\s+[-/][\w.:-]*(?:\s+[A-Za-z]\w*)?)*)$/i;
+/** A run in the current shell: PowerShell's call operator, or dot-sourcing, or bash's `source`. */
+const CURRENT_SHELL = /(?:^|[\s;(])(&|\.|source)$/;
 /** A command position: line start, a shell prompt, or after a separator or command substitution. */
 const COMMAND_POSITION = /(?:^|(?:^|\s)(?:\$|>|PS>)|\$\(|\(|&&|\|\||;|\||`)$/;
-/** PowerShell's call or dot-source operator, which runs a script in the current PowerShell. */
-const POWERSHELL_CALL = /(?:^|[\s;(])[&.]$/;
 const POWERSHELL_FENCES = new Set(["powershell", "pwsh", "ps1", "ps"]);
+const BASH_FENCES = new Set(["bash"]);
 /** A verb that makes a lone path in an inline code span an instruction to run it. */
 const RUN_VERB = /\b(?:[Rr]e-?run|[Rr]un|[Ee]xecute)\b/;
 /** A token as a shell line spells it: quoted, or up to the next separator. */
@@ -99,7 +103,10 @@ interface Usage {
  * Every run of a bundled script that does not name its interpreter, or names the wrong one, in one
  * Markdown file. Inline code is a run when it starts with the script path and carries arguments, or
  * when a run verb precedes it on its line; a fenced line is a run when the path sits at command
- * position. `resolve` maps a path token to the script it names, or undefined.
+ * position. An interpreter word before the path names the interpreter, and only the convention's
+ * words name it rightly. A run in the current shell needs no exec bit, so its fence names the
+ * interpreter: `source` or `.` in a bash fence, and `&`, `.`, or the bare path in a PowerShell
+ * fence. `resolve` maps a path token to the script it names, or undefined.
  */
 export function scriptInvocationProblems(
   markdown: string,
@@ -107,37 +114,98 @@ export function scriptInvocationProblems(
 ): ScriptInvocationProblem[] {
   const problems: ScriptInvocationProblem[] = [];
   const python = new Map<string, Usage>();
-  const named = (prefix: string, script: BundledScript, index: number): boolean => {
-    const trimmed = prefix.trimEnd();
-    const hit = NAMED.find(([pattern]) => pattern.test(trimmed))?.[1];
-    if (hit === undefined) {
+  const wrong = (script: BundledScript, index: number, used: string): void => {
+    problems.push({
+      index,
+      message: `runs bundled script ${script.path} with ${used} — its interpreter is ${conventionName(script.interpreter)}: write ${spelled(script)}`,
+    });
+  };
+  const bare = (script: BundledScript, index: number): void => {
+    problems.push({ index, message: `runs bundled script ${script.path} by bare path — write ${spelled(script)}` });
+  };
+  /** Judges the interpreter word before a script path; false when no interpreter word stands there. */
+  const named = (trimmed: string, script: BundledScript, index: number): boolean => {
+    const hit = INTERPRETER.exec(trimmed);
+    if (!hit) {
       return false;
     }
-    if (hit === "pwsh-without-file") {
-      problems.push({
-        index,
-        message: `runs bundled script ${script.path} with pwsh but no -File — write \`pwsh -File ${script.path}\``,
-      });
-      return true;
+    const word = hit[1] ?? "";
+    const flags = (hit[3] ?? "").trim().split(/\s+/).filter(Boolean);
+    const used = [word, ...flags].join(" ");
+    let interpreter: Interpreter | undefined;
+    let py3 = false;
+    if (word === "bash" || word === "node") {
+      interpreter = word;
+    } else if (word === "python3") {
+      interpreter = "python";
+    } else if (word === "py" && flags[0] === "-3") {
+      interpreter = "python";
+      py3 = true;
+    } else if (word === "pwsh") {
+      if (flags.at(-1) !== "-File") {
+        problems.push({
+          index,
+          message: `runs bundled script ${script.path} with pwsh but no -File — write \`pwsh -File ${script.path}\``,
+        });
+        return true;
+      }
+      interpreter = "pwsh";
     }
-    const interpreter: Interpreter = hit === "py3" ? "python" : hit;
     if (interpreter !== script.interpreter) {
-      const used = hit === "py3" ? "py -3" : hit === "python" ? "python3" : hit;
-      problems.push({
-        index,
-        message: `runs bundled script ${script.path} with ${used} — its interpreter is ${script.interpreter === "python" ? "python3" : script.interpreter}: write ${spelled(script)}`,
-      });
+      wrong(script, index, used);
       return true;
     }
     if (interpreter === "python") {
       const usage = python.get(script.path) ?? { python3: false, py3: false, index, script };
-      usage[hit === "py3" ? "py3" : "python3"] = true;
+      usage[py3 ? "py3" : "python3"] = true;
       python.set(script.path, usage);
     }
     return true;
   };
-  const bare = (script: BundledScript, index: number): void => {
-    problems.push({ index, message: `runs bundled script ${script.path} by bare path — write ${spelled(script)}` });
+  /** A run in the current shell, judged by the fence that names that shell. */
+  const currentShell = (op: string, fence: string, script: BundledScript, index: number): void => {
+    if (POWERSHELL_FENCES.has(fence) && op !== "source") {
+      if (script.interpreter !== "pwsh") {
+        bare(script, index);
+      }
+    } else if (BASH_FENCES.has(fence) && op !== "&") {
+      if (script.interpreter !== "bash") {
+        wrong(script, index, `${op} in a ${fence} fence`);
+      }
+    } else {
+      bare(script, index);
+    }
+  };
+  /**
+   * One command line: a fenced line, or an inline code span (`fence` undefined), whose first token
+   * is a run only with arguments after it or a run verb before the span (`runVerb`).
+   */
+  const judgeLine = (line: string, base: number, fence: string | undefined, runVerb: boolean): void => {
+    for (const m of line.matchAll(TOKEN)) {
+      const token = m[1] ?? m[2] ?? m[3] ?? "";
+      const script = resolve(token);
+      if (!script) {
+        continue;
+      }
+      const index = base + m.index + (m[3] === undefined ? 1 : 0);
+      const trimmed = line.slice(0, m.index).trimEnd();
+      if (named(trimmed, script, index)) {
+        continue;
+      }
+      const op = CURRENT_SHELL.exec(trimmed)?.[1];
+      if (op !== undefined) {
+        currentShell(op, fence ?? "", script, index);
+      } else if (COMMAND_POSITION.test(trimmed)) {
+        if (fence === undefined && trimmed === "") {
+          if (runVerb || line.slice(m.index + m[0].length).trim() !== "") {
+            bare(script, index);
+          }
+        } else if (!(POWERSHELL_FENCES.has(fence ?? "") && script.interpreter === "pwsh" && /[\\/]/.test(token))) {
+          // PowerShell runs a .ps1 path itself; any other shell needs the exec bit and a shebang.
+          bare(script, index);
+        }
+      }
+    }
   };
 
   let offset = 0;
@@ -147,52 +215,10 @@ export function scriptInvocationProblems(
     if (opener) {
       fence = fence === undefined ? (opener[1] ?? "").toLowerCase() : undefined;
     } else if (fence !== undefined) {
-      for (const m of line.matchAll(TOKEN)) {
-        const token = m[1] ?? m[2] ?? m[3] ?? "";
-        const script = resolve(token);
-        if (!script) {
-          continue;
-        }
-        const index = offset + m.index + (m[3] === undefined ? 1 : 0);
-        const prefix = line.slice(0, m.index);
-        if (named(prefix, script, index)) {
-          continue;
-        }
-        const trimmed = prefix.trimEnd();
-        if (POWERSHELL_CALL.test(trimmed)) {
-          if (!(POWERSHELL_FENCES.has(fence) && script.interpreter === "pwsh")) {
-            bare(script, index);
-          }
-        } else if (COMMAND_POSITION.test(trimmed)) {
-          bare(script, index);
-        }
-      }
+      judgeLine(line, offset, fence, false);
     } else {
       for (const m of line.matchAll(/`([^`]+)`/g)) {
-        const content = m[1] ?? "";
-        const words = content.trim().split(/\s+/);
-        const first = words[0] ?? "";
-        const spanStart = m.index + 1 + content.indexOf(first);
-        const firstScript = resolve(first);
-        if (firstScript) {
-          if (words.length > 1 || RUN_VERB.test(line.slice(0, m.index))) {
-            bare(firstScript, offset + spanStart);
-          }
-          continue;
-        }
-        // An interpreter first: find the script after its flags, then judge the whole prefix.
-        for (let at = 1; at < words.length; at += 1) {
-          const word = words[at] ?? "";
-          if (word.startsWith("-")) {
-            continue;
-          }
-          const script = resolve(word);
-          if (script) {
-            const within = content.indexOf(word, content.indexOf(first) + first.length);
-            named(content.slice(0, within), script, offset + m.index + 1 + within);
-          }
-          break;
-        }
+        judgeLine(m[1] ?? "", offset + m.index + 1, undefined, RUN_VERB.test(line.slice(0, m.index)));
       }
     }
     offset += line.length + 1;

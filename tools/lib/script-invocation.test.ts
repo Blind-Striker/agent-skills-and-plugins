@@ -65,6 +65,101 @@ test("the named interpreter must be the script's own", () => {
   ]);
 });
 
+test("an interpreter word outside the convention is a wrong interpreter, in prose and in a fence", () => {
+  const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\`\n`;
+  const python = "write `python3 scripts/lint.py`, with the Windows form `py -3 scripts/lint.py` beside it";
+  const cases: [string, string][] = [
+    [
+      "python scripts/lint.py",
+      `runs bundled script scripts/lint.py with python — its interpreter is python3: ${python}`,
+    ],
+    [
+      "python2 scripts/lint.py",
+      `runs bundled script scripts/lint.py with python2 — its interpreter is python3: ${python}`,
+    ],
+    [
+      "python3.12 scripts/lint.py",
+      `runs bundled script scripts/lint.py with python3.12 — its interpreter is python3: ${python}`,
+    ],
+    [
+      "python -u scripts/lint.py",
+      `runs bundled script scripts/lint.py with python -u — its interpreter is python3: ${python}`,
+    ],
+    ["py scripts/lint.py", `runs bundled script scripts/lint.py with py — its interpreter is python3: ${python}`],
+    ["py -2 scripts/lint.py", `runs bundled script scripts/lint.py with py -2 — its interpreter is python3: ${python}`],
+    [
+      "sh scripts/tool.sh",
+      "runs bundled script scripts/tool.sh with sh — its interpreter is bash: write `bash scripts/tool.sh`",
+    ],
+    [
+      "zsh scripts/tool.sh",
+      "runs bundled script scripts/tool.sh with zsh — its interpreter is bash: write `bash scripts/tool.sh`",
+    ],
+    [
+      "dash scripts/tool.sh",
+      "runs bundled script scripts/tool.sh with dash — its interpreter is bash: write `bash scripts/tool.sh`",
+    ],
+    [
+      "powershell -File scripts/Report.ps1",
+      "runs bundled script scripts/Report.ps1 with powershell -File — its interpreter is pwsh: write `pwsh -File scripts/Report.ps1`",
+    ],
+    [
+      "powershell.exe -ExecutionPolicy Bypass -File scripts/Report.ps1",
+      "runs bundled script scripts/Report.ps1 with powershell.exe -ExecutionPolicy Bypass -File — its interpreter is pwsh: write `pwsh -File scripts/Report.ps1`",
+    ],
+    [
+      "cmd /c scripts/Report.ps1",
+      "runs bundled script scripts/Report.ps1 with cmd /c — its interpreter is pwsh: write `pwsh -File scripts/Report.ps1`",
+    ],
+  ];
+  for (const [command, message] of cases) {
+    assert.deepEqual(problems(`Run \`${command}\`.`), [message], `prose: ${command}`);
+    assert.deepEqual(problems(fence("bash", command)), [message], `fence: ${command}`);
+  }
+});
+
+test("the convention's own words still pass with flags of their own", () => {
+  assert.deepEqual(problems("Run `bash -e scripts/tool.sh` and `node --no-warnings render.js`."), []);
+  assert.deepEqual(problems("Run `python3 -u scripts/lint.py` (on Windows, `py -3 -u scripts/lint.py`)."), []);
+  assert.deepEqual(problems("Run `pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/Report.ps1`."), []);
+});
+
+test("a run in the current shell is named by its fence", () => {
+  const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\`\n`;
+  // Sourcing runs the script in the bash the fence names, so it needs no exec bit and no `bash`.
+  assert.deepEqual(problems(fence("bash", "source scripts/tool.sh\n. ./scripts/tool.sh")), []);
+  // PowerShell runs a .ps1 path itself: the call operator, dot-sourcing, and the bare path agree.
+  assert.deepEqual(
+    problems(
+      fence("powershell", "& ./scripts/Report.ps1 -Path x\n. ./scripts/Report.ps1\n./scripts/Report.ps1 -Path x"),
+    ),
+    [],
+  );
+  assert.deepEqual(problems(fence("pwsh", "scripts/Report.ps1 -Path x")), []);
+});
+
+test("a current-shell run outside the shell that runs it is a bare run", () => {
+  const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\`\n`;
+  const bareSh = "runs bundled script scripts/tool.sh by bare path — write `bash scripts/tool.sh`";
+  const barePs = "runs bundled script scripts/Report.ps1 by bare path — write `pwsh -File scripts/Report.ps1`";
+  assert.deepEqual(problems(fence("", "source scripts/tool.sh")), [bareSh], "no fence names bash");
+  assert.deepEqual(problems(fence("powershell", "source scripts/tool.sh")), [bareSh]);
+  assert.deepEqual(problems(fence("powershell", ". scripts/tool.sh")), [bareSh]);
+  assert.deepEqual(problems(fence("powershell", "& ./scripts/tool.sh")), [bareSh]);
+  assert.deepEqual(problems(fence("bash", "./scripts/Report.ps1")), [barePs], "bash runs it through the exec bit");
+  assert.deepEqual(problems(fence("bash", ". scripts/Report.ps1")), [
+    "runs bundled script scripts/Report.ps1 with . in a bash fence — its interpreter is pwsh: write `pwsh -File scripts/Report.ps1`",
+  ]);
+  assert.deepEqual(problems(fence("bash", "source scripts/lint.py")), [
+    "runs bundled script scripts/lint.py with source in a bash fence — its interpreter is python3: write `python3 scripts/lint.py`, with the Windows form `py -3 scripts/lint.py` beside it",
+  ]);
+  assert.deepEqual(problems("Run `source scripts/tool.sh`, `. scripts/tool.sh`, or `& scripts/Report.ps1`."), [
+    bareSh,
+    bareSh,
+    barePs,
+  ]);
+});
+
 test("a Python script names python3 and the Windows form py -3 together", () => {
   assert.deepEqual(problems("Run `python3 scripts/lint.py` (on Windows, `py -3 scripts/lint.py`)."), []);
   assert.deepEqual(problems("Run `python3 scripts/lint.py`."), [
