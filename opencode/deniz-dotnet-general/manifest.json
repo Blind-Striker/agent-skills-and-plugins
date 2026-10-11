@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.13.0",
-  "digest": "sha256:7f5dc01a1a9be43874da6495e6d9949caf8a09f733eee78b234a1914a115589d",
+  "digest": "sha256:53f6518485047fde1563cf346386c84d549891c2232adfca61e6a31bbe1ace23",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -465,7 +465,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.opentelemetry-net-instrumentation/SKILL.md": {
-      "sha256": "sha256:1e383660e0e31f1b41c19924bfaf60af5ebf673fa11031939f163b032f1764eb",
+      "sha256": "sha256:9e1dce231bb9d06d788799cc569d96bc0d149625f400c3bb19e3c69cce37f043",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.opentelemetry-net-instrumentation/metrics-and-instruments-reference.md": {

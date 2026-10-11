@@ -64,6 +64,8 @@ The consuming application wires up the SDK and exporters.
 
 **Application authors**: Add `OpenTelemetry.Extensions.Hosting` + the exporters and instrumentation libraries you need. See [sdk-resources-and-logs-reference.md](sdk-resources-and-logs-reference.md) for full setup patterns.
 
+**When Aspire ServiceDefaults, or any other composition root, already calls `UseOtlpExporter()`**: register your `ActivitySource` and `Meter` names there and add no exporter. Never add a per-signal `AddOtlpExporter()` beside it: OpenTelemetry .NET throws `NotSupportedException` when both are on one service collection, and the Aspire AppHost sets the OTLP endpoint that turns `UseOtlpExporter()` on, so the service fails at startup under the AppHost.
+
 **Never add** `OpenTelemetry.Api` to a library — `System.Diagnostics.*` IS the API.
 
 For SDK setup, resource configuration, exporters, sampling, and logs integration, see [sdk-resources-and-logs-reference.md](sdk-resources-and-logs-reference.md).

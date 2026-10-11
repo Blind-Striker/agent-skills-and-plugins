@@ -1,0 +1,23 @@
+diff --git a/SKILL.md b/SKILL.md
+index 7815320..b301730 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -65,16 +65,18 @@ composition root (not in libraries):
+ > `System.Diagnostics.ActivitySource` / `System.Diagnostics.Metrics.Meter` and let the
+ > consuming application configure the export pipeline. Do you want to proceed?"
+ 
+ **Library authors**: Add **nothing**. Use only `System.Diagnostics.*` and `ILogger`.
+ The consuming application wires up the SDK and exporters.
+ 
+ **Application authors**: Add `OpenTelemetry.Extensions.Hosting` + the exporters and instrumentation libraries you need. See [sdk-resources-and-logs-reference.md](sdk-resources-and-logs-reference.md) for full setup patterns.
+ 
++**When Aspire ServiceDefaults, or any other composition root, already calls `UseOtlpExporter()`**: register your `ActivitySource` and `Meter` names there and add no exporter. Never add a per-signal `AddOtlpExporter()` beside it: OpenTelemetry .NET throws `NotSupportedException` when both are on one service collection, and the Aspire AppHost sets the OTLP endpoint that turns `UseOtlpExporter()` on, so the service fails at startup under the AppHost.
++
+ **Never add** `OpenTelemetry.Api` to a library — `System.Diagnostics.*` IS the API.
+ 
+ For SDK setup, resource configuration, exporters, sampling, and logs integration, see [sdk-resources-and-logs-reference.md](sdk-resources-and-logs-reference.md).
+ 
+ ## Core Principles
+ 
+ ### Resiliency First
+ **CRITICAL**: Exceptions in diagnostic/tracing/metrics logic MUST NEVER impact application processing.

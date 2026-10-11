@@ -223,6 +223,12 @@
       "SKILL.md": "239c1d3fe37249b0f17b852e7794b96b5226333d"
     }
   },
+  "deniz-dotnet-general/opentelemetry-net-instrumentation": {
+    "source": "dotnet-skills/skills/opentelementry-dotnet-instrumentation",
+    "files": {
+      "SKILL.md": "78153206a0dc3baabd154a2250f3bb36af173981"
+    }
+  },
   "deniz-dotnet-general/package-management": {
     "source": "dotnet-skills/skills/package-management",
     "files": {

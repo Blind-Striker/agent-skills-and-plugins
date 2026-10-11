@@ -3166,6 +3166,7 @@
   "deniz-dotnet-general/skill/opentelemetry-net-instrumentation": {
     "source": "dotnet-skills/skills/opentelementry-dotnet-instrumentation",
     "invocation": "auto",
+    "body": "patch",
     "description": "Provides guidance for implementing OpenTelemetry instrumentation in .NET codebases, covering tracing (Activities/Spans), metrics, logs, naming conventions, error handling, performance, SDK setup, resources, context propagation, and API design best practices.",
     "claude": {
       "artifacts": [

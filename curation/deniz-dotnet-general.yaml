@@ -115,7 +115,12 @@ items:
     # Tolerated upstream example defect: the dependency-free exception callback computes EmitLogs
     # but invokes the callback unconditionally in the spans-only default. This is local runtime
     # guidance, not set wiring or harness fit; opening ownership on its 770-line reference file costs
-    # more than this curation owes, so the body continues to flow upstream-owned.
+    # more than this curation owes, so that reference continues to flow upstream-owned.
+    body: patch # one guard in SKILL.md, curator's call: its setup adds a per-signal AddOtlpExporter(),
+    # and beside the UseOtlpExporter() that Aspire's ServiceDefaults calls once the AppHost sets the
+    # OTLP endpoint, OpenTelemetry .NET throws NotSupportedException, so the service fails at startup
+    # only under the AppHost. Where a composition root already calls UseOtlpExporter(), sources and
+    # meters are registered there and no exporter is added. Plain text, no cross-Module edge
   - source: dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi
     invocation: auto # HTTP semantics/endpoints — complementary to api-design's library/wire focus
     body: patch # EF handoff pointed at the excluded optimizing-ef-core-queries; rewired to the two
