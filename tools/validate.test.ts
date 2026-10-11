@@ -1424,6 +1424,19 @@ test("V: an unbackticked general-purpose subagent renders per harness and leaks 
   );
 });
 
+test("V: a general-purpose subagent inside a code span ships whole and is rejected in both trees", () => {
+  const errors = ocErrors("Then `dispatch a general-purpose subagent` with the prompt.", [
+    "  - source: sp/skills/alpha",
+  ]);
+  for (const tree of ["opencode", "codex"]) {
+    assert.ok(
+      errors.some((m) => m.includes(`Claude-only vocabulary "general-purpose subagent" in ${tree}/`)),
+      errors.join("\n"),
+    );
+  }
+  assert.ok(!errors.some((m) => m.includes("`general` subagent")), errors.join("\n"));
+});
+
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
   const errors = ocErrors(
     "Body.",

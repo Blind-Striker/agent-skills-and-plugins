@@ -114,14 +114,76 @@ export function rewriteRefs(content: string, map: Map<string, RewriteTarget>, st
 
 const CODEX_VERB = { Call: "Invoke", call: "invoke", calls: "invokes", calling: "invoking" } as const;
 
+/** A line that opens a new Markdown block: a list item, quote, heading, or table row. */
+const BLOCK_START = /^[ \t]*(?:[-*+][ \t]|>|#|\||\d+[.)][ \t])/;
+
+/**
+ * The inline code spans of Markdown text, as `[start, end)` offsets that include their backticks.
+ * As in CommonMark, a run of backticks opens a span that the next run of the same length closes
+ * within its block; a run with no closer is literal, and a fenced code block holds no span.
+ */
+export function inlineCodeSpans(content: string): [number, number][] {
+  const spans: [number, number][] = [];
+  const scan = (start: number, end: number): void => {
+    const runs = [...content.slice(start, end).matchAll(/`+/g)].map((m) => ({
+      at: start + m.index,
+      length: m[0].length,
+    }));
+    for (let i = 0; i < runs.length; i += 1) {
+      const open = runs[i] as { at: number; length: number };
+      const close = runs.findIndex((run, k) => k > i && run.length === open.length);
+      if (close !== -1) {
+        spans.push([open.at, (runs[close]?.at ?? 0) + open.length]);
+        i = close;
+      }
+    }
+  };
+  let offset = 0;
+  let block: number | undefined;
+  let fence: { char: string; length: number } | undefined;
+  const endBlock = (end: number): void => {
+    if (block !== undefined) {
+      scan(block, end);
+    }
+    block = undefined;
+  };
+  for (const line of content.split("\n")) {
+    const marker = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    const run = marker?.[1] ?? "";
+    const rest = marker?.[2] ?? "";
+    if (fence) {
+      if (run.startsWith(fence.char) && run.length >= fence.length && rest.trim() === "") {
+        fence = undefined;
+      }
+    } else if (marker && !(run.startsWith("`") && rest.includes("`"))) {
+      endBlock(offset);
+      fence = { char: run.charAt(0), length: run.length };
+    } else if (line.trim() === "" || BLOCK_START.test(line)) {
+      endBlock(offset);
+      block = line.trim() === "" ? undefined : offset;
+    } else {
+      block ??= offset;
+    }
+    offset += line.length + 1;
+  }
+  endBlock(content.length);
+  return spans;
+}
+
 // Closed dispatch table (references-and-linking.md "Harness phrasing"). Codex names no subagent tool
-// or agent type: neither is recorded in this repository's research.
-const DISPATCH: { pattern: RegExp; opencode: string; codex: string }[] = [
+// or agent type: neither is recorded in this repository's research. A row marked `outsideCode` would
+// put a backtick inside a code span and break it, so it skips a match there in every harness and
+// leaves the words for the vocabulary check to reject.
+const DISPATCH: { pattern: RegExp; opencode: string; codex: string; outsideCode?: true }[] = [
   { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
   { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
-  // The same words unbackticked. A backtick before them is a code span, which this cannot rewrite
-  // without breaking, so that case is left for the vocabulary check to reject.
-  { pattern: /(?<!`)\bgeneral-purpose(\s+)subagent\b/g, opencode: "`general`$1subagent", codex: "subagent" },
+  // The same words unbackticked, or with the type emphasized as `**general-purpose**`.
+  {
+    pattern: /(\*{1,2})?\bgeneral-purpose\1(\s+)subagent\b/g,
+    opencode: "$1`general`$1$2subagent",
+    codex: "subagent",
+    outsideCode: true,
+  },
   { pattern: /`Agent`( calls?)\b/g, opencode: "`subagent`$1", codex: "subagent$1" },
 ];
 
@@ -130,7 +192,7 @@ export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
   /\bskill tool/gi,
   /Subagent \(general-purpose\)/g,
   /`general-purpose`/g,
-  /\bgeneral-purpose\s+(?:sub)?agent\b/g,
+  /\bgeneral-purpose\**\s+(?:sub)?agent\b/g,
   /`Agent`/g,
   /\bAgent tool\b/g,
   /\bTask tool\b/g,
@@ -167,7 +229,17 @@ export function renderHarnessPhrasing(content: string, style: RefStyle): string 
   }
   out += content.slice(cut);
   for (const row of DISPATCH) {
-    out = out.replace(row.pattern, row[style]);
+    if (!row.outsideCode) {
+      out = out.replace(row.pattern, row[style]);
+      continue;
+    }
+    const spans = inlineCodeSpans(out);
+    out = out.replace(row.pattern, (match: string, ...args: unknown[]) => {
+      const at = args.find((arg) => typeof arg === "number") as number;
+      return spans.some(([start, end]) => at >= start && at < end)
+        ? match
+        : match.replace(new RegExp(row.pattern.source), row[style]);
+    });
   }
   return out;
 }

@@ -332,6 +332,57 @@ test("an unbackticked general-purpose subagent inside a code span is left for th
   }
 });
 
+test("a general-purpose subagent anywhere inside a code span is left whole for the vocabulary check", () => {
+  for (const span of [
+    "Run `dispatch a general-purpose subagent` here.",
+    "Run ``a `x` then a general-purpose subagent`` here.",
+    "A span may wrap: `dispatch a\ngeneral-purpose subagent` here.",
+    "Run `a **general-purpose** subagent` here.",
+  ]) {
+    for (const style of ["opencode", "codex"] as const) {
+      const rendered = renderHarnessPhrasing(span, style);
+      assert.equal(rendered, span, `${style}: ${span}`);
+      assert.equal(claudeOnlyVocabulary(rendered).length, 1, `${style}: ${span}`);
+    }
+  }
+});
+
+test("a general-purpose subagent outside every code span still renders per harness", () => {
+  const text = [
+    "Use `x`, then dispatch a general-purpose subagent; `y` follows.",
+    "A lone ` backtick opens nothing: a general-purpose subagent.",
+    "```text",
+    "Prompt: dispatch a general-purpose subagent. A ` inside a fence is literal.",
+    "```",
+    "After the fence, a general-purpose subagent.",
+  ].join("\n");
+  assert.equal(
+    renderHarnessPhrasing(text, "opencode"),
+    [
+      "Use `x`, then dispatch a `general` subagent; `y` follows.",
+      "A lone ` backtick opens nothing: a `general` subagent.",
+      "```text",
+      "Prompt: dispatch a `general` subagent. A ` inside a fence is literal.",
+      "```",
+      "After the fence, a `general` subagent.",
+    ].join("\n"),
+  );
+  assert.deepEqual(claudeOnlyVocabulary(renderHarnessPhrasing(text, "codex")), []);
+});
+
+test("an emphasized general-purpose subagent renders per harness and is Claude-only vocabulary", () => {
+  const text = "Dispatch a **general-purpose** subagent, or a *general-purpose* subagent.";
+  assert.equal(
+    renderHarnessPhrasing(text, "opencode"),
+    "Dispatch a **`general`** subagent, or a *`general`* subagent.",
+  );
+  assert.equal(renderHarnessPhrasing(text, "codex"), "Dispatch a subagent, or a subagent.");
+  assert.deepEqual(
+    claudeOnlyVocabulary(text).map((hit) => hit.match),
+    ["general-purpose** subagent", "general-purpose* subagent"],
+  );
+});
+
 test("Claude Code's TodoWrite tool name is Claude-only vocabulary; OpenCode's own lowercase word is not", () => {
   assert.deepEqual(
     claudeOnlyVocabulary("Track it with TodoWrite, or `TodoWrite`.").map((hit) => hit.match),

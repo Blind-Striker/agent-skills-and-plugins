@@ -196,13 +196,16 @@ Subagent dispatch words are a closed table, matched exactly:
 |---|---|---|
 | `Subagent (general-purpose)` | `Subagent (general)` | `Subagent` |
 | `` `general-purpose` ``, whitespace, `subagent` | `` `general` ``, the same whitespace, `subagent` | `subagent` |
-| `general-purpose`, whitespace, `subagent`, unbackticked and not opening a code span | `` `general` ``, the same whitespace, `subagent` | `subagent` |
+| `general-purpose`, whitespace, `subagent`, unbackticked or with the type in emphasis (`**general-purpose**`), outside an inline code span | `` `general` ``, inside the same emphasis, the same whitespace, `subagent` | `subagent` |
 | `` `Agent` call `` or `` `Agent` calls `` | `` `subagent` call `` or `` `subagent` calls `` | `subagent call` or `subagent calls` |
 
 So "Dispatch a fresh general-purpose subagent" reads "Dispatch a fresh `general` subagent" in
-OpenCode and "Dispatch a fresh subagent" in Codex. Words that a backtick opens, as in
-`` `general-purpose subagent` ``, are left alone, because a backtick inserted there would break the
-code span; the vocabulary check rejects them instead.
+OpenCode and "Dispatch a fresh subagent" in Codex. The same words anywhere inside an inline code
+span, as in `` `dispatch a general-purpose subagent` ``, are left alone in every harness, because a
+backtick inserted there would break the span; the vocabulary check rejects them instead. A span is
+found as CommonMark finds it: a run of backticks closed by the next run of the same length within
+its block. A fenced code block holds no span, so the words are rendered there, where a backtick is
+literal (`inlineCodeSpans`).
 
 The tool names come from recorded evidence. OpenCode 2's model tool `skill` takes an exact skill
 ID, its subagent tool is `subagent`, and its built-in general subagent is `general`
@@ -254,13 +257,15 @@ skills.
 
 `validate` rejects Claude Code tool vocabulary in every Markdown file under `opencode/` and `codex/`:
 `skill tool` in any letter case, `Subagent (general-purpose)`, `` `general-purpose` ``,
-`general-purpose` followed by whitespace and `agent` or `subagent`, `` `Agent` ``, `Agent tool`,
-`Task tool`, `subagent_type`, and `TodoWrite`, Claude Code's todo tool, in that letter case. The
-rendered OpenCode ``the `skill` tool`` does not match, because a backtick separates the words, and
-neither does OpenCode's own lowercase `todowrite`. The patterns sit beside the phrasing tables in
-[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every non-Claude rendering in those tables
-must pass them. A new upstream phrasing therefore fails the build instead of reaching a harness that
-has no such tool; the fix is a curated rewording or a new table row.
+`general-purpose` followed by whitespace and `agent` or `subagent`, with emphasis stars allowed
+between, `` `Agent` ``, `Agent tool`, `Task tool`, `subagent_type`, and `TodoWrite`, Claude Code's
+todo tool, in that letter case. The rendered OpenCode ``the `skill` tool`` does not match, because
+a backtick separates the words, and neither does OpenCode's own lowercase `todowrite`. The check
+reads code spans too, so it rejects the words the phrasing leaves whole there. The patterns sit
+beside the phrasing tables in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every
+non-Claude rendering in those tables must pass them. A new upstream phrasing therefore fails the
+build instead of reaching a harness that has no such tool; the fix is a curated rewording or a new
+table row.
 
 ## `depends_on` and audience reachability
 
