@@ -208,6 +208,21 @@ test("a menu label is measured without Markdown emphasis or code markers", () =>
   assert.equal(short("Run `npm test` and __read__ every failing line."), "Run npm test and read every failing line.");
 });
 
+test("a menu label keeps inline code whole and strips emphasis only outside words and code", () => {
+  assert.equal(
+    short("Format every `**/*.cs` file; keep `__init__.py` as it is."),
+    "Format every **/*.cs file; keep __init__.py as it is.",
+  );
+  assert.equal(
+    short("Use when a test is *flaky* or _slow_, never for snake_case names."),
+    "Use when a test is flaky or slow, never for snake_case names.",
+  );
+  assert.equal(
+    short("Rename `_private_` fields; keep a*b*c and `*.md` as written."),
+    "Rename _private_ fields; keep a*b*c and *.md as written.",
+  );
+});
+
 test("a menu label with no sentence that fits cuts at the last clause boundary that fits", () => {
   const cut = short(
     "A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.",

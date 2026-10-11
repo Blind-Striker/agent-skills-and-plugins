@@ -4,6 +4,7 @@ import type { AssembledItem } from "./assemble.ts";
 import { parseDoc, type ParsedDoc } from "./frontmatter.ts";
 import type { CurationItem, CurationManifest } from "./manifest.ts";
 import { PORTABLE_NAME } from "./resolve.ts";
+import { inlineCodeSpans } from "./rewrite.ts";
 
 export const CODEX_MARKETPLACE_NAME = "deniz-skills";
 export const CODEX_MARKETPLACE_DISPLAY_NAME = "Deniz Skills";
@@ -118,8 +119,19 @@ const CUT_LIMIT = SHORT_DESCRIPTION_LIMIT - 1;
 const MEANINGFUL_LABEL = 25;
 /** A sentence ends at `.`, `!`, or `?` before the end of the text or before a capital. */
 const SENTENCE_END = /[.!?](?=$|\s+[A-Z])/g;
-/** Markdown emphasis and code markers, which a plain-text menu label shows literally. */
-const MARKUP = /\*\*|__|`/g;
+/**
+ * Markdown emphasis, which a plain-text menu label would show literally: `**x**`, `__x__`, `*x*`, and
+ * `_x_`. A delimiter touches no letter or digit outside it and no whitespace inside it, so the `_`
+ * of `snake_case` and the `*` of `a*b*c` are not emphasis.
+ */
+const EMPHASIS = [
+  /(?<![\p{L}\p{N}*])\*\*(?![\s*])(.+?)(?<![\s*])\*\*(?![\p{L}\p{N}*])/gu,
+  /(?<![\p{L}\p{N}_])__(?![\s_])(.+?)(?<![\s_])__(?![\p{L}\p{N}_])/gu,
+  /(?<![\p{L}\p{N}*])\*(?![\s*])(.+?)(?<![\s*])\*(?![\p{L}\p{N}*])/gu,
+  /(?<![\p{L}\p{N}_])_(?![\s_])(.+?)(?<![\s_])_(?![\p{L}\p{N}_])/gu,
+];
+/** Stands in for an inline code span while emphasis is unwrapped around it. */
+const CODE_SLOT = /(\d+)/g;
 const CLAUSE_BOUNDARIES = new Set([",", ";", ":", "—"]);
 /** Words a cut label must not end on, because they promise a continuation the label lacks. */
 const FUNCTION_WORDS = new Set([
@@ -215,6 +227,24 @@ function wordCut(text: string): string {
 }
 
 /**
+ * A description as a plain-text label shows it: an inline code span loses its backticks and keeps
+ * its content whole, and emphasis outside code loses its delimiters.
+ */
+function plainText(description: string): string {
+  const code: string[] = [];
+  let text = "";
+  let cut = 0;
+  for (const [start, end] of inlineCodeSpans(description)) {
+    const ticks = /^`+/.exec(description.slice(start, end))?.[0].length ?? 1;
+    text += `${description.slice(cut, start)}${code.length}`;
+    code.push(description.slice(start + ticks, end - ticks));
+    cut = end;
+  }
+  text = EMPHASIS.reduce((out, re) => out.replace(re, "$1"), text + description.slice(cut));
+  return text.replace(CODE_SLOT, (_slot, index: string) => code[Number(index)] ?? "");
+}
+
+/**
  * The menu label of a manual skill, measured without Markdown markers: the whole description when
  * it fits, else as many whole sentences as fit, else the text before the last clause boundary that
  * fits outside brackets, else whole words, both with trailing function words dropped. A cut that
@@ -224,7 +254,7 @@ function wordCut(text: string): string {
  */
 function shortSkillDescription(name: string, description: string): string {
   const generic = `Use ${codexDisplayName(name)} for relevant Codex tasks.`;
-  const normalized = description.replace(MARKUP, "").replace(/\s+/g, " ").trim();
+  const normalized = plainText(description).replace(/\s+/g, " ").trim();
   const candidate = normalized.length >= 25 ? normalized : generic;
   if (candidate.length <= SHORT_DESCRIPTION_LIMIT) {
     return candidate;

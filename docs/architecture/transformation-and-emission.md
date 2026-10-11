@@ -244,8 +244,13 @@ the catalog the model is offered while `$plugin:skill` still injects it (measure
 0.153.4, [record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md));
 `auto` and `both` write no disabling policy. Absent invocation uses the Codex target default. The
 policy file's `interface.short_description` is a menu label, not the trigger description. It fits
-the Codex guideline of 64 characters and is cut from the rendered description with its Markdown
-emphasis and code markers (`**`, `__`, and backticks) removed:
+the Codex guideline of 64 characters and is cut from the rendered description as plain text. An
+inline code span, found as the harness phrasing finds one
+([`inlineCodeSpans`](../../tools/lib/rewrite.ts)), loses its backticks and keeps its content whole,
+so `` `**/*.cs` `` and `` `__init__.py` `` read `**/*.cs` and `__init__.py`. Outside code, emphasis
+loses its delimiters: `**x**`, `__x__`, `*x*`, and `_x_`, where a delimiter touches no letter or
+digit outside it and no whitespace inside it, so `snake_case` and `a*b*c` stay as written. The cut
+is then:
 
 1. the whole description, when it fits;
 2. else as many whole sentences as fit;
