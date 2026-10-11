@@ -444,3 +444,30 @@ items:
     # Body taken unchanged: its post-mortem dimensions, the skill timeline included, are the field
     # evidence trigger tuning needs. It files a GitHub issue only after the human approves the exact
     # text, so upstream's maintainer-triage framing rides along as written.
+  # --- humanlayer-skills: attribution-only source ---
+  - source: humanlayer-skills/plugins/show-me/skills/show-me
+    exclude: true # not rejected — attribution source of pr: pr's Summary section reproduces
+    # show-me almost word for word, so show-me is pr's declared merge source and HumanLayer's license
+    # ships in every Process notice pack
+  - source: humanlayer-skills/plugins/build-iterated-agentic-loop/skills/build-iterated-agentic-loop
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/design-control-loop/skills/design-control-loop
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/improve-claude-md/skills/improve-claude-md
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/narrow-react-prop-types/skills/narrow-react-prop-types
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/rpi/skills/rpi
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/visual-pr/skills/visual-pr
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/rpi/agents/codebase-analyzer.md
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/rpi/agents/codebase-locator.md
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/rpi/agents/codebase-pattern-finder.md
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/rpi/agents/outline-implementer-agent.md
+    exclude: true # attribution-only source; not curated
+  - source: humanlayer-skills/plugins/rpi/agents/web-search-researcher.md
+    exclude: true # attribution-only source; not curated

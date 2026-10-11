@@ -86,7 +86,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `resolving-merge-conflicts` left with its upstream deletion, its `ask-deniz` route included.
   Process takes `implement-spec`, `retro`, and `pr` as `manual`; `pr`'s Summary guidance comes
   from HumanLayer's `show-me`, so `humanlayer/skills` is an attribution-only submodule whose
-  license ships in every Process notice pack. `chief-of-staff` is excluded while it is in
+  license ships in every Process notice pack and whose every component is excluded, `show-me` as
+  `pr`'s merge source. `chief-of-staff` is excluded while it is in
   progress upstream. `setup-matt-pocock-skills` writes its block to `AGENTS.md`, which OpenCode and
   Codex read, and proposes importing it into `CLAUDE.md`. `ask-deniz` is recut by hand, and the
   eight model-reachable skills it named in plain text are now checked facts.
@@ -289,9 +290,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **`to-tickets` sub-issues are GitHub-only upstream:** the GitLab and local tracker templates name
   no sub-issue operation, and the rule against modifying a parent issue sits beside the operation
   that attaches its sub-issues. Both are upstream's; neither is patched.
-- **HumanLayer's components are listed but undecided:** `humanlayer/skills` is a submodule only for
-  `pr`'s attribution, so the inventory lists its 12 components with no curation decision. No tool
-  requires one.
 - **Scanner layout blind spots:** grouped commands and agents are missed, while nested component
   directories can be double-counted.
 - **Overlay mode drift:** overlay locks hash bytes but not executable mode.
