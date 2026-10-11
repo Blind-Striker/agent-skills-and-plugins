@@ -157,10 +157,11 @@ current shell needs no exec bit, so its fence names the interpreter. In a fence 
 `source` and `.` run the script in bash. In a fence labelled `powershell`, `pwsh`, `ps1`, or `ps`,
 the call operator `&`, dot-sourcing `.`, and the bare path all run a `.ps1` in PowerShell. Bash
 sourcing a script of another interpreter is a wrong interpreter, and PowerShell hands a script of
-another interpreter to its exec bit, which is a bare run. The same current-shell forms anywhere
-else, inline code included, name no interpreter and are bare runs. The check is lexical: a run
-worded outside these forms is not seen, and a script that runs another script is not read
-([`scriptInvocationProblems`](../tools/lib/script-invocation.ts)).
+another interpreter to its exec bit, which is a bare run. Anywhere else, inline code and a fence
+labelled `sh` or `shell` included, `source` and `.` name no shell and so no interpreter, and the
+message says so; there `&` is no call operator, so the path after it is a bare run. The check is
+lexical: a run worded outside these forms is not seen, and a script that runs another script is not
+read ([`scriptInvocationProblems`](../tools/lib/script-invocation.ts)).
 
 ## `invocation` and `as` are orthogonal
 

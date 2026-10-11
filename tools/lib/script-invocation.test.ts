@@ -149,12 +149,27 @@ test("a run in the current shell is named by its fence", () => {
   assert.deepEqual(problems(fence("pwsh", "scripts/Report.ps1 -Path x")), []);
 });
 
-test("a current-shell run outside the shell that runs it is a bare run", () => {
+test("sourcing where no fence names the shell names no interpreter; & outside PowerShell is a bare run", () => {
+  const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\`\n`;
+  const unnamed = (op: string, where: string): string =>
+    `runs bundled script scripts/tool.sh with ${op} ${where}, which names no interpreter — write \`bash scripts/tool.sh\``;
+  assert.deepEqual(problems(fence("", "source scripts/tool.sh")), [unnamed("source", "in an unlabelled fence")]);
+  assert.deepEqual(problems(fence("sh", "source scripts/tool.sh")), [unnamed("source", "in a sh fence")]);
+  assert.deepEqual(problems(fence("shell", ". scripts/tool.sh")), [unnamed(".", "in a shell fence")]);
+  assert.deepEqual(problems(fence("powershell", "source scripts/tool.sh")), [
+    unnamed("source", "in a powershell fence"),
+  ]);
+  assert.deepEqual(problems("Run `source scripts/tool.sh`, `. scripts/tool.sh`, or `& scripts/Report.ps1`."), [
+    unnamed("source", "in inline code"),
+    unnamed(".", "in inline code"),
+    "runs bundled script scripts/Report.ps1 by bare path — write `pwsh -File scripts/Report.ps1`",
+  ]);
+});
+
+test("a current-shell run that hands a script to its exec bit is a bare run", () => {
   const fence = (lang: string, body: string): string => `\`\`\`${lang}\n${body}\n\`\`\`\n`;
   const bareSh = "runs bundled script scripts/tool.sh by bare path — write `bash scripts/tool.sh`";
   const barePs = "runs bundled script scripts/Report.ps1 by bare path — write `pwsh -File scripts/Report.ps1`";
-  assert.deepEqual(problems(fence("", "source scripts/tool.sh")), [bareSh], "no fence names bash");
-  assert.deepEqual(problems(fence("powershell", "source scripts/tool.sh")), [bareSh]);
   assert.deepEqual(problems(fence("powershell", ". scripts/tool.sh")), [bareSh]);
   assert.deepEqual(problems(fence("powershell", "& ./scripts/tool.sh")), [bareSh]);
   assert.deepEqual(problems(fence("bash", "./scripts/Report.ps1")), [barePs], "bash runs it through the exec bit");
@@ -163,11 +178,6 @@ test("a current-shell run outside the shell that runs it is a bare run", () => {
   ]);
   assert.deepEqual(problems(fence("bash", "source scripts/lint.py")), [
     "runs bundled script scripts/lint.py with source in a bash fence — its interpreter is python3: write `python3 scripts/lint.py`, with the Windows form `py -3 scripts/lint.py` beside it",
-  ]);
-  assert.deepEqual(problems("Run `source scripts/tool.sh`, `. scripts/tool.sh`, or `& scripts/Report.ps1`."), [
-    bareSh,
-    bareSh,
-    barePs,
   ]);
 });
 

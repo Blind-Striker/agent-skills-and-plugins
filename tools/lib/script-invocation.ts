@@ -163,18 +163,30 @@ export function scriptInvocationProblems(
     }
     return true;
   };
-  /** A run in the current shell, judged by the fence that names that shell. */
-  const currentShell = (op: string, fence: string, script: BundledScript, index: number): void => {
-    if (POWERSHELL_FENCES.has(fence) && op !== "source") {
+  /**
+   * A run in the current shell, judged by the fence that names that shell; `fence` is undefined for
+   * inline code. PowerShell hands a script of another interpreter to its exec bit, a bare run.
+   */
+  const currentShell = (op: string, fence: string | undefined, script: BundledScript, index: number): void => {
+    if (POWERSHELL_FENCES.has(fence ?? "") && op !== "source") {
       if (script.interpreter !== "pwsh") {
         bare(script, index);
       }
-    } else if (BASH_FENCES.has(fence) && op !== "&") {
+    } else if (BASH_FENCES.has(fence ?? "") && op !== "&") {
       if (script.interpreter !== "bash") {
         wrong(script, index, `${op} in a ${fence} fence`);
       }
-    } else {
+    } else if (op === "&") {
+      // Outside PowerShell, `&` is no call operator: the path after it runs by its exec bit.
       bare(script, index);
+    } else {
+      // `source` or `.` where no fence names the shell that sources the script.
+      const where =
+        fence === undefined ? "in inline code" : fence === "" ? "in an unlabelled fence" : `in a ${fence} fence`;
+      problems.push({
+        index,
+        message: `runs bundled script ${script.path} with ${op} ${where}, which names no interpreter — write ${spelled(script)}`,
+      });
     }
   };
   /**
@@ -195,7 +207,7 @@ export function scriptInvocationProblems(
       }
       const op = CURRENT_SHELL.exec(trimmed)?.[1];
       if (op !== undefined) {
-        currentShell(op, fence ?? "", script, index);
+        currentShell(op, fence, script, index);
       } else if (COMMAND_POSITION.test(trimmed)) {
         if (fence === undefined && trimmed === "") {
           if (runVerb || line.slice(m.index + m[0].length).trim() !== "") {
