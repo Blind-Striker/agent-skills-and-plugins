@@ -215,8 +215,13 @@ ID, its subagent tool is `subagent`, and its built-in general subagent is `gener
 ([OpenCode 2 research](../research/opencode-2-target.md), sections 6 and 8). Codex has no skill
 tool: explicit selection is `$plugin:skill`
 ([Codex surfaces](../research/codex-native-plugin-and-skill-surfaces.md#skill-invocation)).
-This repository's research records no Codex subagent tool or agent type, so Codex wording names
-neither.
+Codex does have a subagent tool. Codex CLI 0.153.4 ships `spawn_agent` behind its `multi_agent`
+feature, which is stable and on by default: `codex features list` reports it enabled under an empty
+`CODEX_HOME`, and the source at `openai/codex@rust-v0.153.4` declares it `Stage::Stable` with
+`default_enabled: true` (`Feature::Collab` in `codex-rs/features/src/lib.rs`). The companion tools
+for messaging, waiting on, and closing a child differ between the V1 and V2 multi-agent versions a
+model preset selects (`codex-rs/core/src/tools/spec_plan.rs`). The Codex rendering names no tool and
+no agent type; `using-superpowers`' Codex tool notes name the tools.
 
 OpenCode 2 has no todo tool: its pull request `anomalyco/opencode#35989` removed OpenCode 1's
 `todowrite` with no replacement, and its built-in Plan agent is a read-only mode, not a tracker.

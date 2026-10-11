@@ -274,8 +274,8 @@ items:
     # file run in order or share fixed names; a ticket that needs untracked fixtures runs in the
     # main checkout; and after the single fix subagent only the fixed findings are re-checked, with
     # no second broad review, while the project's whole test suite still runs, as the TDD overlay
-    # and subagent-driven-development's fix rounds require. Codex has no subagent tool recorded in
-    # this repository's research, so there it is "only a slower implement", upstream's own words.
+    # and subagent-driven-development's fix rounds require. Codex CLI ships a subagent tool,
+    # spawn_agent, on by default, so the parallel path applies there too; no run has measured it.
     body: patch
     depends_on: [requesting-code-review, test-driven-development]
     omit: ["agents/**"]

@@ -274,8 +274,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   control dropped that word together with the attachment. Closing this needs, on each harness, a
   rendered handoff fixture whose source and target share no trigger words. No run covers the
   `Subagent (general)` dispatch label, the rendered unbackticked `general-purpose subagent`, or
-  the tool-free Codex dispatch wording. No Codex subagent
-  tool or agent type is recorded in repository research, so Codex wording names neither.
+  the tool-free Codex dispatch wording, which names no tool although Codex CLI 0.153.4 ships
+  `spawn_agent` on by default
+  ([references and linking](architecture/references-and-linking.md#harness-phrasing)).
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
 - **Original-skill declarations are absent:** `manual`/`both` posture and outgoing edge-source scans
@@ -287,9 +288,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `systematic-debugging`, and `test-driven-development`.
 - **W5's runtime paths are unmeasured:** `implement-spec` creates each implementer's worktree with
   git where the harness gives a subagent none, which OpenCode 2 does not, and no run has exercised
-  that path. Codex has no subagent tool in this repository's research, so there it is upstream's
-  "only a slower implement", and the two-reviewer dispatch of `requesting-code-review` is likewise
-  unmeasured there.
+  that path. Codex runs its implementers through `spawn_agent`, on by default in Codex CLI
+  0.153.4, but no run has exercised `implement-spec` or the two-reviewer dispatch of
+  `requesting-code-review` there either.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to
