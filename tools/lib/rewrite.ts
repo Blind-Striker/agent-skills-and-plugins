@@ -177,9 +177,10 @@ export function inlineCodeSpans(content: string): [number, number][] {
 const DISPATCH: { pattern: RegExp; opencode: string; codex: string; outsideCode?: true }[] = [
   { pattern: /Subagent \(general-purpose\)/g, opencode: "Subagent (general)", codex: "Subagent" },
   { pattern: /`general-purpose`(\s+)subagent/g, opencode: "`general`$1subagent", codex: "subagent" },
-  // The same words unbackticked, or with the type emphasized as `**general-purpose**`.
+  // The same words unbackticked, or with the type emphasized as `**general-purpose**` or
+  // `_general-purpose_`. An underscore is a word character, so the emphasis is matched explicitly.
   {
-    pattern: /(\*{1,2})?\bgeneral-purpose\1(\s+)subagent\b/g,
+    pattern: /(?:(\*{1,2}|_{1,2})|(?<!\w))general-purpose\1(\s+)subagent\b/g,
     opencode: "$1`general`$1$2subagent",
     codex: "subagent",
     outsideCode: true,
@@ -192,7 +193,7 @@ export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
   /\bskill tool/gi,
   /Subagent \(general-purpose\)/g,
   /`general-purpose`/g,
-  /\bgeneral-purpose\**\s+(?:sub)?agent\b/g,
+  /(?<![A-Za-z0-9])general-purpose[*_]*\s+(?:sub)?agent\b/g,
   /`Agent`/g,
   /\bAgent tool\b/g,
   /\bTask tool\b/g,

@@ -383,6 +383,26 @@ test("an emphasized general-purpose subagent renders per harness and is Claude-o
   );
 });
 
+test("an underscore-emphasized general-purpose subagent renders like the star forms", () => {
+  const text = "Dispatch a _general-purpose_ subagent, or a __general-purpose__ subagent.";
+  assert.equal(
+    renderHarnessPhrasing(text, "opencode"),
+    "Dispatch a _`general`_ subagent, or a __`general`__ subagent.",
+  );
+  assert.equal(renderHarnessPhrasing(text, "codex"), "Dispatch a subagent, or a subagent.");
+  assert.deepEqual(
+    claudeOnlyVocabulary(text).map((hit) => hit.match),
+    ["general-purpose_ subagent", "general-purpose__ subagent"],
+  );
+  for (const style of ["opencode", "codex"] as const) {
+    assert.deepEqual(claudeOnlyVocabulary(renderHarnessPhrasing(text, style)), [], style);
+    const span = "Run `a _general-purpose_ subagent` here.";
+    assert.equal(renderHarnessPhrasing(span, style), span, `${style}: a code span stays whole`);
+    assert.equal(claudeOnlyVocabulary(span).length, 1, `${style}: and is left for the vocabulary check`);
+  }
+  assert.equal(renderHarnessPhrasing("a snake_general-purpose subagent", "codex"), "a snake_general-purpose subagent");
+});
+
 test("Claude Code's TodoWrite tool name is Claude-only vocabulary; OpenCode's own lowercase word is not", () => {
   assert.deepEqual(
     claudeOnlyVocabulary("Track it with TodoWrite, or `TodoWrite`.").map((hit) => hit.match),
