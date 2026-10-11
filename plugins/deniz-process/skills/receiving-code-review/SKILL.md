@@ -15,7 +15,7 @@ Code review requires technical evaluation, not emotional performance.
 
 **Core principle:** Verify before implementing. Ask before assuming. Technical correctness over social comfort.
 
-While a plan executor runs (executing-plans or subagent-driven-development), the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself steps; this skill governs human review feedback.
+While a plan executor runs (executing-plans or subagent-driven-development), the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself steps.
 
 ## The Response Pattern
 

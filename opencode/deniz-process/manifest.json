@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.1",
-  "digest": "sha256:30a92a97b801499044876050221a777dd12c9822b6f090b3c177c32bad97d0bf",
+  "digest": "sha256:72efa399de431e465ad493fbe2fea025032d35dc1642238df85663f5acff5c63",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -250,7 +250,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.receiving-code-review/SKILL.md": {
-      "sha256": "sha256:37d46136bbec4912bd813ff3c4948593a3c9583d8ce971c07c5681e51dfe55fa",
+      "sha256": "sha256:ebf7f69a998f595fcdfe3710e2c648809895ba1c4c2f9a88928ba8e5ecd1194f",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {

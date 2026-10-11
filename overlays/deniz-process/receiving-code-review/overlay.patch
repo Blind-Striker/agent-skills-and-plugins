@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 950da7b..0fe65b2 100644
+index 950da7b..950b333 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -6,16 +6,18 @@ description: Use when receiving code review feedback, before implementing sugges
@@ -11,7 +11,7 @@ index 950da7b..0fe65b2 100644
  
  **Core principle:** Verify before implementing. Ask before assuming. Technical correctness over social comfort.
  
-+While a plan executor runs (executing-plans or subagent-driven-development), the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself steps; this skill governs human review feedback.
++While a plan executor runs (executing-plans or subagent-driven-development), the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself steps.
 +
  ## The Response Pattern
  

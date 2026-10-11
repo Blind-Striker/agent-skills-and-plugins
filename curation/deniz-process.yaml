@@ -123,8 +123,9 @@ items:
     invocation: auto # behavioural discipline that should kick in whenever review feedback arrives — never typed
     body: patch # one sentence, curator's call: while executing-plans or subagent-driven-development
     # runs, the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself
-    # steps, which would otherwise stall the run or fix findings in the controller session; this
-    # skill governs human review feedback
+    # steps, which would otherwise stall the run or fix findings in the controller session. The
+    # sentence states only that exception: outside such a run the skill applies to every review, a
+    # reviewer subagent's findings as much as a human's, as requesting-code-review says
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
     invocation: auto # invoked from systematic-debugging's body and from implement's
