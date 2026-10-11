@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.8.1",
-  "digest": "sha256:ebacd618f6618e7029745b4a14f15ec32905bacfb955beb1fbcd6b7c4d027191",
+  "digest": "sha256:ba3fdc625d7d0b742d091cf3e514fd4738798087fe58561ce04f5c778847256b",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -294,7 +294,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:dcb8c6e4f377a0b17b18e929096a130a422006a28059154dc24f33a05546d060",
+      "sha256": "sha256:7ca1d042e08ce1d6f5750262e0d70bd28702aa10b4123564818607b13201f5ed",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {
@@ -302,7 +302,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/re-review-prompt.md": {
-      "sha256": "sha256:3cb1f99d34f4c2be2721936fb440d87dec31777a87ed4d5a587c80584847c366",
+      "sha256": "sha256:665e5d55c917734e5d69ff59cc097e329991cb62061f6f90c3345b25d454a91b",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/scripts/review-package": {

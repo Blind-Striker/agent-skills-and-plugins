@@ -51,13 +51,20 @@ items:
     depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
     invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
-    body: patch # two edits that keep the shared review contract whole; the description stays
+    body: patch # edits that keep the shared review contract whole; the description stays
     # upstream's. Fix rounds run the project's whole suite after the covering tests, as the
     # test-driven-development overlay requires, where upstream said a one-line fix needs only the
-    # covering tests: SKILL.md says so, the implementer prompt's fix round runs and reports both,
-    # and the re-review prompt checks the whole suite's output as the evidence. The final
-    # whole-branch review triages the reviewer's "Declined to judge" list as ledgered rulings, as
-    # executing-plans does; upstream's SDD never read that list.
+    # covering tests: SKILL.md says so, its Example Workflow's fix round shows both runs, the final
+    # fix wave's single fixer gets a report file and the same instruction, the implementer prompt's
+    # fix round runs and reports both, and the re-review prompt checks the whole suite's output as
+    # the evidence. The re-review reports that run as GREEN, RED, or MISSING: a MISSING run keeps the
+    # round open, and a red test goes to New Breakage when the fix caused it, else out of scope. The
+    # final whole-branch review triages the reviewer's "Declined to judge" list as ledgered rulings,
+    # as executing-plans does; upstream's SDD never read that list. Before the first dispatch the
+    # controller reads the one tool-notes file using-superpowers ships to every tree
+    # (references/harness-tools.md), as executing-plans' no-subagent pointer does: upstream reached
+    # those notes through its session bootstrap, which this estate does not ship, and on Codex and
+    # OpenCode they say how to give a child a clean context and resume it.
     depends_on: [finishing-a-development-branch, requesting-code-review, using-git-worktrees] # end-of-run finish, the reviewer template, worktree setup
   - source: superpowers/skills/executing-plans
     invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain.
@@ -96,7 +103,8 @@ items:
     # is a vision document" is split: its silence-is-not-permission half sits in the Spec axis and
     # reads only a supplied spec, its grade-by-effect half in Calibration for both axes. The
     # "Declined to judge" list goes to whichever reviewer holds the spec, and the typed "review
-    # since X" path also rules on that list and re-grades by effect, as both executors do.
+    # since X" path also rules on that list, as both executors do, and re-grades by effect, as
+    # executing-plans does.
     # From code-review's later revisions, curator's call: the standards search must list
     # CODING_STANDARDS.md, where retro's judgement rules land, and CONTRIBUTING.md whenever they
     # exist, in SKILL.md and in the template's placeholder; and the coordinator waits for every

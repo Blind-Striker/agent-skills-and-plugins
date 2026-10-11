@@ -221,6 +221,10 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
 
 ## The Task Loop
 
+**Before the first dispatch,** read your harness's tool notes in
+`../deniz-process.using-superpowers/references/harness-tools.md`: how its subagent tool
+spawns, resumes, and waits on a child differs by harness.
+
 **Batch small same-shape work.** When the plan lists several tasks that are
 each a small, independent edit of the same kind — the same one-line fix,
 constant change, or field addition repeated across files — do not dispatch
@@ -401,7 +405,8 @@ where FIX_BASE is the head the previous review saw, and dispatch
 brief, the report file, and the printed diff path. The re-reviewer verdicts
 each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
 diff only. New Critical/Important breakage in the fix diff joins the open
-findings list. Out-of-scope observations go to the ledger as deferred
+findings list, and so does a whole-suite run the re-reviewer reports
+MISSING. Out-of-scope observations go to the ledger as deferred
 minors — they never extend the loop.
 
 **After each round,** append to the ledger:
@@ -464,7 +469,10 @@ stands or why it is now a finding> — <cost if wrong>`. A line that is now a
 finding joins the findings below; nothing on the list is dropped silently.
 
 If the final whole-branch review returns findings, dispatch ONE fix subagent
-with the complete findings list — not one fixer per finding.
+with the complete findings list — not one fixer per finding — and a
+report-file path in the workspace. As in every fix round, it re-runs the
+tests covering its fixes and then the project's whole suite, and appends
+both runs' output to that report file, which the re-review reads.
 Per-finding fixers each rebuild context and re-run suites; a real
 session's final-review fix wave cost more than all its tasks combined.
 Then run exactly one scoped re-review of the fix wave
@@ -554,7 +562,8 @@ Task reviewer: Spec ❌:
 
 [Fix round 1: resume the implementer with both findings]
 Implementer: Added progress reporting, extracted PROGRESS_INTERVAL constant.
-  Re-ran test/recovery.test.js — 10/10 passing. Fix report appended.
+  Re-ran test/recovery.test.js — 10/10 passing, then the whole suite —
+  48/48 passing. Fix report appended.
 
 [Run review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review]
 Re-reviewer: Missing progress reporting — ADDRESSED (src/recovery.js:41).

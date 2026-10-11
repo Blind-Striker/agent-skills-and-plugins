@@ -1,8 +1,29 @@
 diff --git a/SKILL.md b/SKILL.md
-index f7bbf6a..c53b8f4 100644
+index f7bbf6a..1024a98 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -381,22 +381,23 @@ and the findings — the report file is the persistent memory either way.
+@@ -215,16 +215,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
+ 
+ **Task complexity signals (implementation tasks):**
+ - Touches 1-2 files with a complete spec → cheap model
+ - Touches multiple files with integration concerns → standard model
+ - Requires design judgment or broad codebase understanding → most capable model
+ 
+ ## The Task Loop
+ 
++**Before the first dispatch,** read your harness's tool notes in
++`../using-superpowers/references/harness-tools.md`: how its subagent tool
++spawns, resumes, and waits on a child differs by harness.
++
+ **Batch small same-shape work.** When the plan lists several tasks that are
+ each a small, independent edit of the same kind — the same one-line fix,
+ constant change, or field addition repeated across files — do not dispatch
+ one subagent per task. Compose ONE dispatch brief listing every file and
+ its change, send the whole batch to a single subagent, and review its diff
+ as one unit. Reserve one-dispatch-per-task for work that needs its own
+ judgment, its own tests, or its own review surface.
+ 
+@@ -381,30 +385,32 @@ and the findings — the report file is the persistent memory either way.
  **Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
  Model Selection), with the brief path, the report-file path, the open
  findings, and this framing: "A prior implementer attempted this task
@@ -31,8 +52,18 @@ index f7bbf6a..c53b8f4 100644
  brief, the report file, and the printed diff path. The re-reviewer verdicts
  each finding ADDRESSED or NOT ADDRESSED and flags new breakage in the fix
  diff only. New Critical/Important breakage in the fix diff joins the open
- findings list. Out-of-scope observations go to the ledger as deferred
-@@ -450,16 +451,22 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
+-findings list. Out-of-scope observations go to the ledger as deferred
++findings list, and so does a whole-suite run the re-reviewer reports
++MISSING. Out-of-scope observations go to the ledger as deferred
+ minors — they never extend the loop.
+ 
+ **After each round,** append to the ledger:
+ `Task <N>: fix round <R>/5 (<X> addressed, <Y> open — <finding one-liners>; commits <a7>..<b7>)`
+ 
+ Never fix findings yourself in the controller session — your context stays
+ clean for coordination, and controller fixes skip review.
+ 
+@@ -450,18 +456,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
  printed path in the final review dispatch, so the final reviewer reads
  one file instead of re-deriving the branch diff with git commands. Dispatch
  on the most capable available model (see Model Selection), using
@@ -48,13 +79,39 @@ index f7bbf6a..c53b8f4 100644
 +finding joins the findings below; nothing on the list is dropped silently.
 +
  If the final whole-branch review returns findings, dispatch ONE fix subagent
- with the complete findings list — not one fixer per finding.
+-with the complete findings list — not one fixer per finding.
++with the complete findings list — not one fixer per finding — and a
++report-file path in the workspace. As in every fix round, it re-runs the
++tests covering its fixes and then the project's whole suite, and appends
++both runs' output to that report file, which the re-review reads.
  Per-finding fixers each rebuild context and re-run suites; a real
  session's final-review fix wave cost more than all its tasks combined.
  Then run exactly one scoped re-review of the fix wave
  (`bash scripts/review-package PLAN_FILE FIX_BASE HEAD` over the fix range,
  [re-review-prompt.md](re-review-prompt.md)).
  Adjudicate any residual findings as in the task loop's breaker: park with
+ rulings, or rule on the load-bearing ones and ledger what you decided. Only
+ the four classes above stop you here. There is no second fix wave —
+@@ -541,17 +556,18 @@ Implementer: [No questions]
+ 
+ [Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
+ Task reviewer: Spec ❌:
+   - Missing: Progress reporting (spec says "report every 100 items")
+   Issues (Important): Magic number (100)
+ 
+ [Fix round 1: resume the implementer with both findings]
+ Implementer: Added progress reporting, extracted PROGRESS_INTERVAL constant.
+-  Re-ran test/recovery.test.js — 10/10 passing. Fix report appended.
++  Re-ran test/recovery.test.js — 10/10 passing, then the whole suite —
++  48/48 passing. Fix report appended.
+ 
+ [Run review-package PLAN_FILE FIX_BASE HEAD; dispatch scoped re-review]
+ Re-reviewer: Missing progress reporting — ADDRESSED (src/recovery.js:41).
+   Magic number — ADDRESSED (src/recovery.js:7). New breakage: none.
+   Verdict: all findings addressed.
+ 
+ [Ledger: Task 2: fix round 1/5 (2 addressed, 0 open; commits d4e5f6a..b7c8d9e)]
+ [Ledger: Task 2: complete (commits d4e5f6a..b7c8d9e, review clean)]
 diff --git a/implementer-prompt.md b/implementer-prompt.md
 index 5c8ecd6..c46aafa 100644
 --- a/implementer-prompt.md
@@ -88,7 +145,7 @@ index 5c8ecd6..c46aafa 100644
      - **TDD Evidence** (if TDD was required for this task):
        - RED: command run, relevant failing output before implementation, and why the failure was expected
 diff --git a/re-review-prompt.md b/re-review-prompt.md
-index d49c182..bb9ad8f 100644
+index d49c182..20aa05f 100644
 --- a/re-review-prompt.md
 +++ b/re-review-prompt.md
 @@ -58,19 +58,20 @@ Subagent (general-purpose):
@@ -115,3 +172,26 @@ index d49c182..bb9ad8f 100644
      ## Output Format
  
      Your final message is the report itself: begin directly with the first
+@@ -89,16 +90,22 @@ Subagent (general-purpose):
+     Anything the fix itself broke or introduced, with severity
+     (Critical/Important/Minor) and file:line. "None" if clean.
+ 
+     ### Out-of-Scope Observations
+ 
+     Issues you noticed entirely outside the fix diff. Non-blocking; the
+     controller ledgers these for the final review. "None" if none.
+ 
++    ### Whole-Suite Run
++
++    GREEN, RED, or MISSING from the report. For RED, name each failing
++    test: under New Breakage when the fix diff caused it, else under
++    Out-of-Scope Observations.
++
+     ### Verdict
+ 
+     **Fix round:** [All findings addressed, no new Critical/Important
+     breakage | Findings remain open] — list the open ones.
+ ```
+ 
+ **Placeholders:**
+ - `[MODEL]` — REQUIRED: reviewer model per SKILL.md Model Selection; scoped

@@ -95,6 +95,12 @@ Subagent:
     Issues you noticed entirely outside the fix diff. Non-blocking; the
     controller ledgers these for the final review. "None" if none.
 
+    ### Whole-Suite Run
+
+    GREEN, RED, or MISSING from the report. For RED, name each failing
+    test: under New Breakage when the fix diff caused it, else under
+    Out-of-Scope Observations.
+
     ### Verdict
 
     **Fix round:** [All findings addressed, no new Critical/Important
