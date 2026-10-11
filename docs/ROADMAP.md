@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-10-11
+Date: 2026-10-12
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -119,16 +119,18 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.5.0`. The Linux-built
-  asset carries the schema-2 OpenCode 2 Bundles of Process 0.8.0, General 0.12.0, Akka 0.4.1, and
-  Aspire 0.5.1 and the installer's Windows rename retry, and passed the manual release workflow's
-  source gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote re-download
-  checks. Its exact identity and proof boundary are in the
-  [release record](../experiments/harness-invocation/records/2026-10-11-opencode-installer-v0.5.0.md).
-  The previous schema-2 Release `installer-v0.4.0` remains published
-  ([record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)). The
-  older Releases through `installer-v0.3.0` remain schema-1 historical snapshots with OpenCode 1
-  shapes, and their assets were not replaced.
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.6.0`. The Linux-built
+  asset carries the schema-2 OpenCode 2 Bundles of Process 0.8.1, General 0.13.0, Akka 0.4.1, and
+  Aspire 0.6.0 with the installer of Package 0.5.0, unchanged, and passed the manual release
+  workflow's source gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote
+  re-download checks. Its exact identity and proof boundary are in the
+  [release record](../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.6.0.md).
+  The previous schema-2 Releases `installer-v0.5.0`
+  ([record](../experiments/harness-invocation/records/2026-10-11-opencode-installer-v0.5.0.md)) and
+  `installer-v0.4.0`
+  ([record](../experiments/harness-invocation/records/2026-10-09-opencode-installer-v0.4.0.md)) remain
+  published. The older Releases through `installer-v0.3.0` remain schema-1 historical snapshots with
+  OpenCode 1 shapes, and their assets were not replaced.
 - Dependency-aware Module Selection is implemented in the checkout and ships since Package 0.4.0:
   schema-2 Bundles and Install state, compile-time `requiredModules` derivation, final-Selection
   presence checks, actual-versus-proposed status, and metadata-only Apply with exact Recovery. Feature source is
