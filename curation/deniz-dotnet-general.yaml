@@ -55,19 +55,24 @@ items:
     # flow/API/attribute knowledge and a user pointer to the manual migration ceremony
   - source: dotnet-skills/skills/aot-trimming
     invocation: auto # passive trimming/AOT design and attribute knowledge for code being written,
-    # refactored, or reviewed where trim/AOT analysis is in effect, and the owner of turning on
-    # PublishAot or PublishTrimmed in an app, new or existing, curator's call: the manual ceremony
+    # refactored, or reviewed where trim/AOT analysis is in effect, and the owner of turning on both
+    # PublishAot and PublishTrimmed in an app, new or existing, curator's call: the manual ceremony
     # sets only IsAotCompatible and disclaims publishing, so routing that request to it left no item
     # to do it. Adopting IsTrimmable/IsAotCompatible in an existing library and the systematic
     # migration of a project-wide IL-warning list remain the manual dotnet-aot-compat ceremony; this
     # item keeps only the warnings the code being written or changed raises, so a model choosing it
     # does not take over a migration. No omit: unlike the NRT playbook, this playbook is design
     # knowledge that only this item carries.
-    body: patch # rescopes the description and When to Use to code in scope and an app's publish
-    # switch, adds a user pointer to the manual ceremony, lets only a new library declare the
-    # library properties, states that the ceremony's no-suppression rule governs inside it and a
-    # justified leaf suppression is allowed outside it, and removes the warning-approval baseline,
-    # which moved into dotnet-aot-compat. The serialization see-also stays candidate prose.
+    body: patch # rescopes When to Use to code in scope and an app's publish switch, adds a user
+    # pointer to the manual ceremony, lets only a new library declare the library properties, states
+    # that the ceremony's no-suppression rule governs inside it and a justified leaf suppression is
+    # allowed outside it, and removes the warning-approval baseline, which moved into
+    # dotnet-aot-compat. The description stays short so that a skill-listing budget keeps its
+    # boundaries: it opens with the app publish switch, states the ceremony's exclusion within its
+    # first 130 characters, and keeps the existing-library and in-code-warning qualifiers, which is
+    # why it runs a little over the roadmap's 190. It drops upstream's attribute and pattern list,
+    # which the body carries, and its serialization see-also; the playbook keeps its System.Text.Json
+    # source-generation section.
   - source: dotnet-skills/skills/csharp-api-design
     invocation: auto # extend-only public API + wire compatibility; the NuGet/distributed side of design
   - source: dotnet-skills/skills/csharp-concurrency-patterns
@@ -166,15 +171,20 @@ items:
     # Directory.Build.props examples back the body's centralized-settings link, which keeps
     # upstream's target
     body: patch # adds only what upstream never had: an external-action guard, a checked fact to
-    # aot-trimming, which turns PublishAot on, and a USE FOR / DO NOT USE FOR description. The
-    # defects this patch used to correct were reported from this curation
-    # (Aaronontheweb/dotnet-skills#93) and fixed upstream in v1.7.1 (#94): CONTAINER2008 between
-    # the csproj tag list and the CI tag flag, the VersionPrefix order that tags a plain publish only
-    # `latest`, the `latest` default dating from .NET 8, the scope of ContainerPublishInParallel, the
-    # daemon claim for a registry push, the dead registry-auth link, the deprecated
-    # ContainerEntrypoint and the missing ContainerDefaultArgs, `docker login -p`, the multi-target
-    # entry, the unquoted RID lists, and authoring residue. Each fix was checked against Microsoft
-    # Learn and the dotnet/sdk source, so upstream's text now flows in their place
+    # aot-trimming, which turns PublishAot on, and a short description that names the use and then
+    # its exclusions, the PublishAot route to aot-trimming first, within its first 130 characters, so
+    # a skill-listing budget keeps them. Dockerfile builds, Aspire AppHost deploys, and containers
+    # in tests stay excluded; to fit about 190 characters the description no longer names
+    # aspire-deployment or testcontainers-integration-tests, whose own descriptions claim that
+    # work, and the Related Skills fact still names the latter. The defects this patch used to
+    # correct were reported from this curation (Aaronontheweb/dotnet-skills#93) and fixed upstream
+    # in v1.7.1 (#94): CONTAINER2008 between the csproj tag list and the CI tag flag, the
+    # VersionPrefix order that tags a plain publish only `latest`, the `latest` default dating from
+    # .NET 8, the scope of ContainerPublishInParallel, the daemon claim for a registry push, the dead
+    # registry-auth link, the deprecated ContainerEntrypoint and the missing ContainerDefaultArgs,
+    # `docker login -p`, the multi-target entry, the unquoted RID lists, and authoring residue. Each
+    # fix was checked against Microsoft Learn and the dotnet/sdk source, so upstream's text now flows
+    # in their place
     depends_on: [testcontainers-integration-tests, aot-trimming] # its Related Skills facts stay checked
   - source: dotnet-agent-skills/plugins/dotnet-nuget/skills/convert-to-cpm
     invocation: manual # one-shot repo-mutating conversion ceremony — the curator types it

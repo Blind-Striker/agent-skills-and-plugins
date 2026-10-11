@@ -1,13 +1,8 @@
 ---
 name: deniz-dotnet-general.sdk-container-publishing
-description: "Publish .NET services as container images with the built-in SDK
-  tooling (dotnet publish /t:PublishContainer, Microsoft.NET.Build.Containers) -
-  no Dockerfile required. Covers the MSBuild property surface, base-image
-  inference, self-contained and AOT implications, and CI/CD publishing. USE FOR:
-  configuring or troubleshooting SDK-built container images and their CI publish
-  step. DO NOT USE FOR: Dockerfile builds, deploying an Aspire AppHost
-  (aspire-deployment), running containers in tests
-  (testcontainers-integration-tests), or turning on PublishAot (aot-trimming)."
+description: Configure or troubleshoot .NET SDK container images
+  (PublishContainer, CI publish). Not for turning on PublishAot (aot-trimming),
+  Dockerfiles, Aspire AppHost deploys, or containers in tests.
 ---
 
 # .NET SDK Container Publishing

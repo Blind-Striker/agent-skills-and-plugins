@@ -1,12 +1,12 @@
 diff --git a/SKILL.md b/SKILL.md
-index f096afe..df10aca 100644
+index f096afe..3439276 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,27 +1,32 @@
  ---
  name: aot-trimming
 -description: "Guidelines for making .NET libraries and applications trimming-safe and Native AOT compatible. Covers the trimming/AOT model, the MSBuild properties that enable analysis (IsTrimmable, IsAotCompatible, PublishTrimmed, PublishAot), the trimming attributes (RequiresUnreferencedCode, RequiresDynamicCode, DynamicallyAccessedMembers, UnconditionalSuppressMessage), IL2xxx/IL3xxx warning codes, and a pattern playbook: source generators and UnsafeAccessor, generated-interception diagnostic suppressors, intentional runtime scanning boundaries, trimming-safe islands and feature switches, migration analyzers, and temporary warning-approval baselines. Use when introducing trimming/AOT support, resolving IL2xxx/IL3xxx warnings, or making reflection-heavy code trimming-safe in C# / .NET codebases. For System.Text.Json AOT scenarios, see also the serialization skill."
-+description: "Apply .NET trimming and Native AOT semantics to code being written or reviewed where trim/AOT analysis is already in effect: the trimming/AOT model, RequiresUnreferencedCode / RequiresDynamicCode / DynamicallyAccessedMembers / UnconditionalSuppressMessage / DynamicDependency semantics, IL2xxx/IL3xxx meaning, and design patterns (source-generated registration, UnsafeAccessor, generated-interception suppressors, intentional scanning boundaries, trimming-safe islands and feature switches, object-to-generic overloads, migration analyzers). For System.Text.Json AOT scenarios, see also the serialization skill. USE FOR: writing, refactoring, or reviewing reflection-touching code that must stay trim/AOT-safe, including the IL warnings in code you write or change; turning on PublishAot or PublishTrimmed in a new or existing app. DO NOT USE FOR: adopting IsTrimmable/IsAotCompatible in an existing library, or a systematic migration of a project-wide IL-warning list; the user invokes dotnet-aot-compat separately."
++description: "Turn on PublishAot/PublishTrimmed in any .NET app; write or review trim/AOT-safe code and its IL warnings. Not for existing-library adoption or project-wide IL-warning migration: user-invoked dotnet-aot-compat."
  version: 1.0.0
  tags:
    - csharp

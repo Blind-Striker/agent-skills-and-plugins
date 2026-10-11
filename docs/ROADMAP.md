@@ -74,8 +74,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   General keeps its report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
 - `dotnet-skills` is reviewed through v1.7.1 (`84b5bee`); waves W2 and W2b are done. General
   takes `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which
-  now carries the warning-approval baseline; `aot-trimming` also owns turning on `PublishAot` in an
-  app. General also takes `cscheck` and `sdk-container-publishing`.
+  now carries the warning-approval baseline; `aot-trimming` also owns turning on `PublishAot` and
+  `PublishTrimmed` in an app, new or existing. General also takes `cscheck` and
+  `sdk-container-publishing`.
   Upstream v1.7.1 fixed the `sdk-container-publishing` defects this repository reported, so its
   patch keeps only this curation's own guard, its `PublishAot` route to `aot-trimming`, and its
   trigger description; its real-world examples file now ships.
@@ -164,6 +165,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Shorten every model-reachable deniz description to about 190 characters or fewer, with the
    clause that tells it apart from its neighbours in the first 130 or so, through the item's
    existing `frontmatter:` override or its patch; the curator approves the drafts as one table.
+   `aot-trimming` (210 characters, kept over the target for its existing-library and in-code
+   warning qualifiers) and `sdk-container-publishing` (190) already follow it.
    Add a `validate` check so an upstream sync cannot bring a long description back, and remove the
    per-machine listing-budget raises once this lands.
 2. **Iteration 2: dependency automation and original-skill declarations.** The upstream sync

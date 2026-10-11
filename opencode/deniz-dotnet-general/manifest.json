@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.13.0",
-  "digest": "sha256:c53aafb7a264ac7fa6f8ac77026b966eda627249b23733a98a79f926aee69755",
+  "digest": "sha256:b8536b5a93e26d10bdb78bef0da7bca4ca9cccbc8729648b353de04058cfa002",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -53,7 +53,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.aot-trimming/SKILL.md": {
-      "sha256": "sha256:e0bcada9afa69667a4feb2812db4d39504b50519daf029a51181fbbbfb829a64",
+      "sha256": "sha256:039f5df15a33a5912e26c37d49693449ba5ccece7e9023318f9e78151fac82c5",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.aot-trimming/aot-trimming-playbook-reference.md": {
@@ -521,7 +521,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/SKILL.md": {
-      "sha256": "sha256:ca6caf2324c52b7377ddfbb9609d7217fc9540ac9eed138f3a5af912f3370c25",
+      "sha256": "sha256:92c799d44594e4c90c0cc0e2283856bd200c17d49d48a7be1895c24005b616c9",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/references/ci-cd.md": {

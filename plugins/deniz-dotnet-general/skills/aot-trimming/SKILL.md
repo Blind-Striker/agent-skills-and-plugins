@@ -1,20 +1,8 @@
 ---
 name: aot-trimming
-description: "Apply .NET trimming and Native AOT semantics to code being written
-  or reviewed where trim/AOT analysis is already in effect: the trimming/AOT
-  model, RequiresUnreferencedCode / RequiresDynamicCode /
-  DynamicallyAccessedMembers / UnconditionalSuppressMessage / DynamicDependency
-  semantics, IL2xxx/IL3xxx meaning, and design patterns (source-generated
-  registration, UnsafeAccessor, generated-interception suppressors, intentional
-  scanning boundaries, trimming-safe islands and feature switches,
-  object-to-generic overloads, migration analyzers). For System.Text.Json AOT
-  scenarios, see also the serialization skill. USE FOR: writing, refactoring, or
-  reviewing reflection-touching code that must stay trim/AOT-safe, including the
-  IL warnings in code you write or change; turning on PublishAot or
-  PublishTrimmed in a new or existing app. DO NOT USE FOR: adopting
-  IsTrimmable/IsAotCompatible in an existing library, or a systematic migration
-  of a project-wide IL-warning list; the user invokes dotnet-aot-compat
-  separately."
+description: "Turn on PublishAot/PublishTrimmed in any .NET app; write or review
+  trim/AOT-safe code and its IL warnings. Not for existing-library adoption or
+  project-wide IL-warning migration: user-invoked dotnet-aot-compat."
 user-invocable: false
 ---
 
