@@ -35,8 +35,8 @@ A **case** is one pair or cluster of items whose triggers compete. The standing 
 three harnesses, so no model chooses between them.
 
 A **sweep** reviews trigger competition across the model-reachable items of one or more Modules and
-leaves out every pair a case covers. The first run swept Process on its own and the three .NET
-Modules together.
+leaves out every pair a case covers. The first run, at `c7e9f90`, reviewed the four standing cases
+and swept Process on its own and the three .NET Modules together.
 
 Each case and each sweep gets one reviewer with a fresh context and its own report.
 

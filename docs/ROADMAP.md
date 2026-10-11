@@ -81,9 +81,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   patch keeps only this curation's own guard, its `PublishAot` route to `aot-trimming`, and its
   trigger description; its real-world examples file now ships.
   Upstream now teaches the Testcontainers 4.x API, so `testcontainers-integration-tests` owns only
-  a TUnit guard, as `aspire-integration-testing`, `snapshot-testing`, and
-  `playwright-blazor-testing` do. Akka and Aspire moved only through upstream's `invocable:` to
-  `user-invocable:` key rename.
+  a TUnit guard, as `aspire-integration-testing` and `playwright-blazor-testing` do;
+  `snapshot-testing`'s patch carries the same guard beside its removal of the email-authoring
+  branches. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key
+  rename.
 - `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);
   wave W3 is done. Its source metadata is 0.0.3 and its guidance covers the Aspire 13.5 and 13.6
   release family; the post-tag commit carries the 13.6 agent-setup and MCP opt-in guidance that
@@ -198,13 +199,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    repair or flaky-test request to Process's `systematic-debugging` through a checked fact. The
    example's `test-driven-development` edge also targets a Process item, so it adds no new Module
    requirement.
-3. **Curation sanity panel: first run done.** The read-only
-   [playbook](agents/curation-sanity-panel.md) owns the method, the standing cases, and when a run
-   is due. Its first run, at `c7e9f90`, reviewed the four standing cases and swept the Process and
-   .NET Modules for trigger competition; the curator's decisions on its packet landed as wave W7,
-   each reason beside its item in `curation/*.yaml`. The catalog-size and description-truncation
-   question it left open is measured, and its fix is item 1.
-4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
