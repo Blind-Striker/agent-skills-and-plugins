@@ -60,7 +60,6 @@ interface LedgerEntry {
     policyFiles: string[];
     edges: Record<RefKind, string[]>;
     dropped: string[];
-    metadataTransformations?: string[];
     bodyTransformations: string[];
   };
 }
@@ -102,7 +101,6 @@ export function writeLedger(
   manifests: CurationManifest[],
   components: ComponentInfo[],
   assembled: AssembledItem[],
-  codexMetadataTransformations: Map<string, string[]> = new Map(),
 ): void {
   const ownNs = new Set(manifests.map((m) => m.plugin.name));
   // Claude address `<plugin>:<name>` -> resolved output kind, over every curated item and original
@@ -214,13 +212,6 @@ export function writeLedger(
             pointer: claudeEdges.pointer.map((address) => `$${address}`),
           },
           dropped: codexAdaptation.dropped,
-          ...((codexMetadataTransformations.get(`${m.plugin.name}/${outName}`) ?? codexAdaptation.transformations)
-            .length
-            ? {
-                metadataTransformations:
-                  codexMetadataTransformations.get(`${m.plugin.name}/${outName}`) ?? codexAdaptation.transformations,
-              }
-            : {}),
           bodyTransformations: [],
         },
       };

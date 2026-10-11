@@ -1,6 +1,6 @@
 # Transformation and emission
 
-Date: 2026-10-09
+Date: 2026-10-11
 
 ## Responsibility
 
@@ -226,10 +226,9 @@ OpenCode output.
 Every resolved item becomes one native Codex skill under `codex/<plugin>/skills/<name>/`, including
 resolved commands and agents. The common assembly keeps their selected dependency files, while
 Codex frontmatter is filtered to `name`, `description`, `license`, `allowed-tools`, and `metadata`;
-all other keys are reported as drops. Final reference localization can lengthen a description, so
-the Codex emitter applies the native 1,024-character limit after localization, reports any
-truncation, and records it in the ledger's `metadataTransformations`. No compatibility `commands/`
-or `agents/` artifact directory is emitted and no custom-agent TOML is synthesized.
+all other keys are reported as drops. The description passes through whole; its length falls under
+the shared [description limit](#description-length). No compatibility `commands/` or `agents/`
+artifact directory is emitted and no custom-agent TOML is synthesized.
 
 An ordinary Codex skill is implicitly eligible and explicitly addressable. `manual` writes
 `agents/openai.yaml` with `policy.allow_implicit_invocation: false`, which keeps the skill out of
@@ -243,6 +242,22 @@ Each Codex Plugin has `.codex-plugin/plugin.json`, repository and source-specifi
 metadata, and one entry in `.agents/plugins/marketplace.json`. The repository marketplace is the
 native transport for Codex CLI and Codex in the ChatGPT desktop app. IDE Plugin loading and
 `.codex/agents/*.toml` distribution are outside this output.
+
+### Description length
+
+Every harness shares one limit: an emitted skill's `description` holds at most 1,024 characters.
+The limit applies to the text each tree ships, not to the neutral source. Rendering a namespaced
+fact adds its plugin prefix, by a different amount in each harness, with Codex's `$<plugin>:<name>`
+the longest spelling, and OpenCode's path respelling can lengthen a sibling path. No emitter
+shortens a description to fit, because a cut would give one harness different trigger text. The
+build measures the rendered description of every skill each harness would emit, including the
+commands and agents Codex emits as skills, and stops before any generated output is deleted;
+`validate` reads every emitted `SKILL.md` under `plugins/`, `opencode/`, and `codex/` again. Both
+findings name the emitted path and the length. An overflow is a curation decision, made through the
+item's `frontmatter:` override or its patch ([`curation/SCHEMA.md`](../../curation/SCHEMA.md)). The
+checks are `collectDescriptionProblems` in [`buildAll`](../../tools/build.ts) and the description
+check D in [`validateRepo`](../../tools/validate.ts), which share
+[`descriptionLengthProblem`](../../tools/lib/skill-description.ts).
 
 ## Finalization and handoff
 

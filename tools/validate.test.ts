@@ -302,17 +302,43 @@ test("Codex validation rejects manifest drift and unsupported skill frontmatter"
   assert.ok(findings.some((finding) => finding.message.includes("unsupported frontmatter: model")));
 });
 
-test("Codex validation rejects a skill description beyond the native limit", () => {
-  const root = makeRepo();
-  buildAll(root);
-  const skill = codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md");
-  writeFileSync(
-    skill,
-    readFileSync(skill, "utf8").replace("description: Alpha curated", `description: ${"x".repeat(1025)}`),
-  );
+test("a skill description over 1,024 characters is an error in every harness tree; 1,024 passes", () => {
+  const trees = [
+    [
+      "plugins/deniz-process/skills/alpha/SKILL.md",
+      (root: string) => join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    ],
+    [
+      "opencode/deniz-process/skills/deniz-process.alpha/SKILL.md",
+      (root: string) => opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
+    ],
+    [
+      "codex/deniz-process/skills/alpha/SKILL.md",
+      (root: string) => codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+    ],
+  ] as const;
+  for (const [label, path] of trees) {
+    for (const length of [1024, 1025]) {
+      const root = makeRepo();
+      buildAll(root);
+      const skill = path(root);
+      writeFileSync(
+        skill,
+        readFileSync(skill, "utf8").replace("description: Alpha curated", `description: ${"x".repeat(length)}`),
+      );
 
-  const findings = validateRepo(root);
-  assert.ok(findings.some((finding) => finding.message.includes("description exceeds 1024 characters")));
+      const hits = validateRepo(root).filter((f) => f.message.includes("description is"));
+      if (length === 1024) {
+        assert.deepEqual(hits, [], label);
+      } else {
+        assert.deepEqual(
+          hits.map((f) => [f.level, f.message]),
+          [["error", `${label}: description is 1025 characters, over the 1024-character skill limit`]],
+          label,
+        );
+      }
+    }
+  }
 });
 
 test("Codex validation enforces the invocation policy matrix", () => {

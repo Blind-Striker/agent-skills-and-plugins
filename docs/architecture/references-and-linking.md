@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-10-09
+Date: 2026-10-11
 
 ## Responsibility
 
@@ -154,7 +154,9 @@ OpenCode attaches skills and agents with `@` and runs only commands with `/`, so
 neutral leading slash becomes the prefix that matches the target's kind. Codex rendering consumes a
 pointer's neutral leading slash instead of producing `/$...`; model and pointer remain separate
 semantic facts even though their final spelling converges. The map and in-place rewrite are
-[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts).
+[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts). Every spelling is longer than the neutral
+fact, and a rendered skill description must still fit the shared 1,024-character limit
+([Description length](transformation-and-emission.md#description-length)).
 
 All three trees are rewritten from their own pre-localized copies. OpenCode and Codex are not
 produced by adapting already localized Claude text. Codex output is rejected when it holds a

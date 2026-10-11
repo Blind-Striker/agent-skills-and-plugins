@@ -159,7 +159,12 @@ have no upstream counterpart, so they remain outside that set.
 
 `depends_on:` lists output names reached by model-edge facts in the shipped body. Author those facts
 in neutral upstream spelling (`namespace:name`); use `/namespace:name` when the body points the human
-at a user surface. Each emitter renders the fact in its own harness's spelling.
+at a user surface. Each emitter renders the fact in its own harness's spelling, which is longer than
+the neutral one. A skill `description` must fit 1,024 characters in every harness's rendered
+spelling, so a fact there counts at its longest rendering; the build and `validate` fail on an
+overflow instead of shortening it, and the fix is a shorter description in the item's `frontmatter:`
+override or its patch
+([Description length](../docs/architecture/transformation-and-emission.md#description-length)).
 
 A body line that tells the model to load another skill is a load-bearing model edge. Author its
 target as a namespaced fact with a matching `depends_on` entry; a bare name names an ID that does

@@ -10,7 +10,6 @@ export const CODEX_MARKETPLACE_DISPLAY_NAME = "Deniz Skills";
 export const CODEX_PLUGIN_CATEGORY = "Productivity";
 export const CODEX_PLUGIN_CAPABILITIES = ["Read", "Write"] as const;
 export const MAX_CODEX_SKILL_NAME_LENGTH = 64;
-export const MAX_CODEX_SKILL_DESCRIPTION_LENGTH = 1024;
 export const CODEX_SKILL_KEYS = new Set(["name", "description", "license", "allowed-tools", "metadata"]);
 
 export interface CodexInvocationResolution {
@@ -88,19 +87,15 @@ export function resolveCodexInvocation(invocation: CurationItem["invocation"]): 
   }
 }
 
-/** Keep only frontmatter Codex loads; target-specific passengers are reported by the caller. */
-export function adaptCodexSkillDocument(
-  name: string,
-  doc: ParsedDoc,
-): { document: ParsedDoc; dropped: string[]; transformations: string[] } {
-  const description = String(doc.frontmatter.description ?? "");
-  const descriptionTooLong = description.length > MAX_CODEX_SKILL_DESCRIPTION_LENGTH;
-  const adaptedDescription = descriptionTooLong
-    ? `${description.slice(0, MAX_CODEX_SKILL_DESCRIPTION_LENGTH - 3).trimEnd()}...`
-    : description;
+/**
+ * Keep only frontmatter Codex loads; target-specific passengers are reported by the caller. The
+ * description passes through whole: the shared length rule (skill-description.ts) fails the build
+ * instead of letting one harness carry different trigger text.
+ */
+export function adaptCodexSkillDocument(name: string, doc: ParsedDoc): { document: ParsedDoc; dropped: string[] } {
   const frontmatter: Record<string, unknown> = {
     name,
-    description: adaptedDescription,
+    description: String(doc.frontmatter.description ?? ""),
   };
   for (const key of ["license", "allowed-tools", "metadata"] as const) {
     if (key in doc.frontmatter) {
@@ -112,9 +107,6 @@ export function adaptCodexSkillDocument(
     dropped: Object.keys(doc.frontmatter)
       .filter((key) => !CODEX_SKILL_KEYS.has(key))
       .sort(),
-    transformations: descriptionTooLong
-      ? [`description truncated to ${MAX_CODEX_SKILL_DESCRIPTION_LENGTH} characters`]
-      : [],
   };
 }
 

@@ -650,6 +650,56 @@ test("a flattened Codex namespace collision aborts before any generated output i
   }
 });
 
+test("a description that rendering pushes over 1,024 characters aborts before any output is deleted", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const sentinels = [
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
+    codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+  ];
+  const before = sentinels.map((path) => readFileSync(path));
+  // 1,007 + " superpowers:beta" = 1,024 neutral characters. Each harness renders the fact with its own
+  // plugin prefix: deniz-process:beta and deniz-process.beta (1,026), $deniz-process:beta (1,027).
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    `---\nname: alpha\ndescription: ${"x".repeat(1007)} superpowers:beta\n---\n\nBody.\n`,
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+    ].join("\n")}\n`,
+  );
+
+  const error = (() => {
+    try {
+      buildAll(root);
+    } catch (caught) {
+      return caught instanceof Error ? caught.message : String(caught);
+    }
+    return "";
+  })();
+  assert.equal(
+    error,
+    [
+      "3 skill descriptions over the 1024-character limit after rendering, nothing deleted:",
+      "plugins/deniz-process/skills/alpha/SKILL.md: description is 1026 characters, over the 1024-character skill limit",
+      "opencode/deniz-process/skills/deniz-process.alpha/SKILL.md: description is 1026 characters, over the 1024-character skill limit",
+      "codex/deniz-process/skills/alpha/SKILL.md: description is 1027 characters, over the 1024-character skill limit",
+    ].join("\n"),
+  );
+  for (const [index, path] of sentinels.entries()) {
+    assert.equal(readFileSync(path).equals(before[index] ?? Buffer.alloc(0)), true);
+  }
+});
+
 test("successful Codex marketplace generation preserves unrelated .agents content", () => {
   const root = makeRepo();
   mkdirSync(join(root, ".agents"), { recursive: true });

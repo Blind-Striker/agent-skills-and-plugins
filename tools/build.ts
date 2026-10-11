@@ -75,6 +75,7 @@ import {
   rewriteOpenCodePaths,
 } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
+import { descriptionLengthProblem, MAX_SKILL_DESCRIPTION_LENGTH } from "./lib/skill-description.ts";
 
 export function buildAll(root: string): string[] {
   requireSubmodules(root);
@@ -127,6 +128,14 @@ export function buildAll(root: string): string[] {
           : "";
       throw new Error(header + openCodeProblems.join("\n"));
     }
+    const descriptionProblems = collectDescriptionProblems(assembled, rewriteMap);
+    if (descriptionProblems.length) {
+      const header =
+        descriptionProblems.length > 1
+          ? `${descriptionProblems.length} skill descriptions over the ${MAX_SKILL_DESCRIPTION_LENGTH}-character limit after rendering, nothing deleted:\n`
+          : "";
+      throw new Error(header + descriptionProblems.join("\n"));
+    }
 
     rmSync(join(root, "plugins"), { recursive: true, force: true });
     rmSync(join(root, "opencode"), { recursive: true, force: true });
@@ -156,15 +165,15 @@ export function buildAll(root: string): string[] {
         notices.get(manifest.plugin.name) ?? [],
       );
     }
-    const codexMetadataTransformations = emitCodex(root, manifests, assembled, notices, report);
+    emitCodex(root, manifests, assembled, notices, report);
     rewriteTree(join(root, "plugins"), rewriteMap, "claude");
     rewriteOpenCodeTree(root, manifests, rewriteMap, openCodeSkillIds(assembled));
     rewriteTree(join(root, "codex"), rewriteMap, "codex");
-    finalizeCodexSkillMetadata(root, assembled, codexMetadataTransformations, report);
+    finalizeCodexSkillMetadata(root, assembled);
     // Manifests come last so they hash the final bytes: post-rewrite, and with the manifest itself
     // excluded from the walk.
     writeOpenCodeManifests(root, manifests, moduleRequirements);
-    writeLedger(root, manifests, components, assembled, codexMetadataTransformations);
+    writeLedger(root, manifests, components, assembled);
     return report;
   } finally {
     rmSync(stagingRoot, { recursive: true, force: true });
@@ -178,8 +187,7 @@ function emitCodex(
   assembled: AssembledItem[],
   notices: Map<string, ReturnType<typeof manifestAttributions>>,
   report: string[],
-): Map<string, string[]> {
-  const metadataTransformations = new Map<string, string[]>();
+): void {
   const publisher = loadCodexPublisherMetadata(root);
   for (const manifest of manifests) {
     const pluginRoot = join(root, "codex", manifest.plugin.name);
@@ -193,12 +201,6 @@ function emitCodex(
       writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
       if (adapted.dropped.length) {
         report.push(`codex skill ${item.outName}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`);
-      }
-      for (const transformation of adapted.transformations) {
-        report.push(`codex skill ${item.outName}: ${transformation}`);
-      }
-      if (adapted.transformations.length) {
-        metadataTransformations.set(`${item.plugin}/${item.outName}`, adapted.transformations);
       }
 
       // Invocation policy is emitter-owned. Never inherit an upstream target's policy file: absent,
@@ -232,29 +234,19 @@ function emitCodex(
   const marketplacePath = join(root, ".agents", "plugins", "marketplace.json");
   mkdirSync(join(root, ".agents", "plugins"), { recursive: true });
   writeFileSync(marketplacePath, serializeCodexJson(createCodexMarketplace(manifests)));
-  return metadataTransformations;
 }
 
-/** Re-apply Codex metadata bounds after reference localization, which can lengthen descriptions. */
-function finalizeCodexSkillMetadata(
-  root: string,
-  assembled: AssembledItem[],
-  metadataTransformations: Map<string, string[]>,
-  report: string[],
-): void {
+/**
+ * Re-serialize each Codex skill after reference localization and derive its explicit-only policy from
+ * the localized description. Rendering lengthens a description, but its length was checked before any
+ * output was deleted (collectDescriptionProblems); nothing here shortens it.
+ */
+function finalizeCodexSkillMetadata(root: string, assembled: AssembledItem[]): void {
   for (const item of assembled) {
     const skillRoot = join(root, "codex", item.plugin, "skills", item.outName);
     const skillPath = join(skillRoot, "SKILL.md");
     const adapted = adaptCodexSkillDocument(item.outName, parseDoc(readFileSync(skillPath, "utf8")));
     writeFileSync(skillPath, serializeDoc(adapted.document));
-    if (adapted.transformations.length) {
-      const key = `${item.plugin}/${item.outName}`;
-      const combined = [...(metadataTransformations.get(key) ?? []), ...adapted.transformations];
-      metadataTransformations.set(key, [...new Set(combined)]);
-      for (const transformation of adapted.transformations) {
-        report.push(`codex skill ${item.outName}: ${transformation}`);
-      }
-    }
 
     const agentManifest = createCodexSkillAgentManifest(
       item.plugin,
@@ -268,6 +260,39 @@ function finalizeCodexSkillMetadata(
       writeFileSync(join(agentsDir, "openai.yaml"), serializeCodexSkillAgentManifest(agentManifest));
     }
   }
+}
+
+/**
+ * The shared description limit, measured on the text each harness will emit: the neutral description
+ * after that harness's reference rendering, plus OpenCode's path respelling, through the same functions
+ * the trees are rewritten with. Claude Code and OpenCode emit a skill only for a skill item; Codex
+ * emits every resolved kind as one. Each finding names the emitted path, as validate's does.
+ */
+function collectDescriptionProblems(assembled: AssembledItem[], rewriteMap: Map<string, RewriteTarget>): string[] {
+  const skillIds = openCodeSkillIds(assembled);
+  const problems: string[] = [];
+  for (const item of assembled) {
+    const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
+    const neutral = serializeDoc({ frontmatter: { description: String(doc.frontmatter.description ?? "") }, body: "" });
+    const emitted: Array<[string, string]> = [];
+    if (item.outType === "skill") {
+      emitted.push(
+        [`plugins/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "claude")],
+        [
+          `opencode/${item.plugin}/skills/${openCodeId(item.plugin, item.outName)}/SKILL.md`,
+          rewriteOpenCodePaths(localize(neutral, rewriteMap, "opencode"), 0, skillIds),
+        ],
+      );
+    }
+    emitted.push([`codex/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "codex")]);
+    for (const [path, text] of emitted) {
+      const problem = descriptionLengthProblem(path, String(parseDoc(text).frontmatter.description ?? ""));
+      if (problem) {
+        problems.push(problem);
+      }
+    }
+  }
+  return problems;
 }
 
 /** The two Claude Code invocation keys, so a stated intent replaces whatever upstream said. */

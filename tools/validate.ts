@@ -9,7 +9,6 @@ import {
   createCodexPluginManifest,
   createCodexSkillAgentManifest,
   loadCodexPublisherMetadata,
-  MAX_CODEX_SKILL_DESCRIPTION_LENGTH,
   resolveCodexRepositoryPath,
 } from "./lib/codex-plugin.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
@@ -52,6 +51,7 @@ import {
 } from "./lib/resolve.ts";
 import { addressOf, claudeOnlyVocabulary, isBundledText } from "./lib/rewrite.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
+import { descriptionLengthProblem } from "./lib/skill-description.ts";
 
 export interface Finding {
   level: "error" | "warn";
@@ -952,6 +952,33 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
+  // D: the shared skill description limit (transformation-and-emission.md) on the text each tree
+  // ships. Rendering lengthens a namespaced fact by its plugin prefix, by a different amount per
+  // harness, so every emitted skill in every tree is read rather than the neutral source.
+  for (const tree of ["plugins", "opencode", "codex"] as const) {
+    const treeDir = join(root, tree);
+    for (const module of existsSync(treeDir) ? readdirSync(treeDir, { withFileTypes: true }) : []) {
+      const skillsDir = join(treeDir, module.name, "skills");
+      if (!module.isDirectory() || !existsSync(skillsDir) || !statSync(skillsDir).isDirectory()) {
+        continue;
+      }
+      for (const skill of readdirSync(skillsDir, { withFileTypes: true })) {
+        const file = join(skillsDir, skill.name, "SKILL.md");
+        if (!skill.isDirectory() || !existsSync(file)) {
+          continue;
+        }
+        const description = parseDoc(readFileSync(file, "utf8")).frontmatter.description;
+        const problem =
+          typeof description === "string"
+            ? descriptionLengthProblem(`${tree}/${module.name}/skills/${skill.name}/SKILL.md`, description)
+            : undefined;
+        if (problem) {
+          findings.push({ level: "error", message: problem });
+        }
+      }
+    }
+  }
+
   // O1, O4–O6: the OpenCode tree addresses items by dotted ID, so every rendered ID and every
   // artifact's shape is checked against what was actually emitted.
   const kindLabel = { "": "item", "@": "skill or agent", "/": "command" } as const;
@@ -1360,15 +1387,6 @@ export function validateRepo(root: string): Finding[] {
         findings.push({
           level: "error",
           message: `codex/${m.plugin.name}/skills/${name}/SKILL.md must have matching name and non-empty description`,
-        });
-      }
-      if (
-        typeof doc.frontmatter.description === "string" &&
-        doc.frontmatter.description.length > MAX_CODEX_SKILL_DESCRIPTION_LENGTH
-      ) {
-        findings.push({
-          level: "error",
-          message: `codex/${m.plugin.name}/skills/${name}/SKILL.md description exceeds ${MAX_CODEX_SKILL_DESCRIPTION_LENGTH} characters`,
         });
       }
       const unsupported = Object.keys(doc.frontmatter)

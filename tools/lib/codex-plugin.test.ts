@@ -10,7 +10,6 @@ import {
   createCodexMarketplace,
   createCodexPluginManifest,
   createCodexSkillAgentManifest,
-  MAX_CODEX_SKILL_DESCRIPTION_LENGTH,
   resolveCodexRepositoryPath,
   resolveCodexInvocation,
   serializeCodexJson,
@@ -18,6 +17,7 @@ import {
   type CodexPublisherMetadata,
 } from "./codex-plugin.ts";
 import type { CurationManifest } from "./manifest.ts";
+import { MAX_SKILL_DESCRIPTION_LENGTH } from "./skill-description.ts";
 
 function manifest(name: string): CurationManifest {
   return { plugin: { name, description: `${name} description`, version: "1.2.3" }, items: [] };
@@ -159,19 +159,12 @@ test("Codex skill adaptation keeps supported metadata and reports every other ke
     metadata: { owner: "team" },
   });
   assert.deepEqual(result.dropped, ["model", "user-invocable"]);
-  assert.deepEqual(result.transformations, []);
   assert.equal(result.document.body, "Body.\n");
 });
 
-test("Codex skill adaptation reports and bounds descriptions that exceed the native limit", () => {
-  const result = adaptCodexSkillDocument("bounded", {
-    frontmatter: { description: "x".repeat(MAX_CODEX_SKILL_DESCRIPTION_LENGTH + 20) },
-    body: "Body.\n",
-  });
-  const description = String(result.document.frontmatter.description);
-  assert.equal(description.length, MAX_CODEX_SKILL_DESCRIPTION_LENGTH);
-  assert.ok(description.endsWith("..."));
-  assert.deepEqual(result.transformations, [
-    `description truncated to ${MAX_CODEX_SKILL_DESCRIPTION_LENGTH} characters`,
-  ]);
+test("Codex skill adaptation never shortens a description; the length rule fails the build instead", () => {
+  const long = "x".repeat(MAX_SKILL_DESCRIPTION_LENGTH + 20);
+  const result = adaptCodexSkillDocument("bounded", { frontmatter: { description: long }, body: "Body.\n" });
+  assert.equal(result.document.frontmatter.description, long);
+  assert.deepEqual(Object.keys(result).sort(), ["document", "dropped"]);
 });
