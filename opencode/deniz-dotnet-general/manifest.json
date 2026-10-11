@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.11.1",
-  "digest": "sha256:4e204e43861208deda7dc544f5d45abb7f2f5d7ff1fef350de607143c578a2c0",
+  "digest": "sha256:8901e8f2fdc26b32acf614cbf981d45db8bb23464fce083eee9cfb150a00e9a1",
   "requiredModules": [
     "deniz-dotnet-aspire"
   ],
@@ -136,7 +136,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.coverage-analysis/SKILL.md": {
-      "sha256": "sha256:73ee7871e866315838b64dc8c34b21876e2d976479111bff68eba9c3ed33cb4f",
+      "sha256": "sha256:145068dfd402d2093a5e271bccb1eea5c1b9e149f257a8de0a0986b28461f6cd",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.coverage-analysis/references/guidelines.md": {
@@ -388,7 +388,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.migrate-nullable-references/SKILL.md": {
-      "sha256": "sha256:b4a288138a8bf9bf45513bc97af1a81f8e2278a8c9baf0eb7fa790a1411e8c7f",
+      "sha256": "sha256:c8d082da7049a357e8724e9a2902dd5e90cb0fc98ad7399f485ddf8093da7692",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.migrate-nullable-references/references/aspnet-core.md": {

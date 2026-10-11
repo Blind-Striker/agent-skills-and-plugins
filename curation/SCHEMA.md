@@ -126,6 +126,29 @@ source must still resolve in that tree, but it is outside the declaration check
 ([References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability)).
 Keep a load-bearing fact in a file every harness ships.
 
+## Bundled scripts
+
+A body that tells the model to run a script its skill folder ships names the interpreter, because a
+packager can strip the executable bit and a Windows shell honors no shebang. Upstream superpowers'
+`writing-skills` states the same rule. The convention:
+
+| Script | Write |
+|---|---|
+| `.sh`, or a `bash` or `sh` shebang | `bash scripts/x.sh` |
+| `.ps1` | `pwsh -File scripts/x.ps1` |
+| `.js`, `.cjs`, `.mjs`, or a `node` shebang | `node scripts/x.js` |
+| `.py`, or a `python3` shebang | `python3 scripts/x.py`, with the Windows form `py -3 scripts/x.py` beside it |
+
+`validate` checks every Markdown file of a skill folder in the Claude tree; the other trees carry
+the same prose. A run is inline code that starts with the script's path and carries arguments, or
+that a run verb (`run`, `re-run`, `execute`) precedes on its line, and a fenced line on which the
+path stands at command position. Inline code that only names the path is a mention. The path
+resolves from the Markdown file's folder or the skill folder; a `<skill-directory>/`-style
+placeholder or a leading `./` is spelling. In a fence labelled `powershell` or `pwsh`, PowerShell's
+call operator `&` counts as naming the interpreter. The check is lexical: a run worded outside these
+forms is not seen, and a script that runs another script is not read
+([`scriptInvocationProblems`](../tools/lib/script-invocation.ts)).
+
 ## `invocation` and `as` are orthogonal
 
 `invocation` says which initiation capabilities an item requires or forbids. `as` says its resolved

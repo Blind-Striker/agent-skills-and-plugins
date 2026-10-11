@@ -1730,3 +1730,32 @@ test("harness files: a tree whose harness maps null holds nothing at the output 
     errors.join("\n"),
   );
 });
+
+test("I: a body that runs a bundled script by bare path is an error; naming the interpreter passes", () => {
+  const root = makeRepo();
+  const delta = join(root, "external", "sp", "skills", "delta");
+  mkdirSync(join(delta, "scripts"), { recursive: true });
+  writeFileSync(join(delta, "scripts", "check"), "#!/usr/bin/env bash\necho ok\n");
+  writeFileSync(join(delta, "scripts", "lint.py"), "print('ok')\n");
+  writeFileSync(
+    join(delta, "SKILL.md"),
+    [
+      "---",
+      "name: delta",
+      "description: D",
+      "---",
+      "Run `scripts/check --all` first.",
+      "Then run `python3 scripts/lint.py` (on Windows, `py -3 scripts/lint.py`).",
+      "The helper `scripts/check` is only mentioned here.",
+      "",
+    ].join("\n"),
+  );
+  buildAll(root);
+  const errors = validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message)
+    .filter((m) => m.includes("bundled script"));
+  assert.deepEqual(errors, [
+    "plugins/deniz-process/skills/delta/SKILL.md:6: runs bundled script scripts/check by bare path — write `bash scripts/check`",
+  ]);
+});

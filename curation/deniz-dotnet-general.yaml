@@ -223,7 +223,8 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
     invocation: auto # the module's single CRAP/coverage home (Cobertura-based) — including the
     # targeted method/class/file job it absorbed from the excluded crap-score
-    body: patch # adds a bounded targeted branch using the existing all-method coverage extractor
+    body: patch # adds a bounded targeted branch using the existing all-method coverage extractor,
+    # run through `pwsh -File` like every bundled script (curation/SCHEMA.md "Bundled scripts")
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
     invocation: auto # report-only scan; feeds the two mutating stages below
     body: patch # reports the two manual ceremonies for the user to invoke separately
@@ -280,6 +281,9 @@ items:
   # --- modernization (all one-shot ceremonies) ---
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references
     invocation: manual # NRT adoption ceremony with readiness script — typed
+    body: patch # its two "Optional" readiness-script steps name the interpreter, `pwsh -File`, as
+    # every bundled script must (curation/SCHEMA.md "Bundled scripts"); a bare .ps1 path runs in no
+    # shell but PowerShell
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/thread-abort-migration
     invocation: manual # Thread.Abort → cooperative cancellation — typed
   - source: dotnet-agent-skills/plugins/dotnet-upgrade/skills/dotnet-aot-compat

@@ -70,7 +70,7 @@ or an equivalent request to combine complexity with coverage.
 
 When the user names one exact method, class, or source file, use supplied or
 existing Cobertura data when available; otherwise follow the normal collection
-path once. Run `scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
+path once. Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
 filter the returned rows by exact `Method`, exact `Class`, or normalized `File`
 path. For each matching row calculate:
 

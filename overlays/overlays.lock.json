@@ -211,6 +211,12 @@
       "SKILL.md": "ed5656a4832ab95ba03296cf672be30c4005c087"
     }
   },
+  "deniz-dotnet-general/migrate-nullable-references": {
+    "source": "dotnet-agent-skills/plugins/dotnet-upgrade/skills/migrate-nullable-references",
+    "files": {
+      "SKILL.md": "e7e77afdb71ff730bab98491b186a75b2294fe6b"
+    }
+  },
   "deniz-dotnet-general/migrate-static-to-wrapper": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/migrate-static-to-wrapper",
     "files": {

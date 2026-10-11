@@ -1,5 +1,5 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, dirname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
@@ -57,6 +57,12 @@ import {
   upstreamBase,
 } from "./lib/resolve.ts";
 import { addressOf, claudeOnlyVocabulary, isBundledText } from "./lib/rewrite.ts";
+import {
+  type BundledScript,
+  type Interpreter,
+  scriptInterpreter,
+  scriptInvocationProblems,
+} from "./lib/script-invocation.ts";
 import { type ComponentInfo, scanSubmodule } from "./lib/scan.ts";
 import { descriptionLengthProblem } from "./lib/skill-description.ts";
 
@@ -1009,6 +1015,56 @@ export function validateRepo(root: string): Finding[] {
           level: "error",
           message: `${relative(root, file).replaceAll("\\", "/")}: output namespace leaked into opencode/: ${ref.address}`,
         });
+      }
+    }
+  }
+
+  // I: a body that runs a bundled script names its interpreter (curation/SCHEMA.md "Bundled scripts").
+  // Read on the Claude tree: the other trees carry the same prose, with OpenCode's folders respelled.
+  const pluginsSkillDirs = existsSync(pluginsDir)
+    ? readdirSync(pluginsDir).map((plugin) => join(pluginsDir, plugin, "skills"))
+    : [];
+  const insideSkills = (abs: string): boolean =>
+    pluginsSkillDirs.some((dir) => {
+      const rel = relative(dir, abs);
+      return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
+    });
+  const scriptAt = new Map<string, Interpreter | undefined>();
+  const interpreterOf = (abs: string): Interpreter | undefined => {
+    if (!scriptAt.has(abs)) {
+      let found: Interpreter | undefined;
+      if (insideSkills(abs) && existsSync(abs) && statSync(abs).isFile()) {
+        const firstLine = readFileSync(abs, "utf8").split("\n", 1)[0] ?? "";
+        found = scriptInterpreter(basename(abs), firstLine);
+      }
+      scriptAt.set(abs, found);
+    }
+    return scriptAt.get(abs);
+  };
+  for (const skillsDir of pluginsSkillDirs) {
+    for (const folder of existsSync(skillsDir) ? readdirSync(skillsDir) : []) {
+      const skillFolder = join(skillsDir, folder);
+      if (!statSync(skillFolder).isDirectory()) {
+        continue;
+      }
+      for (const file of listFiles(skillFolder).filter((f) => f.endsWith(".md"))) {
+        const abs = join(skillFolder, file);
+        const text = readFileSync(abs, "utf8");
+        const resolveScript = (token: string): BundledScript | undefined => {
+          // A `<skill-directory>/`-style placeholder and a leading `./` are spelling, not path.
+          const spelled = token.replace(/^<[^>/\s]+>\//, "").replace(/^\.\//, "");
+          for (const base of [dirname(abs), skillFolder]) {
+            const interpreter = interpreterOf(resolve(base, spelled));
+            if (interpreter) {
+              return { path: spelled, interpreter };
+            }
+          }
+          return undefined;
+        };
+        const rel = relative(root, abs).replaceAll("\\", "/");
+        for (const problem of scriptInvocationProblems(text, resolveScript)) {
+          findings.push({ level: "error", message: `${rel}:${lineOf(text, problem.index)}: ${problem.message}` });
+        }
       }
     }
   }
