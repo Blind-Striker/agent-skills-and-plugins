@@ -215,9 +215,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    accepts a skill whose instructions say to call it as the user's opt-in; OpenCode's run background
    `subagent` waves; Codex's run `spawn_agent` waves sized to the configured thread limit, 6 by
    default. It needs item 2 first, and item 2's declaration must carry `harness_files` as well as
-   `invocation` (see the original-skill gap under [Known Gaps](#known-gaps)). Approaches from the
-   prior-art repositories will be adopted where they fit; a separate extraction is recording them in
-   that research note. Keyword injection (design B) is deferred below. A deterministic engine per
+   `invocation` (see the original-skill gap under [Known Gaps](#known-gaps)). The curator-approved
+   prior-art approaches, the rejected ones, and the skill outline are in the research note's
+   [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
+   Keyword injection (design B) is deferred below. A deterministic engine per
    harness (design C) is rejected: it needs installer changes and one runtime per harness, and it is
    a product rather than a skill. A claim that the skill works in a harness needs a run there
    ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
