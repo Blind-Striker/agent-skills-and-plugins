@@ -72,10 +72,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Microsoft.Testing.Platform 2.x has no VSTest bridge, `run-tests` collects coverage as Cobertura,
   and the reference husks stay loadable through facts against upstream's new read-only stance.
   General keeps its report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
-- `dotnet-skills` is reviewed through v1.7.0 (`29878f2`); wave W2 is done. General takes
-  `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which now
-  carries the warning-approval baseline, plus `cscheck` and `sdk-container-publishing`, whose patch
-  fixes upstream defects verified against Microsoft Learn and the dotnet/sdk source.
+- `dotnet-skills` is reviewed through v1.7.1 (`84b5bee`); waves W2 and W2b are done. General
+  takes `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which
+  now carries the warning-approval baseline, plus `cscheck` and `sdk-container-publishing`.
+  Upstream v1.7.1 fixed the `sdk-container-publishing` defects this repository reported, so its
+  patch keeps only this curation's own guard, AOT ceremony pointer, trigger description, and the
+  link re-pointed away from its omitted examples file.
   `testcontainers-integration-tests` flows unowned now that upstream teaches the Testcontainers 4.x
   API. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key rename.
 - `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);
