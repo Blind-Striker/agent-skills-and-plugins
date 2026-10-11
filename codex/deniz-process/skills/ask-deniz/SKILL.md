@@ -93,9 +93,9 @@ navigation pointers, automated checks, coding standards, steering files, tooling
 itself. Run it in the session it looks back on, before you clear; after clearing, point it at that
 session's log.
 
-When a session went wrong, retro pairs with **`$deniz-process:diagnosing-superpowers`**:
-diagnosing-superpowers gathers the evidence, cited line by line, and gives no advice; retro proposes
-the environment changes.
+When a session went wrong, retro pairs with **`$deniz-process:diagnosing-superpowers`**, which
+gathers the evidence, cited line by line, and gives no advice; retro proposes the environment
+changes.
 
 ## On-ramps
 
@@ -114,8 +114,8 @@ A starting situation that generates work, then merges onto the main flow.
 - **A huge, foggy effort** — greenfield, or a build too big to see the end of → **`$deniz-process:wayfinder`**.
   The most demanding flow here. It charts a shared map of decision tickets and resolves them one at
   a time, producing **decisions, not deliverables**, until the way is clear. Then it hands off: join
-  the main flow at `to-spec` or `brainstorming`, depending on which ladder the cleared work wants.
-  Never reach for it on a well-scoped feature.
+  the main flow at `to-spec` or `$deniz-process:brainstorming`, depending on which ladder the cleared
+  work wants. Never reach for it on a well-scoped feature.
 
 ## Codebase health
 

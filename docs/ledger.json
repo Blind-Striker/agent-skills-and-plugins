@@ -4554,6 +4554,7 @@
     "invocation": "manual",
     "body": "overlay",
     "dependsOn": [
+      "brainstorming",
       "codebase-design",
       "dispatching-parallel-agents",
       "domain-modeling",
@@ -4571,6 +4572,7 @@
       ],
       "edges": {
         "model": [
+          "deniz-process:brainstorming",
           "deniz-process:codebase-design",
           "deniz-process:dispatching-parallel-agents",
           "deniz-process:domain-modeling",
@@ -4625,6 +4627,7 @@
       "advertised": false,
       "edges": {
         "model": [
+          "deniz-process.brainstorming",
           "deniz-process.codebase-design",
           "deniz-process.dispatching-parallel-agents",
           "deniz-process.domain-modeling",
@@ -4684,6 +4687,7 @@
       ],
       "edges": {
         "model": [
+          "$deniz-process:brainstorming",
           "$deniz-process:codebase-design",
           "$deniz-process:dispatching-parallel-agents",
           "$deniz-process:domain-modeling",

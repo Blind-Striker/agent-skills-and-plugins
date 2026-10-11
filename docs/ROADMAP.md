@@ -90,7 +90,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `pr`'s merge source. `chief-of-staff` is excluded while it is in
   progress upstream. `setup-matt-pocock-skills` writes its block to `AGENTS.md`, which OpenCode and
   Codex read, and proposes importing it into `CLAUDE.md`. `ask-deniz` is recut by hand, and the
-  eight model-reachable skills it named in plain text are now checked facts.
+  model-reachable skills it names in plain text, ten of them, are checked facts.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
