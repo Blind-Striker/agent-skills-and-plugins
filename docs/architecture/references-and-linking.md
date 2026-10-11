@@ -77,11 +77,13 @@ back with the same grammar and judged by the bare name the ID carries.
   its segment is an estate name (see [Handoff templates](#handoff-templates)); an authoring example
   such as `skills/testing/` names nothing and stays prose.
 
-No path, whether a claim or a Markdown link, may land in the folder of another skill whose Claude
-output carries `disable-model-invocation: true`; an agent is not such an item, even where Codex
-emits it as a skill folder. A path is a read, so it would let the model read a
-body that Claude forbids it to load. Point the human at such an item with a `/ns:name`
-user-pointer. An item's own folder is exempt.
+No path, whether a claim or a Markdown link, may reach the body of another skill whose Claude
+output carries `disable-model-invocation: true`: its `SKILL.md`, or its folder itself, which leads
+there. An agent is not such an item, even where Codex emits it as a skill folder. A path is a read,
+so it would let the model read a body that Claude forbids it to load. Point the human at such an
+item with a `/ns:name` user-pointer. A path to that item's other bundled files, such as a
+`references/` note, is allowed: reading one does not invoke the skill. An item's own folder is
+exempt.
 
 Every OpenCode skill folder is named by its OpenCode ID, so the OpenCode tree respells both claims
 when their segment names an emitted skill: `../<name>/` becomes `../<plugin>.<name>/` and

@@ -1142,7 +1142,10 @@ export function validateRepo(root: string): Finding[] {
     return t !== undefined && !t.modelReachClaude && t.ocKind === "skill";
   };
   const manualMessage = (at: string, path: string, name: string): string =>
-    `${at}: path ${path} lands in manual item ${name}'s folder — a path is a read that bypasses Claude's model-invocation block; point the human with /ns:${name} instead`;
+    `${at}: path ${path} reaches manual item ${name}'s body — reading its SKILL.md bypasses Claude's model-invocation block; point the human with /ns:${name} instead`;
+  // A manual item's body is its SKILL.md, and a path to the folder itself leads there. Its other
+  // bundled files are plain reads: reading one does not invoke the skill.
+  const reachesBody = (folder: string, abs: string): boolean => abs === folder || abs === join(folder, "SKILL.md");
   const landed = (abs: string, path: string): boolean =>
     existsSync(abs) && (!path.endsWith("/") || statSync(abs).isDirectory());
 
@@ -1164,7 +1167,7 @@ export function validateRepo(root: string): Finding[] {
     // P — path claims (references-and-linking.md "Paths"), read from every bundled text file in a
     // skill folder, scripts included. A landing climb fails closed: a climb onto the shared skills
     // directory has no illustrative reading. An item-root path is judged only when it names an
-    // estate item. Neither may land in another manual item's folder.
+    // estate item. Neither may reach another manual item's body.
     for (const unit of readdirSync(treeRoot)) {
       const skillsRoot = join(treeRoot, unit, "skills");
       for (const folder of existsSync(skillsRoot) ? readdirSync(skillsRoot) : []) {
@@ -1184,12 +1187,16 @@ export function validateRepo(root: string): Finding[] {
           for (const claim of scanPathClaims(text, depth)) {
             const at = `${rel}:${text.slice(0, claim.index).split("\n").length}`;
             const name = bareName(tree, claim.segment);
-            if (name !== ownName && manualItem(name)) {
+            const from = claim.kind === "climb" ? dirname(file) : join(treeRoot, unit);
+            const placed = (path: string): string => {
+              const base = resolve(from, path);
+              return tree === "opencode" ? reRootOpenCode(base) : base;
+            };
+            const abs = placed(claim.path);
+            const folder = placed(claim.path.slice(0, claim.segmentIndex - claim.index + claim.segment.length));
+            if (name !== ownName && manualItem(name) && reachesBody(folder, abs)) {
               findings.push({ level: "error", message: manualMessage(at, claim.path, name) });
             }
-            const base =
-              claim.kind === "climb" ? resolve(dirname(file), claim.path) : resolve(join(treeRoot, unit), claim.path);
-            const abs = tree === "opencode" ? reRootOpenCode(base) : base;
             if (claim.kind === "climb" && !landed(abs, claim.path)) {
               findings.push({
                 level: "error",
@@ -1217,7 +1224,7 @@ export function validateRepo(root: string): Finding[] {
         const resolved = resolve(dirname(file), link);
         const abs = tree === "opencode" ? reRootOpenCode(resolved) : resolved;
         const manual = [...emitted.keys()].find(
-          (n) => n !== own.name && manualItem(n) && skillsOf(n).some((d) => existsSync(d) && inside(d, abs)),
+          (n) => n !== own.name && manualItem(n) && skillsOf(n).some((d) => existsSync(d) && reachesBody(d, abs)),
         );
         if (manual) {
           findings.push({ level: "error", message: manualMessage(rel, link, manual) });

@@ -1507,14 +1507,17 @@ test("H2–H4: a name a committed ledger once listed stays in the estate", () =>
   assert.ok(!ocErrors("Use the `gone` skill.", items).some((m) => m.includes("`gone`")), "no history, no name");
 });
 
-test("P: a landing climb fails closed, and a path into a manual folder fails", () => {
-  const errors = ocErrors("See `../beta/references/` and `../gone/x.md` and `../delta/references/notes.md`.", [
-    "  - source: sp/skills/alpha",
-    "  - source: sp/skills/beta",
-    "    invocation: manual",
-    '    omit: ["references/**"]',
-    "  - source: sp/skills/delta",
-  ]);
+test("P: a landing climb fails closed, and a path to a manual item's body fails", () => {
+  const errors = ocErrors(
+    "See `../beta/references/` and `../gone/x.md` and `../delta/references/notes.md`. Read `../beta/SKILL.md` and `../beta/`.",
+    [
+      "  - source: sp/skills/alpha",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+      '    omit: ["references/**"]',
+      "  - source: sp/skills/delta",
+    ],
+  );
   const spelled = {
     plugins: "../beta/references/",
     opencode: "../deniz-process.beta/references/",
@@ -1530,8 +1533,19 @@ test("P: a landing climb fails closed, and a path into a manual folder fails", (
       tree,
     );
   }
-  assert.equal(errors.filter((m) => m.includes("lands in manual item beta's folder")).length, 3);
+  const body = errors.filter((m) => m.includes("reaches manual item beta's body"));
+  assert.equal(body.length, 6, `SKILL.md and the folder itself, in three trees\n${errors.join("\n")}`);
+  assert.ok(!body.some((m) => m.includes("references/")), "a bundled file is not the body");
   assert.ok(!errors.some((m) => m.includes("references/notes.md")), "a resolving climb passes");
+});
+
+test("P: a path to a manual item's bundled file other than its body passes in every tree", () => {
+  const errors = ocErrors("Read `../beta/references/notes.md` and [notes](../beta/references/notes.md).", [
+    "  - source: sp/skills/alpha",
+    "  - source: sp/skills/beta",
+    "    invocation: manual",
+  ]);
+  assert.ok(!errors.some((m) => m.includes("references/notes.md") || m.includes("beta's body")), errors.join("\n"));
 });
 
 test("P: a resolving sibling link with a fragment or query passes in every tree", () => {
@@ -1622,9 +1636,9 @@ test("P: a climb anchored at the script's directory is respelled for OpenCode an
   assert.ok(!errors.some((m) => m.includes("delta/references")), `an anchored climb resolves\n${errors.join("\n")}`);
 });
 
-test("P: a Markdown link that is no claim still may not land in a manual folder", () => {
+test("P: a Markdown link that is no claim still may not reach a manual item's body", () => {
   // `./../beta/` starts inside a longer path, so it is no landing climb; R1 reads it as a link.
-  const errors = ocErrors("See [beta](./../beta/SKILL.md).", [
+  const errors = ocErrors("See [beta](./../beta/SKILL.md) and [notes](./../beta/references/notes.md).", [
     "  - source: sp/skills/alpha",
     "  - source: sp/skills/beta",
     "    invocation: manual",
@@ -1632,11 +1646,12 @@ test("P: a Markdown link that is no claim still may not land in a manual folder"
   for (const tree of ["plugins", "codex"]) {
     assert.ok(
       errors.some(
-        (m) => m.startsWith(`${tree}/`) && m.includes("path ./../beta/SKILL.md lands in manual item beta's folder"),
+        (m) => m.startsWith(`${tree}/`) && m.includes("path ./../beta/SKILL.md reaches manual item beta's body"),
       ),
       `${tree}\n${errors.join("\n")}`,
     );
   }
+  assert.ok(!errors.some((m) => m.includes("references/notes.md")), errors.join("\n"));
 });
 
 test("an unknown source, taken or excluded, names the deleted-source rule", () => {

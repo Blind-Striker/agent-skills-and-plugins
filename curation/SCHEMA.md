@@ -118,8 +118,8 @@ the skill out of the list the model is offered, and the skill tool can still loa
 On Codex and OpenCode 2 alike, `manual` therefore means not offered to the model, with the user
 invoking it explicitly; Claude Code alone blocks model invocation
 ([ADR-0005](../docs/adr/0005-invocation-intent-in-the-manifest.md)). Text may name a `manual` item's
-ID, for example to point the user at it, but a relative path may not land in its folder
-([Dependencies](#dependencies)).
+ID, for example to point the user at it, but a relative path may not reach its body, its
+`SKILL.md` ([Dependencies](#dependencies)).
 
 Invocation never changes artifact shape. Use `as: command` or `as: agent` when the Claude/OpenCode
 artifact itself must change regardless of trigger intent. `as: command` is the per-item escape hatch
@@ -190,8 +190,9 @@ A "see the `name` skill" reference or a routing hint without the word `skill` st
 prose. Write subagent dispatch in upstream's Claude words as well, `Subagent (general-purpose)`, a
 `` `general-purpose` `` subagent, or `` `Agent` `` calls, and never another harness's tool name; the
 build renders them for each harness. A relative path may climb into a sibling item (`../name/...`)
-or name an item root (`skills/name/...`) only when that item is not `manual`; point the human at a
-`manual` item with `/ns:name` instead.
+or name an item root (`skills/name/...`). Into a `manual` item it may reach a bundled file, such as
+`../name/references/notes.md`, but never the body: neither `SKILL.md` nor the folder itself. Point
+the human at a `manual` item with `/ns:name` instead.
 
 Current per-harness spelling, phrasing, localization, linking, reachability, path, candidate, and
 ledger mechanics, including the OpenCode ID and harness vocabulary checks, live in
