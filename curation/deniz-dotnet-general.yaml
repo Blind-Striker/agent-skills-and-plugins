@@ -324,7 +324,10 @@ items:
     depends_on: [run-tests, systematic-debugging, test-anti-patterns, test-gap-analysis, writing-tunit-tests]
     # writing-tunit-tests is a guarded original-skill target: C# generation loads the TUnit-first
     # framework guide after this manual ceremony has established scope. systematic-debugging is an
-    # auto Process item, so the edge is a model fact and General requires the Process Module
+    # auto Process item, so the edge is a model fact and General requires the Process Module. The
+    # curator keeps that requirement: repairing a test is systematic-debugging's job, not a second
+    # copy in General, so OpenCode's installer refuses General without Process, and Claude Code and
+    # Codex users install Process beside General
   - source: dotnet-skills/skills/snapshot-testing
     invocation: auto # general Verify knowledge: API, HTTP, serialization, objects, rendered output
     body: patch # email-authoring branches and their handoff to the excluded email skills are outside

@@ -169,9 +169,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
    ledger cases in all three harness trees.
 
-   The example's `test-driven-development` edge targets a Process item. General already requires
-   Process since W6 (`code-testing` hands a repair request to `systematic-debugging`), so that edge
-   adds no new Module requirement.
+   General requires the Process Module, by the curator's decision, because `code-testing` hands a
+   repair or flaky-test request to Process's `systematic-debugging` through a checked fact. The
+   example's `test-driven-development` edge also targets a Process item, so it adds no new Module
+   requirement.
 2. **Prototype the curation sanity panel only when a curation change needs it.** Deterministic
    validation proves identity, shape, linkage, ownership, and bytes; it cannot judge trigger
    competition, over-pruned overlays, or whether a transformed body still serves nearby manifest
