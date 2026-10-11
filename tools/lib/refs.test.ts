@@ -127,6 +127,37 @@ test("landing climbs are path claims only at the depth that reaches the skills d
   );
 });
 
+test("a climb anchored at the script's own directory is a claim even though a slash precedes it", () => {
+  const claims = (t: string, d: number) => scanPathClaims(t, d).map((c) => `${c.segment}:${c.path}`);
+  const sdd = "subagent-driven-development:../../subagent-driven-development/scripts";
+  assert.deepEqual(
+    claims('sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"', 1),
+    [sdd],
+    "executing-plans' task-start and task-done",
+  );
+  for (const anchor of [
+    '$(dirname -- "$0")',
+    '$(dirname "${BASH_SOURCE[0]}")',
+    '$(dirname "$BASH_SOURCE")',
+    "${BASH_SOURCE%/*}",
+    "${0%/*}",
+    "$SCRIPT_DIR",
+    "${SCRIPT_DIR}",
+    "$PSScriptRoot",
+    "${__dirname}",
+  ]) {
+    assert.deepEqual(claims(`x="${anchor}/../../subagent-driven-development/scripts"`, 1), [sdd], anchor);
+  }
+  assert.deepEqual(
+    claims('cd "$(dirname "$0")/../../subagent-driven-development/scripts"', 0),
+    [],
+    "the anchor does not change the landing depth",
+  );
+  assert.deepEqual(claims('x="$MY_SCRIPT_DIR/../../beta/run.sh"', 1), [], "a longer variable is no anchor");
+  assert.deepEqual(claims('x="$(dirname "$0")/lib/../../beta/run.sh"', 1), [], "the climb must follow the anchor");
+  assert.deepEqual(claims("x/../../beta/run.sh", 1), [], "an ordinary longer path is still no claim");
+});
+
 test("item-root paths are claims unless they continue a longer path", () => {
   const claims = (t: string) =>
     scanPathClaims(t, 0)

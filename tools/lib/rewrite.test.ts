@@ -125,7 +125,12 @@ test("OpenCode path respelling covers item-root paths and climbs in any text", (
   assert.equal(rewriteOpenCodePaths("cat ../../beta/notes.md", 1, ids), "cat ../../deniz-process.beta/notes.md");
   assert.equal(
     rewriteOpenCodePaths('cat "$(dirname "$0")/../../beta/notes.md"', 1, ids),
-    'cat "$(dirname "$0")/../../beta/notes.md"',
+    'cat "$(dirname "$0")/../../deniz-process.beta/notes.md"',
+    "a climb anchored at the script's own directory",
+  );
+  assert.equal(
+    rewriteOpenCodePaths('cat "$HOME/../../beta/notes.md"', 1, ids),
+    'cat "$HOME/../../beta/notes.md"',
     "inside a longer path",
   );
   assert.equal(rewriteOpenCodePaths("skills/testing/x.md", 0, ids), "skills/testing/x.md", "not an emitted skill");

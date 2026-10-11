@@ -102,6 +102,15 @@ const CLIMB = new RegExp(String.raw`((?:\.\.\/)+)(${SEGMENT})(?=\/)`, "g");
 const PATH_TAIL = /^\/[^\s"'`)\]#?]*/;
 /** What continues a path, so a climb preceded by one of these starts inside a longer path. */
 const CONTINUES_PATH = /[A-Za-z0-9._/-]/;
+/**
+ * A closed set of script-directory anchors and the slash after one (references-and-linking.md
+ * "Paths"): a climb right after one resolves against the script's own folder, not the working
+ * directory, so it lands on the skills directory exactly as a climb written from the file does.
+ */
+const SCRIPT_DIR_ANCHOR =
+  /(?:\$\(dirname (?:-- )?"(?:\$0|\$\{BASH_SOURCE\[0\]\}|\$BASH_SOURCE)"\)|\$\{BASH_SOURCE%\/\*\}|\$\{0%\/\*\}|\$SCRIPT_DIR|\$\{SCRIPT_DIR\}|\$PSScriptRoot|\$\{__dirname\})\/$/;
+/** The longest anchor plus its slash, so the anchor test reads a bounded window. */
+const ANCHOR_WINDOW = 40;
 /** `skills/` then one segment and a `/`: a path rooted at an item folder, as a harness installs it. */
 const ITEM_ROOT = new RegExp(String.raw`skills\/(${SEGMENT})(?=\/)`, "g");
 /** What continues an item-root path: also `~` and `$`, so a home or variable prefix is a longer path. */
@@ -115,7 +124,8 @@ function claimPath(content: string, start: number, afterSegment: number): string
 /**
  * Every relative path in `content` the linker can attribute, in the order written. A climb is a
  * claim only when its `../` count lands exactly on the shared `skills/` directory
- * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path. An item-root path
+ * (`depthBelowSkillFolder + 1`) and it does not start inside a longer path, unless that longer
+ * path is a script-directory anchor such as `$(dirname "$0")/`. An item-root path
  * (`skills/<segment>/`) is a claim when it does not continue a longer path, a home directory, or a
  * variable. Either path runs to the first space, quote, backtick, closing bracket, `#`, or `?`,
  * minus one trailing `.`, `,`, `;`, or `:`.
@@ -126,7 +136,8 @@ export function scanPathClaims(content: string, depthBelowSkillFolder: number): 
     const before = m.index > 0 ? (content[m.index - 1] as string) : "";
     const climb = m[1] as string;
     const segment = m[2] as string;
-    if ((before && CONTINUES_PATH.test(before)) || climb.length / 3 !== depthBelowSkillFolder + 1) {
+    const anchored = SCRIPT_DIR_ANCHOR.test(content.slice(Math.max(0, m.index - ANCHOR_WINDOW), m.index));
+    if ((before && CONTINUES_PATH.test(before) && !anchored) || climb.length / 3 !== depthBelowSkillFolder + 1) {
       continue;
     }
     const segmentIndex = m.index + climb.length;

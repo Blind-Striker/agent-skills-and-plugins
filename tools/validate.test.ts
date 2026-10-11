@@ -1543,6 +1543,35 @@ test("P: a script's landing climb fails closed like a Markdown one", () => {
   assert.ok(!errors.some((m) => m.includes("delta/references/notes.md")), "a resolving script climb passes");
 });
 
+test("P: a climb anchored at the script's directory is respelled for OpenCode and fails closed", () => {
+  const root = makeRepo();
+  const scripts = join(root, "external", "sp", "skills", "alpha", "scripts");
+  mkdirSync(scripts, { recursive: true });
+  writeFileSync(
+    join(scripts, "run.sh"),
+    '#!/bin/sh\nd="$(cd "$(dirname "$0")/../../delta/references" && pwd)"\ncat "$(dirname "$0")/../../gone/x.md"\n',
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n  - source: sp/skills/delta\n",
+  );
+  buildAll(root);
+  assert.match(
+    readFileSync(opencodeIdPath(root, "deniz-process", "skill", "alpha", "scripts", "run.sh"), "utf8"),
+    /"\$\(dirname "\$0"\)\/\.\.\/\.\.\/deniz-process\.delta\/references"/,
+  );
+  const errors = validateRepo(root)
+    .filter((f) => f.level === "error")
+    .map((f) => f.message);
+  for (const tree of ["plugins", "opencode", "codex"]) {
+    assert.ok(
+      errors.some((m) => m.includes(`scripts/run.sh:3: sibling path ../../gone/x.md does not resolve in ${tree}/`)),
+      `${tree}\n${errors.join("\n")}`,
+    );
+  }
+  assert.ok(!errors.some((m) => m.includes("delta/references")), `an anchored climb resolves\n${errors.join("\n")}`);
+});
+
 test("P: a Markdown link that is no claim still may not land in a manual folder", () => {
   // `./../beta/` starts inside a longer path, so it is no landing climb; R1 reads it as a link.
   const errors = ocErrors("See [beta](./../beta/SKILL.md).", [

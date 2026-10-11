@@ -64,9 +64,13 @@ back with the same grammar and judged by the bare name the ID carries.
 
 - A **landing climb** is `(../)+<segment>/` whose `../` count equals the file's depth below its skill
   folder plus one, so it lands on the shared `skills/` directory, with no character from
-  `[A-Za-z0-9._/-]` before it. It fails closed: its full path must resolve in
-  that tree whatever the segment names, because a climb onto the skills directory has no
-  illustrative reading. Uppercase segments such as `../Api` are not claims.
+  `[A-Za-z0-9._/-]` before it. A script-directory anchor right before it is the one exception:
+  `$(dirname "$0")/`, `$(dirname -- "$0")/`, `$(dirname "${BASH_SOURCE[0]}")/`,
+  `$(dirname "$BASH_SOURCE")/`, `${BASH_SOURCE%/*}/`, `${0%/*}/`, `$SCRIPT_DIR/`, `${SCRIPT_DIR}/`,
+  `$PSScriptRoot/`, or `${__dirname}/`. Such a climb resolves against the script's own folder rather
+  than the working directory, so its depth is the file's, as for any other climb. It fails closed:
+  its full path must resolve in that tree whatever the segment names, because a climb onto the
+  skills directory has no illustrative reading. Uppercase segments such as `../Api` are not claims.
 - An **item-root path** is `skills/<segment>/` with no character from `[A-Za-z0-9._/~$-]` before
   it, so a consumer path such as `.agents/skills/x/` or `~/.claude/skills/x/` is not one. It
   resolves against the tree's skills root, the layout the harness installs. It is checked only when
@@ -340,8 +344,11 @@ installation state have their own manifests and are owned by
 - Relative-path checks are attribution-aware, not a general Markdown link checker. A silent path may
   still be wrong upstream, and a broken path in an `as: command` body may still require a body or
   shape decision. Path claims are read only in skill folders; a command or agent file carries no
-  claim. A claim's depth is measured from the file that holds it, so a script climb that the shell
-  resolves against its working directory is still judged and respelled as if it resolved against
-  the file; no bundled non-Markdown file holds a claim at the current pins.
+  claim. A claim's depth is measured from the file that holds it. A climb behind a script-directory
+  anchor does resolve against the script's folder; an unanchored script climb, which the shell
+  resolves against its working directory, is still judged and respelled as if it resolved against
+  the file. No bundled non-Markdown file holds a claim at the current pins. The anchor set is closed,
+  so a script that builds its directory some other way, for example `HERE=$(dirname "$0")` and then
+  `$HERE/../x/`, is neither respelled nor checked.
 - The linker proves symbol existence and audience reachability, not model behavior. Runtime samples
   remain version-, model-, prompt-, and repetition-bounded evidence rather than deterministic rates.

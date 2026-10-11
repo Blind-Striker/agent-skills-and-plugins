@@ -176,7 +176,8 @@ export function localize(content: string, map: Map<string, RewriteTarget>, style
  * OpenCode 2 installs every skill folder under its ID, so a path that names a sibling by its bare
  * folder name would land on nothing. A path is respelled only when `scanPathClaims` returns it — a
  * climb whose `../` count lands exactly on the shared `skills/` directory, or an item-root
- * `skills/<name>/` path, neither starting inside a longer path — and its segment is an emitted
+ * `skills/<name>/` path, neither starting inside a longer path other than a script-directory
+ * anchor such as `$(dirname "$0")/` — and its segment is an emitted
  * skill's bare name; anything else is left for the linker to judge. A path into the item's own
  * folder is respelled too: that folder is renamed. The text may be any bundled file, not only
  * Markdown.
