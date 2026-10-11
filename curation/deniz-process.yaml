@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.9.0
+  version: 0.8.1
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -340,10 +340,7 @@ items:
     # ordinary canon work in this repo, so the patched description narrows it to designing or
     # rewording such documents. Still the complement, not the substitute, of writing-skills: that one
     # is a TDD-for-skills testing methodology opened by hand, this one is the design vocabulary.
-    body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build.
-    # One boundary line, curator's call: prose a person reads is asd-ste100's ground, so the two
-    # skills' opposite advice on length and leading words never meets on one text
-    depends_on: [asd-ste100] # the boundary line names it as a checked fact
+    body: patch # the narrowed description; the lock stamps it, so an upstream rewrite stops the build
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/retro
     invocation: manual # upstream's own flag; a look back over a session that proposes changes to the
@@ -363,19 +360,12 @@ items:
     invocation: auto # passive controlled-English rewrite knowledge and wait-what's model-reachable
     # handoff target. This single-purpose root-skill repo stays a submodule so pin drift reaches the
     # normal sync review machinery instead of becoming an untracked original-skill fork.
-    body: patch # step 3, curator's call. The bundled linter runs for multi-sentence or
+    body: patch # step 3 only, curator's call. The bundled linter runs for multi-sentence or
     # document-length input, never for a one-line rewrite or a conversational re-pitch, which is
     # wait-what's use. One sentence states its limits (a short fixed phrasal-verb list, no
     # noun-cluster check, so a clean run proves neither compliance nor kept meaning), because the
     # omitted README was the only place that said so. And it names the interpreter: python3, or
     # py -3 on Windows, where python3 resolves to the Store stub.
-    # Scope, curator's call: this skill covers prose a person reads (docs, messages, explanations),
-    # and text meant for an agent (prompts, skill descriptions, steering files) belongs to
-    # writing-for-agents, whose leading-word and pruning advice runs opposite to STE's literal
-    # length. The description, the reader paragraph, When to Use, the Strict mode list, and the
-    # default output line drop upstream's agent-consumed text, and one boundary line names
-    # writing-for-agents. wait-what's re-pitch to a human stays in scope.
-    depends_on: [writing-for-agents] # the boundary line names it as a checked fact
     omit:
       - README.md # installation prose with stale examples is not a runtime asset; the compiler drops
       # submodule git metadata from every source tree before item-specific omission

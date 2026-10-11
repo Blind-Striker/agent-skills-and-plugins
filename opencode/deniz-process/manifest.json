@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.9.0",
-  "digest": "sha256:ac7f7dab4542e71368ef85efbb78145cd027954083cdd8c9917edb359748aca5",
+  "version": "0.8.1",
+  "digest": "sha256:7c37e73ad7fbc6da5a8ca595d46fd994822b74603ca546fd0b6ccac292bd26c5",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -18,7 +18,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.asd-ste100/SKILL.md": {
-      "sha256": "sha256:4c54b713794111680e73aaede408c30b73431dfabfdba5f84385d3ea20c444e3",
+      "sha256": "sha256:30493c835875d2324c9491e84bf115e10da65a480f23e20d4e249bc88505309c",
       "mode": "100644"
     },
     "skills/deniz-process.asd-ste100/examples/before-after.md": {
@@ -434,7 +434,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-for-agents/SKILL.md": {
-      "sha256": "sha256:e6f09f74abbe61d46ce32d8f7d5eb840c7a6204385936d8e22f721eb6716627c",
+      "sha256": "sha256:978ddd28a902e8dabce35642d6f51b990895e8c6de7b00a2ecae0a0d83d2d70c",
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
