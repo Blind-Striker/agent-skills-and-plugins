@@ -233,10 +233,7 @@
   "deniz-dotnet-general/sdk-container-publishing": {
     "source": "dotnet-skills/skills/sdk-container-publishing",
     "files": {
-      "SKILL.md": "d17fb9ee6ed1a3cf19188d0d0b2beb8f918db4b0",
-      "references/ci-cd.md": "7bc7c976f958dbfc7eb4b0aa173efdf937c6f107",
-      "references/property-reference.md": "3da45df0ec1fc7feeeb75d360faaa26501cb9ee3",
-      "references/troubleshooting.md": "843cd183a6be2b3ac67f8361d33bcf6a8f403548"
+      "SKILL.md": "828529665f542e1e6d40b35952ac56e4a61c04d1"
     }
   },
   "deniz-dotnet-general/snapshot-testing": {

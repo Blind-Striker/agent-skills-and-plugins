@@ -13,11 +13,12 @@ Grouped by what each property controls. The authoritative source is the [contain
 |----------|---------|--------------|
 | `ContainerRepository` | project `AssemblyName` | Image repository name. Renamed from `ContainerImageName` in earlier versions. |
 | `ContainerRegistry` | (empty - local daemon) | Registry to push to, for example `ghcr.io` or an internal registry. |
-| `ContainerImageTag` | `latest` (since .NET 8, when `ContainerImageTags` is unset too) | Single image tag. Set explicitly in CI. Setting it together with `ContainerImageTags` fails with `CONTAINER2008`. |
+| `ContainerImageTag` | `latest` (since .NET 8, when neither tag property is set) | Single image tag. Set explicitly in CI. |
 | `ContainerImageTags` | - | Semicolon-delimited list of tags. Use for `$(VersionPrefix);latest` dual-tagging. |
 | `ContainerRuntimeIdentifier` | - | OS / arch for the image when multiple are supported. |
 | `ContainerRuntimeIdentifiers` | - | Semicolon-delimited list producing a multi-arch OCI image index. Must be a subset of `RuntimeIdentifiers`. |
-| `ContainerPublishInParallel` | `true` | Multi-RID publishes only: whether the per-RID images build in parallel. Set `false` to build them one after another, for example against Blazor WebAssembly build races. SDK 8.0.408, 9.0.300, 10.0 and later. It does not serialize publishes across projects. |
+
+`ContainerImageTag` and `ContainerImageTags` are mutually exclusive — the SDK rejects a publish that sets both (`CONTAINER2008`). Pick one.
 
 ## Base Image
 
@@ -25,7 +26,6 @@ Grouped by what each property controls. The authoritative source is the [contain
 |----------|--------------|
 | `ContainerBaseImage` | Pin an explicit base image instead of the inferred default. Required for Windows containers, because Microsoft stopped shipping Windows variants in the manifest list for .NET 8+. See the [Windows container note](https://learn.microsoft.com/en-us/dotnet/core/containers/publish-configuration). |
 | `ContainerFamily` | Base image family. |
-| `ContainerRuntimeIdentifiers` | Selects OS / arch variants from the base image manifest list. |
 
 ## Image Contents and Metadata
 
@@ -36,9 +36,9 @@ Grouped by what each property controls. The authoritative source is the [contain
 | `ContainerPort` (item) | Exposed ports: `<ContainerPort Include="8080" Type="tcp" />`. |
 | `ContainerLabel` (item) | Image labels: `<ContainerLabel Include="key" Value="value" />`. |
 | `ContainerEnvironmentVariable` | Environment variables baked into the image. |
-| `ContainerAppCommand` / `ContainerAppCommandArgs` / `ContainerAppCommandInstruction` | Override the entrypoint command. |
-| `ContainerDefaultArgs` (item) | Default arguments that a user of the image can override. |
-| `ContainerEntrypoint` / `ContainerEntrypointArgs` | Deprecated since .NET 8; use `ContainerAppCommand` and `ContainerAppCommandArgs` instead. |
+| `ContainerAppCommand` / `ContainerAppCommandArgs` / `ContainerAppCommandInstruction` | Override the entrypoint command and its instruction (`DefaultArgs`, `Entrypoint`, `None`). |
+| `ContainerDefaultArgs` (item) | Default arguments for the app command: `<ContainerDefaultArgs Include="database" />`. |
+| `ContainerEntrypoint` / `ContainerEntrypointArgs` | **Deprecated since .NET 8.** Use `ContainerAppCommand` with `ContainerAppCommandInstruction` instead. |
 
 ## Output Format
 
@@ -46,6 +46,7 @@ Grouped by what each property controls. The authoritative source is the [contain
 |----------|--------------|
 | `ContainerImageFormat` | `Docker` or `OCI`. Multi-arch output is always OCI. |
 | `ContainerArchiveOutputPath` | When set, writes a `.tar.gz` tarball instead of pushing to a daemon. No daemon required. |
+| `ContainerPublishInParallel` | Parallelism for the per-RID inner publishes of a single multi-RID publish (`ContainerRuntimeIdentifiers`). Default `true`; set `false` to serialize those inner builds. It does **not** serialize publishes across separate projects. |
 | `LocalRegistry` | Local output backend: `Docker`, `Podman`, `Wslc`, `MacOSContainer`. Unset lets the SDK pick. |
 
 ## OCI Labels and Metadata
@@ -82,3 +83,4 @@ Microsoft no longer ships Windows variants in the manifest list for .NET 8+. To 
 
 - Insecure registries: `DOTNET_CONTAINER_INSECURE_REGISTRIES` env var (comma-separated), SDK 9.0.100+.
 - HTTP vs HTTPS: since .NET 8.0.400 the SDK reads standard Docker / Podman config files.
+- Direct-push auth without `docker login`: `DOTNET_CONTAINER_REGISTRY_UNAME` / `DOTNET_CONTAINER_REGISTRY_PWORD`. See the [registry authentication docs](https://aka.ms/dotnet/containers/auth).

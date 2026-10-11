@@ -31,7 +31,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.12.0
+  version: 0.12.1
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards
@@ -137,16 +137,16 @@ items:
     # images deployed through an Aspire AppHost
     omit: [references/real-world-examples.md] # duplicates ci-cd.md with upstream-organization detail;
     # the patch re-points its one link to ci-cd.md
-    body: patch # fixes upstream defects verified against Microsoft Learn and the dotnet/sdk source:
-    # CONTAINER2008 between the csproj tag list and the CI tag flag, the semver-tag note that holds
-    # only when VersionPrefix is set before the project body (the SDK defaults it later, so a plain
-    # publish tags only `latest`), the `latest` default dating from .NET 8 rather than .NET 10,
-    # ContainerPublishInParallel covering only multi-RID publishes, the false daemon requirement for
-    # a registry push, the dead registry-auth link, the deprecated ContainerEntrypoint and the missing
-    # ContainerDefaultArgs, `docker login -p`, the multi-target entry, the unquoted RID lists that
-    # break the multi-arch command in Bash and in MSBuild, and authoring residue. It also adds an
-    # external-action guard, a user pointer to the manual AOT ceremony for turning PublishAot on, and
-    # a USE FOR / DO NOT USE FOR description
+    body: patch # adds only what upstream never had: an external-action guard, a user pointer to the
+    # manual AOT ceremony for turning PublishAot on, and a USE FOR / DO NOT USE FOR description; it
+    # also re-points the one link to the omitted file. The defects this patch used to correct were
+    # reported from this curation (Aaronontheweb/dotnet-skills#93) and fixed upstream in v1.7.1
+    # (#94): CONTAINER2008 between the csproj tag list and the CI tag flag, the VersionPrefix order
+    # that tags a plain publish only `latest`, the `latest` default dating from .NET 8, the scope of
+    # ContainerPublishInParallel, the daemon claim for a registry push, the dead registry-auth link,
+    # the deprecated ContainerEntrypoint and the missing ContainerDefaultArgs, `docker login -p`,
+    # the multi-target entry, the unquoted RID lists, and authoring residue. Each fix was checked
+    # against Microsoft Learn and the dotnet/sdk source, so upstream's text now flows in their place
     depends_on: [testcontainers-integration-tests, aot-trimming] # its Related Skills facts stay checked
   - source: dotnet-agent-skills/plugins/dotnet-nuget/skills/convert-to-cpm
     invocation: manual # one-shot repo-mutating conversion ceremony — the curator types it

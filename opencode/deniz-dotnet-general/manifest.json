@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.12.0",
-  "digest": "sha256:eb941b7299c799b8b9922c080a8b353073040b57f9fdb7b53788f993ede45292",
+  "version": "0.12.1",
+  "digest": "sha256:eac5ce5d659f963616a993d1534659e3022f721414c263a0e8dd1c83eddb32ca",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -521,15 +521,15 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/SKILL.md": {
-      "sha256": "sha256:c7b75bcd61fdb22cf13643c5d4550bb1c63eb14a746aea60c1270ed003cc1b93",
+      "sha256": "sha256:797402198b68d5b6c377cd8ab973e5272571b69bf8bd26b96d5206690f94385c",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/references/ci-cd.md": {
-      "sha256": "sha256:93503ca063af44fc3f80453bd50dfd1f54f21db51fad8706928657ccea89d65b",
+      "sha256": "sha256:94d1484eedac5e968ed5215fa75ff4092d5d5737b9742363f46895bf399fd209",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/references/property-reference.md": {
-      "sha256": "sha256:c9e451cfbb2d9bd085118a19ae262cd6461f0add1524e0e43b8801bafdfb5de2",
+      "sha256": "sha256:ddcad56d75be3a5bb3cd6a763a0a46d4d5780e7fc1f3a5ba25e1a0536ce9f771",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/references/self-contained-and-aot.md": {
@@ -537,7 +537,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.sdk-container-publishing/references/troubleshooting.md": {
-      "sha256": "sha256:4fbdd625f1430139dfae079b0587cfd17d31d057439b35f0f7e719985106ee8a",
+      "sha256": "sha256:265fbae36536657da7a2b5d7c3645ab6ca2ff26cde697dee9381bb2fe1dcba15",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.serialization/SKILL.md": {

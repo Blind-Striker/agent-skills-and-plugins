@@ -7,7 +7,7 @@ description: Patterns for publishing SDK-built container images in CI / CD, incl
 
 ## Tag-Driven Release Workflow
 
-Publish images off a git tag. Tag the workflow with the release name, not `latest`, because since .NET 8 the SDK defaults the image tag to `latest` when no tag property is set.
+Publish images off a git tag. Tag the workflow with the release name, not `latest`, because since .NET 8 the SDK defaults the image tag to `latest` when you do not set one.
 
 ```yaml
 name: Publish Container Images
@@ -28,37 +28,41 @@ jobs:
         with:
           global-json-file: global.json
 
-      - name: Set up Docker daemon
-        uses: docker/setup-docker-action@v4
-
       - name: Build and push
         run: |
           dotnet publish src/MyService/MyService.csproj \
             -p:VersionPrefix=${{ github.ref_name }} \
             -p:ContainerRegistry=docker.example.internal \
-            -p:ContainerImageTag=${{ github.ref_name }} \
             -c Release /t:PublishContainer
 ```
 
-Two things to keep in mind:
-- **`ContainerImageTag` is explicit.** These `-p:` flags are MSBuild container properties passed on the command line; `ContainerImageTag` is what controls the produced image tag. Without it the image lands on `latest` and a release can never be pulled by version. If the project sets `ContainerImageTags`, drop this flag (see the `Directory.Build.props` notes below).
-- **The push itself needs no daemon.** With `ContainerRegistry` set, the SDK pushes the image directly to the registry; only the default local output, with neither `ContainerRegistry` nor `ContainerArchiveOutputPath` set, needs a Docker or Podman daemon. Keep the daemon step only if the job runs other `docker` commands.
+Three things to keep in mind:
+- **Set one tag property, never both.** `ContainerImageTag` is the single-tag form and `ContainerImageTags` is the semicolon-delimited list. The SDK rejects both together with `CONTAINER2008`. The command above relies on a project that already sets `ContainerImageTags=$(VersionPrefix);latest`; `-p:VersionPrefix` feeds that list.
+- **No daemon is required for a registry push.** With `ContainerRegistry` set, the SDK pushes directly to the registry without a container runtime. The default local-daemon output is the only mode that needs a daemon.
+- **`VersionPrefix` must be set before the project body is evaluated** (command line, `Directory.Build.props`, or earlier in the file). Without it, `ContainerImageTags=$(VersionPrefix);latest` resolves to `;latest` and the image is tagged `latest` only.
 
 ## Registry Auth
 
-The SDK reads Docker / Podman config to decide HTTP vs HTTPS and to authenticate. In CI, log into the registry first, passing the token on standard input so it stays out of the shell history and logs:
+The SDK reads Docker / Podman config to decide HTTP vs HTTPS and to authenticate. See the [registry authentication docs](https://aka.ms/dotnet/containers/auth) (which redirects to the sdk-container-builds `RegistryAuthentication.md`).
+
+To authenticate a direct SDK push without `docker login`, set these environment variables:
+
+```bash
+export DOTNET_CONTAINER_REGISTRY_UNAME=<username-or-token>
+export DOTNET_CONTAINER_REGISTRY_PWORD=<password-or-token>
+```
+
+If you authenticate through `docker login` instead, use `--password-stdin` so the token never lands on the command line or in shell history:
 
 ```bash
 echo "$REGISTRY_TOKEN" | docker login <registry> -u <user> --password-stdin
 ```
 
-In GitHub Actions, map the secret into the step's `env` (`REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}`) instead of writing it into the command. Without `docker login`, set `DOTNET_CONTAINER_REGISTRY_UNAME` and `DOTNET_CONTAINER_REGISTRY_PWORD` for the publish step (SDK 8.0.400 and later; older SDKs read the `SDK_CONTAINER_REGISTRY_` prefix).
-
-For insecure (HTTP) registries, set `DOTNET_CONTAINER_INSECURE_REGISTRIES` to a comma-separated list of domains. See the [registry authentication docs](https://aka.ms/dotnet/containers/auth).
+For insecure (HTTP) registries, set `DOTNET_CONTAINER_INSECURE_REGISTRIES` to a comma-separated list of domains.
 
 ## Centralizing Settings in Directory.Build.props
 
-When a repo has many container projects, centralize the image settings with CI conditionals. This is the pattern we use for version tags, labels, and parallel-build safety:
+When a repo has many container projects, centralize the image settings with CI conditionals. This is the pattern we use for version tags and labels:
 
 ```xml
 <PropertyGroup Label="ContainerSettings" Condition=" '$(CI)' == 'true' ">
@@ -68,11 +72,6 @@ When a repo has many container projects, centralize the image settings with CI c
   <ContainerVersion>$(GITHUB_SHA)</ContainerVersion>
 </PropertyGroup>
 
-<PropertyGroup>
-  <!-- Multi-RID publishes: build the per-RID images one after another -->
-  <ContainerPublishInParallel>false</ContainerPublishInParallel>
-</PropertyGroup>
-
 <ItemGroup Condition=" '$(CI)' == 'true' ">
   <ContainerLabel Include="com.example.commit" Value="$(GITHUB_SERVER_URL)/$(GITHUB_REPOSITORY)/commit/$(GITHUB_SHA)" />
 </ItemGroup>
@@ -80,8 +79,6 @@ When a repo has many container projects, centralize the image settings with CI c
 
 Key points:
 - `ContainerImageTags` dual or triple tags: floating `latest`, the version, and a run number for CI.
-- `ContainerPublishInParallel=false` builds the per-RID images of a multi-architecture publish one after another, for example against Blazor WebAssembly build races. It does not serialize publishes across projects.
-- This block sets `ContainerImageTags` under CI, so the publish step must not also pass `-p:ContainerImageTag`: setting both fails with `CONTAINER2008`. Drop that flag from the workflow above and let `-p:VersionPrefix` feed the `$(VersionPrefix)` tag.
 - `ContainerVendor` / `ContainerVersion` become OCI labels from CI values.
 
 ## Tarball Output for Scanning or Air-Gapped Transfer
@@ -109,8 +106,9 @@ dotnet publish src/MyService/MyService.csproj \
   /t:PublishContainer
 ```
 
+The single quotes wrap each semicolon-delimited value so the shell does not split it on `;`. In Bash only the `"` characters need escaping; in PowerShell both `;` and `"` need escaping.
+
 Key points:
-- Quote each semicolon-delimited value as shown. Unquoted, Bash ends the command at the `;`, and MSBuild splits a `-p:` value at `;` and fails with `MSB1006`.
 - The RIDs must be a subset of `RuntimeIdentifiers`, or the publish fails.
 - Multi-arch output is always an OCI image index (Docker format is unavailable for it).
 - Multi-arch support requires SDK 8.0.405, 9.0.102, or 9.0.2xx or later.
