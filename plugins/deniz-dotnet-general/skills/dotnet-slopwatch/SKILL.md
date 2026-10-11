@@ -38,9 +38,10 @@ Run slopwatch to validate the changes don't introduce "slop."
 
 ## Installation
 
-Ask the user before you install slopwatch, create or update its baseline, or commit: each changes the
-repository or the machine. When the tool or the baseline is missing, say so and wait for the answer;
-running `slopwatch analyze` against an existing setup needs no question.
+Ask the user before you install slopwatch, create or update its baseline, or commit the baseline or
+the tool manifest: each changes the repository or the machine. When the tool or the baseline is
+missing, say so and wait for the answer; running `slopwatch analyze` against an existing setup needs
+no question.
 
 ### As a Local Tool (Recommended)
 

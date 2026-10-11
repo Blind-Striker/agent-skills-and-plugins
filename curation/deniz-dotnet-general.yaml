@@ -407,9 +407,10 @@ items:
     # stays as written (ADR-0007). The Claude hook section is runtime guidance for the user's own
     # project settings; this repo packages no hooks.
     body: patch # one guard, curator's call: the model may run `slopwatch analyze` on its own, but it
-    # asks before it installs the tool, creates or updates the baseline, or commits, because each of
-    # those changes the repository or the machine, and an unasked `--update-baseline` would let the
-    # model approve its own slop
+    # asks before it installs the tool, creates or updates the baseline, or commits the baseline or
+    # the tool manifest, because each of those changes the repository or the machine, and an unasked
+    # `--update-baseline` would let the model approve its own slop. The commit names its objects, so
+    # an executor that commits every task does not read it as a question before each of its commits
   # --- diagnostics & performance ---
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/microbenchmarking
     invocation: auto # BenchmarkDotNet design/run/interpret — won the benchmark job outright

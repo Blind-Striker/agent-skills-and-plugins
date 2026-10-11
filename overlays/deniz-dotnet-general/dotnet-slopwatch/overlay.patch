@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 0738989..be574be 100644
+index 0738989..406a624 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -31,16 +31,20 @@ Run slopwatch to validate the changes don't introduce "slop."
+@@ -31,16 +31,21 @@ Run slopwatch to validate the changes don't introduce "slop."
  | CPM bypass | `Version="1.0.0"` inline | Undermines central package management |
  
  **Never accept these patterns.** If an LLM introduces slop, reject the change and require a proper fix.
@@ -11,9 +11,10 @@ index 0738989..be574be 100644
  
  ## Installation
  
-+Ask the user before you install slopwatch, create or update its baseline, or commit: each changes the
-+repository or the machine. When the tool or the baseline is missing, say so and wait for the answer;
-+running `slopwatch analyze` against an existing setup needs no question.
++Ask the user before you install slopwatch, create or update its baseline, or commit the baseline or
++the tool manifest: each changes the repository or the machine. When the tool or the baseline is
++missing, say so and wait for the answer; running `slopwatch analyze` against an existing setup needs
++no question.
 +
  ### As a Local Tool (Recommended)
  
