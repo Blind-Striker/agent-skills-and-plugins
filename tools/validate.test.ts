@@ -8,6 +8,7 @@ import { buildAll } from "./build.ts";
 import { digestModulePayload, loadModuleManifest } from "./lib/opencode-bundle.ts";
 import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
+import { scanRefs } from "./lib/refs.ts";
 import {
   codexPluginPath,
   makeHarnessFilesRepo,
@@ -152,6 +153,32 @@ test("known prose address does not produce an unknown namespace warning", () => 
     `---\nname: alpha\ndescription: d\n---\n\nKnown prose: ${proseAddresses.join(" ")}\n`,
   );
 
+  const hits = validateRepo(root).filter(
+    (f) => f.level === "warn" && f.message.includes("unknown reference namespace"),
+  );
+  assert.deepEqual(hits, []);
+});
+
+// diagnosing-superpowers cites evidence as `path:line` and builds a GitHub search query with
+// `repo:` and `is:` qualifiers. The scanner reads all three as addresses, so the allowlist is what
+// keeps them silent.
+test("diagnosing-superpowers' citation and search-qualifier lookalikes do not warn", () => {
+  const root = makeRepo();
+  buildAll(root);
+  const prose = [
+    "**Core principle:** Every finding cites `path:line`. No citation, no finding.",
+    '  "https://api.github.com/search/issues?q=repo:obra/superpowers+is:issue+<url-encoded terms>&per_page=10"',
+  ].join("\n");
+  assert.deepEqual(
+    scanRefs(prose)
+      .map((ref) => ref.address)
+      .sort(),
+    ["is:issue", "path:line", "repo:obra"],
+  );
+  writeFileSync(
+    join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+    `---\nname: alpha\ndescription: d\n---\n\n${prose}\n`,
+  );
   const hits = validateRepo(root).filter(
     (f) => f.level === "warn" && f.message.includes("unknown reference namespace"),
   );
