@@ -15,11 +15,14 @@ export interface PublicSafetyFinding {
 }
 
 const MACHINE_PATH_FIXTURE = "experiments/harness-invocation/tests/fixtures/has-machine-path.txt";
+// A user-profile path names an account. A `<user>` placeholder already fails the account character
+// class; a literal `...` in the account's place is the same kind of placeholder, so it names no
+// machine either.
 const MACHINE_PATHS = [
-  /[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/][^\s"'`<>|]+/g,
+  /[A-Za-z]:[\\/](?:Users|Documents and Settings)[\\/](?!\.\.\.)[^\s"'`<>|]+/g,
   /[A-Za-z]:[\\/][^\r\n"'`<>|]*[\\/]my-projects[\\/][^\s"'`<>|]+/g,
   /[A-Za-z]:[\\/]harness-probe-lab\b/g,
-  /\/(?:Users|home)\/[A-Za-z0-9._-]+(?:\/[^\s"'`<>]+)*/g,
+  /\/(?:Users|home)\/(?!\.\.\.)[A-Za-z0-9._-]+(?:\/[^\s"'`<>]+)*/g,
 ];
 const GMAIL_IDENTITY = /[A-Za-z0-9._%+-]+@gmail\.com/gi;
 

@@ -68,3 +68,19 @@ test("repository scan ignores tracked files deleted in the worktree", () => {
 
   assert.deepEqual(findRepositoryCurrentFindings(root), []);
 });
+
+test("an ellipsis standing for the account name is a placeholder, not a machine path", () => {
+  const windowsPlaceholder = ["C:", "/", "Users", "/", "..."].join("");
+  const unixPlaceholder = ["/c", "/Users", "/..."].join("");
+  const realAfterPlaceholder = ["C:", "\\", "Users", "\\", "person", "\\", "..."].join("");
+  assert.deepEqual(
+    findPublicContentFindings([
+      {
+        path: "skills/x/scripts/tool",
+        text: `# rev-parse prints ${windowsPlaceholder} while pwd prints ${unixPlaceholder}\n`,
+      },
+      { path: "docs/real.md", text: `${realAfterPlaceholder}\n` },
+    ]),
+    [{ path: "docs/real.md", line: 1, kind: "machine-path" }],
+  );
+});

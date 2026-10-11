@@ -1,6 +1,6 @@
 # Engineering quality gates
 
-Date: 2026-09-07
+Date: 2026-10-11
 
 This document owns completion evidence: which repository commands apply, what CI proves, what still
 requires human review, and which words those results authorize. Script implementations remain
@@ -47,7 +47,9 @@ npm run check:public-safety
 A separate least-privilege job checks out full superproject history and runs Gitleaks with redacted
 reporting and no uploaded report artifact. The validation job scans current tracked and untracked
 authored/generated files for Gmail identities, user-profile paths, and machine-specific workspace
-paths; only the named synthetic detector fixture is exempt. Commit identity is not repository
+paths; only the named synthetic detector fixture is exempt. A user-profile path whose account name
+is a placeholder, `<user>` or a literal `...`, names no machine and is not a finding
+([`check-public-safety.ts`](../../tools/check-public-safety.ts)). Commit identity is not repository
 documentation and is outside that current-tree policy. Submodule histories remain upstream
 responsibility, while copied generated output and Package content remain inside this repository's
 build and package gates.
