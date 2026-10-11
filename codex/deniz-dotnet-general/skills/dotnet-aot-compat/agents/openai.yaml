@@ -1,5 +1,5 @@
 interface:
-  display_name: ".NET Aot Compat"
+  display_name: ".NET AOT Compat"
   short_description: "Make .NET projects compatible with Native AOT and trimming…"
   default_prompt: "Use $deniz-dotnet-general:dotnet-aot-compat for this task."
 policy:

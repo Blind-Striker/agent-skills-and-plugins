@@ -253,7 +253,7 @@ function plainText(description: string): string {
  * the generic label.
  */
 function shortSkillDescription(name: string, description: string): string {
-  const generic = `Use ${codexDisplayName(name)} for relevant Codex tasks.`;
+  const generic = `Use ${codexDisplayName(name, description)} for relevant Codex tasks.`;
   const normalized = plainText(description).replace(/\s+/g, " ").trim();
   const candidate = normalized.length >= 25 ? normalized : generic;
   if (candidate.length <= SHORT_DESCRIPTION_LIMIT) {
@@ -281,7 +281,7 @@ export function createCodexSkillAgentManifest(
   }
   return {
     interface: {
-      display_name: codexDisplayName(skill),
+      display_name: codexDisplayName(skill, description),
       short_description: shortSkillDescription(skill, description),
       default_prompt: `Use $${plugin}:${skill} for this task.`,
     },
@@ -327,12 +327,26 @@ export function loadCodexPublisherMetadata(root: string): CodexPublisherMetadata
   };
 }
 
-/** Human-facing label only; stable machine identity remains the curation plugin name. */
-export function codexDisplayName(name: string): string {
+/**
+ * Human-facing label only; stable machine identity remains the curation plugin name. Each name part
+ * takes the spelling the description writes it in when that spelling has a capital past its first
+ * letter, as `CPM`, `AOT`, `TUnit`, or `MSBuild` do; `dotnet` reads `.NET`; any other part is
+ * title-cased.
+ */
+export function codexDisplayName(name: string, description = ""): string {
   return name
     .split("-")
     .filter(Boolean)
-    .map((part) => (part === "dotnet" ? ".NET" : `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`))
+    .map((part) => {
+      if (part === "dotnet") {
+        return ".NET";
+      }
+      const escaped = part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const written = [...description.matchAll(new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "giu"))]
+        .map((m) => m[0])
+        .find((spelling) => /^.+\p{Lu}/u.test(spelling));
+      return written ?? `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`;
+    })
     .join(" ");
 }
 
@@ -340,7 +354,7 @@ export function createCodexPluginManifest(
   manifest: CurationManifest,
   publisher: CodexPublisherMetadata,
 ): CodexPluginManifest {
-  const displayName = codexDisplayName(manifest.plugin.name);
+  const displayName = codexDisplayName(manifest.plugin.name, manifest.plugin.description);
   const websiteURL = publisher.homepage ?? publisher.repository;
   return {
     name: manifest.plugin.name,

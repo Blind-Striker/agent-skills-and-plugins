@@ -1,5 +1,5 @@
 interface:
-  display_name: "Pr"
+  display_name: "PR"
   short_description: "Use when writing a PR body."
   default_prompt: "Use $deniz-process:pr for this task."
 policy:

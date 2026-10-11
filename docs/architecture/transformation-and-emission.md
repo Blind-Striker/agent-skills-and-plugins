@@ -273,6 +273,13 @@ trailing punctuation, and end with an ellipsis, so a label never ends inside a w
 promises more, or inside an open bracket. A cut left empty, by a bracket that opens the description,
 takes the generic label `Use <Display Name> for relevant Codex tasks.`, as does a description under
 25 characters ([`createCodexSkillAgentManifest`](../../tools/lib/codex-plugin.ts)).
+
+The same file's `interface.display_name`, and a Codex Plugin's `interface.displayName`, spell the
+skill or plugin name word by word. A word takes the spelling its description writes it in, as a
+whole word in any letter case, when that spelling has a capital past its first letter, so
+`convert-to-cpm` reads `Convert To CPM` and `pr` reads `PR`; `dotnet` reads `.NET`; every other word
+is title-cased ([`codexDisplayName`](../../tools/lib/codex-plugin.ts)).
+
 Codex does not expose an implicit-only skill policy, so `auto` retains native explicit invocation
 without being mislabeled model-only.
 

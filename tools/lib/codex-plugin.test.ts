@@ -140,6 +140,26 @@ test("only manual invocation emits quoted Codex agent metadata with implicit sel
   assert.match(yaml, /allow_implicit_invocation: false/);
 });
 
+test("a Codex display name keeps the casing its description writes for a word, else title case", () => {
+  const label = (skill: string, description: string): string =>
+    createCodexSkillAgentManifest("deniz-dotnet-general", skill, description, "manual")?.interface.display_name ?? "";
+  assert.equal(
+    label("convert-to-cpm", "Convert projects to NuGet Central Package Management (CPM)."),
+    "Convert To CPM",
+  );
+  assert.equal(label("dotnet-aot-compat", "Make .NET projects compatible with Native AOT."), ".NET AOT Compat");
+  assert.equal(label("pr", "Use when writing a PR body."), "PR");
+  assert.equal(label("tunit-msbuild-otel", "Wire TUnit, MSBuild, and OTel."), "TUnit MSBuild OTel");
+  // a word written only lower case or capitalized, inside a longer word, or not at all is title-cased
+  assert.equal(label("nrt-migration", "Adopt NRTs project by project: a migration."), "Nrt Migration");
+  assert.equal(label("grill-me", "Grill the plan with me."), "Grill Me");
+  const plugin = createCodexPluginManifest(
+    { plugin: { name: "deniz-msbuild", description: "Deniz's curated MSBuild skills", version: "1.0.0" }, items: [] },
+    { author: { name: "Deniz İrgin" } },
+  );
+  assert.equal(plugin.interface.displayName, "Deniz MSBuild");
+});
+
 test("Codex skill adaptation keeps supported metadata and reports every other key deterministically", () => {
   const result = adaptCodexSkillDocument("renamed", {
     frontmatter: {
