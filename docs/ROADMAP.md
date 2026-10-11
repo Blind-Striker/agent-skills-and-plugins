@@ -52,6 +52,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   self-diagnostics and 10 of 10 skill tries with `openai/gpt-5.6-luna` at variant `low`; and the
   migration backups were deleted
   ([rollout record](../experiments/harness-invocation/records/2026-10-09-opencode2-rollout.md)).
+  The `installer-v0.5.0` rollout then updated all four real OpenCode profiles to the checkout
+  Module versions with one identical Plan and moved every Claude Code and Codex installation of the
+  marketplace to them; Codex in the WSL distro and on the Linux host gained the marketplace and all
+  four Plugins, enabled, and approved rollout leftovers, including an unused OpenCode 1 plugin SDK
+  install in two config roots, were deleted
+  ([v0.5.0 rollout record](../experiments/harness-invocation/records/2026-10-11-v0.5.0-rollout.md)).
 - `dotnet/skills` is reviewed through `1d40f95` (main, 2026-10-09; it has no release-shaped
   tag); wave W6 is done, and with it every upstream sync wave of the 2026-10-08 review. General
   takes upstream's consolidated `msbuild` skill as the auto entry for build failures, build
@@ -213,8 +219,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   The fault is upstream (`anomalyco/opencode#47505`) and the Apply itself always completed. The
   installer's mitigation is a warning after a Windows Apply that changed files, owned by
   [distribution canon](architecture/distribution-and-installation.md#target-opencode-runtime); it
-  never stops or blocks on OpenCode, and reopening `opencode` restarts a stopped service. Linux bulk
-  Apply against a running server is not measured.
+  never stops or blocks on OpenCode, and reopening `opencode` restarts a stopped service. One
+  real-profile update Apply on each of the Windows workstation and the Linux host left the running
+  service up ([record](../experiments/harness-invocation/records/2026-10-11-v0.5.0-rollout.md)); one
+  sample each is not a rate, and a Linux failure rate is not measured.
 - **Earlier schema-1 Releases have no upgrade path:** the Packages of Releases through
   `installer-v0.3.0` ship schema-1 Bundles in OpenCode 1 shapes, and the installer, from the
   checkout or a Release from `installer-v0.4.0` on, refuses schema-1 Install state with no

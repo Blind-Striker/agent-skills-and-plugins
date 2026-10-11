@@ -64,7 +64,10 @@ one Native path, it appends a warning to the printed Plan that a running OpenCod
 service may have stopped (citing `anomalyco/opencode#47505`) and that reopening `opencode` restarts
 it; the exit code is unchanged. A no-op Apply, a Plan without `--yes`, and Apply on other platforms
 print no warning. [`tools/install-opencode.ts`](../../tools/install-opencode.ts) owns the wording.
-Bulk Apply against a running server on Linux is not measured.
+On Linux, one real-profile update Apply (63 adds, 91 replaces, 22 removes) against a running
+service left it running
+([v0.5.0 rollout record](../../experiments/harness-invocation/records/2026-10-11-v0.5.0-rollout.md));
+a failure rate for bulk Apply against a running server on Linux is not measured.
 
 ## Bundle and Package identity
 
