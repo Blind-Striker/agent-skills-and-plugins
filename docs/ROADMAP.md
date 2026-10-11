@@ -286,7 +286,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   unmeasured there.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
-  glossary renamed and `setup-matt-pocock-skills` run again.
+  glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to
+  `AGENTS.md` and leaves the old one in `CLAUDE.md`, so remove that block from `CLAUDE.md` by hand;
+  otherwise Claude Code sees two `## Agent skills` blocks once `CLAUDE.md` imports `AGENTS.md`.
 - **`to-tickets` sub-issues are GitHub-only upstream:** the GitLab and local tracker templates name
   no sub-issue operation, and the rule against modifying a parent issue sits beside the operation
   that attaches its sub-issues. Both are upstream's; neither is patched.
