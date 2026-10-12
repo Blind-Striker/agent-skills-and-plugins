@@ -217,8 +217,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    existing `frontmatter:` override or its patch; the curator approves the drafts as one table.
    `aot-trimming` (210 characters, kept over the target for its existing-library and in-code
    warning qualifiers) and `sdk-container-publishing` (190) already follow it.
-   Add a `validate` check so an upstream sync cannot bring a long description back, and remove the
-   per-machine listing-budget raises the record lists once this lands.
+   Add a `validate` check so an upstream sync cannot bring a long description back. The per-machine
+   listing-budget raises the record lists stay after this lands, by curator decision; they are
+   machine configuration, which the curator manages outside this repository.
 2. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
    automatic dependency installation, cascade remove, and version-range resolution. These three
    workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership

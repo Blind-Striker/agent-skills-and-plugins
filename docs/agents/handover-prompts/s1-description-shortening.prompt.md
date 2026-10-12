@@ -39,11 +39,6 @@ Date: 2026-10-12
 
 ## Deltas vs `docs/ROADMAP.md`
 
-- `Next Up` 1, last sentence: reword so that removing the per-machine listing-budget raises is
-  handed to the curator's machine-configuration repository once the shortening lands, not done from
-  this repository. The step itself is unchanged: draft every description from command 5 to about 190
-  characters or fewer with its distinguishing clause first, keep `aot-trimming` at 210 as already
-  decided, put the drafts to the curator as one table, then add the `validate` check.
 - `Next Up`: add a small item before item 1, the `verified-waves` text polish found by the
   `installer-v0.7.1` review, then remove it when it ships with its Process version move:
   - Codex notes: V1's `resume_agent` can reopen a thread from its rollout, so "cannot be reached"
