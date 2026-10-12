@@ -22,6 +22,10 @@ It is a behavioural panel for one skill. It is not a CI gate or a completion gat
 spends tokens, so it runs only on the curator's word, with credentials supplied out of band. Only
 its records support a claim that the skill works in a harness.
 
+In Claude Code the panel runs P0 only. By curator decision, its model prompts, P1 to P8, are not
+run there, because Claude Code uses its native Workflow tool; a Claude Code record marks each of
+them `skipped` with that reason.
+
 Source citations below are pinned as in the research note: Claude Code 2.1.296 and the
 [workflows docs](https://code.claude.com/docs/en/workflows) read 2026-10-12; OpenCode
 `anomalyco/opencode` v2.0.26, paths under `packages/`; Codex `openai/codex` rust-v0.162.1, paths
@@ -284,7 +288,8 @@ P1's typo is at `src/retry.js:4`, the only `recieve` in the fixture.
 
 ## Repeats
 
-P2 runs twice in each harness. Every other prompt runs once, and so does the Codex V2 run of P2.
+P2 runs twice in OpenCode and in Codex. Every other prompt runs once, and so does the Codex V2 run
+of P2.
 Every count is a sample, never a rate: a behavioural claim needs repeats before it is written down
 ([Traps](protocol.md#traps)). A record may say the skill works in a harness only for a prompt that
 ran at least twice there and passed every time, which is P2. Every single run is "observed once

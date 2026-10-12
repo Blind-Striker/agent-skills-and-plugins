@@ -144,8 +144,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
     (sample).
   - Claude Code 2.1.296
     ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md)): only
-    P0's structural half ran, observed once (sample): the `init` event lists the skill. Every model
-    prompt was skipped.
+    P0's structural half ran, observed once (sample): the `init` event lists the skill. P0's
+    model-surface half was skipped for want of a credential. P1 to P8 are not run, by curator
+    decision: Claude Code uses its native Workflow tool.
   - Codex CLI 0.162.1
     ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md)): P0
     passed, observed once (sample): the installed skill carries `allow_implicit_invocation: false`.
@@ -310,29 +311,31 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   0.153.4, but no run has exercised `implement-spec` or the two-reviewer dispatch of
   `requesting-code-review` there either.
 - **`verified-waves` panel prompts that failed or were skipped:** the 2026-10-12 panel's
-  [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md) and
-  [Codex](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md) legs had no
-  credential supplied out of band and no operator at the TUI, so they skipped every prompt that
-  needs a model turn; each record says how to complete its leg. The
+  [Codex](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md) leg had no
+  credential supplied out of band and no operator at the TUI, so it skipped every prompt that needs
+  a model turn; its record says how to complete the leg. The
+  [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md) leg
+  skipped P0's model-surface half for want of a credential; its record says how to complete P0.
+  P1 to P8 are not run in Claude Code, by curator decision, because Claude Code uses its native
+  Workflow tool, so they are not gaps. The
   [OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) leg
   failed one prompt. By prompt:
   - P0's model-surface half: skipped in Claude Code.
-  - P1: skipped in Claude Code and Codex.
+  - P1: skipped in Codex.
   - P2: failed in OpenCode in 2 of 3 attempts, because children wrote results files without their
     `REPORT` block (12 and 7 of 13), and one of the two reused an earlier attempt's run-id and wrote
-    over its ledger; skipped twice in Claude Code and twice in Codex. The skill text now answers
-    both causes: a brief's last step puts the returned `REPORT` block first in the results file,
-    the parent completes any results file that lacks it, and a new run checks that its ledger
-    directory does not exist yet. The panel ran the text at `8bc8da3`, so no run has measured
-    these rules; P2 needs new runs in every harness.
+    over its ledger; skipped twice in Codex. The skill text now answers both causes: a brief's last
+    step puts the returned `REPORT` block first in the results file, the parent completes any
+    results file that lacks it, and a new run checks that its ledger directory does not exist yet.
+    The panel ran the text at `8bc8da3`, so no run has measured these rules; P2 needs new runs in
+    OpenCode and Codex.
   - P2 under Codex's multi-agent V2: skipped.
-  - P3: skipped in Claude Code and Codex.
-  - P4: skipped in Claude Code and Codex.
-  - P5a: skipped in Claude Code and Codex.
-  - P5b: skipped in Claude Code.
-  - P6: skipped in Claude Code and Codex.
-  - P7: skipped in Codex, and P7a, P7b, and P7c in Claude Code.
-  - P8: skipped in Claude Code and Codex.
+  - P3: skipped in Codex.
+  - P4: skipped in Codex.
+  - P5a: skipped in Codex.
+  - P6: skipped in Codex.
+  - P7: skipped in Codex.
+  - P8: skipped in Codex.
 - **The Codex multi-agent version is unmeasured:** Codex catalog metadata can select multi-agent V2
   even with its feature flag off
   ([research](research/claude-ultracode-and-orchestration-ports.md#capability-matrix)), so the

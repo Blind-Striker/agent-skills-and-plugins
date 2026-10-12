@@ -3,7 +3,7 @@ record_id: verified-waves-claude-2026-10-12
 date: 2026-10-12
 repo_head: 8bc8da3bf070d14f568d1000c1b5b428473f0f0f
 kind: model-panel
-summary: In an isolated Claude Code 2.1.296 config with the checkout's Process 0.10.0 plugin mounted, the init event listed deniz-process:verified-waves and an unmounted control listed no deniz item; every model prompt (P1 to P8) was skipped, because no credential was supplied out of band and this run did not seed the lab from the real profile, so the panel measured nothing about the skill's behaviour in Claude Code.
+summary: In an isolated Claude Code 2.1.296 config with the checkout's Process 0.10.0 plugin mounted, the init event listed deniz-process:verified-waves and an unmounted control listed no deniz item; P0's model-surface half was skipped, because no credential was supplied out of band and this run did not seed the lab from the real profile, and P1 to P8 are not run, by curator decision, because Claude Code uses its native Workflow tool, so the panel measured nothing about the skill's behaviour in Claude Code.
 isolation_ok: true
 fixture_sha: 0a83bab
 harness_name: claude-code
@@ -24,19 +24,19 @@ profile. Raw event streams stay in the lab.
 
 Only P0's structural half ran. Every prompt that needs a model turn is `skipped`:
 
-- **No credential.** The lab's `CLAUDE_CONFIG_DIR` held no credential, and neither
-  `ANTHROPIC_API_KEY` nor `CLAUDE_CODE_OAUTH_TOKEN` was supplied out of band. The only other source
-  on the machine is the real profile's rotating OAuth file. This run's safety rule forbids touching
-  the curator's real profile, and the protocol warns that concurrent copies of that file can
-  invalidate one another ([Isolate](../protocol.md#isolate)). So the lab was not seeded from it.
-- **No operator at a TUI.** The panel asks for an interactive session and an operator who presses
-  `x` in `/workflows` (P4), exits with `Exit and stop tasks` (P5), and answers launch approvals
-  (P7c) and yes/no questions (P6). This run had neither a person at the terminal nor a credential,
-  so it did not try to stand in for one.
+- **P1 to P8: not run, by curator decision.** Claude Code uses its native Workflow tool, so the
+  curator decided that the panel's model prompts are not run in Claude Code. This run also had no
+  person at the terminal for the operator steps of P4, P5, P6, and P7c.
+- **P0's model-surface half: no credential.** The lab's `CLAUDE_CONFIG_DIR` held no credential,
+  and neither `ANTHROPIC_API_KEY` nor `CLAUDE_CODE_OAUTH_TOKEN` was supplied out of band. The only
+  other source on the machine is the real profile's rotating OAuth file. This run's safety rule
+  forbids touching the curator's real profile, and the protocol warns that concurrent copies of
+  that file can invalidate one another ([Isolate](../protocol.md#isolate)). So the lab was not
+  seeded from it.
 
-To complete this leg, seed the lab once out of band (`claude setup-token` and
-`CLAUDE_CODE_OAUTH_TOKEN`, or a lab-only login) and run P1 to P8 from the TUI, as the panel
-describes.
+To complete P0, seed the lab once out of band (`claude setup-token` and
+`CLAUDE_CODE_OAUTH_TOKEN`, or a lab-only login) and run its `-p` enumeration with the unmounted
+control, as the panel describes.
 
 ## Method
 
@@ -62,18 +62,17 @@ describes.
 | model | probe_id | status | cost | tools_observed | notes |
 |---|---|---|---:|---|---|
 | none | P0 | skipped |  | none | Structural half observed: `init` lists `deniz-process:verified-waves` in `slash_commands` and `skills`, and `plugins` names `deniz-process` 0.10.0 (`deniz-process@inline`); the unmounted control lists no `deniz-*` item. The model-surface half (a `-p` enumeration of model-callable skills) needs a model turn: no credential |
-| none | P1 | skipped |  |  | no credential; see Proof limit |
-| none | P2 | skipped |  |  | no credential; run 1 of 2 |
-| none | P2 | skipped |  |  | no credential; run 2 of 2 |
-| none | P3 | skipped |  |  | no credential |
-| none | P4 | skipped |  |  | no credential, and no operator at the TUI to press `x` in `/workflows` |
-| none | P5a | skipped |  |  | no credential, and no operator to exit and `claude --resume` |
-| none | P5b | skipped |  |  | no credential, and no operator |
-| none | P6 | skipped |  |  | no credential |
-| none | P7a | skipped |  |  | no credential |
-| none | P7b | skipped |  |  | no credential |
-| none | P7c | skipped |  |  | no credential, and no operator to answer "No" at the launch approval |
-| none | P8 | skipped |  |  | no credential |
+| none | P1 | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P2 | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P3 | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P4 | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P5a | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P5b | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P6 | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P7a | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P7b | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P7c | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
+| none | P8 | skipped |  |  | not run, curator decision: Claude Code uses its native Workflow tool |
 
 ## Excerpts
 
@@ -110,6 +109,7 @@ The call then ended with the synthetic assistant text `Not logged in · Please r
   backward compatibility." The [sub-agents documentation](https://code.claude.com/docs/en/sub-agents)
   dates the rename to 2.1.63 ("Restrict which subagents can be spawned") and shows
   `--disallowedTools "Agent(Explore)"` ("Disable specific subagents"). Both were read on
-  2026-10-12. No model turn ran here, so P7b's `--disallowedTools Agent` is still unexercised.
+  2026-10-12. No model turn ran here, and P7b is not run (curator decision), so
+  `--disallowedTools Agent` is unexercised.
 - **Observed: the permission mode.** A fresh config reported `permissionMode: "auto"` in `-p` mode.
-  P7c needs Manual mode, so the operator has to set it for that run.
+  The panel's P7c needs Manual mode; P7c is not run here (curator decision).
