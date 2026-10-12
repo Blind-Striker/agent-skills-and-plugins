@@ -138,6 +138,10 @@ the ledger from disk.
 ## Running waves
 
 - Scout only until you can list the items, then delegate the per-item work.
+- Never do an item's work yourself: every edit, finding, and check of an item comes from a child.
+  When the announced agent total is spent and work is left, ask the yes/no question about going
+  over the total, or stop and report what is left. The only exceptions are the labeled sequential
+  run and a sandbox-blocked check that the user lets you run, both under Failures and fallback.
 - While children run, do only work that does not overlap theirs. A search you delegated stays
   delegated.
 - Keep the live children at or under the plan's ceiling, and count every pending child: skeptics,

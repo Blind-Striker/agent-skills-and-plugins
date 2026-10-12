@@ -382,7 +382,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
     `SKILL.md` now says to end the turn after the question and never go on past it in the same
     turn, and the Codex notes say the same for that tool. That rule is unmeasured.
   - In P3, once its announced agent total was spent, the parent wrote a fix itself instead of
-    dispatching a writer.
+    dispatching a writer. `SKILL.md` now says that the parent never does an item's work: when the
+    total is spent, it asks the yes/no question about going over it, or stops and reports what is
+    left. That rule is unmeasured.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to
