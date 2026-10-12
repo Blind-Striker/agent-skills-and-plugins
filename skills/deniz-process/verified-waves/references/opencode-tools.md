@@ -32,6 +32,12 @@ Completion is a `<subagent sessionID state description>` message that holds the 
 text. The states `error` and `cancelled` are FAILED. So is a `completed` message whose text is
 "Subagent completed without a text response." or holds no `REPORT` block.
 
+## Questions
+
+The `question` tool returns only when the user has answered. A yes/no question from `SKILL.md`
+asked through it waits as an ended turn does: go on only with the answer. A question asked in
+text ends your turn.
+
 ## Commands the sandbox refuses
 
 OpenCode has no command sandbox: a shell command runs once its permission check passes. A `deny`

@@ -46,9 +46,9 @@ limit and no deadline.
 After you write the plan, start the first wave in the same turn; wait for the user only where a
 yes/no question below applies.
 
-Ask one yes/no question, and wait for the answer, before each of these: deleting or overwriting
-files, a force-push, a publish, anything that touches credentials, a broad codemod, and going over
-the announced agent total.
+Ask one yes/no question before each of these: deleting or overwriting files, a force-push, a
+publish, anything that touches credentials, a broad codemod, and going over the announced agent
+total. Then end your turn and wait for the answer. Never go on past the question in the same turn.
 
 ## Pick the shape
 

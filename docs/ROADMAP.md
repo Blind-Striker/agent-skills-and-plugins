@@ -379,6 +379,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   - The model asked its yes/no questions through `request_user_input_async`, which lets the turn go
     on. In P3 the parent went on past its question and closed the run without the answer; the
     panel's driver did not surface the question while that turn ran, so this is partly a driver gap.
+    `SKILL.md` now says to end the turn after the question and never go on past it in the same
+    turn, and the Codex notes say the same for that tool. That rule is unmeasured.
   - In P3, once its announced agent total was spent, the parent wrote a fix itself instead of
     dispatching a writer.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
