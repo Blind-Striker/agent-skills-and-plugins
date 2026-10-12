@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import { scanSubmodule } from "./scan.ts";
 
 function makeFixture(): string {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   mkdirSync(join(ext, "sp", ".claude-plugin"), { recursive: true });
   writeFileSync(join(ext, "sp", ".claude-plugin", "plugin.json"), JSON.stringify({ name: "superpowers" }));
   mkdirSync(join(ext, "sp", "skills", "foo", "references"), { recursive: true });
@@ -38,7 +38,7 @@ test("finds skills, commands, agents with namespace from plugin.json", () => {
 });
 
 test("falls back to submodule dir name when no plugin.json", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   mkdirSync(join(ext, "raw", "skills", "x"), { recursive: true });
   writeFileSync(join(ext, "raw", "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
   const comps = scanSubmodule(ext, "raw");
@@ -48,7 +48,7 @@ test("falls back to submodule dir name when no plugin.json", () => {
 });
 
 test("a root-level skill uses the submodule name as its source address", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   mkdirSync(join(ext, "rootsp"), { recursive: true });
   writeFileSync(join(ext, "rootsp", "SKILL.md"), "---\nname: root-skill\ndescription: Root\n---\n\nB");
   const comps = scanSubmodule(ext, "rootsp");
@@ -60,7 +60,7 @@ test("a root-level skill uses the submodule name as its source address", () => {
 });
 
 test("tolerates trailing separator on submodule name", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   mkdirSync(join(ext, "raw", "skills", "x"), { recursive: true });
   writeFileSync(join(ext, "raw", "skills", "x", "SKILL.md"), "---\nname: x\ndescription: X\n---\n\nB");
   const comps = scanSubmodule(ext, "raw/");
@@ -72,7 +72,7 @@ test("tolerates trailing separator on submodule name", () => {
 });
 
 test("reads namespace from a bare plugin.json in a marketplace monorepo", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   const plugin = join(ext, "mono", "plugins", "toolx");
   mkdirSync(join(plugin, "skills", "s1"), { recursive: true });
   writeFileSync(join(plugin, "plugin.json"), JSON.stringify({ name: "toolx" }));
@@ -85,7 +85,7 @@ test("reads namespace from a bare plugin.json in a marketplace monorepo", () => 
 });
 
 test("prefers .claude-plugin/plugin.json over a sibling bare plugin.json", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   const plugin = join(ext, "mono", "plugins", "toolx");
   mkdirSync(join(plugin, ".claude-plugin"), { recursive: true });
   mkdirSync(join(plugin, "skills", "s1"), { recursive: true });
@@ -99,7 +99,7 @@ test("prefers .claude-plugin/plugin.json over a sibling bare plugin.json", () =>
 });
 
 test("falls back past a malformed plugin.json instead of throwing", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   mkdirSync(join(ext, "bad", ".claude-plugin"), { recursive: true });
   writeFileSync(join(ext, "bad", ".claude-plugin", "plugin.json"), "not json");
   mkdirSync(join(ext, "bad", "skills", "x"), { recursive: true });
@@ -112,7 +112,7 @@ test("falls back past a malformed plugin.json instead of throwing", () => {
 });
 
 test("falls back past a plugin.json with no string name", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   const plugin = join(ext, "noname", "plugins", "p");
   mkdirSync(join(plugin, "skills", "x"), { recursive: true });
   writeFileSync(join(plugin, "plugin.json"), JSON.stringify({ version: "1.0.0" }));
@@ -124,7 +124,7 @@ test("falls back past a plugin.json with no string name", () => {
 });
 
 test("skips symlinked mirrors so a skill is not counted twice", (t) => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   const real = join(ext, "mirror", "skills", "one");
   mkdirSync(real, { recursive: true });
   writeFileSync(join(real, "SKILL.md"), "---\nname: one\ndescription: One\n---\n\nB");
@@ -149,7 +149,7 @@ test("skips symlinked mirrors so a skill is not counted twice", (t) => {
 });
 
 test("still finds real files under .github", () => {
-  const ext = mkdtempSync(join(tmpdir(), "scan-"));
+  const ext = tempDir("scan");
   mkdirSync(join(ext, "gh", ".github", "skills", "pr-review"), { recursive: true });
   writeFileSync(
     join(ext, "gh", ".github", "skills", "pr-review", "SKILL.md"),

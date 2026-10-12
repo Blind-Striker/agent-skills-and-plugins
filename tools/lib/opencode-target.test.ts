@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import type { AssembledItem } from "./assemble.ts";
 import { PORTABLE_NAME } from "./resolve.ts";
 import {
@@ -164,7 +164,7 @@ test("a hidden item whose metadata is not a mapping is a preflight problem", () 
 });
 
 test("collectOpenCodeEmissionProblems reports a non-mapping metadata on a hidden skill only", () => {
-  const dir = mkdtempSync(join(tmpdir(), "oc-target-"));
+  const dir = tempDir("oc-target");
   writeFileSync(join(dir, "SKILL.md"), "---\nname: x\ndescription: D\nmetadata: plain\n---\n\nBody.\n");
   const item = (invocation?: "manual" | "auto"): AssembledItem => ({
     plugin: "deniz-process",

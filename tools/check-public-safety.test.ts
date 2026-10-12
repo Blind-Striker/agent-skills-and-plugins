@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { findPublicContentFindings, findRepositoryCurrentFindings } from "./check-public-safety.ts";
+import { tempDir } from "./testutil.ts";
 
 test("machine-path scan reports user-profile paths without echoing their value", () => {
   const windowsPath = ["C:", "\\", "Users", "\\", "person", "\\", "repo"].join("");
@@ -45,7 +45,7 @@ test("machine-path scan allows only the named synthetic fixture", () => {
 });
 
 test("repository scan includes untracked files before they are committed", () => {
-  const root = mkdtempSync(join(tmpdir(), "public-safety-"));
+  const root = tempDir("public-safety");
   execFileSync("git", ["init", "-q", "."], { cwd: root });
   writeFileSync(join(root, "tracked.txt"), "safe\n");
   execFileSync("git", ["add", "tracked.txt"], { cwd: root });
@@ -60,7 +60,7 @@ test("repository scan includes untracked files before they are committed", () =>
 });
 
 test("repository scan ignores tracked files deleted in the worktree", () => {
-  const root = mkdtempSync(join(tmpdir(), "public-safety-"));
+  const root = tempDir("public-safety");
   execFileSync("git", ["init", "-q", "."], { cwd: root });
   writeFileSync(join(root, "removed.txt"), "safe\n");
   execFileSync("git", ["add", "removed.txt"], { cwd: root });

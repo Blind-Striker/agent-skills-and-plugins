@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import type { CurationManifest } from "./manifest.ts";
 import { collectOriginalSkillProblems, ownSkillIdentities } from "./own-skills.ts";
 
 test("original skill identities come from Plugin names and top-level directories", () => {
-  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const root = tempDir("own-skills");
   mkdirSync(join(root, "skills", "deniz-general", "writing-tests"), { recursive: true });
   mkdirSync(join(root, "skills", "deniz-process", "grilling"), { recursive: true });
   writeFileSync(join(root, "skills", "deniz-general", "NOTICE.md"), "not a skill\n");
@@ -34,7 +34,7 @@ function plantSkill(root: string, path: string, name: string): void {
 }
 
 test("every original skill directory pairs with exactly one declaration", () => {
-  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const root = tempDir("own-skills");
   plantSkill(root, "skills/deniz-general/declared", "declared");
   plantSkill(root, "skills/deniz-general/undeclared", "undeclared");
   plantSkill(root, "skills/deniz-general/misnamed", "other");
@@ -55,7 +55,7 @@ test("every original skill directory pairs with exactly one declaration", () => 
 });
 
 test("a symlinked original skill is named, not followed", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const root = tempDir("own-skills");
   plantSkill(root, "skills/deniz-general/real", "real");
   try {
     symlinkSync(join(root, "skills", "deniz-general", "real"), join(root, "skills", "deniz-general", "linked"), "dir");
@@ -70,7 +70,7 @@ test("a symlinked original skill is named, not followed", (t) => {
 });
 
 test("a symlinked skills/<plugin> folder is named, and its declarations wait for a real directory", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const root = tempDir("own-skills");
   plantSkill(root, "elsewhere/real", "real");
   mkdirSync(join(root, "skills"));
   try {
@@ -86,7 +86,7 @@ test("a symlinked skills/<plugin> folder is named, and its declarations wait for
 });
 
 test("an original skill authors no harness's invocation posture: the declaration owns it", () => {
-  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const root = tempDir("own-skills");
   const dir = join(root, "skills", "deniz-general", "posed");
   mkdirSync(join(dir, "agents"), { recursive: true });
   writeFileSync(
@@ -107,7 +107,7 @@ test("an original skill authors no harness's invocation posture: the declaration
 });
 
 test("an original SKILL.md whose frontmatter does not parse is named", () => {
-  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const root = tempDir("own-skills");
   mkdirSync(join(root, "skills", "deniz-general", "broken"), { recursive: true });
   writeFileSync(
     join(root, "skills", "deniz-general", "broken", "SKILL.md"),

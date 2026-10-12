@@ -3,7 +3,6 @@ import {
   chmodSync,
   lstatSync,
   mkdirSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
   renameSync,
@@ -11,9 +10,9 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import {
   createModuleManifest,
   digestModulePayload,
@@ -124,7 +123,7 @@ function makeInstallFixture(): {
   oldBytes: string;
   oldState: InstallState;
 } {
-  const root = mkdtempSync(join(tmpdir(), "apply-"));
+  const root = tempDir("apply");
   const destination = join(root, "config", "opencode");
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   const target = join(destination, "commands", "alpha.md");
@@ -198,7 +197,7 @@ function makeRemoveFixture(): {
   extraFile: string;
   oldState: InstallState;
 } {
-  const root = mkdtempSync(join(tmpdir(), "apply-remove-"));
+  const root = tempDir("apply-remove");
   const destination = join(root, "config", "opencode");
   const skillFile = join(destination, "skills", "alpha", "SKILL.md");
   const extraFile = join(destination, "skills", "alpha", "notes.md");
@@ -226,7 +225,7 @@ function makeAddFixture(): {
   plan: Plan;
   target: string;
 } {
-  const root = mkdtempSync(join(tmpdir(), "apply-add-"));
+  const root = tempDir("apply-add");
   const destination = join(root, "config", "opencode");
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   const target = join(destination, "commands", "alpha.md");
@@ -256,7 +255,7 @@ function makeChmodFixture(): {
   target: string;
   oldState: InstallState;
 } {
-  const root = mkdtempSync(join(tmpdir(), "apply-chmod-"));
+  const root = tempDir("apply-chmod");
   const destination = join(root, "config", "opencode");
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   const target = join(destination, "skills", "alpha", "run.sh");
@@ -787,7 +786,7 @@ test("empty-directory pruning keeps unknown content and native roots", () => {
 });
 
 test("removing the last owned nested file prunes empty parents but not the native root", () => {
-  const root = mkdtempSync(join(tmpdir(), "apply-prune-"));
+  const root = tempDir("apply-prune");
   const destination = join(root, "config", "opencode");
   const skillFile = join(destination, "skills", "alpha", "SKILL.md");
   mkdirSync(dirname(skillFile), { recursive: true });
@@ -809,7 +808,7 @@ test("removing the last owned nested file prunes empty parents but not the nativ
 });
 
 test("finalize Recovery prunes parents emptied by the committed removal", () => {
-  const root = mkdtempSync(join(tmpdir(), "apply-prune-recovery-"));
+  const root = tempDir("apply-prune-recovery");
   const destination = join(root, "config", "opencode");
   const skillFile = join(destination, "skills", "alpha", "nested", "SKILL.md");
   mkdirSync(dirname(skillFile), { recursive: true });
@@ -1013,7 +1012,7 @@ function makeTwoFileFixture(): {
   oldBeta: string;
   oldState: InstallState;
 } {
-  const root = mkdtempSync(join(tmpdir(), "apply-two-"));
+  const root = tempDir("apply-two");
   const destination = join(root, "config", "opencode");
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   const alpha = join(destination, "commands", "alpha.md");
@@ -1364,7 +1363,7 @@ test("malformed journal operations block recovery", () => {
 });
 
 test("rollback of an add removes directories created by this transaction", () => {
-  const root = mkdtempSync(join(tmpdir(), "apply-add-nested-"));
+  const root = tempDir("apply-add-nested");
   const destination = join(root, "config", "opencode");
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   mkdirSync(join(bundleRoot, "skills", "alpha"), { recursive: true });
@@ -1407,7 +1406,7 @@ function makeDropMissingFixture(): {
   replacedOldBytes: string;
   oldState: InstallState;
 } {
-  const root = mkdtempSync(join(tmpdir(), "apply-drop-"));
+  const root = tempDir("apply-drop");
   const destination = join(root, "config", "opencode");
   const bundleRoot = join(root, "package", "opencode", "deniz-process");
   const target = join(destination, "commands", "alpha.md");

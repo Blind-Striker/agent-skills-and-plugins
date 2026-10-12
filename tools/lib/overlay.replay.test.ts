@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import { copyUpstream, cutPatch, cutResidue, replayPatch } from "./overlay.ts";
 
 const chunk = (file: string, lines: string[]) =>
@@ -45,23 +45,23 @@ function put(dir: string, files: Record<string, string>): void {
 
 /** An upstream item committed as the old pin, the old patch cut from an edited copy, then upstream moved. */
 function scenario(opts: { commit: boolean; edit: (f: string[]) => void; move: (up: string) => void; link?: boolean }) {
-  const up = mkdtempSync(join(tmpdir(), "up-"));
+  const up = tempDir("up");
   put(up, { "SKILL.md": `${lines(30).join("\n")}\n`, "notes.md": "n1\nn2\n" });
   if (opts.commit) {
     git(up, "init", "-q");
     git(up, "add", "-A");
     git(up, "commit", "-qm", "pin");
   }
-  const edited = mkdtempSync(join(tmpdir(), "ed-"));
+  const edited = tempDir("ed");
   cpSync(up, edited, { recursive: true, filter: copyUpstream(up) });
   const skill = lines(30);
   opts.edit(skill);
   put(edited, { "SKILL.md": `${skill.join("\n")}\n`, "notes.md": "n1\nN2 ours\n" });
   const patch = cutPatch(up, edited);
   opts.move(up);
-  const real = mkdtempSync(join(tmpdir(), "rp-"));
+  const real = tempDir("rp");
   // A junction on Windows, a directory symlink elsewhere: the path the caller writes is not git's.
-  const parent = opts.link ? join(mkdtempSync(join(tmpdir(), "ln-")), "j") : real;
+  const parent = opts.link ? join(tempDir("ln"), "j") : real;
   if (opts.link) {
     symlinkSync(real, parent, "junction");
   }
@@ -126,7 +126,7 @@ test("replay: an ignore rule in the item never hides a file from the seed index"
 });
 
 test("replay never writes through an inherited GIT_INDEX_FILE or GIT_DIR", () => {
-  const decoy = mkdtempSync(join(tmpdir(), "decoy-"));
+  const decoy = tempDir("decoy");
   const saved = { GIT_INDEX_FILE: process.env.GIT_INDEX_FILE, GIT_DIR: process.env.GIT_DIR };
   process.env.GIT_INDEX_FILE = join(decoy, "index");
   process.env.GIT_DIR = join(decoy, "repo.git");
@@ -167,7 +167,7 @@ test("replay through a junction or symlinked path still lands the patch", () => 
 });
 
 test("a host apply.whitespace=fix never rewrites the lines a replay lands", () => {
-  const cfg = join(mkdtempSync(join(tmpdir(), "cfg-")), "gitconfig");
+  const cfg = join(tempDir("cfg"), "gitconfig");
   writeFileSync(cfg, "[apply]\n\twhitespace = fix\n");
   const saved = process.env.GIT_CONFIG_GLOBAL;
   process.env.GIT_CONFIG_GLOBAL = cfg;

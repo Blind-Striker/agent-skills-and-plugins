@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import { loadManifest } from "./manifest.ts";
 
 function write(content: string): string {
-  const p = join(mkdtempSync(join(tmpdir(), "manifest-")), "x.yaml");
+  const p = join(tempDir("manifest"), "x.yaml");
   writeFileSync(p, content);
   return p;
 }

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import type { AssembledItem } from "./assemble.ts";
 import {
   adaptCodexSkillDocument,
@@ -69,7 +69,7 @@ test("Codex marketplace ordering and repository source paths are deterministic",
 });
 
 test("Codex marketplace paths must be explicit portable repository children", () => {
-  const root = mkdtempSync(join(tmpdir(), "codex-path-"));
+  const root = tempDir("codex-path");
   assert.equal(resolveCodexRepositoryPath(root, "./codex/plugin"), join(root, "codex", "plugin"));
   for (const path of ["codex/plugin", "./../escape", "./codex\\plugin", "./", "C:/escape"]) {
     assert.throws(() => resolveCodexRepositoryPath(root, path), /repository-relative|escapes/);
@@ -77,7 +77,7 @@ test("Codex marketplace paths must be explicit portable repository children", ()
 });
 
 test("Codex preflight reports flattened, case-insensitive, and invalid namespaces together", () => {
-  const root = mkdtempSync(join(tmpdir(), "codex-identities-"));
+  const root = tempDir("codex-identities");
   const items = [
     assembled(root, "deniz-process", "same-name", "skill"),
     assembled(root, "deniz-process", "Same-Name", "command"),
@@ -91,7 +91,7 @@ test("Codex preflight reports flattened, case-insensitive, and invalid namespace
 });
 
 test("Codex preflight enforces the 64-character skill-name limit", () => {
-  const root = mkdtempSync(join(tmpdir(), "codex-length-"));
+  const root = tempDir("codex-length");
   const name = `a${"b".repeat(64)}`;
   const problems = collectCodexEmissionProblems(
     root,

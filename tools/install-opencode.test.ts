@@ -1,16 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import {
-  cpSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { test } from "node:test";
@@ -34,6 +24,7 @@ import {
   runInstallCli,
   type InstallCliIo,
 } from "./install-opencode.ts";
+import { tempDir } from "./testutil.ts";
 
 function stateWithOwnedCommand(
   module: string,
@@ -90,8 +81,8 @@ function makeCliFixture(extraModules: Record<string, Record<string, string>> = {
   destination: string;
   io: InstallCliIo;
 } {
-  const packageRoot = mkdtempSync(join(tmpdir(), "cli-pkg-"));
-  const isolatedHome = mkdtempSync(join(tmpdir(), "cli-home-"));
+  const packageRoot = tempDir("cli-pkg");
+  const isolatedHome = tempDir("cli-home");
   const xdg = join(isolatedHome, ".config");
   writeBundle(packageRoot, "deniz-process", { "skills/alpha/SKILL.md": "alpha skill\n" });
   for (const [name, files] of Object.entries(extraModules)) {
@@ -513,7 +504,7 @@ test("dependency: Apply does not reuse a previously valid printed Plan", async (
 
 test("OPENCODE_CONFIG_DIR is the Destination when it is set", async () => {
   const fixture = makeCliFixture();
-  const configDir = mkdtempSync(join(tmpdir(), "cli-opencode-config-dir-"));
+  const configDir = tempDir("cli-opencode-config-dir");
   const result = await runInstallCli(["install", "--all", "--yes"], {
     ...fixture.io,
     env: { ...fixture.io.env, OPENCODE_CONFIG_DIR: configDir },
@@ -537,7 +528,7 @@ test("a relative OPENCODE_CONFIG_DIR is refused before any write", async () => {
 
 test("the fallback Destination uses io.home, never env HOME or USERPROFILE", async () => {
   const fixture = makeCliFixture();
-  const shellHome = mkdtempSync(join(tmpdir(), "cli-shell-home-"));
+  const shellHome = tempDir("cli-shell-home");
   const env: NodeJS.ProcessEnv = { ...fixture.io.env, HOME: shellHome, USERPROFILE: shellHome };
   delete env.XDG_CONFIG_HOME;
   const result = await runInstallCli(["install", "--all", "--yes"], { ...fixture.io, env });
@@ -946,7 +937,7 @@ function escapeRegExp(value: string): string {
 // --- direct-entry detection (bin symlinks) ----------------------------------
 
 test("direct-entry detection resolves a bin symlink to the real module", (t) => {
-  const dir = mkdtempSync(join(tmpdir(), "entry-detect-"));
+  const dir = tempDir("entry-detect");
   const real = join(dir, "real.js");
   writeFileSync(real, "");
   let link: string;
@@ -968,7 +959,7 @@ test("direct-entry detection resolves a bin symlink to the real module", (t) => 
 
 test("a bin symlink process runs the real installer module", (t) => {
   const root = repoRoot();
-  const fixture = mkdtempSync(join(tmpdir(), "bin-symlink-"));
+  const fixture = tempDir("bin-symlink");
   cpSync(join(root, "dist"), join(fixture, "dist"), { recursive: true });
   cpSync(join(root, "opencode", "deniz-process"), join(fixture, "opencode", "deniz-process"), { recursive: true });
   let link: string;
@@ -981,7 +972,7 @@ test("a bin symlink process runs the real installer module", (t) => {
     );
     return;
   }
-  const isolatedHome = mkdtempSync(join(tmpdir(), "bin-symlink-home-"));
+  const isolatedHome = tempDir("bin-symlink-home");
   const env = { ...process.env };
   delete env.OPENCODE_CONFIG_DIR;
   env.HOME = isolatedHome;
@@ -1066,7 +1057,7 @@ function readTarEntries(tgz: string): { path: string; content: Buffer }[] {
 }
 
 function packRootPackage(root: string): { tgz: string; paths: Map<string, Buffer> } {
-  const packDir = mkdtempSync(join(tmpdir(), "deniz-pack-"));
+  const packDir = tempDir("deniz-pack");
   const { exe, args } = npmInvocation(["pack", "--json", "--pack-destination", packDir]);
   const result = spawnSync(exe, args, {
     cwd: root,
@@ -1167,10 +1158,10 @@ function snapshotTree(root: string): Map<string, Buffer> {
 test("packed bin installs byte-identical Native tree and Install state", async () => {
   const root = repoRoot();
   const { tgz } = packRootPackage(root);
-  const packedHome = mkdtempSync(join(tmpdir(), "packed-bin-home-"));
-  const checkoutHome = mkdtempSync(join(tmpdir(), "checkout-bin-home-"));
-  const npmCache = mkdtempSync(join(tmpdir(), "packed-bin-cache-"));
-  const runDir = mkdtempSync(join(tmpdir(), "packed-bin-run-"));
+  const packedHome = tempDir("packed-bin-home");
+  const checkoutHome = tempDir("checkout-bin-home");
+  const npmCache = tempDir("packed-bin-cache");
+  const runDir = tempDir("packed-bin-run");
   const packedXdg = join(packedHome, ".config");
   const checkoutXdg = join(checkoutHome, ".config");
 

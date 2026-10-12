@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
-import { addOriginalSkill, makeRepo } from "../testutil.ts";
+import { addOriginalSkill, makeRepo, tempDir } from "../testutil.ts";
 import { assembleItems } from "./assemble.ts";
 import { parseDoc } from "./frontmatter.ts";
 import { loadManifest } from "./manifest.ts";
@@ -17,13 +16,9 @@ function loadFixture(root: string) {
   };
 }
 
-test("common assembly resolves each item once and retains a converted skill's dependency closure", (t) => {
+test("common assembly resolves each item once and retains a converted skill's dependency closure", () => {
   const root = makeRepo();
-  const stagingRoot = mkdtempSync(join(tmpdir(), "assembly-test-"));
-  t.after(() => {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(stagingRoot, { recursive: true, force: true });
-  });
+  const stagingRoot = tempDir("assembly-test");
 
   const manifestPath = join(root, "curation", "deniz-process.yaml");
   writeFileSync(
@@ -73,13 +68,9 @@ test("common assembly resolves each item once and retains a converted skill's de
   assert.ok(report.includes("WARN deniz-process/deniz-beta: dropped in skill->command conversion: references"));
 });
 
-test("an assembly failure does not touch existing generated target trees", (t) => {
+test("an assembly failure does not touch existing generated target trees", () => {
   const root = makeRepo();
-  const stagingRoot = mkdtempSync(join(tmpdir(), "assembly-test-"));
-  t.after(() => {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(stagingRoot, { recursive: true, force: true });
-  });
+  const stagingRoot = tempDir("assembly-test");
 
   mkdirSync(join(root, "plugins", "keep"), { recursive: true });
   mkdirSync(join(root, "opencode", "keep"), { recursive: true });
@@ -95,13 +86,9 @@ test("an assembly failure does not touch existing generated target trees", (t) =
   assert.equal(readFileSync(opencodeSentinel, "utf8"), "opencode\n");
 });
 
-test("the assembly mirror names the --patch eject for a missing patch overlay", (t) => {
+test("the assembly mirror names the --patch eject for a missing patch overlay", () => {
   const root = makeRepo();
-  const stagingRoot = mkdtempSync(join(tmpdir(), "assembly-test-"));
-  t.after(() => {
-    rmSync(root, { recursive: true, force: true });
-    rmSync(stagingRoot, { recursive: true, force: true });
-  });
+  const stagingRoot = tempDir("assembly-test");
   rmSync(join(root, "overlays", "deniz-process", "gamma"), { recursive: true, force: true });
 
   const { manifests, components } = loadFixture(root);

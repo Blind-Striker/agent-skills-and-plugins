@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "../build.ts";
-import { addOriginalSkill, makeRepo, opencodeIdPath } from "../testutil.ts";
+import { addOriginalSkill, makeRepo, opencodeIdPath, tempDir } from "../testutil.ts";
 import { everListedNames } from "./ledger.ts";
 
 test("the build writes a deterministic ledger describing each item's resolved state per harness", () => {
@@ -217,7 +216,7 @@ test("the ledger lists each original skill under its own key with an own-source 
 });
 
 test("everListedNames reads every top-level key any committed ledger listed", () => {
-  const root = mkdtempSync(join(tmpdir(), "ledger-"));
+  const root = tempDir("ledger");
   const g = (...a: string[]) =>
     execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", "-c", "core.autocrlf=false", ...a], {
       cwd: root,

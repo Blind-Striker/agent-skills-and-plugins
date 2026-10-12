@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import { hashBytes } from "./opencode-bundle.ts";
 import {
   EMPTY_INSTALL_STATE,
@@ -141,7 +141,7 @@ test("Install-state serialization uses ordinal Module and path ordering", () => 
 });
 
 test("loadInstallState returns empty state only when install.json is absent", () => {
-  const destination = mkdtempSync(join(tmpdir(), "install-state-missing-"));
+  const destination = tempDir("install-state-missing");
   assert.equal(loadInstallState(destination), EMPTY_INSTALL_STATE);
 
   mkdirSync(join(destination, ".deniz-skills"));
@@ -292,7 +292,7 @@ test("install state rejects a path outside the native tree", () => {
 });
 
 function fixtureRoot(label: string): string {
-  return mkdtempSync(join(tmpdir(), `${label}-`));
+  return tempDir(`${label}`);
 }
 
 function tryLink(target: string, path: string, type: "file" | "dir" | "junction"): boolean {

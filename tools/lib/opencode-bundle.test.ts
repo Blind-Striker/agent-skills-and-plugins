@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { tempDir } from "../testutil.ts";
 import { indexModes } from "./git.ts";
 import {
   createModuleManifest,
@@ -95,7 +95,7 @@ test("requirements: numeric-looking paths keep ordinal file order in the digest"
 });
 
 test("manifest hashes raw bytes and verification reports tamper and extras", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-"));
+  const root = tempDir("bundle");
   mkdirSync(join(root, "skills", "alpha"), { recursive: true });
   writeFileSync(join(root, "skills", "alpha", "SKILL.md"), Buffer.from([0x41, 0x0d, 0x0a]));
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
@@ -112,7 +112,7 @@ test("manifest hashes raw bytes and verification reports tamper and extras", () 
 });
 
 test("Git index modes are root-relative POSIX executable identities", () => {
-  const root = mkdtempSync(join(tmpdir(), "index-modes-"));
+  const root = tempDir("index-modes");
   mkdirSync(join(root, "nested"), { recursive: true });
   writeFileSync(join(root, "plain.txt"), "plain\n");
   writeFileSync(join(root, "nested", "run.sh"), "#!/bin/sh\n");
@@ -127,11 +127,11 @@ test("Git index modes are root-relative POSIX executable identities", () => {
       ["plain.txt", "100644"],
     ],
   );
-  assert.deepEqual([...indexModes(mkdtempSync(join(tmpdir(), "not-a-repo-")))], []);
+  assert.deepEqual([...indexModes(tempDir("not-a-repo"))], []);
 });
 
 test("manifest verification reports a listed file that is missing", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-missing-"));
+  const root = tempDir("bundle-missing");
   const file = join(root, "commands", "alpha.md");
   mkdirSync(join(root, "commands"), { recursive: true });
   writeFileSync(file, "alpha\n");
@@ -153,7 +153,7 @@ test("module digest changes when only the executable mode changes", () => {
 });
 
 test("manifest creation excludes the root manifest.json from its file set", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-self-"));
+  const root = tempDir("bundle-self");
   writeFileSync(join(root, "manifest.json"), "old manifest\n");
   mkdirSync(join(root, "commands"), { recursive: true });
   writeFileSync(join(root, "commands", "alpha.md"), "alpha\n");
@@ -165,7 +165,7 @@ test("manifest creation excludes the root manifest.json from its file set", () =
 });
 
 test("manifest creation records prototype-named paths as ordinary files", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-prototype-path-"));
+  const root = tempDir("bundle-prototype-path");
   writeFileSync(join(root, "__proto__"), "ordinary file\n");
 
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
@@ -175,7 +175,7 @@ test("manifest creation records prototype-named paths as ordinary files", () => 
 });
 
 test("manifest verification treats inherited object names as unlisted extras", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-inherited-path-"));
+  const root = tempDir("bundle-inherited-path");
   writeFileSync(join(root, "toString"), "extra\n");
   const files: Record<string, FileIdentity> = {};
   const manifest = {
@@ -194,7 +194,7 @@ test("manifest verification treats inherited object names as unlisted extras", (
 });
 
 test("loaded manifests serialize deterministically regardless of file-map order", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-serialization-"));
+  const root = tempDir("bundle-serialization");
   mkdirSync(join(root, "commands"), { recursive: true });
   writeFileSync(join(root, "commands", "zeta.md"), "zeta\n");
   writeFileSync(join(root, "commands", "alpha.md"), "alpha\n");
@@ -206,7 +206,7 @@ test("loaded manifests serialize deterministically regardless of file-map order"
 });
 
 test("loader rejects schemaVersion 1", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-schema1-"));
+  const root = tempDir("bundle-schema1");
   mkdirSync(join(root, "commands"), { recursive: true });
   writeFileSync(join(root, "commands", "alpha.md"), "alpha\n");
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
@@ -217,7 +217,7 @@ test("loader rejects schemaVersion 1", () => {
 });
 
 test("loader rejects missing requiredModules", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-missing-requirements-"));
+  const root = tempDir("bundle-missing-requirements");
   mkdirSync(join(root, "commands"), { recursive: true });
   writeFileSync(join(root, "commands", "alpha.md"), "alpha\n");
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
@@ -229,7 +229,7 @@ test("loader rejects missing requiredModules", () => {
 });
 
 test("loader rejects a requirement-only digest tamper", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-requirement-tamper-"));
+  const root = tempDir("bundle-requirement-tamper");
   mkdirSync(join(root, "commands"), { recursive: true });
   writeFileSync(join(root, "commands", "alpha.md"), "alpha\n");
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
@@ -240,7 +240,7 @@ test("loader rejects a requirement-only digest tamper", () => {
 });
 
 test("loader rejects malformed sha256 values", () => {
-  const path = join(mkdtempSync(join(tmpdir(), "bundle-invalid-hash-")), "manifest.json");
+  const path = join(tempDir("bundle-invalid-hash"), "manifest.json");
   writeFileSync(
     path,
     JSON.stringify({
@@ -263,7 +263,7 @@ test("loader rejects absolute and traversal file paths", () => {
     { name: "traversal", file: "../commands/alpha.md" },
   ] as const;
   for (const { name, file } of unsafePaths) {
-    const path = join(mkdtempSync(join(tmpdir(), `bundle-${name}-`)), "manifest.json");
+    const path = join(tempDir(`bundle-${name}`), "manifest.json");
     writeFileSync(
       path,
       JSON.stringify({
@@ -280,7 +280,7 @@ test("loader rejects absolute and traversal file paths", () => {
 });
 
 test("case-insensitive verification reports a differently cased file as an alias", () => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-case-"));
+  const root = tempDir("bundle-case");
   mkdirSync(join(root, "skills", "Alpha"), { recursive: true });
   writeFileSync(join(root, "skills", "Alpha", "SKILL.md"), "alpha\n");
   const actual = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
@@ -296,7 +296,7 @@ test("case-insensitive verification reports a differently cased file as an alias
 });
 
 test("loader returns direct Module directories by their manifest name", () => {
-  const opencodeRoot = mkdtempSync(join(tmpdir(), "module-bundles-"));
+  const opencodeRoot = tempDir("module-bundles");
   const moduleRoot = join(opencodeRoot, "deniz-process");
   mkdirSync(join(moduleRoot, "commands"), { recursive: true });
   writeFileSync(join(moduleRoot, "commands", "alpha.md"), "alpha\n");
@@ -310,7 +310,7 @@ test("loader returns direct Module directories by their manifest name", () => {
 });
 
 test("manifest creation refuses a bundle tree that contains a symlink", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-symlink-create-"));
+  const root = tempDir("bundle-symlink-create");
   writeFileSync(join(root, "plain.txt"), "plain\n");
   try {
     symlinkSync(join(root, "plain.txt"), join(root, "linked.txt"), "file");
@@ -323,7 +323,7 @@ test("manifest creation refuses a bundle tree that contains a symlink", (t) => {
 });
 
 test("manifest verification reports an unlisted symlink", (t) => {
-  const root = mkdtempSync(join(tmpdir(), "bundle-symlink-verify-"));
+  const root = tempDir("bundle-symlink-verify");
   writeFileSync(join(root, "plain.txt"), "plain\n");
   const manifest = createModuleManifest(root, "deniz-process", "0.2.0", () => "100644", []);
   try {
@@ -340,7 +340,7 @@ test("manifest verification reports an unlisted symlink", (t) => {
 });
 
 test("loader rejects a Module directory whose manifest has another name", () => {
-  const opencodeRoot = mkdtempSync(join(tmpdir(), "module-mismatch-"));
+  const opencodeRoot = tempDir("module-mismatch");
   const moduleRoot = join(opencodeRoot, "deniz-process");
   mkdirSync(moduleRoot, { recursive: true });
   const manifest = createModuleManifest(moduleRoot, "deniz-other", "0.2.0", () => "100644", []);

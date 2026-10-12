@@ -141,27 +141,30 @@ function showDrift(addr: string, file: string, sha: string): void {
   // Both sides land in one throwaway tree under the same name, so git's headers read `recorded/` and
   // `current/` instead of two absolute machine paths — the hunks are what this exists to show.
   const tmp = mkdtempSync(join(tmpdir(), "bless-"));
-  const was = join(tmp, "recorded", file);
-  const is = join(tmp, "current", file);
-  mkdirSync(dirname(was), { recursive: true });
-  mkdirSync(dirname(is), { recursive: true });
-  writeFileSync(was, recorded);
-  cpSync(now, is);
   let diff: string;
   try {
-    // A review must show what upstream wrote, not what someone's difftool makes of it.
-    const sides = [`recorded/${file}`, `current/${file}`];
-    diff = execFileSync("git", ["diff", "--no-ext-diff", "--no-textconv", "--no-index", "--", ...sides], {
-      cwd: tmp,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "pipe"],
-      env: gitEnv(),
-    });
-  } catch (e) {
-    // --no-index exits 1 when the two sides differ, which is the only reason this is being shown.
-    diff = (e as { stdout?: string }).stdout ?? "";
+    const was = join(tmp, "recorded", file);
+    const is = join(tmp, "current", file);
+    mkdirSync(dirname(was), { recursive: true });
+    mkdirSync(dirname(is), { recursive: true });
+    writeFileSync(was, recorded);
+    cpSync(now, is);
+    try {
+      // A review must show what upstream wrote, not what someone's difftool makes of it.
+      const sides = [`recorded/${file}`, `current/${file}`];
+      diff = execFileSync("git", ["diff", "--no-ext-diff", "--no-textconv", "--no-index", "--", ...sides], {
+        cwd: tmp,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+        env: gitEnv(),
+      });
+    } catch (e) {
+      // --no-index exits 1 when the two sides differ, which is the only reason this is being shown.
+      diff = (e as { stdout?: string }).stdout ?? "";
+    }
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
   }
-  rmSync(tmp, { recursive: true, force: true });
   console.log(diff.trimEnd());
 }
 
@@ -350,10 +353,14 @@ if (flags.has("--patch")) {
   // old edits, and a patch that does not apply to the very upstream it was cut from is a tooling
   // bug — losing either the old patch or the user's edits to it is unrecoverable.
   const tmp = mkdtempSync(join(tmpdir(), "cut-"));
-  const candidate = join(tmp, PATCH_FILE);
-  writeFileSync(candidate, patch);
-  const bad = checkPatch(base, candidate);
-  rmSync(tmp, { recursive: true, force: true });
+  let bad: string | null;
+  try {
+    const candidate = join(tmp, PATCH_FILE);
+    writeFileSync(candidate, patch);
+    bad = checkPatch(base, candidate);
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
   if (bad) {
     console.error(
       `Cut a patch that does not apply back to ${item.source}. Your working copy and ${PATCH_FILE} are untouched.`,

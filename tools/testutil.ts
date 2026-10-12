@@ -1,9 +1,26 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { after } from "node:test";
 import { stringify as stringifyYaml } from "yaml";
 import { serializeDoc } from "./lib/frontmatter.ts";
 import { loadLock, lockKey, type OverlayLock, saveLock, stampFiles } from "./lib/overlay.ts";
+
+const tempDirs: string[] = [];
+// `node --test` runs each test file in its own process. This root-level hook runs once that file's
+// tests have finished, passed or failed, and removes every directory tempDir made for it.
+after(() => {
+  for (const dir of tempDirs) {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+/** A new directory under the OS temp directory, removed when the calling test file finishes. */
+export function tempDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), `${prefix}-`));
+  tempDirs.push(dir);
+  return dir;
+}
 
 /** A file or directory inside one OpenCode Module bundle: opencode/<module>/<parts...>. */
 export function opencodeModulePath(root: string, module: string, ...parts: string[]): string {
@@ -30,7 +47,7 @@ export function codexPluginPath(root: string, plugin: string, ...parts: string[]
 }
 
 export function makeRepo(): string {
-  const root = mkdtempSync(join(tmpdir(), "build-"));
+  const root = tempDir("build");
   // upstream submodule 'sp' with namespace 'superpowers'
   mkdirSync(join(root, "external", "sp", ".claude-plugin"), { recursive: true });
   writeFileSync(join(root, "external", "sp", ".claude-plugin", "plugin.json"), JSON.stringify({ name: "superpowers" }));
