@@ -957,6 +957,24 @@ test("an original skill directory without a declaration stops the build before d
   assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "my-own", "SKILL.md")), "nothing was deleted");
 });
 
+test("a dangling symlink under skills/<plugin>/ is named, and the build stops before deleting output", (t) => {
+  const root = makeRepo();
+  addOriginalSkill(root, "my-own");
+  buildAll(root);
+  try {
+    symlinkSync(join(root, "skills", "deniz-process", "gone"), join(root, "skills", "deniz-process", "ghost"), "dir");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+
+  assert.throws(() => buildAll(root), {
+    message:
+      /^skills\/deniz-process\/ghost is a symlink — original skills are real directories, and the build never follows a link$/m,
+  });
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "my-own", "SKILL.md")), "nothing was deleted");
+});
+
 test("an original skill's declared invocation reaches OpenCode and Codex as a curated item's does", () => {
   const root = makeRepo();
   addOriginalSkill(root, "own-auto", { declaration: { invocation: "auto" } });

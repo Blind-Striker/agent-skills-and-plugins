@@ -325,8 +325,7 @@ export function validateRepo(root: string): Finding[] {
 
   // 1. manifest sources exist, plus the two curation footguns the build resolves silently
   for (const m of manifests) {
-    const ownDir = join(root, "skills", m.plugin.name);
-    const own = existsSync(ownDir) ? readdirSync(ownDir).filter((n) => statSync(join(ownDir, n)).isDirectory()) : [];
+    const own = ownSkills.filter((skill) => skill.plugin === m.plugin.name).map((skill) => skill.name);
     for (const item of m.items) {
       const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
       if (!comp) {

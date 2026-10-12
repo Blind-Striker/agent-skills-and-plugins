@@ -2012,6 +2012,26 @@ for (const path of ["skills/deniz-process", "skills/deniz-process/my-own"]) {
   });
 }
 
+test("validate names a dangling symlink under skills/<plugin>/ instead of throwing", (t) => {
+  const root = makeRepo();
+  addOriginalSkill(root, "my-own");
+  buildAll(root);
+  try {
+    symlinkSync(join(root, "skills", "deniz-process", "gone"), join(root, "skills", "deniz-process", "ghost"), "dir");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+
+  const errors = errorsOf(root);
+  assert.ok(
+    errors.includes(
+      "skills/deniz-process/ghost is a symlink — original skills are real directories, and the build never follows a link",
+    ),
+    errors.join("\n"),
+  );
+});
+
 test("a manual original skill's Codex policy is expected and checked", () => {
   const root = makeRepo();
   addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });

@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { matchesGlob } from "node:path";
 import type { ComponentType, CurationItem, CurationManifest, SkillIntent } from "./manifest.ts";
@@ -210,13 +210,15 @@ export function collectIdentityProblems(
       claimName(outName, manifest.plugin.name, item.source, true);
     }
 
+    // Only a real directory claims a name; a link in its place is collectOriginalSkillProblems' error.
     const ownRoot = join(root, "skills", manifest.plugin.name);
     if (existsSync(ownRoot)) {
-      for (const name of readdirSync(ownRoot).sort(ordinalCompare)) {
-        if (statSync(join(ownRoot, name)).isDirectory()) {
-          checkPortable(manifestPath, manifest.plugin.name, name);
-          claimName(name, manifest.plugin.name, `skills/${manifest.plugin.name}/${name}`, false);
-        }
+      const names = readdirSync(ownRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
+      for (const name of names.sort(ordinalCompare)) {
+        checkPortable(manifestPath, manifest.plugin.name, name);
+        claimName(name, manifest.plugin.name, `skills/${manifest.plugin.name}/${name}`, false);
       }
     }
   }

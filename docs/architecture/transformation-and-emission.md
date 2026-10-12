@@ -77,8 +77,10 @@ Identity preflight runs before generated output is deleted. It rejects duplicate
 values, a name that breaks the portable-name rule, duplicate kind/name identities within one
 manifest, same-plugin collisions in Codex's flattened skill namespace, and a bare output name
 claimed twice anywhere in the repository, whatever its kind and including names claimed by
-original skills. The naming and uniqueness rules themselves, and why bare names stay unique, are
-owned by [`curation/SCHEMA.md`](../../curation/SCHEMA.md). Every OpenCode ID carries its Module, so
+original skills. Only a real directory under `skills/<plugin>/` claims a name; a symlink in its
+place claims none and is reported by the original-skill preflight below. The naming and uniqueness
+rules themselves, and why bare names stay unique, are owned by
+[`curation/SCHEMA.md`](../../curation/SCHEMA.md). Every OpenCode ID carries its Module, so
 OpenCode destinations cannot collide across Modules; the repository-wide bare-name check is what
 protects the bare-name keys of `depends_on`, the linker, and `requiredModules` derivation. The checks
 are [`collectIdentityProblems`](../../tools/lib/resolve.ts), reached through `collectProblems`, and
