@@ -1,6 +1,6 @@
 # Documentation
 
-Date: 2026-10-11
+Date: 2026-10-12
 
 This document owns documentation authority, placement, lifecycle, and maintenance. Verification
 commands live in [quality-gates.md](quality-gates.md), repository task flow lives in
@@ -28,7 +28,7 @@ plans, handovers, and dated evidence never outrank live repository sources.
 | Current domain vocabulary and avoided synonyms | `GLOSSARY.md` |
 | Operational status, next work, open questions, and known gaps | `docs/ROADMAP.md` |
 | Guidance needed only by an AI agent | `docs/agents/` |
-| Temporary plans and specifications | `docs/superpowers/` |
+| Temporary plans and specifications | None; kept outside the repository ([Handovers and plans](#handovers-and-plans)) |
 | Scanner-visible upstream catalog | generated `docs/inventory.md` |
 | Resolved per-item, per-harness review state | generated `docs/ledger.json` |
 
@@ -89,7 +89,7 @@ Every hand-written document under `docs/` carries a `Date:` line. Generated docu
 | `docs/ROADMAP.md` | Latest substantive update to operational state |
 | ADR | Date of the accepted decision represented by the current record; a material decision revision moves it, an editorial correction does not |
 | Research | Evidence snapshot date, or latest evidence session included in a chronological log; editorial correction does not rewrite the historical date |
-| Handover, plan, or specification | Date the current temporary artifact was issued or substantively revised |
+| Handover | Date the current temporary artifact was issued or substantively revised |
 
 A prose-only spelling or link repair is not a substantive date change. A change that alters the
 claim, scope, decision, evidence boundary, or current instruction is substantive.
@@ -127,9 +127,12 @@ Handovers contain unfinished session context only. Consume one against live Git 
 then delete it when its follow-up ships or a newer handover replaces it. A handover never becomes a
 status archive.
 
-Plans and specifications under `docs/superpowers/` are transient execution material, not canonical
-or operational authority. Move durable conclusions to their proper homes and delete the temporary
-artifact when the work merges.
+Plans and specifications are transient execution material, not canonical or operational authority.
+Keep them outside the repository, for example in a session scratchpad or another local temporary
+folder, and never commit them, so Git history keeps no copy of a new plan or specification. This
+overrides the in-repository default path, such as `docs/superpowers/`, and any commit step that a
+planning or design skill prescribes. Move durable conclusions to their proper homes before the work
+merges.
 
 ## Guarded prose and contradictions
 
