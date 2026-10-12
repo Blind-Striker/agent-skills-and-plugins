@@ -3,7 +3,11 @@ import { join } from "node:path";
 import { CLAUDE_INVOCATION_KEYS } from "./claude-target.ts";
 import { parseDoc } from "./frontmatter.ts";
 import type { CurationManifest } from "./manifest.ts";
+import { OPENCODE_HIDE_KEY } from "./opencode-target.ts";
 import { ordinalCompare } from "./order.ts";
+
+/** The skill-relative file the Codex emitter writes a skill's invocation policy into. */
+const CODEX_POLICY_FILE = "agents/openai.yaml";
 
 export interface OwnSkillIdentity {
   plugin: string;
@@ -32,8 +36,9 @@ const symlinkProblem = (path: string): string =>
 /**
  * The directory–declaration contract (curation/SCHEMA.md `original_skills`), checked by the build
  * before any output is deleted and by validate. Every directory under `skills/<plugin>/` pairs with
- * exactly one declaration in that Module's manifest, its SKILL.md parses, names it, and leaves both
- * Claude invocation keys to the declaration, and no link stands in for a directory at either level.
+ * exactly one declaration in that Module's manifest, its SKILL.md parses and names it, it leaves
+ * every harness's invocation posture to the declaration — both Claude keys, OpenCode's hide key in
+ * `metadata`, and the Codex policy file — and no link stands in for a directory at either level.
  * A file such as `NOTICE.md` is not a skill and is ignored.
  */
 export function collectOriginalSkillProblems(root: string, manifests: CurationManifest[]): string[] {
@@ -80,6 +85,12 @@ export function collectOriginalSkillProblems(root: string, manifests: CurationMa
         );
         continue;
       }
+      const owner = `original_skills.${entry.name}.invocation in curation/${plugin}.yaml`;
+      if (existsSync(join(root, path, ...CODEX_POLICY_FILE.split("/")))) {
+        problems.push(
+          `${path}/${CODEX_POLICY_FILE}: the Codex invocation policy is owned by ${owner} — remove the file`,
+        );
+      }
       const skillFile = join(root, path, "SKILL.md");
       if (!existsSync(skillFile)) {
         problems.push(`${path}/SKILL.md is missing — an original skill is a directory with a SKILL.md`);
@@ -101,10 +112,12 @@ export function collectOriginalSkillProblems(root: string, manifests: CurationMa
       }
       for (const key of CLAUDE_INVOCATION_KEYS) {
         if (Object.hasOwn(frontmatter, key)) {
-          problems.push(
-            `${path}/SKILL.md: ${key} is owned by original_skills.${entry.name}.invocation in curation/${plugin}.yaml — remove it`,
-          );
+          problems.push(`${path}/SKILL.md: ${key} is owned by ${owner} — remove it`);
         }
+      }
+      const metadata = frontmatter.metadata;
+      if (typeof metadata === "object" && metadata !== null && Object.hasOwn(metadata, OPENCODE_HIDE_KEY)) {
+        problems.push(`${path}/SKILL.md: metadata.${OPENCODE_HIDE_KEY} is owned by ${owner} — remove it`);
       }
     }
     if (linkedFolders.has(plugin)) {

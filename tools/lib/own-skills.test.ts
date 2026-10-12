@@ -85,6 +85,27 @@ test("a symlinked skills/<plugin> folder is named, and its declarations wait for
   ]);
 });
 
+test("an original skill authors no harness's invocation posture: the declaration owns it", () => {
+  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  const dir = join(root, "skills", "deniz-general", "posed");
+  mkdirSync(join(dir, "agents"), { recursive: true });
+  writeFileSync(
+    join(dir, "SKILL.md"),
+    "---\nname: posed\ndescription: d\nmetadata:\n  opencode/autoinvoke: false\n  team: docs\n---\n\nBody.\n",
+  );
+  writeFileSync(join(dir, "agents", "openai.yaml"), "policy:\n  allow_implicit_invocation: false\n");
+  mkdirSync(join(root, "skills", "deniz-general", "plain"), { recursive: true });
+  writeFileSync(
+    join(root, "skills", "deniz-general", "plain", "SKILL.md"),
+    "---\nname: plain\ndescription: d\nmetadata:\n  team: docs\n---\n\nBody.\n",
+  );
+
+  assert.deepEqual(collectOriginalSkillProblems(root, [generalManifest(["plain", "posed"])]), [
+    "skills/deniz-general/posed/SKILL.md: metadata.opencode/autoinvoke is owned by original_skills.posed.invocation in curation/deniz-general.yaml — remove it",
+    "skills/deniz-general/posed/agents/openai.yaml: the Codex invocation policy is owned by original_skills.posed.invocation in curation/deniz-general.yaml — remove the file",
+  ]);
+});
+
 test("an original SKILL.md whose frontmatter does not parse is named", () => {
   const root = mkdtempSync(join(tmpdir(), "own-skills-"));
   mkdirSync(join(root, "skills", "deniz-general", "broken"), { recursive: true });

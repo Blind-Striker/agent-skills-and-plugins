@@ -87,8 +87,8 @@ are [`collectIdentityProblems`](../../tools/lib/resolve.ts), reached through `co
 [`collectCodexEmissionProblems`](../../tools/lib/codex-plugin.ts), both called by
 [`buildAll`](../../tools/build.ts) ahead of the delete. The same preflight pairs every original-skill
 directory with exactly one declaration and rejects a missing `SKILL.md`, a frontmatter that does not
-parse, a `name` that differs from its directory, an authored Claude invocation key, and a symlink in
-place of a directory
+parse, a `name` that differs from its directory, an authored invocation key of any harness or Codex
+policy file, and a symlink in place of a directory
 ([`collectOriginalSkillProblems`](../../tools/lib/own-skills.ts)); `validate` runs it too and
 reports the same problems as errors. Validation separately reports when an
 original skill would be copied last and silently overwrite a curated skill of the same name in
@@ -221,7 +221,8 @@ exactly one skill folder, whatever its invocation, and nothing under `commands/`
 
 A stated `auto` or `both` replaces upstream posture and writes no hiding key. An original skill
 states its invocation in its [declaration](../../curation/SCHEMA.md#original_skills) and takes the
-same mapping as a curated skill. An OpenCode skill keeps only `name`, `description`, and
+same mapping as a curated skill; its SKILL.md may not author the hiding key. An OpenCode skill
+keeps only `name`, `description`, and
 `metadata`, with any hiding key merged into `metadata` (`OPENCODE_SKILL_KEYS` in
 [`tools/lib/opencode-target.ts`](../../tools/lib/opencode-target.ts));
 every other key, including `license` and `compatibility`, which the OpenCode 2 skill parser does not
@@ -264,7 +265,8 @@ An ordinary Codex skill is implicitly eligible and explicitly addressable. `manu
 the catalog the model is offered while `$plugin:skill` still injects it (measured on Codex CLI
 0.153.4, [record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md));
 `auto` and `both` write no disabling policy. Absent invocation uses the Codex target default. An
-original skill states its invocation in its declaration and takes the same mapping. The
+original skill states its invocation in its declaration and takes the same mapping; its directory
+may not author `agents/openai.yaml`. The
 policy file's `interface.short_description` is a menu label, not the trigger description. It fits
 the Codex guideline of 64 characters and is cut from the rendered description as plain text. An
 inline code span, found as the harness phrasing finds one

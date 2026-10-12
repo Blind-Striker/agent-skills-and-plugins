@@ -148,9 +148,12 @@ and per-harness files. A declaration is not a second body manifest: it holds `in
 rejects any other key by name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`,
 `body`, `merged_from`, and `exclude` included. `invocation` is required, because an original has no
 upstream posture to pass through, and it maps to each harness as the
-[invocation table](#invocation-and-as-are-orthogonal) states. Claude Code adapts an original skill
-as it adapts a curated one, so the declaration writes its Claude invocation keys; the SKILL.md may
-author neither `user-invocable` nor `disable-model-invocation`.
+[invocation table](#invocation-and-as-are-orthogonal) states. The declaration alone owns the
+skill's invocation posture in every harness. Each emitter adapts an original skill as it adapts a
+curated one, so the declaration decides its Claude invocation keys, OpenCode's hiding key, and the
+Codex policy file. The SKILL.md may author neither `user-invocable` nor `disable-model-invocation`,
+nor a `metadata` that holds `opencode/autoinvoke`, and the directory may hold no
+`agents/openai.yaml`.
 
 The directory is the skill's identity in every harness. The build stops before it deletes any
 output, and `validate` reports an error, when:
@@ -161,7 +164,9 @@ output, and `validate` reports an error, when:
 - a declared directory has no `SKILL.md`;
 - a SKILL.md frontmatter does not parse as YAML;
 - a SKILL.md `name` differs from its directory name;
-- a SKILL.md authors `user-invocable` or `disable-model-invocation`, which the declaration owns;
+- a SKILL.md authors `user-invocable`, `disable-model-invocation`, or a `metadata` that holds
+  `opencode/autoinvoke`, which the declaration owns;
+- the directory holds `agents/openai.yaml`, the Codex policy file, which the declaration owns;
 - `skills/<plugin>` or `skills/<plugin>/<name>` is a symlink, which the build never follows.
 
 A file directly in `skills/<plugin>/`, such as `NOTICE.md`, is not a skill: the build ignores it,
