@@ -2012,6 +2012,22 @@ for (const path of ["skills/deniz-process", "skills/deniz-process/my-own"]) {
   });
 }
 
+test("validate names an original SKILL.md whose frontmatter does not parse", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "my-own");
+  buildAll(root);
+  writeFileSync(
+    join(root, "skills", "deniz-process", "my-own", "SKILL.md"),
+    "---\nname: [my-own\ndescription: Mine\n---\n\nMine.\n",
+  );
+
+  const errors = errorsOf(root);
+  assert.ok(
+    errors.some((m) => m.startsWith("skills/deniz-process/my-own/SKILL.md: frontmatter does not parse — ")),
+    errors.join("\n"),
+  );
+});
+
 test("validate names a dangling symlink under skills/<plugin>/ instead of throwing", (t) => {
   const root = makeRepo();
   addOriginalSkill(root, "my-own");

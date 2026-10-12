@@ -68,3 +68,16 @@ test("a symlinked original skill is named, not followed", (t) => {
     "skills/deniz-general/linked is a symlink — original skills are real directories, and the build never follows a link",
   ]);
 });
+
+test("an original SKILL.md whose frontmatter does not parse is named", () => {
+  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  mkdirSync(join(root, "skills", "deniz-general", "broken"), { recursive: true });
+  writeFileSync(
+    join(root, "skills", "deniz-general", "broken", "SKILL.md"),
+    "---\nname: [broken\ndescription: d\n---\n\nBody.\n",
+  );
+
+  const problems = collectOriginalSkillProblems(root, [generalManifest(["broken"])]);
+  assert.equal(problems.length, 1, problems.join("\n"));
+  assert.match(problems[0] ?? "", /^skills\/deniz-general\/broken\/SKILL\.md: frontmatter does not parse — \S/);
+});

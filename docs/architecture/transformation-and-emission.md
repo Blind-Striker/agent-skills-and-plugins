@@ -86,8 +86,9 @@ protects the bare-name keys of `depends_on`, the linker, and `requiredModules` d
 are [`collectIdentityProblems`](../../tools/lib/resolve.ts), reached through `collectProblems`, and
 [`collectCodexEmissionProblems`](../../tools/lib/codex-plugin.ts), both called by
 [`buildAll`](../../tools/build.ts) ahead of the delete. The same preflight pairs every original-skill
-directory with exactly one declaration and rejects a missing `SKILL.md`, a `name` that differs from
-its directory, an authored Claude invocation key, and a symlink in place of a directory
+directory with exactly one declaration and rejects a missing `SKILL.md`, a frontmatter that does not
+parse, a `name` that differs from its directory, an authored Claude invocation key, and a symlink in
+place of a directory
 ([`collectOriginalSkillProblems`](../../tools/lib/own-skills.ts)); `validate` runs it too and
 reports the same problems as errors. Validation separately reports when an
 original skill would be copied last and silently overwrite a curated skill of the same name in

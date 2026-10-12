@@ -32,9 +32,9 @@ const symlinkProblem = (path: string): string =>
 /**
  * The directory–declaration contract (curation/SCHEMA.md `original_skills`), checked by the build
  * before any output is deleted and by validate. Every directory under `skills/<plugin>/` pairs with
- * exactly one declaration in that Module's manifest, its SKILL.md names it and leaves both Claude
- * invocation keys to the declaration, and no link stands in for a directory at either level. A file
- * such as `NOTICE.md` is not a skill and is ignored.
+ * exactly one declaration in that Module's manifest, its SKILL.md parses, names it, and leaves both
+ * Claude invocation keys to the declaration, and no link stands in for a directory at either level.
+ * A file such as `NOTICE.md` is not a skill and is ignored.
  */
 export function collectOriginalSkillProblems(root: string, manifests: CurationManifest[]): string[] {
   const problems: string[] = [];
@@ -85,7 +85,15 @@ export function collectOriginalSkillProblems(root: string, manifests: CurationMa
         problems.push(`${path}/SKILL.md is missing — an original skill is a directory with a SKILL.md`);
         continue;
       }
-      const { frontmatter } = parseDoc(readFileSync(skillFile, "utf8"));
+      const text = readFileSync(skillFile, "utf8");
+      let frontmatter: Record<string, unknown>;
+      try {
+        frontmatter = parseDoc(text).frontmatter;
+      } catch (error) {
+        const reason = error instanceof Error ? error.message : String(error);
+        problems.push(`${path}/SKILL.md: frontmatter does not parse — ${reason.trimEnd()}`);
+        continue;
+      }
       if (frontmatter.name !== entry.name) {
         problems.push(
           `${path}/SKILL.md: name is ${String(frontmatter.name)} but the directory is ${entry.name} — the directory is the skill's identity in every harness`,

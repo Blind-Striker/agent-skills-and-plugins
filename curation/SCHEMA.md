@@ -159,6 +159,7 @@ output, and `validate` reports an error, when:
 - a declaration has no directory;
 - a `skills/<plugin>/` folder matches no manifest's `plugin.name`;
 - a declared directory has no `SKILL.md`;
+- a SKILL.md frontmatter does not parse as YAML;
 - a SKILL.md `name` differs from its directory name;
 - a SKILL.md authors `user-invocable` or `disable-model-invocation`, which the declaration owns;
 - `skills/<plugin>` or `skills/<plugin>/<name>` is a symlink, which the build never follows.
