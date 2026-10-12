@@ -25,7 +25,7 @@ repeats P0 and runs every Codex prompt.
 
 `runner_revision` is the SHA-256 of `verified-waves-panel.md` followed by
 `fixtures/make-fixture.ps1`, both read at `ace815d` with a clean tree. The panel file changed
-after that head, at `32b06a8`, so the current file gives another value. `<LAB>` below is the
+after that head, at `32b06a8` and `99ab9ef`, so the current file gives another value. `<LAB>` below is the
 external lab root of one attempt, outside the repository and the user profile, and `<CODEX_HOME>`
 is the lab Codex home. The raw rollouts and session logs carry account identifiers, so by the
 curator's instruction they are deleted once this record is committed; the rows, counts, and
@@ -248,11 +248,11 @@ Ledger: <LAB>/.tmp/verified-waves/20261012-src-boundaries-105430/ledger.md
 - **Questions asked asynchronously.** Five yes/no questions came up: P6's delete, P4's budget
   (twice), P5a's budget, and P3's budget. P6, P4, and P3 used `request_user_input_async`, which
   posts the question and lets the turn go on. P6 and P4 then ended the turn with the question
-  pending, and the operator answered. In P3 the turn went on for 5 more minutes, the driver did not
-  show the question, and the parent closed the run with "approval did not arrive", leaving the
-  post-fix check UNVERIFIED. P5a asked in plain text at the end of its turn. The model went on past
-  its question in the same turn, and the driver did not surface the question while that turn ran,
-  so the P3 outcome is partly a gap of the driver (Proof limit).
+  pending, and the operator answered. P5a asked in plain text at the end of its turn. In P3 the
+  model went on past its question in the same turn: the turn went on for 5 more minutes, the driver
+  did not show the question, and the parent closed the run with "approval did not arrive", leaving
+  the post-fix check UNVERIFIED. The driver did not surface the question while that turn ran, so the
+  P3 outcome is partly a gap of the driver (Proof limit).
 - **The parent as a writer.** In P3, after a skeptic's finding, the parent changed `src/retry.js`
   and `test/retry.test.js` itself instead of dispatching a writer. Its announced total of 5 was used
   up at that point (sample).
