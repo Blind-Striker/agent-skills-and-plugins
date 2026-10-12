@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.10.0, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.10.1, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -369,11 +369,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and in the P2 re-run at `76bc5c8` the model still ended its turn after the plan in 1 of 2
   attempts. Each is a sample, not a rate
   ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
-  In the Codex panel, four more, each seen once
+  In the Codex panel, three more, each seen once
   ([Codex record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md)):
-  - The Codex V2 notes say that restart step 4 continues a RUNNING item through `followup_task`,
-    but after a harness kill, `followup_task` from the new session returned "live agent path …
-    not found".
   - Neither `SKILL.md` nor the Codex notes say what a check that the sandbox refuses reports. Both
     gate children reported FAIL on `spawn EPERM` without asking for escalation, while the children
     that asked got PASS.

@@ -32,14 +32,19 @@ Completion is a `<subagent sessionID state description>` message that holds the 
 text. The states `error` and `cancelled` are FAILED. So is a `completed` message whose text is
 "Subagent completed without a text response." or holds no `REPORT` block.
 
-After a server restart, a child may or may not report, so do not wait for one. Follow the restart
-steps in `SKILL.md`: take the item's report from its results file, or dispatch the item again.
-
-## Fixes, verifiers, and restart
+## Fixes and verifiers
 
 A fix goes to the same `sessionID` and agent, with only the open findings. A verifier is always a
 new child, started without a `sessionID`. Restart step 4 continues a RUNNING item through its
-recorded `sessionID` when it is a child of this session; otherwise the item is dispatched again.
+recorded `sessionID` only within the live session.
+
+## Restart
+
+After a session restart, a RUNNING item's old child cannot be reached: from a new session,
+`subagent` refuses its `sessionID` as not a child of the current session. A server restart ends
+the child's run, so do not wait for it to report. After either restart, inspect the item's write
+set with `git status` and `git diff`, then dispatch it again as a new child, without a
+`sessionID`.
 
 ## The ledger
 

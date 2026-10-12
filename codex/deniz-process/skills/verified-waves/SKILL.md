@@ -204,8 +204,9 @@ again from scratch silently.
 2. Keep the DONE items.
 3. For an item that is not DONE but whose results file holds a complete report, take that report
    and record its status.
-4. For a RUNNING item without one, try the harness's own continuation first, as
-   `references/harness-tools.md` describes.
+4. For a RUNNING item without one, continue its child only while the session that started it is
+   still live, as `references/harness-tools.md` describes. After a session restart, the old child
+   cannot be reached: inspect the item's write set (step 5), then dispatch it again as a new child.
 5. For a write item, inspect `git status` and `git diff` on its write set before you dispatch it
    again: its work may already be on disk.
 6. Dispatch the rest again.

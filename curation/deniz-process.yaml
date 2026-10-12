@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.10.0
+  version: 0.10.1
 original_skills:
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code

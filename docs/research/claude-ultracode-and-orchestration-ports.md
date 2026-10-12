@@ -313,7 +313,14 @@ its commit, the file, and the license; Codex paths are under `codex-rs/` and Ope
    silently, and it treats a restart as at-least-once, not exactly-once. The native handles are
    Claude Code's `resumeFromRunId`, which covers one run in one session or in a session reopened
    with `claude --resume`, OpenCode's child `sessionID`, and Codex's `resume_agent` under
-   multi-agent V1 or `followup_task` under V2.
+   multi-agent V1 or `followup_task` under V2. After a session restart, the skill continues no
+   still-running child through them: Codex's `followup_task` returned "live agent path … not
+   found" in the Codex panel's P5a
+   ([record](../../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md)),
+   OpenCode refuses a `sessionID` that is not a child of the current session
+   (`packages/core/src/tool/plugin/subagent.ts:164-167`), and a Claude Code relaunch starts a
+   still-running agent over. The parent inspects the item's write set and dispatches it again as a
+   new child.
    - Source: `code-yeongyu/oh-my-openagent@a103d40` `packages/prompts-core/prompts/ultrawork/default.md`,
      Sustainable Use License, idea only; `openai/codex@092d3ac`
      `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`, Apache-2.0, tool fact.
@@ -560,8 +567,8 @@ declaration states its `manual` invocation. The sections:
   closed one.
 - V2: `spawn_agent` with `task_name` set to the item id, the brief as `message`, and
   `fork_turns: "none"`, because the default copies the whole transcript. `wait_agent` wakes on
-  activity; `followup_task` with `target` set to the `task_name` corrects or continues a child
-  (`multi_agents_v2/message_tool.rs:27-30`). V2 allows 3 children by default
+  activity; `followup_task` with `target` set to the `task_name` corrects or continues a child of
+  the live session (`multi_agents_v2/message_tool.rs:27-30`). V2 allows 3 children by default
   (`core/src/config/mod.rs:258,1638-1642`: 4 threads minus the root).
 - The skill's own model rule: `model` and `reasoning_effort` stay unset for the children it spawns
   unless the user asks, and model routing belongs in the user's

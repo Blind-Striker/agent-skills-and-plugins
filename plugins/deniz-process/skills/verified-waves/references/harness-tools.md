@@ -47,11 +47,15 @@ arrives. Until then, each agent's results file is the record on disk.
 ## Restart
 
 1. In the same session, or in a session reopened with `claude --resume`: launch again with
-   `resumeFromRunId` and the same `scriptPath`. Completed agents return their saved results.
+   `resumeFromRunId` and the same `scriptPath`. Completed agents return their saved results. An
+   agent that was still running cannot be continued: the relaunch starts it over from its prompt.
 2. In a fresh session, or when a relaunch reports `nothing to resume`: rebuild the rows from
    `results/`. Then read `<transcript-dir>/journal.jsonl` for any agent that finished without a
    results file (the agent transcripts, `agent-<id>.jsonl`, when there is no journal), and launch
    a new run that skips the DONE items.
+
+Before either launch, inspect `git status` and `git diff` on the write set of every write item that
+is not DONE: the agent that stopped may have left work on disk.
 
 ## One authority
 

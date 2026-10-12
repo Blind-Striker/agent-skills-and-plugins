@@ -22,8 +22,8 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
   2. Record the first finisher in the ledger.
   3. Call `close_agent` on it: a finished agent holds its slot until it is closed.
   4. Spawn the next PENDING item.
-- `send_input` sends a correction to the same child. `resume_agent` reopens a closed child, and
-  restart step 4 uses it.
+- `send_input` sends a correction to the same child, and `resume_agent` reopens a closed child.
+  Restart step 4 uses them only within the live session.
 - V1 allows 6 threads and depth 1 by default, set under `[agents]`.
 
 ## V2
@@ -33,7 +33,7 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
 - There is no `close_agent` and no `resume_agent`.
 - `wait_agent` wakes on activity, and a child's final text arrives with your next turn.
 - Corrections go through `followup_task` with `target` set to the item's `task_name`. Restart step
-  4 continues a RUNNING item the same way.
+  4 continues a RUNNING item the same way, but only within the live session.
 - Expect 3 children live by default.
 
 ## Both versions
@@ -48,6 +48,13 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
   verification.
 - Every writer's brief carries the coordination line, `[writers]` in the brief template.
 - Create no goal unless the user asks for unattended continuation.
+
+## Restart
+
+After a session restart, a RUNNING item's old child cannot be reached: its turn ended with the old
+session, and under V2 `followup_task` to it returns "live agent path ... not found". Continue it
+under neither version. Inspect the item's write set with `git status` and `git diff`, then dispatch
+it again as a new child.
 
 ## The ledger
 
