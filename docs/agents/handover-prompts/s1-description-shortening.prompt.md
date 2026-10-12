@@ -36,10 +36,14 @@ Date: 2026-10-12
 7. Read `skills/deniz-process/verified-waves/SKILL.md`, its three `references/*-tools.md` files, and
    `experiments/harness-invocation/runbook.md`.
 8. `gh issue view 98 --repo Aaronontheweb/dotnet-skills --json state,comments`
+9. For the whole-estate `ask-deniz` (`Next Up` 2), read `overlays/deniz-process/ask-deniz/SKILL.md`,
+   its entry in `curation/deniz-process.yaml`, `docs/cheatsheet.md`, the `depends_on` grammar in
+   `curation/SCHEMA.md`, and the cross-plugin rules in
+   `docs/architecture/references-and-linking.md` before designing the optional reference.
 
 ## Deltas vs `docs/ROADMAP.md`
 
-- `Next Up`: add a small item before item 1, the `verified-waves` text polish found by the
+- `Next Up`: add a small item after item 1, the `verified-waves` text polish found by the
   `installer-v0.7.1` review, then remove it when it ships with its Process version move:
   - Codex notes: V1's `resume_agent` can reopen a thread from its rollout, so "cannot be reached"
     after a restart is too strong for V1; dispatching a new child stays the rule.

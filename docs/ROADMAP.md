@@ -220,12 +220,28 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Add a `validate` check so an upstream sync cannot bring a long description back. The per-machine
    listing-budget raises the record lists stay after this lands, by curator decision; they are
    machine configuration, which the curator manages outside this repository.
-2. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
+2. **Make `ask-deniz` the router for the whole estate.** It maps only the Process Module, so the
+   .NET Modules' 74 items have no route. That includes General's nine `manual` ceremonies, which
+   only a person can start and OpenCode hides from the model. General has no router of its own,
+   and the [cheatsheet](cheatsheet.md) that lists them does not ship. Curator decisions: one
+   `ask-deniz` for every Module, not one router per Module, and `invocation: both`, so the model can
+   load it when unsure which skill fits and point the user at a ceremony it cannot start.
+   - A cross-Module reference today either adds a required Module (Process would require the .NET
+     Modules, while General already requires Process) or is unchecked prose. Add an optional
+     cross-Module reference first: the build checks that the target exists in the estate, the text
+     says it applies when that Module is installed, and it stays out of `requiredModules`.
+   - Then recut the overlay: Process's flow as today; a .NET section by situation that names
+     General's `manual` ceremonies; Aspire through its `aspire` router and
+     `aspire-project-v2-migration`; Akka in a paragraph; and `asd-ste100` in the Standalone table.
+     Seed the .NET section from the cheatsheet and keep the two from drifting apart.
+   - Rewrite the item's why-comments in `curation/deniz-process.yaml`, which record a Process-only
+     map and `manual`.
+3. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
    automatic dependency installation, cascade remove, and version-range resolution. These three
    workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership
    semantics, user approval for automatic changes, and version constraint/conflict policy must be
    designed in that iteration rather than assumed by the first.
-3. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
+4. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
    in its `workflows/` directory as `/<plugin>:<meta.name>`
    ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a
    repeatable playbook such as the [curation sanity panel](agents/curation-sanity-panel.md) or an
@@ -235,7 +251,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
    Claude Code gets the scripted form, and OpenCode and Codex get `verified-waves`' model-driven
    form of the same playbook.
-4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+5. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
