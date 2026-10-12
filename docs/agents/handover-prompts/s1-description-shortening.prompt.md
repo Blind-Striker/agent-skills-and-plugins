@@ -54,6 +54,11 @@ Date: 2026-10-12
     temp-dir root.
 - `Known Gaps`, `verified-waves` panel item: rewrap the line that runs past 100 characters
   ("and one of the two reused an earlier attempt's run-id ...").
+- `Current State`, rollout sentences: from the next release on, the curator's machine-configuration
+  repository runs the installs on each machine and keeps the per-machine rollout records; this
+  repository keeps the Package release records. Existing rollout records stay as history. Agree
+  with the curator whether the rollout steps of `experiments/harness-invocation/runbook.md` move
+  there or stay here as the method that repository follows.
 - `Current State`, `dotnet-skills` bullet: add that `opentelemetry-net-instrumentation`'s exporter
   guard was reported upstream as Aaronontheweb/dotnet-skills#98, so the next sync of that source
   checks whether the patch can shrink; retiring it stays the curator's call.
