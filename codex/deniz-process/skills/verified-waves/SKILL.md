@@ -139,8 +139,8 @@ the ledger from disk.
   delegated.
 - Keep the live children at or under the plan's ceiling, and count every pending child: skeptics,
   gates, and critics too. Size each wave to the independent items you have, not to the ceiling.
-- Writers run in parallel only on disjoint write sets. Overlapping writers run in sequence, unless
-  the harness gives each writer an isolated copy of the tree.
+- Every writer works in the one working tree, the tree the gate checks. Writers run in parallel
+  only on disjoint write sets; overlapping writers run in sequence.
 - After each write wave, one gate child runs the project's checks and reports each as PASS or FAIL.
 - A frozen shared contract, pasted unchanged into every brief, decides which side of a seam is
   wrong.

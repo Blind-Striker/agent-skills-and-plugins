@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.10.0",
-  "digest": "sha256:d2e8470fd22355f2035b66ea75774736a7ddeeaf191bb91ab0b4a2dd7e62accb",
+  "digest": "sha256:6ccd5184c96d2fdc93a53335455814e6eb364eed64ab582bbe9dea88291ef630",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -414,7 +414,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.verified-waves/SKILL.md": {
-      "sha256": "sha256:11ba63b0944c07820cfe9a81380d692020c08565aee39c3f01140f012a3414fd",
+      "sha256": "sha256:b16fd0b7bfd5afe131cf044ff870f1c57c1ba62ea1846d14c0cd68b53c04e777",
       "mode": "100644"
     },
     "skills/deniz-process.verified-waves/references/harness-tools.md": {

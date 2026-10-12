@@ -341,12 +341,14 @@ its commit, the file, and the license; Codex paths are under `codex-rs/` and Ope
      MIT, restated.
 8. **Parallel writers only on disjoint write sets, and a gate child after each write wave.**
    Writers run at the same time only when their write sets do not overlap; otherwise they run in
-   sequence, except that Claude Code can give each writer its own worktree. Each writer's brief says
-   that other agents are editing other files, that it edits only its own write set, and that it
-   neither reverts nor reformats changes it did not make. During a wave a writer checks only its own
-   files; after the wave one gate child runs the project's checks and reports PASS or FAIL for each.
-   A frozen shared contract decides which side of a seam is wrong, and no test is weakened or deleted
-   to make a check pass.
+   sequence, in every harness. All writers work in the one working tree that the gate checks, so
+   Claude Code gives no writer its own worktree: a worktree is removed only when its agent changed
+   nothing, and with no commits a writer's edits would stay outside that tree. Each writer's brief
+   says that other agents are editing other files, that it edits only its own write set, and that
+   it neither reverts nor reformats changes it did not make. During a wave a writer checks only its
+   own files; after the wave one gate child runs the project's checks and reports PASS or FAIL for
+   each. A frozen shared contract decides which side of a seam is wrong, and no test is weakened or
+   deleted to make a check pass.
    - Source: `YuanpingSong/ultracodex@ac349f8` `examples/staged-build-gates/README.md`, Apache-2.0,
      restated; `openai/codex@092d3ac` `codex-rs/core/src/agent/role.rs` (worker role), Apache-2.0,
      restated.
@@ -494,7 +496,8 @@ declaration states its `manual` invocation. The sections:
   prompt labeled with its item id, and the report is a `schema` with the same fields. Every item
   runs on the default workflow agent, with no `agentType`: Explore denies Write and Edit, so it
   could not write its results file, and like Plan it starts without the project's `CLAUDE.md`; the
-  read-only rule lives in the brief. Overlapping writers use `isolation: 'worktree'`. A `null` from
+  read-only rule lives in the brief. Every writer works in the main tree with no `isolation`, and
+  overlapping writers go in separate batches, so they run in sequence (approach 8). A `null` from
   `agent()`, which `parallel()` and `pipeline()` keep, is FAILED under its item id.
 - The batches hold the ceiling of approach 6, and the runtime's own limit (piece 4 above) is the
   harness limit that the ceiling never exceeds. Completion arrives as a task notification, so do

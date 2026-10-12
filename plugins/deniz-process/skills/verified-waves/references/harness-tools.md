@@ -28,7 +28,10 @@ not poll. Record the runId, the scriptPath, and the transcript directory in the 
 - **Agent type.** Every item uses the default workflow agent: set no `agentType`. Explore cannot
   write its results file, and it starts without the project's `CLAUDE.md`. The read-only rule
   lives in the brief.
-- **Writers.** Overlapping writers use `isolation: 'worktree'`.
+- **Writers.** Every writer works in the main tree: set no `isolation`. A worktree is removed only
+  when its agent changed nothing, and no child commits, so a writer's edits there would never reach
+  the tree the gate checks. Writers on disjoint write sets may share a batch; overlapping writers go
+  in separate batches, so they run in sequence.
 - **Failed children.** `agent()` returns `null` when an agent is stopped or ends in an error, and
   `parallel()` and `pipeline()` keep that `null`. Mark every `null` FAILED under its item id before
   any filter. Never use `.filter(Boolean)` on results.
