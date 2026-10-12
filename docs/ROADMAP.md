@@ -350,8 +350,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **`verified-waves` notes that a sample contradicts or leaves open:** the OpenCode notes say that
   a ledger outside the project asks for `external_directory` permission, but in the OpenCode panel
   no run raised a permission prompt for a ledger below the server's own temp root. The model there
-  also ended its turn after the plan in 3 of the 5 sessions that got the P2 prompt. Each is a
-  sample, not a rate
+  also ended its turn after the plan in 3 of the 5 sessions that got the P2 prompt; `SKILL.md` now
+  says to start the first wave in the same turn as the plan, and no run has measured that. Each is
+  a sample, not a rate
   ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
 - **`verified-waves` overlapping writers in Claude Code:** the Claude notes send overlapping
   writers to `isolation: 'worktree'`, as approach 8 and the Claude outline in the

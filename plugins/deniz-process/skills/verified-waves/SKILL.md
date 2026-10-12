@@ -45,6 +45,9 @@ Write the plan in chat before the first child starts:
 The agent total you announce is your budget, together with any limit the user sets. Set no other
 limit and no deadline.
 
+After you write the plan, start the first wave in the same turn; wait for the user only where a
+yes/no question below applies.
+
 Ask one yes/no question, and wait for the answer, before each of these: deleting or overwriting
 files, a force-push, a publish, anything that touches credentials, a broad codemod, and going over
 the announced agent total.
