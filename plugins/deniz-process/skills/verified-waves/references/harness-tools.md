@@ -15,10 +15,12 @@ not poll. Record the runId, the scriptPath, and the transcript directory in the 
 
 ## Mapping the method onto the script
 
-- **Waves.** Feed the items to `pipeline()` in batches of at most 6, and await each batch before
-  the next. Inside a batch, an item's producer and its skeptics run one after the other, so the
-  pending `agent()` calls never pass the ceiling of 6. Use `parallel()` only for a barrier that
-  needs every result: a dedupe, an early exit on zero findings, a ranking.
+- **Waves.** Feed the items to `pipeline()` in batches no larger than the ceiling, and await each
+  batch before the next. Inside a batch, an item's producer and its skeptics run one after the
+  other, so the pending `agent()` calls never pass the ceiling. The harness limit is the runtime's
+  own concurrency limit: `min(16, max(2, CPUs - 2))` agents by default, or the value of
+  `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS`. Use `parallel()` only for a barrier that needs
+  every result: a dedupe, an early exit on zero findings, a ranking.
 - **Briefs.** A brief is the `agent()` prompt, with `label` set to the item id and `phase` set to
   the wave.
 - **Reports.** The report is a `schema` with the report's fields. A schema result gets 5
@@ -58,7 +60,7 @@ Workflows are turned off, or not yet turned on for the user's subscription (on P
 them on in the Dynamic workflows row of `/config`). Then:
 
 1. Start the children as background `Agent` calls (`run_in_background: true`) on the default
-   subagent type, at most 6 live. Overlapping writers run in sequence.
+   subagent type, at most the ceiling live. Overlapping writers run in sequence.
 2. If those cannot start either, use the labeled sequential run in `SKILL.md`.
 
 A "No" at the launch approval is not this case. It is a refusal: report it and stop that path.

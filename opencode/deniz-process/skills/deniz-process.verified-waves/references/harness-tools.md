@@ -19,9 +19,10 @@ Record each child's `sessionID` as its handle in the ledger.
 
 ## Running a wave
 
-OpenCode has no concurrency cap, so hold to the ceiling yourself: launch at most 6 children. Then do
-work that does not overlap theirs, or say what you launched and end the turn. When one completes,
-launch the next PENDING item. Never sleep, poll, or ask a child for its status.
+OpenCode has no concurrency cap, so hold to the ceiling yourself: launch at most as many children
+as the ceiling. Then do work that does not overlap theirs, or say what you launched and end the
+turn. When one completes, launch the next PENDING item. Never sleep, poll, or ask a child for its
+status.
 
 Depth is `experimental.subagent_depth`, default 1, so a child cannot start children.
 

@@ -317,17 +317,19 @@ its commit, the file, and the license; Codex paths are under `codex-rs/` and Ope
    - Source: `code-yeongyu/oh-my-openagent@a103d40` `packages/prompts-core/prompts/ultrawork/default.md`,
      Sustainable Use License, idea only; `openai/codex@092d3ac`
      `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`, Apache-2.0, tool fact.
-6. **At most 6 live children, everywhere.** Before dispatching, the parent tells the user the number
-   of waves and the agent total, and it asks before going over that total. It sizes each wave to the
-   independent items it has, not to the ceiling, and never runs more than 6 children at once in any
-   harness, or fewer where the harness limit is lower, as under Codex's multi-agent V2, which
-   allows 3 children by default. Six is Codex's V1 default thread limit, so one plan behaves the
-   same in all three. Every pending child counts, skeptics included. Claude Code's Workflow runtime
-   would run up to its own limit at once (piece 4 above), so the script feeds items to `pipeline()`
-   in batches of at most 6 and awaits each batch before the next. Under V1 in Codex a finished child
-   keeps its slot until it is closed, so the parent closes each child once its report is harvested.
-   In OpenCode a background child returns at once and announces its own completion, so the parent
-   never sleeps, polls, or asks a child for status; it does non-overlapping work or ends the turn.
+6. **A ceiling on live children, 6 by default, everywhere.** Before dispatching, the parent tells
+   the user the number of waves, the agent total, and the ceiling, and it asks before going over
+   that total. The ceiling is 6 unless the user names another for the run, and it is never above
+   the harness limit, as under Codex's multi-agent V2, which allows 3 children by default. Six is
+   Codex's V1 default thread limit, so by default one plan behaves the same in all three. The
+   parent sizes each wave to the independent items it has, not to the ceiling, and never runs more
+   children at once than the ceiling in any harness. Every pending child counts, skeptics included.
+   Claude Code's Workflow runtime would run up to its own limit at once (piece 4 above), so the
+   script feeds items to `pipeline()` in batches no larger than the ceiling and awaits each batch
+   before the next. Under V1 in Codex a finished child keeps its slot until it is closed, so the
+   parent closes each child once its report is harvested. In OpenCode a background child returns at
+   once and announces its own completion, so the parent never sleeps, polls, or asks a child for
+   status; it does non-overlapping work or ends the turn.
    - Source: `openai/codex@092d3ac` `codex-rs/core/src/config/mod.rs` and
      `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`, Apache-2.0, tool facts;
      `anomalyco/opencode@9b4ec57` `packages/core/src/tool/plugin/subagent.ts`, MIT, tool fact.
@@ -485,26 +487,27 @@ declaration states its `manual` invocation. The sections:
 - The notes carry no instruction to load the bundled `workflow-authoring` skill: the Workflow tool
   description already points to it when it is available and inlines its reference when it is not
   (`@244826055`, `@235328088`).
-- Mapping: a wave is `pipeline()`, fed batches of at most 6 items and awaiting each batch, with an
-  item's producer and its skeptics in sequence inside a batch; `parallel()` is only for a barrier
-  that needs every result, such as a dedupe, an early exit on zero findings, or a ranking. The
-  bundled reference says to default to `pipeline()` (`@244808448`). A brief is an `agent()` prompt
-  labeled with its item id, and the report is a `schema` with the same fields. Every item runs on
-  the default workflow agent, with no `agentType`: Explore denies Write and Edit, so it could not
-  write its results file, and like Plan it starts without the project's `CLAUDE.md`; the read-only
-  rule lives in the brief. Overlapping writers use `isolation: 'worktree'`. A `null` from `agent()`,
-  which `parallel()` and `pipeline()` keep, is FAILED under its item id.
-- The batches hold the ceiling of approach 6; the runtime's own limit (piece 4 above) is higher.
-  Completion arrives as a task notification, so do not poll. The script has no filesystem access,
-  so until the notification arrives each agent's results file is the record on disk.
+- Mapping: a wave is `pipeline()`, fed batches no larger than the ceiling and awaiting each batch,
+  with an item's producer and its skeptics in sequence inside a batch; `parallel()` is only for a
+  barrier that needs every result, such as a dedupe, an early exit on zero findings, or a ranking.
+  The bundled reference says to default to `pipeline()` (`@244808448`). A brief is an `agent()`
+  prompt labeled with its item id, and the report is a `schema` with the same fields. Every item
+  runs on the default workflow agent, with no `agentType`: Explore denies Write and Edit, so it
+  could not write its results file, and like Plan it starts without the project's `CLAUDE.md`; the
+  read-only rule lives in the brief. Overlapping writers use `isolation: 'worktree'`. A `null` from
+  `agent()`, which `parallel()` and `pipeline()` keep, is FAILED under its item id.
+- The batches hold the ceiling of approach 6, and the runtime's own limit (piece 4 above) is the
+  harness limit that the ceiling never exceeds. Completion arrives as a task notification, so do
+  not poll. The script has no filesystem access, so until the notification arrives each agent's
+  results file is the record on disk.
 - Restart with `resumeFromRunId` in the same session, or in one reopened with `claude --resume`;
   otherwise rebuild the rows from the results files, read the run's journal or agent transcripts for
   any agent that left no results file, and launch a continuation that skips DONE items. The run
   journal covers one run, so the ledger matters across several runs.
 - No parallel Agent-tool fan-out beside a running Workflow.
 - When the Workflow tool is not in the model's tool list, first background Agent-tool calls on the
-  default subagent type, at most 6 live, with overlapping writers in sequence, and then the labeled
-  sequential run (approach 14).
+  default subagent type, at most the ceiling live, with overlapping writers in sequence, and then
+  the labeled sequential run (approach 14).
 - The ledger directory is the session scratchpad when the system prompt names one, otherwise the
   system temp directory; a background agent's permission prompt appears in the main session.
 
@@ -515,7 +518,7 @@ declaration states its `manual` invocation. The sections:
   asks. The built-in `explore` denies everything except shell, grep, glob, webfetch, websearch, and
   read (`packages/core/src/plugin/agent.ts:98-116`), so it could not write its results file; the
   read-only rule lives in the brief.
-- OpenCode has no concurrency limiter, so the skill holds itself to 6 live children. Depth is 1 by
+- OpenCode has no concurrency limiter, so the skill holds itself to the ceiling. Depth is 1 by
   default (`experimental.subagent_depth`), so children cannot start children.
 - After launching, do non-overlapping work or tell the user what was launched and end the turn;
   never sleep, poll, or ask a child for status. Completion arrives as a `<subagent>` message holding
@@ -545,11 +548,11 @@ declaration states its `manual` invocation. The sections:
   it: the schema drops the field unless the user defines custom roles
   (`core/src/tools/spec_plan.rs:1490`; `core/src/agent/role.rs:74,169-171`), and neither built-in
   role adds any configuration (`core/assets/agent/builtins/explorer.toml` is empty, and `worker`
-  has no role file). A rolling wave of at most
-  6: `wait_agent` with `targets` set to every live id and `timeout_ms` 300000 (inside the
-  10000–3600000 ms clamp, `core/src/tools/handlers/multi_agents/wait.rs:102`), record the first
-  finisher in the ledger, `close_agent` it, because a finished agent holds its slot until it is
-  closed, then spawn the next pending item. Defaults of 6 threads and depth 1, both configurable
+  has no role file). A rolling wave of at most min(ceiling, thread limit): `wait_agent` with
+  `targets` set to every live id and `timeout_ms` 300000 (inside the 10000–3600000 ms clamp,
+  `core/src/tools/handlers/multi_agents/wait.rs:102`), record the first finisher in the ledger,
+  `close_agent` it, because a finished agent holds its slot until it is closed, then spawn the next
+  pending item. Defaults of 6 threads and depth 1, both configurable
   under `[agents]`. `send_input` sends a correction to the same child; `resume_agent` reopens a
   closed one.
 - V2: `spawn_agent` with `task_name` set to the item id, the brief as `message`, and
@@ -577,9 +580,9 @@ The curator ruled on the first three points on 2026-10-12; the last stays open.
 - Say what the Claude Code notes do when the Workflow tool is unavailable: workflows turned off, or
   a Pro plan that has not turned them on. **Ruling:** unavailable means only that the Workflow tool
   is not in the model's tool list, since the tool is registered only while workflows are enabled
-  (`@246765155`). The notes then fall back to background Agent-tool calls, at most 6 live, and then
-  to the labeled sequential run (approach 14). A "No" at the per-run launch approval is a
-  permission denial, not unavailability: that path stops and is reported.
+  (`@246765155`). The notes then fall back to background Agent-tool calls, at most the ceiling
+  live, and then to the labeled sequential run (approach 14). A "No" at the per-run launch approval
+  is a permission denial, not unavailability: that path stops and is reported.
 - One menu label per harness, and wording that does not trigger Claude's keyword. **Ruling:** every
   harness shows the same description, which holds no keyword: "Run one task as verified multi-agent
   waves. Plans the fan-out, sends findings to fresh skeptics, keeps a ledger, and reports N of M

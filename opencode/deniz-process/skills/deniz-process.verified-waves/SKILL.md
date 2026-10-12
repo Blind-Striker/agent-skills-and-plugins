@@ -40,7 +40,8 @@ Write the plan in chat before the first child starts:
    (`none` for a read). An id is a lowercase letter, then lowercase letters, digits, or `_`, at most
    32 characters, such as `audit_04`.
 6. **Waves**: which items run in which wave, the agent total with skeptics, gates, and critics
-   counted, and the ceiling on live children: 6, or the harness limit when that is lower.
+   counted, and the ceiling on live children: 6 unless the user names another number for this
+   run, and never above the harness limit that `references/harness-tools.md` gives.
 7. **Verification plan**: which findings get skeptics, and which checks each gate runs.
 
 The agent total you announce is your budget, together with any limit the user sets. Set no other
@@ -138,8 +139,8 @@ the ledger from disk.
 - Scout only until you can list the items, then delegate the per-item work.
 - While children run, do only work that does not overlap theirs. A search you delegated stays
   delegated.
-- Keep the live children at or under the ceiling, and count every pending child: skeptics, gates,
-  and critics too. Size each wave to the independent items you have, not to the ceiling.
+- Keep the live children at or under the plan's ceiling, and count every pending child: skeptics,
+  gates, and critics too. Size each wave to the independent items you have, not to the ceiling.
 - Writers run in parallel only on disjoint write sets. Overlapping writers run in sequence, unless
   the harness gives each writer an isolated copy of the tree.
 - After each write wave, one gate child runs the project's checks and reports each as PASS or FAIL.

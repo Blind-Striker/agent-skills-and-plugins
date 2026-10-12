@@ -179,8 +179,8 @@ Pass when all of these hold:
 - Claude Code only: the model calls Workflow with no separate opt-in question.
 
 Also record, as an observation: the most children live at once, where the harness shows it
-(`/workflows`, child sessions, agent threads). The skill's ceiling is 6, and lower where the harness
-limit is lower.
+(`/workflows`, child sessions, agent threads). The skill's ceiling is 6 when the user names none, as
+in these prompts, and never above the harness limit.
 
 ### P3: two writers and a gate
 

@@ -17,7 +17,7 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
 - Start a child with `spawn_agent`: the brief as `message`, and `fork_context` unset, so the brief
   stands alone. Set `agent_type` (`explorer` for a read item, `worker` for a write item) only when
   `spawn_agent` lists it.
-- Run a rolling wave with at most min(6, thread limit) children live:
+- Run a rolling wave with at most min(ceiling, thread limit) children live:
   1. Call `wait_agent` with `targets` set to every live id and `timeout_ms` 300000.
   2. Record the first finisher in the ledger.
   3. Call `close_agent` on it: a finished agent holds its slot until it is closed.
