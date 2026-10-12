@@ -68,8 +68,10 @@ reports, not after the whole wave.
 
 The ledger is one Markdown file, `<ledger-dir>/ledger.md`. `<ledger-dir>` is
 `verified-waves/<run-id>/` under the location that `references/harness-tools.md` names, outside the
-working tree; `<run-id>` is short and unique, such as the date and a slug. Tell the user the path.
-The ledger is never committed.
+working tree; `<run-id>` is short and unique, such as the date, the time, and a slug. Before you
+create `<ledger-dir>`, check that it does not exist. If it does, pick another run-id, for example by
+adding a counter: a new run never writes into an existing ledger directory, and only a restart of
+the same run continues in its own. Tell the user the path. The ledger is never committed.
 
 Create the ledger and its `results/` directory before the first dispatch, so any permission prompt
 for that location comes up once, before children run.
@@ -101,7 +103,7 @@ SCOPE: read-only | write only: <paths>   (either way, also your results file)
 DO: <musts>   DO NOT: commit, push, edit outside scope, weaken/delete tests, ask the user
 [writers] Other agents edit other files now; do not revert or reformat changes you did not make.
 DONE WHEN: <binary observable check>
-LAST STEP: write the report below, then any detail past 40 lines, to <ledger-dir>/results/<id>.md
+LAST STEP: write <ledger-dir>/results/<id>.md: first the REPORT block you return, unchanged, then any detail past 40 lines
 RETURN: the report below, ≤40 lines
 Cannot proceed → STATUS: BLOCKED with the exact question.
 ```
@@ -121,10 +123,11 @@ FILES CHANGED: <paths|none>   CHECKS: <cmd> → PASS | FAIL | NOT RUN (<reason>)
 OPEN: <questions|none>        RESULTS: <ledger-dir>/results/<id>.md
 ```
 
-**The results file.** As its last step, every child writes its report, then any detail past 40
-lines, to `<ledger-dir>/results/<id>.md`, and returns the report. That file is the only one a child
-writes outside its write set, so "read-only" in a brief means read-only except that file. The
-results files are what let you rebuild the ledger from disk.
+**The results file.** As its last step, every child writes `<ledger-dir>/results/<id>.md`: first
+the same `REPORT <id>` block it returns, unchanged, then any detail past 40 lines. A file of detail
+alone is not a results file. That file is the only one a child writes outside its write set, so
+"read-only" in a brief means read-only except that file. The results files are what let you rebuild
+the ledger from disk.
 
 ## Running waves
 
@@ -146,6 +149,8 @@ results files are what let you rebuild the ledger from disk.
 - Key each result by its item id, never by its position.
 - A result with no well-formed `REPORT <id>` block is FAILED under its id: an empty result, an
   error, a cancellation, and a missing value alike. Record it before you filter or count anything.
+- A results file that does not start with `REPORT <id>` is incomplete. Log it, then put the
+  well-formed report the child returned at the top of that file, above the child's detail.
 - Deduplicate each new finding against everything seen so far, refuted findings included, not only
   against what survived.
 - Report coverage as N of M items DONE, and name every item that is not DONE with its status.

@@ -320,7 +320,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   - P1: skipped in Claude Code and Codex.
   - P2: failed in OpenCode in 2 of 3 attempts, because children wrote results files without their
     `REPORT` block (12 and 7 of 13), and one of the two reused an earlier attempt's run-id and wrote
-    over its ledger; skipped twice in Claude Code and twice in Codex.
+    over its ledger; skipped twice in Claude Code and twice in Codex. The skill text now answers
+    both causes: a brief's last step puts the returned `REPORT` block first in the results file,
+    the parent completes any results file that lacks it, and a new run checks that its ledger
+    directory does not exist yet. The panel ran the text at `8bc8da3`, so no run has measured
+    these rules; P2 needs new runs in every harness.
   - P2 under Codex's multi-agent V2: skipped.
   - P3: skipped in Claude Code and Codex.
   - P4: skipped in Claude Code and Codex.
@@ -344,9 +348,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   outside the project asks for `external_directory` permission. In the OpenCode panel, the two
   children killed in P5a wrote nothing after the restart, and no run raised a permission prompt
   for a ledger below the server's own temp root. The model there also ended its turn after the
-  plan in 3 of the 5 sessions that got the P2 prompt, and no session checked that its run-id was
-  free. In Claude Code 2.1.296 the `init` tool list holds `Task` and no `Agent`, while the Claude
-  notes' fallback names background `Agent` calls; whether that name is accepted is unmeasured.
+  plan in 3 of the 5 sessions that got the P2 prompt. In Claude Code 2.1.296 the `init` tool list
+  holds `Task` and no `Agent`, while the Claude notes' fallback names background `Agent` calls;
+  whether that name is accepted is unmeasured.
   Each is a sample, not a rate
   ([OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) and
   [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md)
