@@ -152,7 +152,8 @@ Reach for these directly; they are not on any flow.
 | **`/superpowers:using-superpowers`** | Switch this session to skill-driven working. Flipped by hand, never automatically. |
 | **`/superpowers:diagnosing-superpowers`** | A session went wrong — repeated work, an ignored plan, a skill that did not fire, too slow or too costly. It finds out why, with cited evidence, and drafts an issue for the superpowers maintainers only when you approve the text. |
 | **`/mattpocock-skills:setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |
-| `superpowers:dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. |
+| **`/deniz-process:verified-waves`** | A task big enough to split: it plans the fan-out in chat, runs it as waves of sub-agents, sends every finding to a fresh skeptic, and reports N of M done. You start it; it never starts itself. |
+| `superpowers:dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. To run a whole verified job, start **`/deniz-process:verified-waves`**. |
 
 ## Phase boundaries
 

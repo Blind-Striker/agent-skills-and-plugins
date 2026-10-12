@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.10.0",
-  "digest": "sha256:ec9d2fe2921b7ea542a65c07af83cc2e601a73c8932fa3a1fefbcc18fc466e2e",
+  "digest": "sha256:d276a7eda33f230af904d937dacadeacdbc6cf969a1e54a6b7a77f08fc708663",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:90188bbc2ae2cbb7ec265757b596e07966e986d042b236acba46cdcea6603817",
+      "sha256": "sha256:0d58254ddff55e93ebc7e1405edc07712ce274baff3aa4c921d4492f640e88a6",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {

@@ -425,7 +425,9 @@ items:
     # open each skill's SKILL.md, a path this repo forbids into a manual body, and a load would start
     # the skill rather than read it. implement-spec, pr and retro get routes; retro pairs with
     # diagnosing-superpowers, which gathers evidence and gives no advice while retro proposes the
-    # environment changes.
+    # environment changes. The router names the original verified-waves as a user-pointer in two
+    # rows, curator's routing call: the Standalone row is the start, and the dispatching row says
+    # which of the two a person wants.
     depends_on: [brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # every model-reachable skill the router names is a fact, so a target deleted or renamed upstream fails the build instead of leaving a dead route
     omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---

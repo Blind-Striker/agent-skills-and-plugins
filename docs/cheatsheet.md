@@ -71,6 +71,7 @@ Cross-cutting routes:
 - `systematic-debugging`: a bug, test failure, regression, or unexpected behavior needs isolation.
 - `diagnosing-superpowers`: a session went wrong (repeated work, an ignored plan, a skill that did not fire, too slow or too costly) and you want the evidence; it drafts an upstream issue only when you approve the text. It gives no advice; `retro` is the one that proposes environment changes.
 - `dispatching-parallel-agents` / `using-git-worktrees`: independent tasks or branches can proceed in parallel.
+- `verified-waves`: run one task as waves of sub-agents with every finding checked by a fresh skeptic; `manual`, so you start it.
 - `triage`: move issues and external PRs through the repository's intake state machine.
 - `wizard`: generate a human-operated setup script for credentials, infrastructure, or CI steps; it is deliberately manual.
 - `writing-for-agents`: design any document consumed by an agent, including `AGENTS.md` and skill prose.
