@@ -152,6 +152,17 @@ catalog metadata can select V2 even with the flag off (`core/src/config/mod.rs:1
 `core/src/session/mod.rs:4155-4167`), so neither version's tool names are a safe single default to
 name; V2's own names, such as `followup_task` and `send_message`, were only partly checked.
 
+Under V1, `spawn_agent`, `send_input`, `resume_agent`, `wait_agent`, and `close_agent` are deferred
+when the model supports `tool_search` (`core/src/tools/spec_plan.rs:1476-1480`; test
+`v1_multi_agent_tools_defer_when_tool_search_available`): none of them is in the model's tool list
+until a `tool_search` call loads it, and that tool's description lists them as "Multi-agent tools"
+(`core/src/tools/handlers/multi_agents.rs:36-37`). All 11 models in the bundled catalog set
+`supports_search_tool` (`models-manager/models.json`). Two of them select V1, and `gpt-5.5`, which
+names no version, falls back to the `multi_agent` feature, on by default
+(`features/src/lib.rs:1415-1418`; `core/src/config/mod.rs:1614-1631`), which also gives V1. So a V1
+session starts with no multi-agent tool in view. V2 registers its tools directly
+(`core/src/tools/spec_plan.rs:1381-1385`).
+
 ## Port designs
 
 **(A) One `manual` orchestration skill with per-harness notes.** A neutral body covers the opt-in,
@@ -524,9 +535,16 @@ declaration states its `manual` invocation. The sections:
 - The notes branch on the multi-agent version the model's tool list shows: V1 has `close_agent` and
   `resume_agent`; V2 has `followup_task`, `send_message`, `interrupt_agent`, and `list_agents`, and
   no `close_agent`. Catalog metadata can select V2 even with its feature flag off
-  (`core/src/config/mod.rs:1624-1631`; `core/src/session/mod.rs:4155-4167`).
-- V1: `spawn_agent` with the brief as `message` and `agent_type` set to `explorer` for reads or
-  `worker` for writes, and `fork_context` unset so the brief stands alone. A rolling wave of at most
+  (`core/src/config/mod.rs:1624-1631`; `core/src/session/mod.rs:4155-4167`). When the tool list has
+  `tool_search` but no `spawn_agent`, the V1 tools are deferred
+  ([capability matrix](#capability-matrix)), so the notes load them through `tool_search` before
+  the check.
+- V1: `spawn_agent` with the brief as `message` and `fork_context` unset so the brief stands alone.
+  `agent_type`, `explorer` for reads or `worker` for writes, is set only when `spawn_agent` lists
+  it: the schema drops the field unless the user defines custom roles
+  (`core/src/tools/spec_plan.rs:1490`; `core/src/agent/role.rs:74,169-171`), and neither built-in
+  role adds any configuration (`core/assets/agent/builtins/explorer.toml` is empty, and `worker`
+  has no role file). A rolling wave of at most
   6: `wait_agent` with `targets` set to every live id and `timeout_ms` 300000 (inside the
   10000–3600000 ms clamp, `core/src/tools/handlers/multi_agents/wait.rs:102`), record the first
   finisher in the ledger, `close_agent` it, because a finished agent holds its slot until it is

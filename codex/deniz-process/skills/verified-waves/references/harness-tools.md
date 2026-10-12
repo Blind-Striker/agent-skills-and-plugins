@@ -4,7 +4,9 @@ The user invoked this skill to request sub-agents for this task.
 
 ## Which multi-agent version you have
 
-Check your tool list, and trust it over this file:
+Check your tool list, and trust it over this file. If it has `tool_search` but no `spawn_agent`, the
+multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agent`, and
+`close_agent` first, then check the version on the tools that load.
 
 - **V1** has `close_agent` and `resume_agent`.
 - **V2** has `followup_task`, `send_message`, `interrupt_agent`, and `list_agents`, and no
@@ -12,8 +14,9 @@ Check your tool list, and trust it over this file:
 
 ## V1
 
-- Start a child with `spawn_agent`: the brief as `message`, `agent_type` set to `explorer` for a
-  read item or `worker` for a write item, and `fork_context` unset, so the brief stands alone.
+- Start a child with `spawn_agent`: the brief as `message`, and `fork_context` unset, so the brief
+  stands alone. Set `agent_type` (`explorer` for a read item, `worker` for a write item) only when
+  `spawn_agent` lists it.
 - Run a rolling wave with at most min(6, thread limit) children live:
   1. Call `wait_agent` with `targets` set to every live id and `timeout_ms` 300000.
   2. Record the first finisher in the ledger.

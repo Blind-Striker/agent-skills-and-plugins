@@ -336,8 +336,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **The Codex multi-agent version is unmeasured:** Codex catalog metadata can select multi-agent V2
   even with its feature flag off
   ([research](research/claude-ultracode-and-orchestration-ports.md#capability-matrix)), so the
-  `verified-waves` Codex notes branch on the model's actual tool list. No session has shown which
-  tools a preset serves; the panel's probe for it, the V2 run of P2, was skipped.
+  `verified-waves` Codex notes branch on the model's actual tool list. Under V1 the multi-agent
+  tools are deferred behind `tool_search` for every model in the bundled catalog, so a V1 session
+  starts without `spawn_agent` in view, and the notes load the tools through `tool_search` before
+  the check (same research section). No session has shown which tools a preset serves, or that a
+  model follows the deferral step; the panel's Codex runs of P2, the V2 run included, were
+  skipped.
 - **Two Codex model rules for spawned children:** the `using-superpowers` Codex notes tell every
   `spawn_agent` call to set `model` and `reasoning_effort` per the Model Selection rules of the
   skill being executed, while the `verified-waves` Codex notes leave both unset for the children
