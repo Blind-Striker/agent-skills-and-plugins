@@ -4133,14 +4133,29 @@
     "source": "skills/deniz-dotnet-general/writing-tunit-tests",
     "original": true,
     "invocation": "auto",
+    "dependsOn": [
+      "filter-syntax",
+      "run-tests",
+      "test-anti-patterns",
+      "test-driven-development",
+      "test-gap-analysis"
+    ],
     "description": "Write tests in TUnit — the attributes, the async assertion model, data-driven cases, lifecycle hooks, and the parallelism rules. USE FOR writing or fixing a test in a TUnit project, translating a test idea into TUnit syntax, or reviewing TUnit test code for API mistakes. DO NOT USE FOR deciding what to test, judging whether a test is any good, or running tests.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:run-tests",
+          "deniz-dotnet-general:test-anti-patterns",
+          "deniz-dotnet-general:test-gap-analysis",
+          "deniz-process:test-driven-development"
+        ],
+        "pointer": [
+          "deniz-dotnet-general:generate-testability-wrappers"
+        ]
       },
       "flags": {
         "user-invocable": false
@@ -4153,8 +4168,16 @@
       "identity": "deniz-dotnet-general.writing-tunit-tests",
       "advertised": true,
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "deniz-dotnet-general.filter-syntax",
+          "deniz-dotnet-general.run-tests",
+          "deniz-dotnet-general.test-anti-patterns",
+          "deniz-dotnet-general.test-gap-analysis",
+          "deniz-process.test-driven-development"
+        ],
+        "pointer": [
+          "@deniz-dotnet-general.generate-testability-wrappers"
+        ]
       },
       "dropped": []
     },
@@ -4170,8 +4193,16 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [],
-        "pointer": []
+        "model": [
+          "$deniz-dotnet-general:filter-syntax",
+          "$deniz-dotnet-general:run-tests",
+          "$deniz-dotnet-general:test-anti-patterns",
+          "$deniz-dotnet-general:test-gap-analysis",
+          "$deniz-process:test-driven-development"
+        ],
+        "pointer": [
+          "$deniz-dotnet-general:generate-testability-wrappers"
+        ]
       },
       "dropped": [],
       "bodyTransformations": []

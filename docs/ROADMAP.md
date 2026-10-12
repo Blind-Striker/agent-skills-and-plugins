@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.8.1, General 0.13.1, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.8.1, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -168,45 +168,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    warning qualifiers) and `sdk-container-publishing` (190) already follow it.
    Add a `validate` check so an upstream sync cannot bring a long description back, and remove the
    per-machine listing-budget raises the record lists once this lands.
-2. **Iteration 2: dependency automation and original-skill declarations.** The upstream sync
-   waves are complete, so address automatic dependency installation, cascade remove, version-range
-   resolution, and the `original_skills` declaration. These four workstreams belong to the
-   follow-up iteration, not the first feature. Selection/Ownership semantics, user approval for
-   automatic changes, and version constraint/conflict policy must be designed in that iteration
-   rather than assumed by the first.
-   For original skills, the pressure points are additional original skills, manual original posture,
-   per-harness files for the orchestration skill of item 3, and load-bearing outgoing edges that
-   review-only protection cannot guard. Original skills can already be guarded targets, and the
-   declaration surface is implemented ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills));
-   writing-tunit-tests's handoffs below are the remaining step. Its planned declaration:
-
-   ```yaml
-   original_skills:
-     writing-tunit-tests:
-       invocation: auto
-       depends_on:
-         - test-driven-development
-         - test-gap-analysis
-         - test-anti-patterns
-         - run-tests
-         - filter-syntax
-   ```
-
-   This is not a second body manifest: `skills/<plugin>/<name>/SKILL.md` keeps content and description
-   ownership, while the declaration owns harness-neutral invocation and outgoing model edges. Replace
-   load-bearing bare handoffs with namespaced facts; keep the human-started
-   `generate-testability-wrappers` route as a namespaced user-pointer rather than `depends_on`.
-   Compiler work must feed Claude invocation flags, OpenCode skill/command shape, original-source edge
-   scanning, exact two-way dependency symmetry, audience reachability, sync candidates, and a ledger
-   own-source marker. Validation must reject a directory with no declaration, a declaration with no
-   directory, stale or undeclared edges, duplicate identities, and an inexpressible target posture.
-   Acceptance requires auto, manual, both, dangling, stale, undeclared, cross-Module, and generated-
-   ledger cases in all three harness trees.
-
-   General requires the Process Module, by the curator's decision, because `code-testing` hands a
-   repair or flaky-test request to Process's `systematic-debugging` through a checked fact. The
-   example's `test-driven-development` edge also targets a Process item, so it adds no new Module
-   requirement.
+2. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
+   automatic dependency installation, cascade remove, and version-range resolution. These three
+   workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership
+   semantics, user approval for automatic changes, and version constraint/conflict policy must be
+   designed in that iteration rather than assumed by the first.
 3. **Orchestration skill.** Add one original `manual` skill that runs a request as verified
    multi-agent waves, design A of the
    [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs):
@@ -239,9 +205,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
    selection pressure and can reach work with no explicit caller. The current candidate rule is:
    load-bearing composition uses guarded body facts; opportunistic passive knowledge can use honest
-   descriptions; ceremonies need a human surface. Promote it to a durable decision only when the
-   original-skill declaration and another bounded runtime sample confirm the trade-off. Evidence
-   remains in
+   descriptions; ceremonies need a human surface. Promote it to a durable decision only when another
+   bounded runtime sample confirms the trade-off. Evidence remains in
    [skill-invocation-across-harnesses.md](research/skill-invocation-across-harnesses.md) and
    [skill-framework-landscape.md](research/skill-framework-landscape.md).
 

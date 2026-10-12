@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.13.1",
-  "digest": "sha256:c22aa95c68cb6f33dede5773c0bc75e761e134bba0dbe13102fbdc406adffde9",
+  "version": "0.14.0",
+  "digest": "sha256:6d06970b0f982357819c273b445f92b26b904365928539c113adcc6469bb8903",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -637,7 +637,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.writing-tunit-tests/SKILL.md": {
-      "sha256": "sha256:07f951f5fd090eee543edfd1173f359e21283f731d03c9b9f2898e251b60e1bf",
+      "sha256": "sha256:e456dfdcabc9ed142d89c1688377ade5088ae34fc5fec3cc6a19aef76bfc5a8f",
       "mode": "100644"
     },
     "third_party/dotnet-agent-skills/LICENSE": {

@@ -12,12 +12,13 @@ those two right and the rest is ordinary.
 
 This skill is the syntax and the semantics. It does not cover:
 
-- **what to test, and in what order** — that is the red-green loop in `test-driven-development`
-- **whether a test is worth having** — `test-gap-analysis` asks whether a test would catch a real
-  bug, `test-anti-patterns` catches the smells
-- **running or filtering tests** — `run-tests` gives the exact command, `filter-syntax` the filter
+- **what to test, and in what order** — that is the red-green loop in `superpowers:test-driven-development`
+- **whether a test is worth having** — `dotnet-test:test-gap-analysis` asks whether a test would catch a
+  real bug, `dotnet-test:test-anti-patterns` catches the smells
+- **running or filtering tests** — `dotnet-test:run-tests` gives the exact command,
+  `dotnet-test:filter-syntax` the filter
 - **making untestable code testable** — that is a seam problem, and the ceremony that builds the
-  abstraction is one the human starts by name: `generate-testability-wrappers`
+  abstraction is one the human starts by name: `/dotnet-test:generate-testability-wrappers`
 
 ## Setting up a project
 
