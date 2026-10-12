@@ -120,6 +120,36 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   progress upstream. `setup-matt-pocock-skills` writes its block to `AGENTS.md`, which OpenCode and
   Codex read, and proposes importing it into `CLAUDE.md`. `ask-deniz` is recut by hand, and the
   model-reachable skills it names in plain text, ten of them, are checked facts.
+- `verified-waves`, design A of the
+  [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs),
+  ships in Process 0.10.0 as an original `manual` skill, declared under `original_skills`
+  ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)), that runs one task as verified
+  multi-agent waves. One shared body in this repository's own words, not named "ultracode", holds
+  the method, and per-harness tool notes through `harness_files` hold the tools: Claude Code's notes
+  route into the native Workflow tool, which accepts a skill whose instructions say to call it as
+  the user's opt-in; OpenCode's run background `subagent` waves; Codex's run `spawn_agent` waves
+  that branch on the multi-agent version the model's tool list shows. `ask-deniz` and the
+  [cheatsheet](cheatsheet.md) route people to it. The curator-approved prior-art approaches, the
+  rejected ones, the skill outline, and the rulings on its authoring points are in the research
+  note's
+  [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
+  The 2026-10-12 tier-2
+  [forward-test panel](../experiments/harness-invocation/verified-waves-panel.md) supports no claim
+  that the skill works in any harness: no prompt ran at least twice in a harness and passed every
+  time there
+  ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
+  - OpenCode 2.0.26, on the free `opencode/muse-spark-1.3-contributor-free` model
+    ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)): P2
+    passed in 1 of 3 attempts. P0, P1, P3, P4, P5a, P6, P7, and P8 each passed, observed once
+    (sample).
+  - Claude Code 2.1.296
+    ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md)): only
+    P0's structural half ran, observed once (sample): the `init` event lists the skill. Every model
+    prompt was skipped.
+  - Codex CLI 0.162.1
+    ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md)): P0
+    passed, observed once (sample): the installed skill carries `allow_implicit_invocation: false`.
+    Every model prompt, the multi-agent V2 run of P2 included, was skipped.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -173,25 +203,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership
    semantics, user approval for automatic changes, and version constraint/conflict policy must be
    designed in that iteration rather than assumed by the first.
-3. **Measure the orchestration skill.** `verified-waves`, design A of the
-   [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs),
-   ships in Process 0.10.0 as an original `manual` skill that runs one task as verified multi-agent
-   waves: one shared body in this repository's own words, not named "ultracode", plus per-harness
-   tool notes through `harness_files`, declared under `original_skills`
-   ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)). Claude Code's notes route into
-   the native Workflow tool, which accepts a skill whose instructions say to call it as the user's
-   opt-in; OpenCode's run background `subagent` waves; Codex's run `spawn_agent` waves that branch
-   on the multi-agent version the model's tool list shows. The curator-approved prior-art
-   approaches, the rejected ones, the skill outline, and the rulings on its authoring points are in
-   the research note's
-   [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
-   No harness has run the skill yet. The next step is a tier-2 forward-test panel in each harness,
-   because a claim that the skill works in a harness needs a run there
-   ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
-   Keyword injection (design B) is deferred below. A deterministic engine per
-   harness (design C) is rejected: it needs installer changes and one runtime per harness, and it is
-   a product rather than a skill.
-4. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
+3. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
    in its `workflows/` directory as `/<plugin>:<meta.name>`
    ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a
    repeatable playbook such as the [curation sanity panel](agents/curation-sanity-panel.md) or an
@@ -199,9 +211,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    Claude emitter path for workflow scripts yet. Open question for the curator, not decided: the
    surface is Claude-only, so what answers the "same standard in every harness" rule
    ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
-   Claude Code gets the scripted form, and OpenCode and Codex get item 3's model-driven form of the
-   same playbook.
-5. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+   Claude Code gets the scripted form, and OpenCode and Codex get `verified-waves`' model-driven
+   form of the same playbook.
+4. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -297,6 +309,48 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   that path. Codex runs its implementers through `spawn_agent`, on by default in Codex CLI
   0.153.4, but no run has exercised `implement-spec` or the two-reviewer dispatch of
   `requesting-code-review` there either.
+- **`verified-waves` panel prompts that failed or were skipped:** the 2026-10-12 panel's
+  [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md) and
+  [Codex](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md) legs had no
+  credential supplied out of band and no operator at the TUI, so they skipped every prompt that
+  needs a model turn; each record says how to complete its leg. The
+  [OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) leg
+  failed one prompt. By prompt:
+  - P0's model-surface half: skipped in Claude Code.
+  - P1: skipped in Claude Code and Codex.
+  - P2: failed in OpenCode in 2 of 3 attempts, because children wrote results files without their
+    `REPORT` block (12 and 7 of 13), and one of the two reused an earlier attempt's run-id and wrote
+    over its ledger; skipped twice in Claude Code and twice in Codex.
+  - P2 under Codex's multi-agent V2: skipped.
+  - P3: skipped in Claude Code and Codex.
+  - P4: skipped in Claude Code and Codex.
+  - P5a: skipped in Claude Code and Codex.
+  - P5b: skipped in Claude Code.
+  - P6: skipped in Claude Code and Codex.
+  - P7: skipped in Codex, and P7a, P7b, and P7c in Claude Code.
+  - P8: skipped in Claude Code and Codex.
+- **The Codex multi-agent version is unmeasured:** Codex catalog metadata can select multi-agent V2
+  even with its feature flag off
+  ([research](research/claude-ultracode-and-orchestration-ports.md#capability-matrix)), so the
+  `verified-waves` Codex notes branch on the model's actual tool list. No session has shown which
+  tools a preset serves; the panel's probe for it, the V2 run of P2, was skipped.
+- **Two Codex model rules for spawned children:** the `using-superpowers` Codex notes tell every
+  `spawn_agent` call to set `model` and `reasoning_effort` per the Model Selection rules of the
+  skill being executed, while the `verified-waves` Codex notes leave both unset for the children
+  that skill spawns unless the user asks. The curator kept the skill's own rule and left
+  `using-superpowers` unpatched, so a session that loads both reads both rules.
+- **`verified-waves` notes that a sample contradicts or leaves open:** the OpenCode notes say
+  background children are recovered after a server restart and still report, and that a ledger
+  outside the project asks for `external_directory` permission. In the OpenCode panel, the two
+  children killed in P5a wrote nothing after the restart, and no run raised a permission prompt
+  for a ledger below the server's own temp root. The model there also ended its turn after the
+  plan in 3 of the 5 sessions that got the P2 prompt, and no session checked that its run-id was
+  free. In Claude Code 2.1.296 the `init` tool list holds `Task` and no `Agent`, while the Claude
+  notes' fallback names background `Agent` calls; whether that name is accepted is unmeasured.
+  Each is a sample, not a rate
+  ([OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) and
+  [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md)
+  records).
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to
@@ -375,10 +429,10 @@ skill.
   - upstream slows down, for example with a stable 2.x skill contract, so sync cost drops; or
   - superpowers or `mattpocock-skills` adopt living or delta specs, which makes it an ordinary
     sync-review decision.
-- **Keyword-injected orchestration (design B):** deferred behind the orchestration skill (Next Up
-  item 3). A `manual` skill is already a one-token trigger in every harness, so the only gain is a
-  standing session mode outside Claude Code. OpenCode would need a plugin file, which the installer
-  may not own without an ADR that widens
+- **Keyword-injected orchestration (design B):** deferred behind the orchestration skill,
+  `verified-waves` (Current State). A `manual` skill is already a one-token trigger in every
+  harness, so the only gain is a standing session mode outside Claude Code. OpenCode would need a
+  plugin file, which the installer may not own without an ADR that widens
   [installer ownership](architecture/distribution-and-installation.md#destination-selection-and-ownership);
   Codex would need emitted plugin hooks, a hook script, each user's trust in that hook, and the
   Legacy plugin manifest format, since the Agent Plugins format skips plugin hooks. Revisit only if

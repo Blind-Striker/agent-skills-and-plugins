@@ -567,4 +567,11 @@ The curator ruled on the first three points on 2026-10-12; the last stays open.
   done; small tasks stay solo." Codex's menu label is its first sentence, which the emitter's cut
   keeps whole at 43 characters.
 - Measure the listing after the skill ships rather than assuming zero catalog cost, and run each
-  harness before claiming the skill works there.
+  harness before claiming the skill works there. The 2026-10-12 forward-test panel records the first
+  runs:
+  [Claude Code](../../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md),
+  [OpenCode 2](../../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md),
+  and [Codex](../../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md).
+  OpenCode's discovery reports the skill unadvertised; the model-facing listing in Claude Code and
+  Codex is unmeasured, and no harness meets the bar for saying the skill works, so the point stays
+  open.
