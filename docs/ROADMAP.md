@@ -353,6 +353,18 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   also ended its turn after the plan in 3 of the 5 sessions that got the P2 prompt. Each is a
   sample, not a rate
   ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
+- **`verified-waves` overlapping writers in Claude Code:** the Claude notes send overlapping
+  writers to `isolation: 'worktree'`, as approach 8 and the Claude outline in the
+  [research note](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved)
+  say. A worktree is removed only when its agent changed nothing
+  ([sub-agents docs](https://code.claude.com/docs/en/sub-agents), `isolation`; the workflow
+  reference in Claude Code 2.1.296 says the same), and briefs forbid commits, so a writer's edits
+  stay uncommitted in its worktree, outside the main tree that the gate child checks after the
+  wave, and no step brings them in. The fix changes curator-approved text, so it waits for the
+  curator: run overlapping writers in sequence, as the OpenCode and Codex notes and the Claude
+  fallback already do (recommended), or add a step that records each worktree, brings its diff into
+  the main tree before the gate, and removes the worktree. The owner is the Writers rule in
+  `skills/deniz-process/verified-waves/references/claude-code-tools.md`.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to

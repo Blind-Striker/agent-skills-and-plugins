@@ -227,7 +227,8 @@ The curator decided on 2026-10-12:
    [ADR-0002](../adr/0002-multi-harness-output.md) already allows a target to expose a capability
    the neutral manifest leaves unspecified as a native realization.
 
-The queue position, the prerequisite, and the open questions are in the [roadmap](../ROADMAP.md).
+The shipped skill's state and its known gaps, the deferred design B, and the question about
+plugin-shipped workflows are in the [roadmap](../ROADMAP.md).
 
 ### Adopted approaches (curator-approved)
 
