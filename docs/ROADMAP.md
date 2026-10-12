@@ -63,6 +63,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Code and Codex installation of the marketplace to them, changing only `deniz-skills` configuration
   entries; its discovery checks used a throwaway database
   ([v0.6.0 rollout record](../experiments/harness-invocation/records/2026-10-12-v0.6.0-rollout.md)).
+  The `installer-v0.7.0` rollout updated all four real OpenCode profiles to the checkout Module
+  versions with one identical finding-free Plan, which added `verified-waves`, hidden, and moved
+  every Claude Code and Codex installation of the marketplace to them, changing only `deniz-skills`
+  configuration entries; its discovery checks used a throwaway database
+  ([v0.7.0 rollout record](../experiments/harness-invocation/records/2026-10-12-v0.7.0-rollout.md)).
 - `dotnet/skills` is reviewed through `1d40f95` (main, 2026-10-09; it has no release-shaped
   tag); wave W6 is done, and with it every upstream sync wave of the 2026-10-08 review. General
   takes upstream's consolidated `msbuild` skill as the auto entry for build failures, build
@@ -237,11 +242,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   The fault is upstream (`anomalyco/opencode#47505`) and the Apply itself always completed. The
   installer's mitigation is a warning after a Windows Apply that changed files, owned by
   [distribution canon](architecture/distribution-and-installation.md#target-opencode-runtime); it
-  never stops or blocks on OpenCode, and reopening `opencode` restarts a stopped service. Two
+  never stops or blocks on OpenCode, and reopening `opencode` restarts a stopped service. Three
   real-profile update Applies on each of the Windows workstation and the Linux host left the running
-  service up ([v0.5.0](../experiments/harness-invocation/records/2026-10-11-v0.5.0-rollout.md) and
-  [v0.6.0](../experiments/harness-invocation/records/2026-10-12-v0.6.0-rollout.md) rollout records);
-  two samples each are not a rate, and a Linux failure rate is not measured.
+  service up ([v0.5.0](../experiments/harness-invocation/records/2026-10-11-v0.5.0-rollout.md),
+  [v0.6.0](../experiments/harness-invocation/records/2026-10-12-v0.6.0-rollout.md), and
+  [v0.7.0](../experiments/harness-invocation/records/2026-10-12-v0.7.0-rollout.md) rollout records);
+  three samples each are not a rate, and a Linux failure rate is not measured.
 - **Earlier schema-1 Releases have no upgrade path:** the Packages of Releases through
   `installer-v0.3.0` ship schema-1 Bundles in OpenCode 1 shapes, and the installer, from the
   checkout or a Release from `installer-v0.4.0` on, refuses schema-1 Install state with no
