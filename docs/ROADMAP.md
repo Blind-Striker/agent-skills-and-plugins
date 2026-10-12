@@ -371,9 +371,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
   In the Codex panel, three more, each seen once
   ([Codex record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md)):
-  - Neither `SKILL.md` nor the Codex notes say what a check that the sandbox refuses reports. Both
-    gate children reported FAIL on `spawn EPERM` without asking for escalation, while the children
-    that asked got PASS.
+  - Both gate children reported FAIL on `spawn EPERM` in the sandbox without asking for
+    escalation, while the children that asked got PASS. `SKILL.md` now says that a check the
+    sandbox refuses is never FAIL: the child requests the harness's escalation once, if it has one,
+    and is otherwise BLOCKED with the command and the denial, and each harness's notes say how it
+    escalates. That rule is unmeasured.
   - The model asked its yes/no questions through `request_user_input_async`, which lets the turn go
     on. In P3 the parent went on past its question and closed the run without the answer; the
     panel's driver did not surface the question while that turn ran, so this is partly a driver gap.

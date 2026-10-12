@@ -49,6 +49,16 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
 - Every writer's brief carries the coordination line, `[writers]` in the brief template.
 - Create no goal unless the user asks for unattended continuation.
 
+## Commands the sandbox refuses
+
+Under the approval policy `on-request`, the escalation for a refused command is the same command
+run again with `sandbox_permissions: "require_escalated"` and a `justification` that asks the user.
+The approval prompt reaches the user from a child too, so a child requests it once itself and
+reports the result the command then gives. For a BLOCKED check, request the escalation on its exact
+command yourself: the user's answer to the approval prompt is the approval. Under the approval
+policy `never`, `require_escalated` is rejected: the check stays NOT RUN, and the final report names
+the exact command for the user to run.
+
 ## Restart
 
 After a session restart, a RUNNING item's old child cannot be reached: its turn ended with the old

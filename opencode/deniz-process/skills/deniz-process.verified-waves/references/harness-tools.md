@@ -32,6 +32,12 @@ Completion is a `<subagent sessionID state description>` message that holds the 
 text. The states `error` and `cancelled` are FAILED. So is a `completed` message whose text is
 "Subagent completed without a text response." or holds no `REPORT` block.
 
+## Commands the sandbox refuses
+
+OpenCode has no command sandbox: a shell command runs once its permission check passes. A `deny`
+rule, or a rejected permission prompt, is a permission denial, not a sandbox refusal: the child
+returns BLOCKED with the command, and `SKILL.md` says how to handle a permission denial.
+
 ## Fixes and verifiers
 
 A fix goes to the same `sessionID` and agent, with only the open findings. A verifier is always a

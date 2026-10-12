@@ -110,6 +110,7 @@ DONE WHEN: <binary observable check>
 LAST STEP: write <ledger-dir>/results/<id>.md: first the REPORT block you return, unchanged, then any detail past 40 lines
 RETURN: the report below, ≤40 lines
 Cannot proceed → STATUS: BLOCKED with the exact question.
+Sandbox refuses a command (such as EPERM, "operation not permitted") → not a FAIL: request the harness's escalation once, if it has one; still refused → STATUS: BLOCKED with the exact command and the denial.
 ```
 
 A skeptic's brief replaces GOAL and CONTEXT with `CLAIM: <finding + evidence>` and
@@ -192,6 +193,12 @@ the ledger from disk.
   only when the failure was a misunderstanding.
 - On a permission denial, a refused launch included, stop that path and report it. A refusal is
   never a reason to start children another way.
+- A check that the harness sandbox refused (for example `EPERM`, or "operation not permitted"),
+  with no approved escalation, did not run. It is never FAIL, and it never counts as a code
+  failure: the child's STATUS is BLOCKED, with the exact command and the denial. Ask the user for
+  the escalation, or run the check yourself with the user's approval, as
+  `references/harness-tools.md` describes, and record the result it then gives. If the user
+  declines, the check stays NOT RUN, with the denial as the reason.
 - If children cannot start at all, or the depth limit stops them, say so. Then run the briefs one by
   one yourself, label each output with its item id, write each results file, and state in the final
   report that the verification was not independent.

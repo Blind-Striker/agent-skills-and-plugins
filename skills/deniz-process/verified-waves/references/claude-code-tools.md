@@ -44,6 +44,15 @@ in the system temp directory. A background agent's permission prompt appears in 
 The script cannot touch files, so the ledger's rows change only when the completion notification
 arrives. Until then, each agent's results file is the record on disk.
 
+## Commands the sandbox refuses
+
+When the Bash sandbox is on, a sandbox denial reads `Operation not permitted` on macOS, or
+`Read-only file system` on Linux and WSL2. An agent can retry the refused command with
+`dangerouslyDisableSandbox`. The retry goes through the permission flow, and a workflow agent's
+prompt appears in the main session, so the user's answer is the approval. With
+`allowUnsandboxedCommands: false` there is no retry: the agent returns BLOCKED, and the final report
+names the exact command for the user to run.
+
 ## Restart
 
 1. In the same session, or in a session reopened with `claude --resume`: launch again with
