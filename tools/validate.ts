@@ -585,34 +585,40 @@ export function validateRepo(root: string): Finding[] {
   // 1e. executable bit. A Windows checkout cannot see it, so a script curated there is committed
   // 100644 while a Linux rebuild produces 0755: CI's freshness gate fails on the mode diff, and the
   // shipped script is not executable for anyone who installs the plugin. git's index is the only
-  // place the bit survives such a checkout, so both sides are read from there. Untracked output is
-  // skipped — it cannot be wrong yet, and it becomes visible the moment it is staged.
+  // place the bit survives such a checkout, so both sides are read from there: a curated item's
+  // source from its submodule's index, an original skill's from this repository's. Untracked output
+  // is skipped — it cannot be wrong yet, and it becomes visible the moment it is staged.
   const ourModes = indexModes(root, ["plugins", "opencode", "codex"]);
   const subModes = new Map<string, Map<string, string>>();
+  let originalModes: Map<string, string> | undefined;
   for (const m of manifests) {
-    for (const item of m.items) {
-      if (item.exclude) {
-        continue;
+    for (const { item, outName, outType, source } of pairedItems(m)) {
+      /** The source of one built item-relative path, and its index mode. */
+      let sourceOf: (rel: string) => { label: string; mode: string | undefined };
+      if (item) {
+        const { comp } = resolveItem(root, m.plugin.name, item, components);
+        const [sub, ...rest] = item.source.split("/");
+        if (!comp || !sub) {
+          continue;
+        }
+        if (!subModes.has(sub)) {
+          subModes.set(sub, indexModes(join(root, "external", sub), []));
+        }
+        const upstream = subModes.get(sub) ?? new Map();
+        sourceOf = (rel) => ({ label: "upstream", mode: upstream.get([...rest, rel].join("/")) });
+      } else {
+        originalModes ??= indexModes(root, ["skills"]);
+        const own = originalModes;
+        sourceOf = (rel) => ({ label: `the original ${source}/${rel}`, mode: own.get(`${source}/${rel}`) });
       }
-      const { comp, outName, outType } = resolveItem(root, m.plugin.name, item, components);
-      if (!comp) {
-        continue;
-      }
-      const [sub, ...rest] = item.source.split("/");
-      if (!sub) {
-        continue;
-      }
-      if (!subModes.has(sub)) {
-        subModes.set(sub, indexModes(join(root, "external", sub), []));
-      }
-      const upstream = subModes.get(sub) ?? new Map();
       const builtDir = join(root, "codex", m.plugin.name, "skills", outName);
       if (!existsSync(builtDir)) {
         continue;
       }
       for (const file of walk(builtDir)) {
         const rel = itemRelative(builtDir, file);
-        if (upstream.get([...rest, rel].join("/")) !== "100755") {
+        const { label, mode } = sourceOf(rel);
+        if (mode !== "100755") {
           continue;
         }
         const outputs = [
@@ -628,7 +634,7 @@ export function validateRepo(root: string): Finding[] {
           if (ourModes.has(out) && ourModes.get(out) !== "100755") {
             findings.push({
               level: "error",
-              message: `${out}: upstream is executable but this copy is recorded ${ourModes.get(out)} — run: git update-index --chmod=+x ${out}`,
+              message: `${out}: ${label} is executable but this copy is recorded ${ourModes.get(out)} — run: git update-index --chmod=+x ${out}`,
             });
           }
         }

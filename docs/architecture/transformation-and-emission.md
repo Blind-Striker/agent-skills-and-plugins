@@ -329,8 +329,13 @@ folder and rewrites a file only when its bytes change.
 Module manifests are then written over final OpenCode bytes. A file copied into a skill folder takes
 the Git index mode of its committed Claude Plugin counterpart, so an executable script keeps
 `100755` after path respelling, and every other Bundle file is `100644`
-([`claudeCounterpartPath`](../../tools/lib/opencode-target.ts)). Compile-time `requiredModules` are
-derived from the declared `depends_on` edges of items and original skills
+([`claudeCounterpartPath`](../../tools/lib/opencode-target.ts)). A Windows checkout cannot see the
+bit, so `validate` reads both sides from Git's index: a curated item's source from its submodule's
+index, an original skill's from this repository's. A committed copy in any of the three trees of an
+executable source that is recorded `100644` is an error naming the `git update-index --chmod=+x`
+command that fixes it (check 1e in [`validateRepo`](../../tools/validate.ts)).
+Compile-time `requiredModules` are derived from the declared `depends_on` edges of items and
+original skills
 ([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
 [`writeOpenCodeManifests`](../../tools/build.ts). The ledger is written last from the
 resolved output. The installer reads those emitted lists; it does not re-derive them. The separate

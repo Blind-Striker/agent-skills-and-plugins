@@ -167,6 +167,10 @@ output, and `validate` reports an error, when:
 A file directly in `skills/<plugin>/`, such as `NOTICE.md`, is not a skill: the build ignores it,
 and it never ships.
 
+Mark an original skill's script executable in this repository's Git index
+(`git update-index --chmod=+x`); `validate` holds every tree's copy to that mode
+([Finalization and handoff](../docs/architecture/transformation-and-emission.md#finalization-and-handoff)).
+
 ## Bundled scripts
 
 A body that tells the model to run a script its skill folder ships names the interpreter, because a

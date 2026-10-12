@@ -652,6 +652,35 @@ test("a built file whose upstream is executable must be recorded executable", ()
   );
 });
 
+// An original skill has no submodule: its script's bit lives in this repository's own index.
+test("a built file whose original source is executable must be recorded executable in every tree", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-run", {
+    files: { "scripts/run.sh": "#!/bin/sh\necho hi\n", "scripts/notes.txt": "x\n" },
+  });
+  execFileSync("git", ["init", "-q", "."], { cwd: root });
+  execFileSync("git", ["add", "-A", "--", "skills"], { cwd: root });
+  execFileSync("git", ["update-index", "--chmod=+x", "skills/deniz-process/own-run/scripts/run.sh"], { cwd: root });
+  buildAll(root);
+  execFileSync("git", ["add", "-A", "--", "plugins", "opencode", "codex"], { cwd: root });
+  const outputs = [
+    "codex/deniz-process/skills/own-run/scripts/run.sh",
+    "plugins/deniz-process/skills/own-run/scripts/run.sh",
+    "opencode/deniz-process/skills/deniz-process.own-run/scripts/run.sh",
+  ];
+  const execErrors = () => errorsOf(root).filter((m) => m.includes("executable"));
+  assert.deepEqual(
+    execErrors(),
+    outputs.map(
+      (out) =>
+        `${out}: the original skills/deniz-process/own-run/scripts/run.sh is executable but this copy is recorded 100644 — run: git update-index --chmod=+x ${out}`,
+    ),
+  );
+
+  execFileSync("git", ["update-index", "--chmod=+x", ...outputs], { cwd: root });
+  assert.deepEqual(execErrors(), []);
+});
+
 // The rule must stay quiet when nothing upstream is executable, and when there is no index to read.
 test("no exec-bit finding on a clean fixture", () => {
   const root = makeRepo();
