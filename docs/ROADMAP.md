@@ -282,8 +282,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   right verdict with the wrong `disable-model-invocation` explanation.
 - **Manifest keys outside the grammar are ignored:** `loadManifest` in
   [`tools/lib/manifest.ts`](../tools/lib/manifest.ts) rejects an unknown key only inside an
-  `original_skills` declaration. An unknown top-level or item key, such as a misspelled
-  `invocation`, is silently ignored.
+  `original_skills` declaration, and `checkHarnessFiles` rejects an unknown harness key inside any
+  `harness_files` mapping, on a curated item and an original skill alike. An unknown top-level or
+  item key, such as a misspelled `invocation`, is silently ignored.
 - **Clean-fixture debt is filtered by finding name:** split the fixture so tests prove those findings
   still exist instead of tolerating their disappearance.
 - **Full-file overlays have no replay:** an upstream move under a full-file overlay is reviewed

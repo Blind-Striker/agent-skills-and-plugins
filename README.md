@@ -227,8 +227,8 @@ request. `--yes` recomputes under the lock and never reapplies a previously prin
 finding-free metadata-only Plan still commits next Install state. Interrupted Apply rolls back
 exact prior bytes or finalizes already-committed state; schema-1 Install-state evidence is refused.
 
-The build derives each Module's required Modules from its items' `depends_on` and records them in
-its Bundle manifest. The checkout's Bundles record:
+The build derives each Module's required Modules from the `depends_on` of its items and original
+skills and records them in its Bundle manifest. The checkout's Bundles record:
 
 | Module | Requires |
 |---|---|
@@ -237,11 +237,12 @@ its Bundle manifest. The checkout's Bundles record:
 | `deniz-dotnet-akka` | `deniz-dotnet-aspire`, `deniz-dotnet-general` |
 | `deniz-dotnet-aspire` | none |
 
-General requires Process because `code-testing` hands a repair or flaky-test request to Process's
-`systematic-debugging`. So the installer refuses a Selection that has General without Aspire and
-Process, or Akka without Aspire and General. Claude Code and Codex install each Plugin on its own,
-and these Plugins declare no requirement there, so install the required Plugins yourself:
-`deniz-process` and `deniz-dotnet-aspire` alongside `deniz-dotnet-general`, and
+General requires Process for two reasons: `code-testing` hands a repair or flaky-test request to
+Process's `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order,
+to Process's `test-driven-development`. So the installer refuses a Selection that has General
+without Aspire and Process, or Akka without Aspire and General. Claude Code and Codex install each
+Plugin on its own, and these Plugins declare no requirement there, so install the required Plugins
+yourself: `deniz-process` and `deniz-dotnet-aspire` alongside `deniz-dotnet-general`, and
 `deniz-dotnet-aspire` and `deniz-dotnet-general` alongside `deniz-dotnet-akka`.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that

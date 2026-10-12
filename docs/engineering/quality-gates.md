@@ -1,6 +1,6 @@
 # Engineering quality gates
 
-Date: 2026-10-11
+Date: 2026-10-12
 
 This document owns completion evidence: which repository commands apply, what CI proves, what still
 requires human review, and which words those results authorize. Script implementations remain
@@ -118,9 +118,10 @@ Use the narrowest statement supported by evidence:
 
 ## Documentation guards
 
-`tools/repository-docs.test.ts`, executed by `npm test`, protects selected root README, package
-research, and lab claims whose wording encodes a repository safety property. Before relocating such
-text, inspect that test and update its target while keeping the invariant.
+`tools/repository-docs.test.ts`, executed by `npm test`, protects selected root README,
+`AGENTS.md`, `.gitignore`, package research, and lab claims whose wording encodes a repository
+safety property. Before relocating such text, inspect that test and update its target while
+keeping the invariant.
 
 `experiments/harness-invocation/selftest.ps1` contains a separate documentation-regression section
 for experiment protocol and the agent reference-audit playbook. It is outside npm test and CI. A

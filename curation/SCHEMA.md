@@ -147,8 +147,9 @@ original_skills:
     invocation: auto
 ```
 
-The SKILL.md owns content and description; the declaration owns invocation, outgoing model edges,
-and per-harness files. A declaration is not a second body manifest: it holds `invocation`,
+The SKILL.md owns content and description, and its body still owns the model-edge facts themselves;
+the declaration owns invocation, the `depends_on` list that declares the body's model-edge facts,
+and `harness_files`. A declaration is not a second body manifest: it holds `invocation`,
 [`depends_on`](#dependencies), and [`harness_files`](#harness_files) only, and the manifest loader
 rejects any other key by name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`,
 `body`, `merged_from`, and `exclude` included. `invocation` is required, because an original has no

@@ -21,6 +21,17 @@ test("bootstrap and CI guard every generated Codex surface", () => {
   }
 });
 
+test("bootstrap and .gitignore keep a skill's default plan and spec folder out of the repository", () => {
+  const agents = readFileSync(join(root, "AGENTS.md"), "utf8");
+  const rules = agents.slice(agents.indexOf("## Always-on rules"), agents.indexOf("## Task routing")).split("\n- ");
+  const rule = rules.find((bullet) => bullet.includes("`docs/superpowers/`"));
+  assert.ok(rule, "an always-on rule must name the skills' default docs/superpowers/ folder");
+  assert.match(rule, /`docs\/engineering\/documentation\.md#handovers-and-plans`/);
+
+  const ignored = readFileSync(join(root, ".gitignore"), "utf8").split(/\r?\n/);
+  assert.ok(ignored.includes("docs/superpowers/"), ".gitignore must ignore docs/superpowers/");
+});
+
 test("README states the Codex Plugin host boundary", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
   const codex = readme.slice(readme.indexOf("### Codex from this repository marketplace"));
@@ -78,6 +89,31 @@ test("README lists each checkout Module's required Modules as its Bundle records
     ]),
   );
   assert.deepEqual(listed, recorded);
+});
+
+test("README names every model edge that makes General require Process", () => {
+  const readme = readFileSync(join(root, "README.md"), "utf8");
+  const start = readme.indexOf("General requires Process");
+  assert.ok(start >= 0, "README must say why General requires Process");
+  const reason = readme.slice(start, readme.indexOf("\n\n", start));
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8")) as Record<
+    string,
+    { claude: { edges?: { model?: string[] } } }
+  >;
+  const edges = Object.entries(ledger)
+    .filter(([key]) => key.startsWith("deniz-dotnet-general/"))
+    .flatMap(([key, entry]) =>
+      (entry.claude.edges?.model ?? [])
+        .filter((fact) => fact.startsWith("deniz-process:"))
+        .map((fact) => [key.split("/")[2] ?? "", fact.slice("deniz-process:".length)]),
+    );
+  assert.ok(edges.length > 0, "the ledger records no General to Process edge");
+  for (const [source, target] of edges) {
+    assert.ok(
+      reason.includes(`\`${source}\``) && reason.includes(`\`${target}\``),
+      `README's reason omits ${source} -> ${target}`,
+    );
+  }
 });
 
 test("OpenCode lab describes installer composition rather than a mounted build tree", () => {

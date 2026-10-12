@@ -34,6 +34,9 @@ contradicts recorded item intent; it never re-solves a runtime problem upstream 
 - Authored work belongs in `curation/`, `overlays/` and `overlays/overlays.lock.json`, original
   `skills/`, `tools/`, `docs/`, `experiments/`, or root public metadata such as `LICENSE` and
   `THIRD_PARTY_NOTICES.md`, according to the task owner below.
+- Keep plans and specifications outside the repository and never commit them, even where a planning
+  or design skill saves them under `docs/superpowers/` or prescribes a commit step
+  (`docs/engineering/documentation.md#handovers-and-plans`).
 - Before any item-level take, skip, merge, or modification decision, run `npm run inventory`, use the
   generated scanner-visible catalog to find candidates, and read the actual upstream source and
   dependency closure. Record the why beside the item in `curation/*.yaml`.

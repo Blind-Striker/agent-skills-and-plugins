@@ -1,6 +1,8 @@
 node_modules/
 .superpowers/
 .scratchpad/
+# Plans and specs stay outside the repository (docs/engineering/documentation.md "Handovers and plans").
+docs/superpowers/
 
 experiments/**/*.txt.text
 experiments/**/.claude-home/

@@ -131,8 +131,9 @@ Plans and specifications are transient execution material, not canonical or oper
 Keep them outside the repository, for example in a session scratchpad or another local temporary
 folder, and never commit them, so Git history keeps no copy of a new plan or specification. This
 overrides the in-repository default path, such as `docs/superpowers/`, and any commit step that a
-planning or design skill prescribes. Move durable conclusions to their proper homes before the work
-merges.
+planning or design skill prescribes. `.gitignore` ignores `docs/superpowers/` as a mechanical guard,
+so `git add` refuses a plan or specification saved there by default unless forced. Move durable
+conclusions to their proper homes before the work merges.
 
 ## Guarded prose and contradictions
 

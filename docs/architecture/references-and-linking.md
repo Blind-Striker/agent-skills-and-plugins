@@ -337,7 +337,7 @@ three trees, read in the Claude tree's spelling before rendering, and enforces e
 both directions: a fact no declaration names and a declaration no tree's fact names are both errors.
 An original skill declares its edges under
 [`original_skills`](../../curation/SCHEMA.md#original_skills). User-pointers, paths, and candidates
-are not dependency declarations. Only
+are not dependency declarations. Only an item's or an original skill's
 [`harness_files`](../../curation/SCHEMA.md#harness_files) make the trees differ in Markdown. The
 Claude tree holds the `claude` source of each mapping; no tree ships another harness's source in
 that spelling, so the linker assembles a curated item again, as the build does, and reads that
