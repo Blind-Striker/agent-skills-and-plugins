@@ -134,14 +134,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   note's
   [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
   The 2026-10-12 tier-2
-  [forward-test panel](../experiments/harness-invocation/verified-waves-panel.md) supports no claim
-  that the skill works in any harness: no prompt ran at least twice in a harness and passed every
-  time there
+  [forward-test panel](../experiments/harness-invocation/verified-waves-panel.md) supports one claim
+  that the skill works: P2 in OpenCode, at `76bc5c8` and on the model below, ran twice and passed
+  both times. No other prompt ran at least twice in a harness and passed every time there
   ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
   - OpenCode 2.0.26, on the free `opencode/muse-spark-1.3-contributor-free` model
     ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)): P2
-    passed in 1 of 3 attempts. P0, P1, P3, P4, P5a, P6, P7, and P8 each passed, observed once
-    (sample).
+    passed in 1 of 3 attempts on the text at `8bc8da3`, and in 2 of 2 attempts of a re-run at
+    `76bc5c8`, each in a fresh lab. P0, P1, P3, P4, P5a, P6, P7, and P8 each passed on the text at
+    `8bc8da3`, observed once (sample).
   - Claude Code 2.1.296
     ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md)): only
     P0's structural half ran, observed once (sample): the `init` event lists the skill. P0's
@@ -319,16 +320,19 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   P1 to P8 are not run in Claude Code, by curator decision, because Claude Code uses its native
   Workflow tool, so they are not gaps. The
   [OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) leg
-  failed one prompt. By prompt:
+  failed P2 on the text at `8bc8da3`, and a re-run at `76bc5c8` passed it. By prompt:
   - P0's model-surface half: skipped in Claude Code.
   - P1: skipped in Codex.
-  - P2: failed in OpenCode in 2 of 3 attempts, because children wrote results files without their
-    `REPORT` block (12 and 7 of 13), and one of the two reused an earlier attempt's run-id and wrote
-    over its ledger; skipped twice in Codex. The skill text now answers both causes: a brief's last
-    step puts the returned `REPORT` block first in the results file, the parent completes any
-    results file that lacks it, and a new run checks that its ledger directory does not exist yet.
-    The panel ran the text at `8bc8da3`, so no run has measured these rules; P2 needs new runs in
-    OpenCode and Codex.
+  - P2: skipped twice in Codex, so P2 needs runs there. In OpenCode it failed in 2 of 3 attempts
+    on the text at `8bc8da3`, because children wrote results files without their `REPORT` block
+    (12 and 7 of 13), and one of the two reused an earlier attempt's run-id and wrote over its
+    ledger. The skill text now answers both causes: a brief's last step puts the returned `REPORT`
+    block first in the results file, the parent completes any results file that lacks it, and a new
+    run checks that its ledger directory does not exist yet. A re-run at `76bc5c8` passed in 2 of 2
+    attempts: in each, all 13 children's results files started with their `REPORT` block, and the
+    session checked that its ledger directory was free before it created it. Each attempt ran in a
+    fresh lab, so no run has met an existing ledger directory or an incomplete results file: the
+    step that picks another run-id and the parent's completion of a results file are unmeasured.
   - P2 under Codex's multi-agent V2: skipped.
   - P3: skipped in Codex.
   - P4: skipped in Codex.
@@ -352,10 +356,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `using-superpowers` unpatched, so a session that loads both reads both rules.
 - **`verified-waves` notes that a sample contradicts or leaves open:** the OpenCode notes say that
   a ledger outside the project asks for `external_directory` permission, but in the OpenCode panel
-  no run raised a permission prompt for a ledger below the server's own temp root. The model there
-  also ended its turn after the plan in 3 of the 5 sessions that got the P2 prompt; `SKILL.md` now
-  says to start the first wave in the same turn as the plan, and no run has measured that. Each is
-  a sample, not a rate
+  no run raised a permission prompt for a ledger below the server's own temp root, in the first run
+  or in the P2 re-run. The model there also ended its turn after the plan in 3 of the 5 sessions
+  that got the P2 prompt. `SKILL.md` now says to start the first wave in the same turn as the plan,
+  and in the P2 re-run at `76bc5c8` the model still ended its turn after the plan in 1 of 2
+  attempts. Each is a sample, not a rate
   ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its

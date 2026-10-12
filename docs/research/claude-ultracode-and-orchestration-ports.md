@@ -598,5 +598,5 @@ The curator ruled on the first three points on 2026-10-12; the last stays open.
   [OpenCode 2](../../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md),
   and [Codex](../../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md).
   OpenCode's discovery reports the skill unadvertised; the model-facing listing in Claude Code and
-  Codex is unmeasured, and no harness meets the bar for saying the skill works, so the point stays
-  open.
+  Codex is unmeasured. Only one prompt meets the bar for saying the skill works: P2 in OpenCode, in
+  the record's re-run at `76bc5c8`. So the point stays open.

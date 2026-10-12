@@ -3,7 +3,7 @@ record_id: verified-waves-opencode-2026-10-12
 date: 2026-10-12
 repo_head: 8bc8da3bf070d14f568d1000c1b5b428473f0f0f
 kind: model-panel
-summary: On an isolated OpenCode 2.0.26 serve with the free opencode/muse-spark-1.3-contributor-free model, verified-waves passed P2 in 1 of 3 attempts (attempts 2 and 3 failed the results-file criterion, with 12 and 7 of their 13 children's results files lacking the REPORT block, and attempt 2 also wrote its ledger over attempt 1's under the same run-id), so this record claims no prompt works in OpenCode; P0, P1, P3, P4, P5a, P6, P7, and P8 passed once each (samples); the samples also show the model ending its turn after the plan in 3 of 5 audit sessions, 28 of 68 children's results files without their REPORT block, no session checking that its run-id was free, no permission prompt anywhere, and killed children that did not resume after a server restart.
+summary: On an isolated OpenCode 2.0.26 serve with the free opencode/muse-spark-1.3-contributor-free model, verified-waves passed P2 in 1 of 3 attempts (attempts 2 and 3 failed the results-file criterion, with 12 and 7 of their 13 children's results files lacking the REPORT block, and attempt 2 also wrote its ledger over attempt 1's under the same run-id), so the first run claims no prompt works in OpenCode; P0, P1, P3, P4, P5a, P6, P7, and P8 passed once each (samples); the samples also show the model ending its turn after the plan in 3 of 5 audit sessions, 28 of 68 children's results files without their REPORT block, no session checking that its run-id was free, no permission prompt anywhere, and killed children that did not resume after a server restart. A dated re-run of P2 after the fixes, at 76bc5c8 with each attempt in a fresh lab, passed in 2 of 2 attempts, with all 13 children's results files starting with their REPORT block in both; both sessions checked that the ledger directory was free, the peak was 6 live children in both, and 1 of the 2 still ended its turn after the plan (samples).
 isolation_ok: true
 fixture_sha: 0a83bab
 harness_name: opencode
@@ -23,7 +23,8 @@ Every count below is a sample, never a rate. Under the panel's [repeat budget](.
 only P2 ran more than once: the panel's two runs, plus a third that the run added after it first
 took attempt 2's ledger collision for lab residue (Method item 6). P2 passed in 1 of the 3, so no
 prompt meets the panel's bar for saying the skill works in OpenCode. Every other prompt is
-"observed once (sample)".
+"observed once (sample)". The [re-run after fixes](#re-run-after-fixes-2026-10-12) section at the
+end measures P2 again, on a later skill text.
 
 ## Method
 
@@ -247,3 +248,159 @@ The final report, cut to its first half:
   requested defect class.
 - **Not run here.** The panel's Claude-only probes (P5b, P7a–c) and Codex's V2 run have no OpenCode
   form.
+
+## Re-run after fixes (2026-10-12)
+
+This section adds a second measurement of P2 to the record. It does not change the rows above,
+which measured the skill text at `8bc8da3`. The re-run ran the panel's P2 prompt twice at
+`repo_head` `76bc5c85d6b0f28f081e934bb7f1f07f70190a7b`. That text has the fixes that answer the
+first run's findings. From `cf5f7d2`, the first wave starts in the plan's turn. From `d9dd055`, a
+brief's last step puts the returned `REPORT` block first in the results file, the parent completes
+a results file that does not start with it, and a new run checks that its ledger directory does not
+exist before it creates it. For this section, `runner_revision` is
+`sha256:ae8904cc34855d143d266f4ba156918da328a91ae15e9766890864883b34dda7`, read at that head with
+a clean tree. `harness_version` is `2.0.26` and `fixture_sha` is `0a83bab`, as above. Both attempts
+ran between 06:49Z and 06:55Z.
+
+### Method of the re-run
+
+1. **A fresh lab per attempt.** Each attempt had its own new, empty lab root outside the repository
+   and the user profile, and it ran with no other lab in use. Below, `<LAB>` is that attempt's own
+   root. Each lab was built as in Method items 1 to 3: `Use-OpenCodeIsolation`, the installer
+   (`npm run install:opencode '--' install --module deniz-process --yes`, with the npm cache in the
+   lab), and `make-fixture.ps1 -Set waves`. `npm test` passed in each fixture (6 tests).
+2. **The current Bundle.** `npm run build` at `76bc5c8` left the checkout clean, so the generated
+   `opencode/` tree was current. In each lab, the installed `SKILL.md` and
+   `references/harness-tools.md` of `deniz-process.verified-waves` had the same SHA-256 as the
+   checkout's generated Bundle (Process 0.10.0, 41 skills).
+3. **Discovery and isolation.** `oc2-discovery.ps1 -Lab <LAB>/.opencode-home` passed its
+   containment check in each lab: 43 skills, 41 Process and 2 built-in, 21 not advertised, and
+   `deniz-process.verified-waves` with `advertised: false`. Each attempt had its own
+   `opencode serve` with the allowlist environment of Method item 1. The server's environment held
+   only system and lab variable names. `/api/info` reported `version: 2.0.26` and a temp root below
+   `<LAB>/.opencode-home`. No OpenCode command ran outside a lab environment.
+4. **Model.** The same `opencode/muse-spark-1.3-contributor-free`, with no variant and no
+   credential. A `LIVE-OK` liveness prompt passed in each lab before the panel prompt. The provider
+   reported cost 0 for all 163 assistant messages (94 and 69), so cost cells are blank.
+5. **Driver and operator.** The driver of Method item 5, with the same operator policy for
+   permission requests, forms, and a turn that ends mid-task (`Proceed.`). It has no ledger archive
+   step. Before the prompt it reset the fixture, checked HEAD `0a83bab` with a clean status, and
+   refused to start if any `verified-waves` directory existed in the lab. None existed before either
+   attempt. The driver files are uncommitted. Their concatenated SHA-256 (`panel.mjs`, `api.mjs`,
+   `serve.ps1`, `setup.ps1`, `analyze.mjs`) was
+   `sha256:9eb489fe74b0b37f40a42d0dbb77add9d1c254e8abdb1e1f3b3245be7c5db6e2`.
+6. **What a fresh lab cannot show.** No earlier ledger existed in either lab. So the re-run shows
+   whether a session checks that its ledger directory is free, but not what it does when the
+   directory exists.
+
+### Results of the re-run
+
+As above, `tools_observed` counts the parent's `subagent` calls. Every call used `agent: general`
+and `background: true`, and left `model` and `sessionID` unset. "Peak live" is the most child
+sessions whose first and last messages overlap in time. The driver's own poll of active sessions
+gave the same peak.
+
+| model | probe_id | status | cost | tools_observed | notes |
+|---|---|---|---:|---|---|
+| `opencode/muse-spark-1.3-contributor-free` | P2 | pass |  | `subagent` ×13 | re-run attempt 1. Before the plan, a shell call ran `Test-Path` on `<LAB>/.opencode-home/.tmp/opencode/verified-waves/20261012-boundary-audit` and got `NOT_EXISTS`. The plan (goal, done-when 1–3, stop-when, shape, 6 audit items, waves, agent total 20 with skeptics counted, ceiling 6, verification plan) and the ledger path came first. Its last line said "Starting Wave 1 now", but the turn ended with no tool call, and the operator replied `Proceed.`. quota:16, ttl:27, and window:18 were each CONFIRMED by two fresh skeptics (reproduce and contract); budget was reported clean; a completeness critic ran ("GAPS: NONE"). 13 of 13 children wrote a results file that starts with `REPORT <id>`; the parent changed none of them. "All 6 modules have DONE reports", "DONE 13", "Agents used: 13 of 20". Peak live 6; status clean, HEAD `0a83bab` |
+| `opencode/muse-spark-1.3-contributor-free` | P2 | pass |  | `subagent` ×13 | re-run attempt 2. Before it created the ledger, the parent listed the server's temp root `<LAB>/.opencode-home/.tmp/opencode` and got 0 entries. It wrote the ledger, then the plan (goal, done-when D1–D3, stop-when, shape, 6 audit items and a critic, waves, agent total 20, ceiling 6, verification plan) with the ledger path, then created `results/` and started the 6 audits, all in the first turn. There was no operator message after the prompt. quota:16, ttl:27, and window:18 were each CONFIRMED by two fresh skeptics (reproduce and contract); budget was reported clean; a completeness critic ran. 13 of 13 children wrote a results file that starts with `REPORT <id>`; the parent changed none of them. "D1 (6/6 modules audited): PASS", "DONE (13)", "Agents used: 13 of announced 20". Peak live 6; status clean, HEAD `0a83bab` |
+
+### Comparison with the first run
+
+| Measure | First run, text at `8bc8da3` | Re-run, text at `76bc5c8` |
+|---|---|---|
+| P2 status | pass in 1 of 3 attempts | pass in 2 of 2 attempts |
+| First wave in the plan's turn, with no `Proceed.` | 1 of 3 P2 attempts (attempt 3); in all, 2 of the 5 sessions that got the P2 prompt (P2 attempt 3 and P4) | 1 of 2 (attempt 2) |
+| Children's results files with the `REPORT` block | 13 of 13, 1 of 13, and 6 of 13 held it | 13 of 13 and 13 of 13; each also starts with `REPORT <id>` |
+| Peak live children | 6, 6, and 6 | 6 and 6 |
+| Ledger-directory check before creation | none in any session | both: an exact `Test-Path` (attempt 1), a listing of the temp root (attempt 2) |
+| Run-id | `2026-10-12-boundary-audit` in all three, in one shared lab | `20261012-boundary-audit` in both, each in its own fresh lab |
+| Final N of M | attempt 3: "All 6 modules audited — PASS (audit_01..06 DONE)", "DONE 13" | attempt 1: "All 6 modules have DONE reports", "DONE 13", "Agents used: 13 of 20"; attempt 2: "D1 (6/6 modules audited): PASS", "DONE (13)", "Agents used: 13 of announced 20" |
+
+The first run counted files that hold the `REPORT` block anywhere. The skill now requires the file
+to start with it, so the re-run counts that stricter form. No file in the re-run needed the
+parent's fix, so that rule was not exercised.
+
+At `76bc5c8`, on this model, P2 ran twice in OpenCode and passed both times. That meets the panel's
+bar for P2: for P2 alone, at this text and on this model, the record may say that the skill works
+in OpenCode. It is 2 of 2, a sample, not a rate. The panel's P2 criteria for OpenCode do not include
+the stop after the plan, and attempt 1 still stopped there. So the rule to start the first wave in
+the plan's turn held in 1 of 2 attempts (sample). The other prompts did not run again; their rows
+above measured the text at `8bc8da3`.
+
+### Excerpts from the re-run
+
+Absolute paths are replaced by `<LAB>`, and some text is shortened to `…`.
+
+Attempt 1, the run-id check before the plan, and the end of the plan turn:
+
+```text
+TOOL shell in={"command":"if (Test-Path \"<LAB>\\.opencode-home\\.tmp\\opencode\\verified-waves\\20261012-boundary-audit\") { Write-Output \"EXISTS\" } else { Write-Output \"NOT_EXISTS\" }; …"}
+  -> NOT_EXISTS
+…
+**Ledger:** `<LAB>\.opencode-home\.tmp\opencode\verified-waves\20261012-boundary-audit\ledger.md` (never committed). Permission note: the first write there will prompt for `external_directory` — answering "always" for the ledger directory covers the children's results-file writes too.
+
+Starting Wave 1 now — creating the ledger + `results/` first, then dispatching the 6 auditors.
+[06:49:39] IDLE succeeded
+[06:50:26] USER: Proceed.
+```
+
+Attempt 2, the first turn, from the temp-root listing to the first dispatch, with the plan cut to
+its first items:
+
+```text
+TOOL read in={"path":"<LAB>\\.opencode-home\\.tmp\\opencode"}
+  -> Read directory <LAB>\.opencode-home\.tmp\opencode, 0 entries
+TEXT: Plan is ready — launching the sweep waves.
+TOOL write in={"content":"# Verified Waves ledger — boundary audit\n…","path":"<LAB>\\…\\verified-waves\\20261012-boundary-audit\\ledger.md"}
+  -> Created file successfully: <LAB>/.opencode-home/.tmp/opencode/verified-waves/20261012-boundary-audit/ledger.md
+TEXT: **Plan — boundary-error sweep over `src/` (not small, so fanning out)**
+1. **Goal**: Audit every module under `src/` for off-by-one limit/window/expiry errors against its own documented contract.
+2. **Done when** (binary): D1 — all 6 modules have a well-formed `REPORT` …; D2 — every material finding sent to a fresh skeptic …; D3 — one completeness critic ran over scope + ledger.
+3. **Stop when**: permission denial stops that path (reported, no workaround); agent total 20 reached; zero findings skips skeptic waves.
+…
+Ledger: `<LAB>\.opencode-home\.tmp\opencode\verified-waves\20261012-boundary-audit\ledger.md` (never committed).
+TOOL shell in={"command":"mkdir -p \"<LAB>\\…\\20261012-boundary-audit\\results\" ; ls …"}
+TOOL subagent in={"agent":"general","background":true,"description":"audit_budget boundary sweep","prompt":"ITEM audit_budget — read\nGOAL: Audit src/budget.js for off-by-one boundary errors. …"}
+```
+
+Attempt 2, a results file as the child wrote it, cut after its `REPORT` block:
+
+```text
+REPORT audit_quota
+STATUS: DONE
+SUMMARY: Audited both functions in src/quota.js against module JSDoc. One off-by-one defect in allow(); remaining() is correct.
+FINDINGS: - [high] allow() off-by-one: doc requires refuse at used==limit but code allows — src/quota.js:16 — confidence h
+FILES CHANGED: <LAB>\…\results\audit_quota.md   CHECKS: mental edge test (limit-1/limit/limit+1) → PASS (defect confirmed) | NOT RUN (no test suite executed, read-only scope)
+OPEN: none        RESULTS: <LAB>\…\results\audit_quota.md
+
+DETAIL
+Target: <LAB>/project/waves-repo/src/quota.js (28 lines, read in full).
+…
+```
+
+Attempt 2, the final report, cut to its first part:
+
+```text
+**Final report — boundary-error sweep over `src/`**
+Outcome vs done-when:
+- D1 (6/6 modules audited): PASS — all 6 have well-formed `REPORT` + results files starting with `REPORT <id>`.
+- D2 (every material finding skeptically verified): PASS — 3 material findings, each sent to 2 fresh skeptics (reproduce + contract); 6/6 CONFIRMED.
+- D3 (completeness critic ran): PASS — `critic_complete` DONE, no gaps.
+Counts:
+- DONE (13): `audit_budget`, `audit_paginate`, `audit_quota`, `audit_retry`, `audit_ttl`, `audit_window`, `sk_window_rep`, `sk_window_con`, `sk_quota_rep`, `sk_quota_con`, `sk_ttl_rep`, `sk_ttl_con`, `critic_complete`
+- PARTIAL: 0. BLOCKED: 0. FAILED: 0. UNVERIFIED: 0.
+```
+
+### Notes on the re-run
+
+- **Ledger path.** Both attempts put the ledger at
+  `<LAB>/.opencode-home/.tmp/opencode/verified-waves/20261012-boundary-audit/`, below the server's
+  own temp root. Both chose the same run-id. In one shared lab, the second attempt would have met
+  the first one's directory.
+- **Permission prompts and forms.** None in either attempt, for the parent or for any child.
+- **Agent total.** Both attempts announced a total of 20 with the skeptics counted, and used 13,
+  so no yes/no question about the total came up (sample).
+- **The ledger log.** In both attempts the rows were updated at each event. The log lines after the
+  creation line were written in one edit at the end, and that edit left the creation line in a
+  second log section (sample).
