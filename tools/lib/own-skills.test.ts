@@ -69,6 +69,22 @@ test("a symlinked original skill is named, not followed", (t) => {
   ]);
 });
 
+test("a symlinked skills/<plugin> folder is named, and its declarations wait for a real directory", (t) => {
+  const root = mkdtempSync(join(tmpdir(), "own-skills-"));
+  plantSkill(root, "elsewhere/real", "real");
+  mkdirSync(join(root, "skills"));
+  try {
+    symlinkSync(join(root, "elsewhere"), join(root, "skills", "deniz-general"), "dir");
+  } catch {
+    t.skip("creating symlinks requires elevated privileges on this platform");
+    return;
+  }
+
+  assert.deepEqual(collectOriginalSkillProblems(root, [generalManifest(["real"])]), [
+    "skills/deniz-general is a symlink — original skills are real directories, and the build never follows a link",
+  ]);
+});
+
 test("an original SKILL.md whose frontmatter does not parse is named", () => {
   const root = mkdtempSync(join(tmpdir(), "own-skills-"));
   mkdirSync(join(root, "skills", "deniz-general", "broken"), { recursive: true });
