@@ -155,11 +155,19 @@ function Get-ScratchRepo {
     return (Join-Path (Get-LabRoot) "project\scratch-repo")
 }
 
+function Get-WavesRepo {
+    <#  The verified-waves panel's fixture repository, the `waves` set of make-fixture.ps1.  #>
+    return (Join-Path (Get-LabRoot) "project\waves-repo")
+}
+
 function Get-FixtureBaseline {
-    <#  The commit every probe must start from. Written by make-fixture.ps1 rather than typed, so
+    <#  The commit every probe must start from: fixtures\BASELINE for the scratch set and
+        fixtures\WAVES_BASELINE for the waves set. Written by make-fixture.ps1 rather than typed, so
         the value cannot drift away from the tree it names.  #>
-    $f = Join-Path $script:HereRoot "fixtures\BASELINE"
-    if (-not (Test-Path $f)) { throw "no fixtures\BASELINE - run fixtures\make-fixture.ps1 first" }
+    param([ValidateSet("scratch", "waves")] [string] $Set = "scratch")
+    $name = if ($Set -eq "waves") { "WAVES_BASELINE" } else { "BASELINE" }
+    $f = Join-Path $script:HereRoot "fixtures\$name"
+    if (-not (Test-Path $f)) { throw "no fixtures\$name - run fixtures\make-fixture.ps1 -Set $Set first" }
     return (Get-Content $f -Raw).Trim()
 }
 
@@ -167,12 +175,14 @@ function Reset-Scratch {
     <#  `git reset --hard` plus `clean -fdx`, NOT checkout-and-clean. The ceremony under test ends
         with "commit your work" and obeys it, so HEAD itself moves and a later HEAD~1..HEAD means
         something different on every run. One round published a finding that was purely this: the
-        function under test had already been written by an earlier probe.  #>
-    param([string] $Repo)
-    $target = if ($Repo) { $Repo } else { Get-ScratchRepo }
+        function under test had already been written by an earlier probe.
+
+        -Set picks the fixture set: its baseline and, without -Repo, its repository in the lab.  #>
+    param([string] $Repo, [ValidateSet("scratch", "waves")] [string] $Set = "scratch")
+    $target = if ($Repo) { $Repo } elseif ($Set -eq "waves") { Get-WavesRepo } else { Get-ScratchRepo }
     Push-Location $target
     try {
-        git reset --hard (Get-FixtureBaseline) 2>&1 | Out-Null
+        git reset --hard (Get-FixtureBaseline -Set $Set) 2>&1 | Out-Null
         git clean -fdxq 2>&1 | Out-Null
     } finally { Pop-Location }
 }

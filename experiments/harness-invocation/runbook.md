@@ -109,5 +109,7 @@ deliberate: liveness output and partial attempt evidence must not be silently lo
 and even an empty claim is a conservative collision marker. Move the claimed path before retrying;
 unrelated interactive harness sessions do not write to it.
 
+Forward-test panel for the `verified-waves` skill: [verified-waves-panel.md](verified-waves-panel.md).
+
 Follow the [protocol](protocol.md) when designing a probe and write committed evidence according to
 the [records schema](records/README.md). Full raw transcripts remain in the external lab.

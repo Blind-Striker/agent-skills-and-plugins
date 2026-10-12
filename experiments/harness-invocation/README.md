@@ -13,6 +13,7 @@ pwsh -File experiments/harness-invocation/selftest.ps1 -SkipLab
 - [Protocol](protocol.md): isolation, probe design, controls, and recording method
 - [Runbook](runbook.md): operator commands
 - [Records](records/README.md): committed evidence tiers and schema
+- Forward-test panel for the `verified-waves` skill: [verified-waves-panel.md](verified-waves-panel.md)
 
 The Codex leg uses `codex-matrix.ps1`: its default path is credential-free structural marketplace,
 install, cache, and removal verification; `-Behavioural` additionally requires credentials already

@@ -505,6 +505,72 @@ Test-That "the generator reproduces the recorded baseline" {
     } finally { if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } }
 }
 
+Test-That "the waves generator reproduces WAVES_BASELINE" {
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("wavchk-" + [guid]::NewGuid().ToString("N"))
+    try {
+        $sha  = & (Join-Path $PSScriptRoot "fixtures\make-fixture.ps1") -Set waves -Destination $tmp -Quiet
+        $want = (Get-Content (Join-Path $PSScriptRoot "fixtures\WAVES_BASELINE") -Raw).Trim()
+        if ($sha -eq $want) { $true } else { "generated $sha, WAVES_BASELINE says $want" }
+    } finally { if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } }
+}
+
+Test-That "the waves generator writes nested paths" {
+    # The scratch set copies one flat file per commit. The waves set is one commit of files under
+    # src/ and test/, and a loop that flattens them still commits nine files, under the wrong names.
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("wavtree-" + [guid]::NewGuid().ToString("N"))
+    try {
+        & (Join-Path $PSScriptRoot "fixtures\make-fixture.ps1") -Set waves -Destination $tmp -Quiet | Out-Null
+        $want = @("package.json", "src/budget.js", "src/paginate.js", "src/quota.js", "src/retry.js",
+                  "src/ttl.js", "src/window.js", "test/paginate.test.js", "test/retry.test.js")
+        $tracked = @(git -C $tmp ls-files)
+        if (($tracked -join ",") -cne ($want -join ",")) { return "tracked: $($tracked -join ', ')" }
+        foreach ($p in "src/quota.js", "test/paginate.test.js") {
+            if (-not (Test-Path -LiteralPath (Join-Path $tmp $p) -PathType Leaf)) { return "missing on disk: $p" }
+        }
+        $flat = @(Get-ChildItem -LiteralPath $tmp -File -Filter *.js | ForEach-Object Name)
+        if ($flat) { return "flat copies at the root: $($flat -join ', ')" }
+        $true
+    } finally { if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue } }
+}
+
+Test-That "Reset-Scratch -Set waves returns a dirtied waves repo to its own baseline" {
+    # Each set resets to its own baseline. The scratch baseline names no commit in the waves repo,
+    # so a reset that ignores -Set fails there and leaves the probe's commit in place.
+    $tmp = Join-Path ([IO.Path]::GetTempPath()) ("wavres-" + [guid]::NewGuid().ToString("N"))
+    try {
+        $base = & (Join-Path $PSScriptRoot "fixtures\make-fixture.ps1") -Set waves -Destination $tmp -Quiet
+        $recorded = Get-FixtureBaseline -Set waves
+        if ($recorded -ne $base) { return "Get-FixtureBaseline -Set waves is $recorded, the generator built $base" }
+        Push-Location $tmp
+        try {
+            Set-Content -Path (Join-Path $tmp "src\extra.js") -Value "export const x = 1;"
+            "// dirtied" | Add-Content -Path (Join-Path $tmp "src\quota.js")
+            git add -A 2>&1 | Out-Null
+            $env:GIT_AUTHOR_NAME = "probe"; $env:GIT_AUTHOR_EMAIL = "probe@local"
+            $env:GIT_COMMITTER_NAME = "probe"; $env:GIT_COMMITTER_EMAIL = "probe@local"
+            git commit -q -m "commit your work" 2>&1 | Out-Null
+            New-Item -ItemType Directory -Path (Join-Path $tmp "results") | Out-Null
+            Set-Content -Path (Join-Path $tmp "results\untracked.md") -Value "residue"
+        } finally { Pop-Location }
+        if ((git -C $tmp rev-parse --short HEAD).Trim() -eq $base) { return "the setup never moved HEAD; the test proves nothing" }
+        Reset-Scratch -Repo $tmp -Set waves
+        $head   = (git -C $tmp rev-parse --short HEAD).Trim()
+        $dirty  = (git -C $tmp status --porcelain --untracked-files=all)
+        $branch = git -C $tmp symbolic-ref -q --short HEAD
+        if (-not $branch) { return "HEAD is detached - a checkout, not a reset; the branch still holds the commit" }
+        $tip = (git -C $tmp rev-parse --short $branch).Trim()
+        if ($head -ne $base) { return "HEAD is $head, waves baseline is $base - reset did not undo the commit" }
+        if ($tip -ne $base)  { return "branch $branch is at $tip, waves baseline is $base - the commit is still reachable" }
+        if ($dirty)          { return "tree still dirty: $($dirty -replace '\s+', ' ')" }
+        $true
+    } finally {
+        foreach ($v in "GIT_AUTHOR_NAME","GIT_AUTHOR_EMAIL","GIT_COMMITTER_NAME","GIT_COMMITTER_EMAIL") {
+            Remove-Item "Env:$v" -ErrorAction SilentlyContinue
+        }
+        if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+}
+
 Test-That "the generator restores the shell it borrowed" {
     $depthBefore = (Get-Location -Stack).Count
     $cwdBefore   = (Get-Location).Path
