@@ -176,9 +176,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    rather than assumed by the first.
    For original skills, the pressure points are additional original skills, manual original posture,
    per-harness files for the orchestration skill of item 3, and load-bearing outgoing edges that
-   review-only protection cannot guard. Original skills can already be guarded targets; how far
-   their declaration reaches today is the original-skill gap under [Known Gaps](#known-gaps). The
-   planned surface can be keyed by the existing top-level skill directory:
+   review-only protection cannot guard. Original skills can already be guarded targets, and the
+   declaration surface is implemented ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills));
+   writing-tunit-tests's handoffs below are the remaining step. Its planned declaration:
 
    ```yaml
    original_skills:
@@ -215,8 +215,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    accepts a skill whose instructions say to call it as the user's opt-in; OpenCode's run background
    `subagent` waves; Codex's run `spawn_agent` waves sized to the configured thread limit, 6 by
    default. Its manifest side is an `original_skills` declaration with `invocation: manual` and
-   `harness_files` ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)). It waits only for
-   the original-skill gap under [Known Gaps](#known-gaps) to close, not for the rest of item 2.
+   `harness_files` ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)).
    The curator-approved prior-art approaches, the rejected ones, and the skill outline are in the
    research note's
    [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
@@ -316,10 +315,6 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   ([references and linking](architecture/references-and-linking.md#harness-phrasing)).
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
-- **Original-skill declarations are partial:** a declaration states an original's invocation,
-  `depends_on`, and `harness_files`, which all three harnesses and the linker honor, but the ledger
-  does not list it: `writeLedger` in [`tools/lib/ledger.ts`](../tools/lib/ledger.ts) iterates
-  manifest items only.
 - **Manifest keys outside the grammar are ignored:** `loadManifest` in
   [`tools/lib/manifest.ts`](../tools/lib/manifest.ts) rejects an unknown key only inside an
   `original_skills` declaration. An unknown top-level or item key, such as a misspelled

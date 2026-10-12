@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import { buildAll } from "../build.ts";
-import { makeRepo, opencodeIdPath } from "../testutil.ts";
+import { addOriginalSkill, makeRepo, opencodeIdPath } from "../testutil.ts";
 import { everListedNames } from "./ledger.ts";
 
 test("the build writes a deterministic ledger describing each item's resolved state per harness", () => {
@@ -173,6 +173,47 @@ test("the ledger records only boolean invocation flags from emitted Claude skill
   assert.equal("flags" in ledger["deniz-process/skill/nonboolean-flag"].claude, false);
   assert.equal("flags" in ledger["deniz-process/command/upstream-flag-command"].claude, false);
   assert.equal("flags" in ledger["deniz-process/agent/upstream-flag-agent"].claude, false);
+});
+
+test("the ledger lists each original skill under its own key with an own-source marker", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-auto", {
+    declaration: { invocation: "auto", depends_on: ["delta"] },
+    body: "Load superpowers:delta.\n",
+  });
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  addOriginalSkill(root, "own-both", { declaration: { invocation: "both" } });
+  buildAll(root);
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  const auto = ledger["deniz-process/skill/own-auto"];
+  assert.equal(auto.source, "skills/deniz-process/own-auto");
+  assert.equal(auto.original, true);
+  assert.equal(auto.invocation, "auto");
+  assert.deepEqual(auto.dependsOn, ["delta"]);
+  assert.deepEqual(auto.claude, {
+    artifacts: ["skill"],
+    edges: { model: ["deniz-process:delta"], pointer: [] },
+    flags: { "user-invocable": false },
+  });
+  assert.deepEqual(auto.opencode, {
+    artifacts: ["skill"],
+    identity: "deniz-process.own-auto",
+    advertised: true,
+    edges: { model: ["deniz-process.delta"], pointer: [] },
+    dropped: [],
+  });
+  assert.equal(auto.codex.implicit, "enabled");
+  assert.deepEqual(auto.codex.policyFiles, []);
+  assert.deepEqual(auto.codex.edges.model, ["$deniz-process:delta"]);
+  const manual = ledger["deniz-process/skill/own-manual"];
+  assert.deepEqual(manual.claude.flags, { "disable-model-invocation": true });
+  assert.equal(manual.opencode.advertised, false);
+  assert.equal(manual.codex.implicit, "disabled");
+  assert.deepEqual(manual.codex.policyFiles, ["agents/openai.yaml"]);
+  const both = ledger["deniz-process/skill/own-both"];
+  assert.equal("flags" in both.claude, false);
+  assert.equal(both.opencode.advertised, true);
+  assert.equal("original" in ledger["deniz-process/skill/delta"], false, "a curated entry carries no marker");
 });
 
 test("everListedNames reads every top-level key any committed ledger listed", () => {

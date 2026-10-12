@@ -17,7 +17,7 @@ import {
 import { listFiles } from "./overlay.ts";
 import { ownSkillIdentities } from "./own-skills.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
-import { resolveItem } from "./resolve.ts";
+import { declaredItems } from "./resolve.ts";
 import { buildRewriteMap } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
@@ -44,6 +44,8 @@ interface OpenCodeState {
 }
 interface LedgerEntry {
   source: string;
+  /** An original skill under `skills/<plugin>/<name>/`; a curated entry carries no marker. */
+  original?: true;
   invocation?: string;
   body?: string;
   mergedFrom?: string[];
@@ -118,27 +120,18 @@ export function writeLedger(
   // skill, so an edge's OpenCode pointer prefix comes from the target's kind, not from parsing output.
   const kindOf = new Map<string, ComponentType>();
   for (const m of manifests) {
-    for (const item of m.items) {
-      if (!item.exclude) {
-        const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
-        kindOf.set(`${m.plugin.name}:${outName}`, outType);
-      }
+    for (const { outName, outType } of declaredItems(root, m, components)) {
+      kindOf.set(`${m.plugin.name}:${outName}`, outType);
     }
-  }
-  const ownSkills = ownSkillIdentities(root, manifests);
-  for (const own of ownSkills) {
-    kindOf.set(own.address, "skill");
   }
   // Claude spelling of a neutral harness file that only another tree ships, so its facts are read
   // as the Claude tree would read them (ADR-0008: detection never runs on rendered output).
-  const rewriteMap = buildRewriteMap(manifests, components, ownSkills);
+  const rewriteMap = buildRewriteMap(manifests, components, ownSkillIdentities(root, manifests));
   const ledger: Record<string, LedgerEntry> = {};
   for (const m of manifests) {
-    for (const item of m.items) {
-      if (item.exclude) {
-        continue;
-      }
-      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
+    // One entry per declared item: a curated item and an original skill alike. `intent` holds the
+    // invocation, dependencies, and harness files of both; body mode and merge sources are curated.
+    for (const { outName, outType, source, intent, item } of declaredItems(root, m, components)) {
       const ledgerId = `${m.plugin.name}/${outType}/${outName}`;
       const claudeDir = join(
         root,
@@ -162,7 +155,7 @@ export function writeLedger(
       const neutral = assembled.find(
         (candidate) =>
           candidate.plugin === m.plugin.name &&
-          candidate.source === item.source &&
+          candidate.source === source &&
           candidate.outName === outName &&
           candidate.outType === outType,
       );
@@ -171,12 +164,12 @@ export function writeLedger(
       }
       const neutralDoc = parseDoc(readFileSync(join(neutral.dir, "SKILL.md"), "utf8"));
       const codexAdaptation = adaptCodexSkillDocument(outName, neutralDoc);
-      const codexInvocation = resolveCodexInvocation(item.invocation);
+      const codexInvocation = resolveCodexInvocation(intent.invocation);
       const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);
       const claudeEdges = edgesIn(claudeFiles, ownNs);
       // Each tree ships its own harness files (curation/SCHEMA.md harness_files), so a tree's edges are
       // the shared Markdown plus that tree's own sources; without a mapping every tree ships the same.
-      const harnessFiles = item.harness_files;
+      const harnessFiles = intent.harness_files;
       const shipped = claudeFiles.map((f) => ({
         path: relative(claudeDir, f).split(sep).join("/"),
         text: readFileSync(f, "utf8"),
@@ -207,20 +200,21 @@ export function writeLedger(
       // cannot drift from what was written.
       const identity = openCodeId(m.plugin.name, outName);
       const ocSkill =
-        outType === "skill" ? adaptOpenCodeSkillDocument(identity, neutralDoc, item.invocation) : undefined;
+        outType === "skill" ? adaptOpenCodeSkillDocument(identity, neutralDoc, intent.invocation) : undefined;
       const ocDropped =
         ocSkill?.dropped ??
         (outType === "command" ? adaptOpenCodeCommandDocument(neutralDoc) : adaptOpenCodeAgentDocument(neutralDoc))
           .dropped;
       const ocTransformations = ocSkill?.transformations ?? [];
       const entry: LedgerEntry = {
-        source: item.source,
-        ...(item.invocation ? { invocation: item.invocation } : {}),
-        ...(item.body ? { body: item.body } : {}),
+        source,
+        ...(item ? {} : { original: true as const }),
+        ...(intent.invocation ? { invocation: intent.invocation } : {}),
+        ...(item?.body ? { body: item.body } : {}),
         // Addresses only: which files a merge drew from is a guard detail, and the lock's
         // `mergeSources` map is already the review surface for it.
-        ...(item.merged_from ? { mergedFrom: item.merged_from.map((ms) => ms.source).sort() } : {}),
-        ...(item.depends_on ? { dependsOn: [...item.depends_on].sort() } : {}),
+        ...(item?.merged_from ? { mergedFrom: item.merged_from.map((ms) => ms.source).sort() } : {}),
+        ...(intent.depends_on ? { dependsOn: [...intent.depends_on].sort() } : {}),
         ...(harnessFiles
           ? {
               harnessFiles: Object.fromEntries(

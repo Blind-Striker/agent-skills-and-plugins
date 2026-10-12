@@ -152,9 +152,9 @@ either marketplace, `docs/inventory.md`, or `docs/ledger.json` differs from what
 checked in, so run `npm run build && npm run inventory` and commit the result
 with any curation change or submodule bump. The build compiles the installer to
 `dist/` and formats that committed JavaScript; consumers do not compile it.
-`docs/ledger.json` is the resolved state of every curated item per harness
-(invocation, artifacts, references, dropped keys); its diff is how a posture
-change, yours or upstream's, shows up in review.
+`docs/ledger.json` is the resolved state of every curated item and original skill
+per harness (invocation, artifacts, references, dropped keys); its diff is how a
+posture change, yours or upstream's, shows up in review.
 
 ## Consuming
 

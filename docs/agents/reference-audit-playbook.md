@@ -1,6 +1,6 @@
 # Reference-audit playbook
 
-Date: 2026-10-08
+Date: 2026-10-12
 
 A repeatable sweep over **emitted output** for reference problems the deterministic gates cannot
 decide. [References and linking](../architecture/references-and-linking.md) owns the current
@@ -26,7 +26,8 @@ Stop if any command fails. The inventory, ledger, and emitted trees must describ
 
 Names are output identities, not assumed source-directory basenames. The build resolves an item in
 this order: item-level `name:`, scanner/frontmatter name, then source basename. The ledger already
-contains that result for taken manifest items; own skills need the emitted frontmatter name added.
+contains that result for every taken manifest item and for every original skill, which it lists under
+its directory name.
 
 Set the module under review, then run the derivation from the repository root:
 
@@ -37,7 +38,6 @@ $sets = @'
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { parse } from "yaml";
-import { parseDoc } from "./tools/lib/frontmatter.ts";
 
 const plugin = process.argv[2];
 const ledger = JSON.parse(readFileSync("docs/ledger.json", "utf8"));
@@ -70,18 +70,6 @@ for (const [key, entry] of Object.entries(ledger)) {
   }
 }
 
-const ownRoot = join("skills", plugin);
-if (existsSync(ownRoot)) {
-  for (const dir of readdirSync(ownRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory())) {
-    const emitted = join("plugins", plugin, "skills", dir.name, "SKILL.md");
-    if (!existsSync(emitted)) continue;
-    const name = String(parseDoc(readFileSync(emitted, "utf8")).frontmatter.name ?? dir.name);
-    taken.add(name);
-    const opencodePath = `${opencodeRoot}/skills/${plugin}.${name}`;
-    if (existsSync(opencodePath)) paths.add(opencodePath);
-  }
-}
-
 const excluded = new Set(
   manifest.items
     .filter((item) => item.exclude === true)
@@ -108,8 +96,8 @@ console.log(JSON.stringify({
 ```
 
 Inspect `$sets` before scanning. The sets must be disjoint, every path must exist, an explicitly
-renamed item must appear under its output name, and an own skill must appear under its emitted
-frontmatter name. Treat a failure here as a derivation defect, not permission to type a list by hand.
+renamed item must appear under its output name, and an original skill must appear under its
+directory name. Treat a failure here as a derivation defect, not permission to type a list by hand.
 
 ## Build a candidate pattern
 

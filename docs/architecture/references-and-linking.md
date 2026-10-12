@@ -1,6 +1,6 @@
 # References and linking
 
-Date: 2026-10-11
+Date: 2026-10-12
 
 ## Responsibility
 
@@ -361,10 +361,11 @@ in the committed [records](../../experiments/harness-invocation/records/README.m
 ## Ledger semantics
 
 `docs/ledger.json` is regenerated after all three trees have their final reference spelling. Each
-non-excluded manifest item has one key shaped
-`<plugin>/<resolved-output-kind>/<output-name>`. The key keeps the bare output name; the OpenCode ID
-is not part of it. Each item emits one OpenCode artifact of its resolved kind, so a skill resolved as
-`manual` remains under `/skill/` and its OpenCode artifact list records a skill.
+non-excluded manifest item and each original skill declared under `original_skills` has one key
+shaped `<plugin>/<resolved-output-kind>/<output-name>`; an original skill's key is
+`<plugin>/skill/<directory>`. The key keeps the bare output name; the OpenCode ID is not part of
+it. Each item emits one OpenCode artifact of its resolved kind, so a skill resolved as `manual`
+remains under `/skill/` and its OpenCode artifact list records a skill.
 
 Each entry projects the review-relevant state: source, declared invocation and body mode,
 merge-source addresses, declared dependencies, emitted artifact kinds, description, own fact edges
@@ -375,12 +376,13 @@ capabilities, policy files, metadata drops, and body transformations. OpenCode a
 respelled from the known neutral facts rather than rediscovered from final text. An item with
 `harness_files` also records that mapping, and each tree's edges come from the Markdown that tree
 ships: the shared files plus its own harness's sources, read in their neutral form from the
-assembly.
+assembly. An original skill's entry records its `skills/<plugin>/<directory>` source followed by
+`original: true`, a marker no curated entry carries, and has no body mode or merge sources; its
+invocation, dependencies, and harness files come from its declaration.
 
 The ledger is deterministic but intentionally incomplete. It does not serialize complete emitted
 files, path-tier findings, candidates, overlay stamp filenames, or Module install dependencies.
-Original skills under `skills/` are also outside the manifest-item loop. Bundle integrity and
-installation state have their own manifests and are owned by
+Bundle integrity and installation state have their own manifests and are owned by
 [Distribution and installation](distribution-and-installation.md).
 
 ## Proof boundary and current limits

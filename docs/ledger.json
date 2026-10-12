@@ -4129,6 +4129,54 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/writing-tunit-tests": {
+    "source": "skills/deniz-dotnet-general/writing-tunit-tests",
+    "original": true,
+    "invocation": "auto",
+    "description": "Write tests in TUnit — the attributes, the async assertion model, data-driven cases, lifecycle hooks, and the parallelism rules. USE FOR writing or fixing a test in a TUnit project, translating a test idea into TUnit syntax, or reviewing TUnit test code for API mistakes. DO NOT USE FOR deciding what to test, judging whether a test is any good, or running tests.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.writing-tunit-tests",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:writing-tunit-tests",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-process/skill/asd-ste100": {
     "source": "asd-ste100",
     "invocation": "auto",
