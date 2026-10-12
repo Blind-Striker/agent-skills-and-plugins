@@ -17,7 +17,7 @@ emitted as a command. Each target's identity rules live in
 
 | Curated Module | Main upstream sources | What this collection changes |
 |---|---|---|
-| [`deniz-process`](../curation/deniz-process.yaml) | [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent; [Matt Pocock's skills](https://github.com/mattpocock/skills); [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng; `pr`'s Summary guidance from [HumanLayer's `show-me`](https://github.com/humanlayer/skills) | Combines the workflow sets, merges overlapping TDD/debug/review material, chooses invocation per item, replaces the upstream router with `ask-deniz`, omits upstream hooks and dead harness metadata |
+| [`deniz-process`](../curation/deniz-process.yaml) | [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent; [Matt Pocock's skills](https://github.com/mattpocock/skills); [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng; `pr`'s Summary guidance from [HumanLayer's `show-me`](https://github.com/humanlayer/skills) | Combines the workflow sets, merges overlapping TDD/debug/review material, chooses invocation per item, replaces the upstream router with `ask-deniz`, omits upstream hooks and dead harness metadata, and adds the original `verified-waves` orchestration skill |
 | [`deniz-dotnet-general`](../curation/deniz-dotnet-general.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard; [dotnet/skills](https://github.com/dotnet/skills) by .NET Foundation contributors | Selects the .NET areas used here, merges a few overlapping skills, adapts manual ceremonies, and adds the original `writing-tunit-tests` skill; requires the Aspire and Process Modules, Process for two reasons: `code-testing` hands a repair or flaky-test request to `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order, to `test-driven-development` |
 | [`deniz-dotnet-akka`](../curation/deniz-dotnet-akka.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Keeps the Akka specialist and reference set together, repairs/localizes handoffs, and links the cross-Module Aspire and General dependencies |
 | [`deniz-dotnet-aspire`](../curation/deniz-dotnet-aspire.yaml) | [Microsoft Aspire skills](https://github.com/microsoft/aspire-skills); selected Aspire material from [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Packages the official Aspire workflow closure, localizes its internal routes, and adds the selected testing and ServiceDefaults specialists |
@@ -30,6 +30,9 @@ install each Plugin on its own, so add the required ones yourself. The README's
 The root [third-party notices](../THIRD_PARTY_NOTICES.md) carry the copyright holders and exact
 license route. `writing-tunit-tests` was authored from the official [TUnit documentation](https://tunit.dev/docs),
 with topic-outline inspiration credited in [`skills/deniz-dotnet-general/NOTICE.md`](../skills/deniz-dotnet-general/NOTICE.md).
+`verified-waves` was written here from the approaches in the
+[orchestration research](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
+and its idea-only sources are in [`skills/deniz-process/NOTICE.md`](../skills/deniz-process/NOTICE.md).
 
 ## The process distinction that matters
 

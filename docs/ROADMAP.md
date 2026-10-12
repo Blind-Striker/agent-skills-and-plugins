@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.8.1, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.10.0, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -58,10 +58,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   four Plugins, enabled, and approved rollout leftovers, including an unused OpenCode 1 plugin SDK
   install in two config roots, were deleted
   ([v0.5.0 rollout record](../experiments/harness-invocation/records/2026-10-11-v0.5.0-rollout.md)).
-  The `installer-v0.6.0` rollout updated all four real OpenCode profiles to the checkout Module
-  versions with one identical finding-free Plan and moved every Claude Code and Codex installation
-  of the marketplace to them, changing only `deniz-skills` configuration entries; its discovery
-  checks used a throwaway database
+  The `installer-v0.6.0` rollout updated all four real OpenCode profiles to Process 0.8.1, General
+  0.13.0, Akka 0.4.1, and Aspire 0.6.0 with one identical finding-free Plan and moved every Claude
+  Code and Codex installation of the marketplace to them, changing only `deniz-skills` configuration
+  entries; its discovery checks used a throwaway database
   ([v0.6.0 rollout record](../experiments/harness-invocation/records/2026-10-12-v0.6.0-rollout.md)).
 - `dotnet/skills` is reviewed through `1d40f95` (main, 2026-10-09; it has no release-shaped
   tag); wave W6 is done, and with it every upstream sync wave of the 2026-10-08 review. General
@@ -173,22 +173,24 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership
    semantics, user approval for automatic changes, and version constraint/conflict policy must be
    designed in that iteration rather than assumed by the first.
-3. **Orchestration skill.** Add one original `manual` skill that runs a request as verified
-   multi-agent waves, design A of the
-   [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs):
-   one shared body in this repository's own words, not named "ultracode", plus per-harness tool
-   notes through `harness_files`. Claude Code's notes route into the native Workflow tool, which
-   accepts a skill whose instructions say to call it as the user's opt-in; OpenCode's run background
-   `subagent` waves; Codex's run `spawn_agent` waves sized to the configured thread limit, 6 by
-   default. Its manifest side is an `original_skills` declaration with `invocation: manual` and
-   `harness_files` ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)).
-   The curator-approved prior-art approaches, the rejected ones, and the skill outline are in the
-   research note's
+3. **Measure the orchestration skill.** `verified-waves`, design A of the
+   [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs),
+   ships in Process 0.10.0 as an original `manual` skill that runs one task as verified multi-agent
+   waves: one shared body in this repository's own words, not named "ultracode", plus per-harness
+   tool notes through `harness_files`, declared under `original_skills`
+   ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)). Claude Code's notes route into
+   the native Workflow tool, which accepts a skill whose instructions say to call it as the user's
+   opt-in; OpenCode's run background `subagent` waves; Codex's run `spawn_agent` waves that branch
+   on the multi-agent version the model's tool list shows. The curator-approved prior-art
+   approaches, the rejected ones, the skill outline, and the rulings on its authoring points are in
+   the research note's
    [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
+   No harness has run the skill yet. The next step is a tier-2 forward-test panel in each harness,
+   because a claim that the skill works in a harness needs a run there
+   ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
    Keyword injection (design B) is deferred below. A deterministic engine per
    harness (design C) is rejected: it needs installer changes and one runtime per harness, and it is
-   a product rather than a skill. A claim that the skill works in a harness needs a run there
-   ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
+   a product rather than a skill.
 4. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
    in its `workflows/` directory as `/<plugin>:<meta.name>`
    ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a

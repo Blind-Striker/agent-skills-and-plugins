@@ -147,9 +147,10 @@ Codex and OpenCode limits below are configurable defaults, not hard limits.
 | Structured results | `schema` with five validation attempts | Plain string | None for `spawn_agent` (unverified) |
 | Progress view | `/workflows` view and the task panel | Child sessions; a plugin tool's `progress()` (`schema/src/tool.ts:19`) | Native agent threads (inference) |
 
-`multi_agent_v2` is stable but off by default in 0.162.1 (`features/src/lib.rs:1421-1424`), so the
-V1 tool names `spawn_agent`, `wait_agent`, and `close_agent` are the right default to name; its own
-names, such as `followup_task` and `send_message`, were only partly checked.
+`multi_agent_v2` is stable but off by default in 0.162.1 (`features/src/lib.rs:1421-1424`), yet
+catalog metadata can select V2 even with the flag off (`core/src/config/mod.rs:1624-1631`;
+`core/src/session/mod.rs:4155-4167`), so neither version's tool names are a safe single default to
+name; V2's own names, such as `followup_task` and `send_message`, were only partly checked.
 
 ## Port designs
 
@@ -163,8 +164,9 @@ the mechanism `using-superpowers` already uses:
   than re-implementing it.
 - **OpenCode:** `subagent` with `background: true`, wait for the completion messages, depth 1 by
   default.
-- **Codex:** `spawn_agent`, `wait_agent`, and `close_agent` in waves sized to the configured thread
-  limit (default 6), closing finished agents.
+- **Codex:** `spawn_agent` and `wait_agent` in waves sized to the thread limit, with the companion
+  tools of the multi-agent version the model's tool list shows: under V1, `close_agent` on each
+  finished agent.
 
 Per-harness notes are needed because localization's closed harness phrasing renders only the
 skill-tool sentence and the subagent-dispatch words, and the Codex dispatch wording names no tool
@@ -221,10 +223,12 @@ The queue position, the prerequisite, and the open questions are in the [roadmap
 On 2026-10-12 the curator approved the approaches below for the orchestration skill, the rejections
 after them, and the skill outline at the end. An extraction pass read the prior-art clones at the
 commits in [the port table](#is-there-already-a-port), read-only, and ran none of their code. It
-ranked 16 adoptable approaches and 15 rejects; the approval adopts 12 of those approaches and rejects
-11 patterns. The cited files were checked to exist at the pinned commits, and the Codex and OpenCode
-tool facts used below were re-read at their pins; the extraction's other line-level readings were
-not independently re-verified.
+ranked 16 adoptable approaches and 15 rejects; the approval adopted 12 of those approaches and
+rejected 11 patterns, and a later ruling the same day confirmed the other four as approaches 13 to
+16. The cited files were checked to exist at the pinned commits, and the Codex and OpenCode tool
+facts used below were re-read at their pins; the extraction's other line-level readings were not
+independently re-verified. The skill shipped as `verified-waves`, an original skill in
+`deniz-process`.
 
 Everything here is restated in this repository's own words, and the skill will copy no prior-art
 text. That rule is binding for two sources: OmO's own code is under the Sustainable Use License, and
@@ -246,15 +250,21 @@ its commit, the file, and the license; Codex paths are under `codex-rs/` and Ope
      `packages/omo-opencode/src/agents/sisyphus-dynamic-prompt-execution.ts`, Sustainable Use
      License, idea only; `YuanpingSong/ultracodex@ac349f8` `skills/agent-script-authoring/SKILL.md`,
      Apache-2.0, restated.
-2. **A fixed markdown report, with long output in a results file.** Every child ends with the same
-   short report: a status of DONE, PARTIAL, BLOCKED, or FAILED; a summary of a few lines; findings,
-   each with a severity, file-and-line or command evidence, and a confidence; the files it changed;
-   the checks it ran, each PASS, FAIL, or NOT RUN with a reason; open questions; and the path of its
-   results file. Anything longer than about 40 lines goes into that file. This replaces schemas
-   outside Claude Code: neither OpenCode nor Codex validates a child's output, and OpenCode delivers
-   the child's whole final text into the parent session (`core/src/session/subagent-completion.ts`),
-   so a short report is what keeps the parent's context small. In Claude Code the same fields become
-   the Workflow `schema`, so the standard stays one standard.
+2. **A fixed markdown report, and a results file from every child.** Every child ends with the same
+   short report, at most 40 lines: a status of DONE, PARTIAL, BLOCKED, or FAILED; a summary of a few
+   lines; findings, each with a severity, file-and-line or command evidence, and a confidence; the
+   files it changed; the checks it ran, each PASS, FAIL, or NOT RUN with a reason; open questions;
+   and the path of its results file. As its last step, every child writes that report, then any
+   detail past 40 lines, to its own results file under the ledger directory, and returns the report.
+   The results file is the only file a child writes outside its write set, so "read-only" means
+   read-only except that file. Because every child writes one, the parent can rebuild the ledger
+   from disk in every harness, including a Claude Code run that ended before its completion
+   notification, since a workflow script has no filesystem access. The short report replaces
+   schemas outside Claude Code: neither OpenCode nor Codex validates a child's output, and OpenCode
+   delivers the child's whole final text into the parent session
+   (`core/src/session/subagent-completion.ts`), so a short report is what keeps the parent's context
+   small. In Claude Code the same fields become the Workflow `schema`, so the standard stays one
+   standard.
    - Source: `norandom/OpenUltraCode@2638f03` `.opencode/agents/open-ultracode-verifier.md`, MIT,
      restated; `anomalyco/opencode@9b4ec57` `packages/core/src/session/subagent-completion.ts`, MIT,
      tool fact.
@@ -280,25 +290,32 @@ its commit, the file, and the license; Codex paths are under `codex-rs/` and Ope
 5. **One ledger file and a manual restart in place of resume.** One small file holds the goal, the
    done-when checks, the planned waves and agent total, one row per item (id, kind, write set,
    status, child handle, results path), and an append-only log. It lives in a scratch location
-   outside the working tree, the user is told its path, and it is never committed. After a crash or
-   a lost context, the parent re-reads it, keeps the DONE items, tries the harness's own continuation
-   for an item still running, inspects `git status` and `git diff` on a write item's write set before
-   re-dispatching it because its work may already be on disk, re-dispatches the rest, and tells the
-   user what it reused and what it re-ran. It never restarts from scratch silently, and it treats a
-   restart as at-least-once, not exactly-once. The native handles are Claude Code's
-   `resumeFromRunId`, which covers one run in one session, OpenCode's child `sessionID`, and Codex's
-   `resume_agent`.
+   outside the working tree: the system temp directory in every harness, under
+   `verified-waves/<run-id>/`, or Claude Code's session scratchpad when the system prompt names
+   one. `.git` is not used, because Codex's default workspace-write sandbox keeps it read-only
+   (`protocol/src/permissions.rs`). The user is told its path, and it is never committed. After a
+   crash or a lost context, the parent re-reads it, keeps the DONE items, tries the harness's own
+   continuation for an item still running, inspects `git status` and `git diff` on a write item's
+   write set before re-dispatching it because its work may already be on disk, re-dispatches the
+   rest, and tells the user what it reused and what it re-ran. It never restarts from scratch
+   silently, and it treats a restart as at-least-once, not exactly-once. The native handles are
+   Claude Code's `resumeFromRunId`, which covers one run in one session or in a session reopened
+   with `claude --resume`, OpenCode's child `sessionID`, and Codex's `resume_agent` under
+   multi-agent V1 or `followup_task` under V2.
    - Source: `code-yeongyu/oh-my-openagent@a103d40` `packages/prompts-core/prompts/ultrawork/default.md`,
      Sustainable Use License, idea only; `openai/codex@092d3ac`
      `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`, Apache-2.0, tool fact.
 6. **At most 6 live children, everywhere.** Before dispatching, the parent tells the user the number
    of waves and the agent total, and it asks before going over that total. It sizes each wave to the
    independent items it has, not to the ceiling, and never runs more than 6 children at once in any
-   harness. Six is Codex's default thread limit, so one plan behaves the same in all three. In Codex
-   a finished child keeps its slot until it is closed, so the parent closes each child once its
-   report is harvested. In OpenCode a background child returns at once and announces its own
-   completion, so the parent never sleeps, polls, or asks a child for status; it does
-   non-overlapping work or ends the turn.
+   harness, or fewer where the harness limit is lower, as under Codex's multi-agent V2, which
+   allows 3 children by default. Six is Codex's V1 default thread limit, so one plan behaves the
+   same in all three. Every pending child counts, skeptics included. Claude Code's Workflow runtime
+   would run up to its own limit at once (piece 4 above), so the script feeds items to `pipeline()`
+   in batches of at most 6 and awaits each batch before the next. Under V1 in Codex a finished child
+   keeps its slot until it is closed, so the parent closes each child once its report is harvested.
+   In OpenCode a background child returns at once and announces its own completion, so the parent
+   never sleeps, polls, or asks a child for status; it does non-overlapping work or ends the turn.
    - Source: `openai/codex@092d3ac` `codex-rs/core/src/config/mod.rs` and
      `codex-rs/core/src/tools/handlers/multi_agents_spec.rs`, Apache-2.0, tool facts;
      `anomalyco/opencode@9b4ec57` `packages/core/src/tool/plugin/subagent.ts`, MIT, tool fact.
@@ -354,10 +371,23 @@ its commit, the file, and the license; Codex paths are under `codex-rs/` and Ope
     - Source: `openai/codex@092d3ac` `codex-rs/core/src/tools/handlers/multi_agents_spec.rs` and
       `codex-rs/core/src/agent/role.rs`, Apache-2.0, restated tool facts.
 
-The extraction's other four approaches are outside this approval and stay undecided: a written
-done-when and stop condition stated before any dispatch, a visible and labeled sequential fallback
-when children cannot start, an approval question before a destructive step, and a fixed set of
-forward-test prompts kept under `experiments/`.
+13. **A written done-when and stop-when before any dispatch.** Before the first child starts, the
+    parent writes the binary done-when checks and the conditions that end the run early into the
+    plan in chat, so a blocking concern, the end of a loop, and the final report are judged against
+    them.
+14. **A visible, labeled sequential fallback.** When children cannot start, or the depth limit stops
+    them, the parent says so, runs the briefs one by one itself with each output labeled by its item
+    id, and states that the verification was not independent. A permission denial, a refused launch
+    included, is not this case: the parent stops that path and reports it, and never starts children
+    another way.
+15. **A yes/no question before a destructive step.** The parent asks and waits before a delete or
+    an overwrite, a force-push, a publish, anything that touches credentials, a broad codemod, and
+    going over the announced agent total.
+16. **Fixed forward-test prompts under `experiments/`.** A fixed prompt set against a deterministic
+    fixture, kept under `experiments/harness-invocation/`, measures the skill in each harness, so
+    the runs compare.
+
+This note recorded no source file for approaches 13 to 16.
 
 #### Rejected
 
@@ -402,27 +432,34 @@ forward-test prompts kept under `experiments/`.
 
 **`SKILL.md`, the shared body.** It names no harness tool: tool names live only in the per-harness
 notes, which `harness_files` ships at one output path in each tree
-([`curation/SCHEMA.md`](../../curation/SCHEMA.md#harness_files)). The frontmatter has a name the
-curator picks, not "ultracode", `manual` invocation, and a one-line menu description. The sections:
+([`curation/SCHEMA.md`](../../curation/SCHEMA.md#harness_files)). The frontmatter has the name
+`verified-waves`, not "ultracode", and a one-line menu description; the skill's `original_skills`
+declaration states its `manual` invocation. The sections:
 
 1. What invoking it means: the explicit request for parallel sub-agents on this task (approach 12).
-   Read the harness notes first; do a small or tightly coupled task directly and say so (approach 7).
-2. The plan, in chat, before any dispatch: goal, done-when checks, shape (approach 11), items with
-   their kind and write sets, waves and agent total under the ceiling (approach 6), and the
-   verification plan.
-3. The ledger (approach 5).
-4. The brief and report templates and the results-file rule (approaches 1 and 2).
-5. Running waves: scout then delegate, non-overlapping parent work, disjoint writers with the
-   coordination line and a gate, and per-item verification (approaches 7, 8, and 11).
-6. Collecting: record each report, deduplicate against the seen set, key by item id, report N of M,
-   and substitute no guess (approaches 4 and 9).
-7. Verification: fresh skeptics and, for audits, the completeness critic (approaches 3 and 10).
-8. Loops and stop conditions (approach 9).
-9. Failures: retry once with a corrected brief, continuing the same child only when the failure was
-   a misunderstanding, and otherwise mark the item BLOCKED (approach 9).
-10. Restart from the ledger, inspecting a write item's write set before re-dispatching it
-    (approach 5).
-11. The final report: outcome, counts of DONE, PARTIAL, BLOCKED, FAILED, and UNVERIFIED with names,
+   An invocation with no task asks for one and starts nothing. Read the harness notes first; do a
+   small task, one item or steps that each need the previous step's result, directly and say so
+   (approach 7).
+2. The plan, in chat, before any dispatch: goal, done-when checks and stop-when conditions
+   (approach 13), shape, items with their kind and write sets, waves and agent total under the
+   ceiling (approach 6), the verification plan, and a yes/no question before each destructive step
+   (approach 15).
+3. The shape (approach 11).
+4. The ledger (approach 5).
+5. The brief and report templates and the results-file rule (approaches 1 and 2).
+6. Running waves: scout then delegate, non-overlapping parent work, the ceiling, and disjoint
+   writers with the coordination line and a gate (approaches 6, 7, and 8).
+7. Collecting: record each report, a missing report as FAILED, deduplicate against the seen set, key
+   by item id, report N of M, and substitute no guess (approaches 4 and 9).
+8. Verification: fresh skeptics, each item verified as soon as its producer reports, and, for
+   audits, the completeness critic (approaches 3, 10, and 11).
+9. Loops and stop conditions, including BLOCKED after two failures (approach 9).
+10. Failures: retry once with a corrected brief, continuing the same child only when the failure
+    was a misunderstanding; a permission denial stops that path; and the labeled sequential
+    fallback when children cannot start (approaches 9 and 14).
+11. Restart from the ledger and the results files, inspecting a write item's write set before
+    re-dispatching it (approaches 2 and 5).
+12. The final report: outcome, counts of DONE, PARTIAL, BLOCKED, FAILED, and UNVERIFIED with names,
     files changed, checks run with PASS, FAIL, or NOT RUN and reasons, refuted findings with
     reasons, caps applied, remaining risk, and the ledger path, with every child closed or finished
     first.
@@ -430,51 +467,104 @@ curator picks, not "ultracode", `manual` invocation, and a one-line menu descrip
 **`references/claude-code-tools.md`, Claude Code's notes.**
 
 - Invoking the skill is the Workflow tool's own sanctioned opt-in, a skill whose instructions say to
-  call it; load the bundled `workflow-authoring` skill before writing the script, and use one run
-  per phase when the parent must stay involved between phases.
-- Mapping: a wave is `parallel()`, per-item verification is `pipeline()`, a brief is an `agent()`
-  prompt, the report is a `schema` with the same fields, a read-only child uses a read-only
-  `agentType`, and overlapping writers use `isolation: 'worktree'`.
-- The runtime queues items under its own concurrency limit (piece 4 above); the announced agent
-  total still holds. Completion arrives as a task notification, so do not poll.
-- Restart with `resumeFromRunId` within the same session; otherwise read the run's journal or agent
-  transcripts and write a continuation that skips DONE items. The run journal covers one run, so the
-  ledger matters across several runs.
+  call it, and the notes say so in their second sentence. A run takes no user input, so sign-off and
+  destructive-step questions are asked in chat before launch, with one run for each phase that needs
+  a sign-off.
+- The notes carry no instruction to load the bundled `workflow-authoring` skill: the Workflow tool
+  description already points to it when it is available and inlines its reference when it is not
+  (`@244826055`, `@235328088`).
+- Mapping: a wave is `pipeline()`, fed batches of at most 6 items and awaiting each batch, with an
+  item's producer and its skeptics in sequence inside a batch; `parallel()` is only for a barrier
+  that needs every result, such as a dedupe, an early exit on zero findings, or a ranking. The
+  bundled reference says to default to `pipeline()` (`@244808448`). A brief is an `agent()` prompt
+  labeled with its item id, and the report is a `schema` with the same fields. Every item runs on
+  the default workflow agent, with no `agentType`: Explore denies Write and Edit, so it could not
+  write its results file, and like Plan it starts without the project's `CLAUDE.md`; the read-only
+  rule lives in the brief. Overlapping writers use `isolation: 'worktree'`. A `null` from `agent()`,
+  which `parallel()` and `pipeline()` keep, is FAILED under its item id.
+- The batches hold the ceiling of approach 6; the runtime's own limit (piece 4 above) is higher.
+  Completion arrives as a task notification, so do not poll. The script has no filesystem access,
+  so until the notification arrives each agent's results file is the record on disk.
+- Restart with `resumeFromRunId` in the same session, or in one reopened with `claude --resume`;
+  otherwise rebuild the rows from the results files, read the run's journal or agent transcripts for
+  any agent that left no results file, and launch a continuation that skips DONE items. The run
+  journal covers one run, so the ledger matters across several runs.
 - No parallel Agent-tool fan-out beside a running Workflow.
+- When the Workflow tool is not in the model's tool list, first background Agent-tool calls on the
+  default subagent type, at most 6 live, with overlapping writers in sequence, and then the labeled
+  sequential run (approach 14).
+- The ledger directory is the session scratchpad when the system prompt names one, otherwise the
+  system temp directory; a background agent's permission prompt appears in the main session.
 
 **`references/opencode-tools.md`, OpenCode's notes.**
 
-- `subagent` with `background: true`, `agent` set to `explore` for read-only work or `general` for
-  writes, a short `description`, and the brief as `prompt`; never `model` unless the user asks.
+- `subagent` with `background: true`, `agent` set to `general` for every item, a `description` of a
+  few words that starts with the item id, and the brief as `prompt`; never `model` unless the user
+  asks. The built-in `explore` denies everything except shell, grep, glob, webfetch, websearch, and
+  read (`packages/core/src/plugin/agent.ts:98-116`), so it could not write its results file; the
+  read-only rule lives in the brief.
 - OpenCode has no concurrency limiter, so the skill holds itself to 6 live children. Depth is 1 by
   default (`experimental.subagent_depth`), so children cannot start children.
 - After launching, do non-overlapping work or tell the user what was launched and end the turn;
   never sleep, poll, or ask a child for status. Completion arrives as a `<subagent>` message holding
-  the child's whole final text.
+  the child's whole final text. The states `error` and `cancelled` are FAILED, and so is a
+  `completed` message with no text, which reads "Subagent completed without a text response."
+  (`packages/core/src/session/subagent-completion.ts:8,31-36`), or with no report.
 - Record each child's `sessionID` in the ledger. A fix continues the same child through its
   `sessionID`; a verifier is always a new call without one.
+- The ledger directory is the system temp directory. A path outside the project asks for
+  `external_directory` permission (`packages/core/src/file-access.ts:93-141`), for the parent and
+  for each child that writes its results file; an "always" answer is saved as `<dir>/*`, so one
+  answer for the ledger directory can cover every child's results file
+  (`packages/core/src/permission.ts`, `util/wildcard.ts:3-13`).
 
 **`references/codex-tools.md`, Codex's notes.**
 
 - The authorization sentence first: the user invoked this skill to request sub-agents for this task.
-- `spawn_agent` with the brief as `message` and `agent_type` set to `explorer` for read-only work
-  or `worker` for bounded writes; `fork_context` unset so the brief stands alone; `model` and
-  `reasoning_effort` unset unless the user asks.
-- A rolling wave: `wait_agent` on all live ids with a timeout of minutes rather than the short
-  default, harvest the first finisher's final message, record it in the ledger, `close_agent` it,
-  then spawn the next pending item.
-- Defaults of 6 threads and depth 1, both configurable under `[agents]`; a finished agent holds its
-  slot until it is closed.
-- `send_input` sends a correction to the same child; `resume_agent` reopens a closed one.
-- Explorer reports are input, not verified facts, and no goal is created.
-- The V1 tool names, the 0.162.1 default, with one line noting that `multi_agent_v2` uses other
-  names and a default of 4 threads.
+- The notes branch on the multi-agent version the model's tool list shows: V1 has `close_agent` and
+  `resume_agent`; V2 has `followup_task`, `send_message`, `interrupt_agent`, and `list_agents`, and
+  no `close_agent`. Catalog metadata can select V2 even with its feature flag off
+  (`core/src/config/mod.rs:1624-1631`; `core/src/session/mod.rs:4155-4167`).
+- V1: `spawn_agent` with the brief as `message` and `agent_type` set to `explorer` for reads or
+  `worker` for writes, and `fork_context` unset so the brief stands alone. A rolling wave of at most
+  6: `wait_agent` with `targets` set to every live id and `timeout_ms` 300000 (inside the
+  10000–3600000 ms clamp, `core/src/tools/handlers/multi_agents/wait.rs:102`), record the first
+  finisher in the ledger, `close_agent` it, because a finished agent holds its slot until it is
+  closed, then spawn the next pending item. Defaults of 6 threads and depth 1, both configurable
+  under `[agents]`. `send_input` sends a correction to the same child; `resume_agent` reopens a
+  closed one.
+- V2: `spawn_agent` with `task_name` set to the item id, the brief as `message`, and
+  `fork_turns: "none"`, because the default copies the whole transcript. `wait_agent` wakes on
+  activity; `followup_task` with `target` set to the `task_name` corrects or continues a child
+  (`multi_agents_v2/message_tool.rs:27-30`). V2 allows 3 children by default
+  (`core/src/config/mod.rs:258,1638-1642`: 4 threads minus the root).
+- The skill's own model rule: `model` and `reasoning_effort` stay unset for the children it spawns
+  unless the user asks, and model routing belongs in the user's
+  `[agents] default_subagent_model`.
+- The explorer role file is empty at rust-v0.162.1 (`core/assets/agent/builtins/explorer.toml`), so
+  an explorer can write its results file and the read-only rule lives in the brief. Explorer reports
+  are input, not verified facts, and no goal is created.
+- The ledger directory is `/tmp` or `$TMPDIR`, which the default sandbox allows
+  (`protocol/src/protocol.rs:1293-1320`); on Windows, the system temp directory, with a refused
+  write reported; never `.git`.
 
 ### Open authoring points
 
-- Pin the Codex notes to the V1 tool names, which are the 0.162.1 default.
+The curator ruled on the first three points on 2026-10-12; the last stays open.
+
+- Pin the Codex notes to the V1 tool names, which are the 0.162.1 default. **Ruling:** no pin. The
+  notes branch on the model's actual tool list, because catalog metadata can select V2 even with
+  its feature flag off ([Codex's notes](#skill-outline)).
 - Say what the Claude Code notes do when the Workflow tool is unavailable: workflows turned off, or
-  a Pro plan that has not turned them on.
-- One menu label per harness, and wording that does not trigger Claude's keyword.
+  a Pro plan that has not turned them on. **Ruling:** unavailable means only that the Workflow tool
+  is not in the model's tool list, since the tool is registered only while workflows are enabled
+  (`@246765155`). The notes then fall back to background Agent-tool calls, at most 6 live, and then
+  to the labeled sequential run (approach 14). A "No" at the per-run launch approval is a
+  permission denial, not unavailability: that path stops and is reported.
+- One menu label per harness, and wording that does not trigger Claude's keyword. **Ruling:** every
+  harness shows the same description, which holds no keyword: "Run one task as verified multi-agent
+  waves. Plans the fan-out, sends findings to fresh skeptics, keeps a ledger, and reports N of M
+  done; small tasks stay solo." Codex's menu label is its first sentence, which the emitter's cut
+  keeps whole at 43 characters.
 - Measure the listing after the skill ships rather than assuming zero catalog cost, and run each
   harness before claiming the skill works there.

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.8.1",
-  "digest": "sha256:72efa399de431e465ad493fbe2fea025032d35dc1642238df85663f5acff5c63",
+  "version": "0.10.0",
+  "digest": "sha256:ec9d2fe2921b7ea542a65c07af83cc2e601a73c8932fa3a1fefbcc18fc466e2e",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -411,6 +411,14 @@
     },
     "skills/deniz-process.verification-before-completion/SKILL.md": {
       "sha256": "sha256:d99dcf925749f6c3c4837306ba61301188d53a0c062b89b494daaee08d2c7781",
+      "mode": "100644"
+    },
+    "skills/deniz-process.verified-waves/SKILL.md": {
+      "sha256": "sha256:19eea30f666e296fbc30764795b0efb2704c6b279d720b638a6c9b98c1e24f41",
+      "mode": "100644"
+    },
+    "skills/deniz-process.verified-waves/references/harness-tools.md": {
+      "sha256": "sha256:d435b50c4b0ef5206b3866cf66be0899cd0bf5315104ad86f35af56487b1ffe7",
       "mode": "100644"
     },
     "skills/deniz-process.wait-what/SKILL.md": {

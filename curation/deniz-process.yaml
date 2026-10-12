@@ -19,7 +19,17 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.8.1
+  version: 0.10.0
+original_skills:
+  verified-waves:
+    invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code
+    # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1)
+    harness_files: # each harness reads only its own tool notes; no tree carries another's tool words
+      references/harness-tools.md:
+        claude: references/claude-code-tools.md
+        codex: references/codex-tools.md
+        opencode: references/opencode-tools.md
+    # no depends_on: the body names no other skill
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming

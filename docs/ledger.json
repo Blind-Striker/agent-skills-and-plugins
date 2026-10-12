@@ -6289,6 +6289,63 @@
       "bodyTransformations": []
     }
   },
+  "deniz-process/skill/verified-waves": {
+    "source": "skills/deniz-process/verified-waves",
+    "original": true,
+    "invocation": "manual",
+    "harnessFiles": {
+      "references/harness-tools.md": {
+        "claude": "references/claude-code-tools.md",
+        "codex": "references/codex-tools.md",
+        "opencode": "references/opencode-tools.md"
+      }
+    },
+    "description": "Run one task as verified multi-agent waves. Plans the fan-out, sends findings to fresh skeptics, keeps a ledger, and reports N of M done; small tasks stay solo.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process.verified-waves",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:verified-waves",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-process/skill/wait-what": {
     "source": "mattpocock-skills/skills/productivity/wait-what",
     "invocation": "manual",

@@ -1,0 +1,6 @@
+interface:
+  display_name: "Verified Waves"
+  short_description: "Run one task as verified multi-agent waves."
+  default_prompt: "Use $deniz-process:verified-waves for this task."
+policy:
+  allow_implicit_invocation: false

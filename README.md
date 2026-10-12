@@ -23,8 +23,11 @@ Matt's TDD, debugging, and code-review material is folded into three correspondi
 Superpowers-based skills, while 11 other Matt skills are excluded. Superpowers supplies most of the
 plan, build, and verify spine; Matt supplies mostly human-started ceremonies plus routing,
 domain/design, research, and teaching tools. The Superpowers SessionStart bootstrap is not shipped,
-and ASD-STE100 contributes one additional controlled-English skill. Exact item decisions and reasons
-remain beside the items in [`curation/deniz-process.yaml`](curation/deniz-process.yaml).
+and ASD-STE100 contributes one additional controlled-English skill. `deniz-process` also carries one
+original skill, `verified-waves`, written here from the approaches in the
+[orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
+Exact item decisions and reasons remain beside the items in
+[`curation/deniz-process.yaml`](curation/deniz-process.yaml).
 
 ## How it works
 
@@ -66,8 +69,8 @@ pinned upstream repos + original skills
   flags. OpenCode 2 receives one artifact per item at its `<plugin>.<name>` ID: a skill, unless
   curation chose `as: command` or `as: agent`. A `manual` skill carries
   `opencode/autoinvoke: false`, so the model is not offered it and the user attaches it with
-  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 112
-  skills, 30 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
+  `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 113
+  skills, 31 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
   native explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto`
   because its native skill surface has no implicit-only posture.
 - Surgical patches, owned overlays, and declared multi-source merges are stamped against their
