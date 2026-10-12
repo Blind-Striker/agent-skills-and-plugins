@@ -52,9 +52,9 @@ phase reinterprets a skill after emission.
 - One curation manifest produces one same-named Claude Plugin, OpenCode Module, and Codex Plugin.
   Each marketplace points at its native Plugin tree; the Bundle keeps the Module's `skills/`,
   `commands/`, and `agents/` paths separate until installation.
-- A source skill is parsed and serialized even when no body override is present. The compiler does
-  not promise byte identity with upstream; the Bundle's post-emission bytes establish the later
-  installation identity.
+- Every skill, curated or original, is parsed and serialized even when no body override is present.
+  The compiler promises byte identity neither with upstream nor with an original skill's authored
+  file; the Bundle's post-emission bytes establish the later installation identity.
 
 ## Resolution and body assembly
 
@@ -85,7 +85,7 @@ are [`collectIdentityProblems`](../../tools/lib/resolve.ts), reached through `co
 [`collectCodexEmissionProblems`](../../tools/lib/codex-plugin.ts), both called by
 [`buildAll`](../../tools/build.ts) ahead of the delete. The same preflight pairs every original-skill
 directory with exactly one declaration and rejects a missing `SKILL.md`, a `name` that differs from
-its directory, and a symlink in place of a directory
+its directory, an authored Claude invocation key, and a symlink in place of a directory
 ([`collectOriginalSkillProblems`](../../tools/lib/own-skills.ts)); `validate` runs it too and
 reports the same problems as errors. Validation separately reports when an
 original skill would be copied last and silently overwrite a curated skill of the same name in
@@ -154,13 +154,16 @@ alter Claude output, although Codex consumes the same intent after adapting them
 The compiler forces a skill's frontmatter name to its output directory name and an agent's name to
 its output file identity. This keeps generated identity, localization, and review state aligned.
 
-A curated skill or command then keeps only the keys of Claude Code's skill frontmatter reference,
-which includes the Agent Skills fields `license`, `compatibility`, and `metadata` that Claude Code
-accepts without acting on. An agent keeps only the keys of its subagent reference, less `hooks`,
+A skill or command then keeps only the keys of Claude Code's skill frontmatter reference, which
+includes the Agent Skills fields `license`, `compatibility`, and `metadata` that Claude Code accepts
+without acting on. An agent keeps only the keys of its subagent reference, less `hooks`,
 `mcpServers`, `permissionMode`, and `initialPrompt`, which Claude Code ignores in an agent a plugin
 ships. Every other key, such as an upstream `invocable`, `version`, or `tags`, is dropped and
 reported by the build, as in the other two emitters (`CLAUDE_SKILL_KEYS` and `CLAUDE_AGENT_KEYS` in
-[`tools/build.ts`](../../tools/build.ts)). An original skill is authored here and stays a byte copy.
+[`tools/build.ts`](../../tools/build.ts)). An original skill takes the same adaptation as a curated
+skill. Its [declaration](../../curation/SCHEMA.md#original_skills) always states an invocation, so
+the declaration writes its Claude invocation keys, and its SKILL.md may author neither key
+(`CLAUDE_INVOCATION_KEYS` in [`tools/lib/claude-target.ts`](../../tools/lib/claude-target.ts)).
 
 ### OpenCode
 

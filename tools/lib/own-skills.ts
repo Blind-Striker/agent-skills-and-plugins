@@ -1,5 +1,6 @@
 import { type Dirent, existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { CLAUDE_INVOCATION_KEYS } from "./claude-target.ts";
 import { parseDoc } from "./frontmatter.ts";
 import type { CurationManifest } from "./manifest.ts";
 import { ordinalCompare } from "./order.ts";
@@ -31,8 +32,9 @@ const symlinkProblem = (path: string): string =>
 /**
  * The directory–declaration contract (curation/SCHEMA.md `original_skills`), checked by the build
  * before any output is deleted and by validate. Every directory under `skills/<plugin>/` pairs with
- * exactly one declaration in that Module's manifest, its SKILL.md names it, and no link stands in
- * for a directory at either level. A file such as `NOTICE.md` is not a skill and is ignored.
+ * exactly one declaration in that Module's manifest, its SKILL.md names it and leaves both Claude
+ * invocation keys to the declaration, and no link stands in for a directory at either level. A file
+ * such as `NOTICE.md` is not a skill and is ignored.
  */
 export function collectOriginalSkillProblems(root: string, manifests: CurationManifest[]): string[] {
   const problems: string[] = [];
@@ -83,11 +85,18 @@ export function collectOriginalSkillProblems(root: string, manifests: CurationMa
         problems.push(`${path}/SKILL.md is missing — an original skill is a directory with a SKILL.md`);
         continue;
       }
-      const name = parseDoc(readFileSync(skillFile, "utf8")).frontmatter.name;
-      if (name !== entry.name) {
+      const { frontmatter } = parseDoc(readFileSync(skillFile, "utf8"));
+      if (frontmatter.name !== entry.name) {
         problems.push(
-          `${path}/SKILL.md: name is ${String(name)} but the directory is ${entry.name} — the directory is the skill's identity in every harness`,
+          `${path}/SKILL.md: name is ${String(frontmatter.name)} but the directory is ${entry.name} — the directory is the skill's identity in every harness`,
         );
+      }
+      for (const key of CLAUDE_INVOCATION_KEYS) {
+        if (Object.hasOwn(frontmatter, key)) {
+          problems.push(
+            `${path}/SKILL.md: ${key} is owned by original_skills.${entry.name}.invocation in curation/${plugin}.yaml — remove it`,
+          );
+        }
       }
     }
     if (linkedFolders.has(plugin)) {

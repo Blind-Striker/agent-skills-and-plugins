@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
+import { CLAUDE_INVOCATION_KEYS } from "./claude-target.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
 import { treeMarkdown } from "./harness-files.ts";
@@ -76,7 +77,7 @@ function emittedClaudeFlags(outType: string, frontmatter: Record<string, unknown
     return undefined;
   }
   const flags: NonNullable<HarnessState["flags"]> = {};
-  for (const key of ["user-invocable", "disable-model-invocation"] as const) {
+  for (const key of CLAUDE_INVOCATION_KEYS) {
     const value = frontmatter[key];
     if (typeof value === "boolean") {
       flags[key] = value;

@@ -19,6 +19,7 @@ import {
   requireReadableRegularFile,
   writeDistributionNotices,
 } from "./lib/attribution.ts";
+import { CLAUDE_INVOCATION_KEYS, claudeInvocation } from "./lib/claude-target.ts";
 import {
   adaptCodexSkillDocument,
   collectCodexEmissionProblems,
@@ -33,13 +34,7 @@ import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { collectHarnessFileProblems, placeHarnessFiles } from "./lib/harness-files.ts";
 import { writeLedger } from "./lib/ledger.ts";
-import {
-  type CurationItem,
-  type CurationManifest,
-  loadManifest,
-  type SkillIntent,
-  UNKNOWN_SOURCE_RULE,
-} from "./lib/manifest.ts";
+import { type CurationItem, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
 import {
   adaptOpenCodeAgentDocument,
@@ -313,25 +308,6 @@ function collectDescriptionProblems(assembled: AssembledItem[], rewriteMap: Map<
   return problems;
 }
 
-/** The two Claude Code invocation keys, so a stated intent replaces whatever upstream said. */
-const CLAUDE_INVOCATION_KEYS = ["user-invocable", "disable-model-invocation"] as const;
-
-/**
- * Claude Code's half of ADR-0005: one artifact, and the dial is frontmatter. An item that states no
- * intent is left alone entirely — silence is not a default, so adopting the field item by item
- * costs nothing on the items that have not adopted it.
- */
-function claudeInvocation(invocation: SkillIntent["invocation"]): Record<string, unknown> {
-  switch (invocation) {
-    case "auto":
-      return { "user-invocable": false };
-    case "manual":
-      return { "disable-model-invocation": true };
-    default:
-      return {}; // `both` sets neither; absent sets nothing at all
-  }
-}
-
 /**
  * Frontmatter Claude Code reads from a skill or a command: the keys of its skill frontmatter
  * reference, which includes the Agent Skills fields `license`, `compatibility`, and `metadata`
@@ -384,7 +360,8 @@ export const CLAUDE_AGENT_KEYS: ReadonlySet<string> = new Set([
 
 /**
  * Adapt a copy of the neutral assembled document to Claude Code: a skill takes the invocation
- * posture its item states, and every document keeps only the frontmatter keys its kind reads.
+ * posture its item or original-skill declaration states, and every document keeps only the
+ * frontmatter keys its kind reads.
  */
 function claudeDocument(assembled: AssembledItem): { document: ParsedDoc; dropped: string[] } {
   const doc = parseDoc(readFileSync(join(assembled.dir, "SKILL.md"), "utf8"));
@@ -414,11 +391,6 @@ function emitClaudeItem(root: string, assembled: AssembledItem, report: string[]
     const destination = join(pluginDir, "skills", assembled.outName);
     cpSync(assembled.dir, destination, { recursive: true });
     placeHarnessFiles(assembled.dir, destination, assembled.intent.harness_files, "claude");
-    // Original skills are authored here and stay byte-preserving copies. Curated skills are
-    // serialized by assembly, then receive only Claude's adaptation here.
-    if (assembled.own) {
-      return;
-    }
     target = join(destination, "SKILL.md");
   } else {
     const kindDir = assembled.outType === "command" ? "commands" : "agents";

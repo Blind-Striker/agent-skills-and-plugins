@@ -1,6 +1,10 @@
 ---
 name: writing-tunit-tests
-description: Write tests in TUnit — the attributes, the async assertion model, data-driven cases, lifecycle hooks, and the parallelism rules. USE FOR writing or fixing a test in a TUnit project, translating a test idea into TUnit syntax, or reviewing TUnit test code for API mistakes. DO NOT USE FOR deciding what to test, judging whether a test is any good, or running tests.
+description: Write tests in TUnit — the attributes, the async assertion model,
+  data-driven cases, lifecycle hooks, and the parallelism rules. USE FOR writing
+  or fixing a test in a TUnit project, translating a test idea into TUnit
+  syntax, or reviewing TUnit test code for API mistakes. DO NOT USE FOR deciding
+  what to test, judging whether a test is any good, or running tests.
 user-invocable: false
 ---
 

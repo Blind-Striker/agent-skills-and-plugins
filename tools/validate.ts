@@ -5,6 +5,7 @@ import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
 import { parse as parseYaml } from "yaml";
 import { assembleItem } from "./lib/assemble.ts";
+import { CLAUDE_INVOCATION_KEYS } from "./lib/claude-target.ts";
 import {
   CODEX_SKILL_KEYS,
   createCodexMarketplace,
@@ -365,7 +366,7 @@ export function validateRepo(root: string): Finding[] {
       }
       // 1c. The manifest's own key beats a hand-written frontmatter override of the same thing,
       // silently, so the override is dead weight rather than a second opinion.
-      for (const k of ["user-invocable", "disable-model-invocation"]) {
+      for (const k of CLAUDE_INVOCATION_KEYS) {
         if (item.invocation && item.frontmatter && k in item.frontmatter) {
           findings.push({
             level: "warn",

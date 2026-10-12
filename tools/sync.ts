@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { CLAUDE_INVOCATION_KEYS } from "./lib/claude-target.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import { type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
@@ -15,9 +16,6 @@ import { candidateHits } from "./lib/refs.ts";
  * An item stating no invocation hands these to upstream, so upstream moving one moves the output.
  */
 const POSTURE_KEYS = ["disable-model-invocation", "user-invocable", "description"] as const;
-
-/** The two POSTURE_KEYS a stated `invocation:` overwrites; `description` is not one of them. */
-const CLAUDE_INVOCATION_KEYS: readonly string[] = ["disable-model-invocation", "user-invocable"];
 
 /**
  * Where an overlay review ends. Only the build knows which eject step applies — whether a patch
@@ -243,7 +241,7 @@ export function syncReport(sub: string, changed: string[], manifests: CurationMa
           let consequence = "this flows straight into output";
           if (item.body === "overlay") {
             consequence = "the owned overlay replaces this key, so it does not reach output";
-          } else if (CLAUDE_INVOCATION_KEYS.includes(k) && item.invocation) {
+          } else if (CLAUDE_INVOCATION_KEYS.some((key) => key === k) && item.invocation) {
             consequence = `invocation: ${item.invocation} replaces this key, so it does not reach output — but upstream changed its mind about who triggers this item, so re-ask whether the stated intent still holds`;
           } else if (k === "description" && item.frontmatter?.[k] !== undefined) {
             consequence = "a frontmatter override replaces this key, so it does not reach output";

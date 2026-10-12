@@ -977,6 +977,49 @@ test("an original skill's declared invocation reaches OpenCode and Codex as a cu
   assert.ok(!existsSync(policy("own-both")));
 });
 
+test("an original skill's declared invocation sets the Claude flags, and its body survives", () => {
+  const root = makeRepo();
+  const body = "Mine.  \n\nTwo  spaces kept.\n";
+  addOriginalSkill(root, "own-auto", { declaration: { invocation: "auto" }, body });
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  addOriginalSkill(root, "own-both", { declaration: { invocation: "both" }, frontmatter: { version: 2 } });
+  const report = buildAll(root);
+  const doc = (name: string) =>
+    parseDoc(readFileSync(join(root, "plugins", "deniz-process", "skills", name, "SKILL.md"), "utf8"));
+  assert.deepEqual(doc("own-auto").frontmatter, { name: "own-auto", description: "Mine", "user-invocable": false });
+  assert.deepEqual(doc("own-manual").frontmatter, {
+    name: "own-manual",
+    description: "Mine",
+    "disable-model-invocation": true,
+  });
+  assert.deepEqual(doc("own-both").frontmatter, { name: "own-both", description: "Mine" });
+  assert.equal(doc("own-auto").body, body);
+  assert.ok(report.includes("claude skill deniz-process:own-both: dropped frontmatter keys: version"));
+});
+
+test("an authored invocation key in an original SKILL.md stops the build before deleting output", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "my-own");
+  buildAll(root);
+  addOriginalSkill(root, "own-x", { frontmatter: { "user-invocable": false, "disable-model-invocation": true } });
+
+  assert.throws(
+    () => buildAll(root),
+    (error: Error) => {
+      assert.match(
+        error.message,
+        /skills\/deniz-process\/own-x\/SKILL\.md: user-invocable is owned by original_skills\.own-x\.invocation in curation\/deniz-process\.yaml — remove it/,
+      );
+      assert.match(
+        error.message,
+        /skills\/deniz-process\/own-x\/SKILL\.md: disable-model-invocation is owned by original_skills\.own-x\.invocation in curation\/deniz-process\.yaml — remove it/,
+      );
+      return true;
+    },
+  );
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "my-own", "SKILL.md")), "nothing was deleted");
+});
+
 test("the same output name in different artifact kinds is rejected by the flattened Codex namespace", () => {
   const root = makeRepo();
   writeFileSync(

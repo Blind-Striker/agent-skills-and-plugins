@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.8.1, General 0.13.0, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.8.1, General 0.13.1, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -315,10 +315,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
 - **Original-skill declarations are partial:** a declaration states an original's invocation, which
-  OpenCode and Codex honor, but Claude Code copies the skill byte for byte (`emitClaudeItem` in
-  [`tools/build.ts`](../tools/build.ts)), so its posture there comes from the SKILL.md. An original
-  cannot yet declare `harness_files` or `depends_on`, its outgoing facts are not linked, and the
-  ledger does not list it.
+  all three harnesses honor, but an original cannot yet declare `harness_files` or `depends_on`, its
+  outgoing facts are not linked, and the ledger does not list it.
 - **Manifest keys outside the grammar are ignored:** `loadManifest` in
   [`tools/lib/manifest.ts`](../tools/lib/manifest.ts) rejects an unknown key only inside an
   `original_skills` declaration. An unknown top-level or item key, such as a misspelled

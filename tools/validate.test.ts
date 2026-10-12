@@ -1995,3 +1995,28 @@ test("a manual original skill's Codex policy is expected and checked", () => {
     ),
   );
 });
+
+test("a model fact into a manual original skill fails in every tree with that tree's cause", () => {
+  const root = harnessFactsRepo(
+    {
+      claude: "Then load deniz-process:own-manual.",
+      opencode: "Then load deniz-process:own-manual.",
+      codex: "Then load deniz-process:own-manual.",
+    },
+    ["own-manual"],
+  );
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  buildAll(root);
+  const errors = errorsOf(root).filter((m) => m.includes("model-edge to a target the model cannot reach: own-manual"));
+  assert.deepEqual(
+    errors.map((m) => m.slice(0, m.indexOf(": model-edge"))),
+    [
+      "plugins/deniz-process/skills/delta/references/tools.md",
+      "opencode/deniz-process/skills/deniz-process.delta/references/tools.md",
+      "codex/deniz-process/skills/delta/references/tools.md",
+    ],
+  );
+  assert.match(errors[0] ?? "", /\(disable-model-invocation in the Claude tree\)/);
+  assert.match(errors[1] ?? "", /\(hidden from the OpenCode model \(opencode\/autoinvoke\)\)/);
+  assert.match(errors[2] ?? "", /\(allow_implicit_invocation: false in the Codex tree\)/);
+});
