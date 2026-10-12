@@ -139,9 +139,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   note's
   [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
   The 2026-10-12 tier-2
-  [forward-test panel](../experiments/harness-invocation/verified-waves-panel.md) supports one claim
-  that the skill works: P2 in OpenCode, at `76bc5c8` and on the model below, ran twice and passed
-  both times. No other prompt ran at least twice in a harness and passed every time there
+  [forward-test panel](../experiments/harness-invocation/verified-waves-panel.md) supports two claims
+  that the skill works, both for P2, each on the model named below: in OpenCode at `76bc5c8` and in
+  Codex at `ace815d`, P2 ran twice and passed both times. No other prompt ran at least twice in a
+  harness and passed every time there
   ([completion-claim vocabulary](engineering/quality-gates.md#completion-claim-vocabulary)).
   - OpenCode 2.0.26, on the free `opencode/muse-spark-1.3-contributor-free` model
     ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)): P2
@@ -153,10 +154,13 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
     P0's structural half ran, observed once (sample): the `init` event lists the skill. P0's
     model-surface half was skipped for want of a credential. P1 to P8 are not run, by curator
     decision: Claude Code uses its native Workflow tool.
-  - Codex CLI 0.162.1
-    ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md)): P0
-    passed, observed once (sample): the installed skill carries `allow_implicit_invocation: false`.
-    Every model prompt, the multi-agent V2 run of P2 included, was skipped.
+  - Codex CLI 0.162.1, on `gpt-6-luna` at reasoning effort `max`
+    ([record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md),
+    which supersedes the P0-only
+    [first record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md)):
+    on the text at `ace815d`, P2 passed in 2 of 2 attempts. P0, P1, P4, P5a, P6, P7, P8, and the
+    multi-agent V2 run of P2 each passed, observed once (sample). P3 failed: its gate child's
+    `npm test` hit `spawn EPERM` in the Windows sandbox and never passed.
 - The repository is public with MIT licensing for original work, source-specific notices and exact
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
@@ -320,9 +324,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   0.153.4, but no run has exercised `implement-spec` or the two-reviewer dispatch of
   `requesting-code-review` there either.
 - **`verified-waves` panel prompts that failed or were skipped:** the 2026-10-12 panel's
-  [Codex](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md) leg had no
-  credential supplied out of band and no operator at the TUI, so it skipped every prompt that needs
-  a model turn; its record says how to complete the leg. The
+  [Codex](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md)
+  leg ran at `ace815d` on `gpt-6-luna` (`max`) and failed P3. The
   [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md) leg
   skipped P0's model-surface half for want of a credential; its record says how to complete P0.
   P1 to P8 are not run in Claude Code, by curator decision, because Claude Code uses its native
@@ -330,33 +333,29 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   [OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) leg
   failed P2 on the text at `8bc8da3`, and a re-run at `76bc5c8` passed it. By prompt:
   - P0's model-surface half: skipped in Claude Code.
-  - P1: skipped in Codex.
-  - P2: skipped twice in Codex, so P2 needs runs there. In OpenCode it failed in 2 of 3 attempts
-    on the text at `8bc8da3`, because children wrote results files without their `REPORT` block
-    (12 and 7 of 13), and one of the two reused an earlier attempt's run-id and wrote over its
-    ledger. The skill text now answers both causes: a brief's last step puts the returned `REPORT`
+  - P2: in Codex it passed in 2 of 2 attempts at `ace815d` on `gpt-6-luna`, so P2 meets the panel's
+    bar there too (sample, not a rate). In OpenCode it failed in 2 of 3 attempts on the text at
+    `8bc8da3`, because children wrote results files without their `REPORT` block (12 and 7 of 13),
+    and one of the two reused an earlier attempt's run-id and wrote over its ledger. The skill text now answers both causes: a brief's last step puts the returned `REPORT`
     block first in the results file, the parent completes any results file that lacks it, and a new
     run checks that its ledger directory does not exist yet. A re-run at `76bc5c8` passed in 2 of 2
     attempts: in each, all 13 children's results files started with their `REPORT` block, and the
     session checked that its ledger directory was free before it created it. Each attempt ran in a
     fresh lab, so no run has met an existing ledger directory or an incomplete results file: the
     step that picks another run-id and the parent's completion of a results file are unmeasured.
-  - P2 under Codex's multi-agent V2: skipped.
-  - P3: skipped in Codex.
-  - P4: skipped in Codex.
-  - P5a: skipped in Codex.
-  - P6: skipped in Codex.
-  - P7: skipped in Codex.
-  - P8: skipped in Codex.
-- **The Codex multi-agent version is unmeasured:** Codex catalog metadata can select multi-agent V2
+  - P3: failed in Codex: the gate child's `npm test` hit `spawn EPERM` in the unelevated Windows
+    sandbox twice and never passed. The writers' coordination line could not be checked, because
+    Codex stores briefs encrypted.
+- **The Codex multi-agent V1 path is unmeasured:** Codex catalog metadata can select multi-agent V2
   even with its feature flag off
   ([research](research/claude-ultracode-and-orchestration-ports.md#capability-matrix)), so the
-  `verified-waves` Codex notes branch on the model's actual tool list. Under V1 the multi-agent
-  tools are deferred behind `tool_search` for every model in the bundled catalog, so a V1 session
-  starts without `spawn_agent` in view, and the notes load the tools through `tool_search` before
-  the check (same research section). No session has shown which tools a preset serves, or that a
-  model follows the deferral step; the panel's Codex runs of P2, the V2 run included, were
-  skipped.
+  `verified-waves` Codex notes branch on the model's actual tool list. The panel measured this for
+  one model: the bundled catalog sets `multi_agent_version: "v2"` for `gpt-6-luna`, and every
+  session got the V2 tools with `features.multi_agent_v2` unset, `true`, or `false`. Under V1 the
+  multi-agent tools are deferred behind `tool_search` for every model in the bundled catalog, so a
+  V1 session starts without `spawn_agent` in view, and the notes load the tools through
+  `tool_search` before the check (same research section). No session was served V1, so no run has
+  exercised that deferral step: there were 0 `tool_search` calls in the panel's 82 rollouts.
 - **Two Codex model rules for spawned children:** the `using-superpowers` Codex notes tell every
   `spawn_agent` call to set `model` and `reasoning_effort` per the Model Selection rules of the
   skill being executed, while the `verified-waves` Codex notes leave both unset for the children
@@ -370,6 +369,19 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and in the P2 re-run at `76bc5c8` the model still ended its turn after the plan in 1 of 2
   attempts. Each is a sample, not a rate
   ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
+  In the Codex panel, four more, each seen once
+  ([Codex record](../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md)):
+  - The Codex V2 notes say that restart step 4 continues a RUNNING item through `followup_task`,
+    but after a harness kill, `followup_task` from the new session returned "live agent path …
+    not found".
+  - Neither `SKILL.md` nor the Codex notes say what a check that the sandbox refuses reports. Both
+    gate children reported FAIL on `spawn EPERM` without asking for escalation, while the children
+    that asked got PASS.
+  - The model asked its yes/no questions through `request_user_input_async`, which lets the turn go
+    on. In P3 the parent went on past its question and closed the run without the answer; the
+    panel's driver did not surface the question while that turn ran, so this is partly a driver gap.
+  - In P3, once its announced agent total was spent, the parent wrote a fix itself instead of
+    dispatching a writer.
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to

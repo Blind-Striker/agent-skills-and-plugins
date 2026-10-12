@@ -596,7 +596,10 @@ The curator ruled on the first three points on 2026-10-12; the last stays open.
   runs:
   [Claude Code](../../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md),
   [OpenCode 2](../../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md),
-  and [Codex](../../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md).
+  and [Codex](../../experiments/harness-invocation/records/2026-10-12-verified-waves-codex-gpt-6-luna.md),
+  which supersedes the P0-only
+  [first Codex record](../../experiments/harness-invocation/records/2026-10-12-verified-waves-codex.md).
   OpenCode's discovery reports the skill unadvertised; the model-facing listing in Claude Code and
-  Codex is unmeasured. Only one prompt meets the bar for saying the skill works: P2 in OpenCode, in
-  the record's re-run at `76bc5c8`. So the point stays open.
+  Codex is unmeasured. Only one prompt meets the bar for saying the skill works, P2, in two
+  harnesses: in OpenCode in the record's re-run at `76bc5c8`, and in Codex at `ace815d` on
+  `gpt-6-luna`. So the point stays open.
