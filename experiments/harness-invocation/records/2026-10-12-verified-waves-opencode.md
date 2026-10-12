@@ -3,7 +3,7 @@ record_id: verified-waves-opencode-2026-10-12
 date: 2026-10-12
 repo_head: 8bc8da3bf070d14f568d1000c1b5b428473f0f0f
 kind: model-panel
-summary: On an isolated OpenCode 2.0.26 serve with the free opencode/muse-spark-1.3-contributor-free model, verified-waves passed P2 in both valid runs (a third attempt was invalid from lab residue) and passed P0, P1, P3, P4, P5a, P6, P7, and P8 once each (samples); the samples also show the model ending its turn after the plan in 3 of 5 audit sessions, 16 of 55 children's results files without their REPORT block, no permission prompt anywhere, and killed children that did not resume after a server restart.
+summary: On an isolated OpenCode 2.0.26 serve with the free opencode/muse-spark-1.3-contributor-free model, verified-waves passed P2 in 1 of 3 attempts (attempts 2 and 3 failed the results-file criterion, with 12 and 7 of their 13 children's results files lacking the REPORT block, and attempt 2 also wrote its ledger over attempt 1's under the same run-id), so this record claims no prompt works in OpenCode; P0, P1, P3, P4, P5a, P6, P7, and P8 passed once each (samples); the samples also show the model ending its turn after the plan in 3 of 5 audit sessions, 28 of 68 children's results files without their REPORT block, no session checking that its run-id was free, no permission prompt anywhere, and killed children that did not resume after a server restart.
 isolation_ok: true
 fixture_sha: 0a83bab
 harness_name: opencode
@@ -20,7 +20,10 @@ clean tree. `<LAB>` below is the external lab root, outside the repository and t
 Raw transcripts, event data, and ledgers stay in the lab.
 
 Every count below is a sample, never a rate. Under the panel's [repeat budget](../verified-waves-panel.md#repeats),
-only P2 ran twice; every other prompt is "observed once (sample)".
+only P2 ran more than once: the panel's two runs, plus a third that the run added after it first
+took attempt 2's ledger collision for lab residue (Method item 6). P2 passed in 1 of the 3, so no
+prompt meets the panel's bar for saying the skill works in OpenCode. Every other prompt is
+"observed once (sample)".
 
 ## Method
 
@@ -32,6 +35,13 @@ only P2 ran twice; every other prompt is "observed once (sample)".
    token, provider key, or Claude Code session variable from the operator's shell reached it. A
    shell spawned by the server listed system and lab variable names only, with no inherited token
    or key, and `/api/info` reported its temp root as `<LAB>/.opencode-home/.tmp/opencode`.
+   `harness_version` is the isolated serve's own: `oc2-discovery.ps1` reads it from `/api/info`
+   (`opencodeVersion: 2.0.26`). Outside the lab, the run agent twice ran `opencode --version` in
+   the operator's own environment (04:27:33Z, while looking for the harness binaries, and
+   04:34:18Z, while writing the lab's `serve.ps1`). Each call appended one
+   `cli starting … args=["--version"]` line to the real profile's `opencode.log`. No other file
+   of the real OpenCode profile, its configuration and database included, changed during the
+   panel window.
 2. **Install.** `npm run install:opencode '--' install --module deniz-process --yes` in that
    environment installed the checkout's Process Bundle (0.10.0, 41 skills) into the lab's
    `OPENCODE_CONFIG_DIR`.
@@ -63,10 +73,17 @@ only P2 ran twice; every other prompt is "observed once (sample)".
    `stopchild.mjs`) at the end of the run was
    `sha256:1ef73fa1264add3ff30c2ff45bc31e92b292f83a1c474162740a12429fa44ead`.
 6. **Before every prompt.** `Reset-Scratch -Set waves`, a check that HEAD is `0a83bab` with a clean
-   status, and a listing of every `verified-waves` directory below `<LAB>`. From P2-3 on, the
-   driver first moved any earlier ledger root into a lab archive, after P2-2 showed that a leftover
-   ledger is residue (see P2-2). After each prompt it recorded the listing, `git status --porcelain`,
-   and `git rev-parse --short HEAD`.
+   status, and a listing of every `verified-waves` directory below `<LAB>`. After each prompt the
+   driver recorded the listing, `git status --porcelain`, and `git rev-parse --short HEAD`.
+
+   **Deviation from the panel.** From P2-3 on, the driver also moved any earlier ledger root into a
+   lab archive before the prompt. The protocol's residue trap is about the fixture, which was reset
+   before every prompt. The panel's Setup step 6 only lists the ledger roots, so a later prompt
+   meets the ledgers of the earlier ones, as a user's same-day re-run does. The run added the step
+   after P2-2 collided with P2-1's ledger and took that for residue. `<LAB>/runner/panel.mjs` was
+   last written at 04:52:22Z, between P2-2 and P2-3, so the driver hash above covers the changed
+   driver, and P2-1 and P2-2 ran an earlier `panel.mjs`. The step hid the same collision from P2-3
+   and P4, which chose P2-1's run-id too (see the run-id note).
 
 ## Dry run
 
@@ -94,8 +111,8 @@ last messages overlap in time.
 | `opencode/muse-spark-1.3-contributor-free` | P8 | pass |  | none | read the notes, then "No task was included … What task do you want run as verified waves?"; no child; the `verified-waves` listing stayed empty |
 | `opencode/muse-spark-1.3-contributor-free` | P1 | pass |  | none | "This is a small task — one typo in one place — so I'll fix it directly with no sub-agents or ledger"; one edit at `src/retry.js:4`; no ledger |
 | `opencode/muse-spark-1.3-contributor-free` | P2 | pass |  | `subagent` ×13 | attempt 1. The plan (goal, done-when D1–D4, stop-when, shape, 6 audit items, waves, ceiling 6, verification plan) and the ledger path came first; then the model ended its turn, and the operator replied `Proceed.`. quota:16, window:18, and ttl:27 were each CONFIRMED by two fresh skeptics (reproduce and contract); budget was never reported; a completeness critic ran; "6 of 6 modules audited", "DONE 13"; 13 of 13 results files written, all with their report; peak live 6; status clean, HEAD `0a83bab` |
-| `opencode/muse-spark-1.3-contributor-free` | P2 | invalid |  | `subagent` ×13 | attempt 2. Residue: the model chose the run-id `2026-10-12-boundary-audit`, the same as attempt 1, whose ledger was still in the lab. It overwrote that ledger without noticing it, so results files from two runs mixed. Otherwise the run matched attempt 1, with one more step: it asked a yes/no question before going over its announced total of 7, and the operator answered "Yes, launch skeptics" |
-| `opencode/muse-spark-1.3-contributor-free` | P2 | pass |  | `subagent` ×13 | attempt 3, the second valid run, on a clean ledger root. The plan came before the first dispatch, with no stop. quota:16, ttl:27, and window:18 each CONFIRMED by two fresh skeptics; budget clean; critic ran; "All 6 modules audited — PASS (audit_01..06 DONE)", "DONE 13"; 13 of 13 results files exist, but 7 of them (the six audits and the critic) hold detail without the `REPORT` block; peak live 6; status clean, HEAD `0a83bab` |
+| `opencode/muse-spark-1.3-contributor-free` | P2 | fail |  | `subagent` ×13 | attempt 2. Fails the results-file criterion: 12 of the 13 children's results files hold detail without the `REPORT` block (only `skep_window_rep` has it). The model chose the run-id `2026-10-12-boundary-audit`, the same as attempt 1, whose ledger the panel's setup had kept in the lab. It wrote its ledger over attempt 1's without reading it first, so results files from two runs shared one `results/` directory; its final report later named six stray `skeptic_*` files from attempt 1 and ignored them by id. The other criteria held: the plan (done-when D1–D4, stop-when) and the ledger path came first, and the model ended its turn there until the operator's `Proceed.`; quota:16, ttl:27, and window:18 each CONFIRMED by two fresh skeptics (reproduce and contract); budget clean; "6/6 audits DONE"; a critic ran; status clean, HEAD `0a83bab`. It asked a yes/no question before going over its announced total of 7, and the operator answered "Yes, launch skeptics"; peak live 6 |
+| `opencode/muse-spark-1.3-contributor-free` | P2 | fail |  | `subagent` ×13 | attempt 3, with no earlier ledger in place, because the driver had archived it (Method item 6). Fails the results-file criterion: 7 of the 13 children's results files (the six audits and the critic) hold detail without the `REPORT` block. The other criteria held: the plan came before the first dispatch, with no stop; quota:16, ttl:27, and window:18 each CONFIRMED by two fresh skeptics; budget clean; critic ran; "All 6 modules audited — PASS (audit_01..06 DONE)", "DONE 13"; peak live 6; status clean, HEAD `0a83bab` |
 | `opencode/muse-spark-1.3-contributor-free` | P3 | pass |  | `subagent` ×5 | two writers on disjoint write sets (`src/paginate.js` + `test/paginate.test.js`; `src/retry.js` + `test/retry.test.js`); both briefs carry "Other agents edit other files now; do not revert or reformat changes you did not make."; the gate child ran `npm test` itself (10 pass, 0 fail) and 2 skeptics CONFIRMED; no commit, HEAD `0a83bab`; an independent `npm test` on the result passed 10 of 10; peak live 3 |
 | `opencode/muse-spark-1.3-contributor-free` | P4 | pass |  | `subagent` ×14 | the operator interrupted `audit_quota` while it was live. The parent got `state="cancelled"` and said "`audit_quota` cancelled → FAILED per ledger rules. Retrying once as a new child." The retry reported, and the final report says "FAILED (0 rows; 1 transient event: audit_quota first attempt cancelled → recorded FAILED then retried DONE)". The model asked before going over its announced 13 for the critic; the operator answered "Yes, launch critic". Peak live 6 |
 | `opencode/muse-spark-1.3-contributor-free` | P5a | pass |  | `subagent` ×2, then ×1 | the operator killed the serve process tree when the first writer's results file appeared (both writers' files landed in the same second, and the ledger still said RUNNING), then started a new serve and a new session with the continuation prompt. The model read the ledger, both results files, and the missing gate file, then ran `git status --porcelain` and `git diff` on the four write-set files before any dispatch. It then said "Reused (2 of 3, not re-dispatched): paginate_01 … retry_01 …" and "Running again (1): gate_01". The gate passed (9 of 9), and neither writer ran again |
@@ -200,18 +217,21 @@ The final report, cut to its first half:
 - **A stop after the plan.** In 3 of the 5 sessions that got the P2 prompt (attempts 1 and 2, and
   P7), the model ended its turn after the plan and the ledger path, saying it would create the
   ledger next. Each one went on after the operator's `Proceed.`. The skill says that invoking it is
-  the user's request for sub-agents. OpenCode has no pass criterion on this, so the rows pass, but
-  the extra turn is a cost (sample).
+  the user's request for sub-agents. OpenCode has no pass criterion on this, so the stop decides no
+  row, but the extra turn is a cost (sample).
 - **Results files without the report.** The skill says a child writes its report, then any detail,
   to its results file. The children's writes that held the `REPORT` block: 13 of 13 in P2
-  attempt 1, 6 of 13 in attempt 3, 5 of 5 in P3, 9 of the 13 children that wrote in P4 (the
-  stopped child wrote none), 2 of 3 in P5a (the continuation's gate wrote detail only), and 4 of 8
-  in P6. So 16 of 55 written files hold detail only. Every child did leave a file, which is the P2
-  criterion. A restart cannot take a status from a detail-only file, though, and P5a passed
-  because both writers' files held their reports.
-- **Run-id uniqueness.** Four sessions chose the same run-id on the same day. In P2 attempt 2 the
-  model wrote over a ledger that already existed at its path without reading it. The skill says
-  the run-id is "short and unique", but no session checked that its directory was free.
+  attempt 1, 1 of 13 in attempt 2, 6 of 13 in attempt 3, 5 of 5 in P3, 9 of the 13 children that
+  wrote in P4 (the stopped child wrote none), 2 of 3 in P5a (the continuation's gate wrote detail
+  only), and 4 of 8 in P6. So 28 of 68 written files hold detail only. The P2 criterion "every
+  child left a results file" takes the skill's meaning of that file, so P2 attempts 2 and 3 fail
+  it although every child left a file. A restart cannot take a status from a detail-only file,
+  and P5a passed because both writers' files held their reports.
+- **Run-id uniqueness.** Four sessions chose the same run-id on the same day: P2 attempts 1 to 3
+  and P4. In P2 attempt 2 the model wrote over a ledger that already existed at its path without
+  reading it. P2 attempt 3 and P4 met no earlier ledger only because the driver had archived it
+  (Method item 6). The skill says the run-id is "short and unique", but no session checked that its
+  directory was free.
 - **The ledger log.** In P2 attempts 1 and 3, the ledger's append-only log held only its creation
   line. The rows were updated at each event, and the P5a continuation appended log lines.
 - **Agent-total questions.** In P2 attempt 2, P4, and P6 the model asked a yes/no question before
