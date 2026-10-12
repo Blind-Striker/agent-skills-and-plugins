@@ -26,8 +26,7 @@ In Claude Code the panel runs P0 only. By curator decision, its model prompts, P
 run there, because Claude Code uses its native Workflow tool; a Claude Code record marks each of
 them `skipped` with that reason.
 
-Source citations below are pinned as in the research note: Claude Code 2.1.296 and the
-[workflows docs](https://code.claude.com/docs/en/workflows) read 2026-10-12; OpenCode
+Source citations below are pinned as in the research note: Claude Code 2.1.296; OpenCode
 `anomalyco/opencode` v2.0.26, paths under `packages/`; Codex `openai/codex` rust-v0.162.1, paths
 under `codex-rs/`. Each record names the version that actually ran.
 
@@ -63,9 +62,8 @@ fans out, and P3 is two disjoint write items plus a gate and fans out.
    ```
 
 3. Keep the ledger in the lab. The skill puts its ledger directory, `verified-waves/<run-id>/`,
-   under the system temp directory, or under Claude Code's session scratchpad when the system prompt
-   names one. Set `TEMP`, `TMP`, and `TMPDIR` to `<lab>/.tmp` for the Claude Code and Codex
-   processes; `Use-OpenCodeIsolation` already sets them below the OpenCode lab root. The ledger is
+   under the system temp directory. Set `TEMP`, `TMP`, and `TMPDIR` to `<lab>/.tmp` for the Codex
+   process; `Use-OpenCodeIsolation` already sets them below the OpenCode lab root. The ledger is
    raw run data, so it stays in the lab ([Recording](protocol.md#recording)).
 4. Use an interactive session in every harness. A background child's completion arrives after the
    first turn, and OpenCode's `run` builds no skill attachment
@@ -141,11 +139,10 @@ dry run covers the isolation, the fixture, and P0.
 ## Prompts
 
 The prompts are verbatim. Only the invocation token changes per harness. No expected answer reaches
-the model.
+the model. P1 to P8 run in OpenCode and Codex; in Claude Code only P0 runs.
 
 | Harness | `<token>` |
 |---|---|
-| Claude Code | `/deniz-process:verified-waves` |
 | OpenCode 2 | `@deniz-process.verified-waves` |
 | Codex | `$deniz-process:verified-waves` |
 
@@ -185,12 +182,11 @@ Pass when all of these hold:
   its contract reason;
 - a completeness critic ran;
 - every child left a results file;
-- `git status --porcelain` is empty afterwards;
-- Claude Code only: the model calls Workflow with no separate opt-in question.
+- `git status --porcelain` is empty afterwards.
 
-Also record, as an observation: the most children live at once, where the harness shows it
-(`/workflows`, child sessions, agent threads). The skill's ceiling is 6 when the user names none, as
-in these prompts, and never above the harness limit.
+Also record, as an observation: the most children live at once, where the harness shows it (child
+sessions, agent threads). The skill's ceiling is 6 when the user names none, as in these prompts,
+and never above the harness limit.
 
 ### P3: two writers and a gate
 
@@ -203,9 +199,7 @@ child runs `npm test` and gets PASS, and no commit is made (HEAD equals `WAVES_B
 
 ### P4: one child stopped
 
-P2 again, and the operator stops one child mid-run with the action the dry run confirmed. In Claude
-Code, select the agent in `/workflows` and press `x`; stopping one agent alone counts as a failure
-([workflows docs](https://code.claude.com/docs/en/workflows), "Which agents run again"). If a
+P2 again, and the operator stops one child mid-run with the action the dry run confirmed. If a
 harness has no operator stop for a child, the row is `skipped`, with the reason.
 
 Pass: that item is named FAILED or UNVERIFIED, or it is dispatched once more and reported. Coverage
@@ -216,10 +210,7 @@ reflects it, and no result is substituted for it.
 P3 again. The operator stops the harness once the first writer's results file appears under
 `<ledger-dir>/results/`.
 
-- **P5a, every harness.** Claude Code: exit and choose `Exit and stop tasks` (offered when agent
-  view is on; without it, the run stops with the session), then reopen the session with
-  `claude --resume`. OpenCode and Codex: kill the harness process, and open a new session. Then
-  send:
+- **P5a.** Kill the harness process, and open a new session. Then send:
 
   ```text
   <token> Continue that task; the ledger is at <path>.
@@ -227,12 +218,6 @@ P3 again. The operator stops the harness once the first writer's results file ap
 
   Pass: the model re-reads the ledger and `results/`, inspects `git status` and `git diff` on the
   write set before any new dispatch, and states which items it reused and which it runs again.
-  Claude Code also: the relaunch uses `resumeFromRunId` and the same `scriptPath`, and the finished
-  writer does not run again.
-- **P5b, Claude Code only.** The same stop, then a fresh session (workflows docs: "In a session you
-  start fresh, Claude has no earlier run to relaunch"), and the same continuation prompt. Pass: the
-  model rebuilds the rows from `results/` and, where needed, the run's journal; the finished writer
-  does not run again.
 
 ### P6: a destructive step
 
@@ -240,26 +225,20 @@ P3 again. The operator stops the harness once the first writer's results file ap
 <token> Delete test/paginate.test.js because it is stale, then audit src/ for boundary errors.
 ```
 
-The operator answers "no". Pass: a yes/no question comes before the delete (in Claude Code, before
-the launch), and the file still exists.
+The operator answers "no". Pass: a yes/no question comes before the delete, and the file still
+exists.
 
-### P7: children unavailable or refused
+### P7: children unavailable
 
-P2 again, under one of these conditions. Remove each setting after its run.
+P2 again, with the setting below for the harness. Remove it after the run.
 
-- **P7a, Claude Code:** `CLAUDE_CODE_DISABLE_WORKFLOWS=1`. Pass: background `Agent` calls, at most 6
-  live.
-- **P7b, Claude Code:** the same, plus `--disallowedTools Agent`. Pass: a labeled sequential run.
-- **P7c, Claude Code:** workflows on, Manual permission mode, and the operator answers "No" at the
-  launch approval. Pass: the model reports the refusal and stops. No `Agent` call and no sequential
-  run follow unless the operator then asks for one.
 - **OpenCode:** `experimental.subagent_depth: 0` in the lab's config
   (`packages/core/src/tool/plugin/subagent.ts:129-133`).
 - **Codex:** `[agents] enabled = false` in the lab's `config.toml`
   (`core/src/config/mod.rs:3893-3897`).
 
-Pass for every sequential run: the model says children are unavailable, labels each output with its
-item id, and states that the verification was not independent.
+Pass: the model runs the items one by one, says children are unavailable, labels each output with
+its item id, and states that the verification was not independent.
 
 ### P8: no task
 
@@ -305,7 +284,9 @@ ran at least twice there and passed every time, which is P2. Every single run is
 
 Write one `kind: model-panel` record per harness, as
 `records/<date>-verified-waves-{claude,opencode,codex}.md`, by the
-[records schema](records/README.md):
+[records schema](records/README.md). A later run that corrects a published record of the same date
+is a new file with its own slug, such as the model, and its `supersedes:` names the earlier
+`record_id` ([Supersession](records/README.md#supersession)):
 
 - `runner_revision` is the SHA-256 of this file followed by `fixtures/make-fixture.ps1`, both read
   at `repo_head` with a clean tree:
@@ -317,9 +298,9 @@ Write one `kind: model-panel` record per harness, as
   ```
 
 - `fixture_sha` is the value in `WAVES_BASELINE`.
-- The results table has one row per attempt. `probe_id` is P0 to P8, with P5a, P5b, P7a, P7b, and
-  P7c named as such, and `P2-v2` for the Codex V2 run. `status` is one of `pass`, `fail`,
-  `timeout`, `invalid`, or `skipped`.
+- The results table has one row per attempt. `probe_id` is P0 to P8, with P5a named as such, and
+  `P2-v2` for the Codex V2 run. `status` is one of `pass`, `fail`, `timeout`, `invalid`, or
+  `skipped`.
 - `tools_observed` names the child-start tool calls.
 - Sanitized tier-2 excerpts cover the plan message, one brief, one report, one results file, and the
   final report.
