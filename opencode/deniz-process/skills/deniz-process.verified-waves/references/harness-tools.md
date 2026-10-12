@@ -31,7 +31,8 @@ Completion is a `<subagent sessionID state description>` message that holds the 
 text. The states `error` and `cancelled` are FAILED. So is a `completed` message whose text is
 "Subagent completed without a text response." or holds no `REPORT` block.
 
-Background children are recovered after a server restart and still report.
+After a server restart, a child may or may not report, so do not wait for one. Follow the restart
+steps in `SKILL.md`: take the item's report from its results file, or dispatch the item again.
 
 ## Fixes, verifiers, and restart
 

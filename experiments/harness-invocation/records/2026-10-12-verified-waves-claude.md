@@ -101,10 +101,15 @@ The call then ended with the synthetic assistant text `Not logged in · Please r
 - **Dry run.** Isolation, the fixture baseline, and P0's structural half were confirmed. The ledger
   location, the P4 stop, and the P5 stop and reopen were not confirmed, because each needs a model
   turn.
-- **Observed, not measured: the subagent tool's name.** The `init` tool list holds `Task` and no
-  `Agent`, with `Workflow` present. The skill's Claude notes say "background `Agent` calls" for
-  the D4 fallback, and P7b uses `--disallowedTools Agent`. Whether `Agent` is an alias that the
-  model and `--disallowedTools` accept in 2.1.296 needs a model turn; this record makes no claim
-  about it.
+- **Observed: the subagent tool's name.** The `init` tool list holds `Task` and no `Agent`, with
+  `Workflow` present. That matches the documentation and does not contradict the skill's Claude
+  notes, which say "background `Agent` calls" for the D4 fallback. The
+  [Agent SDK TypeScript reference](https://code.claude.com/docs/en/agent-sdk/typescript#agent)
+  says: "Tool name: `Agent`. The previous name `Task` is still accepted as an alias, and the
+  `tools` array in the `SDKSystemMessage` init message currently lists this tool as `Task` for
+  backward compatibility." The [sub-agents documentation](https://code.claude.com/docs/en/sub-agents)
+  dates the rename to 2.1.63 ("Restrict which subagents can be spawned") and shows
+  `--disallowedTools "Agent(Explore)"` ("Disable specific subagents"). Both were read on
+  2026-10-12. No model turn ran here, so P7b's `--disallowedTools Agent` is still unexercised.
 - **Observed: the permission mode.** A fresh config reported `permissionMode: "auto"` in `-p` mode.
   P7c needs Manual mode, so the operator has to set it for that run.

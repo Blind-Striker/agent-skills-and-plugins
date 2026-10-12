@@ -54,7 +54,8 @@ A running Workflow is the only orchestration authority: start no `Agent` fan-out
 
 ## When Workflow is not in your tool list
 
-Workflows are turned off, or not yet turned on for this plan. Then:
+Workflows are turned off, or not yet turned on for the user's subscription (on Pro, the user turns
+them on in the Dynamic workflows row of `/config`). Then:
 
 1. Start the children as background `Agent` calls (`run_in_background: true`) on the default
    subagent type, at most 6 live. Overlapping writers run in sequence.

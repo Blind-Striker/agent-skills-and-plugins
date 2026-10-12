@@ -347,18 +347,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   skill being executed, while the `verified-waves` Codex notes leave both unset for the children
   that skill spawns unless the user asks. The curator kept the skill's own rule and left
   `using-superpowers` unpatched, so a session that loads both reads both rules.
-- **`verified-waves` notes that a sample contradicts or leaves open:** the OpenCode notes say
-  background children are recovered after a server restart and still report, and that a ledger
-  outside the project asks for `external_directory` permission. In the OpenCode panel, the two
-  children killed in P5a wrote nothing after the restart, and no run raised a permission prompt
-  for a ledger below the server's own temp root. The model there also ended its turn after the
-  plan in 3 of the 5 sessions that got the P2 prompt. In Claude Code 2.1.296 the `init` tool list
-  holds `Task` and no `Agent`, while the Claude notes' fallback names background `Agent` calls;
-  whether that name is accepted is unmeasured.
-  Each is a sample, not a rate
-  ([OpenCode](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md) and
-  [Claude Code](../experiments/harness-invocation/records/2026-10-12-verified-waves-claude.md)
-  records).
+- **`verified-waves` notes that a sample contradicts or leaves open:** the OpenCode notes say that
+  a ledger outside the project asks for `external_directory` permission, but in the OpenCode panel
+  no run raised a permission prompt for a ledger below the server's own temp root. The model there
+  also ended its turn after the plan in 3 of the 5 sessions that got the P2 prompt. Each is a
+  sample, not a rate
+  ([OpenCode record](../experiments/harness-invocation/records/2026-10-12-verified-waves-opencode.md)).
 - **Consumer repositories set up before W5 keep the old layout:** with no read of the old names,
   a repository that has `CONTEXT.md`, or an `## Agent skills` block in `CLAUDE.md`, needs its
   glossary renamed and `setup-matt-pocock-skills` run again. The new run writes its block to
