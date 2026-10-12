@@ -1965,6 +1965,40 @@ test("harness files: a tree whose harness maps null holds nothing at the output 
   );
 });
 
+// A shared body ships to every tree, so a link to an output path one harness maps null is dead in
+// that tree alone; a curated item and an original skill state the mapping in different places.
+test("harness files: a link or path claim to an output path this tree's harness maps null names the mapping", () => {
+  const root = makeHarnessFilesRepo("null");
+  writeFileSync(
+    join(root, "external", "sp", "skills", "delta", "SKILL.md"),
+    "---\nname: delta\ndescription: Delta upstream\n---\n\nRead [tools](references/tools.md).\n",
+  );
+  addOriginalSkill(root, "own-notes", {
+    files: { "references/claude.md": "Claude.\n", "references/opencode.md": "OpenCode.\n" },
+    declaration: {
+      invocation: "both",
+      harness_files: {
+        "references/tools.md": { claude: "references/claude.md", codex: null, opencode: "references/opencode.md" },
+      },
+    },
+    body: "Read [tools](references/tools.md).\nThen read ../delta/references/tools.md.\n",
+  });
+  buildAll(root);
+  const fix = (harness: string) => `give ${harness} a source, or link it only from files ${harness} does not ship`;
+  const delta = "harness_files of deniz-process/delta in curation/deniz-process.yaml maps to null for opencode";
+  const own = "original_skills.own-notes.harness_files in curation/deniz-process.yaml maps to null for codex";
+  const errors = errorsOf(root);
+  assert.deepEqual(
+    errors.filter((m) => m.includes("maps to null")),
+    [
+      `opencode/deniz-process/skills/deniz-process.own-notes/SKILL.md:7: ../deniz-process.delta/references/tools.md resolves to references/tools.md, which ${delta} — opencode/ ships no file there; ${fix("opencode")}`,
+      `opencode/deniz-process/skills/deniz-process.delta/SKILL.md: references/tools.md resolves to references/tools.md, which ${delta} — opencode/ ships no file there; ${fix("opencode")}`,
+      `codex/deniz-process/skills/own-notes/SKILL.md: references/tools.md resolves to references/tools.md, which ${own} — codex/ ships no file there; ${fix("codex")}`,
+    ],
+  );
+  assert.ok(!errors.some((m) => m.includes("does not resolve")), errors.join("\n"));
+});
+
 test("I: a body that runs a bundled script by bare path is an error; naming the interpreter passes", () => {
   const root = makeRepo();
   const delta = join(root, "external", "sp", "skills", "delta");

@@ -21,6 +21,7 @@ import {
   type ComponentType,
   type CurationManifest,
   type Harness,
+  HARNESSES,
   loadManifest,
   type SkillIntent,
   UNKNOWN_SOURCE_RULE,
@@ -1430,6 +1431,37 @@ export function validateRepo(root: string): Finding[] {
   const reachesBody = (folder: string, abs: string): boolean => abs === folder || abs === join(folder, "SKILL.md");
   const landed = (abs: string, path: string): boolean =>
     existsSync(abs) && (!path.endsWith("/") || statSync(abs).isDirectory());
+  // A harness_files output that one harness maps null is absent from that tree alone, so a path
+  // that resolves there is dead in that tree, and the fix is the mapping, not the target item.
+  const nullOutputs = new Map<string, { output: string; harness: Harness; mapping: string }>();
+  for (const m of manifests) {
+    for (const { outName, outType, intent, item } of pairedItems(m)) {
+      if (outType !== "skill") {
+        continue;
+      }
+      const owner = item ? `harness_files of ${m.plugin.name}/${outName}` : `original_skills.${outName}.harness_files`;
+      const mapping = `${owner} in curation/${m.plugin.name}.yaml`;
+      const folders: Record<Harness, string> = {
+        claude: join(pluginsDir, m.plugin.name, "skills", outName),
+        opencode: openCodeArtifact(root, m.plugin.name, "skills", outName),
+        codex: join(root, "codex", m.plugin.name, "skills", outName),
+      };
+      for (const [output, byHarness] of Object.entries(intent.harness_files ?? {})) {
+        for (const harness of HARNESSES) {
+          if (byHarness[harness] === null) {
+            nullOutputs.set(join(folders[harness], ...output.split("/")), { output, harness, mapping });
+          }
+        }
+      }
+    }
+  }
+  const nullOutputMessage = (at: string, path: string, abs: string, tree: string): string | undefined => {
+    const hit = nullOutputs.get(abs);
+    return (
+      hit &&
+      `${at}: ${path} resolves to ${hit.output}, which ${hit.mapping} maps to null for ${hit.harness} — ${tree}/ ships no file there; give ${hit.harness} a source, or link it only from files ${hit.harness} does not ship`
+    );
+  };
 
   for (const tree of ["plugins", "opencode", "codex"]) {
     const treeRoot = join(root, tree);
@@ -1479,7 +1511,10 @@ export function validateRepo(root: string): Finding[] {
             if (name !== ownName && manualItem(name) && reachesBody(folder, abs)) {
               findings.push({ level: "error", message: manualMessage(at, claim.path, name) });
             }
-            if (claim.kind === "climb" && !landed(abs, claim.path)) {
+            const nullOutput = landed(abs, claim.path) ? undefined : nullOutputMessage(at, claim.path, abs, tree);
+            if (nullOutput) {
+              findings.push({ level: "error", message: nullOutput });
+            } else if (claim.kind === "climb" && !landed(abs, claim.path)) {
               findings.push({
                 level: "error",
                 message: `${at}: sibling path ${claim.path} does not resolve in ${tree}/ — the target item was renamed, excluded, omitted, or never existed`,
@@ -1512,6 +1547,11 @@ export function validateRepo(root: string): Finding[] {
           findings.push({ level: "error", message: manualMessage(rel, link, manual) });
         }
         if (existsSync(abs)) {
+          continue;
+        }
+        const nullOutput = nullOutputMessage(rel, link, abs, tree);
+        if (nullOutput) {
+          findings.push({ level: "error", message: nullOutput });
           continue;
         }
         // R1 — a link that CLAIMS another shipped item: it either resolves into that item's

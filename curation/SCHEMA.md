@@ -127,7 +127,12 @@ harnesses are all `null`. The build stops before deleting output when the item i
 skill-shaped, when a non-null source is not in the assembled item (an `omit` can remove one) or not
 in an original skill's directory, or when the item already ships a file at the output path.
 `validate` checks every tree for its own file at the output path and for any mapped source shipped
-under its own name. How `depends_on` and reachability read each harness's source is owned by
+under its own name. A `null` leaves a dead path in that tree alone: a Markdown link or a
+[path claim](../docs/architecture/references-and-linking.md#paths) that resolves to the output path
+in the tree of a harness that maps it `null` is an error naming the mapping, on a curated item and an
+original skill alike. Give that harness a source, or link the output path only from files that
+harness does not ship, such as the other harnesses' own sources. How `depends_on` and reachability
+read each harness's source is owned by
 [References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability).
 
 ## `original_skills`

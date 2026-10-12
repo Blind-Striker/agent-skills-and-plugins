@@ -51,6 +51,9 @@ reasonably have caused:
 - a sibling-item climb such as `../other-item/...` must still land after rename, exclusion,
   omission, or conversion;
 - a missing same-item file is a finding when the upstream item still contains that file;
+- a path to a [`harness_files`](../../curation/SCHEMA.md#harness_files) output that its tree's
+  harness maps to `null` is a finding that names the mapping, from any item into any item, curated
+  or original;
 - other same-item paths that upstream never contained remain ordinary illustrative prose.
 
 Markdown link targets are read from Markdown files. Two **path claims** are read from every bundled
