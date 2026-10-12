@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { CurationManifest } from "./manifest.ts";
+import { type CurationManifest, HARNESSES } from "./manifest.ts";
 import {
   buildRewriteMap,
   claudeOnlyVocabulary,
+  harnessOnlyVocabulary,
   isBundledText,
   localize,
   openCodeTodoWords,
@@ -317,6 +318,35 @@ test("every non-Claude rendering is free of Claude-only vocabulary", () => {
   );
   for (const style of ["opencode", "codex"] as const) {
     assert.deepEqual(claudeOnlyVocabulary(renderHarnessPhrasing(PHRASES, style)), [], style);
+  }
+});
+
+test("each harness's tool words are matched by its own list", () => {
+  assert.deepEqual(
+    harnessOnlyVocabulary(
+      "Call spawn_agent, then wait_agent and close_agent; followup_task, send_message later.",
+      "codex",
+    ).map((h) => h.match),
+    ["spawn_agent", "wait_agent", "close_agent", "followup_task", "send_message"],
+  );
+  assert.deepEqual(
+    harnessOnlyVocabulary("Use the `subagent` tool; set experimental.subagent_depth.", "opencode").map((h) => h.match),
+    ["`subagent` tool", "subagent_depth"],
+  );
+  assert.deepEqual(
+    harnessOnlyVocabulary("Call the Workflow tool, then pass resumeFromRunId.", "claude").map((h) => h.match),
+    ["Workflow tool", "resumeFromRunId"],
+  );
+  const sample = "Use the Task tool with subagent_type; `Agent` calls.";
+  assert.deepEqual(claudeOnlyVocabulary(sample), harnessOnlyVocabulary(sample, "claude"));
+});
+
+test("every harness rendering of the phrasing tables is free of the other harnesses' words", () => {
+  for (const style of ["claude", "opencode", "codex"] as const) {
+    const rendered = style === "claude" ? PHRASES : renderHarnessPhrasing(PHRASES, style);
+    for (const other of HARNESSES.filter((h) => h !== style)) {
+      assert.deepEqual(harnessOnlyVocabulary(rendered, other), [], `${style} rendering vs ${other}`);
+    }
   }
 });
 

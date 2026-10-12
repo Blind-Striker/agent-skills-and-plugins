@@ -1552,6 +1552,54 @@ test("V: only using-superpowers' OpenCode tool notes may name the removed todo t
   assert.deepEqual(todo, ["opencode/deniz-process/skills/deniz-process.delta/references/notes.md"]);
 });
 
+/** ocErrors for alpha with `line` appended to its emitted SKILL.md in each named tree. */
+function vocabularyErrors(line: string, trees: readonly ("plugins" | "opencode" | "codex")[]): string[] {
+  return ocErrors("Body.", ["  - source: sp/skills/alpha"], (root) => {
+    const files = {
+      plugins: join(root, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"),
+      opencode: opencodeIdPath(root, "deniz-process", "skill", "alpha", "SKILL.md"),
+      codex: codexPluginPath(root, "deniz-process", "skills", "alpha", "SKILL.md"),
+    };
+    for (const tree of trees) {
+      writeFileSync(files[tree], `${readFileSync(files[tree], "utf8")}\n${line}\n`);
+    }
+  });
+}
+
+test("V: a Codex-only tool word in plugins/ or opencode/ is an error", () => {
+  const errors = vocabularyErrors("Call spawn_agent.", ["plugins", "opencode"]);
+  for (const tree of ["plugins", "opencode"]) {
+    const message = errors.find((m) => m.includes(`Codex-only vocabulary "spawn_agent" in ${tree}/`));
+    assert.ok(message, errors.join("\n"));
+    assert.ok(
+      message.endsWith("— move it into the item's harness_files notes for Codex (curation/SCHEMA.md harness_files)"),
+      message,
+    );
+  }
+});
+
+test("V: an OpenCode-only tool word in plugins/ or codex/ is an error", () => {
+  const errors = vocabularyErrors("Set experimental.subagent_depth.", ["plugins", "codex"]);
+  for (const tree of ["plugins", "codex"]) {
+    const message = errors.find((m) => m.includes(`OpenCode-only vocabulary "subagent_depth" in ${tree}/`));
+    assert.ok(message, errors.join("\n"));
+    assert.ok(
+      message.endsWith("— move it into the item's harness_files notes for OpenCode (curation/SCHEMA.md harness_files)"),
+      message,
+    );
+  }
+});
+
+test("V: a Claude Workflow word in opencode/ or codex/ is an error", () => {
+  const errors = vocabularyErrors("Call the Workflow tool.", ["opencode", "codex"]);
+  for (const tree of ["opencode", "codex"]) {
+    assert.ok(
+      errors.some((m) => m.includes(`Claude-only vocabulary "Workflow tool" in ${tree}/`)),
+      errors.join("\n"),
+    );
+  }
+});
+
 test("O4–O6: phantom skills, skill name, and agent keys", () => {
   const errors = ocErrors(
     "Body.",
@@ -1819,6 +1867,11 @@ test("harness files: each tree holds its own file at the output path and no mapp
       .map((f) => f.message);
   const before = errors();
   assert.ok(!before.some((m) => m.includes("Claude-only vocabulary")), "the Claude notes reach only the Claude tree");
+  assert.ok(!before.some((m) => m.includes("Codex-only vocabulary")), "the Codex notes reach only the Codex tree");
+  assert.ok(
+    !before.some((m) => m.includes("OpenCode-only vocabulary")),
+    "the OpenCode notes reach only the OpenCode tree",
+  );
   assert.ok(!before.some((m) => m.includes("delta")), before.join("\n"));
 
   rmSync(opencodeIdPath(root, "deniz-process", "skill", "delta", "references", "tools.md"));
@@ -2160,6 +2213,11 @@ test("harness files of an original skill: each tree holds only its own file, and
   buildAll(root);
   const before = errorsOf(root);
   assert.ok(!before.some((m) => m.includes("Claude-only vocabulary")), "the Claude notes reach only the Claude tree");
+  assert.ok(!before.some((m) => m.includes("Codex-only vocabulary")), "the Codex notes reach only the Codex tree");
+  assert.ok(
+    !before.some((m) => m.includes("OpenCode-only vocabulary")),
+    "the OpenCode notes reach only the OpenCode tree",
+  );
   assert.ok(!before.some((m) => m.includes("own-notes")), before.join("\n"));
 
   rmSync(opencodeIdPath(root, "deniz-process", "skill", "own-notes", "references", "tools.md"));

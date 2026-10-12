@@ -1,5 +1,5 @@
 import { basename } from "node:path";
-import type { ComponentType, CurationManifest } from "./manifest.ts";
+import type { ComponentType, CurationManifest, Harness } from "./manifest.ts";
 import { openCodeId } from "./opencode-target.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
 import { type SkillToolCall, scanPathClaims, scanRefs, scanSkillToolCalls } from "./refs.ts";
@@ -418,12 +418,34 @@ export const CLAUDE_ONLY_VOCABULARY: readonly RegExp[] = [
   /\bsubagent_type\b/g,
   // Claude Code's todo tool. OpenCode 2 has none, and this repository's research names no Codex one.
   /\bTodoWrite\b/g,
+  // Claude Code's Workflow tool and its resume input.
+  /\bWorkflow tool\b/g,
+  /\bresumeFromRunId\b/g,
 ];
 
+/**
+ * Each harness's own tool words, which must not survive in another harness's tree. No phrasing table
+ * renders the OpenCode and Codex words, so they live only in an item's harness_files notes.
+ */
+export const HARNESS_ONLY_VOCABULARY: Readonly<Record<Harness, readonly RegExp[]>> = {
+  claude: CLAUDE_ONLY_VOCABULARY,
+  // OpenCode 2's subagent tool, named as a tool or a call, and its depth setting.
+  opencode: [/`subagent` (?:tool|calls?)\b/g, /\bsubagent_depth\b/g],
+  // Codex's multi-agent tools, V1 and V2 alike.
+  codex: [
+    /\b(?:spawn_agent|wait_agent|close_agent|send_input|resume_agent|followup_task|send_message|list_agents|interrupt_agent)\b/g,
+  ],
+};
+
+/** Every match of one harness's tool words, sorted by index. */
+export function harnessOnlyVocabulary(content: string, harness: Harness): { index: number; match: string }[] {
+  return HARNESS_ONLY_VOCABULARY[harness]
+    .flatMap((re) => [...content.matchAll(re)].map((m) => ({ index: m.index, match: m[0] })))
+    .sort((a, b) => a.index - b.index);
+}
+
 export function claudeOnlyVocabulary(content: string): { index: number; match: string }[] {
-  return CLAUDE_ONLY_VOCABULARY.flatMap((re) =>
-    [...content.matchAll(re)].map((m) => ({ index: m.index, match: m[0] })),
-  ).sort((a, b) => a.index - b.index);
+  return harnessOnlyVocabulary(content, "claude");
 }
 
 function renderCall(content: string, call: SkillToolCall, style: "opencode" | "codex"): string {

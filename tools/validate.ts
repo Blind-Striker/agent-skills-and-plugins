@@ -66,7 +66,7 @@ import {
 import {
   addressOf,
   buildRewriteMap,
-  claudeOnlyVocabulary,
+  harnessOnlyVocabulary,
   isBundledText,
   OPENCODE_TODO_NOTES,
   openCodeTodoWords,
@@ -1230,17 +1230,27 @@ export function validateRepo(root: string): Finding[] {
     checkInterpreters(own.rel, own.text, own.claudeAbs, own.skillFolder);
   }
 
-  // V: Claude Code tool words must not reach a harness that has no such tool.
-  for (const tree of ["opencode", "codex"] as const) {
+  // V: each harness's tool words must not reach another harness's tree, which has no such tool.
+  // Phrasing renders Claude Code's dispatch words; the others live only in harness_files notes.
+  const vocabularyLabel: Record<Harness, string> = { claude: "Claude", opencode: "OpenCode", codex: "Codex" };
+  const treeHarness = { plugins: "claude", opencode: "opencode", codex: "codex" } as const;
+  for (const tree of ["plugins", "opencode", "codex"] as const) {
     const dir = join(root, tree);
     for (const file of existsSync(dir) ? [...walk(dir)].filter((f) => f.endsWith(".md")) : []) {
       const rel = relative(root, file).replaceAll("\\", "/");
       const text = readFileSync(file, "utf8");
-      for (const hit of claudeOnlyVocabulary(text)) {
-        findings.push({
-          level: "error",
-          message: `${rel}:${lineOf(text, hit.index)}: Claude-only vocabulary "${hit.match}" in ${tree}/ — reword it into a form the harness phrasing renders (curation/SCHEMA.md Dependencies)`,
-        });
+      for (const harness of HARNESSES.filter((h) => h !== treeHarness[tree])) {
+        const label = vocabularyLabel[harness];
+        const remedy =
+          harness === "claude"
+            ? "reword it into a form the harness phrasing renders (curation/SCHEMA.md Dependencies)"
+            : `move it into the item's harness_files notes for ${label} (curation/SCHEMA.md harness_files)`;
+        for (const hit of harnessOnlyVocabulary(text, harness)) {
+          findings.push({
+            level: "error",
+            message: `${rel}:${lineOf(text, hit.index)}: ${label}-only vocabulary "${hit.match}" in ${tree}/ — ${remedy}`,
+          });
+        }
       }
       // OpenCode 2 has no todo tool: the OpenCode todo table renders every known phrase, and any
       // other todo word outside code fails, except in the tool notes that name the removed tool.

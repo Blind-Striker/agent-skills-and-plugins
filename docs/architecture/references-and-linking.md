@@ -296,18 +296,35 @@ skills.
 
 ## Harness vocabulary check
 
-`validate` rejects Claude Code tool vocabulary in every Markdown file under `opencode/` and `codex/`:
-`skill tool` in any letter case, `Subagent (general-purpose)`, `` `general-purpose` ``,
-`general-purpose` followed by whitespace and `agent` or `subagent`, with emphasis stars or
-underscores allowed between, `` `Agent` ``, `Agent tool`, `Task tool`, `subagent_type`, and
-`TodoWrite`, Claude Code's todo tool, in that letter case. The rendered OpenCode
-``the `skill` tool`` does not match, because a backtick separates the words, and neither does
-OpenCode 1's lowercase `todowrite`, which the todo check below rejects in prose. The check reads
-code spans too, so it rejects the words the phrasing leaves whole there. The patterns sit beside
-the phrasing tables in
-[`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts), and every non-Claude rendering in those tables
-must pass them. A new upstream phrasing therefore fails the build instead of reaching a harness that
-has no such tool; the fix is a curated rewording or a new table row.
+`validate` rejects each harness's tool vocabulary in every Markdown file under the other two
+harnesses' trees: Claude Code's words under `opencode/` and `codex/`, OpenCode's under `plugins/`
+and `codex/`, and Codex's under `plugins/` and `opencode/`. The three word sets are:
+
+- **Claude Code.** `skill tool` in any letter case, `Subagent (general-purpose)`,
+  `` `general-purpose` ``, `general-purpose` followed by whitespace and `agent` or `subagent`, with
+  emphasis stars or underscores allowed between, `` `Agent` ``, `Agent tool`, `Task tool`,
+  `subagent_type`, `TodoWrite`, Claude Code's todo tool, in that letter case, `Workflow tool`, and
+  `resumeFromRunId`, the Workflow tool's resume input. The rendered OpenCode ``the `skill` tool``
+  does not match, because a backtick separates the words, and neither does OpenCode 1's lowercase
+  `todowrite`, which the todo check below rejects in prose.
+- **OpenCode.** `` `subagent` tool ``, `` `subagent` call ``, and `` `subagent` calls ``, with the
+  backticks, and `subagent_depth`, its depth setting. The Codex rendering's unbackticked
+  `subagent call` does not match.
+- **Codex.** The multi-agent tools of V1 and V2 alike: `spawn_agent`, `wait_agent`, `close_agent`,
+  `send_input`, `resume_agent`, `followup_task`, `send_message`, `list_agents`, and
+  `interrupt_agent`.
+
+The check reads code spans too, so it rejects the words the phrasing leaves whole there, and a code
+sample that uses one of these identifiers fails until review resolves it. The patterns sit beside
+the phrasing tables in [`tools/lib/rewrite.ts`](../../tools/lib/rewrite.ts)
+(`HARNESS_ONLY_VOCABULARY`), and every harness's rendering in those tables must be free of the other
+two harnesses' words.
+
+Each word set has its own remedy. The phrasing tables render Claude Code's dispatch words, so a new
+upstream phrasing fails the build instead of reaching a harness that has no such tool; the fix is a
+curated rewording or a new table row. No table renders an OpenCode or Codex tool word, so its fix
+is to move the sentence into the item's [`harness_files`](../../curation/SCHEMA.md#harness_files)
+notes for that harness, which only that harness's tree ships.
 
 Every Markdown file under `opencode/` is also checked for a todo word: `todo` or `todos`, written
 joined or with any hyphen or dash between `to` and `do` (`to-do`, `to‑do`, `to–do`), and the names of
