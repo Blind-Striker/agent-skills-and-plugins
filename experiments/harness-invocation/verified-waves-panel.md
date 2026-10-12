@@ -79,18 +79,22 @@ fans out, and P3 is two disjoint write items plus a gate and fans out.
 
 ### Claude Code
 
+Claude Code runs P0 only. So it needs no interactive session, ledger, or operator: items 3, 4,
+and 6 above serve the model prompts, which run in OpenCode and Codex.
+
 - `Use-ClaudeIsolation` sets `CLAUDE_CONFIG_DIR` to `<lab>/.claude-home`. Set
   `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, and check memory as the protocol describes
   ([Probe cheaply](protocol.md#probe-cheaply)).
-- Mount the checkout's Process plugin for the session. `--add-dir` on the same path makes the
-  skill's bundled `references/harness-tools.md` readable:
+- Run P0 from the fixture as two `-p` calls that print the `system`/`init` event: one with the
+  checkout's Process plugin mounted, and one unmounted control:
 
   ```powershell
-  claude --plugin-dir <checkout>/plugins/deniz-process --add-dir <checkout>/plugins/deniz-process --model <model>
+  claude --output-format stream-json --verbose -p hi --plugin-dir <checkout>/plugins/deniz-process
+  claude --output-format stream-json --verbose -p hi
   ```
 
-- Workflows must be on, so that the Workflow tool is in the model's tool list. On a Pro plan, turn
-  on the Dynamic workflows row in `/config`. Record the plan type and the permission mode.
+- P0's model-surface half, the `-p` enumeration of the model-callable skills, needs a model turn.
+  Supply a credential out of band, and pass the model explicitly (item 5).
 
 ### OpenCode 2
 
@@ -127,10 +131,12 @@ Confirm that:
 - the isolation holds in each harness, by the protocol's positive controls;
 - the fixture is at `WAVES_BASELINE`;
 - P0 passes;
-- the ledger location resolves below the lab;
-- the operator can stop one child in each harness (P4), and the P5 stop and reopen steps work.
+- in OpenCode and Codex, the ledger location resolves below the lab;
+- in OpenCode and Codex, the operator can stop one child (P4), and the P5 stop and reopen steps
+  work.
 
-The dry run names the P4 operator action for OpenCode and Codex. Claude Code's is in P4 below.
+The dry run names the P4 operator action for OpenCode and Codex. Claude Code runs only P0, so its
+dry run covers the isolation, the fixture, and P0.
 
 ## Prompts
 

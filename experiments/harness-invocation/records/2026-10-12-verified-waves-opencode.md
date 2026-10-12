@@ -251,16 +251,28 @@ The final report, cut to its first half:
 
 ## Re-run after fixes (2026-10-12)
 
-This section adds a second measurement of P2 to the record. It does not change the rows above,
-which measured the skill text at `8bc8da3`. The re-run ran the panel's P2 prompt twice at
-`repo_head` `76bc5c85d6b0f28f081e934bb7f1f07f70190a7b`. That text has the fixes that answer the
-first run's findings. From `cf5f7d2`, the first wave starts in the plan's turn. From `d9dd055`, a
-brief's last step puts the returned `REPORT` block first in the results file, the parent completes
-a results file that does not start with it, and a new run checks that its ledger directory does not
-exist before it creates it. For this section, `runner_revision` is
-`sha256:ae8904cc34855d143d266f4ba156918da328a91ae15e9766890864883b34dda7`, read at that head with
-a clean tree. `harness_version` is `2.0.26` and `fixture_sha` is `0a83bab`, as above. Both attempts
-ran between 06:49Z and 06:55Z.
+This section is appended to the record as a second measurement of P2. It does not change the rows
+above, which measured the skill text at `8bc8da3`. The frontmatter's `repo_head` and
+`runner_revision` belong to that first run, not to this section. This section has its own:
+
+- **Head:** `76bc5c85d6b0f28f081e934bb7f1f07f70190a7b`. The re-run ran the panel's P2 prompt twice
+  at this commit.
+- **Runner revision:** `sha256:ae8904cc34855d143d266f4ba156918da328a91ae15e9766890864883b34dda7`,
+  the SHA-256 of `verified-waves-panel.md` followed by `fixtures/make-fixture.ps1`, both read at
+  that head with a clean tree, as for the first run.
+- **Driver:** the uncommitted files named in item 5 of
+  [Method of the re-run](#method-of-the-re-run), with their concatenated SHA-256.
+
+`harness_version` `2.0.26` and `fixture_sha` `0a83bab` are the same for both runs. Both attempts
+ran between 06:49Z and 06:55Z, one after the other.
+
+The text at `76bc5c8` has the fixes that answer the first run's findings. From `cf5f7d2`, the
+skill says to start the first wave in the plan's turn. From `d9dd055`, it says that a brief's last
+step puts the returned `REPORT` block first in the results file, that the parent completes a
+results file that does not start with it, and that a new run checks that its ledger directory does
+not exist before it creates it. Attempt 1 did not hold to the first rule: its plan turn ended with
+"Starting Wave 1 now", with no tool call, and the first wave started only after the operator's
+`Proceed.`. Attempt 2 started the first wave in the plan's turn.
 
 ### Method of the re-run
 
