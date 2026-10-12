@@ -251,6 +251,30 @@ export function restampFrontmatter(root: string): void {
   saveLock(root, lock);
 }
 
+/**
+ * The original skill own-notes ships references/tools.md from a different source in each tree
+ * (curation/SCHEMA.md harness_files), as makeHarnessFilesRepo's delta does for a curated item.
+ */
+export function addOriginalHarnessNotes(root: string): void {
+  addOriginalSkill(root, "own-notes", {
+    files: {
+      "references/claude.md": "# Claude\n\n`Agent` calls.\n",
+      "references/codex.md": "# Codex\n\nUse spawn_agent.\n",
+      "references/opencode.md": "# OpenCode\n\nUse the `subagent` tool.\n",
+    },
+    declaration: {
+      invocation: "manual",
+      harness_files: {
+        "references/tools.md": {
+          claude: "references/claude.md",
+          codex: "references/codex.md",
+          opencode: "references/opencode.md",
+        },
+      },
+    },
+  });
+}
+
 /** delta ships references/tools.md from a different source in each tree (curation/SCHEMA.md harness_files). */
 export function makeHarnessFilesRepo(opencode = "references/opencode.md"): string {
   const root = makeRepo();

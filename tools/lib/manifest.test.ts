@@ -188,3 +188,28 @@ test("original_skills rejects every malformed declaration", () => {
     assert.throws(() => loadManifest(withOriginals(block)), message, block);
   }
 });
+
+test("original_skills takes harness_files under the curated grammar", () => {
+  const m = loadManifest(
+    withOriginals(
+      "  my-own:\n    invocation: manual\n    harness_files:\n      references/tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: null\n",
+    ),
+  );
+  assert.deepEqual(m.original_skills, {
+    "my-own": {
+      invocation: "manual",
+      harness_files: {
+        "references/tools.md": { claude: "references/claude.md", codex: "references/codex.md", opencode: null },
+      },
+    },
+  });
+  assert.throws(
+    () =>
+      loadManifest(
+        withOriginals(
+          "  my-own:\n    invocation: manual\n    harness_files:\n      SKILL.md:\n        claude: a.md\n        codex: b.md\n        opencode: c.md\n",
+        ),
+      ),
+    /original_skills\.my-own: harness_files cannot replace SKILL\.md/,
+  );
+});

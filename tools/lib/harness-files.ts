@@ -57,8 +57,9 @@ function isFile(path: string): boolean {
 
 /**
  * What a declaration cannot do once its item is assembled — after omission, the patch, and the
- * overlay — found before any generated output is deleted: place a file in a non-skill artifact,
- * shadow a file the item already ships, or read a source that is not there.
+ * overlay, or as an original skill's directory is copied — found before any generated output is
+ * deleted: place a file in a non-skill artifact, shadow a file the item already ships, or read a
+ * source that is not there.
  */
 export function collectHarnessFileProblems(assembled: AssembledItem[]): string[] {
   const problems: string[] = [];
@@ -81,9 +82,12 @@ export function collectHarnessFileProblems(assembled: AssembledItem[]): string[]
       for (const harness of HARNESSES) {
         const source = byHarness[harness];
         if (source !== null && !isFile(join(item.dir, source))) {
-          problems.push(
-            `${id}: harness_files ${output}: the ${harness} source ${source} is not in the assembled item — an omit, the patch, or upstream removed it`,
-          );
+          // An original skill has no upstream, omit, or patch: its source is missing from the
+          // directory the author writes.
+          const cause = item.own
+            ? `is not in ${item.source}/ — add the file or fix the mapping`
+            : "is not in the assembled item — an omit, the patch, or upstream removed it";
+          problems.push(`${id}: harness_files ${output}: the ${harness} source ${source} ${cause}`);
         }
       }
     }

@@ -10,6 +10,7 @@ import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 import { scanRefs } from "./lib/refs.ts";
 import {
+  addOriginalHarnessNotes,
   addOriginalSkill,
   codexPluginPath,
   makeHarnessFilesRepo,
@@ -2019,4 +2020,29 @@ test("a model fact into a manual original skill fails in every tree with that tr
   assert.match(errors[0] ?? "", /\(disable-model-invocation in the Claude tree\)/);
   assert.match(errors[1] ?? "", /\(hidden from the OpenCode model \(opencode\/autoinvoke\)\)/);
   assert.match(errors[2] ?? "", /\(allow_implicit_invocation: false in the Codex tree\)/);
+});
+
+test("harness files of an original skill: each tree holds only its own file, and Claude words stay in Claude", () => {
+  const root = makeRepo();
+  addOriginalHarnessNotes(root);
+  buildAll(root);
+  const before = errorsOf(root);
+  assert.ok(!before.some((m) => m.includes("Claude-only vocabulary")), "the Claude notes reach only the Claude tree");
+  assert.ok(!before.some((m) => m.includes("own-notes")), before.join("\n"));
+
+  rmSync(opencodeIdPath(root, "deniz-process", "skill", "own-notes", "references", "tools.md"));
+  writeFileSync(codexPluginPath(root, "deniz-process", "skills", "own-notes", "references", "claude.md"), "stray\n");
+  const after = errorsOf(root);
+  assert.ok(
+    after.includes(
+      "opencode/deniz-process/skills/deniz-process.own-notes/references/tools.md: harness_files places references/opencode.md here, but the file is missing",
+    ),
+    after.join("\n"),
+  );
+  assert.ok(
+    after.includes(
+      "codex/deniz-process/skills/own-notes/references/claude.md: a harness_files source ships under its own name — each tree gets it only at its output path",
+    ),
+    after.join("\n"),
+  );
 });

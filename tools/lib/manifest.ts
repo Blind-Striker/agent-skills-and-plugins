@@ -206,7 +206,7 @@ export function loadManifest(path: string): CurationManifest {
 }
 
 /** The keys an original-skill declaration may hold; the SKILL.md owns everything else. */
-const ORIGINAL_SKILL_KEYS = ["invocation"];
+const ORIGINAL_SKILL_KEYS = ["invocation", "harness_files"];
 
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -236,6 +236,9 @@ function loadOriginalSkills(path: string, raw: unknown): Record<string, Original
       throw new Error(`${path}: ${label}: invocation is required (auto|manual|both)`);
     }
     requireEnum(path, label, "invocation", declaration.invocation, ["auto", "manual", "both"]);
+    if (declaration.harness_files !== undefined) {
+      declaration.harness_files = checkHarnessFiles(path, label, declaration.harness_files);
+    }
   }
   return raw as Record<string, OriginalSkill>;
 }

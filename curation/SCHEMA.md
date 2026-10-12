@@ -101,7 +101,8 @@ take ownership of the whole body merely to remove a file.
 
 ## `harness_files`
 
-`harness_files` maps an item-relative output path to the file each harness ships there:
+`harness_files`, on an item or an [original-skill declaration](#original_skills), maps an
+item-relative output path to the file each harness ships there:
 
 ```yaml
 harness_files:
@@ -112,20 +113,21 @@ harness_files:
 ```
 
 Name all three harnesses. A source is an item-relative path in the assembled item, so it can come
-from upstream or from the item's patch or overlay; `null` states that the harness ships no file at
-that path. Each tree gets its own harness's source at the output path, and no tree ships a mapped
-source under its own name, so a body points every harness at the one output path. The emitters place
-the files after body assembly and before localization, so each tree's harness phrasing, reference
-rendering, and vocabulary check read only that tree's own file
+from upstream or from the item's patch or overlay; for an original skill it is a path inside its
+`skills/<plugin>/<name>/` directory. `null` states that the harness ships no file at that path. Each
+tree gets its own harness's source at the output path, and no tree ships a mapped source under its
+own name, so a body points every harness at the one output path. The emitters place the files after
+body assembly and before localization, so each tree's harness phrasing, reference rendering, and
+vocabulary check read only that tree's own file
 ([Transformation and emission](../docs/architecture/transformation-and-emission.md#harness-emission)).
 
 The manifest loader rejects a harness it does not know, a path that leaves the item folder,
 `SKILL.md` on either side, an output path that is also a mapped source, and a mapping whose
 harnesses are all `null`. The build stops before deleting output when the item is not
-skill-shaped, when a non-null source is not in the assembled item (an `omit` can remove one), or
-when the item already ships a file at the output path. `validate` checks every tree for its own file
-at the output path and for any mapped source shipped under its own name. How `depends_on` and
-reachability read each harness's source is owned by
+skill-shaped, when a non-null source is not in the assembled item (an `omit` can remove one) or not
+in an original skill's directory, or when the item already ships a file at the output path.
+`validate` checks every tree for its own file at the output path and for any mapped source shipped
+under its own name. How `depends_on` and reachability read each harness's source is owned by
 [References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability).
 
 ## `original_skills`
@@ -140,10 +142,11 @@ original_skills:
     invocation: auto
 ```
 
-The SKILL.md owns content and description; the declaration owns invocation. A declaration is not a
-second body manifest: it holds `invocation` only, and the manifest loader rejects any other key by
-name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`, `body`, `merged_from`,
-and `exclude` included. `invocation` is required, because an original has no upstream posture to
+The SKILL.md owns content and description; the declaration owns invocation and per-harness files.
+A declaration is not a second body manifest: it holds `invocation` and
+[`harness_files`](#harness_files) only, and the manifest loader rejects any other key by name, the
+curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`, `body`, `merged_from`, and
+`exclude` included. `invocation` is required, because an original has no upstream posture to
 pass through, and it maps to each harness as the
 [invocation table](#invocation-and-as-are-orthogonal) states. Claude Code adapts an original skill
 as it adapts a curated one, so the declaration writes its Claude invocation keys; the SKILL.md may

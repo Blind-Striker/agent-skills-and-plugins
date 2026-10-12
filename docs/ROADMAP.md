@@ -214,9 +214,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    notes through `harness_files`. Claude Code's notes route into the native Workflow tool, which
    accepts a skill whose instructions say to call it as the user's opt-in; OpenCode's run background
    `subagent` waves; Codex's run `spawn_agent` waves sized to the configured thread limit, 6 by
-   default. It needs item 2 first, and item 2's declaration must carry `harness_files` as well as
-   `invocation` (see the original-skill gap under [Known Gaps](#known-gaps)). The curator-approved
-   prior-art approaches, the rejected ones, and the skill outline are in the research note's
+   default. Its manifest side is an `original_skills` declaration with `invocation: manual` and
+   `harness_files` ([`curation/SCHEMA.md`](../curation/SCHEMA.md#original_skills)). It waits only for
+   the original-skill gap under [Known Gaps](#known-gaps) to close, not for the rest of item 2.
+   The curator-approved prior-art approaches, the rejected ones, and the skill outline are in the
+   research note's
    [adopted approaches](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
    Keyword injection (design B) is deferred below. A deterministic engine per
    harness (design C) is rejected: it needs installer changes and one runtime per harness, and it is
@@ -314,9 +316,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   ([references and linking](architecture/references-and-linking.md#harness-phrasing)).
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
-- **Original-skill declarations are partial:** a declaration states an original's invocation, which
-  all three harnesses honor, but an original cannot yet declare `harness_files` or `depends_on`, its
-  outgoing facts are not linked, and the ledger does not list it.
+- **Original-skill declarations are partial:** a declaration states an original's invocation and
+  `harness_files`, which all three harnesses honor, but an original cannot yet declare `depends_on`,
+  and the ledger does not list it. `validateRepo` in [`tools/validate.ts`](../tools/validate.ts)
+  does not link an original's outgoing facts, and its skill-tool handoff and bundled-script
+  interpreter checks read a non-Claude harness's own `harness_files` source only for a curated item.
 - **Manifest keys outside the grammar are ignored:** `loadManifest` in
   [`tools/lib/manifest.ts`](../tools/lib/manifest.ts) rejects an unknown key only inside an
   `original_skills` declaration. An unknown top-level or item key, such as a misspelled

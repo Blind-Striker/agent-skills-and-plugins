@@ -540,11 +540,11 @@ export function validateRepo(root: string): Finding[] {
   // 1f. harness files (curation/SCHEMA.md `harness_files`): each tree holds its own harness's file at
   // the output path, nothing there when its harness maps null, and no mapped source under its own name.
   for (const m of manifests) {
-    for (const item of m.items) {
-      if (item.exclude || !item.harness_files) {
+    for (const { outName, outType, intent } of pairedItems(m)) {
+      const files = intent.harness_files;
+      if (!files) {
         continue;
       }
-      const { outName, outType } = resolveItem(root, m.plugin.name, item, components);
       if (outType !== "skill") {
         continue; // the build refuses it before emitting anything
       }
@@ -557,7 +557,7 @@ export function validateRepo(root: string): Finding[] {
         if (!existsSync(join(root, folder))) {
           continue;
         }
-        for (const [output, byHarness] of Object.entries(item.harness_files)) {
+        for (const [output, byHarness] of Object.entries(files)) {
           const source = byHarness[harness];
           const placed = existsSync(join(root, folder, output));
           if (source !== null && !placed) {
@@ -572,7 +572,7 @@ export function validateRepo(root: string): Finding[] {
             });
           }
         }
-        for (const source of mappedSources(item.harness_files)) {
+        for (const source of mappedSources(files)) {
           if (existsSync(join(root, folder, source))) {
             findings.push({
               level: "error",

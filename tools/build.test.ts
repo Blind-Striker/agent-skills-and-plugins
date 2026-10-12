@@ -10,6 +10,7 @@ import { loadManifest } from "./lib/manifest.ts";
 import { parse as parseYaml, stringify } from "yaml";
 import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import {
+  addOriginalHarnessNotes,
   addOriginalSkill,
   codexPluginPath,
   makeHarnessFilesRepo,
@@ -1795,4 +1796,39 @@ test("harness_files preflight stops the build before deleting anything", () => {
     assert.throws(() => buildAll(root), message);
     assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "references", "tools.md")));
   }
+});
+
+test("harness_files on an original skill ships each tree its own file at one output path", () => {
+  const root = makeRepo();
+  addOriginalHarnessNotes(root);
+  buildAll(root);
+  const trees = {
+    plugins: join(root, "plugins", "deniz-process", "skills", "own-notes"),
+    opencode: opencodeIdPath(root, "deniz-process", "skill", "own-notes"),
+    codex: codexPluginPath(root, "deniz-process", "skills", "own-notes"),
+  };
+  assert.equal(readFileSync(join(trees.plugins, "references", "tools.md"), "utf8"), "# Claude\n\n`Agent` calls.\n");
+  assert.equal(readFileSync(join(trees.codex, "references", "tools.md"), "utf8"), "# Codex\n\nUse spawn_agent.\n");
+  assert.equal(
+    readFileSync(join(trees.opencode, "references", "tools.md"), "utf8"),
+    "# OpenCode\n\nUse the `subagent` tool.\n",
+  );
+  for (const [tree, dir] of Object.entries(trees)) {
+    for (const source of ["claude.md", "codex.md", "opencode.md"]) {
+      assert.ok(!existsSync(join(dir, "references", source)), `${tree} ships ${source}`);
+    }
+  }
+});
+
+test("harness_files preflight names an original skill's missing source before deleting output", () => {
+  const root = makeRepo();
+  addOriginalHarnessNotes(root);
+  buildAll(root);
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(p, readFileSync(p, "utf8").replace("codex: references/codex.md", "codex: references/absent.md"));
+  assert.throws(() => buildAll(root), {
+    message:
+      /^deniz-process\/own-notes: harness_files references\/tools\.md: the codex source references\/absent\.md is not in skills\/deniz-process\/own-notes\/ — add the file or fix the mapping$/m,
+  });
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "own-notes", "references", "tools.md")));
 });

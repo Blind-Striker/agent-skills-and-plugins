@@ -124,9 +124,9 @@ another target's source. The repository does **not** express a per-target body o
 are per target. Localization's closed harness phrasing renders the skill-tool call sentence and
 the subagent-dispatch words for each harness, and OpenCode's todo instructions as Markdown-checklist
 wording, from upstream's Claude wording, and rewords nothing else
-([References and linking](references-and-linking.md#harness-phrasing)). An item's
-[`harness_files`](../../curation/SCHEMA.md#harness_files) select, for one output path, a whole
-assembled file per harness, such as each harness's own tool notes; the emitters place them
+([References and linking](references-and-linking.md#harness-phrasing)). An item's or an original
+skill's [`harness_files`](../../curation/SCHEMA.md#harness_files) select, for one output path, a
+whole assembled file per harness, such as each harness's own tool notes; the emitters place them
 (`placeHarnessFiles` in [`tools/lib/harness-files.ts`](../../tools/lib/harness-files.ts)) right
 after copying the assembly, so each tree is localized with only its own file. When target fit
 requires irreconcilable prose beyond those two seams, that is a named capability gap rather than
@@ -136,9 +136,9 @@ permission to hand-edit one generated tree.
 
 The three emitters consume the same pre-localization assembly and make target decisions
 independently. They filter frontmatter, choose native artifact shape and invocation policy, and
-rewrite their own copies. Each places an item's `harness_files` for its own harness right after
-copying the skill folder, after a preflight that stops the build before any deletion when a mapped
-source is missing from the assembly or the output path is already taken
+rewrite their own copies. Each places an item's or an original skill's `harness_files` for its own
+harness right after copying the skill folder, after a preflight that stops the build before any
+deletion when a mapped source is missing from the assembly or the output path is already taken
 (`collectHarnessFileProblems`). Final Claude, OpenCode, or Codex output is never mirrored into
 another target. See [`buildAll`](../../tools/build.ts) and
 [`assembleItems`](../../tools/lib/assemble.ts).
