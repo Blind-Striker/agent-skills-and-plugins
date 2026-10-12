@@ -2324,3 +2324,19 @@ test("P: a Markdown link into a manual original's body fails as a curated one do
   }
   assert.ok(!errors.some((m) => m.includes("references/notes.md")), errors.join("\n"));
 });
+
+// OpenCode alone finds a skill folder through the Module that owns its name, and spells the folder
+// as an ID, so only OpenCode's own harness file can link into another Module-qualified folder.
+test("P: an OpenCode-only link into a manual original's body finds the original's Module", () => {
+  const link = "[m](./../../deniz-process.own-manual/SKILL.md)";
+  const root = ownNotesRepo(
+    { claude: "Claude notes.", codex: "Codex notes.", opencode: `See ${link}.` },
+    { invocation: "auto" },
+  );
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  buildAll(root);
+  const errors = errorsOf(root).filter((m) => m.includes("reaches manual item own-manual's body"));
+  assert.deepEqual(errors, [
+    "opencode/deniz-process/skills/deniz-process.own-src/references/tools.md: path ./../../deniz-process.own-manual/SKILL.md reaches manual item own-manual's body — reading its SKILL.md bypasses Claude's model-invocation block; point the human with /ns:own-manual instead",
+  ]);
+});
