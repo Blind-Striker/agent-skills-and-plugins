@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { stringify } from "yaml";
@@ -1978,6 +1978,39 @@ test("an original skill without a declaration is a validate error", () => {
     ),
   );
 });
+
+// Moves a real directory out of skills/ and links it back in place.
+function linkInPlace(root: string, path: string): boolean {
+  const real = join(root, "elsewhere", path.replaceAll("/", "-"));
+  mkdirSync(join(root, "elsewhere"), { recursive: true });
+  renameSync(join(root, path), real);
+  try {
+    symlinkSync(real, join(root, path), "dir");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+for (const path of ["skills/deniz-process", "skills/deniz-process/my-own"]) {
+  test(`validate names a symlinked ${path} instead of reading through it`, (t) => {
+    const root = makeRepo();
+    addOriginalSkill(root, "my-own");
+    buildAll(root);
+    if (!linkInPlace(root, path)) {
+      t.skip("creating symlinks requires elevated privileges on this platform");
+      return;
+    }
+
+    const errors = errorsOf(root);
+    assert.ok(
+      errors.includes(
+        `${path} is a symlink — original skills are real directories, and the build never follows a link`,
+      ),
+      errors.join("\n"),
+    );
+  });
+}
 
 test("a manual original skill's Codex policy is expected and checked", () => {
   const root = makeRepo();

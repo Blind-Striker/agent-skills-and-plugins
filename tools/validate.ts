@@ -1845,6 +1845,11 @@ export function validateRepo(root: string): Finding[] {
       continue;
     }
     for (const file of walk(dir)) {
+      // A link is never read through: the build copies no link, and one standing in for an original
+      // skill is the preflight's error above. Its target may be a directory or missing.
+      if (lstatSync(file).isSymbolicLink()) {
+        continue;
+      }
       const rel = relative(root, file).replaceAll("\\", "/");
       if (rel.endsWith(LOCK_FILE)) {
         continue;
