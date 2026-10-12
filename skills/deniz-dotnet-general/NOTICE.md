@@ -1,8 +1,8 @@
 # Notices for original skills in this module
 
-`emitOwnSkills` copies only directories out of `skills/<module>/`, so this file stays in the
-repository and never ships. It records where an original skill's material came from when that is
-worth knowing.
+`assembleItems` copies only declared directories out of `skills/<module>/`, so this file stays in
+the repository and never ships. It records where an original skill's material came from when that
+is worth knowing.
 
 ## writing-tunit-tests
 

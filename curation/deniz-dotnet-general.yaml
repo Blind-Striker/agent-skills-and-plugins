@@ -32,6 +32,10 @@ plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
   version: 0.13.0
+original_skills:
+  writing-tunit-tests:
+    invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
+    # checked fact, so it stays model-reachable
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards

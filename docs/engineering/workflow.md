@@ -1,6 +1,6 @@
 # Repository workflow
 
-Date: 2026-10-11
+Date: 2026-10-12
 
 This document owns task-triggered repository flow: where edits belong, how a curation session moves
 from catalog to reviewed output, how upstream changes enter, and how a task closes. Manifest field
@@ -159,9 +159,11 @@ A Module's `plugin.version` in `curation/<plugin>.yaml` moves in the same change
 Module's emitted bytes, so two builds never share a version:
 
 - **patch** when the emitted content moved but the Module's surface did not — an upstream body
-  flowed on a pin move, an overlay or patch was edited, a `frontmatter:` override changed.
-- **minor** when the surface itself moved — an item was taken, excluded, or renamed, or its
-  `invocation`, `as`, or declared dependencies changed.
+  flowed on a pin move, an overlay or patch was edited, a `frontmatter:` override changed, an
+  original skill's body changed, or a `harness_files` mapping changed.
+- **minor** when the surface itself moved — an item was taken, excluded, or renamed, or its `as`
+  changed; an original skill was added, removed, or renamed; or the `invocation` or declared
+  dependencies of an item or original skill changed.
 - **major** is unused while the estate is pre-1.0.
 
 Bump only the Modules whose own bytes changed; a pin move that reaches one Module does not version

@@ -33,7 +33,13 @@ import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { collectHarnessFileProblems, placeHarnessFiles } from "./lib/harness-files.ts";
 import { writeLedger } from "./lib/ledger.ts";
-import { type CurationItem, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
+import {
+  type CurationItem,
+  type CurationManifest,
+  loadManifest,
+  type SkillIntent,
+  UNKNOWN_SOURCE_RULE,
+} from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
 import {
   adaptOpenCodeAgentDocument,
@@ -45,7 +51,7 @@ import {
   openCodeId,
   openCodeSkillIds,
 } from "./lib/opencode-target.ts";
-import { ownSkillIdentities } from "./lib/own-skills.ts";
+import { collectOriginalSkillProblems, ownSkillIdentities } from "./lib/own-skills.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
   checkPatch,
@@ -207,7 +213,7 @@ function emitCodex(
       .sort((left, right) => left.outName.localeCompare(right.outName))) {
       const destination = join(pluginRoot, "skills", item.outName);
       cpSync(item.dir, destination, { recursive: true });
-      placeHarnessFiles(item.dir, destination, item.item?.harness_files, "codex");
+      placeHarnessFiles(item.dir, destination, item.intent.harness_files, "codex");
       const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
       const adapted = adaptCodexSkillDocument(item.outName, doc);
       writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
@@ -227,7 +233,7 @@ function emitCodex(
         item.plugin,
         item.outName,
         String(adapted.document.frontmatter.description),
-        item.item?.invocation,
+        item.intent.invocation,
       );
       if (agentManifest) {
         mkdirSync(agentsDir, { recursive: true });
@@ -264,7 +270,7 @@ function finalizeCodexSkillMetadata(root: string, assembled: AssembledItem[]): v
       item.plugin,
       item.outName,
       String(adapted.document.frontmatter.description),
-      item.item?.invocation,
+      item.intent.invocation,
     );
     if (agentManifest) {
       const agentsDir = join(skillRoot, "agents");
@@ -315,8 +321,8 @@ const CLAUDE_INVOCATION_KEYS = ["user-invocable", "disable-model-invocation"] as
  * intent is left alone entirely — silence is not a default, so adopting the field item by item
  * costs nothing on the items that have not adopted it.
  */
-function claudeInvocation(item: CurationItem): Record<string, unknown> {
-  switch (item.invocation) {
+function claudeInvocation(invocation: SkillIntent["invocation"]): Record<string, unknown> {
+  switch (invocation) {
     case "auto":
       return { "user-invocable": false };
     case "manual":
@@ -382,13 +388,13 @@ export const CLAUDE_AGENT_KEYS: ReadonlySet<string> = new Set([
  */
 function claudeDocument(assembled: AssembledItem): { document: ParsedDoc; dropped: string[] } {
   const doc = parseDoc(readFileSync(join(assembled.dir, "SKILL.md"), "utf8"));
-  const item = assembled.item;
+  const { invocation } = assembled.intent;
   let frontmatter: Record<string, unknown> = { ...doc.frontmatter };
-  if (assembled.outType === "skill" && item?.invocation) {
+  if (assembled.outType === "skill" && invocation) {
     for (const key of CLAUDE_INVOCATION_KEYS) {
       delete frontmatter[key];
     }
-    frontmatter = { ...frontmatter, ...claudeInvocation(item), name: assembled.outName };
+    frontmatter = { ...frontmatter, ...claudeInvocation(invocation), name: assembled.outName };
   }
   const keys = assembled.outType === "agent" ? CLAUDE_AGENT_KEYS : CLAUDE_SKILL_KEYS;
   const dropped = Object.keys(frontmatter)
@@ -407,7 +413,7 @@ function emitClaudeItem(root: string, assembled: AssembledItem, report: string[]
   if (assembled.outType === "skill") {
     const destination = join(pluginDir, "skills", assembled.outName);
     cpSync(assembled.dir, destination, { recursive: true });
-    placeHarnessFiles(assembled.dir, destination, assembled.item?.harness_files, "claude");
+    placeHarnessFiles(assembled.dir, destination, assembled.intent.harness_files, "claude");
     // Original skills are authored here and stay byte-preserving copies. Curated skills are
     // serialized by assembly, then receive only Claude's adaptation here.
     if (assembled.own) {
@@ -523,7 +529,10 @@ function overlayDrift(
 // Mirrors every throw in emitItem, with the identical wording, so the messages a user sees are the
 // same whichever side reports them. The emitItem throws stay as unreachable safety nets.
 function collectProblems(root: string, manifests: CurationManifest[], components: ComponentInfo[]): string[] {
-  const problems = collectIdentityProblems(root, manifests, components);
+  const problems = [
+    ...collectIdentityProblems(root, manifests, components),
+    ...collectOriginalSkillProblems(root, manifests),
+  ];
   const lock = loadLock(root);
   for (const m of manifests) {
     for (const item of m.items) {
@@ -734,8 +743,8 @@ function emitOpenCode(root: string, manifests: CurationManifest[], assembled: As
       const destination = join(moduleRoot, openCodeBundlePath(item.outType, module, item.outName));
       if (item.outType === "skill") {
         cpSync(item.dir, destination, { recursive: true });
-        placeHarnessFiles(item.dir, destination, item.item?.harness_files, "opencode");
-        const adapted = adaptOpenCodeSkillDocument(id, neutral, item.item?.invocation);
+        placeHarnessFiles(item.dir, destination, item.intent.harness_files, "opencode");
+        const adapted = adaptOpenCodeSkillDocument(id, neutral, item.intent.invocation);
         writeFileSync(join(destination, "SKILL.md"), serializeDoc(adapted.document));
         if (adapted.dropped.length) {
           report.push(`opencode skill ${id}: dropped frontmatter keys: ${adapted.dropped.join(", ")}`);

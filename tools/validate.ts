@@ -22,6 +22,7 @@ import {
   type CurationManifest,
   type Harness,
   loadManifest,
+  type SkillIntent,
   UNKNOWN_SOURCE_RULE,
 } from "./lib/manifest.ts";
 import { mappedSources, treeMarkdown } from "./lib/harness-files.ts";
@@ -39,7 +40,7 @@ import {
   openCodeId,
   splitOpenCodeId,
 } from "./lib/opencode-target.ts";
-import { ownSkillIdentities } from "./lib/own-skills.ts";
+import { collectOriginalSkillProblems, ownSkillIdentities } from "./lib/own-skills.ts";
 import { LOCK_FILE, listFiles, loadLock, PATCH_FILE, stampsFrontmatter } from "./lib/overlay.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
@@ -52,6 +53,8 @@ import {
 } from "./lib/refs.ts";
 import {
   collectIdentityProblems,
+  type DeclaredItem,
+  declaredItems,
   deriveModuleRequirements,
   isOmitted,
   itemRelative,
@@ -299,6 +302,15 @@ export function validateRepo(root: string): Finding[] {
   findings.push(
     ...collectIdentityProblems(root, manifests, components).map((message) => ({ level: "error" as const, message })),
   );
+  findings.push(
+    ...collectOriginalSkillProblems(root, manifests).map((message) => ({ level: "error" as const, message })),
+  );
+  // validate records the preflight's problems and continues, so its loops read only the originals
+  // that have a SKILL.md: a declaration without one is already reported above.
+  const pairedItems = (m: CurationManifest): DeclaredItem[] =>
+    declaredItems(root, m, components).filter(
+      (declared) => declared.item || existsSync(join(root, declared.source, "SKILL.md")),
+    );
   const ownSkills = ownSkillIdentities(root, manifests);
   let expectedRequirements: Map<string, string[]> | undefined;
   try {
@@ -1590,35 +1602,16 @@ export function validateRepo(root: string): Finding[] {
       }
     }
 
-    const expectedSkills = new Map<string, { invocation: CurationManifest["items"][number]["invocation"] }>();
-    for (const item of m.items) {
-      if (item.exclude) {
-        continue;
-      }
-      const { outName } = resolveItem(root, m.plugin.name, item, components);
-      const folded = outName.toLowerCase();
+    const expectedSkills = new Map<string, { invocation: SkillIntent["invocation"] }>();
+    for (const declared of pairedItems(m)) {
+      const folded = declared.outName.toLowerCase();
       if (expectedSkills.has(folded)) {
         findings.push({
           level: "error",
-          message: `${m.plugin.name}: duplicate or case-colliding flattened Codex skill ${outName}`,
+          message: `${m.plugin.name}: duplicate or case-colliding flattened Codex skill ${declared.outName}`,
         });
       } else {
-        expectedSkills.set(folded, { invocation: item.invocation });
-      }
-    }
-    const ownDir = join(root, "skills", m.plugin.name);
-    for (const name of existsSync(ownDir) ? readdirSync(ownDir) : []) {
-      if (!statSync(join(ownDir, name)).isDirectory()) {
-        continue;
-      }
-      const folded = name.toLowerCase();
-      if (expectedSkills.has(folded)) {
-        findings.push({
-          level: "error",
-          message: `${m.plugin.name}: duplicate or case-colliding flattened Codex skill ${name}`,
-        });
-      } else {
-        expectedSkills.set(folded, { invocation: undefined });
+        expectedSkills.set(folded, { invocation: declared.intent.invocation });
       }
     }
 

@@ -174,7 +174,7 @@ test("collectOpenCodeEmissionProblems reports a non-mapping metadata on a hidden
     outType: "skill",
     dir,
     own: false,
-    item: { source: "sp/skills/x", ...(invocation ? { invocation } : {}) },
+    intent: { ...(invocation ? { invocation } : {}) },
   });
   const manifests = [{ plugin: { name: "deniz-process", description: "d", version: "0.1.0" }, items: [] }];
   assert.deepEqual(collectOpenCodeEmissionProblems(manifests, [item("manual")]), [

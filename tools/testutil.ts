@@ -1,6 +1,8 @@
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { stringify as stringifyYaml } from "yaml";
+import { serializeDoc } from "./lib/frontmatter.ts";
 import { loadLock, lockKey, type OverlayLock, saveLock, stampFiles } from "./lib/overlay.ts";
 
 /** A file or directory inside one OpenCode Module bundle: opencode/<module>/<parts...>. */
@@ -182,13 +184,57 @@ export function makeRepo(): string {
     ...frontmatterBlessed("alpha", "sp/skills/alpha"),
     ...frontmatterBlessed("beta-agent", "sp/skills/beta"),
   });
-  // own skill
-  mkdirSync(join(root, "skills", "deniz-process", "my-own"), { recursive: true });
-  writeFileSync(
-    join(root, "skills", "deniz-process", "my-own", "SKILL.md"),
-    "---\nname: my-own\ndescription: Mine\n---\n\nMine.\n",
-  );
   return root;
+}
+
+/**
+ * Plants an original skill at skills/<plugin>/<name>/ and declares it under `original_skills` in
+ * curation/<plugin>.yaml. The declaration is inserted as text, so the rest of the manifest keeps
+ * its spelling and a later `.replace()` on it still matches.
+ */
+export function addOriginalSkill(
+  root: string,
+  name: string,
+  options: {
+    plugin?: string;
+    declaration?: Record<string, unknown>;
+    frontmatter?: Record<string, unknown>;
+    body?: string;
+    files?: Record<string, string>;
+  } = {},
+): void {
+  const plugin = options.plugin ?? "deniz-process";
+  const dir = join(root, "skills", plugin, name);
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, "SKILL.md"),
+    serializeDoc({
+      frontmatter: { name, description: "Mine", ...options.frontmatter },
+      body: options.body ?? "Mine.\n",
+    }),
+  );
+  for (const [path, content] of Object.entries(options.files ?? {})) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), content);
+  }
+
+  const manifestPath = join(root, "curation", `${plugin}.yaml`);
+  let text = readFileSync(manifestPath, "utf8");
+  if (!/^original_skills:$/m.test(text)) {
+    if (/^items:/m.test(text)) {
+      text = text.replace(/^items:/m, "original_skills:\nitems:");
+    } else {
+      text = `${text.endsWith("\n") ? text : `${text}\n`}original_skills:\n`;
+    }
+  }
+  const entry = stringifyYaml({ [name]: options.declaration ?? { invocation: "both" } })
+    .split("\n")
+    .map((line) => (line ? `  ${line}` : line))
+    .join("\n");
+  writeFileSync(
+    manifestPath,
+    text.replace(/^original_skills:\n/m, () => `original_skills:\n${entry}`),
+  );
 }
 
 /**

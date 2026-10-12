@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { type ParsedDoc, parseDoc } from "./frontmatter.ts";
-import type { ComponentType, CurationItem, CurationManifest } from "./manifest.ts";
+import type { ComponentType, CurationManifest, SkillIntent } from "./manifest.ts";
 
 /**
  * Skill frontmatter OpenCode 2 reads besides `disable-model-invocation`, which the adaptation
@@ -73,7 +73,7 @@ function sortedKeys(keys: string[]): string[] {
  * ADR-0005 on OpenCode 2: `manual` hides; `auto` and `both` advertise; an absent invocation hides
  * only when upstream says `disable-model-invocation: true`, and otherwise passes upstream through.
  */
-export function openCodeWouldHide(doc: ParsedDoc, invocation: CurationItem["invocation"]): boolean {
+export function openCodeWouldHide(doc: ParsedDoc, invocation: SkillIntent["invocation"]): boolean {
   if (invocation === "manual") {
     return true;
   }
@@ -96,7 +96,7 @@ export interface OpenCodeSkillAdaptation {
 export function adaptOpenCodeSkillDocument(
   id: string,
   doc: ParsedDoc,
-  invocation: CurationItem["invocation"],
+  invocation: SkillIntent["invocation"],
 ): OpenCodeSkillAdaptation {
   const source = doc.frontmatter;
   const frontmatter: Record<string, unknown> = "name" in source ? {} : { name: id };
@@ -165,7 +165,7 @@ export function collectOpenCodeEmissionProblems(manifests: CurationManifest[], a
     for (const item of items) {
       const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
       const metadata = doc.frontmatter.metadata;
-      if (openCodeWouldHide(doc, item.item?.invocation) && metadata !== undefined && !isPlainObject(metadata)) {
+      if (openCodeWouldHide(doc, item.intent.invocation) && metadata !== undefined && !isPlainObject(metadata)) {
         problems.push(`${item.plugin}/${item.outName}: metadata must be a mapping to carry ${OPENCODE_HIDE_KEY}`);
       }
     }

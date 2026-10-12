@@ -3,18 +3,11 @@ import { parse as parseYaml } from "yaml";
 
 export type ComponentType = "skill" | "command" | "agent";
 
-export interface CurationItem {
-  source: string;
-  /** Reject the whole item. For dropping FILES from an item that is taken, see `omit`. */
-  exclude?: boolean;
-  /**
-   * Glob patterns, item-relative and POSIX-spelled, for upstream files to leave behind — author
-   * logs, pressure tests, fixtures. Applied to the upstream copy before any overlay or patch, so
-   * `body:` describes edits to what survives.
-   */
-  omit?: string[];
-  name?: string;
-  as?: ComponentType;
+/**
+ * The harness-neutral intent that a curated item and an original skill both state. Every emitter
+ * reads these fields the same way, whichever kind of item states them.
+ */
+export interface SkillIntent {
   /**
    * Who pulls the trigger (ADR-0005), for items emitted as skills. Absent is not a default: it
    * means the item states no intent and upstream's own frontmatter passes through untouched.
@@ -26,6 +19,26 @@ export interface CurationItem {
    * declaration is undeclared — both are errors.
    */
   depends_on?: string[];
+  /**
+   * Output path -> the item-relative file each harness ships there (curation/SCHEMA.md
+   * `harness_files`). `null` states that a harness ships no file at that path. The mapped sources
+   * themselves ship in no tree.
+   */
+  harness_files?: HarnessFiles;
+}
+
+export interface CurationItem extends SkillIntent {
+  source: string;
+  /** Reject the whole item. For dropping FILES from an item that is taken, see `omit`. */
+  exclude?: boolean;
+  /**
+   * Glob patterns, item-relative and POSIX-spelled, for upstream files to leave behind — author
+   * logs, pressure tests, fixtures. Applied to the upstream copy before any overlay or patch, so
+   * `body:` describes edits to what survives.
+   */
+  omit?: string[];
+  name?: string;
+  as?: ComponentType;
   frontmatter?: Record<string, unknown>;
   /** `patch` applies overlays/<plugin>/<item>/overlay.patch; `overlay` replaces whole files. */
   body?: "overlay" | "patch";
@@ -36,12 +49,6 @@ export interface CurationItem {
    * overlay does not itself own, which the filename rule cannot see.
    */
   merged_from?: MergeSource[];
-  /**
-   * Output path -> the item-relative file each harness ships there (curation/SCHEMA.md
-   * `harness_files`). `null` states that a harness ships no file at that path. The mapped sources
-   * themselves ship in no tree.
-   */
-  harness_files?: HarnessFiles;
 }
 
 /** The three emitted harness trees, in the order the manifest names them. */
@@ -56,8 +63,17 @@ export interface MergeSource {
   files?: string[];
 }
 
+/**
+ * An original skill's declaration (curation/SCHEMA.md `original_skills`). The skill's directory
+ * `skills/<plugin>/<name>/` owns content and description; the declaration owns the intent. An
+ * original has no upstream posture to pass through, so it always states its invocation.
+ */
+export type OriginalSkill = SkillIntent & { invocation: NonNullable<SkillIntent["invocation"]> };
+
 export interface CurationManifest {
   plugin: { name: string; description: string; version: string };
+  /** Directory name under `skills/<plugin>/` -> that original skill's declaration. */
+  original_skills?: Record<string, OriginalSkill>;
   items: CurationItem[];
   hooks?: { include: string[] };
 }
@@ -183,5 +199,43 @@ export function loadManifest(path: string): CurationManifest {
       item.harness_files = checkHarnessFiles(path, item.source, item.harness_files);
     }
   }
+  if (raw.original_skills !== undefined) {
+    raw.original_skills = loadOriginalSkills(path, raw.original_skills);
+  }
   return raw;
+}
+
+/** The keys an original-skill declaration may hold; the SKILL.md owns everything else. */
+const ORIGINAL_SKILL_KEYS = ["invocation"];
+
+function isMapping(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * The `original_skills` grammar. The key set is closed, so a misspelled key or a curated-only key
+ * such as `source` or `frontmatter` is an error rather than a silently ignored line.
+ */
+function loadOriginalSkills(path: string, raw: unknown): Record<string, OriginalSkill> {
+  if (!isMapping(raw)) {
+    throw new Error(`${path}: original_skills must map a skill directory name to its declaration`);
+  }
+  for (const [name, declaration] of Object.entries(raw)) {
+    const label = `original_skills.${name}`;
+    if (!isMapping(declaration)) {
+      throw new Error(`${path}: ${label} must be a mapping`);
+    }
+    for (const key of Object.keys(declaration)) {
+      if (!ORIGINAL_SKILL_KEYS.includes(key)) {
+        throw new Error(
+          `${path}: ${label}: unknown key ${key} — a declaration holds only ${ORIGINAL_SKILL_KEYS.join(", ")}; the SKILL.md owns content and description`,
+        );
+      }
+    }
+    if (declaration.invocation === undefined) {
+      throw new Error(`${path}: ${label}: invocation is required (auto|manual|both)`);
+    }
+    requireEnum(path, label, "invocation", declaration.invocation, ["auto", "manual", "both"]);
+  }
+  return raw as Record<string, OriginalSkill>;
 }

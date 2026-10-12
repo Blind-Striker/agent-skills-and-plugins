@@ -30,9 +30,10 @@ remain beside the items in [`curation/deniz-process.yaml`](curation/deniz-proces
 
 Authored transformation inputs live in `curation/*.yaml` (what to take and how to customize it),
 `curation/attribution.json` (where redistributed sources and licenses come from), `overlays/`
-(patches or owned replacement files), and `skills/` (original skills). `npm run build` regenerates
-committed `plugins/`, `opencode/`, `codex/`, and `dist/` output; never edit those generated trees
-directly. The Claude and Codex repository marketplaces are generated at
+(patches or owned replacement files), and `skills/` (original skills, each declared under
+`original_skills` in its Module's manifest).
+`npm run build` regenerates committed `plugins/`, `opencode/`, `codex/`, and `dist/` output; never
+edit those generated trees directly. The Claude and Codex repository marketplaces are generated at
 `.claude-plugin/marketplace.json` and `.agents/plugins/marketplace.json`.
 
 The generated `docs/inventory.md` is the scanner-visible catalog for the initialized upstream pins.

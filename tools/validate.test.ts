@@ -10,6 +10,7 @@ import { loadManifest } from "./lib/manifest.ts";
 import { loadLock, lockKey, saveLock, stampFiles } from "./lib/overlay.ts";
 import { scanRefs } from "./lib/refs.ts";
 import {
+  addOriginalSkill,
   codexPluginPath,
   makeHarnessFilesRepo,
   makeRepo,
@@ -43,6 +44,7 @@ function writeOwnTargetCase(root: string, body: string, dependsOn: string[] = ["
       ...(dependsOn.length ? [`    depends_on: [${dependsOn.join(", ")}]`] : []),
     ].join("\n")}\n`,
   );
+  addOriginalSkill(root, "my-own");
 }
 
 test("a clean build has no errors beyond the fixture's own model-edge debt", () => {
@@ -94,6 +96,7 @@ test("unknown reference namespace warns once", () => {
 
 test("unknown namespace warning aggregates occurrences and caps sorted example paths", () => {
   const root = makeRepo();
+  addOriginalSkill(root, "my-own");
   buildAll(root);
   const paths = [
     join(root, "plugins", "deniz-process", "skills", "my-own", "SKILL.md"),
@@ -1959,4 +1962,36 @@ test("I: a body that runs a bundled script by bare path is an error; naming the 
   assert.deepEqual(errors, [
     "plugins/deniz-process/skills/delta/SKILL.md:6: runs bundled script scripts/check by bare path — write `bash scripts/check`",
   ]);
+});
+
+test("an original skill without a declaration is a validate error", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "my-own");
+  buildAll(root);
+  mkdirSync(join(root, "skills", "deniz-process", "stray"), { recursive: true });
+  writeFileSync(join(root, "skills", "deniz-process", "stray", "SKILL.md"), "---\nname: stray\ndescription: S\n---\n");
+
+  assert.ok(
+    errorsOf(root).includes(
+      "skills/deniz-process/stray/ has no declaration — add original_skills: stray: with its invocation to curation/deniz-process.yaml",
+    ),
+  );
+});
+
+test("a manual original skill's Codex policy is expected and checked", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  buildAll(root);
+  assert.deepEqual(
+    errorsOf(root).filter((m) => m.includes("own-manual")),
+    [],
+  );
+
+  rmSync(codexPluginPath(root, "deniz-process", "skills", "own-manual", "agents", "openai.yaml"));
+
+  assert.ok(
+    errorsOf(root).includes(
+      "codex/deniz-process/skills/own-manual/agents/openai.yaml is required for manual invocation",
+    ),
+  );
 });

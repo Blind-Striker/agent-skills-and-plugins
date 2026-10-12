@@ -27,7 +27,7 @@ function assembled(root: string, plugin: string, outName: string, outType: Assem
   const dir = join(root, plugin, `${outName}-${outType}`);
   mkdirSync(dir, { recursive: true });
   writeFileSync(join(dir, "SKILL.md"), `---\nname: ${outName}\ndescription: Useful skill\n---\n\nBody.\n`);
-  return { plugin, source: `source/${outName}`, sourceType: outType, outName, outType, dir, own: false };
+  return { plugin, source: `source/${outName}`, sourceType: outType, outName, outType, dir, intent: {}, own: false };
 }
 
 test("Codex JSON serialization is canonical for minimal data", () => {

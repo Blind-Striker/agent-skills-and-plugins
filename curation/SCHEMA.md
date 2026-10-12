@@ -10,13 +10,17 @@ pin has; a source deleted upstream leaves the manifest instead, with its reason 
 and, when one exists, in its successor item's comment
 ([Upstream sync flow](../docs/engineering/workflow.md#upstream-sync-flow)).
 
-Each manifest has plugin metadata and an item list:
+Each manifest has plugin metadata, optional [`original_skills`](#original_skills) declarations, and
+an item list:
 
 ```yaml
 plugin:
   name: <output-plugin-name>
   description: <marketplace-description>
   version: <plugin-version>
+original_skills:
+  <skill-directory-name>:
+    invocation: auto|manual|both
 items:
   - source: <submodule>/<component-path>
 ```
@@ -123,6 +127,39 @@ when the item already ships a file at the output path. `validate` checks every t
 at the output path and for any mapped source shipped under its own name. How `depends_on` and
 reachability read each harness's source is owned by
 [References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability).
+
+## `original_skills`
+
+An original skill is a directory `skills/<plugin>/<name>/` with a `SKILL.md`, written in this
+repository rather than taken from upstream. `original_skills` in `curation/<plugin>.yaml` declares
+each one, keyed by its directory name:
+
+```yaml
+original_skills:
+  writing-tunit-tests:
+    invocation: auto
+```
+
+The SKILL.md owns content and description; the declaration owns invocation. A declaration is not a
+second body manifest: it holds `invocation` only, and the manifest loader rejects any other key by
+name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`, `body`, `merged_from`,
+and `exclude` included. `invocation` is required, because an original has no upstream posture to
+pass through, and it maps to each harness as the
+[invocation table](#invocation-and-as-are-orthogonal) states. Claude Code copies an original skill
+byte for byte, so its Claude posture comes from the SKILL.md.
+
+The directory is the skill's identity in every harness. The build stops before it deletes any
+output, and `validate` reports an error, when:
+
+- a directory under `skills/<plugin>/` has no declaration;
+- a declaration has no directory;
+- a `skills/<plugin>/` folder matches no manifest's `plugin.name`;
+- a declared directory has no `SKILL.md`;
+- a SKILL.md `name` differs from its directory name;
+- `skills/<plugin>` or `skills/<plugin>/<name>` is a symlink, which the build never follows.
+
+A file directly in `skills/<plugin>/`, such as `NOTICE.md`, is not a skill: the build ignores it,
+and it never ships.
 
 ## Bundled scripts
 

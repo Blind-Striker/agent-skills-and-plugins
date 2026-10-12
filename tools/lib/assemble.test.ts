@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { makeRepo } from "../testutil.ts";
+import { addOriginalSkill, makeRepo } from "../testutil.ts";
 import { assembleItems } from "./assemble.ts";
 import { parseDoc } from "./frontmatter.ts";
 import { loadManifest } from "./manifest.ts";
@@ -33,6 +33,7 @@ test("common assembly resolves each item once and retains a converted skill's de
       "  - source: sp/skills/alpha\n    invocation: manual\n    frontmatter:",
     ),
   );
+  addOriginalSkill(root, "my-own");
   const { manifests, components } = loadFixture(root);
   const report: string[] = [];
   const assembled = assembleItems(root, stagingRoot, manifests, components, report);

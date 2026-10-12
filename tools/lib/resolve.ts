@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { matchesGlob } from "node:path";
-import type { ComponentType, CurationItem, CurationManifest } from "./manifest.ts";
+import type { ComponentType, CurationItem, CurationManifest, SkillIntent } from "./manifest.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
 import type { ComponentInfo } from "./scan.ts";
 import { ordinalCompare } from "./order.ts";
@@ -44,6 +44,48 @@ export function resolveItem(
     overlayDir: join(root, "overlays", plugin, outName),
     id: `${plugin}/${outName}`,
   };
+}
+
+/**
+ * One item a Module declares: a non-excluded curated item, or an original skill named under
+ * `original_skills`. `intent` is what every emitter reads, whichever kind states it; `item` is the
+ * curated manifest entry, kept for assembly and the ledger, and undefined for an original.
+ */
+export interface DeclaredItem {
+  plugin: string;
+  outName: string;
+  outType: ComponentType;
+  /** The curated upstream address, or `skills/<plugin>/<name>` for an original skill. */
+  source: string;
+  intent: SkillIntent;
+  item?: CurationItem;
+}
+
+/**
+ * Every item one Module declares, in one order: the non-excluded curated items in manifest order,
+ * then the original skills by name. Originals come from the declaration map, not the disk; the
+ * directory–declaration pairing is `collectOriginalSkillProblems`'s job.
+ */
+export function declaredItems(root: string, manifest: CurationManifest, components: ComponentInfo[]): DeclaredItem[] {
+  const plugin = manifest.plugin.name;
+  const curated = manifest.items
+    .filter((item) => !item.exclude)
+    .map((item): DeclaredItem => {
+      const { outName, outType } = resolveItem(root, plugin, item, components);
+      return { plugin, outName, outType, source: item.source, intent: item, item };
+    });
+  const originals = Object.entries(manifest.original_skills ?? {})
+    .sort(([left], [right]) => ordinalCompare(left, right))
+    .map(
+      ([name, declaration]): DeclaredItem => ({
+        plugin,
+        outName: name,
+        outType: "skill",
+        source: `skills/${plugin}/${name}`,
+        intent: declaration,
+      }),
+    );
+  return [...curated, ...originals];
 }
 
 /**

@@ -63,7 +63,7 @@ function isFile(path: string): boolean {
 export function collectHarnessFileProblems(assembled: AssembledItem[]): string[] {
   const problems: string[] = [];
   for (const item of assembled) {
-    const files = item.item?.harness_files;
+    const files = item.intent.harness_files;
     if (!files) {
       continue;
     }

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { isAbsolute, resolve, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { parseDoc, type ParsedDoc } from "./frontmatter.ts";
-import type { CurationItem, CurationManifest } from "./manifest.ts";
+import type { CurationManifest, SkillIntent } from "./manifest.ts";
 import { PORTABLE_NAME } from "./resolve.ts";
 import { inlineCodeSpans } from "./rewrite.ts";
 
@@ -76,7 +76,7 @@ export function serializeCodexJson(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-export function resolveCodexInvocation(invocation: CurationItem["invocation"]): CodexInvocationResolution {
+export function resolveCodexInvocation(invocation: SkillIntent["invocation"]): CodexInvocationResolution {
   switch (invocation) {
     case "manual":
       return { implicit: "disabled", explicit: "available", agentManifest: true };
@@ -274,7 +274,7 @@ export function createCodexSkillAgentManifest(
   plugin: string,
   skill: string,
   description: string,
-  invocation: CurationItem["invocation"],
+  invocation: SkillIntent["invocation"],
 ): CodexSkillAgentManifest | undefined {
   if (!resolveCodexInvocation(invocation).agentManifest) {
     return undefined;

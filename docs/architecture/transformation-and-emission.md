@@ -1,6 +1,6 @@
 # Transformation and emission
 
-Date: 2026-10-11
+Date: 2026-10-12
 
 ## Responsibility
 
@@ -43,8 +43,9 @@ phase reinterprets a skill after emission.
 ## Authored and generated boundaries
 
 - Upstream worktrees under `external/` are scanned but never authored into. Curation manifests,
-  `curation/attribution.json`, overlays and their lock, original skills, and the root license and
-  notice are the authored transformation layer.
+  `curation/attribution.json`, overlays and their lock, original skills with their
+  [`original_skills`](../../curation/SCHEMA.md#original_skills) declarations, and the root license
+  and notice are the authored transformation layer.
 - `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
   `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated and
   committed. They are review surfaces and consumable output, not edit surfaces.
@@ -82,7 +83,11 @@ OpenCode destinations cannot collide across Modules; the repository-wide bare-na
 protects the bare-name keys of `depends_on`, the linker, and `requiredModules` derivation. The checks
 are [`collectIdentityProblems`](../../tools/lib/resolve.ts), reached through `collectProblems`, and
 [`collectCodexEmissionProblems`](../../tools/lib/codex-plugin.ts), both called by
-[`buildAll`](../../tools/build.ts) ahead of the delete. Validation separately reports when an
+[`buildAll`](../../tools/build.ts) ahead of the delete. The same preflight pairs every original-skill
+directory with exactly one declaration and rejects a missing `SKILL.md`, a `name` that differs from
+its directory, and a symlink in place of a directory
+([`collectOriginalSkillProblems`](../../tools/lib/own-skills.ts)); `validate` runs it too and
+reports the same problems as errors. Validation separately reports when an
 original skill would be copied last and silently overwrite a curated skill of the same name in
 emitted output (check L7 in [`validateRepo`](../../tools/validate.ts)).
 
@@ -96,8 +101,9 @@ The compiler assembles a body in this order:
    omission.
 4. Apply the shared full-file overlay or skill patch, then merge frontmatter and force the resolved
    output identity last ([`normalizePrimary`](../../tools/lib/assemble.ts)).
-5. Add original skills to the same neutral assembly, then let each emitter write its own artifact
-   tree, metadata, and marketplace.
+5. Add each declared original skill to the same neutral assembly with its declared intent, in the one
+   list of a Module's items that [`declaredItems`](../../tools/lib/resolve.ts) gives, then let each
+   emitter write its own artifact tree, metadata, and marketplace.
 
 Each non-excluded primary or merge source must have an entry in `curation/attribution.json`. After
 body assembly, the build copies the repository `LICENSE`, writes a source-specific
@@ -207,9 +213,10 @@ exactly one skill folder, whatever its invocation, and nothing under `commands/`
   v2.0.4 floor. An upstream key with no OpenCode equivalent, such as `user-invocable`, is dropped and
   reported.
 
-A stated `auto` or `both` replaces upstream posture and writes no hiding key. An OpenCode skill
-keeps only `name`, `description`, and `metadata`, with any hiding key
-merged into `metadata` (`OPENCODE_SKILL_KEYS` in
+A stated `auto` or `both` replaces upstream posture and writes no hiding key. An original skill
+states its invocation in its [declaration](../../curation/SCHEMA.md#original_skills) and takes the
+same mapping as a curated skill. An OpenCode skill keeps only `name`, `description`, and
+`metadata`, with any hiding key merged into `metadata` (`OPENCODE_SKILL_KEYS` in
 [`tools/lib/opencode-target.ts`](../../tools/lib/opencode-target.ts));
 every other key, including `license` and `compatibility`, which the OpenCode 2 skill parser does not
 read, is reported by the build rather than silently carried into a target that ignores it
@@ -250,7 +257,8 @@ An ordinary Codex skill is implicitly eligible and explicitly addressable. `manu
 `agents/openai.yaml` with `policy.allow_implicit_invocation: false`, which keeps the skill out of
 the catalog the model is offered while `$plugin:skill` still injects it (measured on Codex CLI
 0.153.4, [record](../../experiments/harness-invocation/records/2026-10-09-codex-rendered-handoff.md));
-`auto` and `both` write no disabling policy. Absent invocation uses the Codex target default. The
+`auto` and `both` write no disabling policy. Absent invocation uses the Codex target default. An
+original skill states its invocation in its declaration and takes the same mapping. The
 policy file's `interface.short_description` is a menu label, not the trigger description. It fits
 the Codex guideline of 64 characters and is cut from the rendered description as plain text. An
 inline code span, found as the harness phrasing finds one

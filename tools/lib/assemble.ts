@@ -1,19 +1,15 @@
-import {
-  cpSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  statSync,
-  writeFileSync,
-} from "node:fs";
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import { parseDoc, serializeDoc } from "./frontmatter.ts";
-import { type ComponentType, type CurationItem, type CurationManifest, UNKNOWN_SOURCE_RULE } from "./manifest.ts";
+import {
+  type ComponentType,
+  type CurationItem,
+  type CurationManifest,
+  type SkillIntent,
+  UNKNOWN_SOURCE_RULE,
+} from "./manifest.ts";
 import { applyPatch, ejectCommand, PATCH_FILE } from "./overlay.ts";
-import { isOmitted, itemRelative, resolveItem } from "./resolve.ts";
+import { type DeclaredItem, declaredItems, isOmitted, itemRelative, resolveItem } from "./resolve.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 /**
@@ -23,6 +19,9 @@ import type { ComponentInfo } from "./scan.ts";
  * command or agent resolved from a skill can retain its dependency closure for targets that emit it
  * as a skill, while Claude Code and OpenCode remain free to emit only their native single-file
  * command/agent shape.
+ *
+ * `intent` is the declared intent of a curated item and of an original skill alike, so an emitter
+ * reads one field for both kinds. `own` marks an original skill.
  */
 export interface AssembledItem {
   plugin: string;
@@ -31,7 +30,7 @@ export interface AssembledItem {
   outName: string;
   outType: ComponentType;
   dir: string;
-  item?: CurationItem;
+  intent: SkillIntent;
   own: boolean;
 }
 
@@ -216,43 +215,38 @@ function assembleCuratedItem(
     outName,
     outType,
     dir,
-    item,
+    intent: item,
     own: false,
   };
 }
 
-function assembleOwnSkills(
+/** An original skill is copied whole from its directory and carries its declaration's intent. */
+function assembleOriginalSkill(
   root: string,
   stagingRoot: string,
-  manifest: CurationManifest,
+  declared: DeclaredItem,
   report: string[],
-): AssembledItem[] {
-  const ownDir = join(root, "skills", manifest.plugin.name);
-  if (!existsSync(ownDir)) {
-    return [];
+): AssembledItem {
+  const { plugin, outName: name } = declared;
+  const source = join(root, declared.source);
+  if (!existsSync(join(source, "SKILL.md"))) {
+    throw new Error(
+      `internal error: ${plugin}/${name} has no ${declared.source}/SKILL.md — collectOriginalSkillProblems runs first`,
+    );
   }
-  const assembled: AssembledItem[] = [];
-  for (const name of readdirSync(ownDir)) {
-    if (!statSync(join(ownDir, name)).isDirectory()) {
-      continue;
-    }
-    const dir = assemblyDir(stagingRoot, manifest.plugin.name, "skill", name);
-    cpSync(join(ownDir, name), dir, {
-      recursive: true,
-      filter: skipSymlinks(root, `${manifest.plugin.name}/${name}`, report),
-    });
-    report.push(`${manifest.plugin.name}: skill ${name} <- skills/ (own)`);
-    assembled.push({
-      plugin: manifest.plugin.name,
-      source: `skills/${manifest.plugin.name}/${name}`,
-      sourceType: "skill",
-      outName: name,
-      outType: "skill",
-      dir,
-      own: true,
-    });
-  }
-  return assembled;
+  const dir = assemblyDir(stagingRoot, plugin, "skill", name);
+  cpSync(source, dir, { recursive: true, filter: skipSymlinks(root, `${plugin}/${name}`, report) });
+  report.push(`${plugin}: skill ${name} <- skills/ (own)`);
+  return {
+    plugin,
+    source: declared.source,
+    sourceType: "skill",
+    outName: name,
+    outType: "skill",
+    dir,
+    intent: declared.intent,
+    own: true,
+  };
 }
 
 /**
@@ -279,13 +273,14 @@ export function assembleItems(
 ): AssembledItem[] {
   const assembled: AssembledItem[] = [];
   for (const manifest of manifests) {
-    for (const item of manifest.items) {
-      const result = assembleCuratedItem(root, stagingRoot, manifest, item, components, report);
+    for (const declared of declaredItems(root, manifest, components)) {
+      const result = declared.item
+        ? assembleCuratedItem(root, stagingRoot, manifest, declared.item, components, report)
+        : assembleOriginalSkill(root, stagingRoot, declared, report);
       if (result) {
         assembled.push(result);
       }
     }
-    assembled.push(...assembleOwnSkills(root, stagingRoot, manifest, report));
   }
   return assembled;
 }

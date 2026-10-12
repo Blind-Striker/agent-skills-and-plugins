@@ -10,6 +10,7 @@ import { loadManifest } from "./lib/manifest.ts";
 import { parse as parseYaml, stringify } from "yaml";
 import { loadLock, lockKey, saveLock, stampFiles, stampMergeFiles } from "./lib/overlay.ts";
 import {
+  addOriginalSkill,
   codexPluginPath,
   makeHarnessFilesRepo,
   makeRepo,
@@ -20,6 +21,7 @@ import {
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
+  addOriginalSkill(root, "my-own");
   const report = buildAll(root);
   assert.ok(report.length > 0);
   assert.ok(report.includes("deniz-process: skill alpha <- sp/skills/alpha"));
@@ -56,6 +58,7 @@ test("buildAll compiles plugins with overrides, overlays, conversions, rewrites"
 
 test("buildAll emits opencode tree and reports dropped keys", () => {
   const root = makeRepo();
+  addOriginalSkill(root, "my-own");
   const report = buildAll(root);
   // each Module is one OpenCode bundle: skills/, commands/, agents/ — all plural — plus its manifest
   const moduleRoot = opencodeModulePath(root, "deniz-process");
@@ -112,6 +115,7 @@ test("buildAll emits opencode tree and reports dropped keys", () => {
 
 test("buildAll emits every resolved source kind as a native Codex skill", () => {
   const root = makeRepo();
+  addOriginalSkill(root, "my-own");
 
   const report = buildAll(root);
 
@@ -192,6 +196,7 @@ test("a curated item localizes a guarded original-skill target in both harnesses
       "",
     ].join("\n"),
   );
+  addOriginalSkill(root, "my-own");
 
   buildAll(root);
 
@@ -252,6 +257,7 @@ test("a root-level source never emits submodule git metadata", () => {
 // on Windows the verifier skips the observed-mode check.
 test("module manifests inherit executable modes from the plugin tree", () => {
   const root = makeRepo();
+  addOriginalSkill(root, "my-own");
   // own skills copy everything, so a script planted here survives the wipe-and-re-emit
   const runSh = join(root, "skills", "deniz-process", "my-own", "run.sh");
   writeFileSync(runSh, "#!/bin/sh\necho ok\n");
@@ -484,6 +490,7 @@ test("invocation sets the Claude flags and the OpenCode frontmatter", () => {
 
 test("as: command and as: agent are the only non-skill OpenCode shapes", () => {
   const root = makeRepo();
+  addOriginalSkill(root, "my-own");
   const report = buildAll(root);
   const cmd = parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "command", "deniz-beta"), "utf8"));
   assert.deepEqual(cmd.frontmatter, { description: "Beta overlay" });
@@ -893,6 +900,7 @@ test("an original-skill rewrite identity conflict aborts before deleting existin
       "",
     ].join("\n"),
   );
+  addOriginalSkill(root, "my-own");
 
   assert.throws(() => buildAll(root), /reference identity deniz-process:my-own resolves to both/);
   assert.equal(readFileSync(existing).equals(before), true, "previous generated output must survive the conflict");
@@ -931,6 +939,42 @@ test("an original skill shares the repository-wide bare-name claim", () => {
     "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems: []\n",
   );
   assert.throws(() => buildAll(root), /duplicate output name delta/);
+});
+
+test("an original skill directory without a declaration stops the build before deleting output", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "my-own");
+  buildAll(root);
+  mkdirSync(join(root, "skills", "deniz-process", "stray"), { recursive: true });
+  writeFileSync(join(root, "skills", "deniz-process", "stray", "SKILL.md"), "---\nname: stray\ndescription: S\n---\n");
+
+  assert.throws(
+    () => buildAll(root),
+    /skills\/deniz-process\/stray\/ has no declaration — add original_skills: stray: with its invocation to curation\/deniz-process\.yaml/,
+  );
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "my-own", "SKILL.md")), "nothing was deleted");
+});
+
+test("an original skill's declared invocation reaches OpenCode and Codex as a curated item's does", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-auto", { declaration: { invocation: "auto" } });
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  addOriginalSkill(root, "own-both", { declaration: { invocation: "both" } });
+  buildAll(root);
+  const oc = (name: string) =>
+    parseDoc(readFileSync(opencodeIdPath(root, "deniz-process", "skill", name, "SKILL.md"), "utf8")).frontmatter;
+  assert.deepEqual(oc("own-manual").metadata, { "opencode/autoinvoke": false });
+  assert.equal("metadata" in oc("own-auto"), false);
+  assert.equal("metadata" in oc("own-both"), false);
+  const policy = (name: string) => codexPluginPath(root, "deniz-process", "skills", name, "agents", "openai.yaml");
+  const manual = parseYaml(readFileSync(policy("own-manual"), "utf8")) as {
+    policy: { allow_implicit_invocation: boolean };
+    interface: { default_prompt: string };
+  };
+  assert.equal(manual.policy.allow_implicit_invocation, false);
+  assert.equal(manual.interface.default_prompt, "Use $deniz-process:own-manual for this task.");
+  assert.ok(!existsSync(policy("own-auto")));
+  assert.ok(!existsSync(policy("own-both")));
 });
 
 test("the same output name in different artifact kinds is rejected by the flattened Codex namespace", () => {

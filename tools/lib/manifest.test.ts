@@ -155,3 +155,36 @@ test("harness_files rejects a harness it does not name, and every malformed path
     assert.throws(() => loadManifest(withHarnessFiles(block)), message, block);
   }
 });
+
+const withOriginals = (block: string): string =>
+  write(`plugin:\n  name: p\n  description: d\n  version: 0.1.0\noriginal_skills:\n${block}items: []\n`);
+
+test("original_skills maps a skills/<plugin>/ directory to its declaration", () => {
+  const m = loadManifest(withOriginals("  my-own:\n    invocation: manual\n"));
+  assert.deepEqual(m.original_skills, { "my-own": { invocation: "manual" } });
+});
+
+test("original_skills rejects every malformed declaration", () => {
+  const cases: [string, RegExp][] = [
+    ["  - my-own\n", /: original_skills must map a skill directory name to its declaration$/],
+    ["  my-own: auto\n", /: original_skills\.my-own must be a mapping$/],
+    ["  my-own: {}\n", /: original_skills\.my-own: invocation is required \(auto\|manual\|both\)$/],
+    [
+      "  my-own:\n    invocation: manul\n",
+      /original_skills\.my-own: invocation must be one of auto\|manual\|both \(got "manul"\)/,
+    ],
+    [
+      "  my-own:\n    invocation: auto\n    invocaton: manual\n",
+      /original_skills\.my-own: unknown key invocaton — a declaration holds only invocation/,
+    ],
+    ["  my-own:\n    invocation: auto\n    source: sp/x\n", /original_skills\.my-own: unknown key source/],
+    [
+      "  my-own:\n    invocation: auto\n    frontmatter:\n      name: x\n",
+      /original_skills\.my-own: unknown key frontmatter/,
+    ],
+    ["  my-own:\n    invocation: auto\n  my-own:\n    invocation: both\n", /Map keys must be unique/],
+  ];
+  for (const [block, message] of cases) {
+    assert.throws(() => loadManifest(withOriginals(block)), message, block);
+  }
+});

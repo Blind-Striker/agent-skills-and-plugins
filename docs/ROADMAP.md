@@ -176,9 +176,9 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    rather than assumed by the first.
    For original skills, the pressure points are additional original skills, manual original posture,
    per-harness files for the orchestration skill of item 3, and load-bearing outgoing edges that
-   review-only protection cannot guard. Original skills can already be guarded targets, but their
-   invocation, `harness_files`, and outgoing model edges have no manifest declaration. The planned
-   surface can be keyed by the existing top-level skill directory:
+   review-only protection cannot guard. Original skills can already be guarded targets; how far
+   their declaration reaches today is the original-skill gap under [Known Gaps](#known-gaps). The
+   planned surface can be keyed by the existing top-level skill directory:
 
    ```yaml
    original_skills:
@@ -314,13 +314,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   ([references and linking](architecture/references-and-linking.md#harness-phrasing)).
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
-- **Original-skill declarations are absent:** an original skill has no manifest item, so it can
-  state neither `invocation` nor `harness_files`. An authored `disable-model-invocation: true` hides
-  it on Claude Code, which copies it byte for byte, and on OpenCode, whose emitter honours that key
-  when no invocation is stated, but Codex gets no explicit-only `agents/openai.yaml` and keeps
-  implicit invocation (`emitCodex` in [`tools/build.ts`](../tools/build.ts)). `manual`/`both`
-  posture, per-harness files, and outgoing edge-source scans remain unavailable until the
-  declaration surface above exists.
+- **Original-skill declarations are partial:** a declaration states an original's invocation, which
+  OpenCode and Codex honor, but Claude Code copies the skill byte for byte (`emitClaudeItem` in
+  [`tools/build.ts`](../tools/build.ts)), so its posture there comes from the SKILL.md. An original
+  cannot yet declare `harness_files` or `depends_on`, its outgoing facts are not linked, and the
+  ledger does not list it.
+- **Manifest keys outside the grammar are ignored:** `loadManifest` in
+  [`tools/lib/manifest.ts`](../tools/lib/manifest.ts) rejects an unknown key only inside an
+  `original_skills` declaration. An unknown top-level or item key, such as a misspelled
+  `invocation`, is silently ignored.
 - **Clean-fixture debt is filtered by finding name:** split the fixture so tests prove those findings
   still exist instead of tolerating their disappearance.
 - **Full-file overlays have no replay:** an upstream move under a full-file overlay is reviewed
