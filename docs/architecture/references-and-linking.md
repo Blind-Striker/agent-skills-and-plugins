@@ -148,9 +148,9 @@ writing-plans skill", ``Hand off to `x` ``, and a capitalized fact.
 
 The rewrite map keys the scanner's upstream namespace and filesystem address to the resolved output
 name. A renamed item therefore changes the symbol target, not just its destination filename.
-Original skills add their authored `<plugin>:<top-level-directory>` identity to the same map, so a
-curated item can guard an original-skill target without inventing an upstream address. Each harness
-renders the same neutral fact in its own spelling:
+Original skills add their authored `<plugin>:<top-level-directory>` identity to the same map, so an
+item or an original skill can guard an original-skill target without inventing an upstream address.
+Each harness renders the same neutral fact in its own spelling:
 
 | Harness | Model-edge | User-pointer |
 |---|---|---|
@@ -329,14 +329,17 @@ checked.
 
 `depends_on` is the manifest-side declaration of model-edge facts only. It contains resolved output
 names, while bodies keep neutral namespaced addresses. The linker derives model targets from all
-Markdown each non-excluded manifest item ships in any of the three trees, read in the Claude tree's
-spelling before rendering, and enforces exact agreement in both directions: a fact no declaration
-names and a declaration no tree's fact names are both errors. User-pointers, paths, and candidates
-are not dependency declarations. Only an item's
+Markdown that each non-excluded manifest item and each declared original skill ships in any of the
+three trees, read in the Claude tree's spelling before rendering, and enforces exact agreement in
+both directions: a fact no declaration names and a declaration no tree's fact names are both errors.
+An original skill declares its edges under
+[`original_skills`](../../curation/SCHEMA.md#original_skills). User-pointers, paths, and candidates
+are not dependency declarations. Only
 [`harness_files`](../../curation/SCHEMA.md#harness_files) make the trees differ in Markdown. The
 Claude tree holds the `claude` source of each mapping; no tree ships another harness's source in
-that spelling, so the linker assembles the item again, as the build does, and reads that source
-from the assembly.
+that spelling, so the linker assembles a curated item again, as the build does, and reads that
+source from the assembly. It reads an original skill's source from the skill's directory, which
+assembly copies unchanged.
 
 For each fact, the linker checks the canonical neutral kind and asks whether the target has the
 required audience surface in every tree that ships the fact: all three for a file every tree ships,
@@ -418,11 +421,6 @@ installation state have their own manifests and are owned by
 - Rendered harness phrasing proves only that the sentence names the harness's own tool. Whether a
   model follows it is runtime evidence, bounded as described under
   [Harness phrasing](#harness-phrasing).
-- Original skills under `skills/` are guarded edge targets: curated items can author their
-  `<plugin>:<directory>` fact, localize it for all three harnesses, and declare the output name in
-  `depends_on`. The derived-edge source scan still walks manifest items only, so references
-  originating in an original skill are not scanned or declared
-  ([`validateRepo`](../../tools/validate.ts)).
 - Relative-path checks are attribution-aware, not a general Markdown link checker. A silent path may
   still be wrong upstream, and a broken path in an `as: command` body may still require a body or
   shape decision. Path claims are read only in skill folders; a command or agent file carries no

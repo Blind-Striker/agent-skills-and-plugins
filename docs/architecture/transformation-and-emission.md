@@ -327,7 +327,7 @@ Module manifests are then written over final OpenCode bytes. A file copied into 
 the Git index mode of its committed Claude Plugin counterpart, so an executable script keeps
 `100755` after path respelling, and every other Bundle file is `100644`
 ([`claudeCounterpartPath`](../../tools/lib/opencode-target.ts)). Compile-time `requiredModules` are
-derived from declared `depends_on` edges
+derived from the declared `depends_on` edges of items and original skills
 ([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
 [`writeOpenCodeManifests`](../../tools/build.ts). The ledger is written last from the
 resolved output. The installer reads those emitted lists; it does not re-derive them. The separate

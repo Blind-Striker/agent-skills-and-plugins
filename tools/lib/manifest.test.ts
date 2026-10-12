@@ -213,3 +213,8 @@ test("original_skills takes harness_files under the curated grammar", () => {
     /original_skills\.my-own: harness_files cannot replace SKILL\.md/,
   );
 });
+
+test("original_skills takes depends_on", () => {
+  const m = loadManifest(withOriginals("  my-own:\n    invocation: auto\n    depends_on: [a]\n"));
+  assert.deepEqual(m.original_skills, { "my-own": { invocation: "auto", depends_on: ["a"] } });
+});

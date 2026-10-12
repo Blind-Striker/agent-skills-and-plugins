@@ -89,10 +89,11 @@ export function declaredItems(root: string, manifest: CurationManifest, componen
 }
 
 /**
- * Per-Module `requiredModules` projection: every `depends_on` output name resolved to the Module
- * that ships it. Build-time only — the installer reads the emitted manifest, never this file.
- * Original skills own their output names, an excluded item owns nothing on either side, and a
- * target with zero or several owners is an error rather than a guess.
+ * Per-Module `requiredModules` projection: every `depends_on` output name, declared by a curated
+ * item or an original skill, resolved to the Module that ships it. Build-time only — the installer
+ * reads the emitted manifest, never this file. Original skills own their output names, an excluded
+ * item owns nothing on either side, and a target with zero or several owners is an error rather
+ * than a guess.
  */
 export function deriveModuleRequirements(
   root: string,
@@ -120,11 +121,8 @@ export function deriveModuleRequirements(
   const result = new Map<string, string[]>();
   for (const manifest of [...manifests].sort((a, b) => ordinalCompare(a.plugin.name, b.plugin.name))) {
     const required = new Set<string>();
-    for (const item of manifest.items) {
-      if (item.exclude) {
-        continue;
-      }
-      for (const target of item.depends_on ?? []) {
+    for (const { intent } of declaredItems(root, manifest, components)) {
+      for (const target of intent.depends_on ?? []) {
         const candidates = owners.get(target);
         if (!candidates?.size) {
           throw new Error(`${manifest.plugin.name}: unknown dependency target ${target}`);

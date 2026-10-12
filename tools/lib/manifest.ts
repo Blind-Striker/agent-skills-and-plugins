@@ -206,7 +206,7 @@ export function loadManifest(path: string): CurationManifest {
 }
 
 /** The keys an original-skill declaration may hold; the SKILL.md owns everything else. */
-const ORIGINAL_SKILL_KEYS = ["invocation", "harness_files"];
+const ORIGINAL_SKILL_KEYS = ["invocation", "depends_on", "harness_files"];
 
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

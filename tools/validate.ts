@@ -19,7 +19,6 @@ import { indexModes } from "./lib/git.ts";
 import { everListedNames } from "./lib/ledger.ts";
 import {
   type ComponentType,
-  type CurationItem,
   type CurationManifest,
   type Harness,
   loadManifest,
@@ -1010,10 +1009,15 @@ export function validateRepo(root: string): Finding[] {
     }
   };
   // A non-Claude harness_files source ships in no tree in the Claude spelling facts are read in, so
-  // its item is assembled again, as the build assembles it, to read the source itself.
+  // a curated item is assembled again, as the build assembles it, to read the source itself. An
+  // original skill's source is read from its directory, which assembly copies unchanged.
   const rewriteMap = buildRewriteMap(manifests, components, ownSkills);
   let staging: string | undefined;
-  const harnessSourceReader = (m: CurationManifest, item: CurationItem, id: string) => {
+  const harnessSourceReader = (m: CurationManifest, declared: DeclaredItem, id: string) => {
+    const { item } = declared;
+    if (!item) {
+      return (source: string) => readFileSync(join(root, declared.source, ...source.split("/")), "utf8");
+    }
     try {
       staging ??= mkdtempSync(join(tmpdir(), "validate-harness-files-"));
       const assembled = assembleItem(root, staging, m, item, components);
@@ -1037,11 +1041,9 @@ export function validateRepo(root: string): Finding[] {
 
   try {
     for (const m of manifests) {
-      for (const item of m.items) {
-        if (item.exclude) {
-          continue;
-        }
-        const { outName, outType, id } = resolveItem(root, m.plugin.name, item, components);
+      for (const declared of pairedItems(m)) {
+        const { outName, outType, intent } = declared;
+        const id = `${m.plugin.name}/${outName}`;
         const built = join(
           pluginsDir,
           m.plugin.name,
@@ -1064,8 +1066,8 @@ export function validateRepo(root: string): Finding[] {
         const relIn = (harness: Harness, path: string): string =>
           path === "" ? folder[harness] : `${folder[harness]}/${path}`;
         const derived = new Set<string>();
-        const files = item.harness_files;
-        const readSource = files ? harnessSourceReader(m, item, id) : undefined;
+        const files = intent.harness_files;
+        const readSource = files ? harnessSourceReader(m, declared, id) : undefined;
         for (const file of treeMarkdown(shipped, files, "claude", () => "", rewriteMap)) {
           linkFacts(relIn("claude", file.path), file.text, file.own ? ["claude"] : LINKED_HARNESSES, derived);
         }
@@ -1085,16 +1087,17 @@ export function validateRepo(root: string): Finding[] {
             }
           }
         }
-        const declared = new Set(item.depends_on ?? []);
+        const dependsOn = new Set(intent.depends_on ?? []);
+        const dependsOnKey = declared.item ? "depends_on" : `original_skills.${outName}.depends_on`;
         for (const d of derived) {
-          if (!declared.has(d)) {
+          if (!dependsOn.has(d)) {
             findings.push({
               level: "error",
-              message: `${id}: undeclared dependency: ${d} — add it to depends_on in curation/${m.plugin.name}.yaml`,
+              message: `${id}: undeclared dependency: ${d} — add it to ${dependsOnKey} in curation/${m.plugin.name}.yaml`,
             });
           }
         }
-        for (const d of declared) {
+        for (const d of dependsOn) {
           if (!derived.has(d)) {
             findings.push({
               level: "error",
@@ -1362,15 +1365,17 @@ export function validateRepo(root: string): Finding[] {
   // reporting those is the green-build warning nobody reads. So both rules below ask the same
   // narrowing question: could OUR transformation have broken this?
   interface EmittedItem {
-    upstream: string;
+    /** The item's upstream directory; undefined for an original skill, which has no upstream. */
+    upstream?: string;
   }
   const emitted = new Map<string, EmittedItem>();
   for (const m of manifests) {
-    for (const item of m.items) {
-      if (item.exclude) {
+    for (const { outName, item } of pairedItems(m)) {
+      if (!item) {
+        emitted.set(outName, {});
         continue;
       }
-      const { comp, outName } = resolveItem(root, m.plugin.name, item, components);
+      const { comp } = resolveItem(root, m.plugin.name, item, components);
       if (comp) {
         emitted.set(outName, { upstream: upstreamBase(root, item, comp) });
       }
@@ -1401,10 +1406,8 @@ export function validateRepo(root: string): Finding[] {
   };
   const ownerModule = new Map<string, string>();
   for (const m of manifests) {
-    for (const item of m.items) {
-      if (!item.exclude) {
-        ownerModule.set(resolveItem(root, m.plugin.name, item, components).outName, m.plugin.name);
-      }
+    for (const { outName } of pairedItems(m)) {
+      ownerModule.set(outName, m.plugin.name);
     }
   }
   const inside = (parent: string, child: string): boolean =>
@@ -1531,13 +1534,14 @@ export function validateRepo(root: string): Finding[] {
         }
         // R2 — a link into the item's OWN directory that upstream can still satisfy. If the same
         // path is absent upstream too, it is upstream's illustrative prose and none of our
-        // business; if upstream has it, we are the ones who removed it.
+        // business; if upstream has it, we are the ones who removed it. An original skill has no
+        // upstream, so R2 never judges it.
         if (!own.dir || !inside(own.dir, abs)) {
           continue;
         }
-        const info = emitted.get(own.name);
+        const upstream = emitted.get(own.name)?.upstream;
         const within = relative(own.dir, abs).replaceAll("\\", "/");
-        if (!info || !existsSync(join(info.upstream, within))) {
+        if (!upstream || !existsSync(join(upstream, within))) {
           continue;
         }
         // Every tree ships each skill's own SKILL.md (OpenCode 2 hides a manual skill through

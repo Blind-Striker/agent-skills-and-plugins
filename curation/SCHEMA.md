@@ -142,12 +142,12 @@ original_skills:
     invocation: auto
 ```
 
-The SKILL.md owns content and description; the declaration owns invocation and per-harness files.
-A declaration is not a second body manifest: it holds `invocation` and
-[`harness_files`](#harness_files) only, and the manifest loader rejects any other key by name, the
-curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`, `body`, `merged_from`, and
-`exclude` included. `invocation` is required, because an original has no upstream posture to
-pass through, and it maps to each harness as the
+The SKILL.md owns content and description; the declaration owns invocation, outgoing model edges,
+and per-harness files. A declaration is not a second body manifest: it holds `invocation`,
+[`depends_on`](#dependencies), and [`harness_files`](#harness_files) only, and the manifest loader
+rejects any other key by name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`,
+`body`, `merged_from`, and `exclude` included. `invocation` is required, because an original has no
+upstream posture to pass through, and it maps to each harness as the
 [invocation table](#invocation-and-as-are-orthogonal) states. Claude Code adapts an original skill
 as it adapts a curated one, so the declaration writes its Claude invocation keys; the SKILL.md may
 author neither `user-invocable` nor `disable-model-invocation`.
@@ -276,13 +276,15 @@ as its overlay or patch stamps the same document.
 
 ## Dependencies
 
-`depends_on:` lists output names reached by model-edge facts in the shipped body. Author those facts
-in neutral upstream spelling (`namespace:name`); use `/namespace:name` when the body points the human
-at a user surface. Each emitter renders the fact in its own harness's spelling, which is longer than
-the neutral one. A skill `description` must fit 1,024 characters in every harness's rendered
-spelling, so a fact there counts at its longest rendering; the build and `validate` fail on an
-overflow instead of shortening it, and the fix is a shorter description in the item's `frontmatter:`
-override or its patch
+`depends_on:`, on an item or an [original-skill declaration](#original_skills), lists output names
+reached by model-edge facts in the shipped body. Author those facts in neutral upstream spelling
+(`namespace:name`), or, for an original-skill target, in the spelling
+[Localization](../docs/architecture/references-and-linking.md#localization) gives it; use
+`/namespace:name` when the body points the human at a user surface. Each emitter renders the fact
+in its own harness's spelling, which is longer than the neutral one. A skill `description` must fit
+1,024 characters in every harness's rendered spelling, so a fact there counts at its longest
+rendering; the build and `validate` fail on an overflow instead of shortening it, and the fix is a
+shorter description in the item's `frontmatter:` override or its patch
 ([Description length](../docs/architecture/transformation-and-emission.md#description-length)).
 
 A body line that tells the model to load another skill is a load-bearing model edge. Author its

@@ -137,3 +137,17 @@ test("requirements: names appearing only in descriptions and frontmatter create 
     ],
   );
 });
+
+test("requirements: an original skill's depends_on adds its target's Module", () => {
+  const manifests: CurationManifest[] = [
+    { ...moduleManifest("consumer", []), original_skills: { own: { invocation: "auto", depends_on: ["renamed"] } } },
+    moduleManifest("provider", [{ source: "source/old", name: "renamed" }]),
+  ];
+  assert.deepEqual(
+    [...deriveModuleRequirements(".", manifests, [], [{ plugin: "consumer", name: "own", address: "consumer:own" }])],
+    [
+      ["consumer", ["provider"]],
+      ["provider", []],
+    ],
+  );
+});

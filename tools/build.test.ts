@@ -19,6 +19,7 @@ import {
   opencodeModulePath,
   restampFrontmatter,
 } from "./testutil.ts";
+import { validateRepo } from "./validate.ts";
 
 test("buildAll compiles plugins with overrides, overlays, conversions, rewrites", () => {
   const root = makeRepo();
@@ -1674,6 +1675,45 @@ test("buildAll emits requiredModules for a guarded cross-Module edge", () => {
   writeFileSync(path, stringify(consumer));
   assert.throws(() => buildAll(root), /unknown.*missing/);
   assert.ok(existsSync(previouslyGenerated), "previous build output must survive an aborted build");
+});
+
+test("buildAll emits requiredModules for an original skill's cross-Module edge", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems: []\n",
+  );
+  addOriginalSkill(root, "own-cross", {
+    plugin: "deniz-other",
+    declaration: { invocation: "auto", depends_on: ["delta"] },
+    body: "Load superpowers:delta.\n",
+  });
+  buildAll(root);
+  assert.deepEqual(loadModuleManifest(join(root, "opencode", "deniz-other", "manifest.json")).requiredModules, [
+    "deniz-process",
+  ]);
+  const read = (path: string) => readFileSync(path, "utf8");
+  assert.match(
+    read(join(root, "plugins", "deniz-other", "skills", "own-cross", "SKILL.md")),
+    /Load deniz-process:delta\./,
+  );
+  assert.match(
+    read(opencodeIdPath(root, "deniz-other", "skill", "own-cross", "SKILL.md")),
+    /Load deniz-process\.delta\./,
+  );
+  assert.match(
+    read(codexPluginPath(root, "deniz-other", "skills", "own-cross", "SKILL.md")),
+    /Load \$deniz-process:delta\./,
+  );
+  const findings = validateRepo(root);
+  assert.deepEqual(
+    findings.filter((f) => f.level === "error" && f.message.includes("own-cross")).map((f) => f.message),
+    [],
+  );
+  assert.deepEqual(
+    findings.filter((f) => f.message.startsWith("deniz-other requires")).map((f) => f.message),
+    [],
+  );
 });
 
 test("each harness renders the skill-tool call and dispatch words in its own words", () => {

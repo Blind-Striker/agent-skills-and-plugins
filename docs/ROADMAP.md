@@ -316,11 +316,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   ([references and linking](architecture/references-and-linking.md#harness-phrasing)).
 - **Linker cause text is skill-specific:** an unreachable command or agent target can receive the
   right verdict with the wrong `disable-model-invocation` explanation.
-- **Original-skill declarations are partial:** a declaration states an original's invocation and
-  `harness_files`, which all three harnesses honor, but an original cannot yet declare `depends_on`,
-  and the ledger does not list it. `validateRepo` in [`tools/validate.ts`](../tools/validate.ts)
-  does not link an original's outgoing facts, and its skill-tool handoff and bundled-script
-  interpreter checks read a non-Claude harness's own `harness_files` source only for a curated item.
+- **Original-skill declarations are partial:** a declaration states an original's invocation,
+  `depends_on`, and `harness_files`, which all three harnesses and the linker honor, but the ledger
+  does not list it: `writeLedger` in [`tools/lib/ledger.ts`](../tools/lib/ledger.ts) iterates
+  manifest items only.
 - **Manifest keys outside the grammar are ignored:** `loadManifest` in
   [`tools/lib/manifest.ts`](../tools/lib/manifest.ts) rejects an unknown key only inside an
   `original_skills` declaration. An unknown top-level or item key, such as a misspelled

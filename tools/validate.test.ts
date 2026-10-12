@@ -2046,3 +2046,149 @@ test("harness files of an original skill: each tree holds only its own file, and
     after.join("\n"),
   );
 });
+
+/**
+ * makeRepo plus an original skill own-src whose per-harness notes ship at references/tools.md, each
+ * written like harnessFactsRepo's so the sentence sits on line 3.
+ */
+function ownNotesRepo(
+  notes: Record<"claude" | "codex" | "opencode", string>,
+  declaration: Record<string, unknown>,
+): string {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-src", {
+    files: Object.fromEntries(
+      Object.entries(notes).map(([harness, text]) => [`references/${harness}.md`, `# Notes\n\n${text}\n`]),
+    ),
+    declaration: {
+      ...declaration,
+      harness_files: {
+        "references/tools.md": {
+          claude: "references/claude.md",
+          codex: "references/codex.md",
+          opencode: "references/opencode.md",
+        },
+      },
+    },
+  });
+  return root;
+}
+
+test("linker: an original skill's undeclared and stale edges name its declaration", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-src", {
+    declaration: { invocation: "auto", depends_on: ["gamma"] },
+    body: "Load superpowers:delta.\n",
+  });
+  buildAll(root);
+  const errors = errorsOf(root);
+  for (const expected of [
+    "deniz-process/own-src: undeclared dependency: delta — add it to original_skills.own-src.depends_on in curation/deniz-process.yaml",
+    "deniz-process/own-src: stale depends_on: gamma — no model-edge in any tree's shipped body references it",
+  ]) {
+    assert.ok(errors.includes(expected), `${expected}\n${errors.join("\n")}`);
+  }
+});
+
+test("linker: an original skill's dangling fact fails in every tree", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "own-src", {
+    declaration: { invocation: "auto" },
+    body: "Load deniz-process:nowhere.\n",
+  });
+  buildAll(root);
+  const errors = errorsOf(root);
+  for (const expected of [
+    "plugins/deniz-process/skills/own-src/SKILL.md: dangling reference deniz-process:nowhere — no built output has that name",
+    "opencode/deniz-process/skills/deniz-process.own-src/SKILL.md: output namespace leaked into opencode/: deniz-process:nowhere",
+    "codex/deniz-process/skills/own-src/SKILL.md: unrendered Codex reference deniz-process:nowhere",
+  ]) {
+    assert.ok(errors.includes(expected), `${expected}\n${errors.join("\n")}`);
+  }
+});
+
+test("linker: a fact only an original skill's own harness file holds is linked in that tree", () => {
+  const undeclared = ownNotesRepo(
+    {
+      claude: "See superpowers:gamma.",
+      opencode: "Then load superpowers:alpha.",
+      codex: "Then load superpowers:delta.",
+    },
+    { invocation: "auto", depends_on: ["gamma"] },
+  );
+  buildAll(undeclared);
+  const failing = errorsOf(undeclared);
+  for (const expected of [
+    "deniz-process/own-src: undeclared dependency: alpha — add it to original_skills.own-src.depends_on in curation/deniz-process.yaml",
+    "deniz-process/own-src: undeclared dependency: delta — add it to original_skills.own-src.depends_on in curation/deniz-process.yaml",
+  ]) {
+    assert.ok(failing.includes(expected), `${expected}\n${failing.join("\n")}`);
+  }
+
+  const handoff = ownNotesRepo(
+    {
+      claude: "See superpowers:gamma.",
+      opencode: 'Call the Skill tool with "gamma".',
+      codex: "See superpowers:gamma.",
+    },
+    { invocation: "auto", depends_on: ["gamma"] },
+  );
+  buildAll(handoff);
+  const errors = errorsOf(handoff);
+  const expected =
+    'opencode/deniz-process/skills/deniz-process.own-src/references/tools.md:3: skill-tool handle "gamma" is not a namespaced fact';
+  assert.ok(
+    errors.some((m) => m.startsWith(expected)),
+    `${expected}\n${errors.join("\n")}`,
+  );
+});
+
+test("linker: a model fact from an original skill into a manual original fails in every tree", () => {
+  const fact = "Then load deniz-process:own-manual.";
+  const root = ownNotesRepo(
+    { claude: fact, opencode: fact, codex: fact },
+    { invocation: "auto", depends_on: ["own-manual"] },
+  );
+  addOriginalSkill(root, "own-manual", { declaration: { invocation: "manual" } });
+  buildAll(root);
+  const errors = errorsOf(root).filter((m) => m.includes("model-edge to a target the model cannot reach: own-manual"));
+  assert.deepEqual(
+    errors.map((m) => m.slice(0, m.indexOf(": model-edge"))),
+    [
+      "plugins/deniz-process/skills/own-src/references/tools.md",
+      "opencode/deniz-process/skills/deniz-process.own-src/references/tools.md",
+      "codex/deniz-process/skills/own-src/references/tools.md",
+    ],
+  );
+  assert.match(errors[0] ?? "", /\(disable-model-invocation in the Claude tree\)/);
+  assert.match(errors[1] ?? "", /\(hidden from the OpenCode model \(opencode\/autoinvoke\)\)/);
+  assert.match(errors[2] ?? "", /\(allow_implicit_invocation: false in the Codex tree\)/);
+});
+
+test("P: a Markdown link into a manual original's body fails as a curated one does", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+    "---\nname: alpha\ndescription: A\n---\nSee [m](./../own-manual/SKILL.md) and [n](./../own-manual/references/notes.md).\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    "plugin:\n  name: deniz-process\n  description: P\n  version: 0.1.0\nitems:\n  - source: sp/skills/alpha\n",
+  );
+  addOriginalSkill(root, "own-manual", {
+    declaration: { invocation: "manual" },
+    files: { "references/notes.md": "Notes.\n" },
+  });
+  buildAll(root);
+  const errors = errorsOf(root);
+  for (const tree of ["plugins", "codex"]) {
+    assert.ok(
+      errors.some(
+        (m) =>
+          m.startsWith(`${tree}/`) && m.includes("path ./../own-manual/SKILL.md reaches manual item own-manual's body"),
+      ),
+      `${tree}\n${errors.join("\n")}`,
+    );
+  }
+  assert.ok(!errors.some((m) => m.includes("references/notes.md")), errors.join("\n"));
+});
