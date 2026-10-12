@@ -43,7 +43,8 @@ Write the plan in chat before the first child starts:
    counted, and the ceiling on live children: 6, or the harness limit when that is lower.
 7. **Verification plan**: which findings get skeptics, and which checks each gate runs.
 
-The announced agent total is the budget. Invent no budget or deadline the user did not give.
+The agent total you announce is your budget, together with any limit the user sets. Set no other
+limit and no deadline.
 
 Ask one yes/no question, and wait for the answer, before each of these: deleting or overwriting
 files, a force-push, a publish, anything that touches credentials, a broad codemod, and going over
@@ -171,8 +172,8 @@ results files are what let you rebuild the ledger from disk.
 
 - A discovery loop stops after 2 rounds in a row that find nothing new, or after 3 rounds in all.
 - A fix-and-review cycle allows at most 2 re-reviews, each by a fresh reviewer given only the change
-  and the open blockers. A concern blocks only when it names a done-when check that fails. What is
-  still open after the second re-review goes to the user.
+  and the open blockers. Only a concern tied to a failing done-when check holds up the work. What
+  is still open after the second re-review goes to the user.
 - An item that fails twice is BLOCKED.
 - Zero findings skip the downstream waves.
 - A stop-when condition from the plan ends the run: go to the final report.
