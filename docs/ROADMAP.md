@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.10.1, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.11.0, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -74,6 +74,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   used the [runbook](../experiments/harness-invocation/runbook.md)'s throwaway data, state, cache,
   and database roots and left the real ones unchanged
   ([v0.7.1 rollout record](../experiments/harness-invocation/records/2026-10-12-v0.7.1-rollout.md)).
+  From the next release on, `harness-and-os-ai-config-centralize` owns installation on each machine
+  and the per-machine rollout records. This repository keeps Package release records; the existing
+  rollout records remain historical evidence. The location of the runbook's real-profile discovery
+  method remains an open curator decision: move it there, or keep it here as the method it follows.
 - `dotnet/skills` is reviewed through `1d40f95` (main, 2026-10-09; it has no release-shaped
   tag); wave W6 is done, and with it every upstream sync wave of the 2026-10-08 review. General
   takes upstream's consolidated `msbuild` skill as the auto entry for build failures, build
@@ -101,6 +105,10 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   `snapshot-testing`'s patch carries the same guard beside its removal of the email-authoring
   branches. Akka and Aspire moved only through upstream's `invocable:` to `user-invocable:` key
   rename.
+  `opentelemetry-net-instrumentation`'s exporter guard was reported upstream as
+  [Aaronontheweb/dotnet-skills#98](https://github.com/Aaronontheweb/dotnet-skills/issues/98), currently
+  open with no comments. The next sync checks whether the patch can shrink; retiring it remains the
+  curator's decision.
 - `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);
   wave W3 is done. Its source metadata is 0.0.3 and its guidance covers the Aspire 13.5 and 13.6
   release family; the post-tag commit carries the 13.6 agent-setup and MCP opt-in guidance that
@@ -120,6 +128,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   harness gets only its own tool notes from `using-superpowers`, OpenCode's authored here. Process
   takes `diagnosing-superpowers` as `both`. `asd-ste100` names its linter's interpreter, bounds when
   it runs, and states its limits; its invalid test fixture is omitted.
+  The checkout now puts size/authority gates in `writing-plans`, both plan executors, and
+  `using-git-worktrees`: ordinary work does not manufacture another ceremony, and already approved
+  execution/workspace choices are preserved. The selected heavy SDD workflow retains per-task review
+  and whole-suite checks. These authored contracts have structural regression tests, not new
+  model-compliance measurements; intent remains beside the items in curation.
 - `mattpocock-skills` is reviewed through `49dd158` (2026-10-09), 46 commits past the v1.3.1 tag
   with no later tag; wave W5 is done. Process adopts upstream's `GLOSSARY.md` name for the domain
   glossary with no read of the old one, and this repository's own glossary moved with it.
@@ -129,8 +142,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   license ships in every Process notice pack and whose every component is excluded, `show-me` as
   `pr`'s merge source. `chief-of-staff` is excluded while it is in
   progress upstream. `setup-matt-pocock-skills` writes its block to `AGENTS.md`, which OpenCode and
-  Codex read, and proposes importing it into `CLAUDE.md`. `ask-deniz` is recut by hand, and the
-  model-reachable skills it names in plain text, ten of them, are checked facts.
+  Codex read, and proposes importing it into `CLAUDE.md`. `ask-deniz` is recut by hand as the one
+  `both` router for the whole estate: all General items, its nine manual ceremonies explicitly,
+  Aspire's router/migration and two extra specialists, and the Akka set. Its 67 cross-Module
+  `optional_refs` are checked facts under installed-Module guards and stay out of `requiredModules`,
+  so Process remains independently installable. Manual ceremonies remain conditional human pointers;
+  the two agents are descriptive specialist options, not fake skill-load or slash commands. The
+  [cheatsheet](cheatsheet.md) and routing tests keep the human map aligned; runtime compliance of the
+  new routing and guards is unmeasured.
 - `verified-waves`, design A of the
   [ultracode and orchestration research](research/claude-ultracode-and-orchestration-ports.md#port-designs),
   ships in Process 0.10.0 as an original `manual` skill, declared under `original_skills`
@@ -208,40 +227,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Shorten the model-reachable descriptions.** Claude Code and Codex cut this estate's
-   descriptions under a skill-listing budget, at their defaults and even with the per-machine
-   raises, while OpenCode 2 has no budget; the mechanisms, their sources, and the measurements are
-   in the [catalog-budget record](../experiments/harness-invocation/records/2026-10-11-skill-catalog-budgets.md).
-   Shorten every model-reachable deniz description to about 190 characters or fewer, with the
-   clause that tells it apart from its neighbours in the first 130 or so, through the item's
-   existing `frontmatter:` override or its patch; the curator approves the drafts as one table.
-   `aot-trimming` (210 characters, kept over the target for its existing-library and in-code
-   warning qualifiers) and `sdk-container-publishing` (190) already follow it.
-   Add a `validate` check so an upstream sync cannot bring a long description back. The per-machine
-   listing-budget raises the record lists stay after this lands, by curator decision; they are
-   machine configuration, which the curator manages outside this repository.
-2. **Make `ask-deniz` the router for the whole estate.** It maps only the Process Module, so the
-   .NET Modules' 74 items have no route. That includes General's nine `manual` ceremonies, which
-   only a person can start and OpenCode hides from the model. General has no router of its own,
-   and the [cheatsheet](cheatsheet.md) that lists them does not ship. Curator decisions: one
-   `ask-deniz` for every Module, not one router per Module, and `invocation: both`, so the model can
-   load it when unsure which skill fits and point the user at a ceremony it cannot start.
-   - A cross-Module reference today either adds a required Module (Process would require the .NET
-     Modules, while General already requires Process) or is unchecked prose. Add an optional
-     cross-Module reference first: the build checks that the target exists in the estate, the text
-     says it applies when that Module is installed, and it stays out of `requiredModules`.
-   - Then recut the overlay: Process's flow as today; a .NET section by situation that names
-     General's `manual` ceremonies; Aspire through its `aspire` router and
-     `aspire-project-v2-migration`; Akka in a paragraph; and `asd-ste100` in the Standalone table.
-     Seed the .NET section from the cheatsheet and keep the two from drifting apart.
-   - Rewrite the item's why-comments in `curation/deniz-process.yaml`, which record a Process-only
-     map and `manual`.
-3. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
+1. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
    automatic dependency installation, cascade remove, and version-range resolution. These three
    workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership
    semantics, user approval for automatic changes, and version constraint/conflict policy must be
    designed in that iteration rather than assumed by the first.
-4. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
+2. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
    in its `workflows/` directory as `/<plugin>:<meta.name>`
    ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a
    repeatable playbook such as the [curation sanity panel](agents/curation-sanity-panel.md) or an
@@ -251,7 +242,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
    Claude Code gets the scripted form, and OpenCode and Codex get `verified-waves`' model-driven
    form of the same playbook.
-5. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -292,8 +283,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   were shortened to fit the skills context budget. The tested explicit, implicit, manual, handoff,
   reference, and generated-skill paths passed, but that bounded panel is not proof for every skill,
   model, or future catalog size. The listing budgets of both Claude Code and Codex are measured in
-  the [catalog-budget record](../experiments/harness-invocation/records/2026-10-11-skill-catalog-budgets.md),
-  and the shortening they call for is Next Up item 1.
+  the [catalog-budget record](../experiments/harness-invocation/records/2026-10-11-skill-catalog-budgets.md).
+  The curator cancelled estate-wide description shortening and its proposed 190-character validation
+  gate because of their maintenance cost. The per-machine Claude Code and Codex budget raises stay;
+  their configuration belongs to `harness-and-os-ai-config-centralize`. OpenCode has no listing budget.
+  The existing 1,024-character skill-description limit is unchanged; residual truncation remains a
+  known limitation, not an active shortening task.
 - **Codex update re-enables a disabled plugin:** on Codex CLI 0.153.4, upgrading an installed
   plugin with `codex plugin add <plugin>@deniz-skills` set a plugin the user had disabled back to
   `enabled = true` in the Codex configuration; the rollout restored the line by hand
@@ -362,7 +357,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   - P2: in Codex it passed in 2 of 2 attempts at `ace815d` on `gpt-6-luna`, so P2 meets the panel's
     bar there too (sample, not a rate). In OpenCode it failed in 2 of 3 attempts on the text at
     `8bc8da3`, because children wrote results files without their `REPORT` block (12 and 7 of 13),
-    and one of the two reused an earlier attempt's run-id and wrote over its ledger. The skill text now answers both causes: a brief's last step puts the returned `REPORT`
+    and one of the two reused an earlier attempt's run-id and wrote over its ledger. The skill text
+    now answers both causes: a brief's last step puts the returned `REPORT`
     block first in the results file, the parent completes any results file that lacks it, and a new
     run checks that its ledger directory does not exist yet. A re-run at `76bc5c8` passed in 2 of 2
     attempts: in each, all 13 children's results files started with their `REPORT` block, and the
@@ -481,7 +477,7 @@ skill.
     items;
   - a real repository needs it, with several contributors or agents changing the same capabilities
     over months; evaluate it in a throwaway sandbox first, then curate its skills;
-  - the description shortening and Iteration 2 (Next Up) land, which lowers the cost of curating its
+  - Iteration 2 (Next Up) lands, which lowers the cost of curating its
     skills;
   - OpenSpec adds an invocation control to its skill generator and moves to skills-only delivery
     ([#2022](https://github.com/Fission-AI/OpenSpec/issues/2022)); skills-only alone is not enough,

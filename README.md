@@ -70,7 +70,7 @@ pinned upstream repos + original skills
   curation chose `as: command` or `as: agent`. A `manual` skill carries
   `opencode/autoinvoke: false`, so the model is not offered it and the user attaches it with
   `@<plugin>.<name>`; `both` is one plain skill, and no body is parked. The current Bundles hold 113
-  skills, 31 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
+  skills, 30 of them `manual`, and two subagents, with no commands. Codex receives a skill, with a
   native explicit-only policy for `manual`. Codex keeps explicit invocation available for `auto`
   because its native skill surface has no implicit-only posture.
 - Surgical patches, owned overlays, and declared multi-source merges are stamped against their

@@ -336,11 +336,13 @@ bit, so `validate` reads both sides from Git's index: a curated item's source fr
 index, an original skill's from this repository's. A committed copy in any of the three trees of an
 executable source that is recorded `100644` is an error naming the `git update-index --chmod=+x`
 command that fixes it (check 1e in [`validateRepo`](../../tools/validate.ts)).
-Compile-time `requiredModules` are derived from the declared `depends_on` edges of items and
-original skills
-([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
+Compile-time `requiredModules` are derived only from the declared `depends_on` edges of items and
+original skills ([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
 [`writeOpenCodeManifests`](../../tools/build.ts). The ledger is written last from the
-resolved output. The installer reads those emitted lists; it does not re-derive them. The separate
+resolved output. Guarded `optional_refs` add no mandatory Module; their prospective reference and
+guard preflight runs before output deletion, as described in
+[References and linking](references-and-linking.md#conditional-cross-module-facts).
+The installer reads those emitted lists; it does not re-derive them. The separate
 reference contract is
 [References and linking](references-and-linking.md).
 

@@ -90,6 +90,10 @@ implemented in
 [`digestModulePayload`](../../tools/lib/opencode-bundle.ts), and manifest creation is implemented in
 [`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
 
+`requiredModules` remains derived only from `depends_on`. Guarded `optional_refs` are compile-time
+reference intent, not a Bundle schema field or installer dependency; the installer does not inspect
+or rewrite them ([References and linking](references-and-linking.md#conditional-cross-module-facts)).
+
 Bundles and Install state are schema 2, in the checkout and in the Release Packages from
 `installer-v0.4.0` on, which carry OpenCode 2 output; the current one is `installer-v0.7.1`
 ([release record](../../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.7.1.md)).

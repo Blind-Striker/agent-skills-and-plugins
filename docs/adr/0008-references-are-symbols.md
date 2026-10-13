@@ -1,6 +1,6 @@
 # ADR-0008: References are symbols — one model, a linker, a ledger
 
-Date: 2026-10-09
+Date: 2026-10-12
 Status: Accepted
 
 ## Context
@@ -44,11 +44,18 @@ The reference system has five parts, decided together:
    a user-pointer names such an item instead. A target is identified
    by its bare output name across the whole estate: bare names are unique across all Modules as
    curation policy ([ADR-0002](0002-multi-harness-output.md)), so the neutral symbol,
-   `depends_on`, and the linker need no Module or artifact-kind qualifier.
-4. **Model edges are declared twice.** The body carries the model-edge fact and `depends_on` carries
-   its manifest declaration. Either an undeclared fact or a stale declaration fails. User-pointers,
-   paths, and candidates are not dependency declarations, and dependency targets are not
-   content-hashed because their updates should flow.
+    `depends_on`, `optional_refs`, and the linker need no Module or artifact-kind qualifier in their
+    declarations. A fact's namespace must still name its target's actual owner.
+4. **Edges have explicit mandatory or conditional intent.** The body carries the model-edge fact
+   and `depends_on` carries its ordinary mandatory declaration. Either an undeclared mandatory
+   model fact or a stale declaration fails. Conditional cross-Module model facts and user pointers
+   instead declare `optional_refs`, exact in both directions, with an installed-Module section guard
+   for every occurrence. A pointer into a nonrequired Module must take this conditional contract;
+   pointers within the same or an already-required Module keep their ordinary no-dependency
+   behavior. Optional never relaxes existence, namespace, audience, or path rules and never adds
+   `requiredModules`; independent mandatory dependencies still win. Paths and candidates are not
+   dependency declarations, and dependency targets are not content-hashed because their updates
+   should flow.
 5. **The ledger is a deterministic review projection.** Generated per-item, per-harness state makes
    posture, shape, and edge changes reviewable, but it is intentionally not a complete serialization
    of emitted content or every finding.
@@ -63,6 +70,13 @@ same-name, different-kind targets distinct in the linker was rejected in favour 
 uniqueness: Codex flattens every resolved kind into one plugin-local skill namespace, so a
 same-plugin pair cannot be emitted at all, and qualifying `depends_on` and the linker by kind and
 Module would add grammar for a case the curation policy already excludes.
+
+Treating every cross-Module pointer as mandatory was rejected because a whole-estate router can
+legitimately describe optional installed capabilities without forcing their installation. Leaving
+such pointers undeclared and unguarded was rejected because a green full-estate link would hide an
+unconditional route that fails in a partial Selection. Conditional intent therefore costs a second
+declaration and a mechanically checked ordinary Markdown guard, without new token sigils or an
+installer interpretation of skill content.
 
 A load marker in bodies, such as `{{load ns:name}}`, was rejected: it needs a reserved sigil, puts
 non-harness bytes into source and Claude output, and still could not reach upstream's own generic
@@ -82,9 +96,13 @@ separate transformation concern owned by
 
 ## Consequences
 
-- A model-edge exists twice — body fact and manifest declaration — so body edits that add or remove
+- A mandatory model-edge exists twice — body fact and manifest declaration — so body edits that add or remove
   one require a same-change manifest edit. The duplication buys a stale-edge error in either
   direction.
+- Conditional cross-Module facts also exist twice and require section guards. A full-estate link
+  proves their targets and audiences, not that a target Module is installed in every Selection or
+  that a model obeys the condition. The installer remains byte-preserving and reads only mandatory
+  Module requirements, which continue to come solely from `depends_on`.
 - Linking proves resolvability and audience reachability, not whether a model will traverse an edge
   or follow its discipline. Reachability is not propensity; runtime behavior is measured under the
   [harness-invocation protocol](../../experiments/harness-invocation/protocol.md), outside CI.
@@ -113,8 +131,10 @@ separate transformation concern owned by
   projection rather than a complete serialization of emitted artifacts.
 - Bare-name keys rest on the uniqueness policy, and the build enforces it: identity preflight
   rejects a bare output name claimed twice anywhere in the repository, whatever its kind, so a
-  user-pointer, which is not declared in `depends_on`, cannot meet two owners either. Within one
+  user-pointer, which is not declared in `depends_on` and may be conditional in `optional_refs`,
+  cannot meet two owners either. Within one
   plugin, a same-name identity in another artifact kind is also impossible because the Codex
   namespace is flat, and across plugins a model-edge to a name with several owners also fails as an
-  ambiguous dependency target, because every model-edge is declared in `depends_on`. Reconsider
+  ambiguous dependency target, because every mandatory model-edge is declared in `depends_on`,
+  while a conditional edge also requires one unique target. Reconsider
   bare-name keys together with that policy in ADR-0002.

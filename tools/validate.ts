@@ -28,6 +28,11 @@ import {
 } from "./lib/manifest.ts";
 import { mappedSources, treeMarkdown } from "./lib/harness-files.ts";
 import {
+  collectOptionalReferenceProblems,
+  collectRenderedOptionalGuardProblems,
+  type ReferenceFile,
+} from "./lib/optional-refs.ts";
+import {
   findMissingModuleRequirements,
   loadModuleManifest,
   verifyModuleManifest,
@@ -70,6 +75,7 @@ import {
   isBundledText,
   OPENCODE_TODO_NOTES,
   openCodeTodoWords,
+  rewriteRefs,
 } from "./lib/rewrite.ts";
 import {
   type BundledScript,
@@ -871,6 +877,7 @@ export function validateRepo(root: string): Finding[] {
   // implicit invocation off, and the user can always invoke it.
   const ocIndex = openCodeIndex(root, manifests, components);
   interface TargetState {
+    plugin: string;
     modelReachClaude: boolean;
     userReachClaude: boolean;
     ocModel: boolean;
@@ -910,6 +917,7 @@ export function validateRepo(root: string): Finding[] {
     for (const name of existsSync(skillsDir) ? readdirSync(skillsDir) : []) {
       const doc = parseDoc(readFileSync(join(skillsDir, name, "SKILL.md"), "utf8"));
       targetState.set(name, {
+        plugin,
         modelReachClaude: doc.frontmatter["disable-model-invocation"] !== true,
         userReachClaude: doc.frontmatter["user-invocable"] !== false,
         ...ocState(plugin, name),
@@ -921,6 +929,7 @@ export function validateRepo(root: string): Finding[] {
       for (const f of existsSync(dir) ? readdirSync(dir) : []) {
         const name = basename(f, ".md");
         targetState.set(name, {
+          plugin,
           modelReachClaude: kind === "commands", // agents are dispatched, not skill-invoked
           userReachClaude: true,
           ...ocState(plugin, name),
@@ -929,6 +938,13 @@ export function validateRepo(root: string): Finding[] {
       }
     }
   }
+  const optionalOwners = new Map(
+    manifests.flatMap((manifest) =>
+      declaredItems(root, manifest, components)
+        .filter((item) => targetState.get(item.outName)?.plugin === item.plugin)
+        .map((item): [string, string] => [item.outName, item.plugin]),
+    ),
+  );
   // The handoff universe (references-and-linking.md "Handoff templates"): every scanned upstream
   // address and frontmatter name, every manifest output name (excluded included), every original skill,
   // and every output name a committed ledger has listed.
@@ -981,13 +997,19 @@ export function validateRepo(root: string): Finding[] {
     }
   };
   /** Links every own fact of one shipped file against the harnesses whose trees ship it. */
-  const linkFacts = (rel: string, text: string, harnesses: readonly Harness[], derived: Set<string>): void => {
+  const linkFacts = (
+    rel: string,
+    text: string,
+    harnesses: readonly Harness[],
+    derived: Set<string>,
+    optional: Set<string>,
+  ): void => {
     for (const ref of extractRefs(text)) {
       if (!ownNs.has(ref.ns)) {
         continue; // upstream-namespace leftovers stay section 4's warning, not the linker's
       }
       const t = targetState.get(ref.name);
-      if (!t) {
+      if (!t || t.plugin !== ref.ns) {
         findings.push({
           level: "error",
           message: `${rel}: dangling reference ${ref.address} — no built output has that name`,
@@ -995,7 +1017,9 @@ export function validateRepo(root: string): Finding[] {
         continue;
       }
       if (ref.kind === "model") {
-        derived.add(ref.name);
+        if (!optional.has(ref.name)) {
+          derived.add(ref.name);
+        }
         const cause = harnesses.map((harness) => modelMiss(t, harness)).find((miss) => miss !== undefined);
         if (cause) {
           findings.push({
@@ -1072,10 +1096,17 @@ export function validateRepo(root: string): Finding[] {
         const relIn = (harness: Harness, path: string): string =>
           path === "" ? folder[harness] : `${folder[harness]}/${path}`;
         const derived = new Set<string>();
+        const optional = new Set(intent.optional_refs ?? []);
+        const referenceFiles: ReferenceFile[] = [];
         const files = intent.harness_files;
-        const readSource = files ? harnessSourceReader(m, declared, id) : undefined;
+        const readSource = files || outType !== "skill" ? harnessSourceReader(m, declared, id) : undefined;
         for (const file of treeMarkdown(shipped, files, "claude", () => "", rewriteMap)) {
-          linkFacts(relIn("claude", file.path), file.text, file.own ? ["claude"] : LINKED_HARNESSES, derived);
+          referenceFiles.push({
+            path: relIn("claude", file.path),
+            text: file.text,
+            harnesses: file.own ? ["claude"] : LINKED_HARNESSES,
+          });
+          linkFacts(relIn("claude", file.path), file.text, file.own ? ["claude"] : LINKED_HARNESSES, derived, optional);
         }
         for (const harness of ["opencode", "codex"] as const) {
           if (!files || !readSource) {
@@ -1083,13 +1114,63 @@ export function validateRepo(root: string): Finding[] {
           }
           for (const file of treeMarkdown(shipped, files, harness, readSource, rewriteMap)) {
             if (file.own) {
-              linkFacts(relIn(harness, file.path), file.text, [harness], derived);
+              referenceFiles.push({ path: relIn(harness, file.path), text: file.text, harnesses: [harness] });
+              linkFacts(relIn(harness, file.path), file.text, [harness], derived, optional);
               harnessOwnFiles.push({
                 rel: relIn(harness, file.path),
                 text: file.text,
                 claudeAbs: join(built, ...file.path.split("/")),
                 skillFolder: built,
               });
+            }
+          }
+        }
+        if (outType !== "skill" && readSource) {
+          const codexDir = join(root, folder.codex);
+          for (const path of existsSync(codexDir) ? walk(codexDir) : []) {
+            const bundled = relative(codexDir, path).replaceAll("\\", "/");
+            if (!bundled.endsWith(".md") || bundled === "SKILL.md") {
+              continue;
+            }
+            try {
+              const text = rewriteRefs(readSource(bundled), rewriteMap, "claude");
+              referenceFiles.push({ path: relIn("codex", bundled), text, harnesses: ["codex"] });
+              linkFacts(relIn("codex", bundled), text, ["codex"], derived, optional);
+            } catch (error) {
+              findings.push({
+                level: "error",
+                message: `${id}: cannot read canonical Codex bundled Markdown ${bundled} — ${error instanceof Error ? error.message : String(error)}`,
+              });
+            }
+          }
+        }
+        for (const message of collectOptionalReferenceProblems(
+          id,
+          intent,
+          referenceFiles,
+          optionalOwners,
+          expectedRequirements?.get(m.plugin.name),
+        )) {
+          findings.push({ level: "error", message });
+        }
+        for (const harness of ["opencode", "codex"] as const) {
+          const native =
+            harness === "codex"
+              ? join(root, folder.codex)
+              : join(root, "opencode", m.plugin.name, openCodeBundlePath(outType, m.plugin.name, outName));
+          const paths = !existsSync(native)
+            ? []
+            : harness === "codex" || outType === "skill"
+              ? [...walk(native)].filter((path) => path.endsWith(".md"))
+              : [native];
+          for (const path of paths) {
+            for (const message of collectRenderedOptionalGuardProblems(
+              { path: relative(root, path).replaceAll("\\", "/"), text: readFileSync(path, "utf8") },
+              harness,
+              intent,
+              optionalOwners,
+            )) {
+              findings.push({ level: "error", message });
             }
           }
         }

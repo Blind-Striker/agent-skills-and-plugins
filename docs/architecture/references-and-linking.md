@@ -141,7 +141,8 @@ repository's Git history. The last part keeps a name that a pin move deleted kno
 manifest item leaves, without a tombstone in the manifest. A name outside that set, such as the
 `docker` CLI or an external `dotnet-inspect` skill, stays silent. A hit on an emitted name is fixed
 by promotion: author `ns:name` with its `depends_on` entry, or `/ns:name` when the human is the
-audience. A hit on an estate name that is not emitted is rerouted or removed.
+audience; a conditional cross-Module fact instead takes the guarded `optional_refs` contract below.
+A hit on an estate name that is not emitted is rerouted or removed.
 
 These are not templates and stay candidates: a "see the `x` skill" reference, a ``(use `x`)`` or
 ``Use `x` `` routing hint without the word `skill`, an unbackticked imperative such as "invoke the
@@ -347,14 +348,15 @@ checked.
 
 ## `depends_on` and audience reachability
 
-`depends_on` is the manifest-side declaration of model-edge facts only. It contains resolved output
+`depends_on` is the manifest-side declaration of mandatory model-edge facts only. It contains resolved output
 names, while bodies keep neutral namespaced addresses. The linker derives model targets from all
 Markdown that each non-excluded manifest item and each declared original skill ships in any of the
 three trees, read in the Claude tree's spelling before rendering, and enforces exact agreement in
-both directions: a fact no declaration names and a declaration no tree's fact names are both errors.
+both directions: a mandatory model fact no declaration names and a declaration no tree's fact names are both errors.
 An original skill declares its edges under
 [`original_skills`](../../curation/SCHEMA.md#original_skills). User-pointers, paths, and candidates
-are not dependency declarations. Only an item's or an original skill's
+are not mandatory dependency declarations. Conditional model facts and pointers have the separate
+[`optional_refs`](../../curation/SCHEMA.md#optional_refs) contract below. Only an item's or an original skill's
 [`harness_files`](../../curation/SCHEMA.md#harness_files) make the trees differ in Markdown. The
 Claude tree holds the `claude` source of each mapping; no tree ships another harness's source in
 that spelling, so the linker assembles a curated item again, as the build does, and reads that
@@ -372,6 +374,32 @@ emits every item as a skill: the model reaches it unless its `agents/openai.yaml
 is a generated-estate link, not a runtime call graph (the reference-linking section of
 [`validateRepo`](../../tools/validate.ts)).
 
+### Conditional cross-Module facts
+
+`optional_refs` declares output names reached conditionally by model facts or user pointers. It is
+exact in both directions across the Markdown the trees actually ship: every declaration has a fact,
+and every occurrence of that declared target has a section guard naming its actual owning Module.
+A fact's namespace must name that owner; another own namespace with the same bare name cannot
+satisfy it. Targets must exist uniquely and live in a different Module. The guard grammar and
+declaration syntax are owned by [`curation/SCHEMA.md`](../../curation/SCHEMA.md#optional_refs).
+
+A cross-Module pointer into a nonrequired Module must declare optional intent and have that guard.
+Pointers within the source Module or into an already-required Module need no declaration. Required
+Modules are still derived only from every item's and original skill's `depends_on` lists. Independent
+mandatory dependencies win without changing another edge's optional intent or removing its guard.
+An optional model target does not join derived mandatory model targets; nonoptional model facts
+retain two-way `depends_on` enforcement. Optional facts keep their neutral kind, native rendering,
+namespace ownership, and audience requirements, and do not bypass path or dangling-reference rules.
+
+[`tools/lib/optional-refs.ts`](../../tools/lib/optional-refs.ts) checks declarations and section scope.
+`buildAll` checks prospective assembled and harness-adapted Markdown, with `treeMarkdown` selecting
+each `harness_files` variant, before any output deletion; no old generated file is preflight truth.
+`validateRepo` independently checks canonical current facts, their effective audiences, and guards
+in each native emitted tree. Shared files check all three audiences and harness-only files only
+their own. Code and quoted guard/heading imitations establish no scope; frontmatter is outside every
+section. The guard is a runtime condition in shipped instructions, not installer feature detection
+or a guarantee that a model obeys it.
+
 Reachability is not propensity. A green link proves that the intended audience has a mechanism to
 reach the target; it cannot prove that a model will select it, follow a pointer, or obey the target's
 discipline. Those are runtime observations governed by the
@@ -388,7 +416,7 @@ it. Each item emits one OpenCode artifact of its resolved kind, so a skill resol
 remains under `/skill/` and its OpenCode artifact list records a skill.
 
 Each entry projects the review-relevant state: source, declared invocation and body mode,
-merge-source addresses, declared dependencies, emitted artifact kinds, description, own fact edges
+merge-source addresses, declared dependencies, sorted `optionalRefs` only when declared, emitted artifact kinds, description, own fact edges
 in each harness spelling, emitted Claude boolean invocation flags, OpenCode identity
 (`<plugin>.<name>`), whether an OpenCode skill is advertised to the model (`advertised`, false when
 it carries the hiding key), OpenCode drops and metadata transformations, and Codex identity, source/resolved/emitted kinds, material kind transformation, invocation
@@ -398,7 +426,10 @@ respelled from the known neutral facts rather than rediscovered from final text.
 ships: the shared files plus its own harness's sources, read in their neutral form from the
 assembly. An original skill's entry records its `skills/<plugin>/<directory>` source followed by
 `original: true`, a marker no curated entry carries, and has no body mode or merge sources; its
-invocation, dependencies, and harness files come from its declaration.
+invocation, dependencies, optional references, and harness files come from its declaration. Optional
+facts remain recorded separately in the ordinary model/pointer edge projections; the declaration
+does not erase an edge or add an install dependency. A converted command or agent's bundled Markdown
+ships only in Codex, so its facts enter only Codex's edge projection and audience checks.
 
 The ledger is deterministic but intentionally incomplete. It does not serialize complete emitted
 files, path-tier findings, candidates, overlay stamp filenames, or Module install dependencies.
@@ -415,7 +446,7 @@ Bundle integrity and installation state have their own manifests and are owned b
   and is owned by [Distribution and installation](distribution-and-installation.md).
 - Same output names in different artifact kinds are rejected within one plugin because Codex flattens
   every resolved kind into one skill namespace. Across plugins, Codex identities and OpenCode IDs are
-  qualified, but `depends_on`, linker target state, and `requiredModules` derivation are keyed by
+  qualified, but `depends_on`, `optional_refs`, linker target state, and `requiredModules` derivation are keyed by
   the bare output name; repository-wide bare-name uniqueness is what keeps those keys unambiguous
   ([`curation/SCHEMA.md`](../../curation/SCHEMA.md)).
 - Linker target state is name-only and records audience reachability rather than target kind. A

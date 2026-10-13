@@ -218,3 +218,42 @@ test("original_skills takes depends_on", () => {
   const m = loadManifest(withOriginals("  my-own:\n    invocation: auto\n    depends_on: [a]\n"));
   assert.deepEqual(m.original_skills, { "my-own": { invocation: "auto", depends_on: ["a"] } });
 });
+
+test("loadManifest accepts optional_refs on curated and original skills", () => {
+  const original = loadManifest(withOriginals("  my-own:\n    invocation: auto\n    optional_refs: [remote]\n"));
+  assert.deepEqual(original.original_skills?.["my-own"]?.optional_refs, ["remote"]);
+  const curated = loadManifest(
+    write(
+      "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    optional_refs: [remote]\n",
+    ),
+  );
+  assert.deepEqual(curated.items[0]?.optional_refs, ["remote"]);
+});
+
+test("loadManifest rejects malformed optional_refs and dependency overlap for either declaration kind", () => {
+  for (const value of ["null", "remote", "{}", "[]", "[null]", "[1]", "['']", "['remote.name']", "[remote, remote]"]) {
+    for (const original of [false, true]) {
+      const fields = `    optional_refs: ${value}\n`;
+      const path = original
+        ? withOriginals(`  my-own:\n    invocation: auto\n${fields}`)
+        : write(`plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n${fields}`);
+      assert.throws(() => loadManifest(path), /optional_refs/, `${original}: ${value}`);
+    }
+  }
+  assert.throws(
+    () =>
+      loadManifest(
+        withOriginals("  my-own:\n    invocation: auto\n    depends_on: [remote]\n    optional_refs: [remote]\n"),
+      ),
+    /optional_refs.*overlap/,
+  );
+  assert.throws(
+    () =>
+      loadManifest(
+        write(
+          "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    depends_on: [remote]\n    optional_refs: [remote]\n",
+        ),
+      ),
+    /optional_refs.*overlap/,
+  );
+});

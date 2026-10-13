@@ -105,13 +105,13 @@ ITEM <id> — read | write | verify | gate | critic
 GOAL: <one action>. The parent will use your result to <decision>.
 CONTEXT: <exact paths, prior findings; shared contract pasted unchanged>
 SCOPE: read-only | write only: <paths>   (either way, also your results file)
-DO: <musts>   DO NOT: commit, push, edit outside scope, weaken/delete tests, ask the user
+DO: <musts>   DO NOT: commit, push, edit outside scope, weaken/delete tests, ask the user a task or scope question
 [writers] Other agents edit other files now; do not revert or reformat changes you did not make.
 DONE WHEN: <binary observable check>
 LAST STEP: write <ledger-dir>/results/<id>.md: first the REPORT block you return, unchanged, then any detail past 40 lines
 RETURN: the report below, ≤40 lines
-Cannot proceed → STATUS: BLOCKED with the exact question.
-Sandbox refuses a command (such as EPERM, "operation not permitted") → not a FAIL: request the harness's escalation once, if it has one; still refused → STATUS: BLOCKED with the exact command and the denial.
+Cannot proceed on the task or its scope → send that question back as STATUS: BLOCKED. Do not ask the user that question.
+Sandbox refuses a command (such as EPERM, "operation not permitted") → not a FAIL: request the harness escalation prompt once, if it has one; that prompt is allowed. Still refused, or no prompt → STATUS: BLOCKED with the exact command and the denial.
 ```
 
 A skeptic's brief replaces GOAL and CONTEXT with `CLAIM: <finding + evidence>` and
@@ -218,8 +218,9 @@ again from scratch silently.
 3. For an item that is not DONE but whose results file holds a complete report, take that report
    and record its status.
 4. For a RUNNING item without one, continue its child only while the session that started it is
-   still live, as `references/harness-tools.md` describes. After a session restart, the old child
-   cannot be reached: inspect the item's write set (step 5), then dispatch it again as a new child.
+   still live, as `references/harness-tools.md` describes. After a session restart, do not continue
+   the old child, even where the harness could reopen it: inspect the item's write set (step 5),
+   then dispatch it again as a new child.
 5. For a write item, inspect `git status` and `git diff` on its write set before you dispatch it
    again: its work may already be on disk.
 6. Dispatch the rest again.

@@ -70,7 +70,7 @@ non-excluded item must have a unique artifact-kind/output-name pair. Codex emits
 into one plugin-local skill namespace, so output names must also be unique across kinds within a
 manifest; `skill:review` and `command:review` would collide as Codex skills and fail preflight.
 Across manifests, a bare output name must be unique in the whole repository, whatever its kind:
-`depends_on`, the linker, and `requiredModules` derivation identify a target by its bare name.
+`depends_on`, `optional_refs`, the linker, and `requiredModules` derivation identify a target by its bare name.
 
 Each harness qualifies the bare name with its plugin. Claude Code and Codex address an item through
 their plugin namespace. OpenCode has no plugin concept, so every OpenCode ID is `<plugin>.<name>`:
@@ -148,9 +148,9 @@ original_skills:
 ```
 
 The SKILL.md owns content and description, and its body still owns the model-edge facts themselves;
-the declaration owns invocation, the `depends_on` list that declares the body's model-edge facts,
-and `harness_files`. A declaration is not a second body manifest: it holds `invocation`,
-[`depends_on`](#dependencies), and [`harness_files`](#harness_files) only, and the manifest loader
+the declaration owns invocation, the `depends_on` list that declares the body's mandatory model-edge facts,
+the `optional_refs` list of conditional facts, and `harness_files`. A declaration is not a second body manifest: it holds `invocation`,
+[`depends_on`](#dependencies), [`optional_refs`](#optional_refs), and [`harness_files`](#harness_files) only, and the manifest loader
 rejects any other key by name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`,
 `body`, `merged_from`, and `exclude` included. `invocation` is required, because an original has no
 upstream posture to pass through, and it maps to each harness as the
@@ -293,7 +293,8 @@ as its overlay or patch stamps the same document.
 ## Dependencies
 
 `depends_on:`, on an item or an [original-skill declaration](#original_skills), lists output names
-reached by model-edge facts in the shipped body. Author those facts in neutral upstream spelling
+reached by mandatory model-edge facts in the shipped body. Conditional cross-Module facts use
+[`optional_refs`](#optional_refs) instead. Author those facts in neutral upstream spelling
 (`namespace:name`), or, for an original-skill target, in the spelling
 [Localization](../docs/architecture/references-and-linking.md#localization) gives it; use
 `/namespace:name` when the body points the human at a user surface. Each emitter renders the fact
@@ -304,7 +305,8 @@ shorter description in the item's `frontmatter:` override or its patch
 ([Description length](../docs/architecture/transformation-and-emission.md#description-length)).
 
 A body line that tells the model to load another skill is a load-bearing model edge. Author its
-target as a namespaced fact with a matching `depends_on` entry; a bare name names an ID that does
+target as a namespaced fact with a matching `depends_on` entry, or a guarded `optional_refs` entry
+for a conditional cross-Module edge; a bare name names an ID that does
 not exist in OpenCode, where every ID is qualified. `validate` rejects a bare name in these forms:
 
 - The skill-tool call, written in upstream's Claude words: `Call the Skill tool with "ns:name"`,
@@ -327,3 +329,34 @@ Current per-harness spelling, phrasing, localization, linking, reachability, pat
 ledger mechanics, including the OpenCode ID and harness vocabulary checks, live in
 [References and linking](../docs/architecture/references-and-linking.md). The reason for the symbol
 tiers and two-way declaration trade-off is [ADR-0008](../docs/adr/0008-references-are-symbols.md).
+
+## `optional_refs`
+
+`optional_refs:`, on a curated item or an [original-skill declaration](#original_skills), lists
+resolved output names of conditional cross-Module model facts or user pointers. A present list must
+be nonempty, contain unique portable names, and not overlap that declaration's `depends_on`.
+Every target must exist uniquely in the emitted estate and belong to a different Module; an excluded
+item is not a target. The declaration and facts across all shipped Markdown agree in both directions.
+An unshipped `harness_files` source cannot justify a declaration.
+
+Author the usual neutral `ns:name` model fact or `/ns:name` user pointer under an ATX heading whose
+first nonempty body line is exactly:
+
+```text
+Applies only when the `<module>` Module is installed.
+```
+
+Replace `<module>` with the target's canonical Module name, such as `deniz-dotnet-general`. Every
+occurrence, including one in the heading, needs that target Module's guard. Descendant headings inherit
+it until the next same- or higher-level ATX heading; a nested section can establish its own Module
+guard. Code and quoted heading/guard imitations do not establish or end scope, intervening prose
+invalidates a guard, and frontmatter facts cannot be guarded. Optional intent never relaxes namespace
+ownership, audience reachability, dangling-reference, or path rules: a model fact still cannot invoke
+a manual target, while a pointer can name its user surface.
+
+A cross-Module pointer into a Module not already required by independent `depends_on` declarations
+must be optional and guarded. Pointers inside the source Module or into already-required Modules
+retain their ordinary no-dependency-declaration behavior. An optional edge remains optional even if
+another item independently requires its target Module, and still needs its own guard. Only
+`depends_on` derives `requiredModules`; optional model facts and pointers add none. The build checks
+prospective shipped content before deleting outputs; `validate` checks current content independently.

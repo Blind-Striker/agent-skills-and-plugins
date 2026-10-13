@@ -46,12 +46,16 @@ arrives. Until then, each agent's results file is the record on disk.
 
 ## Commands the sandbox refuses
 
-When the Bash sandbox is on, a sandbox denial reads `Operation not permitted` on macOS, or
-`Read-only file system` on Linux and WSL2. An agent can retry the refused command with
-`dangerouslyDisableSandbox`. The retry goes through the permission flow, and a workflow agent's
-prompt appears in the main session, so the user's answer is the approval. With
-`allowUnsandboxedCommands: false` there is no retry: the agent returns BLOCKED, and the final report
-names the exact command for the user to run.
+When the Bash sandbox is on, a confirmed sandbox denial can read `Operation not permitted` on
+macOS, or `Read-only file system` on Linux and WSL2. A blocked network connection can instead look
+like a name-resolution failure (`Could not resolve host`, `Temporary failure in name resolution`)
+or `Network is unreachable`. Those texts also occur for ordinary DNS and network failures, so do not
+treat every such failure as a sandbox denial. Escalate only a confirmed sandbox denial, once,
+through the native permission flow: retry the refused command with `dangerouslyDisableSandbox`.
+The retry goes through the permission flow, and a workflow agent's prompt appears in the main
+session, so the user's answer is the approval. Do not disable the sandbox or change its
+configuration. With `allowUnsandboxedCommands: false` there is no retry: the agent returns BLOCKED,
+and the final report names the exact command for the user to run.
 
 ## Restart
 

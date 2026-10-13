@@ -1,6 +1,6 @@
 # Harness invocation runbook
 
-Date: 2026-09-07
+Date: 2026-10-12
 
 The lab must be outside both the repository and the real user profile. If the drive-root default is
 not the prepared lab, point the runners at it for the current shell:
@@ -84,8 +84,12 @@ A rollout checks discovery against a real profile instead: what its real config 
 short-lived private `opencode serve` on 127.0.0.1 with a random Basic-auth password, with an empty
 throwaway folder as its working directory. Keep `HOME`, `XDG_CONFIG_HOME`, and
 `OPENCODE_CONFIG_DIR` as the real profile sets them: the check reads the real config root and the
-Claude compatibility paths below the home. Point every root that the server writes at the
-throwaway folder (OpenCode 2.0.26 sources):
+Claude compatibility paths below the home. Point the data, state, cache, and database roots in
+the table below at the throwaway folder (OpenCode 2.0.26 `packages/util/src/global-roots.ts`).
+This is not total write isolation: the method does not move OpenCode's temp-dir root,
+`path.join(os.tmpdir(), "opencode")`. Do not add a temp redirect to this method. Real-profile
+rollout belongs to `harness-and-os-ai-config-centralize`; this section keeps the historical method
+until the curator chooses where it lives.
 
 | Variable | What it holds |
 |---|---|
@@ -96,8 +100,10 @@ throwaway folder (OpenCode 2.0.26 sources):
 
 Read `GET /api/skill` until four consecutive reads agree, then `GET /api/agent`. Then kill the
 server's process tree, confirm that it stopped, and delete the throwaway folder. Record the
-modification times of the real log, database, state root, and cache root before and after. Where no
-other OpenCode process runs, none of them changes; a running service still writes its own entries.
+modification times of the real log, database, state root, and cache root before and after. Those
+times cover only those roots. They do not cover the temp-dir root, which this method leaves on the
+process temp directory. Where no other OpenCode process runs, none of the recorded roots changes;
+a running service still writes its own entries.
 The rollouts through `installer-v0.7.0` moved only the database and the project folder, so the
 real log grew during their discovery runs
 ([v0.7.0 rollout record](records/2026-10-12-v0.7.0-rollout.md#proof-limits)).

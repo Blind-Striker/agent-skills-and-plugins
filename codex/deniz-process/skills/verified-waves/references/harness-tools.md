@@ -53,20 +53,33 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
 
 ## Commands the sandbox refuses
 
-Under the approval policy `on-request`, the escalation for a refused command is the same command
-run again with `sandbox_permissions: "require_escalated"` and a `justification` that asks the user.
-The approval prompt reaches the user from a child too, so a child requests it once itself and
-reports the result the command then gives. For a BLOCKED check, request the escalation on its exact
-command yourself: the user's answer to the approval prompt is the approval. Under the approval
-policy `never`, `require_escalated` is rejected: the check stays NOT RUN, and the final report names
-the exact command for the user to run.
+Read the active approval policy and the loaded tool schema. Do not ask to change the approval policy.
+
+`on-request` is also accepted as the alias `on-failure`. That alias is not an automatic retry
+outside the sandbox. Under `on-request`, and only if the loaded schema lists it, the escalation
+for a refused command is the same command run again with `sandbox_permissions: "require_escalated"`
+and a `justification` that asks the user. The approval prompt reaches the user from a child too, so
+a child requests it once itself and reports the result the command then gives. For a BLOCKED check,
+request the escalation on its exact command yourself: the user's answer to the approval prompt is
+the approval.
+
+`untrusted` asks through the harness before a command runs, unless an exec-policy rule allows it.
+An explicit `require_escalated` does not skip that ask. `granular` permits the `require_escalated`
+approval flow only when `sandbox_approval` is true; the handler rejects that request when
+`sandbox_approval` is false. `never` rejects `require_escalated`. The handler rejects an explicit
+escalation when the active policy disallows the prompt. Do not treat escalation as allowed under
+every policy.
+
+If the schema has no escalation, the policy or handler rejects it, or the user refuses: the check
+stays NOT RUN, not FAIL. The child's STATUS is BLOCKED, with the exact command and the denial.
 
 ## Restart
 
-After a session restart, a RUNNING item's old child cannot be reached: its turn ended with the old
-session, and under V2 `followup_task` to it returns "live agent path ... not found". Continue it
-under neither version. Inspect the item's write set with `git status` and `git diff`, then dispatch
-it again as a new child.
+After a session restart, do not continue a RUNNING item's old child. Under V1, `resume_agent` can
+reopen a saved thread from its rollout when the runtime no longer has it; do not use that after a
+restart. Under V2 there is no `resume_agent`, and `followup_task` to the old child returns "live
+agent path ... not found". Inspect the item's write set with `git status` and `git diff`, then
+dispatch it again as a new child.
 
 ## The ledger
 

@@ -7,6 +7,15 @@ description: Use when executing an implementation plan in the current session as
 
 # Executing Plans
 
+## Size before execution setup
+
+For ordinary work that fits one sitting, carry out the approved steps directly; do not create
+another plan or execution workspace just because this skill loaded. Use focused checks while
+editing, then the repository's full completion gate and one final review when required. The formal
+ledger and scripts below serve a written plan that needs recoverable execution, not every small fix.
+On the ordinary path, return to the task without running that setup. Preserve an execution method
+the user explicitly chose, and never treat a plan-only request as permission to implement.
+
 Execute the plan yourself, task by task, in this session: no implementer
 subagent per task, no reviewer per task. One fresh-context review of the
 whole branch at the end.
@@ -109,10 +118,10 @@ digraph process {
 
 ## Setup
 
-Ensure the work happens in an isolated workspace: use
-$deniz-process:using-git-worktrees to create one or verify the existing one.
-Never start implementation on a main/master branch without your human
-partner's explicit consent.
+Respect an approved current checkout, including main/master, and do not ask again merely because
+this skill loaded. Use $deniz-process:using-git-worktrees only when isolation is requested or a concrete
+conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
+approval, and this setup grants no permission to discard existing work.
 
 Conversation memory does not survive compaction. An inline executor that
 loses its place re-implements tasks whose commits already exist — the same

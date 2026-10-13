@@ -1,8 +1,33 @@
 diff --git a/SKILL.md b/SKILL.md
-index 49077ad..c5edc25 100644
+index 49077ad..36e6bd9 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -41,18 +41,18 @@ operation; a security-sensitive action; a side effect outside this worktree
+@@ -1,15 +1,24 @@
+ ---
+ name: executing-plans
+ description: Use when executing an implementation plan in the current session as the implementer yourself — your human partner chose inline execution, or no subagent tool is available
+ ---
+ 
+ # Executing Plans
+ 
++## Size before execution setup
++
++For ordinary work that fits one sitting, carry out the approved steps directly; do not create
++another plan or execution workspace just because this skill loaded. Use focused checks while
++editing, then the repository's full completion gate and one final review when required. The formal
++ledger and scripts below serve a written plan that needs recoverable execution, not every small fix.
++On the ordinary path, return to the task without running that setup. Preserve an execution method
++the user explicitly chose, and never treat a plan-only request as permission to implement.
++
+ Execute the plan yourself, task by task, in this session: no implementer
+ subagent per task, no reviewer per task. One fresh-context review of the
+ whole branch at the end.
+ 
+ **Why inline:** Subagent-driven development pays for a fresh implementer
+ and a fresh reviewer on every task, each re-reading the codebase from zero.
+ Inline execution pays for one context (yours) plus one reviewer at the end.
+ What it gives up is a fresh context per task and a second pair of eyes per
+@@ -41,18 +50,18 @@ operation; a security-sensitive action; a side effect outside this worktree
  that norms say you ask about first (a merge, a push to a shared branch, a
  publish); and a plan so broken that every path forward is a guess. For
  those, stop and ask.
@@ -23,7 +48,27 @@ index 49077ad..c5edc25 100644
  it runs well on a mid-tier session model, and the one place the most
  capable model earns its cost is the final review, which this skill
  dispatches separately. Tell your human partner so when they choose inline.
-@@ -118,17 +118,17 @@ failure as a controller re-dispatching them, paid for in your own context.
+@@ -102,33 +111,33 @@ digraph process {
+     "Final whole-branch review (fresh reviewer if you have one)" -> "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger";
+     "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: delete this plan's workspace";
+     "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
+ }
+ ```
+ 
+ ## Setup
+ 
+-Ensure the work happens in an isolated workspace: use
+-superpowers:using-git-worktrees to create one or verify the existing one.
+-Never start implementation on a main/master branch without your human
+-partner's explicit consent.
++Respect an approved current checkout, including main/master, and do not ask again merely because
++this skill loaded. Use superpowers:using-git-worktrees only when isolation is requested or a concrete
++conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
++approval, and this setup grants no permission to discard existing work.
+ 
+ Conversation memory does not survive compaction. An inline executor that
+ loses its place re-implements tasks whose commits already exist — the same
+ failure as a controller re-dispatching them, paid for in your own context.
  Track progress in a ledger file, not only in todos. Harness todos are a
  live view; the ledger is the record.
  
@@ -42,7 +87,7 @@ index 49077ad..c5edc25 100644
    line names your plan file, tasks with a `Task <N>: complete` line are
    DONE — do not redo them; resume at the first task without one. Their
    commits exist in git even when your context no longer remembers making
-@@ -164,17 +164,17 @@ its brief, not here.
+@@ -164,17 +173,17 @@ its brief, not here.
  ## The Task Loop
  
  Everything you print, and every tool result, stays resident in your
@@ -61,7 +106,7 @@ index 49077ad..c5edc25 100644
  
  Every tool call is a turn that re-reads your whole context. Bookkeeping
  rides along with work — a ledger append in the same call as the commit,
-@@ -216,29 +216,29 @@ in this session — not inferred from the diff looking right:
+@@ -216,29 +225,29 @@ in this session — not inferred from the diff looking right:
  - Every `Expected:` line in the brief was compared against real output.
  - Every deviation from the brief has a `Ruling:` line in the ledger.
  

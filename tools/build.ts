@@ -47,6 +47,8 @@ import {
   openCodeSkillIds,
 } from "./lib/opencode-target.ts";
 import { collectOriginalSkillProblems, ownSkillIdentities } from "./lib/own-skills.ts";
+import { assembledReferenceFiles, collectOptionalReferenceProblems } from "./lib/optional-refs.ts";
+import { scanRefs } from "./lib/refs.ts";
 import { requireSubmodules } from "./lib/preflight.ts";
 import {
   checkPatch,
@@ -147,6 +149,71 @@ export function buildAll(root: string): string[] {
           ? `${descriptionProblems.length} skill descriptions over the ${MAX_SKILL_DESCRIPTION_LENGTH}-character limit after rendering, nothing deleted:\n`
           : "";
       throw new Error(header + descriptionProblems.join("\n"));
+    }
+
+    const owners = new Map(assembled.map((item) => [item.outName, item.plugin]));
+    const optionalProblems = assembled.flatMap((item) => {
+      const neutral = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
+      const files = assembledReferenceFiles(item, rewriteMap, (harness) => {
+        if (harness === "claude") {
+          return serializeDoc(claudeDocument(item).document);
+        }
+        if (harness === "codex") {
+          return serializeDoc(adaptCodexSkillDocument(item.outName, neutral).document);
+        }
+        return serializeDoc(
+          (item.outType === "skill"
+            ? adaptOpenCodeSkillDocument(openCodeId(item.plugin, item.outName), neutral, item.intent.invocation)
+            : item.outType === "command"
+              ? adaptOpenCodeCommandDocument(neutral)
+              : adaptOpenCodeAgentDocument(neutral)
+          ).document,
+        );
+      });
+      const issues = collectOptionalReferenceProblems(
+        `${item.plugin}/${item.outName}`,
+        item.intent,
+        files,
+        owners,
+        moduleRequirements.get(item.plugin),
+      );
+      for (const file of files) {
+        for (const ref of scanRefs(file.text)) {
+          if (!item.intent.optional_refs?.includes(ref.name) || owners.get(ref.name) !== ref.ns) {
+            continue;
+          }
+          const target = assembled.find((candidate) => candidate.outName === ref.name);
+          if (!target) {
+            continue;
+          }
+          const claude = claudeDocument(target).document.frontmatter;
+          const neutral = parseDoc(readFileSync(join(target.dir, "SKILL.md"), "utf8"));
+          const oc =
+            target.outType === "skill"
+              ? adaptOpenCodeSkillDocument(openCodeId(target.plugin, target.outName), neutral, target.intent.invocation)
+              : undefined;
+          for (const harness of file.harnesses) {
+            const reachable =
+              ref.kind === "model"
+                ? harness === "claude"
+                  ? target.outType === "command" ||
+                    (target.outType === "skill" && claude["disable-model-invocation"] !== true)
+                  : harness === "opencode"
+                    ? oc?.advertised === true
+                    : target.intent.invocation !== "manual"
+                : harness !== "claude" || target.outType !== "skill" || claude["user-invocable"] !== false;
+            if (!reachable) {
+              issues.push(
+                `${file.path}: ${ref.kind === "model" ? "model-edge" : "pointer"} to ${ref.address}: ${harness} audience cannot reach target`,
+              );
+            }
+          }
+        }
+      }
+      return issues;
+    });
+    if (optionalProblems.length) {
+      throw new Error(`Invalid optional references, nothing deleted:\n${optionalProblems.join("\n")}`);
     }
 
     rmSync(join(root, "plugins"), { recursive: true, force: true });

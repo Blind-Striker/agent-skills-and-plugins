@@ -7,9 +7,17 @@ description: Use when starting feature work that needs isolation from current
 
 # Using Git Worktrees
 
+## Isolation before setup
+
+Respect the user's existing working-directory choice; do not ask again just because this skill
+loaded. Isolation is useful when requested or a concrete conflict requires it, not merely because
+a plan exists. If neither applies, return without creating a worktree, installing dependencies, or
+running another baseline: keep working in the current checkout. The setup below applies only to
+the isolation path and still asks for consent before creating anything new.
+
 ## Overview
 
-Ensure work happens in an isolated workspace. Prefer your platform's native worktree tools. Fall back to manual git worktrees only when no native tool is available.
+When isolation is needed, prefer your platform's native worktree tools. Fall back to manual git worktrees only when no native tool is available.
 
 **Core principle:** Detect existing isolation first. Then use native tools. Then fall back to git. Never fight the harness.
 

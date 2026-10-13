@@ -18,7 +18,7 @@ import { listFiles } from "./overlay.ts";
 import { ownSkillIdentities } from "./own-skills.ts";
 import { extractRefs, type RefKind } from "./refs.ts";
 import { declaredItems } from "./resolve.ts";
-import { buildRewriteMap } from "./rewrite.ts";
+import { buildRewriteMap, rewriteRefs } from "./rewrite.ts";
 import type { ComponentInfo } from "./scan.ts";
 
 interface HarnessState {
@@ -50,6 +50,7 @@ interface LedgerEntry {
   body?: string;
   mergedFrom?: string[];
   dependsOn?: string[];
+  optionalRefs?: string[];
   harnessFiles?: HarnessFiles;
   description: string;
   claude: HarnessState;
@@ -175,18 +176,28 @@ export function writeLedger(
         text: readFileSync(f, "utf8"),
       }));
       const edgesOf = (harness: Exclude<Harness, "claude">): Record<RefKind, string[]> =>
-        harnessFiles
+        harness === "codex" && outType !== "skill"
           ? edgesInTexts(
-              treeMarkdown(
-                shipped,
-                harnessFiles,
-                harness,
-                (source) => readFileSync(join(neutral.dir, source), "utf8"),
-                rewriteMap,
-              ).map((file) => file.text),
+              [
+                ...claudeFiles.map((file) => readFileSync(file, "utf8")),
+                ...listFiles(neutral.dir)
+                  .filter((file) => file.endsWith(".md") && file !== "SKILL.md")
+                  .map((file) => rewriteRefs(readFileSync(join(neutral.dir, file), "utf8"), rewriteMap, "claude")),
+              ],
               ownNs,
             )
-          : claudeEdges;
+          : harnessFiles
+            ? edgesInTexts(
+                treeMarkdown(
+                  shipped,
+                  harnessFiles,
+                  harness,
+                  (source) => readFileSync(join(neutral.dir, source), "utf8"),
+                  rewriteMap,
+                ).map((file) => file.text),
+                ownNs,
+              )
+            : claudeEdges;
       const openCodeEdges = edgesOf("opencode");
       const codexEdges = edgesOf("codex");
       // OpenCode text is dotted — respell the Claude facts through the known mapping instead of
@@ -215,6 +226,7 @@ export function writeLedger(
         // `mergeSources` map is already the review surface for it.
         ...(item?.merged_from ? { mergedFrom: item.merged_from.map((ms) => ms.source).sort() } : {}),
         ...(intent.depends_on ? { dependsOn: [...intent.depends_on].sort() } : {}),
+        ...(intent.optional_refs ? { optionalRefs: [...intent.optional_refs].sort() } : {}),
         ...(harnessFiles
           ? {
               harnessFiles: Object.fromEntries(

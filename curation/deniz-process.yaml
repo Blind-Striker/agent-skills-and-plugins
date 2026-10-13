@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.10.1
+  version: 0.11.0
 original_skills:
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code
@@ -57,12 +57,20 @@ items:
     # handoff now recommends an executor for each plan, and a fixed label in every plan header would
     # pre-empt that choice. The description narrows upstream's "a multi-step task" to multi-session
     # work, or several people's worth, as ask-deniz's heavy ladder and brainstorming's sizing put it,
-    # so a change that fits one sitting never opens a plan document
+    # so a change that fits one sitting never automatically opens a plan document. The body now
+    # enforces that gate before artifact creation, while honoring an explicit written-plan request.
+    # The handoff distinguishes plan-only delivery from authorized execution: it preserves an
+    # approved scope and chosen method instead of asking for the same approval again. Without a
+    # chosen method it recommends by context/isolation cost, not a fixed subagent-first label
     depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
     invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
     body: patch # edits that keep the shared review contract whole; the description stays
-    # upstream's. Fix rounds run the project's whole suite after the covering tests, as the
+    # upstream's. A body gate makes per-task orchestration a selected workflow, not the automatic
+    # consequence of a plan: small/coupled work returns to ordinary inline execution with the
+    # repository's completion checks. Setup preserves an already approved current checkout, so
+    # loading another skill does not reopen that choice. In the selected heavy workflow, fix
+    # rounds still run the project's whole suite after the covering tests, as the
     # test-driven-development overlay requires, where upstream said a one-line fix needs only the
     # covering tests: SKILL.md says so, its Example Workflow's fix round shows both runs, the final
     # fix wave's single fixer gets a report file and the same instruction, the implementer prompt's
@@ -80,16 +88,21 @@ items:
     invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain.
     # v7 made it an autonomous inline executor — rule, ledger, continue; only four conditions stop
     # it — accepted, curator's call: a bad ruling surfaces in the closing "Rulings I made" list.
-    body: patch # two edits. The prose runs this skill's scripts and SDD's through `bash`, and the
+    body: patch # the prose runs this skill's scripts and SDD's through `bash`, and the
     # scripts exec SDD's helpers through "${BASH:-bash}" as SDD's own helpers do, so a packager that
     # strips executable bits cannot break the chain (upstream's own writing-skills rule). The
     # no-subagent pointer names the one tool-notes file using-superpowers ships to every tree
     # (references/harness-tools.md) instead of the folder of per-platform maps.
+    # A body gate returns one-sitting work to direct execution instead of manufacturing another
+    # plan/workspace; the formal ledger/scripts remain for recoverable written-plan execution.
+    # Setup respects an approved current checkout and requests isolation only for a concrete need
     depends_on: [finishing-a-development-branch, requesting-code-review, subagent-driven-development, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion, writing-plans] # the plan's source, TDD per task, debugging on a mismatch, verification before each claim, the final review's template, the finish
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
   - source: superpowers/skills/using-git-worktrees
     invocation: auto # only ever reached from other skills' bodies or model judgment; asks consent itself before creating anything
+    body: patch # an isolation gate respects the user's existing workspace choice and returns to
+    # ordinary work when isolation was neither requested nor needed; creation consent stays mandatory
   # --- review pair ---
   - source: superpowers/skills/requesting-code-review
     invocation: both # typed as a ceremony ("review since main"), and the model fires it after a task; SDD also uses its code-reviewer.md template (cross-skill file dep)
@@ -411,8 +424,9 @@ items:
     # test-driven-development overlay. Taking it as well would put two auto TDD skills in trigger
     # competition, the same reason diagnosing-bugs is excluded above.
   - source: mattpocock-skills/skills/engineering/ask-matt
-    name: ask-deniz # it is a map of THIS module, so it carries this module's name
-    invocation: manual # you ask it; it never volunteers
+    name: ask-deniz # one curated map for the whole estate, not upstream's own collection
+    invocation: both # the user asks for a route, or the model loads it when the route is uncertain;
+    # manual ceremonies remain conditional human pointers, never model-started workflows
     body: overlay # a router is the one artifact selection alone cannot curate. Upstream maps
     # upstream's own set, so every name in it is either right by luck or wrong on arrival: tdd,
     # code-review and diagnosing-bugs are merged away here, half this module is superpowers, and
@@ -428,7 +442,82 @@ items:
     # environment changes. The router names the original verified-waves as a user-pointer in two
     # rows, curator's routing call: the Standalone row is the start, and the dispatching row says
     # which of the two a person wants.
-    depends_on: [brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # every model-reachable skill the router names is a fact, so a target deleted or renamed upstream fails the build instead of leaving a dead route
+    # The conditional .NET map covers every General item, its nine manual ceremonies explicitly;
+    # Aspire routes through its router/migration plus testing/ServiceDefaults specialists, and Akka
+    # gets a compact full map. optional_refs checks those facts without requiring .NET Modules just
+    # to install Process. Module guards and catalog checks distinguish unavailable model routes from
+    # hidden manual items; no route authorizes an install. Agents stay descriptive delegation options,
+    # not fake skill-load facts or slash commands. Ordinary one-sitting work need not open either
+    # ladder, and an existing execution/workspace approval is not asked for again
+    depends_on: [asd-ste100, brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
+    optional_refs:
+      - akka-hosting-actor-patterns
+      - akka-net-aspire-configuration
+      - akka-net-best-practices
+      - akka-net-management
+      - akka-net-testing-patterns
+      - analyzing-dotnet-performance
+      - aot-trimming
+      - api-design
+      - aspire
+      - aspire-integration-testing
+      - aspire-project-v2-migration
+      - aspire-service-defaults
+      - build-parallelism
+      - check-bin-obj-clash
+      - code-testing
+      - convert-to-cpm
+      - coverage-analysis
+      - cscheck
+      - csharp-concurrency-patterns
+      - csharp-nullable-reference-types
+      - csharp-refactoring
+      - csharp-scripts
+      - database-performance
+      - dependency-injection-patterns
+      - detect-static-dependencies
+      - directory-build-organization
+      - dotnet-aot-compat
+      - dotnet-devcert-trust
+      - dotnet-local-tools
+      - dotnet-pinvoke
+      - dotnet-project-structure
+      - dotnet-slopwatch
+      - dotnet-trace-collect
+      - dotnet-webapi
+      - dump-collect
+      - efcore-patterns
+      - filter-syntax
+      - generate-testability-wrappers
+      - ilspy-decompile
+      - including-generated-files
+      - item-management
+      - microbenchmarking
+      - microsoft-extensions-configuration
+      - migrate-nullable-references
+      - migrate-static-to-wrapper
+      - modern-csharp-coding-standards
+      - msbuild
+      - msbuild-modernization
+      - mtp-hot-reload
+      - opentelemetry-net-instrumentation
+      - package-management
+      - platform-detection
+      - playwright-blazor-testing
+      - property-patterns
+      - r3-reactive-extensions
+      - run-tests
+      - sdk-container-publishing
+      - serialization
+      - snapshot-testing
+      - target-authoring
+      - test-analysis-extensions
+      - test-anti-patterns
+      - test-gap-analysis
+      - testcontainers-integration-tests
+      - thread-abort-migration
+      - vectorization
+      - writing-tunit-tests
     omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---
   # --- mattpocock components read and rejected, kept visible so a pin move does not re-raise them ---

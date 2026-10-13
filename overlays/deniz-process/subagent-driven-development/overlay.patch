@@ -1,8 +1,60 @@
 diff --git a/SKILL.md b/SKILL.md
-index f7bbf6a..1024a98 100644
+index f7bbf6a..aab6a97 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -215,16 +215,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
+@@ -1,15 +1,26 @@
+ ---
+ name: subagent-driven-development
+ description: Use when executing implementation plans with independent tasks in the current session
+ ---
+ 
+ # Subagent-Driven Development
+ 
++## Size before orchestration
++
++This is the per-task implementer/reviewer workflow, not the default consequence of having a plan.
++Use it when the user explicitly chose that workflow, or substantial independent tasks benefit from
++fresh contexts and task-level review gates. A plan with several steps is not enough on its own.
++
++For small or coupled work that fits the current context, use ordinary inline work, focused checks,
++and a single final review when the repository or task requires one; do not create a plan, ledger, or
++child merely because this skill loaded. Return to that task directly. The remaining sections apply
++only to the selected per-task workflow, whose review and whole-suite gates remain mandatory.
++
+ Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.
+ 
+ **Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
+ 
+ **Core principle:** Fresh subagent per task + task review (spec + quality) + broad final review = high quality, fast iteration
+ 
+ **Narration:** between tool calls, narrate at most one short line — the
+ ledger and the tool results carry the record.
+@@ -118,20 +129,20 @@ digraph process {
+     "Dispatch final code reviewer (../requesting-code-review/code-reviewer.md)" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
+     "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: delete this plan's workspace";
+     "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
+ }
+ ```
+ 
+ ## Setup
+ 
+-Ensure the work happens in an isolated workspace: use
+-superpowers:using-git-worktrees to create one or verify the existing one.
+-Never start implementation on a main/master branch without your human
+-partner's explicit consent.
++Respect an approved current checkout, including main/master, and do not ask again merely because
++this skill loaded. Use superpowers:using-git-worktrees only when isolation is requested or a concrete
++conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
++approval, and this setup grants no permission to discard existing work.
+ 
+ Conversation memory does not survive compaction. In real sessions,
+ controllers that lost their place have re-dispatched entire completed task
+ sequences — the single most expensive failure observed. Track progress in
+ a ledger file, not only in todos.
+ 
+ - Each plan owns a workspace: at skill start, run this skill's
+   `bash scripts/sdd-workspace PLAN_FILE` — it prints the plan's git-ignored
+@@ -215,16 +226,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
  
  **Task complexity signals (implementation tasks):**
  - Touches 1-2 files with a complete spec → cheap model
@@ -23,7 +75,7 @@ index f7bbf6a..1024a98 100644
  as one unit. Reserve one-dispatch-per-task for work that needs its own
  judgment, its own tests, or its own review surface.
  
-@@ -381,30 +385,32 @@ and the findings — the report file is the persistent memory either way.
+@@ -381,30 +396,32 @@ and the findings — the report file is the persistent memory either way.
  **Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
  Model Selection), with the brief path, the report-file path, the open
  findings, and this framing: "A prior implementer attempted this task
@@ -63,7 +115,7 @@ index f7bbf6a..1024a98 100644
  Never fix findings yourself in the controller session — your context stays
  clean for coordination, and controller fixes skip review.
  
-@@ -450,18 +456,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
+@@ -450,18 +467,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
  printed path in the final review dispatch, so the final reviewer reads
  one file instead of re-deriving the branch diff with git commands. Dispatch
  on the most capable available model (see Model Selection), using
@@ -92,7 +144,7 @@ index f7bbf6a..1024a98 100644
  Adjudicate any residual findings as in the task loop's breaker: park with
  rulings, or rule on the load-bearing ones and ledger what you decided. Only
  the four classes above stop you here. There is no second fix wave —
-@@ -541,17 +556,18 @@ Implementer: [No questions]
+@@ -541,17 +567,18 @@ Implementer: [No questions]
  
  [Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
  Task reviewer: Spec ❌:

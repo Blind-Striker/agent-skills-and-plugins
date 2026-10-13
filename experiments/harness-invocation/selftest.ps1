@@ -649,13 +649,15 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
     # diagnosing-superpowers into Process as both (37 to 38). Wave W5 removed the auto
     # resolving-merge-conflicts, deleted upstream, and took implement-spec, retro, and pr as manual
     # (38 to 40). It emits no command and records no parked body, so the former commands and parked
-    # counts name nothing and are dropped. deniz-process model is 10 auto + 10 both: writing-for-agents
+    # counts name nothing and are dropped. deniz-process model is 10 auto + 11 both: writing-for-agents
     # moved from manual to both, diagnosing-superpowers arrived as both, and resolving-merge-conflicts
     # left as auto. Wave W6 took General from 68 to 58 taken items: three items left with their
     # upstream deletion (configuring-opentelemetry-dotnet, minimal-api-file-upload, msbuild-server),
     # nine MSBuild specialists were excluded as merged into the consolidated msbuild skill, msbuild and
     # csharp-refactoring were taken, and code-testing replaced code-testing-agent one for one.
-    $want = @{ skills = 113; agents = 2; model = 20 }
+    # The whole-estate ask-deniz moved from manual to both: one more Process model entry, with no new
+    # item, command, or agent. Its optional references do not change the installed Module requirements.
+    $want = @{ skills = 113; agents = 2; model = 21 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }

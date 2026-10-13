@@ -301,6 +301,12 @@ export function inlineCodeSpans(content: string): [number, number][] {
   return markdownCode(content).inline;
 }
 
+/** Markdown code blocks and HTML code elements; headings and guards inside these are literal. */
+export function markdownCodeBlocks(content: string): [number, number][] {
+  const code = markdownCode(content);
+  return [...code.blocks, ...code.html];
+}
+
 // Closed dispatch table (references-and-linking.md "Harness phrasing"). The Codex rendering names no
 // subagent tool or agent type by choice, although Codex CLI ships `spawn_agent`: its companion tools
 // differ between multi-agent versions, and using-superpowers' Codex tool notes name the tools. A row

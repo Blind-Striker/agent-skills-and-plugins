@@ -1,6 +1,0 @@
-interface:
-  display_name: "Ask Deniz"
-  short_description: "Ask which skill or flow fits your situation."
-  default_prompt: "Use $deniz-process:ask-deniz for this task."
-policy:
-  allow_implicit_invocation: false

@@ -6,6 +6,17 @@ description: Use when executing implementation plans with independent tasks in
 
 # Subagent-Driven Development
 
+## Size before orchestration
+
+This is the per-task implementer/reviewer workflow, not the default consequence of having a plan.
+Use it when the user explicitly chose that workflow, or substantial independent tasks benefit from
+fresh contexts and task-level review gates. A plan with several steps is not enough on its own.
+
+For small or coupled work that fits the current context, use ordinary inline work, focused checks,
+and a single final review when the repository or task requires one; do not create a plan, ledger, or
+child merely because this skill loaded. Return to that task directly. The remaining sections apply
+only to the selected per-task workflow, whose review and whole-suite gates remain mandatory.
+
 Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.
 
 **Why subagents:** You delegate tasks to specialized agents with isolated context. By precisely crafting their instructions and context, you ensure they stay focused and succeed at their task. They should never inherit your session's context or history — you construct exactly what they need. This also preserves your own context for coordination work.
@@ -124,10 +135,10 @@ digraph process {
 
 ## Setup
 
-Ensure the work happens in an isolated workspace: use
-$deniz-process:using-git-worktrees to create one or verify the existing one.
-Never start implementation on a main/master branch without your human
-partner's explicit consent.
+Respect an approved current checkout, including main/master, and do not ask again merely because
+this skill loaded. Use $deniz-process:using-git-worktrees only when isolation is requested or a concrete
+conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
+approval, and this setup grants no permission to discard existing work.
 
 Conversation memory does not survive compaction. In real sessions,
 controllers that lost their place have re-dispatched entire completed task

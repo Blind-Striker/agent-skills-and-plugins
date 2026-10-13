@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
+import { PORTABLE_NAME } from "./resolve.ts";
 
 export type ComponentType = "skill" | "command" | "agent";
 
@@ -14,11 +15,13 @@ export interface SkillIntent {
    */
   invocation?: "auto" | "manual" | "both";
   /**
-   * Output names of this item's model-edge targets (ADR-0008). Enforced both ways by validate:
+   * Output names of this item's mandatory model-edge targets (ADR-0008). Enforced both ways by validate:
    * a declared name with no matching fact in the shipped body is stale, a fact with no
    * declaration is undeclared — both are errors.
    */
   depends_on?: string[];
+  /** Cross-Module model facts or user pointers, conditional on a section's installed-Module guard. */
+  optional_refs?: string[];
   /**
    * Output path -> the item-relative file each harness ships there (curation/SCHEMA.md
    * `harness_files`). `null` states that a harness ships no file at that path. The mapped sources
@@ -92,6 +95,27 @@ function requireEnum(path: string, source: string, field: string, value: unknown
   }
   if (typeof value !== "string" || !allowed.includes(value)) {
     throw new Error(`${path}: ${source}: ${field} must be one of ${allowed.join("|")} (got ${JSON.stringify(value)})`);
+  }
+}
+
+function checkOptionalRefs(path: string, source: string, intent: SkillIntent): void {
+  const refs: unknown = intent.optional_refs;
+  if (refs === undefined) {
+    return;
+  }
+  const where = `${path}: ${source}: optional_refs`;
+  if (
+    !Array.isArray(refs) ||
+    refs.length === 0 ||
+    refs.some((name) => typeof name !== "string" || !PORTABLE_NAME.test(name))
+  ) {
+    throw new Error(`${where} must be a nonempty list of portable output names`);
+  }
+  if (new Set(refs).size !== refs.length) {
+    throw new Error(`${where} contains duplicate output names`);
+  }
+  if (refs.some((name) => intent.depends_on?.includes(name))) {
+    throw new Error(`${where} must not overlap depends_on`);
   }
 }
 
@@ -177,6 +201,7 @@ export function loadManifest(path: string): CurationManifest {
     requireEnum(path, item.source, "invocation", item.invocation, ["auto", "manual", "both"]);
     requireEnum(path, item.source, "as", item.as, ["skill", "command", "agent"]);
     requireEnum(path, item.source, "body", item.body, ["overlay", "patch"]);
+    checkOptionalRefs(path, item.source, item);
     // Both spellings are normalized here so every consumer reads one shape. A bare address is the
     // common case and stays cheap to write; the object form exists for the merge the filename rule
     // cannot cover, and an empty file list means it was written but says nothing.
@@ -206,7 +231,7 @@ export function loadManifest(path: string): CurationManifest {
 }
 
 /** The keys an original-skill declaration may hold; the SKILL.md owns everything else. */
-const ORIGINAL_SKILL_KEYS = ["invocation", "depends_on", "harness_files"];
+const ORIGINAL_SKILL_KEYS = ["invocation", "depends_on", "optional_refs", "harness_files"];
 
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -236,6 +261,7 @@ function loadOriginalSkills(path: string, raw: unknown): Record<string, Original
       throw new Error(`${path}: ${label}: invocation is required (auto|manual|both)`);
     }
     requireEnum(path, label, "invocation", declaration.invocation, ["auto", "manual", "both"]);
+    checkOptionalRefs(path, label, declaration);
     if (declaration.harness_files !== undefined) {
       declaration.harness_files = checkHarnessFiles(path, label, declaration.harness_files);
     }

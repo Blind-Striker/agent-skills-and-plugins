@@ -34,9 +34,10 @@ text. The states `error` and `cancelled` are FAILED. So is a `completed` message
 
 ## Questions
 
-The `question` tool returns only when the user has answered. A yes/no question from `SKILL.md`
-asked through it waits as an ended turn does: go on only with the answer. A question asked in
-text ends your turn.
+The `question` tool returns when the user answers, and also when the user dismisses it. A
+dismissal, or a missing answer, is not approval. For a yes/no question from `SKILL.md`, do not
+pass the gate, do not treat dismissal as yes, and do not ask it again. End the turn and wait for
+an explicit answer. A question asked in text ends your turn.
 
 ## Commands the sandbox refuses
 

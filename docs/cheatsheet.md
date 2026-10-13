@@ -45,12 +45,12 @@ and its idea-only sources are in [`skills/deniz-process/NOTICE.md`](../skills/de
 
 | Phase | Skill | Reach for it when |
 |---|---|---|
-| Route | `ask-deniz` | You know the situation but not which ceremony or skill fits it |
+| Route | `ask-deniz` | You know the situation but not which ceremony or skill fits; available to user and model across installed Modules, with manual ceremonies left for the user to start |
 | Know | `research` | Facts are missing; primary-source legwork should land as a repository document |
 | Explore | `brainstorming` | What you want is not settled yet; it draws that out, then sizes the work: a quick task is just done, a small change is agreed in chat, a project gets a written design |
 | Probe | `prototype` | One narrow design question needs runnable throwaway code |
 | Re-pitch | `wait-what` | The previous explanation did not land and should be restated using project vocabulary and controlled English |
-| Decide | `grilling` / `grill-with-docs` | An artifact exists and needs hole-finding plus sealed decisions; `grill-with-docs` also maintains qualifying vocabulary and ADRs through `domain-modeling` |
+| Decide | `grilling` / `grill-me` / `grill-with-docs` | An artifact exists and needs hole-finding plus sealed decisions; `grill-me` is the stateless entry, while `grill-with-docs` also maintains qualifying vocabulary and ADRs through `domain-modeling` |
 | Delegate a decision | `to-questionnaire` | The right answer belongs to another person; turn the gap into focused questions for them |
 | Specify | `to-spec` | The conversation is settled enough to become a specification without another interview |
 | Plan | `writing-plans` / `to-tickets` | Turn sealed decisions into executable steps or tracer-bullet issue tickets |
@@ -81,23 +81,34 @@ Cross-cutting routes:
 - `asd-ste100`: passive controlled-English knowledge used by `wait-what`; normally reached through the handoff rather than invoked directly.
 - `using-superpowers`: optional manual switch into the stricter skill-driven session discipline; no SessionStart hook is shipped, and each harness gets only its own tool notes.
 
+Ordinary one-sitting changes do not need a spec/ticket ladder or a written plan merely because they
+have several steps. The planning/execution skills first check task size and preserve approvals for
+scope, executor, and current checkout; an explicit plan-only request still authorizes no implementation.
+
 ## `deniz-dotnet-general`: mostly self-triggering reference
 
 Most reference skills activate when their topic appears. These are the useful deliberate on-ramps:
 
 | Cluster | Deliberate entry points | Supporting auto-routes |
 |---|---|---|
-| API and public surface | `api-design`, `snapshot-testing` | modern C#, DI, Options, serialization, concurrency, R3 |
-| Refactoring | `csharp-refactoring` for a behavior-preserving rename, move, extract, or consolidation | modern C# standards for what the result should look like |
-| Test generation and authoring | `code-testing` writes and strengthens tests (a failing or flaky test goes to `systematic-debugging`), `writing-tunit-tests` | framework/platform detection, test-analysis extensions, and CsCheck property-based tests |
-| Test execution and quality | `run-tests`, `mtp-hot-reload`, `coverage-analysis` | anti-patterns, pseudo-mutation gap analysis, Testcontainers, Playwright, filter syntax |
+| API and public surface | `api-design`, `snapshot-testing` | `modern-csharp-coding-standards`, `dependency-injection-patterns`, `microsoft-extensions-configuration`, `serialization`, `csharp-concurrency-patterns`, `r3-reactive-extensions` |
+| Existing package setup | `convert-to-cpm` is the user-started conversion of existing projects to CPM | `dotnet-project-structure`, `package-management`, `dotnet-local-tools`; package updates alone do not authorize conversion, while new solutions may begin with CPM |
+| Refactoring | `csharp-refactoring` for a behavior-preserving rename, move, extract, or consolidation | `modern-csharp-coding-standards` for what new code should look like, without silently changing behavior |
+| HTTP and instrumentation | `dotnet-webapi` for HTTP/OpenAPI endpoints, `opentelemetry-net-instrumentation` for .NET telemetry | an existing composition-root exporter, including Aspire ServiceDefaults, remains the single exporter registration |
+| Test generation and authoring | `code-testing` writes and strengthens tests (a failing or flaky test goes to `systematic-debugging`), `writing-tunit-tests` | `platform-detection`, `test-analysis-extensions`, `cscheck` for framework/platform lookup and property/model/Spec tests |
+| Test execution and quality | `run-tests`, `mtp-hot-reload`, `coverage-analysis` | `test-anti-patterns`, `test-gap-analysis`, `testcontainers-integration-tests`, `playwright-blazor-testing`, `filter-syntax` as a consumer-only reference |
 | Nullable adoption | `migrate-nullable-references` for project migration | `csharp-nullable-reference-types` for ordinary nullable-enabled code |
-| Trim/AOT adoption | `dotnet-aot-compat` for project enablement and IL-warning cleanup | `aot-trimming` for trim/AOT-safe code where analysis is already in effect |
+| Trim/AOT adoption | `dotnet-aot-compat` for existing-library adoption and project-wide IL-warning migration, not publishing binaries | `aot-trimming` turns on an app's PublishAot/PublishTrimmed and handles trim/AOT-safe code and its in-scope warnings |
 | Testability migrations | `generate-testability-wrappers`, then `migrate-static-to-wrapper` when approved | `detect-static-dependencies` identifies the obstacles without mutating code |
-| Build and MSBuild | `msbuild` for a failing build, a slow build, or a build-file review; it captures and replays binlogs and routes to the specialists | output-path clashes, parallelism, props, items, targets, generated files, Directory.Build layout, SDK-style modernization, SDK container publishing |
-| Performance | `microbenchmarking`, `analyzing-dotnet-performance` | vectorization, database performance, EF Core, serialization and allocation guidance |
-| Diagnostics and upgrade | `dotnet-trace-collect`, `dump-collect`, `thread-abort-migration` | ILSpy and focused framework references |
+| Build and MSBuild | `msbuild` for a failing build, a slow build, or a build-file review; it captures and replays binlogs and routes to the specialists | `check-bin-obj-clash`, `build-parallelism`, `property-patterns`, `item-management`, `target-authoring`, `including-generated-files`, `directory-build-organization`, `msbuild-modernization`, `sdk-container-publishing` |
+| Performance | `microbenchmarking`, `analyzing-dotnet-performance` | `vectorization`, `database-performance`, `efcore-patterns`, `serialization` and allocation guidance |
+| Diagnostics and upgrade | `dotnet-trace-collect`, `dump-collect`, `thread-abort-migration` | `ilspy-decompile` and focused framework references; collection is not analysis |
+| Language experiments and native interop | `csharp-scripts` only for an explicit project-free C# request, `dotnet-pinvoke` for native interop | neither is a generic shell-script or pure-managed debugging route |
+| HTTPS dev trust | `dotnet-devcert-trust` for the exact Linux/WSL certificate-trust error | generation, trust and system CA bundle guidance, not a general machine-configuration rollout |
 | Guardrail | `dotnet-slopwatch` after code changes | static-dependency detection and other passive review knowledge |
+
+The delegated `roslyn-incremental-generator-specialist` is an agent in Claude Code/OpenCode and a
+skill in Codex. Use the harness's actual specialist surface, not a fabricated slash command.
 
 ## Specialized Modules
 

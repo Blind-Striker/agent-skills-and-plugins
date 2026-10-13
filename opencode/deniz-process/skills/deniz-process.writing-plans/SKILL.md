@@ -11,7 +11,16 @@ description: Use when you have a spec or requirements for multi-session work, or
 
 Write implementation plans for an engineer who has not seen this codebase or this spec. Assume they write idiomatic code in the project's language once they know the exact interface and the exact test, and that they will make a reasonable choice wherever the plan leaves one open. What they cannot know is what you decided: which files, which names and signatures, which values from the spec, which tests prove each task. Document those. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
 
-**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
+## Size before ceremony
+
+Size the work before creating an artifact. A change that fits one sitting belongs to ordinary
+implementation: keep its steps in chat and do not create a plan document, a spec, or an execution
+workspace merely because it has several steps. If the user explicitly asks for a written plan,
+honor that artifact request; otherwise use this ceremony for multi-session work or several people's
+worth. A loaded skill is not a reason to make the task larger.
+Return to the task on the ordinary path; the remaining sections apply only to the written-plan path.
+
+**Announce at start, only after that gate:** "I'm using the writing-plans skill to create the implementation plan."
 
 **Context:** If working in an isolated worktree, it should have been created via the `deniz-process.using-git-worktrees` skill at execution time.
 
@@ -180,27 +189,17 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ## Execution Handoff
 
-After saving and self-reviewing the plan, link it for your human partner
-to read. If they have already explicitly supplied an execution method, ask
-them to review the plan and confirm it captures what they want; wait for that
-review before implementation, then use the preserved method. Otherwise, ask
-them to review the plan and choose an execution method before implementation.
+After saving and self-reviewing the plan, give the user its path and a short summary. A plan-only
+request ends with that delivery: design approval alone is not permission to implement.
 
-**When no execution method has already been supplied:**
+If the user already requested execution of the approved scope, do not ask for the same approval
+because you created a plan. Preserve an execution method or working-directory choice they already
+gave. Ask again only for a material change to the approved scope or a separately gated destructive,
+security-sensitive, or external action; present those changes together, with a recommendation.
 
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Which execution approach would you prefer?**
-
-- **Subagent-driven** - A fresh subagent implements each task and a fresh reviewer checks it before the next one starts, then a whole-branch review at the end. Most thorough; costs a fresh context per task and per review.
-- **Native** - I implement every task myself in this session, the way this harness runs work, then one fresh reviewer on the most capable model checks the whole branch. Cheapest and fastest; no independent review until the end. Runs well with a mid-tier session model, since the plan carries the design.
-
-**For this plan I recommend <one of the two>, because <one sentence from the plan: how much the tasks depend on each other's interfaces, how many there are, what a shipped mistake would cost>. Does the plan capture what you want, and which approach should we use?"**
-
-**When an execution method has already been supplied:**
-
-**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Does it capture what you want?"**
-
-**If Subagent-driven chosen:**
-- **REQUIRED SUB-SKILL:** Use deniz-process.subagent-driven-development
-
-**If Native chosen:**
-- **REQUIRED SUB-SKILL:** Use deniz-process.executing-plans
+When execution is authorized but no method was specified, recommend by the work rather than a fixed
+label: prefer inline execution when it fits the current context and per-task isolation buys little.
+Use deniz-process.executing-plans for that written-plan path. Use
+deniz-process.subagent-driven-development when the user chose per-task implementers and reviews, or
+substantial independent tasks benefit from fresh contexts. State the choice and its cost, then
+continue the authorized work; choosing an executor is not another approval ceremony.

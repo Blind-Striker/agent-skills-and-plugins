@@ -515,6 +515,12 @@
       "SKILL.md": "3fd5617e906cf9b71a6b17424791adb905fc248b"
     }
   },
+  "deniz-process/using-git-worktrees": {
+    "source": "superpowers/skills/using-git-worktrees",
+    "files": {
+      "SKILL.md": "1381dacb3516b94382dd6ec736ede21ee8ede2b3"
+    }
+  },
   "deniz-process/using-superpowers": {
     "source": "superpowers/skills/using-superpowers",
     "files": {
