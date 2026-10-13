@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 4cf0275..ecc001f 100644
+index 4cf0275..72f2a1e 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,20 +1,31 @@
@@ -55,7 +55,7 @@ index 4cf0275..ecc001f 100644
  **Tech Stack:** [Key technologies/libraries]
  
  **Spec:** [path to the spec/design doc this plan implements — the plan
-@@ -173,32 +184,22 @@ After writing the complete plan, look at the spec with fresh eyes and check the
+@@ -173,32 +184,27 @@ After writing the complete plan, look at the spec with fresh eyes and check the
  **4. Review Focus:** For each input class or failure mode the spec implies, is there a task whose tests exercise it? The five uncovered ones most likely to bite a person go in the Review Focus section, and each line there gets its test added to the owning task. An empty section means you checked and found none, not that you skipped the check.
  
  **5. Proportion:** Compare the plan's length to the spec's. A plan several times longer than the spec it implements is a transcript of the program, not a plan. If code blocks are most of the document, replace bodies with signatures, test names and assertions, and check that each step is still unambiguous.
@@ -82,18 +82,25 @@ index 4cf0275..ecc001f 100644
 -**When an execution method has already been supplied:**
 -
 -**"Plan complete and saved to `docs/superpowers/plans/<filename>.md`. Please review the plan. Does it capture what you want?"**
-+After saving and self-reviewing the plan, give the user its path and a short summary. A plan-only
-+request ends with that delivery: design approval alone is not permission to implement.
- 
+-
 -**If Subagent-driven chosen:**
 -- **REQUIRED SUB-SKILL:** Use superpowers:subagent-driven-development
+-
+-**If Native chosen:**
+-- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
++After saving and self-reviewing the plan, give the user its path and a short summary. What comes
++next depends on what the user asked for at the start, not on the design approval:
++
++- A request to build, add, fix, or change something ("let's add X") is a request to execute.
++  Continue into execution after the summary; do not wait for a plan review.
++- A plan-only request ("write a plan", "design X") ends with that delivery and authorizes no
++  implementation.
++
 +If the user already requested execution of the approved scope, do not ask for the same approval
 +because you created a plan. Preserve an execution method or working-directory choice they already
 +gave. Ask again only for a material change to the approved scope or a separately gated destructive,
 +security-sensitive, or external action; present those changes together, with a recommendation.
- 
--**If Native chosen:**
--- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
++
 +When execution is authorized but no method was specified, choose by judgment, not a fixed label:
 +superpowers:executing-plans when the plan fits the current context and per-task isolation buys
 +little; superpowers:subagent-driven-development when the user chose per-task implementers and

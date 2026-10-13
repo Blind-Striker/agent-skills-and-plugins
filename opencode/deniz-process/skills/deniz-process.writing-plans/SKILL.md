@@ -191,8 +191,13 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 ## Execution Handoff
 
-After saving and self-reviewing the plan, give the user its path and a short summary. A plan-only
-request ends with that delivery: design approval alone is not permission to implement.
+After saving and self-reviewing the plan, give the user its path and a short summary. What comes
+next depends on what the user asked for at the start, not on the design approval:
+
+- A request to build, add, fix, or change something ("let's add X") is a request to execute.
+  Continue into execution after the summary; do not wait for a plan review.
+- A plan-only request ("write a plan", "design X") ends with that delivery and authorizes no
+  implementation.
 
 If the user already requested execution of the approved scope, do not ask for the same approval
 because you created a plan. Preserve an execution method or working-directory choice they already

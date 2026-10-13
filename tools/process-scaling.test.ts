@@ -53,6 +53,9 @@ test("writing-plans preserves execution authority without a duplicate approval g
   assert.match(handoff, /material change/);
   assert.match(handoff, /superpowers:executing-plans when the plan fits the current context/);
   assert.doesNotMatch(handoff, /wait for that review before implementation/);
+  assert.match(handoff, /A request to build, add, fix, or change something \("let's add X"\) is a request to execute/);
+  assert.match(handoff, /do not wait for a plan review/);
+  assert.doesNotMatch(handoff, /design approval alone is not permission to implement/);
 });
 
 test("SDD gates per-task orchestration without weakening its selected heavy workflow", () => {

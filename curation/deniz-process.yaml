@@ -65,7 +65,9 @@ items:
     # again: an explicit written-plan request (a typed invocation included), or a design the user
     # approved in brainstorming, whose agreed size the user could have overridden there.
     # The handoff distinguishes plan-only delivery from authorized execution: it preserves an
-    # approved scope and chosen method instead of asking for the same approval again. Without a
+    # approved scope and chosen method instead of asking for the same approval again. Curator's
+    # call: a request to build/add/fix ("let's add X") is a request to execute, so the agent goes on
+    # into execution after summarizing the plan; only a plan-only or design-only request stops there. Without a
     # chosen method the agent picks the executor by judgment (context/isolation cost, not a fixed
     # subagent-first label) and asks once only when genuinely torn, curator's call: process weight
     # is automatic judgment, never a routine question

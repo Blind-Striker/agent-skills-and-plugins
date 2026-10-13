@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.11.0",
-  "digest": "sha256:4d35e6526df0e62cd8a50c93ad12c0ba51953aed1ff8729199373c87e741d468",
+  "digest": "sha256:fd246032b77e85f165f252fbdb99d4abe59e801853de9203d96699009f016117",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -450,7 +450,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:11ca4c68a67d667259ecc65cd3bf5e9f1582f5d8fbce91febae7e1cc8f04ae98",
+      "sha256": "sha256:29837fd79aa09f31322cbc3add54306afe7987c149368f812ee957c21f2ddd8d",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {
