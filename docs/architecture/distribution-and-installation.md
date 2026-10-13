@@ -1,6 +1,6 @@
 # Distribution and installation
 
-Date: 2026-10-12
+Date: 2026-10-13
 
 ## Responsibility
 
@@ -95,8 +95,8 @@ reference intent, not a Bundle schema field or installer dependency; the install
 or rewrite them ([References and linking](references-and-linking.md#conditional-cross-module-facts)).
 
 Bundles and Install state are schema 2, in the checkout and in the Release Packages from
-`installer-v0.4.0` on, which carry OpenCode 2 output; the current one is `installer-v0.7.1`
-([release record](../../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.7.1.md)).
+`installer-v0.4.0` on, which carry OpenCode 2 output; the current one is `installer-v0.8.0`
+([release record](../../experiments/harness-invocation/records/2026-10-13-opencode-installer-v0.8.0.md)).
 The Packages of earlier Releases, through `installer-v0.3.0`, are schema-1 historical source
 snapshots whose Bundles carry OpenCode-1-shaped output; their assets stay published and were not
 replaced. There is no compatibility reader between the two formats: the installer has no schema-1

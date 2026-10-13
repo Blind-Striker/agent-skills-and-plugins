@@ -196,13 +196,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   upstream license copies, a public noreply marketplace contact, least-privilege secret and
   machine-path CI checks, private vulnerability reporting, and an explicit personal/no-SLA boundary.
 - OpenCode supports two installation transports: a recursive clone using the repository installer,
-  and the compiled npm-format Package attached to GitHub Release `installer-v0.7.1`. The Linux-built
-  asset carries the schema-2 OpenCode 2 Bundles of Process 0.10.1, General 0.14.0, Akka 0.4.1, and
+  and the compiled npm-format Package attached to GitHub Release `installer-v0.8.0`. The Linux-built
+  asset carries the schema-2 OpenCode 2 Bundles of Process 0.11.0, General 0.14.0, Akka 0.4.1, and
   Aspire 0.6.0 with the installer of Package 0.5.0, unchanged, and passed the manual release
   workflow's source gate, tar-mode verifier, isolated Plan/Apply/status, publication, and remote
   re-download checks. Its exact identity and proof boundary are in the
-  [release record](../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.7.1.md).
-  The previous schema-2 Releases `installer-v0.7.0`
+  [release record](../experiments/harness-invocation/records/2026-10-13-opencode-installer-v0.8.0.md).
+  The previous schema-2 Releases `installer-v0.7.1`
+  ([record](../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.7.1.md)),
+  `installer-v0.7.0`
   ([record](../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.7.0.md)),
   `installer-v0.6.0`
   ([record](../experiments/harness-invocation/records/2026-10-12-opencode-installer-v0.6.0.md)),
