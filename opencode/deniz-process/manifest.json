@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.11.0",
-  "digest": "sha256:6c42da71b8b70341b9c46cb10523e8096f8c1481cea7c838fba3c63b0c42fcaf",
+  "digest": "sha256:4d35e6526df0e62cd8a50c93ad12c0ba51953aed1ff8729199373c87e741d468",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:c3b80dc6db424676aeb8a958c94246a13ac4fe3a6d1a89788fc433db4fda1458",
+      "sha256": "sha256:4e85f8f963e73f85238de17966f040f36162317c03039d3606711d677e2ff2ad",
+      "mode": "100644"
+    },
+    "skills/deniz-process.ask-deniz/references/dotnet.md": {
+      "sha256": "sha256:e9de1088f3802406eaa5347273a35b4cf396986d1215dfb7e8ac49829d395ab1",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {
@@ -182,7 +186,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:a75e371cfa9f822dfc26aeef7a79d025a742531f6717e6fa0faf0b441070253d",
+      "sha256": "sha256:3d53b030bbd78410f27bb06ae428ce24207080eec5465b7801c5b21b18de1e4e",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/scripts/task-done": {
@@ -294,7 +298,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:45f2e1eb499dc417ada25e87f7f0892f3155a5eedb183722be0fc78b0ea95366",
+      "sha256": "sha256:20470e58eb17dc065b0039cc34b20132d430db42073bf9ab37345728e1056197",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {
@@ -414,7 +418,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.verified-waves/SKILL.md": {
-      "sha256": "sha256:0097902759c831f361fd207184279aaba26893e58acd793a1a4b6b5de013ea86",
+      "sha256": "sha256:a6cdea28e6dc0492604a619f98051ab58400b492d5ab95aace9f091c45516452",
       "mode": "100644"
     },
     "skills/deniz-process.verified-waves/references/harness-tools.md": {
@@ -446,7 +450,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:74f3ec6d75bfa6f87112694ae661db2b9cc37ebfe4177fc9dcec409afd576b2d",
+      "sha256": "sha256:11ca4c68a67d667259ecc65cd3bf5e9f1582f5d8fbce91febae7e1cc8f04ae98",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {

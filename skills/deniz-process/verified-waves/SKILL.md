@@ -18,10 +18,15 @@ fixed report, and every finding that matters goes to a fresh skeptic before you 
 - Read `references/harness-tools.md` first. It names this harness's tools for starting, waiting on,
   continuing, and closing children, says where the ledger lives, and says which permission prompts
   to expect.
-- Then apply the small-task test. The task is **small** when it is one item (one edit or one
-  question, in one place), or when each step needs the previous step's result. For a small task,
-  say that it is small and why, and do it directly: no plan, no ledger, no child. Otherwise, list
-  the independent items and fan out.
+- Then apply the small-task test. The task is **small** when it is one item: one edit or one
+  question, in one place. For a small task, say that it is small and why, and do it directly: no
+  plan, no ledger, no child.
+- A task whose every step needs the previous step's result is **sequential**, not small: it cannot
+  fan out, but it can still use verification. Decide by judgment between doing it directly and
+  doing it directly with a final gate and skeptic wave on its result, and say which in one line.
+- Otherwise, list the independent items and fan out.
+- Only when you are genuinely torn — a borderline small task the user explicitly sent here, or a
+  sequential task where verification may or may not pay — ask once, with your recommendation.
 
 ## Plan before any dispatch
 

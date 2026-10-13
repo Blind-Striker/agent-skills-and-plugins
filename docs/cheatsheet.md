@@ -1,6 +1,6 @@
 # Skills cheatsheet: which skill, when
 
-Date: 2026-10-12
+Date: 2026-10-13
 
 Convenience routing map for the four curated Modules. This is not an authorship claim or a new
 methodology: it describes how upstream work is selected, combined, renamed, and invoked in this
@@ -84,6 +84,10 @@ Cross-cutting routes:
 Ordinary one-sitting changes do not need a spec/ticket ladder or a written plan merely because they
 have several steps. The planning/execution skills first check task size and preserve approvals for
 scope, executor, and current checkout; an explicit plan-only request still authorizes no implementation.
+The agent picks the process weight (inline, one delegated subagent, or a full executor) by judgment
+and asks once only when genuinely torn. An explicit plan request or an approved design is not sized
+again, a resumed plan keeps the executor its ledger records, and the default branch needs your
+earlier answer or a standing instruction before the first commit there.
 
 ## `deniz-dotnet-general`: mostly self-triggering reference
 

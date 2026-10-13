@@ -9,13 +9,27 @@ description: Use when executing implementation plans with independent tasks in
 ## Size before orchestration
 
 This is the per-task implementer/reviewer workflow, not the default consequence of having a plan.
-Use it when the user explicitly chose that workflow, or substantial independent tasks benefit from
-fresh contexts and task-level review gates. A plan with several steps is not enough on its own.
+Use it when:
+
+- the user explicitly chose that workflow (typing this skill's invocation counts);
+- the plan's ledger already names it as the executor: a resumed plan keeps its workflow, however
+  little work is left (see Setup);
+- or substantial independent tasks benefit from fresh contexts and task-level review gates. A plan
+  with several steps is not enough on its own.
+
+A request to delegate is not by itself a choice of this workflow. With a written plan, a request to
+proceed with subagents selects it. Without a plan, dispatch the requested child with a
+self-contained brief (deniz-process.dispatching-parallel-agents) and review its result yourself: no
+plan, ledger, or per-task reviewer.
 
 For small or coupled work that fits the current context, use ordinary inline work, focused checks,
 and a single final review when the repository or task requires one; do not create a plan, ledger, or
-child merely because this skill loaded. Return to that task directly. The remaining sections apply
-only to the selected per-task workflow, whose review and whole-suite gates remain mandatory.
+child merely because this skill loaded. Behavior changes still go test-first
+(deniz-process.test-driven-development), and an unexplained failure still goes through
+deniz-process.systematic-debugging. Choose by judgment and state the choice in one line; only when you
+are genuinely torn between inline work, one delegated child, and this workflow, ask once, with your
+recommendation. Return to that task directly. The remaining sections apply only to the selected
+per-task workflow, whose review and whole-suite gates remain mandatory.
 
 Execute plan by dispatching a fresh implementer subagent per task, a task review (spec compliance + code quality) after each, and a broad whole-branch review at the end.
 
@@ -48,17 +62,17 @@ stop and ask.
 digraph when_to_use {
     "Have implementation plan?" [shape=diamond];
     "Tasks mostly independent?" [shape=diamond];
-    "Partner chose inline, or no subagent tool?" [shape=diamond];
+    "Inline chosen or a better fit, or no subagent tool?" [shape=diamond];
     "subagent-driven-development" [shape=box];
     "executing-plans" [shape=box];
     "Manual execution or brainstorm first" [shape=box];
 
     "Have implementation plan?" -> "Tasks mostly independent?" [label="yes"];
     "Have implementation plan?" -> "Manual execution or brainstorm first" [label="no"];
-    "Tasks mostly independent?" -> "Partner chose inline, or no subagent tool?" [label="yes"];
+    "Tasks mostly independent?" -> "Inline chosen or a better fit, or no subagent tool?" [label="yes"];
     "Tasks mostly independent?" -> "Manual execution or brainstorm first" [label="no - tightly coupled"];
-    "Partner chose inline, or no subagent tool?" -> "executing-plans" [label="yes"];
-    "Partner chose inline, or no subagent tool?" -> "subagent-driven-development" [label="no"];
+    "Inline chosen or a better fit, or no subagent tool?" -> "executing-plans" [label="yes"];
+    "Inline chosen or a better fit, or no subagent tool?" -> "subagent-driven-development" [label="no"];
 }
 ```
 
@@ -140,6 +154,11 @@ this skill loaded. Use deniz-process.using-git-worktrees only when isolation is 
 conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
 approval, and this setup grants no permission to discard existing work.
 
+The default branch (main/master) is approved only by your human partner: an earlier answer in this
+work or a standing preference in their instructions (AGENTS.md, CLAUDE.md, or similar). Without one,
+ask once before the first commit there, in the same message as any other question you have at
+start, and keep the answer for the rest of the plan.
+
 Conversation memory does not survive compaction. In real sessions,
 controllers that lost their place have re-dispatched entire completed task
 sequences — the single most expensive failure observed. Track progress in
@@ -157,8 +176,15 @@ a ledger file.
   round. A ledger whose first line names a different plan file — or a stray
   ledger at the old flat path `.superpowers/sdd/progress.md` — is another
   plan's progress: leave it in place and start your own, fresh.
-- Create the ledger with its identity as the first line:
-  `# SDD ledger — plan: <plan file path>`.
+- Create the ledger with its identity as the first line and its executor as
+  the second:
+  `# SDD ledger — plan: <plan file path>` then
+  `Executor: subagent-driven-development`.
+- An existing ledger's `Executor:` line is the workflow this plan runs. If
+  it names deniz-process.executing-plans, continue with that skill instead,
+  unless your human partner chose this one now. A ledger with no
+  `Executor:` line keeps the executor that loaded it; add the line. A
+  resumed plan is never re-sized: the size gate above does not apply to it.
 - The ledger is your recovery map: the commits it names exist in git even
   when your context no longer remembers creating them. After compaction,
   trust the ledger and `git log` over your own recollection.

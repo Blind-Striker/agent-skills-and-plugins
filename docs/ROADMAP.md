@@ -1,6 +1,6 @@
 # Roadmap
 
-Date: 2026-10-12
+Date: 2026-10-13
 
 Operational document: current orientation, next work, open decisions, known gaps, and deferred work.
 It shrinks as work lands and is not a chronology. Current mechanics live in
@@ -130,8 +130,14 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   it runs, and states its limits; its invalid test fixture is omitted.
   The checkout now puts size/authority gates in `writing-plans`, both plan executors, and
   `using-git-worktrees`: ordinary work does not manufacture another ceremony, and already approved
-  execution/workspace choices are preserved. The selected heavy SDD workflow retains per-task review
-  and whole-suite checks. These authored contracts have structural regression tests, not new
+  execution/workspace choices are preserved. Process weight is the agent's judgment, with one
+  question only when it is genuinely torn; work that arrives already sized (an explicit plan request,
+  an approved design) is not sized again; a resumed plan keeps the executor its ledger records; a
+  delegation request without a plan is plain delegation; and the default branch needs an earlier
+  answer or a standing instruction before its first commit. The selected heavy SDD workflow retains
+  per-task review and whole-suite checks. `ask-deniz` keeps its .NET, Aspire, and Akka maps in a
+  reference file read only for .NET work, and `verified-waves` treats a sequential chain as
+  not-small rather than solo by default. These authored contracts have structural regression tests, not new
   model-compliance measurements; intent remains beside the items in curation.
 - `mattpocock-skills` is reviewed through `49dd158` (2026-10-09), 46 commits past the v1.3.1 tag
   with no later tag; wave W5 is done. Process adopts upstream's `GLOSSARY.md` name for the domain

@@ -1,8 +1,8 @@
 diff --git a/SKILL.md b/SKILL.md
-index 4cf0275..bb63d6d 100644
+index 4cf0275..ecc001f 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,20 +1,29 @@
+@@ -1,20 +1,31 @@
  ---
  name: writing-plans
 -description: Use when you have a spec or requirements for a multi-step task, before touching code
@@ -18,11 +18,13 @@ index 4cf0275..bb63d6d 100644
 -**Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 +## Size before ceremony
 +
-+Size the work before creating an artifact. A change that fits one sitting belongs to ordinary
-+implementation: keep its steps in chat and do not create a plan document, a spec, or an execution
-+workspace merely because it has several steps. If the user explicitly asks for a written plan,
-+honor that artifact request; otherwise use this ceremony for multi-session work or several people's
-+worth. A loaded skill is not a reason to make the task larger.
++Some work arrives already sized: the user explicitly asks for a written plan (typing this skill's
++invocation counts), or a design document the user approved during brainstorming says a plan comes
++next. Write the plan; do not size that work again. Otherwise, size the work before creating an
++artifact. A change that fits one sitting belongs to ordinary implementation: keep its steps in chat
++and do not create a plan document, a spec, or an execution workspace merely because it has several
++steps. Use this ceremony for multi-session work or several people's worth. A loaded skill is not a
++reason to make the task larger.
 +Return to the task on the ordinary path; the remaining sections apply only to the written-plan path.
 +
 +**Announce at start, only after that gate:** "I'm using the writing-plans skill to create the implementation plan."
@@ -34,7 +36,7 @@ index 4cf0275..bb63d6d 100644
  
  ## Scope Check
  
-@@ -51,17 +60,17 @@ independently testable deliverable.
+@@ -51,17 +62,17 @@ independently testable deliverable.
  
  ## Plan Document Header
  
@@ -53,7 +55,7 @@ index 4cf0275..bb63d6d 100644
  **Tech Stack:** [Key technologies/libraries]
  
  **Spec:** [path to the spec/design doc this plan implements — the plan
-@@ -173,32 +182,22 @@ After writing the complete plan, look at the spec with fresh eyes and check the
+@@ -173,32 +184,22 @@ After writing the complete plan, look at the spec with fresh eyes and check the
  **4. Review Focus:** For each input class or failure mode the spec implies, is there a task whose tests exercise it? The five uncovered ones most likely to bite a person go in the Review Focus section, and each line there gets its test added to the owning task. An empty section means you checked and found none, not that you skipped the check.
  
  **5. Proportion:** Compare the plan's length to the spec's. A plan several times longer than the spec it implements is a transcript of the program, not a plan. If code blocks are most of the document, replace bodies with signatures, test names and assertions, and check that each step is still unambiguous.
@@ -92,9 +94,9 @@ index 4cf0275..bb63d6d 100644
  
 -**If Native chosen:**
 -- **REQUIRED SUB-SKILL:** Use superpowers:executing-plans
-+When execution is authorized but no method was specified, recommend by the work rather than a fixed
-+label: prefer inline execution when it fits the current context and per-task isolation buys little.
-+Use superpowers:executing-plans for that written-plan path. Use
-+superpowers:subagent-driven-development when the user chose per-task implementers and reviews, or
-+substantial independent tasks benefit from fresh contexts. State the choice and its cost, then
-+continue the authorized work; choosing an executor is not another approval ceremony.
++When execution is authorized but no method was specified, choose by judgment, not a fixed label:
++superpowers:executing-plans when the plan fits the current context and per-task isolation buys
++little; superpowers:subagent-driven-development when the user chose per-task implementers and
++reviews, or substantial independent tasks benefit from fresh contexts. State the choice and its cost
++in one line, then continue the authorized work; choosing an executor is not an approval step. Only
++when you are genuinely torn between the two, ask once, with your recommendation.

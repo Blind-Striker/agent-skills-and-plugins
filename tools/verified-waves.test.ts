@@ -117,3 +117,16 @@ test("verified-waves runbook discovery does not claim the OpenCode temp-dir root
   assert.doesNotMatch(discovery, /\| `TEMP` \|/);
   assert.doesNotMatch(discovery, /\| `TMPDIR` \|/);
 });
+
+test("verified-waves counts only one item as small; a sequential chain is judged, not solo by default", () => {
+  const skill = readFileSync(join(skillDir, "SKILL.md"), "utf8");
+  const invoking = between(skill, "## What invoking this means", "## Plan before any dispatch").replace(/\s+/g, " ");
+  assert.match(invoking, /small\*\* when it is one item: one edit or one question, in one place\./);
+  assert.match(invoking, /\*\*sequential\*\*, not small/);
+  assert.match(invoking, /final gate and skeptic wave/);
+  assert.match(invoking, /Only when you are genuinely torn/);
+  assert.doesNotMatch(
+    invoking,
+    /small\*\* when it is one item \(one edit or one question, in one place\), or when each step/,
+  );
+});

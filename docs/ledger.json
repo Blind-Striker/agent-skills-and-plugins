@@ -4346,7 +4346,7 @@
       "vectorization",
       "writing-tunit-tests"
     ],
-    "description": "Choose the skill or ceremony that fits your situation across installed deniz Modules: process workflows, .NET, Aspire, and Akka. Manual ceremonies remain user-started.",
+    "description": "Use when unsure which skill or ceremony fits, or when asked which to use, across installed deniz Modules: process workflows, .NET, Aspire, and Akka. Manual ceremonies stay user-started.",
     "claude": {
       "artifacts": [
         "skill"
@@ -4969,7 +4969,7 @@
       "verification-before-completion",
       "writing-plans"
     ],
-    "description": "Use when executing an implementation plan in the current session as the implementer yourself — your human partner chose inline execution, or no subagent tool is available",
+    "description": "Use when executing an implementation plan in the current session as the implementer yourself — inline execution was chosen, or no subagent tool is available",
     "claude": {
       "artifacts": [
         "skill"
@@ -5908,8 +5908,12 @@
     "invocation": "both",
     "body": "patch",
     "dependsOn": [
+      "dispatching-parallel-agents",
+      "executing-plans",
       "finishing-a-development-branch",
       "requesting-code-review",
+      "systematic-debugging",
+      "test-driven-development",
       "using-git-worktrees"
     ],
     "description": "Use when executing implementation plans with independent tasks in the current session",
@@ -5919,8 +5923,12 @@
       ],
       "edges": {
         "model": [
+          "deniz-process:dispatching-parallel-agents",
+          "deniz-process:executing-plans",
           "deniz-process:finishing-a-development-branch",
           "deniz-process:requesting-code-review",
+          "deniz-process:systematic-debugging",
+          "deniz-process:test-driven-development",
           "deniz-process:using-git-worktrees"
         ],
         "pointer": []
@@ -5934,8 +5942,12 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-process.dispatching-parallel-agents",
+          "deniz-process.executing-plans",
           "deniz-process.finishing-a-development-branch",
           "deniz-process.requesting-code-review",
+          "deniz-process.systematic-debugging",
+          "deniz-process.test-driven-development",
           "deniz-process.using-git-worktrees"
         ],
         "pointer": []
@@ -5955,8 +5967,12 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-process:dispatching-parallel-agents",
+          "$deniz-process:executing-plans",
           "$deniz-process:finishing-a-development-branch",
           "$deniz-process:requesting-code-review",
+          "$deniz-process:systematic-debugging",
+          "$deniz-process:test-driven-development",
           "$deniz-process:using-git-worktrees"
         ],
         "pointer": []

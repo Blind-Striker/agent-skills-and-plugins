@@ -23,7 +23,10 @@ plugin:
 original_skills:
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code
-    # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1)
+    # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1). Its
+    # small-task test counts only one item as small; a sequential chain cannot fan out but is not
+    # small, so the agent judges whether a final gate and skeptic wave pay, asking once only when
+    # genuinely torn, curator's call
     harness_files: # each harness reads only its own tool notes; no tree carries another's tool words
       references/harness-tools.md:
         claude: references/claude-code-tools.md
@@ -58,18 +61,30 @@ items:
     # pre-empt that choice. The description narrows upstream's "a multi-step task" to multi-session
     # work, or several people's worth, as ask-deniz's heavy ladder and brainstorming's sizing put it,
     # so a change that fits one sitting never automatically opens a plan document. The body now
-    # enforces that gate before artifact creation, while honoring an explicit written-plan request.
+    # enforces that gate before artifact creation. Work that arrives already sized is not sized
+    # again: an explicit written-plan request (a typed invocation included), or a design the user
+    # approved in brainstorming, whose agreed size the user could have overridden there.
     # The handoff distinguishes plan-only delivery from authorized execution: it preserves an
     # approved scope and chosen method instead of asking for the same approval again. Without a
-    # chosen method it recommends by context/isolation cost, not a fixed subagent-first label
-    depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff menu offers both executors; worktree note in the header
+    # chosen method the agent picks the executor by judgment (context/isolation cost, not a fixed
+    # subagent-first label) and asks once only when genuinely torn, curator's call: process weight
+    # is automatic judgment, never a routine question
+    depends_on: [executing-plans, subagent-driven-development, using-git-worktrees] # the handoff names both executors; worktree note in the header
   - source: superpowers/skills/subagent-driven-development
-    invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff menu invokes it
+    invocation: both # "subagent'la ilerle" should be reachable by the model mid-conversation, and writing-plans' handoff invokes it.
+    # Curator's call: with a written plan that request selects this workflow; without one it is plain
+    # delegation (one briefed child the controller reviews), not the per-task ceremony
     body: patch # edits that keep the shared review contract whole; the description stays
     # upstream's. A body gate makes per-task orchestration a selected workflow, not the automatic
     # consequence of a plan: small/coupled work returns to ordinary inline execution with the
-    # repository's completion checks. Setup preserves an already approved current checkout, so
-    # loading another skill does not reopen that choice. In the selected heavy workflow, fix
+    # repository's completion checks, still test-first for behavior and root-cause debugging for an
+    # unexplained failure. The weight is the agent's judgment; it asks once only when genuinely torn.
+    # A resumed plan is never re-sized: the ledger's second line records the executor, so a later
+    # session keeps the chosen workflow instead of downsizing a small remainder. Setup preserves an
+    # already approved current checkout, so loading another skill does not reopen that choice; the
+    # default branch counts as approved only by an earlier answer or a standing instruction, else one
+    # question before the first commit there (upstream's main/master consent, kept without the loop).
+    # The When-to-Use graph's inline branch reads "chosen or a better fit". In the selected heavy workflow, fix
     # rounds still run the project's whole suite after the covering tests, as the
     # test-driven-development overlay requires, where upstream said a one-line fix needs only the
     # covering tests: SKILL.md says so, its Example Workflow's fix round shows both runs, the final
@@ -83,9 +98,9 @@ items:
     # (references/harness-tools.md), as executing-plans' no-subagent pointer does: upstream reached
     # those notes through its session bootstrap, which this estate does not ship, and on Codex and
     # OpenCode they say how to give a child a clean context and resume it.
-    depends_on: [finishing-a-development-branch, requesting-code-review, using-git-worktrees] # end-of-run finish, the reviewer template, worktree setup
+    depends_on: [dispatching-parallel-agents, executing-plans, finishing-a-development-branch, requesting-code-review, systematic-debugging, test-driven-development, using-git-worktrees] # plain delegation's brief, the ledger's other executor, end-of-run finish, the reviewer template, small-path discipline, worktree setup
   - source: superpowers/skills/executing-plans
-    invocation: both # SDD's no-subagent sibling; writing-plans' handoff menu offers both — skipping it would need a body patch for zero gain.
+    invocation: both # SDD's no-subagent sibling; writing-plans' handoff names both — skipping it would need a body patch for zero gain.
     # v7 made it an autonomous inline executor — rule, ledger, continue; only four conditions stop
     # it — accepted, curator's call: a bad ruling surfaces in the closing "Rulings I made" list.
     body: patch # the prose runs this skill's scripts and SDD's through `bash`, and the
@@ -93,9 +108,14 @@ items:
     # strips executable bits cannot break the chain (upstream's own writing-skills rule). The
     # no-subagent pointer names the one tool-notes file using-superpowers ships to every tree
     # (references/harness-tools.md) instead of the folder of per-platform maps.
-    # A body gate returns one-sitting work to direct execution instead of manufacturing another
-    # plan/workspace; the formal ledger/scripts remain for recoverable written-plan execution.
-    # Setup respects an approved current checkout and requests isolation only for a concrete need
+    # A body gate returns one-sitting work without a written plan to direct execution instead of
+    # manufacturing another plan/workspace, still test-first and root-cause debugged; a written plan,
+    # or one that already has a ledger, always runs the formal path however little is left, and
+    # the ledger's second line records the executor so a resume keeps it. Setup respects an approved
+    # current checkout and requests isolation only for a concrete need; the default branch needs an
+    # earlier answer or a standing instruction, else one question before its first commit. The
+    # description and When to Use say inline execution "was chosen", by the user or by the handoff's
+    # judgment, since the handoff no longer always asks
     depends_on: [finishing-a-development-branch, requesting-code-review, subagent-driven-development, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion, writing-plans] # the plan's source, TDD per task, debugging on a mismatch, verification before each claim, the final review's template, the finish
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
@@ -448,7 +468,11 @@ items:
     # to install Process. Module guards and catalog checks distinguish unavailable model routes from
     # hidden manual items; no route authorizes an install. Agents stay descriptive delegation options,
     # not fake skill-load facts or slash commands. Ordinary one-sitting work need not open either
-    # ladder, and an existing execution/workspace approval is not asked for again
+    # ladder, and an existing execution/workspace approval is not asked for again; the weight is the
+    # agent's judgment, asked once only when genuinely torn. The .NET, Aspire, and Akka maps live in
+    # references/dotnet.md, read only for .NET work: as a both router this body loads on uncertainty
+    # in any repository, and the .NET map nearly doubled it. The description says when to load it
+    # (unsure which skill fits, or asked) rather than only what it covers
     depends_on: [asd-ste100, brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
     optional_refs:
       - akka-hosting-actor-patterns

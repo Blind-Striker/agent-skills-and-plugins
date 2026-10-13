@@ -34,22 +34,24 @@ function estate() {
     assert.ok(assembled);
     const map = buildRewriteMap(manifests, components, ownSkillIdentities(root, manifests));
     const text = rewriteRefs(readFileSync(join(assembled.dir, "SKILL.md"), "utf8"), map);
-    return { item, text, manifests, components, refs: extractRefs(text) };
+    const dotnet = rewriteRefs(readFileSync(join(assembled.dir, "references", "dotnet.md"), "utf8"), map);
+    return { item, text, dotnet, manifests, components, refs: extractRefs(`${text}\n${dotnet}`) };
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
 }
 
 test("ask-deniz is both-invocable and maps every General item without starting manual ceremonies", () => {
-  const { item, text, manifests, components, refs } = estate();
+  const { item, text, dotnet, manifests, components, refs } = estate();
   assert.equal(item.invocation, "both");
+  const routes = `${text}\n${dotnet}`;
   const general = manifests.find((manifest) => manifest.plugin.name === "deniz-dotnet-general");
   assert.ok(general);
   const targets = declaredItems(root, general, components);
   assert.equal(targets.length, 59);
   for (const target of targets) {
     if (target.outType === "agent") {
-      assert.ok(text.includes(`\`${target.outName}\``), `missing delegated specialist ${target.outName}`);
+      assert.ok(routes.includes(`\`${target.outName}\``), `missing delegated specialist ${target.outName}`);
       assert.ok(!refs.some((ref) => ref.name === target.outName), "agent must not be a fake skill invocation");
       continue;
     }
@@ -94,4 +96,17 @@ test("General routing identities stay aligned with the human map", () => {
     assert.ok(section.includes(`\`${target.outName}\``), `human map misses ${target.outName}`);
   }
   assert.match(parseDoc(text).frontmatter.description as string, /installed deniz Modules/);
+});
+
+test("ask-deniz says when to load it and keeps the .NET map out of its body", () => {
+  const { text, dotnet } = estate();
+  const description = parseDoc(text).frontmatter.description as string;
+  assert.match(description, /^Use when unsure which skill or ceremony fits, or when asked which to use/);
+  for (const heading of ["## .NET work: General", "## Aspire work", "## Akka.NET work"]) {
+    assert.ok(!text.includes(heading), `${heading} belongs in references/dotnet.md`);
+    assert.ok(dotnet.includes(heading), `references/dotnet.md misses ${heading}`);
+  }
+  assert.match(text, /\[references\/dotnet\.md\]\(references\/dotnet\.md\): read it\s+only for \.NET work/);
+  assert.doesNotMatch(text, /smallest fitting route/);
+  assert.match(text, /Only when you are genuinely torn, ask once/);
 });

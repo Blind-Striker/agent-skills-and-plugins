@@ -13,11 +13,13 @@ Write implementation plans for an engineer who has not seen this codebase or thi
 
 ## Size before ceremony
 
-Size the work before creating an artifact. A change that fits one sitting belongs to ordinary
-implementation: keep its steps in chat and do not create a plan document, a spec, or an execution
-workspace merely because it has several steps. If the user explicitly asks for a written plan,
-honor that artifact request; otherwise use this ceremony for multi-session work or several people's
-worth. A loaded skill is not a reason to make the task larger.
+Some work arrives already sized: the user explicitly asks for a written plan (typing this skill's
+invocation counts), or a design document the user approved during brainstorming says a plan comes
+next. Write the plan; do not size that work again. Otherwise, size the work before creating an
+artifact. A change that fits one sitting belongs to ordinary implementation: keep its steps in chat
+and do not create a plan document, a spec, or an execution workspace merely because it has several
+steps. Use this ceremony for multi-session work or several people's worth. A loaded skill is not a
+reason to make the task larger.
 Return to the task on the ordinary path; the remaining sections apply only to the written-plan path.
 
 **Announce at start, only after that gate:** "I'm using the writing-plans skill to create the implementation plan."
@@ -197,9 +199,9 @@ because you created a plan. Preserve an execution method or working-directory ch
 gave. Ask again only for a material change to the approved scope or a separately gated destructive,
 security-sensitive, or external action; present those changes together, with a recommendation.
 
-When execution is authorized but no method was specified, recommend by the work rather than a fixed
-label: prefer inline execution when it fits the current context and per-task isolation buys little.
-Use deniz-process.executing-plans for that written-plan path. Use
-deniz-process.subagent-driven-development when the user chose per-task implementers and reviews, or
-substantial independent tasks benefit from fresh contexts. State the choice and its cost, then
-continue the authorized work; choosing an executor is not another approval ceremony.
+When execution is authorized but no method was specified, choose by judgment, not a fixed label:
+deniz-process.executing-plans when the plan fits the current context and per-task isolation buys
+little; deniz-process.subagent-driven-development when the user chose per-task implementers and
+reviews, or substantial independent tasks benefit from fresh contexts. State the choice and its cost
+in one line, then continue the authorized work; choosing an executor is not an approval step. Only
+when you are genuinely torn between the two, ask once, with your recommendation.

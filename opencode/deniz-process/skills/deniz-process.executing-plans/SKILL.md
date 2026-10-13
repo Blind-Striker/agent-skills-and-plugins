@@ -1,20 +1,24 @@
 ---
 name: deniz-process.executing-plans
 description: Use when executing an implementation plan in the current session as
-  the implementer yourself — your human partner chose inline execution, or no
-  subagent tool is available
+  the implementer yourself — inline execution was chosen, or no subagent tool is
+  available
 ---
 
 # Executing Plans
 
 ## Size before execution setup
 
-For ordinary work that fits one sitting, carry out the approved steps directly; do not create
-another plan or execution workspace just because this skill loaded. Use focused checks while
-editing, then the repository's full completion gate and one final review when required. The formal
-ledger and scripts below serve a written plan that needs recoverable execution, not every small fix.
-On the ordinary path, return to the task without running that setup. Preserve an execution method
-the user explicitly chose, and never treat a plan-only request as permission to implement.
+A written plan always takes the formal path below, and so does a plan that already has a ledger,
+however little work is left: never re-size a resumed plan (see Setup for its recorded executor).
+
+For ordinary work that fits one sitting and has no written plan, carry out the approved steps
+directly; do not create another plan or execution workspace just because this skill loaded. Use
+focused checks while editing, then the repository's full completion gate and one final review when
+required. Behavior changes still go test-first (deniz-process.test-driven-development), and an
+unexplained failure still goes through deniz-process.systematic-debugging. On the ordinary path,
+return to the task without running that setup. Preserve an execution method the user explicitly
+chose, and never treat a plan-only request as permission to implement.
 
 Execute the plan yourself, task by task, in this session: no implementer
 subagent per task, no reviewer per task. One fresh-context review of the
@@ -55,8 +59,8 @@ those, stop and ask.
 
 ## When to Use
 
-- You have a plan from deniz-process.writing-plans and your human partner
-  chose inline execution at the handoff.
+- You have a plan from deniz-process.writing-plans and inline execution was
+  chosen at the handoff, by your human partner or by judgment.
 - Your harness has no subagent tool (see your harness's tool notes in
   `../deniz-process.using-superpowers/references/harness-tools.md`). Never fabricate a dispatch; run
   the plan here.
@@ -123,6 +127,11 @@ this skill loaded. Use deniz-process.using-git-worktrees only when isolation is 
 conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
 approval, and this setup grants no permission to discard existing work.
 
+The default branch (main/master) is approved only by your human partner: an earlier answer in this
+work or a standing preference in their instructions (AGENTS.md, CLAUDE.md, or similar). Without one,
+ask once before the first commit there, in the same message as any other question you have at
+start, and keep the answer for the rest of the plan.
+
 Conversation memory does not survive compaction. An inline executor that
 loses its place re-implements tasks whose commits already exist — the same
 failure as a controller re-dispatching them, paid for in your own context.
@@ -146,8 +155,14 @@ and the new one resumes from the same ledger.
   them: after compaction, trust the ledger and `git log` over your own
   recollection. A ledger whose first line names a different plan file is
   another plan's progress: leave it and start your own, fresh.
-- Create the ledger with its identity as the first line:
-  `# SDD ledger — plan: <plan file path>`.
+- Create the ledger with its identity as the first line and its executor as
+  the second:
+  `# SDD ledger — plan: <plan file path>` then `Executor: executing-plans`.
+- An existing ledger's `Executor:` line is the workflow this plan runs. If
+  it names deniz-process.subagent-driven-development, continue with that
+  skill instead, unless your human partner chose inline execution now. A
+  ledger with no `Executor:` line keeps the executor that loaded it; add
+  the line.
 - `git clean -fdx` will destroy the workspace (it's git-ignored scratch);
   if that happens, recover from `git log`.
 
@@ -336,7 +351,7 @@ Use deniz-process.finishing-a-development-branch.
 ```
 You: I'm using the executing-plans skill to implement this plan inline.
 
-[Setup: worktree verified]
+[Setup: current checkout kept; ledger created with Executor: executing-plans]
 [Read plan once: docs/superpowers/plans/feature-plan.md; spec read]
 [Resolve workspace: sdd-workspace docs/superpowers/plans/feature-plan.md — no ledger inside, fresh start]
 [Pre-flight scan: 2 shared-interface rows, 4 self-consistency rows, clean; written to ledger]
