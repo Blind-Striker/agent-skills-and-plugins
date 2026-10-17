@@ -35,7 +35,7 @@ copies.
 - a requirement is already met by the base, so no test can fail on the base;
 - you would need a suppression, a baseline change, or a flag, option, rule, or mode that nobody named (an
   opt-in the documentation requires of every consumer, such as an experimental-API attribute, is usage,
-  not a suppression);
+  not a suppression, when you place it at the narrowest scope the documentation shows);
 - you would change an existing test's expected result: an existing test is an oracle, and only the plan
   or the coordinator's amendment may change it;
 - your HEAD is not the base commit the task states.
@@ -49,7 +49,13 @@ product), the stop list above is replaced. Stop only when you would cross the ta
 rule, or write outside your folder. When a requirement cannot be reached through the documented route at
 all, build the rest, report that requirement as FAILED, and say why. For every other gap, take the
 documented route, work around the gap the way a newcomer would, and log a FRICTION entry: what you tried,
-what the documentation said, and what you did instead.
+what the documentation said, and what you did instead. In particular:
+
+- Follow the documentation's recipes as taught, including any wait, readiness, or retry loop they show.
+  A task rule against retries or waits forbids only the ones the documentation does not teach.
+- When a requirement names a member, overload, or order the documentation does not have, reach the same
+  outcome the way the documentation teaches (for example, create, then update), and log the mismatch.
+- Log every documented opt-in you use: the API, the diagnostic id, and where you put it.
 
 ## Forbidden dodges
 

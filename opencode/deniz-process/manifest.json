@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.12.3",
-  "digest": "sha256:ecb8e1efeb5d4e858c0626fc7d01768e29f1680b71c18fbcfbac4a1aeddb4e41",
+  "digest": "sha256:7224d4e769cd046d22ea11d099754d83adcb0ce9eaa73a8eb32341a9db06fdd2",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -138,11 +138,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/work-types.md": {
-      "sha256": "sha256:600cc118a294b12333d64f7152f01046a8be4c3d5c365861679c4a63ff7d25b8",
+      "sha256": "sha256:f33e66cbe925049557e9f3d891397b74caf90d38eed7a6d40b9391db9a2bcb43",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:e90c26ea763c6be9d3ae7af9da951d830a340e20c03872350b423222ad897f57",
+      "sha256": "sha256:e7f5c483bd58bc500231be1c6b88e82323fbd4c487f4b479b3db0f7b13f39546",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {

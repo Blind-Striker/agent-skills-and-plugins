@@ -36,6 +36,8 @@ stop it at every gap.
 - State the fence concretely: the folder, the machine rules, network and time limits.
 - Name only shapes the material under evaluation contains. A shape you name that the documentation lacks
   tests your spec, not the documentation.
+- Forbid no construct the documentation teaches: a "no retries" rule beside a documented readiness loop
+  made one builder skip the loop and miss its criterion.
 - A requirement reported FAILED, with its reason, is a result, not a defect.
 - Each FRICTION entry is a finding about the documentation: check it against the documentation before you
   file it.
