@@ -14,7 +14,9 @@ Almost everything about it that surprises people comes from two design choices: 
 async**, and **every test gets its own instance and runs in parallel with every other test**. Get
 those two right and the rest is ordinary.
 
-This skill is the syntax and the semantics. It does not cover:
+This skill is the syntax and the semantics. When a test's oracle depends on time, concurrency, a
+process boundary, or a mutant, read [references/oracle-rules.md](references/oracle-rules.md) as well.
+It does not cover:
 
 - **what to test, and in what order** — that is the red-green loop in `deniz-process.test-driven-development`
 - **whether a test is worth having** — `deniz-dotnet-general.test-gap-analysis` asks whether a test would catch a
