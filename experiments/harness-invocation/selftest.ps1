@@ -640,7 +640,7 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
         agents = @($all  | Where-Object { $_.opencode.artifacts -contains "agent" }).Count
         model  = @($mine | Where-Object { $_.invocation -in @("auto","both") }).Count
     }
-    # The OpenCode 2 projection emits every non-agent item as a skill: 115 ledger entries are 113
+    # The OpenCode 2 projection emits every non-agent item as a skill: 116 ledger entries are 114
     # skills and 2 agents (akka-net-specialist, roslyn-incremental-generator-specialist). The ledger
     # now lists the original skills writing-tunit-tests and verified-waves; verified-waves is manual,
     # so it leaves the deniz-process model count unchanged. Wave W2 took
@@ -657,7 +657,9 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
     # csharp-refactoring were taken, and code-testing replaced code-testing-agent one for one.
     # The whole-estate ask-deniz moved from manual to both: one more Process model entry, with no new
     # item, command, or agent. Its optional references do not change the installed Module requirements.
-    $want = @{ skills = 113; agents = 2; model = 21 }
+    # The original delegating-to-worker-models arrived in Process as both: one more skill and one more
+    # Process model entry.
+    $want = @{ skills = 114; agents = 2; model = 22 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }
