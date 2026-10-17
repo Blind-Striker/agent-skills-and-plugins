@@ -6,7 +6,9 @@ task's prompt must name so the worker cannot pick a weak oracle.
 - **Name the mutant class** for every new bound ("a no-op that sends nothing", "a sort by the wrong key").
   The mutant is the true no-op: a valid success shape with no effect.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
-  after.
+  after. A mutant is a temporary product edit, so the scope must allow it: name every product line the
+  mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
+  A blanket "do not edit src/" beside a mutant requirement makes the proof a guaranteed stop.
 - **Order fixtures:** require entries that a wrong key would reorder.
 - **Refusals:** require the full ordered error list unless the plan names a filter; a filter hides
   cascades.
