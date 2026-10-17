@@ -176,6 +176,7 @@ Reach for these directly; they are not on any flow.
 | **`/mattpocock-skills:setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |
 | **`/deniz-process:verified-waves`** | A task big enough to split: it plans the fan-out in chat, runs it as waves of sub-agents, sends every finding to a fresh skeptic, and reports N of M done. You start it; it never starts itself. |
 | `superpowers:dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. To run a whole verified job, start **`/deniz-process:verified-waves`**. |
+| `deniz-process:delegating-to-worker-models` | Handing a task to a worker model of another family through a dispatcher: what never to delegate, the walls preflight, the worker contract, verification on the committed tree, two-family review. Model-reachable; it arrives when a worker prompt is being written. Whether to delegate stays your call. |
 | `asd-ste100:asd-ste100` | Rewrite ambiguous machine- or agent-facing text in controlled English; not creative copy or a new execution ceremony. |
 
 ## Phase boundaries

@@ -19,8 +19,20 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.11.0
+  version: 0.12.0
 original_skills:
+  delegating-to-worker-models:
+    invocation: both # the user's routing decision spends the quota, not loading these rules, and the
+    # failures it prevents happen when a coordinator writes a worker prompt without them; the narrow
+    # description keeps it off ordinary in-harness subagent work, and the reliable trigger is the load
+    # line its addendum template asks each dispatching repository to carry, curator's call
+    depends_on: [delegating-to-worker-models, requesting-code-review] # requesting-code-review is the
+    # coordinator's own review read. The self entry is the load line the addendum template hands each
+    # dispatching repository, rendered in every harness's own spelling. verified-waves stays a
+    # user pointer because the human starts that ceremony. Language test rules stay generic: Process
+    # names no General skill, so a repository addendum quotes them
+    # Model-specific countermeasures live one file per model under references/models/, curator's
+    # call: not every model overbuilds, so the generic worker contract carries hygiene only
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code
     # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1). Its
@@ -475,7 +487,7 @@ items:
     # references/dotnet.md, read only for .NET work: as a both router this body loads on uncertainty
     # in any repository, and the .NET map nearly doubled it. The description says when to load it
     # (unsure which skill fits, or asked) rather than only what it covers
-    depends_on: [asd-ste100, brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
+    depends_on: [asd-ste100, brainstorming, codebase-design, delegating-to-worker-models, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
     optional_refs:
       - akka-hosting-actor-patterns
       - akka-net-aspire-configuration

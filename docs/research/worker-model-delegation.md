@@ -1,0 +1,72 @@
+# Worker-model delegation evidence
+
+Date: 2026-10-17
+
+This dated note holds the evidence behind the original skill
+[`delegating-to-worker-models`](../../skills/deniz-process/delegating-to-worker-models/SKILL.md). The
+skill carries the current rules; this note carries the runs, numbers, and calibration they came from.
+Facts are from runs on 2026-10-15 to 2026-10-17 in two repositories (an estate configuration
+repository and a .NET SDK); opinions are marked.
+
+## Field runs (GPT-6.1 Sol, `openai/gpt-6.1-sol-1m#high`, through one dispatcher)
+
+- Estate, round 2: 35 new read-only probes; 34 succeeded, 1 timed out with usable code; $39.5. Output
+  16,782 probe lines; an Opus review found no hard blockers but about 2,800 removable lines (hand-written
+  parsers, seven process trackers, defensive code), invented flags and rules, an invariant turned into an
+  always-fact row, and hard-coded baseline values.
+- Estate, round 3 (fix and simplify from cut lists): 35 tasks, $18.5, 16,782 -> 14,247 lines, all flagged
+  items closed. A later per-behaviour review (five fresh Sol reviewers, one Claude triage) found 57
+  High/Medium behaviour changes: 50 accepted (planned cuts or unrealistic inputs), 3 canon questions, 4 real
+  regressions, one of which the Sol reviewers missed and the Claude triage found by running it on the target
+  machine.
+- SDK, about 40-50 runs of refactoring, test hardening, and generator work under a strict canon with
+  mechanical gates: little overbuilding; stops on real spec defects when given a STOP list; six hidden
+  behaviour changes in one refactor that byte-identical output and every test missed, found only by two
+  reviewers comparing base and new per behaviour.
+
+## Controlled comparison (estate, 2026-10-17)
+
+Three arms, the same tasks, two replicates (indicative only, n = 2 per arm):
+- A: a "keep it simple" prompt with hard rules, no budget, no STOP list.
+- B: the worker contract plus the model file plus a filled task prompt.
+- C: B plus ephemeral Python walls in the verify array (ruff, pyright basic, vulture, bandit, jscpd, a line
+  gate, a forbidden-construct grep; fix tasks ratcheted on the base counts).
+
+Tasks: one new probe (about 8 checks), two bounded fixes in existing probes.
+
+| | A | B | C |
+|---|---|---|---|
+| New probe, production lines | 438, 426 | 228, 203 | 235 |
+| New probe, ruff findings | 25, 18 | 4, 11 | 0 |
+| Fix tasks, size | similar across arms | similar | similar |
+| Stops on real spec defects | 0 | 4 | 5 (one budget stop) |
+| Cost (all tasks) | $3.66 | $4.19 | $3.59 |
+
+Blind Opus review per task (arms hidden), best to worst:
+- new probe: C, B, B, A, A (A: every output a fact, network code the spec forbade, one variant producing
+  nothing under the documented empty argument);
+- fix 1: B, B, C, C, A, A (A1 rewrote an existing positive test so an unquoted literal secret is missed;
+  the reviewer flagged it as a blocker);
+- fix 2: B, C, B, A, A (A and one B moved shell parsing into the host language and lost an error path).
+
+The coordinator's spec and template had six defects; B and C stopped on each at $0.14-0.19 and 1-2 minutes;
+A stopped on none and shipped around them.
+
+Reading (opinion): the prompt mechanisms drive size and behaviour; the walls drive lint cleanliness. The
+worker saw the walls, so part of C's effect may be iteration against their feedback.
+
+## Review calibration (SDK, 2026-10-15)
+
+14 past real defects with 16 answer keys; each route reviewed the commit before the fix, blind; HIT /
+PARTIAL / MISS under one rubric. Claude 69% (0 confidently wrong); Sol `#high` 69% (0 wrong, $6.30); Grok 4.7
+66% (1 wrong, $53.80, the only route to hit the hardest concurrency keys); Muse 50%; GLM 44%; DeepSeek 38% (3
+wrong: cleared defective code). No route found a layering defect unprompted. Sol `#xhigh` on the 5 hardest
+cases found nothing `#high` missed and cost 1.2-1.6x. Caveats: 16 keys (1 key is about 6 points); Claude
+graded Claude with 4 HITs spot-checked; equivalent, not byte-identical prompts; review only.
+
+## Open measurements
+
+- Whether dispatched workers load global user instructions (one report came back in the user's chat
+  language) and project skills; needs the dispatcher's tool-call and skill-load ledger.
+- The hit rate of a read-only contradiction scan against in-run stops.
+- Whether walls reduce size on their own, without the prompt mechanisms.

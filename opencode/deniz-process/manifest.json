@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.11.0",
-  "digest": "sha256:fd246032b77e85f165f252fbdb99d4abe59e801853de9203d96699009f016117",
+  "version": "0.12.0",
+  "digest": "sha256:2168994aae8e55b08c5f4bf2bcf71ddee9aca3810c6bfcc3e2dc8358f349d36c",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:4e85f8f963e73f85238de17966f040f36162317c03039d3606711d677e2ff2ad",
+      "sha256": "sha256:6ec09ae6b0264894447ea7c6192dc77c1ad664e61f16d7022c4b9d1aa1dfeaf5",
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/dotnet.md": {
@@ -87,6 +87,62 @@
     },
     "skills/deniz-process.codebase-design/SKILL.md": {
       "sha256": "sha256:7b6e5f37e8cf5f84b7d4b9a73a7a95aef4323d859ff226d65dc4f6bcdf356216",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/SKILL.md": {
+      "sha256": "sha256:fc3b43a5a868125336b998ffc021e658fc92e9221cda4aa8ef9879740e5f1186",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/failure-modes.md": {
+      "sha256": "sha256:9ba5dcfc127141e7e134f52be4bfe5c82fad1e0699352c3b1f645c00c70d01aa",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/models/README.md": {
+      "sha256": "sha256:41fd5f761a4a85a453fa828cf149e327f1521b95ff71402377893f14c4941019",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/models/grok.md": {
+      "sha256": "sha256:7216cb4a0d6d189feb6a38f850eb6b7956e8caca45623ebd095c8d1d45a92eca",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/models/sol.md": {
+      "sha256": "sha256:794a2918227d751b6330f0bb6dc836dd2763b62a0a602a491c126abb2ed416a7",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/prompt-template.md": {
+      "sha256": "sha256:398820cea22ae88c3d6103c3cc856ec39a772898e55926f5ac246fef0bfd4d9a",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/repo-addendum-template.md": {
+      "sha256": "sha256:3488dec10ed254f86e27582b7dd39134b96a26540ade7ccabec9a86b98b49427",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/test-oracles.md": {
+      "sha256": "sha256:b04e13ef5cb4533aa964e64ea5b651b0165344e12741064070edc4727bbdf96c",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/walls/README.md": {
+      "sha256": "sha256:1bf625fa50a3878a36f8594ffae3e1c616ae2947113a0b4949a59b228e9eb1e0",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/walls/any.md": {
+      "sha256": "sha256:4af415bf2bb66e038c10f6c892786691a3ca09b841ecb35f2f3f77b6617f00a0",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/walls/dotnet.md": {
+      "sha256": "sha256:272e089fce2207d4992af1a8df1a0223a05b1b01d18fb19056f1230334fae20f",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/walls/python.md": {
+      "sha256": "sha256:07922dbfbb893dcf34795c7007e9b9cd20d43efb026021380fe82f1e7ee734fe",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/work-types.md": {
+      "sha256": "sha256:795b0d294cd05be4edbb72950ca228a9f431acdffe13939c3487794d60269a63",
+      "mode": "100644"
+    },
+    "skills/deniz-process.delegating-to-worker-models/references/worker-contract.md": {
+      "sha256": "sha256:2f699eb2c4c985189280000d2fc13a5c893bea9e86c7100e5a5797ad701025d2",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {

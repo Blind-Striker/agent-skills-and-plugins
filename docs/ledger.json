@@ -4268,6 +4268,7 @@
       "asd-ste100",
       "brainstorming",
       "codebase-design",
+      "delegating-to-worker-models",
       "dispatching-parallel-agents",
       "domain-modeling",
       "grilling",
@@ -4413,6 +4414,7 @@
           "deniz-process:asd-ste100",
           "deniz-process:brainstorming",
           "deniz-process:codebase-design",
+          "deniz-process:delegating-to-worker-models",
           "deniz-process:dispatching-parallel-agents",
           "deniz-process:domain-modeling",
           "deniz-process:grilling",
@@ -4534,6 +4536,7 @@
           "deniz-process.asd-ste100",
           "deniz-process.brainstorming",
           "deniz-process.codebase-design",
+          "deniz-process.delegating-to-worker-models",
           "deniz-process.dispatching-parallel-agents",
           "deniz-process.domain-modeling",
           "deniz-process.grilling",
@@ -4661,6 +4664,7 @@
           "$deniz-process:asd-ste100",
           "$deniz-process:brainstorming",
           "$deniz-process:codebase-design",
+          "$deniz-process:delegating-to-worker-models",
           "$deniz-process:dispatching-parallel-agents",
           "$deniz-process:domain-modeling",
           "$deniz-process:grilling",
@@ -4812,6 +4816,70 @@
       "edges": {
         "model": [],
         "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-process/skill/delegating-to-worker-models": {
+    "source": "skills/deniz-process/delegating-to-worker-models",
+    "original": true,
+    "invocation": "both",
+    "dependsOn": [
+      "delegating-to-worker-models",
+      "requesting-code-review"
+    ],
+    "description": "Use when you are about to write a task prompt or task file for an out-of-process worker model from another model family, dispatch it, verify its output, or review it. Covers what never to delegate, the walls preflight, the worker contract the dispatcher prepends, verification on the committed tree, two-family review, and the fix-up loop. Not for in-process subagents of your own harness.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-process:delegating-to-worker-models",
+          "deniz-process:requesting-code-review"
+        ],
+        "pointer": [
+          "deniz-process:verified-waves"
+        ]
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process.delegating-to-worker-models",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-process.delegating-to-worker-models",
+          "deniz-process.requesting-code-review"
+        ],
+        "pointer": [
+          "@deniz-process.verified-waves"
+        ]
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-process:delegating-to-worker-models",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-process:delegating-to-worker-models",
+          "$deniz-process:requesting-code-review"
+        ],
+        "pointer": [
+          "$deniz-process:verified-waves"
+        ]
       },
       "dropped": [],
       "bodyTransformations": []

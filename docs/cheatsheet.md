@@ -17,7 +17,7 @@ emitted as a command. Each target's identity rules live in
 
 | Curated Module | Main upstream sources | What this collection changes |
 |---|---|---|
-| [`deniz-process`](../curation/deniz-process.yaml) | [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent; [Matt Pocock's skills](https://github.com/mattpocock/skills); [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng; `pr`'s Summary guidance from [HumanLayer's `show-me`](https://github.com/humanlayer/skills) | Combines the workflow sets, merges overlapping TDD/debug/review material, chooses invocation per item, replaces the upstream router with `ask-deniz`, omits upstream hooks and dead harness metadata, and adds the original `verified-waves` orchestration skill |
+| [`deniz-process`](../curation/deniz-process.yaml) | [Superpowers](https://github.com/obra/superpowers) by Jesse Vincent; [Matt Pocock's skills](https://github.com/mattpocock/skills); [ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng; `pr`'s Summary guidance from [HumanLayer's `show-me`](https://github.com/humanlayer/skills) | Combines the workflow sets, merges overlapping TDD/debug/review material, chooses invocation per item, replaces the upstream router with `ask-deniz`, omits upstream hooks and dead harness metadata, and adds the original `verified-waves` orchestration and `delegating-to-worker-models` skills |
 | [`deniz-dotnet-general`](../curation/deniz-dotnet-general.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard; [dotnet/skills](https://github.com/dotnet/skills) by .NET Foundation contributors | Selects the .NET areas used here, merges a few overlapping skills, adapts manual ceremonies, and adds the original `writing-tunit-tests` skill; requires the Aspire and Process Modules, Process for two reasons: `code-testing` hands a repair or flaky-test request to `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order, to `test-driven-development` |
 | [`deniz-dotnet-akka`](../curation/deniz-dotnet-akka.yaml) | [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Keeps the Akka specialist and reference set together, repairs/localizes handoffs, and links the cross-Module Aspire and General dependencies |
 | [`deniz-dotnet-aspire`](../curation/deniz-dotnet-aspire.yaml) | [Microsoft Aspire skills](https://github.com/microsoft/aspire-skills); selected Aspire material from [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) | Packages the official Aspire workflow closure, localizes its internal routes, and adds the selected testing and ServiceDefaults specialists |
@@ -33,6 +33,8 @@ with topic-outline inspiration credited in [`skills/deniz-dotnet-general/NOTICE.
 `verified-waves` was written here from the approaches in the
 [orchestration research](research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
 and its idea-only sources are in [`skills/deniz-process/NOTICE.md`](../skills/deniz-process/NOTICE.md).
+`delegating-to-worker-models` was written here from the evidence in the
+[worker-model delegation research](research/worker-model-delegation.md).
 
 ## The process distinction that matters
 
@@ -72,6 +74,7 @@ Cross-cutting routes:
 - `diagnosing-superpowers`: a session went wrong (repeated work, an ignored plan, a skill that did not fire, too slow or too costly) and you want the evidence; it drafts an upstream issue only when you approve the text. It gives no advice; `retro` is the one that proposes environment changes.
 - `dispatching-parallel-agents` / `using-git-worktrees`: independent tasks or branches can proceed in parallel.
 - `verified-waves`: run one task as waves of sub-agents with every finding checked by a fresh skeptic; `manual`, so you start it.
+- `delegating-to-worker-models`: hand a task to a worker model of another family through a dispatcher, with the walls preflight, the worker contract, committed-tree verification, and two-family review; whether to delegate stays your call.
 - `triage`: move issues and external PRs through the repository's intake state machine.
 - `wizard`: generate a human-operated setup script for credentials, infrastructure, or CI steps; it is deliberately manual.
 - `writing-for-agents`: design any document consumed by an agent, including `AGENTS.md` and skill prose.

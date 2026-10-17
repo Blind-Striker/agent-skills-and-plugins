@@ -45,3 +45,5 @@ relay to current canon rather than treating a research snapshot as current local
   findings of one read-only review of a curation range.
 - [Upstream repo layouts](upstream-repo-layouts.md): pin-relative layout traps of the vendored
   repositories.
+- [Worker-model delegation](worker-model-delegation.md): field runs, the controlled prompt and walls
+  comparison, and the review calibration behind `delegating-to-worker-models`.
