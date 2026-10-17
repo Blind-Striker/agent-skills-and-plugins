@@ -235,12 +235,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Iteration 2: dependency automation.** The upstream sync waves are complete, so address
-   automatic dependency installation, cascade remove, and version-range resolution. These three
-   workstreams belong to the follow-up iteration, not the first feature. Selection/Ownership
-   semantics, user approval for automatic changes, and version constraint/conflict policy must be
-   designed in that iteration rather than assumed by the first.
-2. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
+1. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
    in its `workflows/` directory as `/<plugin>:<meta.name>`
    ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a
    repeatable playbook such as the [curation sanity panel](agents/curation-sanity-panel.md) or an
@@ -250,7 +245,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
    Claude Code gets the scripted form, and OpenCode and Codex get `verified-waves`' model-driven
    form of the same playbook.
-3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+2. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic
@@ -286,7 +281,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - **Selection dependency automation:** schema-2 manifests and Install state record `requiredModules`.
   Plan presence-checks the final Selection and does not automatically add, cascade-remove, or
   range-resolve Modules. Cross-version item/API compatibility is not claimed. See
-  [distribution and installation](architecture/distribution-and-installation.md#full-estate-versus-installed-selection).
+  [distribution and installation](architecture/distribution-and-installation.md#full-estate-versus-installed-selection);
+  the automation is [deferred](#deferred).
 - **Codex catalog pressure is real:** every call in the 117-skill Luna panel warned that descriptions
   were shortened to fit the skills context budget. The tested explicit, implicit, manual, handoff,
   reference, and generated-skill paths passed, but that bounded panel is not proof for every skill,
@@ -465,6 +461,14 @@ scheduled upstream sync; the Blazor and MAUI skill estates; specialist mobile di
 trusted-publishing guidance; and packaging this repository's documentation structure as an original
 skill.
 
+- **Iteration 2: dependency automation:** automatic dependency installation, cascade remove, and
+  version-range resolution. These three workstreams belong to the follow-up iteration, not the
+  first feature. Selection/Ownership semantics, user approval for automatic changes, and version
+  constraint/conflict policy must be designed in that iteration rather than assumed by the first.
+  Deferred because the estate is four Modules with one publisher and one installer: Plan already
+  refuses an incomplete Selection and names each missing Module, and the automation would serve
+  only the OpenCode installer. Reopen when someone other than the curator installs the estate, or
+  when the Module count makes hand Selection error-prone.
 - **MCP servers:** this repository ships none, in any harness. dotnet/skills registers its BinlogMcp
   server at its own plugin level, as an auto-downloaded prerelease, and that registration does not
   travel with curated items; OpenCode would also need an installer change to own an `opencode.json`
@@ -485,7 +489,7 @@ skill.
     items;
   - a real repository needs it, with several contributors or agents changing the same capabilities
     over months; evaluate it in a throwaway sandbox first, then curate its skills;
-  - Iteration 2 (Next Up) lands, which lowers the cost of curating its
+  - Iteration 2 (Deferred) lands, which lowers the cost of curating its
     skills;
   - OpenSpec adds an invocation control to its skill generator and moves to skills-only delivery
     ([#2022](https://github.com/Fission-AI/OpenSpec/issues/2022)); skills-only alone is not enough,
