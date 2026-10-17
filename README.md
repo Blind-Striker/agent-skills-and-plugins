@@ -259,6 +259,10 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.9.0 is being prepared with Process 0.12.1, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0.
+The verified recipe below remains on the last published Release until the new asset passes
+publication checks. For the current recipe after publication, use the [repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.8.0`, targeting commit `0ef9d41`.
 It carries OpenCode 2 Bundles: Process 0.11.0, General 0.14.0, Akka 0.4.1, and Aspire 0.6.0. They
 need OpenCode 2 at v2.0.4 or later; OpenCode 1 is not supported and there is no compatibility layer.
