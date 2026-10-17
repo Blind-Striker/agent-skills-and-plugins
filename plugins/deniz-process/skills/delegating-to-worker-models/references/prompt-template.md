@@ -43,6 +43,11 @@ Do not write: <forbidden constructs>.
 ## Status and output semantics            (code that reports results)
 <which outputs judge (pass/fail) and which only report facts, and why>
 
+## Pre-approved follow-on changes          (optional)
+The plan names these, so they are not changes outside it: <mechanical fallout of a planned change, e.g.
+"a length or complexity limit triggered by a planned move: extract a private method in the same file,
+keeping order, arguments, and results; no new type, no suppression">
+
 ## Repository dodges and stop conditions  (optional)
 <repository-specific additions to the contract's lists>
 
@@ -66,4 +71,6 @@ The dispatcher runs: <commands>. <Walls: command and limits, when present.>
 Coordinator checklist before sending (not part of the prompt): the verify commands ran once on the base
 with a meaningful result; every name they reference exists; the base contains every prerequisite; the
 task file was written with an editor tool; no other task in the run shares a scope path; the plan is
-approved where plan-first applies.
+approved where plan-first applies; the budget caps come from a measured projection, and where there is
+none, plan-first produced one before the caps were set; every mechanical fallout you can foresee from a
+planned change (an analyzer length or complexity limit, a moved member) is pre-approved in its slot.
