@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.12.1",
-  "digest": "sha256:1cb530ad0118f51dbadc41b1e4ce663cccdeffb194d0c8f90482f5d23cd4adb0",
+  "digest": "sha256:1a796de1cff9f38deca5d632b0e65e2bd683f19901e71c37e321b8b2b9acfc78",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -94,7 +94,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/failure-modes.md": {
-      "sha256": "sha256:9ed68a7a4470321ff4839252655f32f1ac5457a45496c86c7983768e5d6f0ecb",
+      "sha256": "sha256:5c40175402c1c9e2770de2d99e64d600c58fd0a64b5bd866709b7304bb2db6fc",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/models/README.md": {
@@ -118,7 +118,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/test-oracles.md": {
-      "sha256": "sha256:b04e13ef5cb4533aa964e64ea5b651b0165344e12741064070edc4727bbdf96c",
+      "sha256": "sha256:dda96beec9eac98f5451962ef91445442a1fb1b94658ff6f241f49ec16ddbf33",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/walls/README.md": {
