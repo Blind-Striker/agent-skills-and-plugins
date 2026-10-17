@@ -13,9 +13,10 @@ task's prompt must name so the worker cannot pick a weak oracle.
 - **Races:** a randomized race is not an oracle; require a deterministic case beside it.
 - **Expected values:** never computed with the helper under test.
 - **Existing tests are oracles:** a change to an existing test's expected result needs the plan or your
-  amendment; the worker reports every such edit old -> new. Write that amendment as a rule over what may
-  change ("every fixture or expectation that lists the probe's commands may add the new query; no other
-  expectation changes"), never as a list of line ranges: a range misses the fixture you did not look at.
+  amendment; the worker reports every such edit old -> new. Write the amendment as a rule ("every
+  fixture that lists the probe's commands may add the new query; no other expectation changes").
+- **Detectors and validators:** before you write an exemption, read the detector's own positive tests.
+  Quote the measured hit list, and state that existing positive oracles win over a conflicting exemption.
 - **Real processes in tests:** a test that starts a real shell or tool resolves it by absolute path and is
   skipped off its target operating system.
 - **Language rules** (timers, ambient-context hold points, analyzer-rejected mutants) live in the language

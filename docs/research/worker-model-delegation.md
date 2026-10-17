@@ -64,6 +64,26 @@ wrong: cleared defective code). No route found a layering defect unprompted. Sol
 cases found nothing `#high` missed and cost 1.2-1.6x. Caveats: 16 keys (1 key is about 6 points); Claude
 graded Claude with 4 HITs spot-checked; equivalent, not byte-identical prompts; review only.
 
+## Pilot log (2026-10-17)
+
+Stops from the first day of running the shipped template in both repositories. Every one was
+coordinator-caused and every worker stop was correct (estate 7 of 7, SDK 8 of 8 over-triggers on the
+coordinator side; no unjustified worker stop). The skill folds them into one rule, the no-contradiction
+pass, instead of one rule per case.
+
+| Case | Cost | What closed it |
+|---|---|---|
+| Fix-up prompt: a free-text "caps bound scope, not review fixes" beside a binding checkpoint on the whole change's caps | $0.21, no change | caps stated as a delta on the fix-up base |
+| Task file base `master` while the prompt stated a SHA; a push landed mid-queue; 2 of 5 workers stopped on the HEAD check | about $0.14 | the proven SHA in the task file |
+| Test permission given as line ranges; a third fixture listing the same commands was outside them | one rerun | a rule over what may change |
+| A planned removal pushed a method past an analyzer's 80-line limit; out-of-plan stop | $1.36 | the fallout pre-approved in the plan |
+| Budget checkpoint fired three times on a guessed estimate | three reruns | caps from a measured projection |
+| Secret-detector false positives: five successive specs removed a positive oracle, missed a hit, exempted the detector's own positives, forbade the asked-for tests, and left a literal with no permitted change | about $0.86 over six runs, zero edits | the measured hit list, "existing positive oracles win", and a coordinator-named fallback |
+| "Prepare as an earlier task" while an older Read-first plan forbade the restore | $0.44, no edit | each step as its command, plus an amendment naming the superseded point |
+
+Reading (opinion): the STOP list makes coordinator defects cheap and visible, so a single pilot stop is
+not by itself a reason for a new rule.
+
 ## Open measurements
 
 - Whether dispatched workers load global user instructions (one report came back in the user's chat

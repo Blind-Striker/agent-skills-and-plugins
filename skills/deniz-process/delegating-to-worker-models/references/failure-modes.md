@@ -24,26 +24,16 @@ Read when you review, and after any surprise. Severity is the harm when the fail
 
 ## Coordinator failure modes
 
-- A waiter that read only the final summary missed a run refused in its first second.
-- Task files written with a heredoc broke JSON.
-- Verify commands never run beforehand: one named a nonexistent class, one was broken by shell expansion.
-- Six spec and template defects shipped in one batch; the STOP list caught every one, the old prompt none.
-- A coordinator check (base ancestry) placed in the worker prompt, where the policy denied it.
-- A task file's base given as a branch name while the prompt stated a SHA; a push while tasks were
-  queued started later worktrees from a newer commit, and their workers stopped on the HEAD check.
-- A test-change amendment written as line ranges missed a third fixture that also listed the commands;
-  the worker stopped because the amendment did not cover it.
-- Exemption rules for a detector written without reading its positive tests: five successive specs
-  removed a positive oracle, missed a hit, exempted the detector's own positives, forbade the asked-for
-  tests, and left a literal with no permitted change. The worker stopped correctly each time.
-- Preparation given by reference ("prepare as an earlier task") while an older Read-first plan forbade
-  it; the worker followed the older written prohibition and stopped.
-- A prompt named a registry that does not exist, and a runtime requirement only implied by the verify list.
-- Most stops on the template trace back to the coordinator's prompt: fix the prompt, not the model file.
-- Dispatched builds joined a long-lived build server started by another session, which ignored the task's
-  temp folder.
-- Deny patterns without word boundaries caught read-only siblings.
-- An unmeasured cause written into a task as fact.
-- Two example rows written where an invariant was needed.
-- A worktree edited while its own check ran there.
-- A probe whose failed step had already restored a file was trusted.
+Most stops on the template trace back to the coordinator. The categories, most frequent first:
+
+| Category | Examples | Countermeasure |
+|---|---|---|
+| Contradiction or gap left in the prompt | a base given as a branch while the prompt stated a SHA; a test permission written as line ranges; detector exemptions that contradicted its own positive tests; preparation "as an earlier task" against an older plan's prohibition; a free-text budget exemption beside a binding checkpoint; an analyzer limit hit by a planned move | the no-contradiction pass in SKILL.md |
+| Something named that does not exist, or only implied | a nonexistent test class or registry; a runtime requirement only implied by the verify list; a verify command broken by shell expansion | verify the verify; one line per requirement |
+| A coordinator duty in the worker prompt | a base-ancestry check the policy denied the worker | keep proofs on the coordinator side |
+| Dispatch tooling | a heredoc broke JSON; deny patterns without word boundaries; builds joined another session's long-lived build server | editor-tool task files; dispatcher contract |
+| Watching | a waiter that read only the final summary missed a run refused in its first second | read the log head in the first minute |
+| Evidence handling | an unmeasured cause written into a task as fact; a probe trusted after its failed step had restored the file; a worktree edited while its own check ran | measure first; never edit under a running check |
+| Spec shape | two example rows where an invariant was needed | invariants, not rows |
+
+Dated cases and their cost are in the research note, not here.

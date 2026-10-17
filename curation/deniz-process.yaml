@@ -32,7 +32,11 @@ original_skills:
     # user pointer because the human starts that ceremony. Language test rules stay generic: Process
     # names no General skill, so a repository addendum quotes them
     # Model-specific countermeasures live one file per model under references/models/, curator's
-    # call: not every model overbuilds, so the generic worker contract carries hygiene only
+    # call: not every model overbuilds, so the generic worker contract carries hygiene only.
+    # Intake for pilot lessons, curator's call: a lesson enters the body only when it holds beyond one
+    # repository or tool, is not an instance of an existing rule, and recurred or cost real money;
+    # otherwise it goes to the research note's pilot log. The per-case coordinator rules from the
+    # first pilot day were folded into one no-contradiction pass for that reason
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code
     # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1). Its

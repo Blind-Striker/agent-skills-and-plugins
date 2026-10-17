@@ -55,9 +55,8 @@ the ledger proves what it does not.
    result; a test run that reports zero tests is never a pass. Check that every test filter, class, or path
    it names exists. A change to a type, a public name, or a shared fixture runs the whole test project that
    holds inventories or registries, not a filtered subset.
-3. **Prove the base.** `git merge-base --is-ancestor <prerequisite> <base>` for every prerequisite. Put
-   that SHA, not a branch name, in the task file's base: a branch moves while tasks wait in the queue.
-   The worker only confirms that its HEAD equals the stated base.
+3. **Prove the base.** `git merge-base --is-ancestor <prerequisite> <base>` for every prerequisite, and
+   put that SHA in the task file. The worker only confirms that its HEAD equals the stated base.
 4. **Write the task file with an editor tool**, never a shell heredoc (backslashes collapse).
 5. **Plan-first** for M-size or larger work, any new type, more than three production files, or a new file
    expected to exceed about 150 lines. The worker writes the plan with a required section "Contradictions
@@ -66,6 +65,19 @@ the ledger proves what it does not.
 6. **Fill the prompt** from `references/prompt-template.md`. Write only the per-task fill-in; the dispatcher
    adds the contract. Every value the repository owns elsewhere comes in as an input, never as an anchor
    to a document. Every term gets an in-scope and an out-of-scope example.
+7. **No contradiction leaves your desk.** Read what the worker will read as one text: the contract, the
+   model file, the plan, every Read-first document, and your fill-in. A worker resolves a conflict toward
+   the binding written text and stops, so close every path before you send:
+   - Every case you can foresee has exactly one permitted path. Write a permission as a rule over what may
+     change, never as line ranges or "as in an earlier task".
+   - The mechanical fallout of a planned change (an analyzer limit, a moved member) is named in the plan as
+     pre-approved, not left to the contract's out-of-plan stop.
+   - Overriding an older document is an amendment that names the document and the point. A free-text
+     exemption beside a binding rule is a contradiction, not an override.
+   - Every figure is measured: budget caps from a projection, the base as a SHA, a detector's exemptions
+     checked against its own positive tests.
+
+   A stop on any of these is cheap, but it is your defect, not the worker's.
 
 ## During the run
 
