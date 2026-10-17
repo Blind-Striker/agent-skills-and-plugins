@@ -23,6 +23,8 @@ Shared code for an arrangement a sibling task also builds goes in: <path>.
 ## Budget
 Production <N> lines, tests <M> lines. Lines are physical lines; for a change to existing files, net lines
 against the base.
+<Fix-up pass:> caps are a delta on top of <base SHA> (production +<N>, tests +<M>). Report this pass's
+figures and the total for the whole change.
 
 ## Inputs owned elsewhere
 <value>: arrives as <argument | file>. <value>: ...

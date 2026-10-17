@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.12.0",
-  "digest": "sha256:2168994aae8e55b08c5f4bf2bcf71ddee9aca3810c6bfcc3e2dc8358f349d36c",
+  "digest": "sha256:a4be148bf250ef70d6411ab007fef0ec214016a87a1d28e37cf2d5a0c5734444",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -110,7 +110,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/prompt-template.md": {
-      "sha256": "sha256:398820cea22ae88c3d6103c3cc856ec39a772898e55926f5ac246fef0bfd4d9a",
+      "sha256": "sha256:2701df524ed73acd9475e9232508a5e78cf7eb2f43cf571b2b58d7856c689811",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/repo-addendum-template.md": {
