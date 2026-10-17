@@ -73,4 +73,8 @@ with a meaningful result; every name they reference exists; the base contains ev
 task file was written with an editor tool; no other task in the run shares a scope path; the plan is
 approved where plan-first applies; the budget caps come from a measured projection, and where there is
 none, plan-first produced one before the caps were set; every mechanical fallout you can foresee from a
-planned change (an analyzer length or complexity limit, a moved member) is pre-approved in its slot.
+planned change (an analyzer length or complexity limit, a moved member) is pre-approved in its slot;
+for exemption rules in a detector or validator, you read its own positive tests and every assertion
+argument it matches, quoted the measured hit list, and gave a precedence rule ("existing positive
+oracles win; drop a conflicting exemption and report it") and a closing fallback the plan names, so
+that no measured case is left without a permitted path.

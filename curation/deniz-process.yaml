@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.12.2
+  version: 0.12.3
 original_skills:
   delegating-to-worker-models:
     invocation: both # the user's routing decision spends the quota, not loading these rules, and the

@@ -33,6 +33,9 @@ Read when you review, and after any surprise. Severity is the harm when the fail
   queued started later worktrees from a newer commit, and their workers stopped on the HEAD check.
 - A test-change amendment written as line ranges missed a third fixture that also listed the commands;
   the worker stopped because the amendment did not cover it.
+- Exemption rules for a detector written without reading its positive tests: five successive specs
+  removed a positive oracle, missed a hit, exempted the detector's own positives, forbade the asked-for
+  tests, and left a literal with no permitted change. The worker stopped correctly each time.
 - A prompt named a registry that does not exist, and a runtime requirement only implied by the verify list.
 - Most stops on the template trace back to the coordinator's prompt: fix the prompt, not the model file.
 - Dispatched builds joined a long-lived build server started by another session, which ignored the task's

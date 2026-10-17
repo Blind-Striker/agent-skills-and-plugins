@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.12.2",
-  "digest": "sha256:8dece05d2e7cba425df5e9b3b6276f367d1cf52293d411f0b580331018e48610",
+  "version": "0.12.3",
+  "digest": "sha256:5bef2bb132c8c4187214d596785284d7b0db478401f644b0cafab1dd52a1c701",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -94,7 +94,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/failure-modes.md": {
-      "sha256": "sha256:5c40175402c1c9e2770de2d99e64d600c58fd0a64b5bd866709b7304bb2db6fc",
+      "sha256": "sha256:3f4e872fa736a937bd8b264d11d2fd3602a0e95a79d63f2e583dbe3a9a13ec1f",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/models/README.md": {
@@ -110,7 +110,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/prompt-template.md": {
-      "sha256": "sha256:c394cc0b1f9bc61fe76f93a0476e5335e55f3082eddffa14e0e98db612e90e3e",
+      "sha256": "sha256:d1c5cf91e081d27ef7b1f34b72f064ac27fade3a369f5f02ee2273d29843c4d5",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/repo-addendum-template.md": {
