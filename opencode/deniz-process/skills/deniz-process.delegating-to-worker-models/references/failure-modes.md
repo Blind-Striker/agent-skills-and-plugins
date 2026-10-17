@@ -36,6 +36,8 @@ Read when you review, and after any surprise. Severity is the harm when the fail
 - Exemption rules for a detector written without reading its positive tests: five successive specs
   removed a positive oracle, missed a hit, exempted the detector's own positives, forbade the asked-for
   tests, and left a literal with no permitted change. The worker stopped correctly each time.
+- Preparation given by reference ("prepare as an earlier task") while an older Read-first plan forbade
+  it; the worker followed the older written prohibition and stopped.
 - A prompt named a registry that does not exist, and a runtime requirement only implied by the verify list.
 - Most stops on the template trace back to the coordinator's prompt: fix the prompt, not the model file.
 - Dispatched builds joined a long-lived build server started by another session, which ignored the task's

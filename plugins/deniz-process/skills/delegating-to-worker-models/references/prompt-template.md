@@ -60,7 +60,11 @@ Re-measure at the actual base before editing. Restore the base behaviour exactly
 change. Byte-identical output proves only the pinned inputs.
 
 ## Environment
-<runtime floor and edges, operating systems, preparation steps, long-command timeouts>
+<runtime floor and edges, operating systems, long-command timeouts>
+Authorized preparation, each step as its command: <e.g. `dotnet tool restore`; `bun install
+--frozen-lockfile`>. Never "prepare as <earlier task>".
+<If a Read-first document forbids one of these steps:> Coordinator amendment: <document, section> does
+not apply to this task on this point; the steps above are authorized.
 <each runtime or target-framework requirement on its own line, e.g. "Run the tests on BOTH net10.0 and
 net472"; a requirement only implied by the verify list is skipped>
 
