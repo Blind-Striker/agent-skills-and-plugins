@@ -80,6 +80,7 @@ pass, instead of one rule per case.
 | Budget checkpoint fired three times on a guessed estimate | three reruns | caps from a measured projection |
 | Secret-detector false positives: five successive specs removed a positive oracle, missed a hit, exempted the detector's own positives, forbade the asked-for tests, and left a literal with no permitted change | about $0.86 over six runs, zero edits | the measured hit list, "existing positive oracles win", and a coordinator-named fallback |
 | "Prepare as an earlier task" while an older Read-first plan forbade the restore | $0.44, no edit | each step as its command, plus an amendment naming the superseded point |
+| Outsider evaluation (12 builders from public documentation only): 4 of 5 first-wave builders stopped under the implementation stop list, on a documented experimental-API opt-in read as a suppression, on a coordinator-named shape the documentation lacks, and on "no retries" against a documented readiness loop | about $0.5-1 each | an evaluation clause in the worker contract (v2): stop only at the fence, FAILED for unreachable requirements, FRICTION entries for the rest |
 | "A compiling product mutant per assertion" beside "do not edit src/"; the second run's exception listed some mutated lines but not the parameter-name sites the assertions pinned | $0.59 over two runs | mutated lines named as pre-approved, revert-after edits; an empty product diff at the end |
 
 Reading (opinion): the STOP list makes coordinator defects cheap and visible, so a single pilot stop is

@@ -1,4 +1,4 @@
-worker-contract v1
+worker-contract v2
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details. If the task text and this contract disagree, stop and report.
@@ -33,12 +33,23 @@ copies.
 - a protection or a check would be lost;
 - the requirements, the plan, and the binding rules contradict each other, or a requirement looks wrong;
 - a requirement is already met by the base, so no test can fail on the base;
-- you would need a suppression, a baseline change, or a flag, option, rule, or mode that nobody named;
+- you would need a suppression, a baseline change, or a flag, option, rule, or mode that nobody named (an
+  opt-in the documentation requires of every consumer, such as an experimental-API attribute, is usage,
+  not a suppression);
 - you would change an existing test's expected result: an existing test is an oracle, and only the plan
   or the coordinator's amendment may change it;
 - your HEAD is not the base commit the task states.
 
 A stop is a correct outcome. Report the exact conflict, with file and line, and the options you see.
+
+## Evaluation tasks
+
+When the task text says it is an evaluation (its output is what a newcomer meets, not a change to the
+product), the stop list above is replaced. Stop only when you would cross the task's fence or a machine
+rule, or write outside your folder. When a requirement cannot be reached through the documented route at
+all, build the rest, report that requirement as FAILED, and say why. For every other gap, take the
+documented route, work around the gap the way a newcomer would, and log a FRICTION entry: what you tried,
+what the documentation said, and what you did instead.
 
 ## Forbidden dodges
 
@@ -76,3 +87,4 @@ Report language: English.
 6. New suppressions, baseline entries, and clones: each one, or "none".
 7. Every edit to an existing test: old -> new, with the rule that allows it.
 8. This contract's version line, and the version line of every other file the dispatcher prepended.
+9. For an evaluation: every FRICTION entry, and every requirement reported FAILED.

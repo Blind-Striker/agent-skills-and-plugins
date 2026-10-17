@@ -114,7 +114,7 @@ the ledger proves what it does not.
 - `references/worker-contract.md`: what every worker gets, verbatim (the dispatcher prepends it).
 - `references/models/README.md`: the model index (route, cost, review focus) and each model's file.
 - `references/prompt-template.md`: the per-task fill-in, with sections by task type.
-- `references/work-types.md`: read when the task is new code or a refactor.
+- `references/work-types.md`: read when the task is new code, a refactor, or an evaluation.
 - `references/test-oracles.md`: read when the task writes or changes tests.
 - `references/walls/README.md`: read during the walls preflight.
 - `references/failure-modes.md`: read when you review, and after any surprise.

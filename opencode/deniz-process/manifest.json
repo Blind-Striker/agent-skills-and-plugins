@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.12.3",
-  "digest": "sha256:b969c9a8442e81f19db2e2af889b28a1f89bee50295e84c932bdc79beb1ae7b0",
+  "digest": "sha256:ecb8e1efeb5d4e858c0626fc7d01768e29f1680b71c18fbcfbac4a1aeddb4e41",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -90,7 +90,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:8d5f3edb9d20bc314ef0a916c0e477f393f5b464ed6fa2bcb77df130c63a04a7",
+      "sha256": "sha256:a88048784fa510da1979c658de4cafe4ee0fdbcfa756d8c27e865e57f69d091f",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/failure-modes.md": {
@@ -138,11 +138,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/work-types.md": {
-      "sha256": "sha256:795b0d294cd05be4edbb72950ca228a9f431acdffe13939c3487794d60269a63",
+      "sha256": "sha256:600cc118a294b12333d64f7152f01046a8be4c3d5c365861679c4a63ff7d25b8",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:2f699eb2c4c985189280000d2fc13a5c893bea9e86c7100e5a5797ad701025d2",
+      "sha256": "sha256:e90c26ea763c6be9d3ae7af9da951d830a340e20c03872350b423222ad897f57",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {

@@ -24,3 +24,18 @@
   the base and proving the diff empty.
 - A worker that relocates code into another language or layer loses error paths the old code had. Ask for
   the change where the code is.
+
+## Evaluation
+
+An evaluation measures what an outsider meets: building from public documentation only, exploring an
+unfamiliar tool. Its output is friction, not a product change, so the implementation stop list would
+stop it at every gap.
+
+- Say in the task text that it is an evaluation; the worker contract's evaluation clause then replaces
+  its stop list.
+- State the fence concretely: the folder, the machine rules, network and time limits.
+- Name only shapes the material under evaluation contains. A shape you name that the documentation lacks
+  tests your spec, not the documentation.
+- A requirement reported FAILED, with its reason, is a result, not a defect.
+- Each FRICTION entry is a finding about the documentation: check it against the documentation before you
+  file it.
