@@ -60,8 +60,9 @@ the ledger proves what it does not.
    result; a test run that reports zero tests is never a pass. Check that every test filter, class, or path
    it names exists. A change to a type, a public name, or a shared fixture runs the whole test project that
    holds inventories or registries, not a filtered subset.
-3. **Prove the base.** `git merge-base --is-ancestor <prerequisite> <base>` for every prerequisite. The
-   worker only confirms that its HEAD equals the stated base.
+3. **Prove the base.** `git merge-base --is-ancestor <prerequisite> <base>` for every prerequisite. Put
+   that SHA, not a branch name, in the task file's base: a branch moves while tasks wait in the queue.
+   The worker only confirms that its HEAD equals the stated base.
 4. **Write the task file with an editor tool**, never a shell heredoc (backslashes collapse).
 5. **Plan-first** for M-size or larger work, any new type, more than three production files, or a new file
    expected to exceed about 150 lines. The worker writes the plan with a required section "Contradictions

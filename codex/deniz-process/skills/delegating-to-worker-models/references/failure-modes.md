@@ -29,6 +29,8 @@ Read when you review, and after any surprise. Severity is the harm when the fail
 - Verify commands never run beforehand: one named a nonexistent class, one was broken by shell expansion.
 - Six spec and template defects shipped in one batch; the STOP list caught every one, the old prompt none.
 - A coordinator check (base ancestry) placed in the worker prompt, where the policy denied it.
+- A task file's base given as a branch name while the prompt stated a SHA; a push while tasks were
+  queued started later worktrees from a newer commit, and their workers stopped on the HEAD check.
 - A prompt named a registry that does not exist, and a runtime requirement only implied by the verify list.
 - Most stops on the template trace back to the coordinator's prompt: fix the prompt, not the model file.
 - Dispatched builds joined a long-lived build server started by another session, which ignored the task's

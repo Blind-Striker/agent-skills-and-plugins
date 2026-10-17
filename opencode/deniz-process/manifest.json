@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.12.0",
-  "digest": "sha256:a4be148bf250ef70d6411ab007fef0ec214016a87a1d28e37cf2d5a0c5734444",
+  "version": "0.12.1",
+  "digest": "sha256:1cb530ad0118f51dbadc41b1e4ce663cccdeffb194d0c8f90482f5d23cd4adb0",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -90,11 +90,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:fc3b43a5a868125336b998ffc021e658fc92e9221cda4aa8ef9879740e5f1186",
+      "sha256": "sha256:5bf4a7f01d9698679d029e7533bd7067323752c7e92928959aa4db7dd7f47f0a",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/failure-modes.md": {
-      "sha256": "sha256:9ba5dcfc127141e7e134f52be4bfe5c82fad1e0699352c3b1f645c00c70d01aa",
+      "sha256": "sha256:9ed68a7a4470321ff4839252655f32f1ac5457a45496c86c7983768e5d6f0ecb",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/models/README.md": {
