@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.12.3",
-  "digest": "sha256:7224d4e769cd046d22ea11d099754d83adcb0ce9eaa73a8eb32341a9db06fdd2",
+  "digest": "sha256:794518cc52262c36aded8574b937752c8f807302cee9bf3c209be9e0b904dbab",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -142,7 +142,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:e7f5c483bd58bc500231be1c6b88e82323fbd4c487f4b479b3db0f7b13f39546",
+      "sha256": "sha256:64b95e03dea574deecfd4a98614d8839c0a5f413abd056483ff344902d4ac915",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {

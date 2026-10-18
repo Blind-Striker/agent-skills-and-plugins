@@ -45,8 +45,9 @@ A stop is a correct outcome. Report the exact conflict, with file and line, and 
 ## Evaluation tasks
 
 When the task text says it is an evaluation (its output is what a newcomer meets, not a change to the
-product), the stop list above is replaced. Stop only when you would cross the task's fence or a machine
-rule, or write outside your folder. When a requirement cannot be reached through the documented route at
+product), the stop list above and every stop rule in another prepended file, such as a budget
+checkpoint, are replaced; report a budget overrun with its reason instead. Stop only when you would
+cross the task's fence or a machine rule, or write outside your folder. When a requirement cannot be reached through the documented route at
 all, build the rest, report that requirement as FAILED, and say why. For every other gap, take the
 documented route, work around the gap the way a newcomer would, and log a FRICTION entry: what you tried,
 what the documentation said, and what you did instead. In particular:
