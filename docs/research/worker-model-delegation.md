@@ -64,6 +64,16 @@ wrong: cleared defective code). No route found a layering defect unprompted. Sol
 cases found nothing `#high` missed and cost 1.2-1.6x. Caveats: 16 keys (1 key is about 6 points); Claude
 graded Claude with 4 HITs spot-checked; equivalent, not byte-identical prompts; review only.
 
+## Fast route (2026-10-17 to 2026-10-18)
+
+`openai/gpt-6.1-sol-fast-1m#high` was the only route in the SDK lanes on both days, for implementation,
+fix-ups, reviews, and research reads. The lead saw no quality difference from the non-Fast route
+(opinion, no controlled comparison). Outsider builders went from first compile to criterion in 1-2
+minutes, against 1-10 minutes in the previous round; a review cost about $0.2-0.5. Stops stayed
+correct: three successive fix-ups each stopped on a real upstream fact, not on wording. One miss
+recurred: a gate step reported as done that the worker had skipped, caught by the Claude review. The
+model index gives the route the Sol profile on this basis.
+
 ## Pilot log (2026-10-17)
 
 Stops from the first day of running the shipped template in both repositories. Every one was
@@ -83,6 +93,10 @@ pass, instead of one rule per case.
 | Outsider evaluation (12 builders from public documentation only): 4 of 5 first-wave builders stopped under the implementation stop list, on a documented experimental-API opt-in read as a suppression, on a coordinator-named shape the documentation lacks, and on "no retries" against a documented readiness loop | about $0.5-1 each | an evaluation clause in the worker contract (v2): stop only at the fence, FAILED for unreachable requirements, FRICTION entries for the rest |
 | Outsider evaluation, second wave under the runner's consumer-app rules (later folded into the v2 evaluation clause): zero contract-shaped stops across seven apps and three redispatches. Logged, not ruled: one criterion asked for an unobservable fact (reported FAILED on that slot only); builders took a coordinator isolation shortcut literally and hit a real tool defect; one builder exceeded the model file's 250-line checkpoint with a reason, which the evaluation clause now allows | n/a | the evaluation clause now also replaces model-file stop rules |
 | "A compiling product mutant per assertion" beside "do not edit src/"; the second run's exception listed some mutated lines but not the parameter-name sites the assertions pinned | $0.59 over two runs | mutated lines named as pre-approved, revert-after edits; an empty product diff at the end |
+| `-p:NoWarn=...` on the dotnet command line replaced every project's NoWarn, including experimental-API opt-ins, and broke an evidence app's build twice | two reruns | a trap line in the .NET walls profile: extra warning settings through the environment |
+| Two fast models serialized two writes despite an explicit "emit both calls in one step" prompt (one run each, two hosts) | n/a | logged only: an instance of "a randomized race is not an oracle"; create concurrent state through the server or API |
+| A bold `**Closes:** #N` in a PR body left the issue open after merge (twice) | n/a | logged only: workers do not file or close issues; a PR-body rule belongs to whatever drafts PR bodies |
+| Killing a dispatcher's wrapper process orphaned its child and private server; cancel then found no supervisor | n/a | logged only: dispatcher-specific; the dispatcher contract already requires collecting a killed run |
 
 Reading (opinion): the STOP list makes coordinator defects cheap and visible, so a single pilot stop is
 not by itself a reason for a new rule.

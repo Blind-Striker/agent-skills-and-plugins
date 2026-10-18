@@ -15,6 +15,9 @@ Traps:
   full per-user `/tmp` quota). A Gradle daemon is the same class of trap.
 - `dotnet test --nologo` can make a test platform report zero tests with a non-zero exit; `total: 0` is
   never a pass.
+- A `-p:` property on the command line is global and replaces each project's own value. `-p:NoWarn=...`
+  wipes the projects' NoWarn lists, including documented experimental-API opt-ins, and breaks the build.
+  Pass extra warning settings through an environment variable the projects append to.
 
 A repository that has its own analyzer configuration, clone gate, or slop scanner names them in its
 addendum; use those instead of the defaults.

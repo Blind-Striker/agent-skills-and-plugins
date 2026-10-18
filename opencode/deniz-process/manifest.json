@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.12.3",
-  "digest": "sha256:794518cc52262c36aded8574b937752c8f807302cee9bf3c209be9e0b904dbab",
+  "digest": "sha256:406ee2b23ff34b4c3b8999bfa1399994c2df8195f4ef1836c2c5fda2b6bcfc68",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -98,7 +98,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/models/README.md": {
-      "sha256": "sha256:41fd5f761a4a85a453fa828cf149e327f1521b95ff71402377893f14c4941019",
+      "sha256": "sha256:27222eb0be7aaa712453d1ab947475109dacccffd02ece8807b3ccbb2922b529",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/models/grok.md": {
@@ -130,7 +130,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/walls/dotnet.md": {
-      "sha256": "sha256:272e089fce2207d4992af1a8df1a0223a05b1b01d18fb19056f1230334fae20f",
+      "sha256": "sha256:936825e951421e5a3232972930c7da1bc10429c3b13cfd05efe83fdeaba0b7af",
       "mode": "100644"
     },
     "skills/deniz-process.delegating-to-worker-models/references/walls/python.md": {
