@@ -1,8 +1,9 @@
 ---
 name: deniz-process.brainstorming
-description: "Draws out what you want before anything is built, then sizes the
-  work: a quick task is just done, a small change is agreed in chat, a project
-  gets a written design. Nothing past a quick task is built before you approve."
+description: Use when the user wants to brainstorm or design something, or a
+  build request leaves what or why open; not for a request that already says
+  what to build. Draws out what they want, sizes the work, and agrees it before
+  building.
 ---
 
 # Brainstorming
@@ -82,9 +83,10 @@ time...", "If it could only do one of these well, which?", "What would
 make you wince if I got it wrong?" A guess they can correct ("I'm
 guessing this is because X keeps biting you?") often beats a question.
 
-**Offer recon.** Once you have a bit of grounding and looking would help,
-offer to go look: their codebase or project, their own files and data,
-or the web. Say what you'd look for. They decide whether you go.
+**Do recon.** Once you have a bit of grounding and looking would help,
+look through their codebase or project yourself and bring back what you
+found. For the web, or their own files and data outside the project,
+offer instead: say what you'd look for. They decide whether you go there.
 
 **Think wide privately.** Before you propose anything, come up with
 several ideas and drop the weak ones, including any that fight what
@@ -185,10 +187,13 @@ Building includes writing product code, scaffolding, installing
 dependencies, creating projects, and invoking an implementation skill.
 Reading and exploring are fine.
 
-Two exceptions. If they opted out of the questions, the skill is done
+Three exceptions. If they opted out of the questions, the skill is done
 and the gate goes with it. A spike they said yes to may be built; it
 stays labeled throwaway, and keeping what it produced is a new request
-that comes back through this gate.
+that comes back through this gate. When the request already names a small
+change, your description of it is a statement, not a question: say what
+you will build, then build it. Wait only when your description adds
+something the request did not name.
 
 After a project's document is approved, the next step is the plan. For
 software, invoke deniz-process.writing-plans and no other skill.

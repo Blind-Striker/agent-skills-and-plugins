@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.12.3
+  version: 0.12.4
 original_skills:
   delegating-to-worker-models:
     invocation: both # the user's routing decision spends the quota, not loading these rules, and the
@@ -57,18 +57,25 @@ items:
     # a project's exit invokes writing-plans (taken). Measured before flipping: the only
     # jump-pressure was the upstream description (overridden below); the v7 body carries no
     # "You MUST" of its own.
-    # Body taken pristine, curator's call: v7 rebuilt it around drawing out intent first and sizing
-    # the work after, which fits the no-heavy-ceremony-for-small-asks taste better than v6 did, and
-    # patching a body upstream says it will keep tuning would cost a rebase on every tune. The patch
-    # that namespaced the writing-plans handoff retired with it: v7 writes superpowers:writing-plans
-    # itself.
+    # v7 rebuilt the body around drawing out intent first and sizing the work after, which fits the
+    # no-heavy-ceremony-for-small-asks taste better than v6 did. It was first taken pristine, so an
+    # upstream tune cost no rebase; that call is reversed, curator's call, for two stops the body
+    # added to goal-driven runs. A small change the request already names is stated and built, not
+    # held for approval: the gate waits only when the description adds something the request did not
+    # name, which keeps it the fence against building more than was asked. Recon in the user's own
+    # project is done, not offered, since the gate already says reading and exploring are fine; the
+    # web and the user's files outside the project are still offered first. Each upstream tune now
+    # costs a patch rebase. v7 writes superpowers:writing-plans itself, so no handoff namespacing.
+    body: patch
     frontmatter:
       # replaces upstream's coercive trigger prose ("You MUST use this before any creative work");
       # read by a human browsing the / menu and by the model matching triggers — honest, no pressure.
-      # Names v7's three sizes and the reach of its approval gate: a quick task is just done, a small
-      # change is agreed in chat, and a project gets a written design. No body is owned here, so the
-      # lock stamps upstream's SKILL.md under this override and an upstream rewrite stops the build.
-      description: "Draws out what you want before anything is built, then sizes the work: a quick task is just done, a small change is agreed in chat, a project gets a written design. Nothing past a quick task is built before you approve."
+      # Scoped to a brainstorm or design ask, or a build request that leaves what or why open, curator's
+      # call: "before anything is built" matched every build request, and the body's approval gate then
+      # stopped work the request had already named, which non-Claude models (Sol) took as a reason to
+      # wait. A request that already says what to build is not this skill's. No body is owned here, so
+      # the lock stamps upstream's SKILL.md under this override and an upstream rewrite stops the build.
+      description: "Use when the user wants to brainstorm or design something, or a build request leaves what or why open; not for a request that already says what to build. Draws out what they want, sizes the work, and agrees it before building."
     depends_on: [writing-plans]
   - source: superpowers/skills/writing-plans
     invocation: both # typed directly ("spec ve plan yazdır"), and brainstorming's exit invokes it — manual would break the chain
@@ -102,6 +109,9 @@ items:
     # already approved current checkout, so loading another skill does not reopen that choice; the
     # default branch counts as approved only by an earlier answer or a standing instruction, else one
     # question before the first commit there (upstream's main/master consent, kept without the loop).
+    # After the four stops, one line puts the repository's own instructions above the skill and the
+    # plan, the worker contract's precedence: a stop they add holds and a question they answer is not
+    # asked; no auto-loaded body stated that order, and using-superpowers, which did, is manual.
     # The When-to-Use graph's inline branch reads "chosen or a better fit". In the selected heavy workflow, fix
     # rounds still run the project's whole suite after the covering tests, as the
     # test-driven-development overlay requires, where upstream said a one-line fix needs only the
@@ -133,14 +143,28 @@ items:
     # current checkout and requests isolation only for a concrete need; the default branch needs an
     # earlier answer or a standing instruction, else one question before its first commit. The
     # description and When to Use say inline execution "was chosen", by the user or by the handoff's
-    # judgment, since the handoff no longer always asks
+    # judgment, since the handoff no longer always asks. After the four stops, the same precedence
+    # line as subagent-driven-development: the repository's own instructions win over skill and plan
     depends_on: [finishing-a-development-branch, requesting-code-review, subagent-driven-development, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion, writing-plans] # the plan's source, TDD per task, debugging on a mismatch, verification before each claim, the final review's template, the finish
   - source: superpowers/skills/finishing-a-development-branch
     invocation: both # invoked from SDD/executing-plans bodies at the end of every run
+    body: patch # curator's call: a request that already names the integration (merge into a branch,
+    # open a PR, keep the branch) is the choice, so the menu is skipped and that option runs the way
+    # the repository's instructions require; those instructions say how to integrate, never whether.
+    # Otherwise the menu stays the run's one closing question, with a recommendation above it, and the
+    # base-branch check rides in the same message. Every plan run reaches this skill, so upstream's
+    # always-wait menu asked again for an integration the request had named. The discard, refused
+    # worktree removal, and failing-suite stops stay as upstream wrote them
   - source: superpowers/skills/using-git-worktrees
     invocation: auto # only ever reached from other skills' bodies or model judgment; asks consent itself before creating anything
     body: patch # an isolation gate respects the user's existing workspace choice and returns to
-    # ordinary work when isolation was neither requested nor needed; creation consent stays mandatory
+    # ordinary work when isolation was neither requested nor needed. A request for isolation is the
+    # consent; isolation the agent chose for a conflict still asks before creating anything. The
+    # description drops "before executing implementation plans", which loaded the skill on every plan
+    # run only for the gate to send it back. An unignored worktree directory goes to
+    # .git/info/exclude, not a committed .gitignore edit: upstream committed a file nobody named,
+    # against repositories that commit only on request. A failing baseline is recorded as
+    # pre-existing and work continues; the agent asks only when it covers the area the work changes
   # --- review pair ---
   - source: superpowers/skills/requesting-code-review
     invocation: both # typed as a ceremony ("review since main"), and the model fires it after a task; SDD also uses its code-reviewer.md template (cross-skill file dep)
@@ -186,7 +210,13 @@ items:
     # runs, the executor's ruling rules win over this skill's stop-and-ask and implement-it-yourself
     # steps, which would otherwise stall the run or fix findings in the controller session. The
     # sentence states only that exception: outside such a run the skill applies to every review, a
-    # reviewer subagent's findings as much as a human's, as requesting-code-review says
+    # reviewer subagent's findings as much as a human's, as requesting-code-review says.
+    # Outside such a run an unclear item blocks only itself, curator's call: the clear items are
+    # implemented and the unclear ones asked about in the closing message, unless an unclear item
+    # could change how the clear ones are done, which still asks first. Unverifiable feedback is
+    # investigated, and left unimplemented with a note if it stays unverified, instead of a
+    # three-way question; a conflict with an earlier decision leaves that item untouched and is
+    # raised at the end. Upstream stopped every item for one unclear one
   # --- passive disciplines ---
   - source: superpowers/skills/test-driven-development
     invocation: auto # invoked from systematic-debugging's body and from implement's
@@ -210,6 +240,9 @@ items:
     # the checklist; subagent-driven-development's fix rounds are patched to match it.
     # matt tdd's later seam note is ported into the conditional seam paragraph: each proposed seam
     # gets a one-line note on what it catches and what it misses.
+    # The three exceptions (a prototype the user asked for, generated code, configuration) are stated
+    # in one line, not asked, curator's call: the item fires unprompted, so "ask your human partner"
+    # turned every configuration edit into a question; any other skip still needs their word.
     body: overlay
     merged_from:
       - source: mattpocock-skills/skills/engineering/tdd
@@ -231,6 +264,9 @@ items:
     # diagnosing-bugs' later forced-red check sits in Phase 6 step 1 only: a red forced by mutating
     # code or a fixture is diffed against a pristine copy before it is trusted. Its route to retro
     # lives in ask-deniz, as upstream's lives in its router.
+    # After three failed fixes the agent stops fix attempts on that bug, finishes independent work,
+    # and brings the architecture question with evidence and a recommendation, curator's call: the
+    # stop guards against an unasked rewrite, but it blocks only this bug.
     body: overlay
     merged_from: [mattpocock-skills/skills/engineering/diagnosing-bugs]
     frontmatter:
@@ -307,7 +343,9 @@ items:
     invocation: manual # upstream's own flag; issue-tracker state machine
     body: patch # upstream's own skill-tool sentence for the grill, its two handles namespaced so each
     # harness renders the call natively; the setup handoff is a namespaced user pointer, and the
-    # two `/triage` self-references read as prose, since no harness spells this skill that way
+    # two `/triage` self-references read as prose, since no harness spells this skill that way.
+    # The quick state override states the action and does it in the same turn: upstream's "Confirm
+    # what you're about to do, then act" read as a second question after an explicit instruction
     depends_on: [grilling, domain-modeling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/wayfinder
@@ -374,7 +412,8 @@ items:
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/improve-codebase-architecture
     invocation: manual # upstream's own flag; spare-moment architecture survey
-    body: patch # make the load-bearing codebase-design, grilling, and domain-modeling edges harness-native
+    body: patch # make the load-bearing codebase-design, grilling, and domain-modeling edges harness-native;
+    # the closing question names the candidate the agent would explore first, so it is not a bare menu
     depends_on: [codebase-design, domain-modeling, grilling]
     omit: ["agents/**"]
   - source: mattpocock-skills/skills/engineering/research

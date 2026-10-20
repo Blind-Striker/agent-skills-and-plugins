@@ -22,7 +22,7 @@ index 1462fcd..aa7b8ba 100644
  - **Good:** "Running `gh issue list --label needs-triage` returns issues that have been through initial classification"
  - **Bad:** "Triage should work correctly"
 diff --git a/SKILL.md b/SKILL.md
-index 3fd5617..73739c1 100644
+index 3fd5617..98f5239 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -35,23 +35,23 @@ Five **state** roles:
@@ -51,7 +51,7 @@ index 3fd5617..73739c1 100644
  
  ## Show what needs attention
  
-@@ -68,17 +68,17 @@ Show counts and a one-line summary per item. Let the maintainer pick.
+@@ -68,31 +68,31 @@ Show counts and a one-line summary per item. Let the maintainer pick.
  ## Triage a specific issue or PR
  
  1. **Gather context.** Read the full issue or PR (body, comments, labels, author, dates; for a PR, the diff too). Parse any prior triage notes so you don't re-ask resolved questions. Explore the codebase using the project's domain glossary, respecting ADRs in the area. Run two checks against the codebase: (a) **redundancy**: search for an existing implementation of the requested behavior by domain concept (not just the request's wording), and report where you looked. If found, it's an already-implemented `wontfix` (step 5). (b) **prior rejection**: read `.out-of-scope/*.md` and surface any that resembles this request.
@@ -70,3 +70,18 @@ index 3fd5617..73739c1 100644
     - For `wontfix`, close the issue, with the comment depending on *why*:
       - **Already implemented**: the change already exists in the codebase. Point to where it lives; do **not** write to `.out-of-scope/` (that KB is for *rejected* requests, not built ones).
       - **Rejected (bug)**: give a polite explanation, then close.
+      - **Rejected (enhancement)**: write to `.out-of-scope/`, link to it from a comment, then close ([OUT-OF-SCOPE.md](OUT-OF-SCOPE.md)).
+    - `needs-triage`: apply the role. Optional comment if there's partial progress.
+ 
+ ## Quick state override
+ 
+-If the maintainer says "move #42 to ready-for-agent", trust them and apply the role directly. Confirm what you're about to do (role changes, comment, close), then act. Skip grilling. If moving to `ready-for-agent` without a grilling session, ask whether they want to write an agent brief.
++If the maintainer says "move #42 to ready-for-agent", trust them and apply the role directly. State what you are about to do (role changes, comment, close), then do it in the same turn. Skip grilling. If moving to `ready-for-agent` without a grilling session, ask whether they want to write an agent brief.
+ 
+ ## Needs-info template
+ 
+ ```markdown
+ ## Triage Notes
+ 
+ **What we've established so far:**
+ 

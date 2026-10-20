@@ -46,19 +46,25 @@ WHEN receiving code review feedback:
 
 ```
 IF any item is unclear:
-  STOP - do not implement anything yet
-  ASK for clarification on unclear items
+  Do not implement the unclear items
+  IF an unclear item could change how the clear ones are done:
+    ASK about it before implementing anything
+  OTHERWISE:
+    Implement the clear items
+    ASK about the unclear ones in your closing message
 
 WHY: Items may be related. Partial understanding = wrong implementation.
+An unrelated unclear item blocks only itself.
 ```
 
 **Example:**
 ```
 your human partner: "Fix 1-6"
-You understand 1,2,3,6. Unclear on 4,5.
+You understand 1,2,3,6. Unclear on 4,5, and they touch none of 1,2,3,6.
 
-❌ WRONG: Implement 1,2,3,6 now, ask about 4,5 later
-✅ RIGHT: "I understand items 1,2,3,6. Need clarification on 4 and 5 before proceeding."
+❌ WRONG: Guess at 4,5 and implement all six
+❌ WRONG: Stop everything until 4,5 are answered
+✅ RIGHT: Implement 1,2,3,6, then: "Done 1,2,3,6. Need clarification on 4 and 5."
 ```
 
 ## Source-Specific Handling
@@ -82,10 +88,12 @@ IF suggestion seems wrong:
   Push back with technical reasoning
 
 IF can't easily verify:
-  Say so: "I can't verify this without [X]. Should I [investigate/ask/proceed]?"
+  Investigate. If it stays unverified, leave it unimplemented and say so:
+  "I can't verify this without [X]."
 
 IF conflicts with your human partner's prior decisions:
-  Stop and discuss with your human partner first
+  Leave that item unimplemented, finish the others,
+  and raise the conflict with your human partner in your closing message
 ```
 
 **your human partner's rule:** "External feedback - be skeptical, but check carefully"
@@ -202,7 +210,7 @@ Reviewer: "Implement proper metrics tracking with database, date filters, CSV ex
 ```
 your human partner: "Fix items 1-6"
 You understand 1,2,3,6. Unclear on 4,5.
-✅ "Understand 1,2,3,6. Need clarification on 4 and 5 before implementing."
+✅ "Done 1,2,3,6. Need clarification on 4 and 5." (4,5 touch none of the others)
 ```
 
 ## GitHub Thread Replies

@@ -26,8 +26,8 @@ Two things decide whether the loop produces tests worth keeping, and neither is 
 - Refactoring
 - Behavior changes
 
-**Exceptions (ask your human partner):**
-- Throwaway prototypes
+**Exceptions (state the one that applies in one line; do not ask):**
+- Throwaway prototypes the user asked for
 - Generated code
 - Configuration files
 
@@ -383,4 +383,4 @@ Production code → test exists and failed first
 Otherwise → not TDD
 ```
 
-No exceptions without your human partner's permission.
+No other exceptions without your human partner's word.

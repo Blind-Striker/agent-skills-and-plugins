@@ -4724,10 +4724,11 @@
   "deniz-process/skill/brainstorming": {
     "source": "superpowers/skills/brainstorming",
     "invocation": "both",
+    "body": "patch",
     "dependsOn": [
       "writing-plans"
     ],
-    "description": "Draws out what you want before anything is built, then sizes the work: a quick task is just done, a small change is agreed in chat, a project gets a written design. Nothing past a quick task is built before you approve.",
+    "description": "Use when the user wants to brainstorm or design something, or a build request leaves what or why open; not for a request that already says what to build. Draws out what they want, sizes the work, and agrees it before building.",
     "claude": {
       "artifacts": [
         "skill"
@@ -5108,6 +5109,7 @@
   "deniz-process/skill/finishing-a-development-branch": {
     "source": "superpowers/skills/finishing-a-development-branch",
     "invocation": "both",
+    "body": "patch",
     "description": "Use when implementation is complete, all tests pass, and you need to decide how to integrate the work",
     "claude": {
       "artifacts": [
@@ -6483,7 +6485,7 @@
     "source": "superpowers/skills/using-git-worktrees",
     "invocation": "auto",
     "body": "patch",
-    "description": "Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback",
+    "description": "Use when work needs isolation from the current workspace, because the user asked for it or a concrete conflict requires it - ensures an isolated workspace exists via native tools or git worktree fallback",
     "claude": {
       "artifacts": [
         "skill"

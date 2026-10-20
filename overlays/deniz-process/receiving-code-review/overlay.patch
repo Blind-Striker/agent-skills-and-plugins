@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 950da7b..950b333 100644
+index 950da7b..1844275 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -6,16 +6,18 @@ description: Use when receiving code review feedback, before implementing sugges
@@ -21,3 +21,85 @@ index 950da7b..950b333 100644
  1. READ: Complete feedback without reacting
  2. UNDERSTAND: Restate requirement in own words (or ask)
  3. VERIFY: Check against codebase reality
+@@ -36,29 +38,35 @@ WHEN receiving code review feedback:
+ - Ask clarifying questions
+ - Push back with technical reasoning if wrong
+ - Just start working (actions > words)
+ 
+ ## Handling Unclear Feedback
+ 
+ ```
+ IF any item is unclear:
+-  STOP - do not implement anything yet
+-  ASK for clarification on unclear items
++  Do not implement the unclear items
++  IF an unclear item could change how the clear ones are done:
++    ASK about it before implementing anything
++  OTHERWISE:
++    Implement the clear items
++    ASK about the unclear ones in your closing message
+ 
+ WHY: Items may be related. Partial understanding = wrong implementation.
++An unrelated unclear item blocks only itself.
+ ```
+ 
+ **Example:**
+ ```
+ your human partner: "Fix 1-6"
+-You understand 1,2,3,6. Unclear on 4,5.
++You understand 1,2,3,6. Unclear on 4,5, and they touch none of 1,2,3,6.
+ 
+-❌ WRONG: Implement 1,2,3,6 now, ask about 4,5 later
+-✅ RIGHT: "I understand items 1,2,3,6. Need clarification on 4 and 5 before proceeding."
++❌ WRONG: Guess at 4,5 and implement all six
++❌ WRONG: Stop everything until 4,5 are answered
++✅ RIGHT: Implement 1,2,3,6, then: "Done 1,2,3,6. Need clarification on 4 and 5."
+ ```
+ 
+ ## Source-Specific Handling
+ 
+ ### From your human partner
+ - **Trusted** - implement after understanding
+ - **Still ask** if scope unclear
+ - **No performative agreement**
+@@ -72,20 +80,22 @@ BEFORE implementing:
+   3. Check: Reason for current implementation?
+   4. Check: Works on all platforms/versions?
+   5. Check: Does reviewer understand full context?
+ 
+ IF suggestion seems wrong:
+   Push back with technical reasoning
+ 
+ IF can't easily verify:
+-  Say so: "I can't verify this without [X]. Should I [investigate/ask/proceed]?"
++  Investigate. If it stays unverified, leave it unimplemented and say so:
++  "I can't verify this without [X]."
+ 
+ IF conflicts with your human partner's prior decisions:
+-  Stop and discuss with your human partner first
++  Leave that item unimplemented, finish the others,
++  and raise the conflict with your human partner in your closing message
+ ```
+ 
+ **your human partner's rule:** "External feedback - be skeptical, but check carefully"
+ 
+ ## YAGNI Check for "Professional" Features
+ 
+ ```
+ IF reviewer suggests "implementing properly":
+@@ -192,14 +202,14 @@ Reviewer: "Remove legacy code"
+ Reviewer: "Implement proper metrics tracking with database, date filters, CSV export"
+ ✅ "Grepped codebase - nothing calls this endpoint. Remove it (YAGNI)? Or is there usage I'm missing?"
+ ```
+ 
+ **Unclear Item (Good):**
+ ```
+ your human partner: "Fix items 1-6"
+ You understand 1,2,3,6. Unclear on 4,5.
+-✅ "Understand 1,2,3,6. Need clarification on 4 and 5 before implementing."
++✅ "Done 1,2,3,6. Need clarification on 4 and 5." (4,5 touch none of the others)
+ ```
+ 
+ ## GitHub Thread Replies
+ 
+ When replying to inline review comments on GitHub, reply in the comment thread (`gh api repos/{owner}/{repo}/pulls/{pr}/comments/{id}/replies`), not as a top-level PR comment.

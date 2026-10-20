@@ -1,0 +1,51 @@
+diff --git a/SKILL.md b/SKILL.md
+index fa8aeca..8dc3475 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -44,19 +44,27 @@ This determines which menu to show and how cleanup works:
+ | `GIT_DIR != GIT_COMMON`, detached HEAD | Reduced 2 options (no merge) | Externally managed — leave in place |
+ 
+ ## Step 3: Determine Base Branch
+ 
+ The base branch is whatever this work forked from — usually named in the
+ plan, the conversation, or the branch's upstream. If it is not already
+ known, ask: "This branch split from <your best guess> - is that correct?"
+ Confirm before merging: merging into the wrong base is expensive to undo.
++Ask it in the same message as the menu below, not on its own.
+ 
+ ## Step 4: Present Options
+ 
++If the request already names the integration (merge into a branch, open a
++pull request, keep the branch), that is the choice: skip the menu, run that
++option the way the repository's instructions require, and report. The
++repository's instructions say how to integrate; they do not choose to
++integrate. Otherwise present the menu as the run's one closing question,
++with your recommendation in one line above it.
++
+ **Normal repo and named-branch worktree — present exactly these 3 options:**
+ 
+ ```
+ Implementation complete. What would you like to do?
+ 
+ 1. Merge back to <base-branch> locally
+ 2. Push and create a Pull Request
+ 3. Keep the branch as-is (I'll handle it later)
+@@ -209,17 +217,17 @@ place. If your platform provides a workspace-exit tool, use it.
+ | 3. Keep as-is | - | - | yes | - |
+ | Discard (explicit request only) | - | - | - | yes (force) |
+ 
+ ## Common Rationalizations
+ 
+ | Excuse | Reality |
+ |--------|---------|
+ | "Tests passed earlier this session" | Run the suite on the tree you are about to integrate. A green run only proves the tree it ran on. |
+-| "They obviously want it merged" | Integration is your human partner's decision. Present the menu and wait. |
++| "They obviously want it merged" | Integration is your human partner's decision. Unless the request named it, present the menu and wait. |
+ | "They seem done with this feature — I'll offer to discard it" | The menu is complete as written. Discard happens only when your human partner asks for it in so many words. |
+ | "'Yeah, get rid of it' counts as confirmation" | Only the typed word `discard` authorizes deletion. |
+ | "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |
+ | "This other worktree looks stale — I'll clean it too" | Clean up only worktrees under `.worktrees/` or `worktrees/`. Everything else belongs to the host. |
+ | "Removal refused — `--force` is just finishing the cleanup" | The refusal means files exist only in that worktree. `--force` destroys them permanently. Show your human partner and ask. |
+ | "The merged-result failure is probably flaky" | A failing merged result stops everything. Branch and worktree stay put while you investigate. |
+ | "The base branch is obviously main" | Confirm the fork point or ask. Merging into the wrong base is expensive to undo. |
+ | "The push was rejected — force-push will fix it" | A rejected push means the remote moved. Investigate; force-push only on your human partner's explicit request. |

@@ -198,7 +198,8 @@ grep. Untagged logs survive; tagged logs die.
 
    Each fix revealing a new problem elsewhere, fixes needing "massive refactoring", every fix
    creating new symptoms — that pattern is not a failed hypothesis, it is a wrong architecture.
-   Stop and discuss fundamentals with your human partner before attempting fix #4.
+   Stop fix attempts on this bug before fix #4. Finish independent work, then bring the
+   architecture question to your human partner with the evidence and your recommendation.
 
 ## Phase 7 — Cleanup and Post-Mortem
 

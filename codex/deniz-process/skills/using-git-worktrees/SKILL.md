@@ -1,7 +1,7 @@
 ---
 name: using-git-worktrees
-description: Use when starting feature work that needs isolation from current
-  workspace or before executing implementation plans - ensures an isolated
+description: Use when work needs isolation from the current workspace, because
+  the user asked for it or a concrete conflict requires it - ensures an isolated
   workspace exists via native tools or git worktree fallback
 ---
 
@@ -13,7 +13,8 @@ Respect the user's existing working-directory choice; do not ask again just beca
 loaded. Isolation is useful when requested or a concrete conflict requires it, not merely because
 a plan exists. If neither applies, return without creating a worktree, installing dependencies, or
 running another baseline: keep working in the current checkout. The setup below applies only to
-the isolation path and still asks for consent before creating anything new.
+the isolation path. A request for isolation is the consent; isolation you chose because of a
+conflict still asks before creating anything new.
 
 ## Overview
 
@@ -48,7 +49,7 @@ Report with branch state:
 
 **If `GIT_DIR == GIT_COMMON` (or in a submodule):** You are in a normal repo checkout.
 
-Has the user already indicated their worktree preference in your instructions? If not, ask for consent before creating a worktree:
+Has the user already asked for isolation, or indicated their worktree preference in your instructions? If not, ask for consent before creating a worktree:
 
 > "Would you like me to set up an isolated worktree? It protects your current branch from changes."
 
@@ -93,7 +94,7 @@ Follow this priority order. Explicit user preference always beats observed files
 git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
 ```
 
-**If NOT ignored:** Add to .gitignore, commit the change, then proceed.
+**If NOT ignored:** Add the directory to `.git/info/exclude` (local, nothing to commit), then proceed. Add it to `.gitignore` and commit that only when the user asks.
 
 **Why critical:** Prevents accidentally committing worktree contents to repository.
 
@@ -137,7 +138,7 @@ Run tests to ensure workspace starts clean:
 npm test / cargo test / pytest / go test ./...
 ```
 
-**If tests fail:** Report failures, ask whether to proceed or investigate.
+**If tests fail:** Record the failures as pre-existing and continue. Stop and ask only when they fail in the area the work will change: there, no test can tell your change from the existing breakage.
 
 **If tests pass:** Report ready.
 
@@ -161,9 +162,9 @@ Ready to implement <feature-name>
 | `worktrees/` exists | Use it (verify ignored) |
 | Both exist | Use `.worktrees/` |
 | Neither exists | Check instruction file, then default `.worktrees/` |
-| Directory not ignored | Add to .gitignore + commit |
+| Directory not ignored | Add to `.git/info/exclude`; `.gitignore` + commit only on request |
 | Permission error on create | Sandbox fallback, work in place |
-| Tests fail during baseline | Report failures + ask |
+| Tests fail during baseline | Record as pre-existing + continue; ask only if they cover the area you change |
 | No package.json/Cargo.toml | Skip dependency install |
 
 ## Common Rationalizations
@@ -174,4 +175,4 @@ Ready to implement <feature-name>
 | "`git worktree add` is quicker than hunting for a native tool" | A native tool (e.g. `EnterWorktree`) owns placement, branching, and cleanup. Bypassing it is the #1 mistake — it creates phantom state your harness can't see or manage. |
 | "The worktree directory is surely ignored already" | Run `git check-ignore`. An unignored worktree directory commits the whole tree into the repo. |
 | "Any directory name works" | Explicit instructions beat an existing project-local directory, which beats the `.worktrees/` default. |
-| "The workspace is fresh — baseline tests can wait" | A dirty baseline makes every later failure ambiguous. Run the tests now; proceeding past failures is your human partner's call. |
+| "The workspace is fresh — baseline tests can wait" | A dirty baseline makes every later failure ambiguous. Run the tests now and record what already fails. |

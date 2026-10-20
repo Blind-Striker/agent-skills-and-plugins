@@ -49,7 +49,7 @@ index e39e825..3778536 100644
 -No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the `/codebase-design` glossary, reach for one that is before inventing a new one.
 +No hedging, no throat-clearing, no "it's worth noting that…". If a sentence could be a bullet, make it a bullet. If a bullet could be cut, cut it. If a term isn't in the `mattpocock-skills:codebase-design` glossary, reach for one that is before inventing a new one.
 diff --git a/SKILL.md b/SKILL.md
-index 44cc7d3..9215294 100644
+index 44cc7d3..a6ba4d7 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -5,17 +5,17 @@ disable-model-invocation: true
@@ -87,7 +87,8 @@ index 44cc7d3..9215294 100644
  
  See [HTML-REPORT.md](HTML-REPORT.md) for the full HTML scaffold, diagram patterns, and styling guidance.
  
- Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
+-Do NOT propose interfaces yet. After the file is written, ask the user: "Which of these would you like to explore?"
++Do NOT propose interfaces yet. After the file is written, name the candidate you would explore first and why, then ask the user: "Which of these would you like to explore?"
  
  ### 3. Grilling loop
  

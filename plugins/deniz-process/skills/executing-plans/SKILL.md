@@ -56,6 +56,8 @@ operation; a security-sensitive action; a side effect outside this worktree
 that norms say you ask about first (a merge, a push to a shared branch, a
 publish); and a plan so broken that every path forward is a guess. For
 those, stop and ask.
+The one addition: the repository's own instructions win over this skill and the plan, so a stop
+they add holds too, and a question they already answer is not asked.
 
 ## When to Use
 

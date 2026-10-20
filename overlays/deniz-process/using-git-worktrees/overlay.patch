@@ -1,11 +1,12 @@
 diff --git a/SKILL.md b/SKILL.md
-index 1381dac..d5b2678 100644
+index 1381dac..4c79302 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,18 +1,26 @@
+@@ -1,18 +1,27 @@
  ---
  name: using-git-worktrees
- description: Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback
+-description: Use when starting feature work that needs isolation from current workspace or before executing implementation plans - ensures an isolated workspace exists via native tools or git worktree fallback
++description: Use when work needs isolation from the current workspace, because the user asked for it or a concrete conflict requires it - ensures an isolated workspace exists via native tools or git worktree fallback
  ---
  
  # Using Git Worktrees
@@ -16,7 +17,8 @@ index 1381dac..d5b2678 100644
 +loaded. Isolation is useful when requested or a concrete conflict requires it, not merely because
 +a plan exists. If neither applies, return without creating a worktree, installing dependencies, or
 +running another baseline: keep working in the current checkout. The setup below applies only to
-+the isolation path and still asks for consent before creating anything new.
++the isolation path. A request for isolation is the consent; isolation you chose because of a
++conflict still asks before creating anything new.
 +
  ## Overview
  
@@ -30,3 +32,86 @@ index 1381dac..d5b2678 100644
  ## Step 0: Detect Existing Isolation
  
  **Before creating anything, check if you are already in an isolated workspace.**
+@@ -33,17 +42,17 @@ git rev-parse --show-superproject-working-tree 2>/dev/null
+ **If `GIT_DIR != GIT_COMMON` (and not a submodule):** You are already in a linked worktree. Skip to Step 2 (Project Setup). Do NOT create another worktree.
+ 
+ Report with branch state:
+ - On a branch: "Already in isolated workspace at `<path>` on branch `<name>`."
+ - Detached HEAD: "Already in isolated workspace at `<path>` (detached HEAD, externally managed). Branch creation needed at finish time."
+ 
+ **If `GIT_DIR == GIT_COMMON` (or in a submodule):** You are in a normal repo checkout.
+ 
+-Has the user already indicated their worktree preference in your instructions? If not, ask for consent before creating a worktree:
++Has the user already asked for isolation, or indicated their worktree preference in your instructions? If not, ask for consent before creating a worktree:
+ 
+ > "Would you like me to set up an isolated worktree? It protects your current branch from changes."
+ 
+ Honor any existing declared preference without asking. If the user declines consent, work in place and skip to Step 2.
+ 
+ ## Step 1: Create Isolated Workspace
+ 
+ **You have two mechanisms. Try them in this order.**
+@@ -78,17 +87,17 @@ Follow this priority order. Explicit user preference always beats observed files
+ #### Safety Verification (project-local directories only)
+ 
+ **MUST verify directory is ignored before creating worktree:**
+ 
+ ```bash
+ git check-ignore -q .worktrees 2>/dev/null || git check-ignore -q worktrees 2>/dev/null
+ ```
+ 
+-**If NOT ignored:** Add to .gitignore, commit the change, then proceed.
++**If NOT ignored:** Add the directory to `.git/info/exclude` (local, nothing to commit), then proceed. Add it to `.gitignore` and commit that only when the user asks.
+ 
+ **Why critical:** Prevents accidentally committing worktree contents to repository.
+ 
+ #### Create the Worktree
+ 
+ ```bash
+ # Determine path based on chosen location
+ path="$LOCATION/$BRANCH_NAME"
+@@ -122,17 +131,17 @@ if [ -f go.mod ]; then go mod download; fi
+ 
+ Run tests to ensure workspace starts clean:
+ 
+ ```bash
+ # Use project-appropriate command
+ npm test / cargo test / pytest / go test ./...
+ ```
+ 
+-**If tests fail:** Report failures, ask whether to proceed or investigate.
++**If tests fail:** Record the failures as pre-existing and continue. Stop and ask only when they fail in the area the work will change: there, no test can tell your change from the existing breakage.
+ 
+ **If tests pass:** Report ready.
+ 
+ ### Report
+ 
+ ```
+ Worktree ready at <full-path>
+ Tests passing (<N> tests, 0 failures)
+@@ -146,22 +155,22 @@ Ready to implement <feature-name>
+ | Already in linked worktree | Skip creation (Step 0) |
+ | In a submodule | Treat as normal repo (Step 0 guard) |
+ | Native worktree tool available | Use it (Step 1a) |
+ | No native tool | Git worktree fallback (Step 1b) |
+ | `.worktrees/` exists | Use it (verify ignored) |
+ | `worktrees/` exists | Use it (verify ignored) |
+ | Both exist | Use `.worktrees/` |
+ | Neither exists | Check instruction file, then default `.worktrees/` |
+-| Directory not ignored | Add to .gitignore + commit |
++| Directory not ignored | Add to `.git/info/exclude`; `.gitignore` + commit only on request |
+ | Permission error on create | Sandbox fallback, work in place |
+-| Tests fail during baseline | Report failures + ask |
++| Tests fail during baseline | Record as pre-existing + continue; ask only if they cover the area you change |
+ | No package.json/Cargo.toml | Skip dependency install |
+ 
+ ## Common Rationalizations
+ 
+ | Excuse | Reality |
+ |--------|---------|
+ | "I'm obviously not in a worktree — no need to check" | Run Step 0. Harness-created isolation and submodules both fool eyeballing; the detection commands settle it. |
+ | "`git worktree add` is quicker than hunting for a native tool" | A native tool (e.g. `EnterWorktree`) owns placement, branching, and cleanup. Bypassing it is the #1 mistake — it creates phantom state your harness can't see or manage. |
+ | "The worktree directory is surely ignored already" | Run `git check-ignore`. An unignored worktree directory commits the whole tree into the repo. |
+ | "Any directory name works" | Explicit instructions beat an existing project-local directory, which beats the `.worktrees/` default. |
+-| "The workspace is fresh — baseline tests can wait" | A dirty baseline makes every later failure ambiguous. Run the tests now; proceeding past failures is your human partner's call. |
++| "The workspace is fresh — baseline tests can wait" | A dirty baseline makes every later failure ambiguous. Run the tests now and record what already fails. |

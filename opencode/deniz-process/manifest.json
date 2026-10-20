@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.12.3",
-  "digest": "sha256:406ee2b23ff34b4c3b8999bfa1399994c2df8195f4ef1836c2c5fda2b6bcfc68",
+  "version": "0.12.4",
+  "digest": "sha256:6d4c69b0bbb335af0797e2d56b032a431c2f14b709a5f43c803a94f90f28f7b9",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -46,7 +46,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {
-      "sha256": "sha256:1f94e5dce9f4cb584228218558d908aaaeafbbed721eba48ae3c0625fe37de30",
+      "sha256": "sha256:378ef88e87d7a32149b6b0bb66300ca2267bf862a795af9a913a1fc4d393385e",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/builder-check-prompt.md": {
@@ -242,7 +242,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:3d53b030bbd78410f27bb06ae428ce24207080eec5465b7801c5b21b18de1e4e",
+      "sha256": "sha256:387cdb905345a83373bf61a2f5fd7ebe2685d4be2e95e16b161a7e377693569a",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/scripts/task-done": {
@@ -254,7 +254,7 @@
       "mode": "100755"
     },
     "skills/deniz-process.finishing-a-development-branch/SKILL.md": {
-      "sha256": "sha256:b247dbc6de1ff50f78228d04a0744cad858013f8db944c67a1660cb53c4fc61b",
+      "sha256": "sha256:c7a4a2b47a1f112033961ef78ab545febba724108e599f534dc3b36cec04bf0c",
       "mode": "100644"
     },
     "skills/deniz-process.grill-me/SKILL.md": {
@@ -286,7 +286,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.improve-codebase-architecture/SKILL.md": {
-      "sha256": "sha256:9e3b20d803162c54ca86165ce19ad2213875e6c00835b913ff2d8291500ce9be",
+      "sha256": "sha256:645d533db057442ecb067de2ee436ca85af044d5dd046e5e23ba1780f10808f2",
       "mode": "100644"
     },
     "skills/deniz-process.pr/CREDITS.md": {
@@ -310,7 +310,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.receiving-code-review/SKILL.md": {
-      "sha256": "sha256:ebf7f69a998f595fcdfe3710e2c648809895ba1c4c2f9a88928ba8e5ecd1194f",
+      "sha256": "sha256:116dc96a055deee3cedcd5f437eddc64f973e4afeaa7444bf28f189af60b67a0",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
@@ -354,7 +354,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:20470e58eb17dc065b0039cc34b20132d430db42073bf9ab37345728e1056197",
+      "sha256": "sha256:08d92503a559ab70e61fad9bfa54b2e6c8c0f61ccdcffe56d6221a8cf18e8f0b",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {
@@ -382,7 +382,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.systematic-debugging/SKILL.md": {
-      "sha256": "sha256:05cfaec60bdcba01589c1dd4d483f901171bda6deb475fc06291ca6577967463",
+      "sha256": "sha256:a1c4eba21b77f4478bbca1fcfcf18b908e8be530c0aa4be343c3ef20b664d8db",
       "mode": "100644"
     },
     "skills/deniz-process.systematic-debugging/condition-based-waiting-example.ts": {
@@ -426,7 +426,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.test-driven-development/SKILL.md": {
-      "sha256": "sha256:973b750c1b0598145bf71592115d099ac0a9da8a95b9f5468157d7f8c09b4f37",
+      "sha256": "sha256:2cd972f892c50c3147b8ae6b9e2eb475a2cf376b471358d8348cec3abd36f211",
       "mode": "100644"
     },
     "skills/deniz-process.test-driven-development/writing-good-tests.md": {
@@ -454,11 +454,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.triage/SKILL.md": {
-      "sha256": "sha256:46a310029ea323f290ecc7571eecb243368343871ee1ae920a81b082dc8e3c4f",
+      "sha256": "sha256:e2020083b3e926c18be7d55ab2a581f4e81acc9ec87c1c210ebd809014cc8e4d",
       "mode": "100644"
     },
     "skills/deniz-process.using-git-worktrees/SKILL.md": {
-      "sha256": "sha256:7dff4361be6d2f5341cab63138f8971f711de2edeaf74268828ff9211db9b43a",
+      "sha256": "sha256:4e369b3be1478e6c414b2b7ea81779185977a5bfd94b568f43565cebe3d9a5f8",
       "mode": "100644"
     },
     "skills/deniz-process.using-superpowers/SKILL.md": {

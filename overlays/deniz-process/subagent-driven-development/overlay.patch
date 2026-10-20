@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index f7bbf6a..a690b00 100644
+index f7bbf6a..4782a38 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,15 +1,40 @@
@@ -43,8 +43,17 @@ index f7bbf6a..a690b00 100644
  
  **Narration:** between tool calls, narrate at most one short line — the
  ledger and the tool results carry the record.
-@@ -31,27 +56,27 @@ publish); and a plan so broken that every path forward is a guess. For those,
+@@ -24,34 +49,36 @@ judgment settles what neither answers. Record every decision in the ledger as
+ going. A wrong ruling costs rework your human partner can see and undo; a
+ session parked on a question costs their whole day and buys nothing.
+ 
+ Four things stop you, and only these: an irreversible or destructive
+ operation; a security-sensitive action; a side effect outside this worktree
+ that norms say you ask about first (a merge, a push to a shared branch, a
+ publish); and a plan so broken that every path forward is a guess. For those,
  stop and ask.
++The one addition: the repository's own instructions win over this skill and the plan, so a stop
++they add holds too, and a question they already answer is not asked.
  
  ## When to Use
  
@@ -75,7 +84,7 @@ index f7bbf6a..a690b00 100644
  - Review after each task (spec compliance + code quality) instead of only at the end
  - Costs a fresh context per task and per review; inline costs one context plus one final reviewer
  - Both run in this session, share the same plan workspace and ledger, and never pause between tasks
-@@ -118,20 +143,25 @@ digraph process {
+@@ -118,20 +145,25 @@ digraph process {
      "Dispatch final code reviewer (../requesting-code-review/code-reviewer.md)" -> "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals";
      "Final findings? ONE fix dispatch, one scoped re-review, adjudicate residuals" -> "Final review clean: delete this plan's workspace";
      "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
@@ -105,7 +114,7 @@ index f7bbf6a..a690b00 100644
  
  - Each plan owns a workspace: at skill start, run this skill's
    `bash scripts/sdd-workspace PLAN_FILE` — it prints the plan's git-ignored
-@@ -140,18 +170,25 @@ a ledger file, not only in todos.
+@@ -140,18 +172,25 @@ a ledger file, not only in todos.
    Another plan's directory is never yours to read or write.
  - Check for this plan's ledger at `<workspace>/progress.md`. If its first
    line names your plan file, tasks with a `Task <N>: complete` line are DONE
@@ -133,7 +142,7 @@ index f7bbf6a..a690b00 100644
  
  Read the plan once, note its context and Global Constraints, and create a
  todo per task. If the plan names a Spec, read that too: the spec is the
-@@ -215,16 +252,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
+@@ -215,16 +254,20 @@ that implementer. Single-file mechanical fixes also take the cheapest tier.
  
  **Task complexity signals (implementation tasks):**
  - Touches 1-2 files with a complete spec → cheap model
@@ -154,7 +163,7 @@ index f7bbf6a..a690b00 100644
  as one unit. Reserve one-dispatch-per-task for work that needs its own
  judgment, its own tests, or its own review surface.
  
-@@ -381,30 +422,32 @@ and the findings — the report file is the persistent memory either way.
+@@ -381,30 +424,32 @@ and the findings — the report file is the persistent memory either way.
  **Rounds 4-5 — dispatch a fresh implementer on a more capable model** (per
  Model Selection), with the brief path, the report-file path, the open
  findings, and this framing: "A prior implementer attempted this task
@@ -194,7 +203,7 @@ index f7bbf6a..a690b00 100644
  Never fix findings yourself in the controller session — your context stays
  clean for coordination, and controller fixes skip review.
  
-@@ -450,18 +493,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
+@@ -450,18 +495,27 @@ branch started from, e.g. `git merge-base main HEAD`) and include the
  printed path in the final review dispatch, so the final reviewer reads
  one file instead of re-deriving the branch diff with git commands. Dispatch
  on the most capable available model (see Model Selection), using
@@ -223,7 +232,7 @@ index f7bbf6a..a690b00 100644
  Adjudicate any residual findings as in the task loop's breaker: park with
  rulings, or rule on the load-bearing ones and ledger what you decided. Only
  the four classes above stop you here. There is no second fix wave —
-@@ -541,17 +593,18 @@ Implementer: [No questions]
+@@ -541,17 +595,18 @@ Implementer: [No questions]
  
  [Run review-package PLAN_FILE BASE HEAD; dispatch task reviewer with the printed path]
  Task reviewer: Spec ❌:

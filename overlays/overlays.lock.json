@@ -349,8 +349,7 @@
     "source": "superpowers/skills/brainstorming",
     "files": {
       "SKILL.md": "22b98fc5bac68d46bc8f066df90155aa3815262d"
-    },
-    "frontmatter": true
+    }
   },
   "deniz-process/diagnosing-superpowers": {
     "source": "superpowers/skills/diagnosing-superpowers",
@@ -372,6 +371,12 @@
       "SKILL.md": "49077ad961268a840d7dcb5d8c5d06c46fc276ae",
       "scripts/task-done": "e5fc6a992fb41745a4113a55a5da5cbb11ddde55",
       "scripts/task-start": "fab75b55b2e51c0de1a1331d19c3124924380eac"
+    }
+  },
+  "deniz-process/finishing-a-development-branch": {
+    "source": "superpowers/skills/finishing-a-development-branch",
+    "files": {
+      "SKILL.md": "fa8aecaf8813f1b19d19996f7957d1b0121f2d9c"
     }
   },
   "deniz-process/grill-me": {

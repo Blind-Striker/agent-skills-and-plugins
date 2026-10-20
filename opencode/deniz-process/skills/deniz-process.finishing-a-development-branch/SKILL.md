@@ -50,8 +50,16 @@ The base branch is whatever this work forked from — usually named in the
 plan, the conversation, or the branch's upstream. If it is not already
 known, ask: "This branch split from <your best guess> - is that correct?"
 Confirm before merging: merging into the wrong base is expensive to undo.
+Ask it in the same message as the menu below, not on its own.
 
 ## Step 4: Present Options
+
+If the request already names the integration (merge into a branch, open a
+pull request, keep the branch), that is the choice: skip the menu, run that
+option the way the repository's instructions require, and report. The
+repository's instructions say how to integrate; they do not choose to
+integrate. Otherwise present the menu as the run's one closing question,
+with your recommendation in one line above it.
 
 **Normal repo and named-branch worktree — present exactly these 3 options:**
 
@@ -215,7 +223,7 @@ place. If your platform provides a workspace-exit tool, use it.
 | Excuse | Reality |
 |--------|---------|
 | "Tests passed earlier this session" | Run the suite on the tree you are about to integrate. A green run only proves the tree it ran on. |
-| "They obviously want it merged" | Integration is your human partner's decision. Present the menu and wait. |
+| "They obviously want it merged" | Integration is your human partner's decision. Unless the request named it, present the menu and wait. |
 | "They seem done with this feature — I'll offer to discard it" | The menu is complete as written. Discard happens only when your human partner asks for it in so many words. |
 | "'Yeah, get rid of it' counts as confirmation" | Only the typed word `discard` authorizes deletion. |
 | "The PR is up, so the worktree is clutter now" | PR feedback gets fixed in that worktree. It stays until the work lands. |

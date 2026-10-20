@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 49077ad..ec9666b 100644
+index 49077ad..baf4657 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,15 +1,28 @@
@@ -32,12 +32,17 @@ index 49077ad..ec9666b 100644
  and a fresh reviewer on every task, each re-reading the codebase from zero.
  Inline execution pays for one context (yours) plus one reviewer at the end.
  What it gives up is a fresh context per task and a second pair of eyes per
-@@ -39,20 +52,20 @@ in secret.
+@@ -36,23 +49,25 @@ as `Ruling: <what you decided> — <why> — <what it costs if wrong>`, and keep
+ going. Deviating from the plan without a ledgered ruling is a decision made
+ in secret.
+ 
  Four things stop you, and only these: an irreversible or destructive
  operation; a security-sensitive action; a side effect outside this worktree
  that norms say you ask about first (a merge, a push to a shared branch, a
  publish); and a plan so broken that every path forward is a guess. For
  those, stop and ask.
++The one addition: the repository's own instructions win over this skill and the plan, so a stop
++they add holds too, and a question they already answer is not asked.
  
  ## When to Use
  
@@ -57,7 +62,7 @@ index 49077ad..ec9666b 100644
  it runs well on a mid-tier session model, and the one place the most
  capable model earns its cost is the final review, which this skill
  dispatches separately. Tell your human partner so when they choose inline.
-@@ -102,46 +115,57 @@ digraph process {
+@@ -102,46 +117,57 @@ digraph process {
      "Final whole-branch review (fresh reviewer if you have one)" -> "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger";
      "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: delete this plan's workspace";
      "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
@@ -122,7 +127,7 @@ index 49077ad..ec9666b 100644
  authority the plan argues from, and conflicts inside the plan resolve
  against it. A plan with no reachable spec gets a ledger note saying so —
  rulings made without one are provisional.
-@@ -164,17 +188,17 @@ its brief, not here.
+@@ -164,17 +190,17 @@ its brief, not here.
  ## The Task Loop
  
  Everything you print, and every tool result, stays resident in your
@@ -141,7 +146,7 @@ index 49077ad..ec9666b 100644
  
  Every tool call is a turn that re-reads your whole context. Bookkeeping
  rides along with work — a ledger append in the same call as the commit,
-@@ -216,29 +240,29 @@ in this session — not inferred from the diff looking right:
+@@ -216,29 +242,29 @@ in this session — not inferred from the diff looking right:
  - Every `Expected:` line in the brief was compared against real output.
  - Every deviation from the brief has a `Ruling:` line in the ledger.
  
@@ -173,7 +178,7 @@ index 49077ad..ec9666b 100644
  superpowers:requesting-code-review's
  [code-reviewer.md](../requesting-code-review/code-reviewer.md), with the
  package path, the plan and spec paths, the plan's Review Focus section
-@@ -320,17 +344,17 @@ Use superpowers:finishing-a-development-branch.
+@@ -320,17 +346,17 @@ Use superpowers:finishing-a-development-branch.
  | "The fix is obvious, no need for a failing test first" | The failing test is the only proof the finding was real and is now gone. Without it you have a diff and a hope. |
  | "I'll fix the minors too while I'm in there" | Every minor you fix is a test, a fix, and a suite run your partner did not ask for. Ledger them; your partner decides. |
  

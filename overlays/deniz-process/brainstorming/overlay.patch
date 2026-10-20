@@ -1,0 +1,54 @@
+diff --git a/SKILL.md b/SKILL.md
+index 22b98fc..6bdac1e 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -75,19 +75,20 @@ out as questions:
+ - current state: what exists now, what they've tried
+ - the details they care about
+ 
+ **Questions that work** anchor in specifics: "Walk me through the last
+ time...", "If it could only do one of these well, which?", "What would
+ make you wince if I got it wrong?" A guess they can correct ("I'm
+ guessing this is because X keeps biting you?") often beats a question.
+ 
+-**Offer recon.** Once you have a bit of grounding and looking would help,
+-offer to go look: their codebase or project, their own files and data,
+-or the web. Say what you'd look for. They decide whether you go.
++**Do recon.** Once you have a bit of grounding and looking would help,
++look through their codebase or project yourself and bring back what you
++found. For the web, or their own files and data outside the project,
++offer instead: say what you'd look for. They decide whether you go there.
+ 
+ **Think wide privately.** Before you propose anything, come up with
+ several ideas and drop the weak ones, including any that fight what
+ they've told you about why. Show the comparison only when it helps them
+ decide.
+ 
+ **Show, don't tell.** Offer the visual companion (below) whenever seeing
+ would help more than reading:
+@@ -178,20 +179,23 @@ document as that builder yourself.
+ 
+ <HARD-GATE>
+ Nothing gets built until your human partner approves the full
+ description: in chat for a small change, the document for a project.
+ Building includes writing product code, scaffolding, installing
+ dependencies, creating projects, and invoking an implementation skill.
+ Reading and exploring are fine.
+ 
+-Two exceptions. If they opted out of the questions, the skill is done
++Three exceptions. If they opted out of the questions, the skill is done
+ and the gate goes with it. A spike they said yes to may be built; it
+ stays labeled throwaway, and keeping what it produced is a new request
+-that comes back through this gate.
++that comes back through this gate. When the request already names a small
++change, your description of it is a statement, not a question: say what
++you will build, then build it. Wait only when your description adds
++something the request did not name.
+ 
+ After a project's document is approved, the next step is the plan. For
+ software, invoke superpowers:writing-plans and no other skill.
+ </HARD-GATE>
+ 
+ ## Red Flags
+ 
+ | Thought | Reality |
