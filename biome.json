@@ -17,7 +17,8 @@
       "!.agents/plugins/marketplace.json",
       "!docs/ledger.json",
       "!experiments/**/fixtures",
-      "!tests/dispatch/**/packages.lock.json"
+      "!tests/dispatch/**/packages.lock.json",
+      "!tests/dispatch/fixtures"
     ]
   },
   "formatter": {
