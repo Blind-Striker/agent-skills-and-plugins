@@ -1,0 +1,1 @@
+findDuplicates in src/dupes.js is too slow on large arrays. Make it fast.

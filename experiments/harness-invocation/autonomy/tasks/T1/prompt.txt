@@ -1,0 +1,1 @@
+Add a formatDuration(ms) function to src/duration.js that turns milliseconds into text like "1h 2m 3s": hours, minutes, and seconds from largest to smallest, leaving out zero units, "0s" for zero, and dropping any sub-second remainder. Export it from src/index.js, add tests for it in test/duration.test.js, and add it to the API section of README.md.

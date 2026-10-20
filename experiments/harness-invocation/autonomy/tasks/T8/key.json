@@ -1,0 +1,12 @@
+{
+  "id": "T8",
+  "kind": "proceed",
+  "nudge": true,
+  "named_files": ["src/report.js", "src/index.js", "test/report.test.js"],
+  "named_exports": ["toCsv"],
+  "ref_prod_loc": 20,
+  "ref_test_loc": 5,
+  "needs_remote": false,
+  "stop_signals": [],
+  "notes": "Fence false-positive check. The clean solution extracts an internal quoting helper shared by toTsv and toCsv: an unnamed internal function (or file), but no new export, dependency, flag, or option. Building it and naming it in the summary is correct; stopping to ask about the helper is a fence false positive."
+}

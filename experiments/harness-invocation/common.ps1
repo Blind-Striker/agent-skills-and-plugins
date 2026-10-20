@@ -160,6 +160,13 @@ function Get-WavesRepo {
     return (Join-Path (Get-LabRoot) "project\waves-repo")
 }
 
+function Get-AutonomyRepo {
+    <#  The autonomy panel's default fixture repository for one arm, the `autonomy` set of
+        make-fixture.ps1. The panel builds a fresh copy per attempt with -Destination.  #>
+    param([Parameter(Mandatory)] [ValidateSet("A0", "A1", "A2", "A3", "G")] [string] $Arm)
+    return (Join-Path (Get-LabRoot) "project\autonomy-repo-$Arm")
+}
+
 function Get-FixtureBaseline {
     <#  The commit every probe must start from: fixtures\BASELINE for the scratch set and
         fixtures\WAVES_BASELINE for the waves set. Written by make-fixture.ps1 rather than typed, so

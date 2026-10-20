@@ -1,0 +1,1 @@
+Add a toCsv(rows) function to src/report.js next to toTsv. It should quote fields exactly the way toTsv does, but with a comma as the delimiter instead of a tab. Export it from src/index.js and add tests for it in test/report.test.js.

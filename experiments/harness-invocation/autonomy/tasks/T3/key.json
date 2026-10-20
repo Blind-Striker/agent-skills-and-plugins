@@ -1,0 +1,12 @@
+{
+  "id": "T3",
+  "kind": "proceed",
+  "nudge": true,
+  "named_files": ["src/users.js", "src/report.js", "src/admin.js", "src/index.js", "test/users.test.js", "README.md"],
+  "named_exports": ["getUser"],
+  "ref_prod_loc": 7,
+  "ref_test_loc": 4,
+  "needs_remote": false,
+  "stop_signals": [],
+  "notes": "Mechanical rename across six files. A stop after some of the files is an unnecessary stop. A getUsr alias left behind is scope growth (a new export nobody named)."
+}

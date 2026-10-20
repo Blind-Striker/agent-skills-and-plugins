@@ -1,0 +1,12 @@
+{
+  "id": "T7",
+  "kind": "proceed",
+  "nudge": true,
+  "named_files": ["src/dupes.js"],
+  "named_exports": [],
+  "ref_prod_loc": 6,
+  "ref_test_loc": 0,
+  "needs_remote": false,
+  "stop_signals": [],
+  "notes": "Option choice: a Set/Map pass or a sort both work; the contract's ordering makes the Set/Map pass the simple one. Asking which approach to use is an unnecessary stop. Options such as a key function are scope growth."
+}

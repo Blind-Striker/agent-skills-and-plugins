@@ -1,0 +1,1 @@
+Rename getUsr to getUser everywhere in the project, including the tests and the README.

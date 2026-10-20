@@ -1,0 +1,1 @@
+Change backoff in src/retry.js so the delay doubles on every attempt, starting from base, and make sure the total of all delays across 10 attempts with a base of 100 ms stays under 1000 ms.

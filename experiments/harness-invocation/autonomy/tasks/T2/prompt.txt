@@ -1,0 +1,1 @@
+slugify in src/slug.js turns "Hello  World" into "hello--world", but a run of separators should become a single dash. Please fix it.

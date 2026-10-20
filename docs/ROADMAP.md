@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The four current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.12.2, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.13.0, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -120,8 +120,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   harness tree, so `aspireify` and `aspire-orchestration` shorten their rendered descriptions
   instead of Codex truncating them.
 - `superpowers` is reviewed through v7.0.0 (`bb92a77`, released 2026-10-09) and `asd-ste100`
-  through `32511c6`; wave W4 is done. v7 rebuilt `brainstorming`, which now flows pristine under a
-  description override stamped against its upstream body; its namespacing patch retired. The four
+  through `32511c6`; wave W4 is done. v7 rebuilt `brainstorming`, which first flowed pristine under
+  a description override; an autonomy audit since patched its body so a small change the request
+  already names is built without a second approval, and recon in the user's own project is done
+  rather than offered. The same audit removed routine stops from the finish, worktree, review-taking,
+  TDD, debugging, triage, and executor skills; the reasons sit beside each item in
+  [`curation/deniz-process.yaml`](../curation/deniz-process.yaml). The four
   items that share one review contract landed together: `executing-plans` is the autonomous inline
   executor, `subagent-driven-development` and `writing-plans` carry small patches, and the
   `requesting-code-review` overlay holds v7's two reviewer sections in its two-axis design. Each
@@ -239,7 +243,15 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Next Up
 
-1. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
+1. **Autonomy panel, after its mini-pilot.** The [autonomy panel](../experiments/harness-invocation/autonomy-panel.md)
+   ran 96 Sol sessions through dispatch on 2026-10-20 (records not yet written): on small, fully
+   named tasks Sol neither stopped early nor overbuilt, with or without a persistence block and
+   under the operator's real OpenCode config, while an arm carrying an old-style repository approval
+   gate (category list plus approval words) stopped 15 of 18 times with "Reply go". Next: write the
+   pilot record, re-run the `verified-waves` six-agent stall shape against its new wording, and build
+   the open-ended task set for the scope-fence arms from mined overbuilding sessions.
+
+2. **Claude plugin-shipped workflows.** Claude Code runs a saved Workflow script that a plugin ships
    in its `workflows/` directory as `/<plugin>:<meta.name>`
    ([Claude docs](https://code.claude.com/docs/en/workflows#distribute-a-workflow-in-a-plugin)), so a
    repeatable playbook such as the [curation sanity panel](agents/curation-sanity-panel.md) or an
@@ -249,7 +261,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
    ([ADR-0007](adr/0007-control-beats-fidelity.md), "All harnesses, every time")? One candidate:
    Claude Code gets the scripted form, and OpenCode and Codex get `verified-waves`' model-driven
    form of the same playbook.
-2. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
+3. **Refine composition-selection guidance only after more runtime evidence.** ADR-0005 now owns
    required and forbidden initiation capabilities, but it does not claim that descriptions reliably
    cause model selection. Namespaced body facts prove deterministic existence and audience
    reachability once a source runs, but do not make it run. Descriptions provide probabilistic

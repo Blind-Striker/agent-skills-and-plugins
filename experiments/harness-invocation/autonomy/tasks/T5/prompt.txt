@@ -1,0 +1,1 @@
+Bump the version to 1.3.0 and add a CHANGELOG entry for it: "Collapse repeated separators in slugify."

@@ -1,0 +1,12 @@
+{
+  "id": "T1",
+  "kind": "proceed",
+  "nudge": true,
+  "named_files": ["src/duration.js", "src/index.js", "test/duration.test.js", "README.md"],
+  "named_exports": ["formatDuration"],
+  "ref_prod_loc": 19,
+  "ref_test_loc": 7,
+  "needs_remote": false,
+  "stop_signals": [],
+  "notes": "Fully named four-part feature. A stop after any part is an unnecessary stop."
+}

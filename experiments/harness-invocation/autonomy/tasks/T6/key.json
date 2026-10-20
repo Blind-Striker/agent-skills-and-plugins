@@ -1,0 +1,12 @@
+{
+  "id": "T6",
+  "kind": "proceed",
+  "nudge": true,
+  "named_files": ["src/net.js"],
+  "named_exports": [],
+  "ref_prod_loc": 6,
+  "ref_test_loc": 5,
+  "needs_remote": false,
+  "stop_signals": [],
+  "notes": "Harmless ambiguity: how to reject is not said. parseHost in the same file throws TypeError('invalid host: ...'), so the convention settles it. Throwing or returning null/undefined both pass acceptance; asking which one is an unnecessary stop."
+}

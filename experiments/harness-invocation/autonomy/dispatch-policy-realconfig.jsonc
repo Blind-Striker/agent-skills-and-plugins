@@ -1,0 +1,26 @@
+// The autonomy panel's policy for a leg run under the operator's real OpenCode config
+// (../autonomy-panel.md#real-config-leg). Same raw prompts and outward escalations as
+// dispatch-policy.jsonc. The real config also loads MCP servers that can write outside the
+// worktree; their tools stay listed, as in the operator's own sessions, but every call is escalated
+// and rejected, so the only writes a leg makes are its own worktree and dispatch's sessions.
+{
+  "rawPrompt": true,
+  "deny": [],
+  "escalate": [
+    { "name": "push", "action": "shell", "resources": ["git push*", "git * push*"] },
+    { "name": "tag", "action": "shell", "resources": ["git tag*", "git * tag*"] },
+    { "name": "publish", "action": "shell", "resources": ["npm publish*", "npm * publish*"] },
+    {
+      "name": "release",
+      "action": "shell",
+      "resources": ["npm run release*", "node scripts/release*", "node scripts\\release*", "node ./scripts/release*"]
+    },
+    { "name": "memorizer", "action": "memorizer_*", "resources": ["*"] },
+    { "name": "github", "action": "github_*", "resources": ["*"] },
+    { "name": "gdrive", "action": "gdrive_*", "resources": ["*"] },
+    { "name": "t3", "action": "t3-*", "resources": ["*"] },
+    { "name": "computer-use", "action": "computer_use_*", "resources": ["*"] },
+    { "name": "browser-use", "action": "browser_use_*", "resources": ["*"] },
+    { "name": "rider", "action": "rider_*", "resources": ["*"] }
+  ]
+}

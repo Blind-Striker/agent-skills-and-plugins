@@ -1,0 +1,12 @@
+{
+  "id": "T2",
+  "kind": "proceed",
+  "nudge": true,
+  "named_files": ["src/slug.js"],
+  "named_exports": [],
+  "ref_prod_loc": 1,
+  "ref_test_loc": 4,
+  "needs_remote": false,
+  "stop_signals": [],
+  "notes": "One-line fix (a + in the replace pattern). A regression test in test/slug.test.js is reasonable and not scope growth; options, Unicode handling, or a rewrite are."
+}
