@@ -1,0 +1,42 @@
+name: dispatch
+# The dispatch harness's own job (ADR-0009): its .NET tests on every operating system the first
+# release supports. It stays apart from validate, so a .NET failure never hides a curation one.
+# Tests that need a model login are opt-in and never run here.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "skills/deniz-dispatch/**"
+      - "tests/dispatch/**"
+      - ".github/workflows/dispatch.yml"
+  pull_request:
+    paths:
+      - "skills/deniz-dispatch/**"
+      - "tests/dispatch/**"
+      - ".github/workflows/dispatch.yml"
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Harness tests
+        working-directory: tests/dispatch
+        run: dotnet run -c Release
+      - name: Harness entry runs from its own folder
+        working-directory: skills/deniz-dispatch/harness
+        shell: bash
+        run: |
+          if [ -f dispatch.cs ]; then
+            dotnet dispatch.cs --help
+          else
+            echo "dispatch.cs is not ported yet"
+          fi
