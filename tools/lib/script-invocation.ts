@@ -7,7 +7,7 @@ import { inlineCodeSpans } from "./rewrite.ts";
  * packager can strip the executable bit and a Windows shell runs no shebang. Upstream's own
  * writing-skills rule asks the same.
  */
-export type Interpreter = "bash" | "pwsh" | "node" | "python";
+export type Interpreter = "bash" | "pwsh" | "node" | "python" | "dotnet";
 
 /** A script a skill folder ships, as an invocation names it. */
 export interface BundledScript {
@@ -29,6 +29,8 @@ const BY_EXTENSION: Record<string, Interpreter> = {
   ".cjs": "node",
   ".mjs": "node",
   ".py": "python",
+  // A .NET file-based app's entry file (ADR-0009); `dotnet <file>.cs` builds and runs it.
+  ".cs": "dotnet",
 };
 const BY_SHEBANG: Record<string, Interpreter> = {
   bash: "bash",
@@ -37,6 +39,7 @@ const BY_SHEBANG: Record<string, Interpreter> = {
   node: "node",
   python: "python",
   python3: "python",
+  dotnet: "dotnet",
 };
 
 /** The interpreter a bundled file needs: its extension decides, or else its `#!` line; Markdown is never a script. */
@@ -67,6 +70,8 @@ function spelled(script: BundledScript): string {
       return `\`pwsh -File ${script.path}\``;
     case "python":
       return `\`python3 ${script.path}\`, with the Windows form \`py -3 ${script.path}\` beside it`;
+    case "dotnet":
+      return `\`dotnet ${script.path}\``;
   }
 }
 
@@ -81,7 +86,12 @@ function conventionName(interpreter: Interpreter): string {
  * other spelling this check knows, so a wrong one is named instead of passing unseen.
  */
 const INTERPRETER =
-  /(?:^|[\s;|&(])((bash|sh|zsh|dash|ksh|node|python[\d.]*|py|pwsh|powershell|cmd)(?:\.exe)?)((?:\s+[-/][\w.:-]*(?:\s+[A-Za-z]\w*)?)*)$/i;
+  /(?:^|[\s;|&(])((bash|sh|zsh|dash|ksh|node|python[\d.]*|py|pwsh|powershell|cmd|dotnet)(?:\.exe)?)((?:\s+[-/][\w.:-]*(?:\s+[A-Za-z]\w*)?)*)$/i;
+/**
+ * `dotnet run` before a path: it runs a file-based app as well, but the convention has one spelling,
+ * `dotnet <file>.cs`, so the check stays lexical. Its flags may follow `run`.
+ */
+const DOTNET_RUN = /(?:^|[\s;|&(])dotnet(?:\.exe)?\s+run((?:\s+-[\w.:-]+)*)$/i;
 /** A run in the current shell: PowerShell's call operator, or dot-sourcing, or bash's `source`. */
 const CURRENT_SHELL = /(?:^|[\s;(])(&|\.|source)$/;
 /** A command position: line start, a shell prompt, or after a separator or command substitution. */
@@ -126,6 +136,17 @@ export function scriptInvocationProblems(
   };
   /** Judges the interpreter word before a script path; false when no interpreter word stands there. */
   const named = (trimmed: string, script: BundledScript, index: number): boolean => {
+    if (DOTNET_RUN.test(trimmed)) {
+      if (script.interpreter === "dotnet") {
+        problems.push({
+          index,
+          message: `runs bundled script ${script.path} with dotnet run — write ${spelled(script)}`,
+        });
+      } else {
+        wrong(script, index, "dotnet run");
+      }
+      return true;
+    }
     const hit = INTERPRETER.exec(trimmed);
     if (!hit) {
       return false;
@@ -135,7 +156,7 @@ export function scriptInvocationProblems(
     const used = [word, ...flags].join(" ");
     let interpreter: Interpreter | undefined;
     let py3 = false;
-    if (word === "bash" || word === "node") {
+    if (word === "bash" || word === "node" || word === "dotnet") {
       interpreter = word;
     } else if (word === "python3") {
       interpreter = "python";

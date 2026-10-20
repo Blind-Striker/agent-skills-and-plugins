@@ -9,6 +9,7 @@ const SCRIPTS: Record<string, BundledScript> = {
   "scripts/lint.py": { path: "scripts/lint.py", interpreter: "python" },
   "render.js": { path: "render.js", interpreter: "node" },
   "../other/scripts/pack": { path: "../other/scripts/pack", interpreter: "bash" },
+  "dispatch.cs": { path: "dispatch.cs", interpreter: "dotnet" },
 };
 const resolve = (token: string): BundledScript | undefined =>
   SCRIPTS[token.replace(/^<[^>/]+>\//, "").replace(/^\.\//, "")];
@@ -24,6 +25,29 @@ test("an interpreter comes from the extension, or else from the shebang", () => 
   assert.equal(scriptInterpreter("tool", "#!/usr/bin/env python3"), "python");
   assert.equal(scriptInterpreter("notes.md", "#!/usr/bin/env bash"), undefined, "Markdown is never a script");
   assert.equal(scriptInterpreter("data.json", "{"), undefined);
+  assert.equal(scriptInterpreter("dispatch.cs", "#!/usr/bin/env dotnet"), "dotnet");
+  assert.equal(scriptInterpreter("dispatch", "#!/usr/bin/env dotnet"), "dotnet");
+});
+
+test("a .NET file-based app runs as `dotnet <file>.cs`, and no other spelling", () => {
+  assert.deepEqual(problems("Run `dotnet dispatch.cs plan tasks.jsonc`."), []);
+  assert.deepEqual(problems("```bash\ndotnet dispatch.cs run tasks.jsonc --max 3\n```\n"), []);
+  assert.deepEqual(problems("Run `dispatch.cs plan tasks.jsonc`."), [
+    "runs bundled script dispatch.cs by bare path — write `dotnet dispatch.cs`",
+  ]);
+  assert.deepEqual(problems("Run `dotnet run dispatch.cs plan tasks.jsonc`."), [
+    "runs bundled script dispatch.cs with dotnet run — write `dotnet dispatch.cs`",
+  ]);
+  assert.deepEqual(problems("Run `dotnet run --no-cache dispatch.cs plan`."), [
+    "runs bundled script dispatch.cs with dotnet run — write `dotnet dispatch.cs`",
+  ]);
+  assert.deepEqual(problems("Run `node dispatch.cs plan`."), [
+    "runs bundled script dispatch.cs with node — its interpreter is dotnet: write `dotnet dispatch.cs`",
+  ]);
+  assert.deepEqual(problems("Run `dotnet scripts/tool.sh --all`."), [
+    "runs bundled script scripts/tool.sh with dotnet — its interpreter is bash: write `bash scripts/tool.sh`",
+  ]);
+  assert.deepEqual(problems("The entry file is `dispatch.cs`."), [], "a mention runs nothing");
 });
 
 test("an inline command that runs a bundled script by bare path is a problem", () => {
