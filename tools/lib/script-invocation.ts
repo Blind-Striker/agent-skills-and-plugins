@@ -51,12 +51,15 @@ export function scriptInterpreter(name: string, firstLine: string): Interpreter 
   if (extension in BY_EXTENSION) {
     return BY_EXTENSION[extension];
   }
-  const shebang = /^#!\s*(\S+)(?:\s+(\S+))?/.exec(firstLine);
-  if (!shebang) {
+  if (!firstLine.startsWith("#!")) {
     return undefined;
   }
-  const program = (shebang[1]?.endsWith("/env") ? shebang[2] : shebang[1])?.split("/").pop() ?? "";
-  return BY_SHEBANG[program];
+  const words = firstLine.slice(2).trim().split(/\s+/);
+  // `env` takes its own flags first, as `#!/usr/bin/env -S dotnet --` does; the program follows them.
+  const program = (words[0]?.endsWith("/env") ? words.slice(1).find((word) => !word.startsWith("-")) : words[0])
+    ?.split("/")
+    .pop();
+  return BY_SHEBANG[program ?? ""];
 }
 
 /** How the convention spells a run of `path`. */
@@ -88,10 +91,11 @@ function conventionName(interpreter: Interpreter): string {
 const INTERPRETER =
   /(?:^|[\s;|&(])((bash|sh|zsh|dash|ksh|node|python[\d.]*|py|pwsh|powershell|cmd|dotnet)(?:\.exe)?)((?:\s+[-/][\w.:-]*(?:\s+[A-Za-z]\w*)?)*)$/i;
 /**
- * `dotnet run` before a path: it runs a file-based app as well, but the convention has one spelling,
- * `dotnet <file>.cs`, so the check stays lexical. Its flags may follow `run`.
+ * A `dotnet` verb before a path, with its flags. `dotnet build <file>.cs` is the build gate, which
+ * compiles the app without running it, so it passes for a dotnet script. `dotnet run <file>.cs` runs
+ * the app as well, but the convention has one run spelling, `dotnet <file>.cs`, so it is reported.
  */
-const DOTNET_RUN = /(?:^|[\s;|&(])dotnet(?:\.exe)?\s+run((?:\s+-[\w.:-]+)*)$/i;
+const DOTNET_VERB = /(?:^|[\s;|&(])dotnet(?:\.exe)?\s+(run|build)((?:\s+-[\w.:-]+)*)$/i;
 /** A run in the current shell: PowerShell's call operator, or dot-sourcing, or bash's `source`. */
 const CURRENT_SHELL = /(?:^|[\s;(])(&|\.|source)$/;
 /** A command position: line start, a shell prompt, or after a separator or command substitution. */
@@ -136,14 +140,15 @@ export function scriptInvocationProblems(
   };
   /** Judges the interpreter word before a script path; false when no interpreter word stands there. */
   const named = (trimmed: string, script: BundledScript, index: number): boolean => {
-    if (DOTNET_RUN.test(trimmed)) {
-      if (script.interpreter === "dotnet") {
+    const verb = DOTNET_VERB.exec(trimmed)?.[1]?.toLowerCase();
+    if (verb !== undefined) {
+      if (script.interpreter !== "dotnet") {
+        wrong(script, index, `dotnet ${verb}`);
+      } else if (verb === "run") {
         problems.push({
           index,
           message: `runs bundled script ${script.path} with dotnet run — write ${spelled(script)}`,
         });
-      } else {
-        wrong(script, index, "dotnet run");
       }
       return true;
     }

@@ -27,6 +27,9 @@ test("an interpreter comes from the extension, or else from the shebang", () => 
   assert.equal(scriptInterpreter("data.json", "{"), undefined);
   assert.equal(scriptInterpreter("dispatch.cs", "#!/usr/bin/env dotnet"), "dotnet");
   assert.equal(scriptInterpreter("dispatch", "#!/usr/bin/env dotnet"), "dotnet");
+  assert.equal(scriptInterpreter("dispatch", "#!/usr/bin/env -S dotnet --"), "dotnet", "env's own flags come first");
+  assert.equal(scriptInterpreter("tool", "#!/usr/bin/env -S bash -e"), "bash");
+  assert.equal(scriptInterpreter("tool", "#!/bin/sh -e"), "bash");
 });
 
 test("a .NET file-based app runs as `dotnet <file>.cs`, and no other spelling", () => {
@@ -48,6 +51,22 @@ test("a .NET file-based app runs as `dotnet <file>.cs`, and no other spelling", 
     "runs bundled script scripts/tool.sh with dotnet — its interpreter is bash: write `bash scripts/tool.sh`",
   ]);
   assert.deepEqual(problems("The entry file is `dispatch.cs`."), [], "a mention runs nothing");
+});
+
+test("the harness's documented invocation passes: cd, the build gate, then a run with `--`", () => {
+  const invocation = [
+    "```bash",
+    'cd "<skill-directory>"',
+    "dotnet build dispatch.cs",
+    'dotnet dispatch.cs -- run "<absolute task file>" --repo "<absolute repository>"',
+    "```",
+    "",
+  ].join("\n");
+  assert.deepEqual(problems(invocation), []);
+  assert.deepEqual(problems("Run `dotnet build dispatch.cs` before the first run."), []);
+  assert.deepEqual(problems("Run `dotnet build scripts/tool.sh`."), [
+    "runs bundled script scripts/tool.sh with dotnet build — its interpreter is bash: write `bash scripts/tool.sh`",
+  ]);
 });
 
 test("an inline command that runs a bundled script by bare path is a problem", () => {

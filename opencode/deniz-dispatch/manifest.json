@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dispatch",
   "version": "0.1.0",
-  "digest": "sha256:35a5ecf33e4a3bdec4aaf7ea7c38eaed523cb827e23c548ecc9974c1ba2fe532",
+  "digest": "sha256:43a5f38055390f2000f253fbe80ead55a54371d93b9d87f652827059a524959e",
   "requiredModules": [
     "deniz-process"
   ],
@@ -76,7 +76,7 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/global.json": {
-      "sha256": "sha256:45a7e3c9ef16e1daf217b04d6f4468ec878da98b37e3abbc1a7502636ed28577",
+      "sha256": "sha256:a647fbc942871cef23ce38ef75c362bd02269b0bb634aa348a4537cadc926c3f",
       "mode": "100644"
     }
   }

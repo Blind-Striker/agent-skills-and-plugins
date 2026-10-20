@@ -194,7 +194,7 @@ packager can strip the executable bit and a Windows shell honors no shebang. Ups
 | `.ps1` | `pwsh -File scripts/x.ps1` |
 | `.js`, `.cjs`, `.mjs`, or a `node` shebang | `node scripts/x.js` |
 | `.py`, or a `python3` shebang | `python3 scripts/x.py`, with the Windows form `py -3 scripts/x.py` beside it |
-| `.cs`, or a `dotnet` shebang: a .NET file-based app's entry file | `dotnet x.cs`, never `dotnet run x.cs` |
+| `.cs`, or a `dotnet` shebang: a .NET file-based app's entry file | `dotnet x.cs`, with `--` before the app's own arguments; `dotnet build x.cs` as its build gate; never `dotnet run x.cs` |
 
 Only a file-based app's entry file is run. The source files it pulls in with `#:include` are `.cs`
 too, so a body names them as mentions, never as runs.
@@ -212,7 +212,9 @@ skill folder; a `<skill-directory>/`-style placeholder or a leading `./` is spel
 
 An interpreter word before the path names the interpreter, and only the convention's words name it
 rightly: `bash`, `pwsh -File`, `node`, `python3`, `py -3`, and `dotnet`, each with any flags of its
-own; `dotnet run` before a path is reported with the `dotnet x.cs` form. Every
+own; `dotnet build x.cs`, a build gate that compiles the app without running it, passes, and
+`dotnet run` before a path is reported with the `dotnet x.cs` form. A shebang names its program
+after `env`'s own flags, so `#!/usr/bin/env -S dotnet --` is a dotnet script. Every
 other word the check knows is a wrong interpreter, and its message names the convention's form:
 `sh`, `zsh`, `dash`, `ksh`, `python`, `python2`, a versioned `python3.x`, `py` without `-3`,
 `powershell`, `cmd`, an `.exe` spelling of any of these, and any other letter case. A run in the

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
@@ -21,11 +22,22 @@ public sealed partial class LayoutTests
     private static partial Regex IncludeDirective();
 
     [Test]
-    public async Task The_harness_pins_a_released_dotnet_10_sdk_floor()
+    public async Task The_harness_pins_the_include_floor_on_stable_dotnet_10()
     {
-        var json = await File.ReadAllTextAsync(Path.Combine(Harness, "global.json"));
-        await Assert.That(json).Contains("\"version\": \"10.0.100\"");
-        await Assert.That(json).Contains("\"allowPrerelease\": false");
+        // #:include needs SDK 10.0.300; latestFeature keeps the harness on 10, never on 11.
+        using var json = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(Harness, "global.json")));
+        var sdk = json.RootElement.GetProperty("sdk");
+        await Assert.That(sdk.GetProperty("version").GetString()).IsEqualTo("10.0.300");
+        await Assert.That(sdk.GetProperty("rollForward").GetString()).IsEqualTo("latestFeature");
+        await Assert.That(sdk.GetProperty("allowPrerelease").GetBoolean()).IsFalse();
+    }
+
+    [Test]
+    public async Task The_tests_build_on_the_sdk_the_harness_pins()
+    {
+        var harness = await File.ReadAllTextAsync(Path.Combine(Harness, "global.json"));
+        var tests = await File.ReadAllTextAsync(Path.Combine(Root, "tests", "dispatch", "global.json"));
+        await Assert.That(tests.ReplaceLineEndings()).IsEqualTo(harness.ReplaceLineEndings());
     }
 
     [Test]
