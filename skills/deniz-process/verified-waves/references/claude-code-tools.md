@@ -25,9 +25,11 @@ not poll. Record the runId, the scriptPath, and the transcript directory in the 
   the wave.
 - **Reports.** The report is a `schema` with the report's fields. A schema result gets 5
   validation attempts.
-- **Agent type.** Every item uses the default workflow agent: set no `agentType`. Explore cannot
-  write its results file, and it starts without the project's `CLAUDE.md`. The read-only rule
-  lives in the brief.
+- **Agent type.** Every item uses the default workflow agent: set no `agentType`, unless the user's
+  configuration or instructions name an agent for delegated work. Model selection belongs to that
+  configuration, not to this skill. Any agent you use must edit and write: Explore cannot write its
+  results file, and it starts without the project's `CLAUDE.md`. The read-only rule lives in the
+  brief.
 - **Writers.** Every writer works in the main tree: set no `isolation`. A worktree is removed only
   when its agent changed nothing, and no child commits, so a writer's edits there would never reach
   the tree the gate checks. Writers on disjoint write sets may share a batch; overlapping writers go

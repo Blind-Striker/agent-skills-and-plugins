@@ -46,18 +46,22 @@ Write the plan in chat before the first child starts:
    32 characters, such as `audit_04`.
 6. **Waves**: which items run in which wave, the agent total with skeptics, gates, and critics
    counted, and the ceiling on live children: 6 unless the user names another number for this
-   run, and never above the harness limit that `references/harness-tools.md` gives.
+   run, and never above the harness limit that `references/harness-tools.md` gives. The ceiling is
+   a limit, not a target, and the agent total is not the ceiling: count it from the plan, every
+   item plus its skeptics, gates, and critics.
 7. **Verification plan**: which findings get skeptics, and which checks each gate runs.
 
 The agent total you announce is your budget, together with any limit the user sets. Set no other
-limit and no deadline.
+limit and no deadline. A retry of a FAILED item does not count against the total; only new items
+or new scope can take a run over it.
 
 After you write the plan, start the first wave in the same turn; wait for the user only where a
 yes/no question below applies.
 
-Ask one yes/no question before each of these: deleting or overwriting files, a force-push, a
-publish, anything that touches credentials, a broad codemod, and going over the announced agent
-total. Then end your turn and wait for the answer. Never go on past the question in the same turn.
+Ask one yes/no question before each of these, unless the request already names that action:
+deleting or overwriting files, a force-push, a publish, anything that touches credentials, a broad
+codemod, and going over the announced agent total. Then end your turn and wait for the answer.
+Never go on past the question in the same turn.
 
 ## Pick the shape
 

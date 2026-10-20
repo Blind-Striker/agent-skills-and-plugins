@@ -4,12 +4,14 @@ Read with this skill's `SKILL.md`; this file is part of its instructions.
 
 Call `subagent` with these inputs:
 
-- `agent`: `general` for every item. `explore` denies edit and write, so it cannot write its
-  results file. The read-only rule lives in the brief.
+- `agent`: the agent the user's configuration or instructions name for delegated work, such as a
+  routing agent that maps to a model; with none named, `general`. It must allow edit and write:
+  `explore` denies both, so it cannot write its results file. The read-only rule lives in the brief.
 - `description`: 3–5 words that start with the item id.
 - `prompt`: the brief.
 - `background`: `true`.
-- `model`: leave it unset unless the user asks for one.
+- `model`: leave it unset unless the user asks for one. The agent's own configuration picks the
+  model; this skill never does.
 - `sessionID`: set it only to continue a child of this session.
 
 A `general` child cannot ask the user or start children of its own. A child that lacks information
@@ -21,8 +23,9 @@ Record each child's `sessionID` as its handle in the ledger.
 
 OpenCode has no concurrency cap, so hold to the ceiling yourself: launch at most as many children
 as the ceiling. Then do work that does not overlap theirs, or say what you launched and end the
-turn. When one completes, launch the next PENDING item. Never sleep, poll, or ask a child for its
-status.
+turn. When one completes, record it and launch the next PENDING item in that same turn: a
+completion is not a check-in, so never ask the user whether to go on. Never sleep, poll, or ask a
+child for its status.
 
 Depth is `experimental.subagent_depth`, default 1, so a child cannot start children.
 

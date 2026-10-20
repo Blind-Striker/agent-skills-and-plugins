@@ -17,10 +17,13 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
 - Start a child with `spawn_agent`: the brief as `message`, and `fork_context` unset, so the brief
   stands alone. Set `agent_type` (`explorer` for a read item, `worker` for a write item) only when
   `spawn_agent` lists it.
-- Run a rolling wave with at most min(ceiling, thread limit) children live:
-  1. Call `wait_agent` with `targets` set to every live id and `timeout_ms` 300000.
-  2. Record the first finisher in the ledger.
-  3. Call `close_agent` on it: a finished agent holds its slot until it is closed.
+- Run a rolling wave with at most min(ceiling, thread limit) children live. A child is live from
+  its spawn until you close it, finished or not:
+  1. Call `wait_agent` with `targets` set to every live id and `timeout_ms` 300000. A timeout with
+     no finisher: call it again.
+  2. Record each finisher in the ledger.
+  3. Call `close_agent` on every child you recorded: a finished agent holds its slot until it is
+     closed. Never spawn while a recorded child is still open.
   4. Spawn the next PENDING item.
 - `send_input` sends a correction to the same child, and `resume_agent` reopens a closed child.
   Restart step 4 uses them only within the live session.
@@ -38,7 +41,11 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
 
 ## Both versions
 
-- A spawn that fails on the thread limit waits for a finisher. It is not an error to report.
+- A finisher's arrival is not a check-in: record it and spawn the next PENDING item without asking
+  the user whether to go on.
+- A spawn that fails on the thread limit is not an error to report and not a reason to end the
+  turn. Under V1, close every child you have recorded, then `wait_agent` on the rest; under V2,
+  `wait_agent`. Then spawn again.
 - An error result is FAILED under its item id.
 - This skill's model rule: for the children it spawns, leave `model` and `reasoning_effort` unset
   unless the user asks. Model routing belongs in the user's `[agents] default_subagent_model`, not

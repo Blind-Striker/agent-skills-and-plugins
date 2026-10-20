@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.12.4
+  version: 0.12.5
 original_skills:
   delegating-to-worker-models:
     invocation: both # the user's routing decision spends the quota, not loading these rules, and the
@@ -42,7 +42,18 @@ original_skills:
     # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1). Its
     # small-task test counts only one item as small; a sequential chain cannot fan out but is not
     # small, so the agent judges whether a final gate and skeptic wave pay, asking once only when
-    # genuinely torn, curator's call
+    # genuinely torn, curator's call. The yes/no questions before destructive or outward actions
+    # apply unless the request already names that action. The skill never picks a child's model or
+    # routing agent, curator's call: OpenCode and Claude Code use the agent the user's configuration
+    # or instructions name for delegated work (a routing agent that maps to a model), falling back to
+    # `general` or the default workflow agent, and any such agent must allow edit and write; Codex
+    # already left routing to `[agents] default_subagent_model`. GPT runs stalled after six children:
+    # the ceiling now reads as a limit, not a target, the agent total is counted from the plan and
+    # excludes retries of FAILED items, and the Codex V1 loop closes every recorded child before the
+    # next spawn and keeps waiting after a thread-limit failure instead of ending the turn. V1 is
+    # unmeasured (the Codex panel record was served V2), so the slot-leak reading is inferred, and
+    # Codex's catalog serves Sol V2, so it covers Sol only under a V1 override. On both OpenCode and
+    # Codex a child's completion is not a check-in: the next PENDING item launches without asking
     harness_files: # each harness reads only its own tool notes; no tree carries another's tool words
       references/harness-tools.md:
         claude: references/claude-code-tools.md
