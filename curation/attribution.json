@@ -41,6 +41,13 @@
     "copyright": "Copyright (c) 2026 Matt Pocock",
     "licenseFile": "LICENSE"
   },
+  "ponytail": {
+    "name": "Ponytail",
+    "repository": "https://github.com/DietrichGebert/ponytail",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 DietrichGebert",
+    "licenseFile": "LICENSE"
+  },
   "superpowers": {
     "name": "Superpowers",
     "repository": "https://github.com/obra/superpowers",

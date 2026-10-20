@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.12.5
+  version: 0.13.0
 original_skills:
   delegating-to-worker-models:
     invocation: both # the user's routing decision spends the quota, not loading these rules, and the
@@ -541,7 +541,7 @@ items:
     # references/dotnet.md, read only for .NET work: as a both router this body loads on uncertainty
     # in any repository, and the .NET map nearly doubled it. The description says when to load it
     # (unsure which skill fits, or asked) rather than only what it covers
-    depends_on: [asd-ste100, brainstorming, codebase-design, delegating-to-worker-models, dispatching-parallel-agents, domain-modeling, grilling, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
+    depends_on: [asd-ste100, brainstorming, codebase-design, delegating-to-worker-models, dispatching-parallel-agents, domain-modeling, grilling, ponytail, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
     optional_refs:
       - akka-hosting-actor-patterns
       - akka-net-aspire-configuration
@@ -700,3 +700,58 @@ items:
     exclude: true # attribution-only source; not curated
   - source: humanlayer-skills/plugins/rpi/agents/web-search-researcher.md
     exclude: true # attribution-only source; not curated
+  # --- ponytail: the lazy-senior-dev rule and its report skills ---
+  # Taken without hooks, curator's call: upstream's plugin wires SessionStart, SubagentStart, and
+  # UserPromptSubmit hooks, a band, a statusline, and a mode tracker that keep the rule on in every
+  # session. This estate ships no hooks and no always-on skill, so only the skill bodies are taken,
+  # and the rule fires when the user asks for it. skills/ is upstream's canonical set; the
+  # .openclaw/skills/ copies below are another harness's packaging of the same six.
+  - source: ponytail/.openclaw/skills/ponytail
+    exclude: true # OpenClaw packaging of skills/ponytail, taken below; listed first because both
+    # copies resolve to one output name and the taken entry must be the one that stands
+  - source: ponytail/.openclaw/skills/ponytail-review
+    exclude: true # OpenClaw packaging of skills/ponytail-review, taken below
+  - source: ponytail/.openclaw/skills/ponytail-audit
+    exclude: true # OpenClaw packaging of skills/ponytail-audit, taken below
+  - source: ponytail/.openclaw/skills/ponytail-debt
+    exclude: true # OpenClaw packaging of skills/ponytail-debt, taken below
+  - source: ponytail/.openclaw/skills/ponytail-gain
+    exclude: true # OpenClaw packaging of skills/ponytail-gain, excluded below
+  - source: ponytail/.openclaw/skills/ponytail-help
+    exclude: true # OpenClaw packaging of skills/ponytail-help, excluded below
+  - source: ponytail/skills/ponytail
+    invocation: both # curator's call: the user can start it by name, and the model may load it when
+    # the user asks for the simplest solution or complains about bloat; upstream's "Use on any coding
+    # task" would make it the always-on rule the dropped hooks enforced, so the description is
+    # narrowed to explicit intent
+    body: patch # strips the session-sticky mode line and the lite/full/ultra levels table, keeping
+    # the full rules only, curator's call: lite asks the user to pick between two builds, ultra pushes
+    # back before building, and a sticky mode needs the hook state that is not shipped. The
+    # argument-hint that named the levels goes with them, and the description drops its level list
+    frontmatter:
+      description: "Use when the user asks for the simplest solution, says \"be lazy\" or \"yagni\", names ponytail, or complains about over-engineering or bloat: the smallest change that fully solves the task, and a reply a busy human understands in one read."
+  - source: ponytail/skills/ponytail-review
+    invocation: manual # curator's call: its "review this" and "code review" triggers collide with
+    # requesting-code-review, which owns the estate's review contract; the user starts this one by name
+    frontmatter:
+      # manual → read by a human browsing the menu; upstream's /ponytail-review spelling is not this
+      # estate's, so the trigger list goes and the summary stays
+      description: "Quality review of a change: is the logic right, is it safe, does it hold under real load, is risky code tested, is it fast enough, and is every line needed. Reads the connected code, not only the diff. Each finding is explained in plain English."
+  - source: ponytail/skills/ponytail-audit
+    invocation: manual # curator's call: a whole-repo audit is expensive and user-initiated
+    frontmatter:
+      # manual → menu text only; the /ponytail-audit spelling goes, as for ponytail-review
+      description: "Quality audit of a whole repo: bugs, security holes, what breaks under real load, risky code without tests, slow paths, and what to delete, merge or split. Ranked, each finding explained in plain English. One-shot report, changes nothing."
+  - source: ponytail/skills/ponytail-debt
+    invocation: manual # curator's call: the debt ledger is a report the user asks for
+    body: patch # its own-marker example named upstream's /ponytail-debt spelling, which no harness
+    # here uses, so the example names the marker word alone
+    frontmatter:
+      # manual → menu text only; the /ponytail-debt spelling goes, as for ponytail-review
+      description: "List every `shortcut:` comment (and older `ponytail:` ones) as a debt ledger. One-shot report, changes nothing."
+  - source: ponytail/skills/ponytail-gain
+    exclude: true # curator's call: a scoreboard of upstream's benchmark averages on one Claude model,
+    # with no work of its own
+  - source: ponytail/skills/ponytail-help
+    exclude: true # curator's call: a reference card for the levels, hooks, and slash spellings this
+    # intake strips, so it would describe a skill set that does not ship

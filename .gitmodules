@@ -19,3 +19,6 @@
 [submodule "external/humanlayer-skills"]
 	path = external/humanlayer-skills
 	url = https://github.com/humanlayer/skills.git
+[submodule "external/ponytail"]
+	path = external/ponytail
+	url = https://github.com/DietrichGebert/ponytail.git

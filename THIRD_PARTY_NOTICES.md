@@ -15,6 +15,7 @@ Module Bundles.
 | .NET agent skills | Copyright (c) .NET Foundation and Contributors | <https://github.com/dotnet/skills> |
 | ASD-STE100 skill | Copyright (c) 2026 Dustin Yuchen Teng | <https://github.com/danyuchn/asd-ste100-skill> |
 | HumanLayer skills | Copyright (c) 2026 HumanLayer | <https://github.com/humanlayer/skills> |
+| Ponytail | Copyright (c) 2026 DietrichGebert | <https://github.com/DietrichGebert/ponytail> |
 
 The root [LICENSE](LICENSE) applies to this repository's original code, documentation, overlays, and
 modifications. It does not replace the upstream notices above. See each generated distribution's

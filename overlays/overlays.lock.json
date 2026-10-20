@@ -410,6 +410,32 @@
       "SKILL.md": "44cc7d3136c44534d68ac523fa6cd37e759d2846"
     }
   },
+  "deniz-process/ponytail": {
+    "source": "ponytail/skills/ponytail",
+    "files": {
+      "SKILL.md": "d64edd32265ba21cbf5270158f04e97d96925f27"
+    }
+  },
+  "deniz-process/ponytail-audit": {
+    "source": "ponytail/skills/ponytail-audit",
+    "files": {
+      "SKILL.md": "ff9a95480700600fe2664d2d0906a4d750b2da0b"
+    },
+    "frontmatter": true
+  },
+  "deniz-process/ponytail-debt": {
+    "source": "ponytail/skills/ponytail-debt",
+    "files": {
+      "SKILL.md": "3124f520a65d2a4fa75a2f5db6225c38ebdb8620"
+    }
+  },
+  "deniz-process/ponytail-review": {
+    "source": "ponytail/skills/ponytail-review",
+    "files": {
+      "SKILL.md": "a50e3ac6ded6fccc9edae34ce37877bbce11e3fa"
+    },
+    "frontmatter": true
+  },
   "deniz-process/pr": {
     "source": "mattpocock-skills/skills/engineering/pr",
     "files": {

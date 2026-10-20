@@ -75,7 +75,7 @@ test("router and cheatsheet expose every manual ceremony as a human action", () 
   const manual = manifests
     .flatMap((manifest) => declaredItems(root, manifest, components))
     .filter((target) => target.intent.invocation === "manual");
-  assert.equal(manual.length, 30);
+  assert.equal(manual.length, 33);
   for (const target of manual) {
     assert.ok(cheat.includes(`\`${target.outName}\``), `cheatsheet misses manual ${target.outName}`);
     assert.ok(

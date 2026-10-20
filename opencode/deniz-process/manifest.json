@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.12.5",
-  "digest": "sha256:6f1b7f100369246c93defaaa11c80a7bf662fddf7a85a2a6888f4f03d031a09d",
+  "version": "0.13.0",
+  "digest": "sha256:bc7a022b87c8fe549ad33f1dad9fc411f44a175d79a1a6620f9d679b38244e5a",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -10,7 +10,7 @@
       "mode": "100644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "sha256:434cd399ff449d7d01b538b299b802db5a8ee395a7a1eade1bdfc2667165404f",
+      "sha256": "sha256:5997b6f99291c75b9da3412a966bf322ae9db333093a06c53a6a45309290ba07",
       "mode": "100644"
     },
     "skills/deniz-process.asd-ste100/LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:6ec09ae6b0264894447ea7c6192dc77c1ad664e61f16d7022c4b9d1aa1dfeaf5",
+      "sha256": "sha256:7080669f66f09259a30f48acdb6e123b35e3dc09c78fc14634e908f5b235e0db",
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/dotnet.md": {
@@ -287,6 +287,22 @@
     },
     "skills/deniz-process.improve-codebase-architecture/SKILL.md": {
       "sha256": "sha256:645d533db057442ecb067de2ee436ca85af044d5dd046e5e23ba1780f10808f2",
+      "mode": "100644"
+    },
+    "skills/deniz-process.ponytail-audit/SKILL.md": {
+      "sha256": "sha256:b3ffc89b9e2522ccbe9b207fb70f698904d78c82809be500bff773031a20626c",
+      "mode": "100644"
+    },
+    "skills/deniz-process.ponytail-debt/SKILL.md": {
+      "sha256": "sha256:d08c89264afac98c97416807f4dbb762f9f4611053bd4d29443ca834fa6403bb",
+      "mode": "100644"
+    },
+    "skills/deniz-process.ponytail-review/SKILL.md": {
+      "sha256": "sha256:f98bbe442a5a972309002f12fc54a166d1cc7d8c2f47aa6c45922f09d802adeb",
+      "mode": "100644"
+    },
+    "skills/deniz-process.ponytail/SKILL.md": {
+      "sha256": "sha256:44670aff9327139344ccc027108f6d388ef7ff9d78dc750b85df5ff1985d9123",
       "mode": "100644"
     },
     "skills/deniz-process.pr/CREDITS.md": {
@@ -547,6 +563,10 @@
     },
     "third_party/mattpocock-skills/LICENSE": {
       "sha256": "sha256:0e7ac423bf2c6e223b7c5b156f8cf72da49d748e56a1641402c31f22ad07dbb5",
+      "mode": "100644"
+    },
+    "third_party/ponytail/LICENSE": {
+      "sha256": "sha256:fb1bc6909ac3ef82d5c22106e32ef682b0cff66788fa915fb9b53b15c9d2f3ab",
       "mode": "100644"
     },
     "third_party/superpowers/LICENSE": {

@@ -24,6 +24,13 @@ The exact license text for each project is included at the listed path.
 - Copyright: Copyright (c) 2026 Matt Pocock
 - License text: `third_party/mattpocock-skills/LICENSE`
 
+## Ponytail
+
+- Source: <https://github.com/DietrichGebert/ponytail>
+- License: MIT
+- Copyright: Copyright (c) 2026 DietrichGebert
+- License text: `third_party/ponytail/LICENSE`
+
 ## Superpowers
 
 - Source: <https://github.com/obra/superpowers>

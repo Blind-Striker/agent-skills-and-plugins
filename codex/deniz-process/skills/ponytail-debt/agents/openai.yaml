@@ -1,0 +1,6 @@
+interface:
+  display_name: "Ponytail Debt"
+  short_description: "List every shortcut: comment (and older ponytail: ones)…"
+  default_prompt: "Use $deniz-process:ponytail-debt for this task."
+policy:
+  allow_implicit_invocation: false
