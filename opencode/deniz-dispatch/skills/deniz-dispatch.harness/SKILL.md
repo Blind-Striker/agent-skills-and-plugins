@@ -9,5 +9,14 @@ description: Use when you run the bundled dispatch harness to send a task file
 
 # Dispatch harness
 
-The harness's specification lands with the port of its source into this folder. Until then this
-skill carries no commands.
+From this skill's folder, build before every harness command:
+
+```text
+dotnet build dispatch.cs
+dotnet dispatch.cs -- <command> [arguments]
+```
+
+If the build exits non-zero, nothing started. Only after a successful build do the harness's exit
+codes describe the command's result. Pass the target repository with `--repo` (`routes` also accepts
+`--dir`), or set `repo` in the task file. Command-line paths must be absolute; paths inside a task
+file remain relative to that file. In PowerShell, use `$PWD.ProviderPath` to construct absolute paths.
