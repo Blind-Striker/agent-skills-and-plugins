@@ -1,0 +1,1 @@
+Our tests seem to depend on BADGEKIT_PROFILE. Find out whether the large-count label test fails only when BADGEKIT_PROFILE=current, and make the whole test suite pass under both profiles, current and legacy.

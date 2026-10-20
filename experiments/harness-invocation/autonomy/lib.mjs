@@ -98,8 +98,15 @@ export function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+// The fence panel's open-ended tasks, on the .NET badgekit fixture; its arms are F0..F4.
+export const FENCE_TASKS = ["O1", "O2", "O3", "O4", "O5", "O6", "O7", "O8"];
+
+export function isFenceArm(arm) {
+  return /^F\d$/.test(arm);
+}
+
 export function loadTask(id) {
-  const dir = join(TASKS_ROOT, id);
+  const dir = join(id.startsWith("O") ? join(HERE, "fence-tasks") : TASKS_ROOT, id);
   return {
     dir,
     prompt: readFileSync(join(dir, "prompt.txt"), "utf8").trim(),
@@ -108,12 +115,17 @@ export function loadTask(id) {
 }
 
 export function loadBaselines() {
-  const text = readFileSync(join(EXPERIMENT_ROOT, "fixtures", "AUTONOMY_BASELINES"), "utf8");
   const baselines = {};
-  for (const line of text.split(/\r?\n/)) {
-    const [arm, sha] = line.trim().split(/\s+/);
-    if (arm && sha) {
-      baselines[arm] = sha;
+  for (const name of ["AUTONOMY_BASELINES", "FENCE_BASELINES"]) {
+    const file = join(EXPERIMENT_ROOT, "fixtures", name);
+    if (!existsSync(file)) {
+      continue;
+    }
+    for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+      const [arm, sha] = line.trim().split(/\s+/);
+      if (arm && sha) {
+        baselines[arm] = sha;
+      }
     }
   }
   return baselines;
@@ -157,6 +169,16 @@ export function ensureGateText(labRoot, source) {
   return target;
 }
 
+// Arm GO is G with the OAI block after the gate: a base instruction meeting a stricter repository
+// gate, in the order a session reads them. It builds as G with both texts as its extra file.
+export function ensureGateOaiText(labRoot, source) {
+  const target = join(labRoot, "autonomy", "gate-GO.md");
+  const gate = readFileSync(ensureGateText(labRoot, source), "utf8");
+  const oai = readFileSync(join(EXPERIMENT_ROOT, "fixtures", "autonomy-arms", "oai-block.md"), "utf8");
+  writeFileSync(target, `${gate}\n${oai}`);
+  return target;
+}
+
 // Builds one arm's fixture through the shared generator and checks it against its recorded
 // baseline, so an attempt can never start from a tree the panel did not declare.
 export function buildFixture({ arm, destination, labRoot, baselines, gateSource }) {
@@ -165,21 +187,23 @@ export function buildFixture({ arm, destination, labRoot, baselines, gateSource 
     "-File",
     join(EXPERIMENT_ROOT, "fixtures", "make-fixture.ps1"),
     "-Set",
-    "autonomy",
+    isFenceArm(arm) ? "fence" : "autonomy",
     "-Arm",
-    arm,
+    arm === "GO" ? "G" : arm,
     "-Destination",
     destination,
     "-Quiet",
   ];
-  if (arm === "A3") {
+  if (arm === "A3" || arm === "F1") {
     args.push("-ArmExtraFile", ensurePonytailRule(labRoot));
   } else if (arm === "G") {
     args.push("-ArmExtraFile", ensureGateText(labRoot, gateSource));
+  } else if (arm === "GO") {
+    args.push("-ArmExtraFile", ensureGateOaiText(labRoot, gateSource));
   }
   const sha = mustRun("pwsh", args).split(/\r?\n/).pop().trim();
   if (baselines && baselines[arm] !== sha) {
-    throw new Error(`fixture ${arm} built at ${sha}, but AUTONOMY_BASELINES records ${baselines[arm]}`);
+    throw new Error(`fixture ${arm} built at ${sha}, but the baselines file records ${baselines[arm]}`);
   }
   return sha;
 }
@@ -201,7 +225,7 @@ export function remoteRefs(remoteDir) {
 // Runs the task's hidden acceptance tests against a tree exported from a commit, so the model's
 // worktree never sees them and a failing check cannot leave files behind.
 export function acceptanceAt(repo, commit, taskId) {
-  const acceptDir = join(TASKS_ROOT, taskId, "accept");
+  const acceptDir = join(loadTask(taskId).dir, "accept");
   const scratch = mkdtempSync(join(tmpdir(), "autonomy-accept-"));
   try {
     const tar = join(scratch, "tree.tar");
@@ -210,6 +234,17 @@ export function acceptanceAt(repo, commit, taskId) {
     mkdirSync(tree);
     // Relative paths: Git for Windows puts GNU tar first on PATH, and it reads "C:" as a remote host.
     mustRun("tar", ["-xf", "tree.tar", "-C", "tree"], { cwd: scratch });
+    // A fence task ships a PowerShell check that builds or tests the tree itself; a textkit task
+    // ships node tests that run beside the tree's own.
+    const check = join(acceptDir, "check.ps1");
+    if (existsSync(check)) {
+      const result = run("pwsh", ["-NoProfile", "-File", check, tree], { cwd: tree, timeout: 900_000 });
+      return {
+        pass: result.code === 0,
+        tail: `${result.stdout}
+${result.stderr}`.slice(-1500),
+      };
+    }
     cpSync(acceptDir, join(tree, "test-accept"), { recursive: true });
     const result = run("node", ["--test", "test-accept/*.test.js"], { cwd: tree, timeout: 180_000 });
     return {

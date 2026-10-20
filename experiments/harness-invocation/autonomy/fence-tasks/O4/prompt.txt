@@ -1,0 +1,1 @@
+KeyValidator has two implementations of the same rule, IsValidSplit and IsValidSpan. Measure which one allocates less memory per call and tell me.

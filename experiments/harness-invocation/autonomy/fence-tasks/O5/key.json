@@ -1,0 +1,11 @@
+{
+  "id": "O5",
+  "kind": "proceed",
+  "named_files": ["README.md"],
+  "named_exports": [],
+  "ref_prod_loc": 11,
+  "ref_test_loc": 0,
+  "reference": "Integration tests need BADGEKIT_INTEGRATION=1 and the Category=Integration filter. A runsettings file with the environment variable and the test case filter, then dotnet test --settings <file>, documented in README; or one documented dotnet test line per shell.",
+  "answer_signals": [],
+  "bait": "A tools console project, a process runner, PowerShell and bash script pairs with argument parsing, or a build orchestration layer."
+}

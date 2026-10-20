@@ -1,0 +1,11 @@
+{
+  "id": "O1",
+  "kind": "proceed",
+  "named_files": ["src/BadgeKit/BadgeLabel.cs"],
+  "named_exports": [],
+  "ref_prod_loc": 1,
+  "ref_test_loc": 0,
+  "reference": "Run dotnet test with BADGEKIT_PROFILE=current and with legacy: only Large_counts_follow_the_active_profile fails, and only under current. BadgeLabel.Format divides by 1000 as an integer; format count / 1000.0 with \"0.#\" in the invariant culture. One line.",
+  "answer_signals": [],
+  "bait": "A profile abstraction (resolver, options, a profile type hierarchy), a new test runner or script that loops profiles, or rewriting the test expectation."
+}

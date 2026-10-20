@@ -1,0 +1,67 @@
+{"ts":"2026-10-21T09:00:00Z","level":"info","msg":"issued badge","requestId":"r-0001"}
+{"ts":"2026-10-21T09:03:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0002"}
+{"ts":"2026-10-21T09:06:00Z","level":"info","msg":"issued badge","requestId":"r-0003"}
+{"ts":"2026-10-21T09:09:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0004"}
+{"ts":"2026-10-21T09:12:00Z","level":"info","msg":"issued badge","requestId":"r-0005"}
+{"ts":"2026-10-21T09:15:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0006"}
+{"ts":"2026-10-21T09:18:00Z","level":"info","msg":"issued badge","requestId":"r-0007"}
+{"ts":"2026-10-21T09:21:00Z","level":"error","type":"Storage","msg":"write to badge store failed","requestId":"r-0008"}
+{"ts":"2026-10-21T09:24:00Z","level":"info","msg":"issued badge","requestId":"r-0009"}
+{"ts":"2026-10-21T09:27:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0010"}
+{"ts":"2026-10-21T09:30:00Z","level":"info","msg":"issued badge","requestId":"r-0011"}
+{"ts":"2026-10-21T09:33:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0012"}
+{"ts":"2026-10-21T09:36:00Z","level":"info","msg":"issued badge","requestId":"r-0013"}
+{"ts":"2026-10-21T09:39:00Z","level":"error","type":"Auth","msg":"token rejected","requestId":"r-0014"}
+{"ts":"2026-10-21T09:42:00Z","level":"info","msg":"issued badge","requestId":"r-0015"}
+{"ts":"2026-10-21T09:45:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0016"}
+{"ts":"2026-10-21T09:48:00Z","level":"info","msg":"issued badge","requestId":"r-0017"}
+{"ts":"2026-10-21T09:51:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0018"}
+{"ts":"2026-10-21T09:54:00Z","level":"info","msg":"issued badge","requestId":"r-0019"}
+{"ts":"2026-10-21T09:57:00Z","level":"error","type":"Storage","msg":"write to badge store failed","requestId":"r-0020"}
+{"ts":"2026-10-21T10:00:00Z","level":"info","msg":"issued badge","requestId":"r-0021"}
+{"ts":"2026-10-21T10:03:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0022"}
+{"ts":"2026-10-21T10:06:00Z","level":"info","msg":"issued badge","requestId":"r-0023"}
+{"ts":"2026-10-21T10:09:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0024"}
+{"ts":"2026-10-21T10:12:00Z","level":"info","msg":"issued badge","requestId":"r-0025"}
+{"ts":"2026-10-21T10:15:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0026"}
+{"ts":"2026-10-21T10:18:00Z","level":"info","msg":"issued badge","requestId":"r-0027"}
+{"ts":"2026-10-21T10:21:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0028"}
+{"ts":"2026-10-21T10:24:00Z","level":"info","msg":"issued badge","requestId":"r-0029"}
+{"ts":"2026-10-21T10:27:00Z","level":"error","type":"Storage","msg":"write to badge store failed","requestId":"r-0030"}
+{"ts":"2026-10-21T10:30:00Z","level":"info","msg":"issued badge","requestId":"r-0031"}
+{"ts":"2026-10-21T10:33:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0032"}
+{"ts":"2026-10-21T10:36:00Z","level":"info","msg":"issued badge","requestId":"r-0033"}
+{"ts":"2026-10-21T10:39:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0034"}
+{"ts":"2026-10-21T10:42:00Z","level":"info","msg":"issued badge","requestId":"r-0035"}
+{"ts":"2026-10-21T10:45:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0036"}
+{"ts":"2026-10-21T11:05:00Z","level":"info","msg":"issued badge","requestId":"r-0037"}
+{"ts":"2026-10-21T11:07:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0038"}
+{"ts":"2026-10-21T11:08:30Z","level":"info","msg":"issued badge","requestId":"r-0039"}
+{"ts":"2026-10-21T11:10:30Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0040"}
+{"ts":"2026-10-21T11:12:00Z","level":"info","msg":"issued badge","requestId":"r-0041"}
+{"ts":"2026-10-21T11:14:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0042"}
+{"ts":"2026-10-21T11:15:30Z","level":"info","msg":"issued badge","requestId":"r-0043"}
+{"ts":"2026-10-21T11:17:30Z","level":"warn","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0044"}
+{"ts":"2026-10-21T11:19:00Z","level":"info","msg":"issued badge","requestId":"r-0045"}
+{"ts":"2026-10-21T11:21:00Z","level":"error","type":"Auth","msg":"token rejected","requestId":"r-0046"}
+{"ts":"2026-10-21T11:22:30Z","level":"info","msg":"issued badge","requestId":"r-0047"}
+{"ts":"2026-10-21T11:24:30Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0048"}
+{"ts":"2026-10-21T11:26:00Z","level":"info","msg":"issued badge","requestId":"r-0049"}
+{"ts":"2026-10-21T11:28:00Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0050"}
+{"ts":"2026-10-21T11:29:30Z","level":"info","msg":"issued badge","requestId":"r-0051"}
+{"ts":"2026-10-21T11:31:30Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0052"}
+{"ts":"2026-10-21T11:33:00Z","level":"info","msg":"issued badge","requestId":"r-0053"}
+{"ts":"2026-10-21T11:35:00Z","level":"warn","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0054"}
+{"ts":"2026-10-21T11:36:30Z","level":"info","msg":"issued badge","requestId":"r-0055"}
+{"ts":"2026-10-21T11:38:30Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0056"}
+{"ts":"2026-10-21T11:40:00Z","level":"info","msg":"issued badge","requestId":"r-0057"}
+{"ts":"2026-10-21T11:42:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0058"}
+{"ts":"2026-10-21T11:43:30Z","level":"info","msg":"issued badge","requestId":"r-0059"}
+{"ts":"2026-10-21T11:45:30Z","level":"error","type":"Auth","msg":"token rejected","requestId":"r-0060"}
+{"ts":"2026-10-21T11:47:00Z","level":"info","msg":"issued badge","requestId":"r-0061"}
+{"ts":"2026-10-21T11:49:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0062"}
+{"ts":"2026-10-21T11:50:30Z","level":"info","msg":"issued badge","requestId":"r-0063"}
+{"ts":"2026-10-21T11:52:30Z","level":"error","type":"Validation","msg":"request failed validation","requestId":"r-0064"}
+{"ts":"2026-10-21T11:54:00Z","level":"info","msg":"issued badge","requestId":"r-0065"}
+{"ts":"2026-10-21T11:56:00Z","level":"error","type":"Timeout","msg":"badge store did not answer within 2 s","requestId":"r-0066"}
+{"ts":"2026-10-21T11:58:00Z","level":"info","msg":"issued badge","requestId":"r-0067"}

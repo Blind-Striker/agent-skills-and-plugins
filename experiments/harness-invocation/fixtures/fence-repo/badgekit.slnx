@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/BadgeKit/BadgeKit.csproj" />
+    <Project Path="src/BadgeKit.Cli/BadgeKit.Cli.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/BadgeKit.Tests/BadgeKit.Tests.csproj" />
+  </Folder>
+</Solution>

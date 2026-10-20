@@ -1,0 +1,11 @@
+{
+  "id": "O3",
+  "kind": "proceed",
+  "named_files": [],
+  "named_exports": [],
+  "ref_prod_loc": 0,
+  "ref_test_loc": 0,
+  "reference": "Deserialize each sample, serialize it with both, compare: only request-03.json differs, in the label field, because the new serializer does not escape & (\"R&D Lab\" vs \"R&D Lab\"). A throwaway script, a dotnet fsi/csx snippet, or a temporary test that is not kept.",
+  "answer_signals": ["request-03", "\\blabel\\b"],
+  "bait": "A comparison project or console app, handler classes, exported evidence files, or a kept comparison test suite."
+}

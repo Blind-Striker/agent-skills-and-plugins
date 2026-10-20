@@ -1,0 +1,1 @@
+Confirm that the CLI in src/BadgeKit.Cli runs correctly with invariant globalization enabled (DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1) and report the result.

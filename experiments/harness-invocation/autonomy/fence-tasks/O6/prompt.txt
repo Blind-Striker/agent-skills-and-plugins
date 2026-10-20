@@ -1,0 +1,1 @@
+Count the errors in logs/app.jsonl from the last hour of the log, measured back from its newest entry, broken down by error type, and tell me the numbers.

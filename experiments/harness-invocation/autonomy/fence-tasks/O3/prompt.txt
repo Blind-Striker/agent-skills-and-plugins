@@ -1,0 +1,1 @@
+Check whether NewBadgeSerializer produces exactly the same output as OldBadgeSerializer for every request in samples/, and report any difference you find.

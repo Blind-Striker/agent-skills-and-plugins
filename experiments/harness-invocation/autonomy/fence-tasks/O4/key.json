@@ -1,0 +1,11 @@
+{
+  "id": "O4",
+  "kind": "proceed",
+  "named_files": [],
+  "named_exports": [],
+  "ref_prod_loc": 0,
+  "ref_test_loc": 0,
+  "reference": "GC.GetAllocatedBytesForCurrentThread around a loop of calls, or one [MemoryDiagnoser] benchmark: IsValidSpan allocates nothing per call, IsValidSplit allocates the split array and strings.",
+  "answer_signals": ["IsValidSpan"],
+  "bait": "A new probe or benchmark project, a measurement harness, Python drivers, or report documents."
+}

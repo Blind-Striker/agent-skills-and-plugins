@@ -16,8 +16,10 @@ import {
   acceptanceAt,
   attachRemote,
   buildFixture,
+  FENCE_TASKS,
   git,
   HERE,
+  isFenceArm,
   loadBaselines,
   loadTask,
   mustRun,
@@ -36,6 +38,9 @@ import { scoreAll } from "./score.mjs";
 const MODELS = {
   sol: "openai/gpt-6.1-sol-1m#high",
   luna: "openai/gpt-6-luna#high",
+  // Claude through the operator's stored GitHub Copilot login; dispatch's maintained allow-list
+  // does not list it, so legs on this route run a lab copy of dispatch with the line added.
+  claude: "github-copilot/claude-opus-5.5",
 };
 const POLICY = join(HERE, "dispatch-policy.jsonc");
 // The real-config leg runs under the operator's own OpenCode config, to tell a model cause from a
@@ -163,8 +168,9 @@ function taskFile(manifest, arm, model, n, runName) {
   const { repo, baseline } = manifest.repos[arm];
   const tasks = [];
   const map = {};
+  const fence = isFenceArm(arm);
   for (let attempt = 1; attempt <= n; attempt++) {
-    for (const id of TASKS) {
+    for (const id of fence ? FENCE_TASKS : TASKS) {
       const { prompt } = loadTask(id);
       const taskId = `${runName}-${id.toLowerCase()}-${String(attempt).padStart(2, "0")}`;
       tasks.push({
@@ -177,8 +183,8 @@ function taskFile(manifest, arm, model, n, runName) {
         // attempt has its own worktree and branch here. A raw prompt never shows the scope, so a
         // placeholder only turns off dispatch's settle-time flag; score.mjs measures scope itself.
         scope: [`.autonomy-scope/${taskId}/`],
-        verify: ["npm test"],
-        maxMinutes: 30,
+        verify: [fence ? "dotnet build" : "npm test"],
+        maxMinutes: fence ? 45 : 30,
       });
       map[taskId] = {
         arm,

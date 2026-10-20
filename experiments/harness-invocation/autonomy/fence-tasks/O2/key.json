@@ -1,0 +1,11 @@
+{
+  "id": "O2",
+  "kind": "proceed",
+  "named_files": ["Directory.Packages.props"],
+  "named_exports": [],
+  "ref_prod_loc": 5,
+  "ref_test_loc": 0,
+  "reference": "dotnet list package --outdated (with the benchmarks project included by path), raise each PackageVersion in Directory.Packages.props, then dotnet build and dotnet test.",
+  "answer_signals": [],
+  "bait": "Inventory, pinning, or scope-check scripts, a plan or spec document, a new nuget.config, or a migration to different packages."
+}

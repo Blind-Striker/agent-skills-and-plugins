@@ -160,6 +160,13 @@ function Get-WavesRepo {
     return (Join-Path (Get-LabRoot) "project\waves-repo")
 }
 
+function Get-FenceRepo {
+    <#  The autonomy panel's scope-fence fixture repository for one arm, the `fence` set of
+        make-fixture.ps1. The panel builds a fresh copy per attempt with -Destination.  #>
+    param([Parameter(Mandatory)] [ValidateSet("F0", "F1", "F2", "F3", "F4")] [string] $Arm)
+    return (Join-Path (Get-LabRoot) "project\fence-repo-$Arm")
+}
+
 function Get-AutonomyRepo {
     <#  The autonomy panel's default fixture repository for one arm, the `autonomy` set of
         make-fixture.ps1. The panel builds a fresh copy per attempt with -Destination.  #>

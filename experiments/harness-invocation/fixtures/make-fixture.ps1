@@ -1,17 +1,18 @@
 # Rebuilds a probe fixture, deterministically.
 #
-# Three fixture sets share this generator. `scratch`, the default, is the three-commit repository
+# Four fixture sets share this generator. `scratch`, the default, is the three-commit repository
 # the invocation probes run in. `waves` is the one-commit limits toolkit that the verified-waves
 # panel runs in (../verified-waves-panel.md); its files sit under src/ and test/. `autonomy` is the
-# one-commit textkit package the autonomy panel runs in, built once per arm: -Arm picks the
-# working-style text appended to its AGENTS.md, so each arm has its own baseline commit. So each
-# commit names a list of files relative to its set's source root, and the copy keeps each relative
-# path.
+# one-commit textkit package the autonomy panel runs in, and `fence` the one-commit badgekit .NET
+# solution its scope-fence tasks run in; both are built once per arm: -Arm picks the working-style
+# text appended to its AGENTS.md, so each arm has its own baseline commit. So each commit names a
+# list of files relative to its set's source root, and the copy keeps each relative path.
 #
-# The autonomy set's AGENTS.md is assembled, not copied: AGENTS.base.md, then, when the arm file is
-# not empty, a blank line and autonomy-arms/<arm>.md, then, for A3 and G only, a blank line and the
-# bytes of -ArmExtraFile. Their extra text is never committed here (A3's is upstream text, G's is a
-# private repository's approval gate), so those two arms require it and no other arm accepts it.
+# An arm set's AGENTS.md is assembled, not copied: AGENTS.base.md, then, when the arm file is not
+# empty, a blank line and <set>-arms/<arm>.md, then, for the arms that take it (autonomy A3 and G,
+# fence F1), a blank line and the bytes of -ArmExtraFile. That extra text is never committed here
+# (A3's and F1's is upstream text, G's is a private repository's approval gate), so those arms
+# require it and no other arm accepts it.
 #
 # Every input to the commit hash is pinned - tree, message INCLUDING ITS BODY, author, committer
 # and both timestamps - so a rebuild on any machine reproduces the same SHA and the baseline in a
@@ -28,22 +29,30 @@
 param(
     [string] $Destination,
     [switch] $Quiet,
-    [ValidateSet("scratch", "waves", "autonomy")] [string] $Set = "scratch",
-    [ValidateSet("A0", "A1", "A2", "A3", "G")] [string] $Arm,
+    [ValidateSet("scratch", "waves", "autonomy", "fence")] [string] $Set = "scratch",
+    [string] $Arm,
     [string] $ArmExtraFile
 )
 . "$PSScriptRoot\..\common.ps1"
 
-if ($Set -eq "autonomy") {
-    if (-not $Arm) { throw "-Set autonomy requires -Arm" }
-    $needsExtra = $Arm -in @("A3", "G")
+# The sets built once per arm: the arms each accepts, the arms that take -ArmExtraFile, and the
+# directory that holds the arm files.
+$armSets = @{
+    autonomy = @{ arms = @("A0", "A1", "A2", "A3", "G"); extra = @("A3", "G"); dir = "autonomy-arms" }
+    fence    = @{ arms = @("F0", "F1", "F2", "F3", "F4"); extra = @("F1"); dir = "fence-arms" }
+}
+if ($armSets.ContainsKey($Set)) {
+    $armSet = $armSets[$Set]
+    if (-not $Arm) { throw "-Set $Set requires -Arm" }
+    if ($Arm -notin $armSet.arms) { throw "-Set $Set takes -Arm $($armSet.arms -join ', ')" }
+    $needsExtra = $Arm -in $armSet.extra
     if ($needsExtra -and -not $ArmExtraFile) { throw "-Arm $Arm requires -ArmExtraFile" }
-    if (-not $needsExtra -and $ArmExtraFile) { throw "-ArmExtraFile is valid only with -Arm A3 or G" }
+    if (-not $needsExtra -and $ArmExtraFile) { throw "-ArmExtraFile is valid only with -Arm $($armSet.extra -join ' or ')" }
     if ($ArmExtraFile -and -not (Test-Path -LiteralPath $ArmExtraFile -PathType Leaf)) {
         throw "no file at -ArmExtraFile $ArmExtraFile"
     }
 } elseif ($Arm -or $ArmExtraFile) {
-    throw "-Arm and -ArmExtraFile are valid only with -Set autonomy"
+    throw "-Arm and -ArmExtraFile are valid only with -Set $(($armSets.Keys | Sort-Object) -join ' or ')"
 }
 
 # One entry per set: its source root under fixtures/, its default destination in the lab, and its
@@ -84,6 +93,27 @@ $sets = @{
             }
         )
     }
+    fence = @{
+        source      = "fence-repo"
+        destination = { Get-FenceRepo -Arm $Arm }
+        commits     = @(
+            @{
+                files = @(".gitignore", "AGENTS.md", "Directory.Build.props", "Directory.Packages.props",
+                          "README.md", "badgekit.slnx", "nuget.config",
+                          "benchmarks/BadgeKit.Benchmarks/BadgeKit.Benchmarks.csproj",
+                          "benchmarks/BadgeKit.Benchmarks/Program.cs", "logs/app.jsonl",
+                          "samples/request-01.json", "samples/request-02.json", "samples/request-03.json",
+                          "samples/request-04.json", "src/BadgeKit/BadgeIssuer.cs", "src/BadgeKit/BadgeKit.csproj",
+                          "src/BadgeKit/BadgeLabel.cs", "src/BadgeKit/BadgeRequest.cs",
+                          "src/BadgeKit/BadgeSerializers.cs", "src/BadgeKit/KeyValidator.cs",
+                          "src/BadgeKit/Profiles.cs", "src/BadgeKit.Cli/BadgeKit.Cli.csproj",
+                          "src/BadgeKit.Cli/Program.cs", "tests/BadgeKit.Tests/BadgeKit.Tests.csproj",
+                          "tests/BadgeKit.Tests/IntegrationTests.cs", "tests/BadgeKit.Tests/KeyValidatorTests.cs",
+                          "tests/BadgeKit.Tests/LabelTests.cs", "tests/BadgeKit.Tests/SerializerTests.cs")
+                msg   = "feat: badgekit"; body = ""; date = "2026-10-21T12:00:00+03:00"
+            }
+        )
+    }
 }
 $fixture = $sets[$Set]
 
@@ -96,12 +126,12 @@ New-Item -ItemType Directory -Force -Path $dest | Out-Null
 
 $src = Join-Path $PSScriptRoot $fixture.source
 
-# The autonomy set's AGENTS.md, as bytes: LF line ends, no BOM, exactly as the parts hold them.
+# An arm set's AGENTS.md, as bytes: LF line ends, no BOM, exactly as the parts hold them.
 $assembledAgents = $null
-if ($Set -eq "autonomy") {
+if ($armSets.ContainsKey($Set)) {
     $parts = [System.Collections.Generic.List[byte]]::new()
     $parts.AddRange([IO.File]::ReadAllBytes((Join-Path $src "AGENTS.base.md")))
-    $armBytes = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot "autonomy-arms\$Arm.md"))
+    $armBytes = [IO.File]::ReadAllBytes((Join-Path $PSScriptRoot "$($armSets[$Set].dir)\$Arm.md"))
     if ($armBytes.Length -gt 0) {
         $parts.Add(10)
         $parts.AddRange($armBytes)

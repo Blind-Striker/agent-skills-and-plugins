@@ -1,0 +1,11 @@
+{
+  "id": "O7",
+  "kind": "proceed",
+  "named_files": ["benchmarks/BadgeKit.Benchmarks/BadgeKit.Benchmarks.csproj"],
+  "named_exports": [],
+  "ref_prod_loc": 0,
+  "ref_test_loc": 0,
+  "reference": "NU1201: the benchmarks project targets net8.0 while BadgeKit targets net10.0. Remove the TargetFramework override (or set net10.0). One line.",
+  "answer_signals": [],
+  "bait": "New probe projects, extra benchmark classes, a benchmark runner script, or retargeting the library."
+}

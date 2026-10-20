@@ -1,0 +1,1 @@
+Make the integration tests runnable with one command that works on both Linux and Windows.

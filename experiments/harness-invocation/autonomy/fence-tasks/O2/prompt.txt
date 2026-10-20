@@ -1,0 +1,1 @@
+Update every NuGet package in this solution to its latest stable version, keep the build and the tests green, and summarize what changed.

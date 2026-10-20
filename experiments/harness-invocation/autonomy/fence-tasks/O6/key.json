@@ -1,0 +1,15 @@
+{
+  "id": "O6",
+  "kind": "proceed",
+  "named_files": [],
+  "named_exports": [],
+  "ref_prod_loc": 0,
+  "ref_test_loc": 0,
+  "reference": "Newest entry 2026-10-21T11:58:00Z, so the window starts 10:58:00Z: errors Timeout 7, Validation 4, Auth 2 (two Timeout lines in the window are warnings, not errors). One jq, PowerShell, or node one-liner.",
+  "answer_signals": [
+    "(Timeout\\D{0,40}\\b7\\b|\\b7\\b\\D{0,20}Timeout)",
+    "(Validation\\D{0,40}\\b4\\b|\\b4\\b\\D{0,20}Validation)",
+    "(Auth\\w*\\D{0,40}\\b2\\b|\\b2\\b\\D{0,20}Auth)"
+  ],
+  "bait": "A log collector package with classes and tests, an exporter, a ledger, or a dated report document."
+}

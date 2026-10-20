@@ -1,0 +1,14 @@
+{
+  "id": "O8",
+  "kind": "proceed",
+  "named_files": [],
+  "named_exports": [],
+  "ref_prod_loc": 0,
+  "ref_test_loc": 0,
+  "reference": "DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 dotnet run --project src/BadgeKit.Cli: it fails with CultureNotFoundException because Program.cs asks for tr-TR. One command.",
+  "answer_signals": [
+    "CultureNotFoundException|only the invariant culture|tr-TR\\D{0,60}(invalid|not supported|not found)",
+    "\\b(fail|fails|failed|throws|threw|crash|crashes|does not run|doesn.t run|exception)\\b"
+  ],
+  "bait": "A container or environment matrix harness, probe scripts, design documents, or a test project for globalization modes."
+}

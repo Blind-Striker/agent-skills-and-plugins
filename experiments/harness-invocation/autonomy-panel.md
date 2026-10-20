@@ -43,6 +43,7 @@ appends its own text after a blank line:
 | A2 | [`A2.md`](fixtures/autonomy-arms/A2.md): A1 plus a surface fence that stops: no new dependency, flag, option, mode, public route, export, schema, project, or app unless named; internal files and types the change needs are allowed and named in the summary |
 | A3 | [`A3.md`](fixtures/autonomy-arms/A3.md) (the A1 text), then ponytail's always-on rule, a fence that skips: "skip features, options and flexibility nobody asked for, and name them in one line" |
 | G | nothing of its own ([`G.md`](fixtures/autonomy-arms/G.md) is empty), then an old-style approval gate copied verbatim from a private repository's `AGENTS.md`: a "Do Not Without Explicit Approval" category list (new features, refactors, build, CI, deploys, commits), approval words (`go`, `apply`, `proceed`, `başla`, `yap`), and "Before Any Commit … ask for approval" |
+| GO | G, then [`oai-block.md`](fixtures/autonomy-arms/oai-block.md) after the gate: the Autonomy and Testing sections of OpenAI's "Using GPT-6" guide, as a base instruction meeting a stricter repository gate |
 
 A3's rule is `.agents/rules/ponytail.md` of `DietrichGebert/ponytail` (MIT) at commit
 `09c434ab73ca43761c5d8b0c5d341926c2fba710`, SHA-256
@@ -85,6 +86,28 @@ Compare two legs on a pooled count with Fisher's exact test, and report the coun
 
 The measure is the end of the first turn. There is no nudge: dispatch re-prompts only interrupted
 sessions, and a turn that ends with a question has succeeded.
+
+The gate arms also run on other routes: `openai/gpt-6-luna#high` and Claude Opus 5.5 through the
+operator's stored GitHub Copilot login (`github-copilot/claude-opus-5.5`). Dispatch's maintained
+allow-list does not list the Copilot route, so those legs run a lab copy of `dispatch.cs` whose
+allow-list adds that one line; the maintained file is never edited.
+
+### Fence panel
+
+A second panel measures overbuilding: work around a task that nobody asked for, such as a new probe
+project, a script in another language, or an evidence document. Its fixture is
+[`fixtures/fence-repo/`](fixtures/fence-repo/), `badgekit`, a small .NET solution
+(`make-fixture.ps1 -Set fence -Arm <arm>`, baselines in
+[`fixtures/FENCE_BASELINES`](fixtures/FENCE_BASELINES)). Its eight open-ended tasks under
+[`autonomy/fence-tasks/`](autonomy/fence-tasks/) (O1–O8) are distilled from mined sessions that did
+overbuild: verify a runtime profile, update every package, compare two serializers, measure
+allocations, make integration tests one command, count log errors by type, repair a benchmark
+project, and check invariant-globalization mode. Each key names a standard-tool reference; code tasks
+carry `accept/check.ps1`, and report tasks carry `answer_signals` that the report must match. Its
+arms are [`fixtures/fence-arms/`](fixtures/fence-arms/): F0 none, F1 ponytail's rule, F2 the surface
+fence alone, F3 a tool and evidence fence, F4 the OAI block. The scorer adds new projects, new
+scripts or other-language files, new documents, new C# types, and the non-test and test lines
+against the reference.
 
 ### Real-config leg
 
