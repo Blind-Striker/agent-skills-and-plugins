@@ -140,7 +140,10 @@ verified Package metadata and never become Destination Ownership. Any other non-
 is rejected. For each add or replacement, Apply stages the selected source bytes, verifies their hash
 and intended mode, and places them at the same relative path in the Destination. POSIX mode
 participates in matching and is applied; on Windows the intended mode remains recorded while byte
-identity is the enforced filesystem comparison.
+identity is the enforced filesystem comparison. A skill folder may bundle the source of an
+application, as the `harness` skill does with its .NET file-based app
+([ADR-0009](../adr/0009-the-dispatch-harness-ships-as-a-module.md)); the installer places those
+files like any other bundled file and never builds or runs them.
 
 Every Native-tree path already carries its Module's OpenCode namespace, because the emitter names
 each artifact `<module>.<name>`: `skills/<module>.<name>/SKILL.md` with its bundled files below that
