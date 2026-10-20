@@ -260,12 +260,8 @@ retrying.
 
 ### OpenCode from a Release Package
 
-Package 0.11.0 is being prepared with Process 0.13.0, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0.
-The verified recipe below remains on the last published Release until the new asset passes
-publication checks. For the current recipe after publication, use the [repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
-
-The current Package is attached to GitHub Release `installer-v0.10.0`, targeting commit `f42772b`.
-It carries OpenCode 2 Bundles: Process 0.12.2, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. They
+The current Package is attached to GitHub Release `installer-v0.11.0`, targeting commit `c3a3b2c`.
+It carries OpenCode 2 Bundles: Process 0.13.0, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. They
 need OpenCode 2 at v2.0.4 or later; OpenCode 1 is not supported and there is no compatibility layer.
 It was built on Linux and verified through manifest-backed tar-mode checks, zero-write Plan, Apply,
 status, and a remote re-download. Verify its repository-recorded SHA-256 before first execution. The
@@ -273,12 +269,12 @@ digest detects replacement or corruption but cannot prevent an authorized re-upl
 an npm-format transport artifact, not an npm publication or Git package install:
 
 ```powershell
-$download = Join-Path $env:TEMP "deniz-skills-installer-v0.10.0"
+$download = Join-Path $env:TEMP "deniz-skills-installer-v0.11.0"
 New-Item -ItemType Directory -Path $download -Force | Out-Null
-gh release download installer-v0.10.0 --repo Blind-Striker/agent-skills-and-plugins `
-  --pattern "deniz-agent-skills-0.10.0.tgz" --dir $download
-$package = Join-Path $download "deniz-agent-skills-0.10.0.tgz"
-$expected = "83f425c4f9999b3f5a4e926808e2245e2efd21a6568017f5e1bae8e792576698"
+gh release download installer-v0.11.0 --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "deniz-agent-skills-0.11.0.tgz" --dir $download
+$package = Join-Path $download "deniz-agent-skills-0.11.0.tgz"
+$expected = "4c79776d2339585f4c598273fc9499af7042c151508ba40f0cd3f283702220f0"
 $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "downloaded Package SHA-256 mismatch: $actual" }
 
@@ -306,7 +302,7 @@ mechanics are in [distribution and installation](docs/architecture/distribution-
 the dated [adapter research](docs/research/harness-adapters.md) and
 [experiment protocol](experiments/harness-invocation/protocol.md) retain measured evidence and its
 verification method. The exact asset identity and source-snapshot boundary are in the
-[v0.10.0 release record](experiments/harness-invocation/records/2026-10-17-opencode-installer-v0.10.0.md).
+[v0.11.0 release record](experiments/harness-invocation/records/2026-10-20-opencode-installer-v0.11.0.md).
 
 ## Limits and support
 
