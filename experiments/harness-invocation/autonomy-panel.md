@@ -106,8 +106,17 @@ project, and check invariant-globalization mode. Each key names a standard-tool 
 carry `accept/check.ps1`, and report tasks carry `answer_signals` that the report must match. Its
 arms are [`fixtures/fence-arms/`](fixtures/fence-arms/): F0 none, F1 ponytail's rule, F2 the surface
 fence alone, F3 a tool and evidence fence, F4 the OAI block. The scorer adds new projects, new
-scripts or other-language files, new documents, new C# types, and the non-test and test lines
-against the reference.
+scripts or other-language files, new documents, new verification artifacts (probe, harness,
+evidence, report, or log files nobody named), new C# types, and the non-test and test lines against
+the reference.
+
+Two more arms test whether a real repository's process instructions drive overbuilding. E1 appends
+one private repository's `AGENTS.md` with its approval-gate section removed, so its stops cannot
+mask overbuilding; E2 appends another's `AGENTS.md` as it is and places the two engineering documents
+it links at their paths (`make-fixture.ps1 -ArmExtraDir`). Those texts are never committed here: the
+operator places them under `<lab>/autonomy/sources`, and
+[`autonomy/lib.mjs`](autonomy/lib.mjs) (`PROCESS_SOURCES`) pins their SHA-256 hashes, so a run
+refuses any other bytes.
 
 ### Real-config leg
 

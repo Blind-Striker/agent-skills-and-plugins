@@ -10,9 +10,11 @@
 #
 # An arm set's AGENTS.md is assembled, not copied: AGENTS.base.md, then, when the arm file is not
 # empty, a blank line and <set>-arms/<arm>.md, then, for the arms that take it (autonomy A3 and G,
-# fence F1), a blank line and the bytes of -ArmExtraFile. That extra text is never committed here
-# (A3's and F1's is upstream text, G's is a private repository's approval gate), so those arms
-# require it and no other arm accepts it.
+# fence F1, E1 and E2), a blank line and the bytes of -ArmExtraFile. That extra text is never
+# committed here (A3's and F1's is upstream text, G's is a private repository's approval gate, E1's
+# and E2's are private repositories' process instructions), so those arms require it and no other
+# arm accepts it. E2 also takes -ArmExtraDir: the documents its AGENTS.md links, copied in at their
+# relative paths and committed with the rest.
 #
 # Every input to the commit hash is pinned - tree, message INCLUDING ITS BODY, author, committer
 # and both timestamps - so a rebuild on any machine reproduces the same SHA and the baseline in a
@@ -31,15 +33,17 @@ param(
     [switch] $Quiet,
     [ValidateSet("scratch", "waves", "autonomy", "fence")] [string] $Set = "scratch",
     [string] $Arm,
-    [string] $ArmExtraFile
+    [string] $ArmExtraFile,
+    [string] $ArmExtraDir
 )
 . "$PSScriptRoot\..\common.ps1"
 
-# The sets built once per arm: the arms each accepts, the arms that take -ArmExtraFile, and the
-# directory that holds the arm files.
+# The sets built once per arm: the arms each accepts, the arms that take -ArmExtraFile, the arms
+# that take -ArmExtraDir (files copied into the fixture at their relative paths, so an appended
+# AGENTS.md's links resolve), and the directory that holds the arm files.
 $armSets = @{
     autonomy = @{ arms = @("A0", "A1", "A2", "A3", "G"); extra = @("A3", "G"); dir = "autonomy-arms" }
-    fence    = @{ arms = @("F0", "F1", "F2", "F3", "F4"); extra = @("F1"); dir = "fence-arms" }
+    fence    = @{ arms = @("F0", "F1", "F2", "F3", "F4", "E1", "E2"); extra = @("F1", "E1", "E2"); extraDir = @("E2"); dir = "fence-arms" }
 }
 if ($armSets.ContainsKey($Set)) {
     $armSet = $armSets[$Set]
@@ -51,7 +55,13 @@ if ($armSets.ContainsKey($Set)) {
     if ($ArmExtraFile -and -not (Test-Path -LiteralPath $ArmExtraFile -PathType Leaf)) {
         throw "no file at -ArmExtraFile $ArmExtraFile"
     }
-} elseif ($Arm -or $ArmExtraFile) {
+    $needsDir = $Arm -in @($armSet.extraDir)
+    if ($needsDir -and -not $ArmExtraDir) { throw "-Arm $Arm requires -ArmExtraDir" }
+    if (-not $needsDir -and $ArmExtraDir) { throw "-ArmExtraDir is valid only with -Arm $(@($armSet.extraDir) -join ' or ')" }
+    if ($ArmExtraDir -and -not (Test-Path -LiteralPath $ArmExtraDir -PathType Container)) {
+        throw "no directory at -ArmExtraDir $ArmExtraDir"
+    }
+} elseif ($Arm -or $ArmExtraFile -or $ArmExtraDir) {
     throw "-Arm and -ArmExtraFile are valid only with -Set $(($armSets.Keys | Sort-Object) -join ' or ')"
 }
 
@@ -165,9 +175,20 @@ try {
                 Copy-Item -LiteralPath (Join-Path $src $f) -Destination $target
             }
         }
+        $files = @($c.files)
+        if ($ArmExtraDir) {
+            $root = (Resolve-Path -LiteralPath $ArmExtraDir).Path
+            foreach ($item in Get-ChildItem -LiteralPath $root -Recurse -File | Sort-Object FullName) {
+                $rel = $item.FullName.Substring($root.Length).TrimStart('\', '/').Replace('\', '/')
+                $target = Join-Path $dest $rel
+                New-Item -ItemType Directory -Force -Path (Split-Path $target -Parent) | Out-Null
+                [IO.File]::WriteAllBytes($target, [IO.File]::ReadAllBytes($item.FullName))
+                $files += $rel
+            }
+        }
         $env:GIT_AUTHOR_DATE = $c.date
         $env:GIT_COMMITTER_DATE = $c.date
-        git add -- @($c.files)
+        git add -- @($files)
         if ($c.body) { git commit -q -m $c.msg -m $c.body } else { git commit -q -m $c.msg }
     }
     $sha = (git rev-parse --short HEAD).Trim()

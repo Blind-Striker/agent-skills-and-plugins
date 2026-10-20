@@ -102,7 +102,7 @@ export function writeJson(path, value) {
 export const FENCE_TASKS = ["O1", "O2", "O3", "O4", "O5", "O6", "O7", "O8"];
 
 export function isFenceArm(arm) {
-  return /^F\d$/.test(arm);
+  return /^(F\d|E\d)$/.test(arm);
 }
 
 export function loadTask(id) {
@@ -169,6 +169,39 @@ export function ensureGateText(labRoot, source) {
   return target;
 }
 
+// Arms E1 and E2 append a real repository's process instructions to the fence fixture, to test
+// whether instructions drive overbuilding. The operator places the texts in <lab>/autonomy/sources
+// (they are private repositories' files, never committed here); the hashes pin the exact bytes.
+// E1: an AGENTS.md with its Approval Gate section removed, so its stops cannot mask overbuilding.
+// E2: an AGENTS.md as it is, with the two engineering docs it links placed at their paths.
+export const PROCESS_SOURCES = {
+  E1: { file: "E1.md", sha256: "2b71c9aae80e11d3e9fba621f3a5f9ffb853c585941f6798804f02d56aff9ddc" },
+  E2: {
+    file: "e2/AGENTS.md",
+    sha256: "f7f212722f40d25ccd2501c98f28757e118f46ad8c02d92cdf7333a796c44f3a",
+    dir: "e2-docs",
+    dirFiles: {
+      "docs/engineering/quality-gates.md": "70ce503fff1dafb3c7e9802b2802b212a7ec16a891a52e0abacc8cfca8f72e4e",
+      "docs/engineering/deviation-protocol.md": "2d2b3afcc6e0ed5e73f430d0b0210c433dd0771188902c20b6a24f76c9b0a27d",
+    },
+  },
+};
+
+function processSource(labRoot, arm) {
+  const spec = PROCESS_SOURCES[arm];
+  const sources = join(labRoot, "autonomy", "sources");
+  const check = (path, expected) => {
+    if (!existsSync(path) || sha256(readFileSync(path)) !== expected) {
+      throw new Error(`arm ${arm}: ${path} is missing or does not hash to ${expected}`);
+    }
+  };
+  check(join(sources, spec.file), spec.sha256);
+  for (const [rel, expected] of Object.entries(spec.dirFiles ?? {})) {
+    check(join(sources, spec.dir, rel), expected);
+  }
+  return { file: join(sources, spec.file), dir: spec.dir ? join(sources, spec.dir) : null };
+}
+
 // Arm GO is G with the OAI block after the gate: a base instruction meeting a stricter repository
 // gate, in the order a session reads them. It builds as G with both texts as its extra file.
 export function ensureGateOaiText(labRoot, source) {
@@ -200,6 +233,12 @@ export function buildFixture({ arm, destination, labRoot, baselines, gateSource 
     args.push("-ArmExtraFile", ensureGateText(labRoot, gateSource));
   } else if (arm === "GO") {
     args.push("-ArmExtraFile", ensureGateOaiText(labRoot, gateSource));
+  } else if (PROCESS_SOURCES[arm]) {
+    const source = processSource(labRoot, arm);
+    args.push("-ArmExtraFile", source.file);
+    if (source.dir) {
+      args.push("-ArmExtraDir", source.dir);
+    }
   }
   const sha = mustRun("pwsh", args).split(/\r?\n/).pop().trim();
   if (baselines && baselines[arm] !== sha) {

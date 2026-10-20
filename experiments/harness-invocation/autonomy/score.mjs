@@ -143,6 +143,15 @@ function scoreTask(taskId, meta, ledgerDir, events, after) {
   const newProjects = added.filter((path) => /\.(cs|fs)proj$/i.test(path));
   const newScripts = added.filter((path) => SCRIPT.test(path) && !named.has(path));
   const newDocs = added.filter((path) => /\.md$/i.test(path) && !named.has(path));
+  // Files whose only job is checking or recording: probes, harnesses, evidence, ledgers, reports,
+  // logs, and scripts the request did not name.
+  const verificationArtifacts = added.filter(
+    (path) =>
+      !named.has(path) &&
+      (/(probe|harness|evidence|ledger|report|verif|check|artifacts?|results?)/i.test(path) ||
+        /\.(md|log|txt|csv)$/i.test(path) ||
+        SCRIPT.test(path)),
+  );
   const newTypes = git(repo, "diff", "--unified=0", base, head, "--", "*.cs")
     .split(/\r?\n/)
     .filter((line) => line.startsWith("+") && !line.startsWith("+++"))
@@ -202,6 +211,7 @@ function scoreTask(taskId, meta, ledgerDir, events, after) {
     newProjects,
     newScripts,
     newDocs,
+    verificationArtifacts,
     newTypes,
     cost: result?.cost ?? null,
   };
@@ -263,8 +273,8 @@ function table(scores) {
 // The fence panel asks how much a fence trims overbuilding without bringing stops back.
 function fenceTable(scores) {
   const header = [
-    "| Leg | Task | n | turn 1 complete | stopped early | median non-test LOC (ref) | median test LOC (ref) | new projects | new scripts | new docs | median new types | model commits | outward asks |",
-    "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    "| Leg | Task | n | turn 1 complete | stopped early | median non-test LOC (ref) | median test LOC (ref) | new projects | new scripts | new docs | verification artifacts | median new types | model commits | outward asks |",
+    "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
   ];
   const groups = new Map();
   for (const score of scores) {
@@ -290,6 +300,7 @@ function fenceTable(scores) {
       rate(valid, (row) => row.newProjects.length > 0),
       rate(valid, (row) => row.newScripts.length > 0),
       rate(valid, (row) => row.newDocs.length > 0),
+      rate(valid, (row) => (row.verificationArtifacts ?? []).length > 0),
       median(valid.map((row) => row.newTypes)),
       rate(valid, (row) => row.modelCommits > 0),
       rate(valid, (row) => row.outwardAsks.length > 0),
