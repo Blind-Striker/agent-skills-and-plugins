@@ -3,7 +3,7 @@
 Date: 2026-10-17
 
 This dated note holds the evidence behind the original skill
-[`delegating-to-worker-models`](../../skills/deniz-process/delegating-to-worker-models/SKILL.md). The
+[`delegating-to-worker-models`](../../skills/deniz-dispatch/delegating-to-worker-models/SKILL.md). The
 skill carries the current rules; this note carries the runs, numbers, and calibration they came from.
 Facts are from runs on 2026-10-15 to 2026-10-17 in two repositories (an estate configuration
 repository and a .NET SDK); opinions are marked.

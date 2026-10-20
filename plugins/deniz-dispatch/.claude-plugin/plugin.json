@@ -1,0 +1,5 @@
+{
+  "name": "deniz-dispatch",
+  "description": "Deniz's worker-delegation harness and judgment (dispatch tasks to other model families)",
+  "version": "0.1.0"
+}

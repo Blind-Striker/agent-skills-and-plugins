@@ -178,12 +178,19 @@ Reach for these directly; they are not on any flow.
 | **`$deniz-process:setup-matt-pocock-skills`** | One-time setup for the issue-tracker conventions the ticket flow assumes. |
 | **`$deniz-process:verified-waves`** | A task big enough to split: it plans the fan-out in chat, runs it as waves of sub-agents, sends every finding to a fresh skeptic, and reports N of M done. You start it; it never starts itself. |
 | `$deniz-process:dispatching-parallel-agents` | How to brief a subagent so it comes back with something usable. Model-reachable; it arrives when you are about to fan work out. To run a whole verified job, start **`$deniz-process:verified-waves`**. |
-| `$deniz-process:delegating-to-worker-models` | Handing a task to a worker model of another family through a dispatcher: what never to delegate, the walls preflight, the worker contract, verification on the committed tree, two-family review. Model-reachable; it arrives when a worker prompt is being written. Whether to delegate stays your call. |
 | `$deniz-process:asd-ste100` | Rewrite ambiguous machine- or agent-facing text in controlled English; not creative copy or a new execution ceremony. |
 | `$deniz-process:ponytail` | You want the smallest change that fully solves the task, or the work is getting over-engineered. Model-reachable when you ask for the simplest solution or complain about bloat; it never switches on for a whole session. |
 | **`$deniz-process:ponytail-review`** | A plain-English quality review of one change, ranked must/should/nice, that also asks whether every line is needed. A second opinion; plan runs keep their own review contract. |
 | **`$deniz-process:ponytail-audit`** | The same quality review for a whole repo or folder, ranked. Expensive; it changes nothing. |
 | **`$deniz-process:ponytail-debt`** | List every `shortcut:` comment as a debt ledger, so a deliberate shortcut does not quietly become permanent. |
+
+## Worker delegation
+
+Applies only when the `deniz-dispatch` Module is installed.
+
+| Skill | For |
+|---|---|
+| `$deniz-dispatch:delegating-to-worker-models` | Handing a task to a worker model of another family through a dispatcher: what never to delegate, the walls preflight, the worker contract, verification on the committed tree, two-family review. Model-reachable; it arrives when a worker prompt is being written. Whether to delegate stays your call. |
 
 ## Phase boundaries
 

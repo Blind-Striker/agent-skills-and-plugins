@@ -1,5 +1,5 @@
 ---
-name: deniz-process.delegating-to-worker-models
+name: deniz-dispatch.delegating-to-worker-models
 description: Use when you are about to write a task prompt or task file for an
   out-of-process worker model from another model family, dispatch it, verify its
   output, or review it. Covers what never to delegate, the walls preflight, the
@@ -120,4 +120,4 @@ the ledger proves what it does not.
 - `references/failure-modes.md`: read when you review, and after any surprise.
 - `references/repo-addendum-template.md`: read when a repository has no addendum yet. Its first required
   field is the line that makes this skill load: "Before you write a worker prompt or review worker output,
-  load `deniz-process.delegating-to-worker-models`."
+  load `deniz-dispatch.delegating-to-worker-models`."

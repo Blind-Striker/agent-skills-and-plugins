@@ -1,4 +1,113 @@
 {
+  "deniz-dispatch/skill/delegating-to-worker-models": {
+    "source": "skills/deniz-dispatch/delegating-to-worker-models",
+    "original": true,
+    "invocation": "both",
+    "dependsOn": [
+      "delegating-to-worker-models",
+      "requesting-code-review"
+    ],
+    "description": "Use when you are about to write a task prompt or task file for an out-of-process worker model from another model family, dispatch it, verify its output, or review it. Covers what never to delegate, the walls preflight, the worker contract the dispatcher prepends, verification on the committed tree, two-family review, and the fix-up loop. Not for in-process subagents of your own harness.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dispatch:delegating-to-worker-models",
+          "deniz-process:requesting-code-review"
+        ],
+        "pointer": [
+          "deniz-process:verified-waves"
+        ]
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dispatch.delegating-to-worker-models",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dispatch.delegating-to-worker-models",
+          "deniz-process.requesting-code-review"
+        ],
+        "pointer": [
+          "@deniz-process.verified-waves"
+        ]
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dispatch:delegating-to-worker-models",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dispatch:delegating-to-worker-models",
+          "$deniz-process:requesting-code-review"
+        ],
+        "pointer": [
+          "$deniz-process:verified-waves"
+        ]
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dispatch/skill/harness": {
+    "source": "skills/deniz-dispatch/harness",
+    "original": true,
+    "invocation": "both",
+    "description": "Use when you run the bundled dispatch harness to send a task file to worker models through OpenCode or Codex, check or resume a run, answer an escalated ask, cancel or collect a task, or read its ledger. The harness's commands, task file, modes, configuration, ledger and exit codes; whether and how to delegate is delegating-to-worker-models' judgment.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dispatch.harness",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dispatch:harness",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-akka/agent/akka-net-specialist": {
     "source": "dotnet-skills/agents/akka-net-specialist.md",
     "description": "Expert in Akka.NET architecture, actor systems, and distributed computing patterns. Specializes in analyzing actor lifecycle issues, message passing problems, cluster coordination, persistence, and stream processing. Use for Akka.NET-specific debugging, architecture decisions, and understanding actor system behavior.",
@@ -4268,7 +4377,6 @@
       "asd-ste100",
       "brainstorming",
       "codebase-design",
-      "delegating-to-worker-models",
       "dispatching-parallel-agents",
       "domain-modeling",
       "grilling",
@@ -4303,6 +4411,7 @@
       "csharp-refactoring",
       "csharp-scripts",
       "database-performance",
+      "delegating-to-worker-models",
       "dependency-injection-patterns",
       "detect-static-dependencies",
       "directory-build-organization",
@@ -4355,6 +4464,7 @@
       ],
       "edges": {
         "model": [
+          "deniz-dispatch:delegating-to-worker-models",
           "deniz-dotnet-akka:akka-hosting-actor-patterns",
           "deniz-dotnet-akka:akka-net-aspire-configuration",
           "deniz-dotnet-akka:akka-net-best-practices",
@@ -4415,7 +4525,6 @@
           "deniz-process:asd-ste100",
           "deniz-process:brainstorming",
           "deniz-process:codebase-design",
-          "deniz-process:delegating-to-worker-models",
           "deniz-process:dispatching-parallel-agents",
           "deniz-process:domain-modeling",
           "deniz-process:grilling",
@@ -4481,6 +4590,7 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-dispatch.delegating-to-worker-models",
           "deniz-dotnet-akka.akka-hosting-actor-patterns",
           "deniz-dotnet-akka.akka-net-aspire-configuration",
           "deniz-dotnet-akka.akka-net-best-practices",
@@ -4541,7 +4651,6 @@
           "deniz-process.asd-ste100",
           "deniz-process.brainstorming",
           "deniz-process.codebase-design",
-          "deniz-process.delegating-to-worker-models",
           "deniz-process.dispatching-parallel-agents",
           "deniz-process.domain-modeling",
           "deniz-process.grilling",
@@ -4613,6 +4722,7 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-dispatch:delegating-to-worker-models",
           "$deniz-dotnet-akka:akka-hosting-actor-patterns",
           "$deniz-dotnet-akka:akka-net-aspire-configuration",
           "$deniz-dotnet-akka:akka-net-best-practices",
@@ -4673,7 +4783,6 @@
           "$deniz-process:asd-ste100",
           "$deniz-process:brainstorming",
           "$deniz-process:codebase-design",
-          "$deniz-process:delegating-to-worker-models",
           "$deniz-process:dispatching-parallel-agents",
           "$deniz-process:domain-modeling",
           "$deniz-process:grilling",
@@ -4830,70 +4939,6 @@
       "edges": {
         "model": [],
         "pointer": []
-      },
-      "dropped": [],
-      "bodyTransformations": []
-    }
-  },
-  "deniz-process/skill/delegating-to-worker-models": {
-    "source": "skills/deniz-process/delegating-to-worker-models",
-    "original": true,
-    "invocation": "both",
-    "dependsOn": [
-      "delegating-to-worker-models",
-      "requesting-code-review"
-    ],
-    "description": "Use when you are about to write a task prompt or task file for an out-of-process worker model from another model family, dispatch it, verify its output, or review it. Covers what never to delegate, the walls preflight, the worker contract the dispatcher prepends, verification on the committed tree, two-family review, and the fix-up loop. Not for in-process subagents of your own harness.",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [
-          "deniz-process:delegating-to-worker-models",
-          "deniz-process:requesting-code-review"
-        ],
-        "pointer": [
-          "deniz-process:verified-waves"
-        ]
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "identity": "deniz-process.delegating-to-worker-models",
-      "advertised": true,
-      "edges": {
-        "model": [
-          "deniz-process.delegating-to-worker-models",
-          "deniz-process.requesting-code-review"
-        ],
-        "pointer": [
-          "@deniz-process.verified-waves"
-        ]
-      },
-      "dropped": []
-    },
-    "codex": {
-      "artifacts": [
-        "skill"
-      ],
-      "identity": "deniz-process:delegating-to-worker-models",
-      "sourceKind": "skill",
-      "resolvedKind": "skill",
-      "emittedKind": "skill",
-      "implicit": "enabled",
-      "explicit": "available",
-      "policyFiles": [],
-      "edges": {
-        "model": [
-          "$deniz-process:delegating-to-worker-models",
-          "$deniz-process:requesting-code-review"
-        ],
-        "pointer": [
-          "$deniz-process:verified-waves"
-        ]
       },
       "dropped": [],
       "bodyTransformations": []

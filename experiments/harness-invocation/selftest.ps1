@@ -660,8 +660,10 @@ Test-That "the ledger derivation reproduces the round's hand-verified numbers" {
     # The original delegating-to-worker-models arrived in Process as both: one more skill and one more
     # Process model entry. The ponytail intake took four skills into Process: ponytail as both, and
     # ponytail-review, ponytail-audit, and ponytail-debt as manual, so four more skills and one more
-    # Process model entry.
-    $want = @{ skills = 118; agents = 2; model = 23 }
+    # Process model entry. delegating-to-worker-models then moved to the new deniz-dispatch Module,
+    # beside the new harness skill (both): one more skill in the estate and one fewer Process model
+    # entry, since the count reads only deniz-process.
+    $want = @{ skills = 119; agents = 2; model = 22 }
     $bad = @($want.Keys | Where-Object { $got[$_] -ne $want[$_] } | ForEach-Object { "$_=$($got[$_]) want $($want[$_])" })
     if ($bad) { $bad -join "; " } else { $true }
 }

@@ -5,7 +5,7 @@ it; repository truth stays in the repository.
 
 | Field | Content |
 |---|---|
-| Load line (required) | "Before you write a worker prompt or review worker output, load `deniz-process:delegating-to-worker-models`." Put it in the repository's agent instructions too. |
+| Load line (required) | "Before you write a worker prompt or review worker output, load `$deniz-dispatch:delegating-to-worker-models`." Put it in the repository's agent instructions too. |
 | Dispatcher | the command that satisfies the dispatcher contract, and its policy file |
 | Merge path | an integration branch, or one change per task from a pinned base through a merge queue |
 | Work type | new code, refactor, or both |

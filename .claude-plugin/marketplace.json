@@ -6,6 +6,11 @@
   },
   "plugins": [
     {
+      "name": "deniz-dispatch",
+      "source": "./plugins/deniz-dispatch",
+      "description": "Deniz's worker-delegation harness and judgment (dispatch tasks to other model families)"
+    },
+    {
       "name": "deniz-dotnet-akka",
       "source": "./plugins/deniz-dotnet-akka",
       "description": "Deniz's curated Akka.NET skills"

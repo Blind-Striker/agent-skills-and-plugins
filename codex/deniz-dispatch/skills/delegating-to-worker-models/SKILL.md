@@ -1,6 +1,11 @@
 ---
 name: delegating-to-worker-models
-description: Use when you are about to write a task prompt or task file for an out-of-process worker model from another model family, dispatch it, verify its output, or review it. Covers what never to delegate, the walls preflight, the worker contract the dispatcher prepends, verification on the committed tree, two-family review, and the fix-up loop. Not for in-process subagents of your own harness.
+description: Use when you are about to write a task prompt or task file for an
+  out-of-process worker model from another model family, dispatch it, verify its
+  output, or review it. Covers what never to delegate, the walls preflight, the
+  worker contract the dispatcher prepends, verification on the committed tree,
+  two-family review, and the fix-up loop. Not for in-process subagents of your
+  own harness.
 ---
 
 # Delegating to worker models
@@ -99,8 +104,8 @@ the ledger proves what it does not.
    For a refactor, both families compare the base and the new code behaviour by behaviour.
    For new lock, race, or cancellation-lifetime code, add a third family if one is available
    (`references/models/README.md`). The merge queue and CI stay the last net for cross-change effects.
-   For your own read, follow `superpowers:requesting-code-review`. When a review should fan out into
-   waves, suggest that the user start `/deniz-process:verified-waves`; it never starts itself.
+   For your own read, follow `$deniz-process:requesting-code-review`. When a review should fan out into
+   waves, suggest that the user start `$deniz-process:verified-waves`; it never starts itself.
 4. **Fix-up loop.** Turn findings into a per-file cut list with line ranges and the replacement. A worker
    fix pass reports each item done or rejected with figures. Spot-check the blockers yourself.
 
@@ -115,4 +120,4 @@ the ledger proves what it does not.
 - `references/failure-modes.md`: read when you review, and after any surprise.
 - `references/repo-addendum-template.md`: read when a repository has no addendum yet. Its first required
   field is the line that makes this skill load: "Before you write a worker prompt or review worker output,
-  load `deniz-process:delegating-to-worker-models`."
+  load `$deniz-dispatch:delegating-to-worker-models`."

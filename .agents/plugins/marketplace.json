@@ -5,6 +5,18 @@
   },
   "plugins": [
     {
+      "name": "deniz-dispatch",
+      "source": {
+        "source": "local",
+        "path": "./codex/deniz-dispatch"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    },
+    {
       "name": "deniz-dotnet-akka",
       "source": {
         "source": "local",

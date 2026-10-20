@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 2,
+  "module": "deniz-dispatch",
+  "version": "0.1.0",
+  "digest": "sha256:672c99a31f190c5abfaf35ef51077fce6fdbaca840016e4bc217b03c7e0bb001",
+  "requiredModules": [
+    "deniz-process"
+  ],
+  "files": {
+    "LICENSE": {
+      "sha256": "sha256:75c24e49e94e896400f3353f7790dda6439fefc01abf4acc91e911e6d39db489",
+      "mode": "100644"
+    },
+    "THIRD_PARTY_NOTICES.md": {
+      "sha256": "sha256:41abb8827943adaaf9dc3bc7ccd5acef862d92d8f6c995652ee5eac81e0eb38a",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/SKILL.md": {
+      "sha256": "sha256:58582f0d51ab7478a93673c75336bb0be92d093ff0fa7c3c5d5498c4d9445148",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/failure-modes.md": {
+      "sha256": "sha256:e1ac5775a2bb023c77dad77dba7efe791a38f654a3692e9a80952796cf0470ab",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/models/README.md": {
+      "sha256": "sha256:27222eb0be7aaa712453d1ab947475109dacccffd02ece8807b3ccbb2922b529",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/models/grok.md": {
+      "sha256": "sha256:7216cb4a0d6d189feb6a38f850eb6b7956e8caca45623ebd095c8d1d45a92eca",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/models/sol.md": {
+      "sha256": "sha256:794a2918227d751b6330f0bb6dc836dd2763b62a0a602a491c126abb2ed416a7",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/prompt-template.md": {
+      "sha256": "sha256:a62891aea612a7ba3d98ab783e0e7a98c685013d009fb4c1904112f83cef48c1",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/repo-addendum-template.md": {
+      "sha256": "sha256:89a7200a3ded483143f81843ddccd6f1e6fe1f31a2e4a1a9eb6bd337013301b9",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/test-oracles.md": {
+      "sha256": "sha256:48e79024efefb3a340b9d022d6b7a2c0911b4610f58c844fd63902fe63a0cea6",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/walls/README.md": {
+      "sha256": "sha256:1bf625fa50a3878a36f8594ffae3e1c616ae2947113a0b4949a59b228e9eb1e0",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/walls/any.md": {
+      "sha256": "sha256:4af415bf2bb66e038c10f6c892786691a3ca09b841ecb35f2f3f77b6617f00a0",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/walls/dotnet.md": {
+      "sha256": "sha256:936825e951421e5a3232972930c7da1bc10429c3b13cfd05efe83fdeaba0b7af",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/walls/python.md": {
+      "sha256": "sha256:07922dbfbb893dcf34795c7007e9b9cd20d43efb026021380fe82f1e7ee734fe",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/work-types.md": {
+      "sha256": "sha256:f33e66cbe925049557e9f3d891397b74caf90d38eed7a6d40b9391db9a2bcb43",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.delegating-to-worker-models/references/worker-contract.md": {
+      "sha256": "sha256:64b95e03dea574deecfd4a98614d8839c0a5f413abd056483ff344902d4ac915",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/SKILL.md": {
+      "sha256": "sha256:ff4678f0493db987d253d2587e660e04a54df786eaf8f850b6984d919acbafba",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/global.json": {
+      "sha256": "sha256:a727f735515a4d2d71d424504f8027bcaae682164a0b089d01e21f15752f754b",
+      "mode": "100644"
+    }
+  }
+}

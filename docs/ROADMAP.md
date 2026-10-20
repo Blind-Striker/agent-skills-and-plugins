@@ -10,9 +10,12 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Current State
 
-- The four current curation manifests pass through one common assembly and emit matching Claude
+- The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.13.1, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. Their
+  Checkout Module versions are Process 0.14.0, General 0.14.1, Akka 0.4.1, Aspire 0.6.0, and
+  Dispatch 0.1.0. Dispatch is unreleased: it holds `delegating-to-worker-models`, moved out of
+  Process, and the `harness` skill, whose bundled .NET source is being ported
+  ([ADR-0009](adr/0009-the-dispatch-harness-ships-as-a-module.md)); no Release carries it yet. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime
@@ -485,7 +488,7 @@ skill.
   version-range resolution. These three workstreams belong to the follow-up iteration, not the
   first feature. Selection/Ownership semantics, user approval for automatic changes, and version
   constraint/conflict policy must be designed in that iteration rather than assumed by the first.
-  Deferred because the estate is four Modules with one publisher and one installer: Plan already
+  Deferred because the estate is five Modules with one publisher and one installer: Plan already
   refuses an incomplete Selection and names each missing Module, and the automation would serve
   only the OpenCode installer. Reopen when someone other than the curator installs the estate, or
   when the Module count makes hand Selection error-prone.
