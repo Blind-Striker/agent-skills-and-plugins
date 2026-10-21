@@ -21,6 +21,5 @@ static class Snapshot
     public static void Delete(Git git, string task)
     {
         File.Delete(Index(git, task));
-        File.Delete(Index(git, task) + ".lock");
     }
 }

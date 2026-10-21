@@ -13,9 +13,8 @@ internal sealed class TempTree : IDisposable
 
     public TempTree()
     {
-        // A short root under the system temporary folder: the child's TEMP holds the file-based
-        // app's build cache, whose nested paths pass Windows' 260-character limit under a deep checkout.
-        var path = Path.Combine(Path.GetTempPath(), "dt", Guid.NewGuid().ToString("N")[..12]);
+        // Keep lab writes and child build caches inside the checkout's ignored test output.
+        var path = Path.Combine(TestPaths.Tests, "bin", "labs", Guid.NewGuid().ToString("N")[..12]);
         Directory.CreateDirectory(path);
         Root = CanonicalDirectory(path);
         DispatchHome = Folder("dispatch-home");

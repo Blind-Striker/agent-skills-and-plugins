@@ -25,6 +25,15 @@ internal sealed class OpenCodeLab : IAsyncDisposable
         Locations.Configure(new() { WorktreeRoot = Tree.WorktreeRoot }, null);
     }
 
+    public void SetEnvironment(string name, string? value)
+    {
+        saved.TryAdd(name, Environment.GetEnvironmentVariable(name));
+        Environment.SetEnvironmentVariable(name, value);
+    }
+
+    public List<JsonObject> Hosts() => Directory.GetFiles(Tree.Root, "requests.jsonl.*.host.json")
+        .Select(path => JsonNode.Parse(File.ReadAllText(path))!.AsObject()).ToList();
+
     public JsonObject Add(string request, JsonNode? reply = null, int status = 200, bool repeat = false)
     {
         var step = new JsonObject { ["expect"] = request, ["reply"] = reply, ["status"] = status, ["repeat"] = repeat };

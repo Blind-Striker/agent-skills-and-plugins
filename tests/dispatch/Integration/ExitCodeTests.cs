@@ -136,6 +136,7 @@ public sealed class ExitCodeTests
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, ct);
         var ledger = Seed(tree, "done");
+        await repo.BaselineAsync(Path.Combine(tree.DispatchHome, "state", "control", "abcdefghijklmnopqrstuvwxyz"), ct);
         Json.WriteFile(Path.Combine(ledger, "inspect", "task.json"), new TaskRecord
         {
             Spec = new() { Id = "inspect", Kind = "code", Scope = ["**"], Verify = ["exit 3"] },
@@ -252,6 +253,7 @@ public sealed class ExitCodeTests
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, ct);
         var ledger = Seed(tree, state);
+        await repo.BaselineAsync(Path.Combine(tree.DispatchHome, "state", "control", "abcdefghijklmnopqrstuvwxyz"), ct);
         if (recoverAnother)
         {
             var record = new TaskRecord

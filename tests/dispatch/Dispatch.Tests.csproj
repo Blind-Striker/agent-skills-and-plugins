@@ -28,6 +28,7 @@
   <ItemGroup>
     <PackageReference Include="LateApexEarlySpeed.Json.Schema" Version="4.2.2" />
     <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" Version="10.0.0" />
+    <PackageReference Include="Tomlyn" Version="2.10.1" />
     <PackageReference Include="TUnit" Version="1.75.0" />
     <ProjectReference Include="Fakes/FakeCodex/FakeCodex.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="Fakes/FakeOpenCode/FakeOpenCode.csproj" ReferenceOutputAssembly="false" />

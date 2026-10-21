@@ -53,6 +53,7 @@ public sealed class ConfigLayerTests
         var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
         steps.Single(s => s["expect"]!.GetValue<string>() == "POST /api/session")["body"]!["permissions"] =
             new JsonArray(new JsonObject { ["action"] = "shell", ["resource"] = "git push*", ["effect"] = "deny" },
+                new JsonObject { ["action"] = "edit", ["resource"] = "*", ["effect"] = "deny" },
                 new JsonObject { ["action"] = "edit", ["resource"] = Path.Combine(tree.DispatchHome, "state", "control", "**").Replace('\\', '/'), ["effect"] = "deny" },
                 new JsonObject { ["action"] = "edit", ["resource"] = Path.Combine(ledgerRoot, Commands.CreateRunId("layered"), "**").Replace('\\', '/'), ["effect"] = "deny" });
         await File.WriteAllLinesAsync(scenario, steps.Select(s => s.ToJsonString()), cancellationToken);

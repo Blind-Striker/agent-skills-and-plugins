@@ -4,10 +4,12 @@ namespace Dispatch.Tests.Unit;
 public sealed class ScopeTests
 {
     [Test]
-    public async Task Scope_CaseFollowsIgnoreCase()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Scope_CaseFollowsIgnoreCase(bool ignoreCase)
     {
-        await Assert.That(Scope.InScope("SRC/File.cs", ["src/file.cs"])).IsEqualTo(OperatingSystem.IsWindows());
-        await Assert.That(Scope.Overlap(["SRC/File.cs"], ["src/file.cs"]) is not null).IsEqualTo(OperatingSystem.IsWindows());
+        await Assert.That(Scope.InScope("SRC/File.cs", ["src/file.cs"], ignoreCase)).IsEqualTo(ignoreCase);
+        await Assert.That(Scope.Overlap(["SRC/File.cs"], ["src/file.cs"], ignoreCase: ignoreCase) is not null).IsEqualTo(ignoreCase);
         await Assert.That(Scope.InScope("src/file.cs", ["src/file.cs"])).IsTrue();
         await Assert.That(Scope.Overlap(["src/file.cs"], ["src/file.cs"])).IsNotNull();
     }
@@ -17,9 +19,8 @@ public sealed class ScopeTests
     [Arguments("src/\u03c3.cs", "src/\u03c2.cs", false)]
     public async Task Overlap_CaseMatchesScope(string path, string glob, bool matchesIgnoringCase)
     {
-        var expected = matchesIgnoringCase && OperatingSystem.IsWindows();
-        await Assert.That(Scope.InScope(path, [glob])).IsEqualTo(expected);
-        await Assert.That(Scope.Overlap([path], [glob]) is not null).IsEqualTo(expected);
+        await Assert.That(Scope.InScope(path, [glob], ignoreCase: true)).IsEqualTo(matchesIgnoringCase);
+        await Assert.That(Scope.Overlap([path], [glob], ignoreCase: true) is not null).IsEqualTo(matchesIgnoringCase);
     }
 
     [Test]

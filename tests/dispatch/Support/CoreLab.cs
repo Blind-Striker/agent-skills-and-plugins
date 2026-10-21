@@ -33,6 +33,7 @@ internal sealed class CoreLab : IDisposable
     {
         var repo = Directory.Exists(Path.Combine(Tree.Repository, ".git")) ? new LabRepo(Tree) : await LabRepo.CreateAsync(Tree, ct);
         var sha = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+        await Git.InitializeBaselineAsync(repo.Root, ct);
         var run = new TaskRun
         {
             Record = new TaskRecord

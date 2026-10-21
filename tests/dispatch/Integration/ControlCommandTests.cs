@@ -42,7 +42,8 @@ public sealed class ControlCommandTests
     {
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, ct);
-        Seed(tree);
+        var control = Seed(tree);
+        await repo.BaselineAsync(control, ct);
         var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", Run);
         var configPath = Path.Combine(ledger, "config.json");
         var config = JsonNode.Parse(File.ReadAllText(configPath))!;
@@ -131,6 +132,7 @@ public sealed class ControlCommandTests
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, ct);
         var control = Seed(tree);
+        await repo.BaselineAsync(control, ct);
         File.WriteAllText(Path.Combine(control, "supervisor.lock"), "");
         File.WriteAllText(Path.Combine(control, "handover.json"), "unused");
         Directory.CreateDirectory(Path.Combine(control, "bin"));
@@ -237,6 +239,7 @@ public sealed class ControlCommandTests
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, ct);
         var control = Seed(tree);
+        await repo.BaselineAsync(control, ct);
         File.WriteAllText(Path.Combine(control, "run.ref"), "{");
         var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", Run);
         var record = new TaskRecord

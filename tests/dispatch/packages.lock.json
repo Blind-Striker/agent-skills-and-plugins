@@ -24,6 +24,12 @@
         "resolved": "0.9.0-preview.13",
         "contentHash": "QRvrgoGz87pcD7sCxkgIJqA3IM9qqN5KGXUkdUOd9dpWkd1o3pVd4so2AQJSlcv5pYfO97mD8z6pGWo77zGESA=="
       },
+      "Tomlyn": {
+        "type": "Direct",
+        "requested": "[2.10.1, )",
+        "resolved": "2.10.1",
+        "contentHash": "ykjOY3IpYmC4SpPcAZRTl/w2jTmhPMDydHq8xcV7tTBAQ22nKBsOkPqauIrZlMjHm03cmKfV23UOPscKp+J4Og=="
+      },
       "TUnit": {
         "type": "Direct",
         "requested": "[1.75.0, )",

@@ -1,27 +1,39 @@
 using OpenCode.Sdk;
 using OpenCode.Sdk.Models;
 
-sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null) : IWorkerBackend
+sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? context = null, string? runId = null) : IWorkerBackend
 {
     readonly SemaphoreSlim hostGate = new(1);
+    readonly SemaphoreSlim workerGate = new(1);
     readonly CancellationTokenSource lifetime = new();
     readonly Channel<WorkerSignal> signals = Channel.CreateUnbounded<WorkerSignal>();
     readonly ConcurrentDictionary<string, WorkerRef> workers = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, WorkerLaunch> launches = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, byte> liveWorkers = new(StringComparer.Ordinal);
     readonly object eventGate = new();
     readonly Dictionary<string, List<Action<WorkerRef>>> admissions = new(StringComparer.Ordinal);
     readonly Dictionary<string, List<WorkerRef>> turns = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, string> initialSweeps = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, InterruptKind> interrupts = new(StringComparer.Ordinal);
-    HarnessServer? host;
-    Task pump = Task.CompletedTask;
+    readonly ConcurrentDictionary<string, InterruptResult> hardStops = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, HarnessServer> hosts = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, Task> pumps = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, string> sessionHosts = new(StringComparer.Ordinal);
+    BackendContext? backendContext = context;
+    OpenCodeProfile? profile;
+    string? ownedControl;
 
     public string Name => "opencode";
     public BackendCapabilities Capabilities { get; } = new("policy", "policy", "text", true);
     public ChannelReader<WorkerSignal> Signals => signals.Reader;
 
     public Task<IReadOnlyList<LiveCheck>> ValidateAsync(IReadOnlyList<WorkerPlan> tasks, CancellationToken ct) => GuardAsync(() => ValidateCoreAsync(tasks, ct));
-    public Task<CreateResult> CreateAsync(WorkerLaunch launch, CancellationToken ct) => GuardAsync(() => CreateCoreAsync(launch, ct));
+    public async Task<CreateResult> CreateAsync(WorkerLaunch launch, CancellationToken ct)
+    {
+        await workerGate.WaitAsync(ct);
+        try { return await GuardAsync(() => CreateCoreAsync(launch, ct)); }
+        finally { workerGate.Release(); }
+    }
     public Task<WorkerRef> PromptAsync(WorkerRef worker, WorkerPrompt prompt, CancellationToken ct) => GuardAsync(() => PromptCoreAsync(worker, prompt, ct));
     public Task<AnswerResult> AnswerAsync(BlockerRef blocker, BlockerAnswer answer, CancellationToken ct) => GuardAsync(() => AnswerCoreAsync(blocker, answer, ct));
     public Task<InterruptResult> InterruptAsync(WorkerRef worker, InterruptKind kind, CancellationToken ct) => GuardAsync(() => InterruptCoreAsync(worker, kind, ct));
@@ -41,15 +53,49 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
         catch (OpenCodeException ex) { throw Failure(ex); }
     }
 
-    async Task<HarnessServer> HostAsync(CancellationToken ct)
+    const string DefaultHost = "profile=full;project=on";
+    static string HostKey(Modes modes) => $"profile={modes.Profile};project={modes.Project}";
+    static string HostKey(WorkerRef worker) => worker.State["host"]?.GetValue<string>() ?? DefaultHost;
+    static Modes HostModes(string key) => key switch
+    {
+        "profile=clean;project=on" => new("clean", "on", "workspace", "on", "worktree"),
+        "profile=clean;project=off" => new("clean", "off", "workspace", "on", "worktree"),
+        "profile=full;project=off" => new("full", "off", "workspace", "on", "worktree"),
+        DefaultHost => new("full", "on", "workspace", "on", "worktree"),
+        _ => throw new HarnessException("invalid opencode host key"),
+    };
+
+    Task<HarnessServer> HostAsync(WorkerRef worker, CancellationToken ct) => HostAsync(ct, HostModes(HostKey(worker)));
+
+    async Task<HarnessServer> HostAsync(CancellationToken ct, Modes? modes = null, RouteRef? route = null, string? run = null,
+        IEnumerable<RouteRef>? routes = null)
     {
         await hostGate.WaitAsync(ct);
         try
         {
-            if (host is null)
+            if (backendContext is null)
             {
-                host = await HarnessServer.StartAsync(subscribe, ct);
-                pump = PumpAsync(host, lifetime.Token);
+                string control;
+                if (run is not null && File.Exists(Path.Combine(Locations.LedgerRoot, run, "run.json"))) control = Locations.ControlDir(run);
+                else
+                {
+                    using var process = Process.GetCurrentProcess();
+                    control = ownedControl = Locations.CreateControlFolder($"cmd-{process.Id}-{process.StartTime.ToUniversalTime().Ticks}-{Locations.NewControlId()[..13]}");
+                }
+                backendContext = new(Path.Combine(control, "profiles"), ConfigLayers.User?.Backends?.Opencode?.Executable,
+                    Cli.RootEnvironment?.Passthrough(ConfigLayers.User?.Backends?.Opencode?.Env ?? []) ?? new Dictionary<string, string>());
+            }
+            profile ??= new(backendContext.ProfilesFolder);
+            modes ??= HostModes(DefaultHost);
+            OpenCodeProfile.CreateFolder(backendContext.ProfilesFolder);
+            OpenCodeProfile.CreateFolder(profile.Root);
+            if (modes.Profile == "clean") profile.Prepare(routes ?? (route is null ? [] : [route]));
+            var key = HostKey(modes);
+            if (!hosts.TryGetValue(key, out var host))
+            {
+                host = await HarnessServer.StartAsync(subscribe, backendContext, profile.Root, modes, ct);
+                hosts[key] = host;
+                pumps[key] = PumpAsync(host, key, lifetime.Token);
             }
             return host;
         }
@@ -69,10 +115,11 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
 
     async Task<IReadOnlyList<LiveCheck>> ValidateCoreAsync(IReadOnlyList<WorkerPlan> tasks, CancellationToken ct)
     {
-        var server = await HostAsync(ct);
         var result = new List<LiveCheck>();
         foreach (var task in tasks)
         {
+            var server = await HostAsync(ct, task.Modes, task.Route,
+                routes: tasks.Where(x => x.Modes.Profile == "clean").Select(x => x.Route));
             var catalog = await Catalog.LoadAsync(server.Client, task.Directory, TimeSpan.FromSeconds(60), ct);
             var errors = new List<string>();
             RouteRef? route = task.Route;
@@ -96,7 +143,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
 
     async Task<CreateResult> CreateCoreAsync(WorkerLaunch launch, CancellationToken ct)
     {
-        var server = await HostAsync(ct);
+        var server = await HostAsync(ct, launch.Modes, launch.Route, launch.RunId);
         var client = server.Client;
         var catalog = await Catalog.LoadAsync(client, launch.Directory, TimeSpan.FromSeconds(60), ct);
         var route = launch.Route;
@@ -109,7 +156,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
         }
         else if (catalog.IsManualRoute(route)) throw new HarnessException($"route {route} equals a manual-class agent's model");
         await WaitForRouteAsync(client, route, launch.Directory, ct);
-        var rules = OpenCodeRules.Render(launch.Rules, launch.RunId);
+        var rules = OpenCodeRules.Render(launch.Rules, launch.RunId, launch.Modes);
         var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
             Title = $"dispatch {launch.RunId}/{launch.TaskId}",
@@ -122,14 +169,16 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
         var worker = new WorkerRef(Name, launch.TaskId, created.Session.Id, null, new JsonObject
         {
             ["projectId"] = created.Session.ProjectId,
-            ["host"] = "profile=full;project=on",
+            ["host"] = HostKey(launch.Modes),
         });
         lock (eventGate)
         {
             admissions[worker.Id] = [];
             workers[worker.Id] = worker;
+            liveWorkers[worker.Id] = 0;
         }
         launches[worker.Id] = launch;
+        sessionHosts[worker.Id] = HostKey(worker);
         directories[worker.Id] = launch.Directory;
         try
         {
@@ -143,13 +192,13 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
             { throw new WorkerCreationException(worker, $"worker setup failed: {ex.Message}; release unconfirmed: {releaseError.Message}"); }
             throw;
         }
-        return new(worker, new("none", "none", "policy"), new($"opencode:{route}", agent, catalog.Lineage(route),
+        return new(worker, OpenCodeRules.Enforcement(launch.Modes), new($"opencode:{route}", agent, catalog.Lineage(route),
             created.Session.ProjectId, rules.Select(x => $"{x.Action} {x.Resource} {x.Effect.ToString().ToLowerInvariant()}").ToList()));
     }
 
     async Task<WorkerRef> PromptCoreAsync(WorkerRef worker, WorkerPrompt prompt, CancellationToken ct)
     {
-        var session = (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id);
+        var session = (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id);
         if (prompt.IsContinue)
         {
             lock (eventGate) admissions[worker.Id] = [];
@@ -158,6 +207,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
         }
+        liveWorkers[worker.Id] = 0;
         var response = await session.PromptAsync(new SessionPromptRequest { Text = prompt.Text }, cancellationToken: ct);
         var state = (JsonObject)worker.State.DeepClone();
         state["promptId"] = response.Prompt.Id;
@@ -175,9 +225,10 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
         return prompted;
     }
 
-    async Task<AnswerResult> AnswerCoreAsync(BlockerRef blocker, BlockerAnswer answer, CancellationToken ct)
+    async Task<AnswerResult> AnswerCoreAsync(BlockerRef blocker, BlockerAnswer answer, CancellationToken ct, HarnessServer? server = null)
     {
-        var session = (await HostAsync(ct)).Client.Sessions.GetSessionClient(blocker.OriginChildId ?? blocker.WorkerId);
+        server ??= await HostAsync(ct, HostModes(sessionHosts.GetValueOrDefault(blocker.WorkerId, DefaultHost)));
+        var session = server.Client.Sessions.GetSessionClient(blocker.OriginChildId ?? blocker.WorkerId);
         if (answer is BlockerAnswer.Cancel cancel)
         {
             var reply = await session.CancelFormAsync(blocker.AskId, new SessionFormCancelRequest { Message = cancel.Message }, OpenCodeRequestOptions.NoThrow, ct);
@@ -196,14 +247,40 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
     async Task<InterruptResult> InterruptCoreAsync(WorkerRef worker, InterruptKind kind, CancellationToken ct)
     {
         interrupts[worker.Id] = kind;
-        var response = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id)
+        if (hardStops.TryGetValue(worker.Id, out var previous)) return previous;
+        if (kind == InterruptKind.Hard)
+        {
+            await workerGate.WaitAsync(ct);
+            try
+            {
+                if (hardStops.TryGetValue(worker.Id, out previous)) return previous;
+                await hostGate.WaitAsync(ct);
+                try
+                {
+                    var key = HostKey(worker);
+                    var shared = liveWorkers.Keys.Any(id => id != worker.Id && workers.TryGetValue(id, out var other) && HostKey(other) == key);
+                    if (!shared && hosts.TryGetValue(key, out var server))
+                    {
+                        var stopped = await server.StopTreeAsync(ct);
+                        await pumps[key];
+                        hosts.TryRemove(key, out _);
+                        if (stopped) liveWorkers.TryRemove(worker.Id, out _);
+                        return hardStops[worker.Id] = new(stopped, "tree-kill");
+                    }
+                }
+                finally { hostGate.Release(); }
+            }
+            finally { workerGate.Release(); }
+        }
+        var response = await (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id)
             .InterruptAsync(new SessionInterruptRequest { Resume = false }, OpenCodeRequestOptions.NoThrow, ct);
-        return new(false, response.IsError ? $"HTTP {response.Status}" : "interrupt", response.IsError ? null : response.Interrupt.Interrupted, response.Status);
+        return new(false, response.IsError && kind != InterruptKind.Hard ? $"HTTP {response.Status}" : "interrupt",
+            response.IsError ? null : response.Interrupt.Interrupted, response.Status);
     }
 
     async Task<ReattachResult> ReattachCoreAsync(WorkerRef worker, CancellationToken ct)
     {
-        var read = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id).GetAsync(OpenCodeRequestOptions.NoThrow, ct);
+        var read = await (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id).GetAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (read.IsError) return new ReattachResult.Unreadable($"session {worker.Id} unreadable: HTTP {read.Status} {read.Error?.Tag}");
         lock (eventGate)
         {
@@ -211,6 +288,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
             RememberTurn(worker);
         }
         directories[worker.Id] = read.Session.Location.Directory;
+        sessionHosts[worker.Id] = HostKey(worker);
         if (read.Session.Outcome == SessionInfoOutcome.Succeeded) return new ReattachResult.Ended("succeeded");
         if (read.Session.Outcome == SessionInfoOutcome.Failed) return new ReattachResult.Ended("failed");
         return new ReattachResult.Interrupted();
@@ -218,11 +296,12 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
 
     async Task ReleaseCoreAsync(WorkerRef worker, CancellationToken ct)
     {
-        var response = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(OpenCodeRequestOptions.NoThrow, ct);
+        var response = await (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (response.IsError && response.Status != 404) throw new HarnessException($"session {worker.Id} release failed: HTTP {response.Status}");
         lock (eventGate)
         {
             workers.TryRemove(worker.Id, out _);
+            liveWorkers.TryRemove(worker.Id, out _);
             admissions.Remove(worker.Id);
         }
     }
@@ -302,17 +381,19 @@ sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null
         try
         {
             await lifetime.CancelAsync();
-            try { await pump; }
+            try { await Task.WhenAll(pumps.Values); }
             catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { /* Owned shutdown. */ }
         }
         finally
         {
-            try { if (host is not null) await host.DisposeAsync(); }
+            try { await Task.WhenAll(hosts.Values.Select(async host => await host.DisposeAsync())); }
             finally
             {
                 signals.Writer.TryComplete();
+                if (ownedControl is not null && Directory.Exists(ownedControl)) Directory.Delete(ownedControl, recursive: true);
                 lifetime.Dispose();
                 hostGate.Dispose();
+                workerGate.Dispose();
             }
         }
     }

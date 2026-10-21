@@ -5,7 +5,7 @@ sealed partial class OpenCodeBackend
 {
     async Task<WorkerReport> CollectCoreAsync(WorkerRef worker, CancellationToken ct)
     {
-        var session = (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id);
+        var session = (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id);
         SessionInfo info;
         List<SessionMessageAssistant> assistants;
         SessionMessageIdle? idle;

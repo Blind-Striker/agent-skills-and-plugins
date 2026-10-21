@@ -1,17 +1,19 @@
 static class Scope
 {
-    static readonly RegexOptions MatchOptions = RegexOptions.CultureInvariant
-        | (OperatingSystem.IsWindows() ? RegexOptions.IgnoreCase : RegexOptions.None);
+    static RegexOptions MatchOptions(bool ignoreCase) => RegexOptions.CultureInvariant
+        | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);
 
-    public static string? Overlap(List<string> a, List<string> b, List<string>? sharedPaths = null)
+    public static string? Overlap(List<string> a, List<string> b, List<string>? sharedPaths = null, bool? ignoreCase = null)
     {
+        // Repository-aware callers pass core.ignorecase; other callers keep their existing default.
+        var caseMode = ignoreCase ?? OperatingSystem.IsWindows();
         foreach (var x in a.Where(g => !g.StartsWith('!')))
         {
             foreach (var y in b.Where(g => !g.StartsWith('!')))
             {
                 if (sharedPaths is { Count: > 0 }
-                    ? IntersectsOutsideShared(Compile(Normalize(x)), Compile(Normalize(y)), sharedPaths.Select(p => Compile(Normalize(p))).ToList())
-                    : Intersects(Compile(Normalize(x)), Compile(Normalize(y))))
+                    ? IntersectsOutsideShared(Compile(Normalize(x)), Compile(Normalize(y)), sharedPaths.Select(p => Compile(Normalize(p))).ToList(), caseMode)
+                    : Intersects(Compile(Normalize(x)), Compile(Normalize(y)), caseMode))
                 {
                     return $"{x} ~ {y}";
                 }
@@ -23,7 +25,7 @@ static class Scope
 
     // Difference against the union of the shared-path automata. Checking only a pair's
     // prefixes would wrongly exempt a broad scope that also shares non-shared files.
-    static bool IntersectsOutsideShared(List<State> a, List<State> b, List<List<State>> excluded)
+    static bool IntersectsOutsideShared(List<State> a, List<State> b, List<List<State>> excluded, bool ignoreCase)
     {
         var machines = new List<List<State>> { a, b };
         machines.AddRange(excluded);
@@ -50,7 +52,7 @@ static class Scope
             foreach (var c in alphabet)
             {
                 var next = machines.Select((machine, i) => Closure(machine, states[i].SelectMany(s => machine[s].Moves)
-                    .Where(m => m.Literal is { } literal ? Compatible(m, new Move(0, c)) : Accepts(m, c))
+                    .Where(m => m.Literal is { } literal ? Compatible(m, new Move(0, c), ignoreCase) : Accepts(m, c))
                     .Select(m => m.Target))).ToArray();
                 if (next[0].Length > 0 && next[1].Length > 0) queue.Enqueue(next);
             }
@@ -60,7 +62,7 @@ static class Scope
 
     // Search the product of two glob automata. Prefixes alone cannot distinguish
     // disjoint suffixes, segment boundaries, or literal braces and brackets.
-    static bool Intersects(List<State> a, List<State> b)
+    static bool Intersects(List<State> a, List<State> b, bool ignoreCase)
     {
         var pending = new Queue<(int A, int B)>();
         var seen = new HashSet<(int A, int B)>();
@@ -76,7 +78,7 @@ static class Scope
             {
                 foreach (var y in b[pair.B].Moves)
                 {
-                    if (Compatible(x, y)) pending.Enqueue((x.Target, y.Target));
+                    if (Compatible(x, y, ignoreCase)) pending.Enqueue((x.Target, y.Target));
                 }
             }
         }
@@ -84,11 +86,11 @@ static class Scope
         return false;
     }
 
-    static bool Compatible(Move a, Move b)
+    static bool Compatible(Move a, Move b, bool ignoreCase)
     {
         if (a.Literal is { } x && b.Literal is { } y)
-            return x == y || (OperatingSystem.IsWindows()
-                && Regex.IsMatch(x.ToString(), Regex.Escape(y.ToString()), MatchOptions));
+            return x == y || (ignoreCase
+                && Regex.IsMatch(x.ToString(), Regex.Escape(y.ToString()), MatchOptions(ignoreCase)));
         if (a.Literal is { } literalA) return Accepts(b, literalA);
         if (b.Literal is { } literalB) return Accepts(a, literalB);
         return true;
@@ -181,7 +183,22 @@ static class Scope
         return g.EndsWith('/') ? g + "**" : g;
     }
 
-    public static bool InScope(string path, List<string>? scope)
+    public static async Task<bool> IgnoreCaseAsync(Git git, string repo, CancellationToken ct)
+    {
+        var result = await git.RunAsync(repo, ct, "config", "--type=bool", "--get", "core.ignorecase");
+        if (result.ExitCode == 1) return false;
+        if (result.ExitCode != 0) throw new HarnessException("cannot read repository core.ignorecase");
+        return result.Output.Trim() == "true";
+    }
+
+    public static bool InScope(string path, EffectiveScope scope, bool ignoreCase)
+    {
+        bool Pass(List<string> globs) => (!globs.Any(g => !g.StartsWith('!')) || InScope(path, globs.Where(g => !g.StartsWith('!')).ToList(), ignoreCase))
+            && !globs.Where(g => g.StartsWith('!')).Any(g => InScope(path, [g[1..]], ignoreCase));
+        return Pass(scope.Value) && scope.Ceilings.All(layer => Pass(layer.Globs));
+    }
+
+    public static bool InScope(string path, List<string>? scope, bool? ignoreCase = null)
     {
         if (scope is not { Count: > 0 })
         {
@@ -189,10 +206,10 @@ static class Scope
         }
 
         path = path.Replace('\\', '/');
-        return scope.Any(glob => ToRegex(Normalize(glob)).IsMatch(path));
+        return scope.Any(glob => ToRegex(Normalize(glob), ignoreCase ?? OperatingSystem.IsWindows()).IsMatch(path));
     }
 
-    static Regex ToRegex(string glob)
+    static Regex ToRegex(string glob, bool ignoreCase)
     {
         var sb = new StringBuilder("^");
         for (var i = 0; i < glob.Length; i++)
@@ -230,6 +247,6 @@ static class Scope
 
         // A plain path also covers everything below it.
         sb.Append(glob.IndexOfAny(['*', '?']) < 0 ? "(?:/.*)?$" : "$");
-        return new Regex(sb.ToString(), MatchOptions);
+        return new Regex(sb.ToString(), MatchOptions(ignoreCase));
     }
 }

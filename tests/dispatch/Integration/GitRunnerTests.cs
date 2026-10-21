@@ -68,6 +68,72 @@ public sealed class GitRunnerTests
 
     [Test]
     [Timeout(180_000)]
+    [Arguments("local", "clean")]
+    [Arguments("included", "process")]
+    [Arguments("worktree", "smudge")]
+    public Task FilterChangedByWorker_SkipsCommitAndFails(string origin, string operation, CancellationToken cancellationToken) => CheckFilterAsync(origin, operation, cancellationToken);
+
+    [Test]
+    [Timeout(180_000)]
+    public Task FilterInGlobalConfig_IsCaught(CancellationToken ct) => CheckFilterAsync("global", "clean", ct);
+
+    static async Task CheckFilterAsync(string origin, string operation, CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, cancellationToken);
+        var run = await PrepareAsync(tree, repo, ["**"], cancellationToken);
+        var marker = Path.Combine(tree.Root, "filter.marker");
+        var command = $"printf ran > '{marker.Replace('\\', '/')}'; cat";
+        if (origin == "worktree") await repo.GitAsync(["config", "extensions.worktreeConfig", "true"], cancellationToken);
+        var key = "filter.x." + operation;
+        if (origin == "included")
+        {
+            var included = Path.Combine(tree.Root, "included.config");
+            await repo.GitAsync(["config", "--file", included, key, command], cancellationToken);
+            await repo.GitAsync(["config", "include.path", included], cancellationToken);
+        }
+        else await repo.GitAsync(origin == "worktree"
+            ? ["-C", run.Worktree, "config", "--worktree", key, command]
+            : ["config", origin == "global" ? "--global" : "--local", key, command], cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(run.Worktree, ".gitattributes"), "*.txt filter=x\n", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(run.Worktree, "new.txt"), "change\n", cancellationToken);
+        await CollectAsync(tree, run.RunId, cancellationToken, expectedExit: 1);
+        await Assert.That(File.Exists(marker)).IsFalse();
+        await Assert.That(await repo.GitAsync(["-C", run.Worktree, "rev-parse", "HEAD"], cancellationToken)).IsEqualTo(run.BaseSha);
+        var result = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(run.TaskDir, "result.json"), cancellationToken))!;
+        await Assert.That(result["failures"]!.AsArray().Select(x => x!.GetValue<string>())).Contains("git-config-changed");
+        var events = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(run.TaskDir)!, "events.jsonl"), cancellationToken);
+        await Assert.That(events).Contains(key);
+        await Assert.That(events).DoesNotContain(command);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task NonBlockingChange_ReportsWithoutFailing(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var run = await PrepareAsync(tree, repo, ["README.md"], ct);
+        await repo.GitAsync(["config", "core.hooksPath", ".husky"], ct);
+        await repo.GitAsync(["config", "remote.fixture.url", "https://example.invalid/private"], ct);
+        await File.WriteAllTextAsync(Path.Combine(repo.Root, ".git", "hooks", "worker-hook"), "changed\n", ct);
+        await File.AppendAllTextAsync(Path.Combine(run.Worktree, "README.md"), "change\n", ct);
+        await CollectAsync(tree, run.RunId, ct);
+        var result = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(run.TaskDir, "result.json"), ct))!;
+        await Assert.That(result["warnings"]?.AsArray().Select(x => x!.GetValue<string>()) ?? []).Contains("git-config-changed");
+        var events = File.ReadLines(Path.Combine(Path.GetDirectoryName(run.TaskDir)!, "events.jsonl")).Select(x => JsonNode.Parse(x)!)
+            .Where(x => x["type"]?.GetValue<string>() == "git-config-changed").ToList();
+        await Assert.That(events.Count).IsGreaterThan(0);
+        await Assert.That(events.All(x => x["data"]!["blocking"]!.GetValue<bool>() == false)).IsTrue();
+        var text = string.Join('\n', events.Select(x => x.ToJsonString()));
+        await Assert.That(text).Contains("core.hookspath");
+        await Assert.That(text).Contains("hooks/worker-hook");
+        await Assert.That(text).Contains("remote.fixture.url");
+        await Assert.That(text).DoesNotContain("https://example.invalid/private");
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Command_GitCallsLeaveNoCommandControlFolder(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -124,6 +190,23 @@ public sealed class GitRunnerTests
             if (!OperatingSystem.IsWindows())
                 File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Scope_CaseFollowsRepositoryIgnoreCase(bool ignoreCase, CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, cancellationToken);
+        await repo.GitAsync(["config", "core.ignorecase", ignoreCase ? "true" : "false"], cancellationToken);
+        var run = await PrepareAsync(tree, repo, ["readme.md"], cancellationToken);
+        await File.AppendAllTextAsync(Path.Combine(run.Worktree, "README.md"), "change\n", cancellationToken);
+        await CollectAsync(tree, run.RunId, cancellationToken, expectedExit: ignoreCase ? 0 : 1);
+        var result = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(run.TaskDir, "result.json"), cancellationToken))!;
+        await Assert.That(result["outOfScope"]!.AsArray().Select(x => x!.GetValue<string>()))
+            .IsEquivalentTo(ignoreCase ? Array.Empty<string>() : ["README.md"]);
     }
 
     [Test]

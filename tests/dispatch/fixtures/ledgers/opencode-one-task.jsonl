@@ -2,7 +2,7 @@
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"queued","data":{"kind":"research","route":"opencode:fixture/model","agent":null,"reviewOf":null}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"worktree","data":{"path":"$lab/dispatch-home/state/worktrees/$run/inspect","branch":"dispatch/$run/inspect","base":"main","baseSha":"$base"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"route","data":{"route":"opencode:fixture/model","agent":"build","lineage":"fixture"}}
-{"ts":"$timestamp","run":"$run","task":"inspect","type":"session","data":{"sessionId":"$session","projectId":"$project","rules":["edit * deny","edit $lab/dispatch-home/state/control/** deny","edit $lab/dispatch-home/state/ledgers/$run/** deny"]}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"session","data":{"sessionId":"$session","projectId":"$project","rules":["edit * deny","edit * deny","edit $lab/dispatch-home/state/control/** deny","edit $lab/dispatch-home/state/ledgers/$run/** deny"]}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"environment","data":{"variables":"$environment-count","removed":[]}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"prompt","data":{"turn":"$prompt","chars":"$prompt-chars","sha256":"$prompt-sha256","promptId":"$prompt"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"permission","data":{"id":"$permission","session":null,"action":"read","resources":["README.md"],"answer":"once","by":"harness","status":204}}
