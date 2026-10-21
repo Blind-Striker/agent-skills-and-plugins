@@ -44,6 +44,8 @@ static class Planner
         var runId = Commands.CreateRunId(args?.Get("run") ?? file.Run ?? Path.GetFileNameWithoutExtension(tasksPath));
         if (specs.Any(x => x.Workspace == "in-place") && Worktree.IsInside(Locations.WorktreeRoot, repo))
             plan.Errors.Add("in-place workspace refuses a worktree root inside the repository");
+        if (specs.Any(x => x.Workspace == "in-place") && Worktree.IsInside(Locations.LedgerRoot, repo))
+            plan.Errors.Add("in-place workspace refuses a ledger root inside the repository");
         foreach (var path in file.SharedPaths ?? [])
             if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path) || path.Replace('\\', '/').Split('/').Contains("..") || path.IndexOfAny(['*', '?', '!']) >= 0)
                 plan.Errors.Add("sharedPaths must contain repository-relative paths, not globs or parent paths");
@@ -73,7 +75,12 @@ static class Planner
             if (spec.Agent is { } agent && !allow.AllowsAgent(agent)) e.Add($"agent {agent} is not on the allow-list{EmptyHint(allow)}");
             if (spec.Route is { } routeText)
             {
-                if (!RouteRef.TryParse(routeText, out route, out var error)) e.Add($"route: {error}");
+                if (spec.Backend == "codex")
+                {
+                    try { route = CodexBackend.ParseRoute(routeText); }
+                    catch (HarnessException ex) { e.Add($"route: {ex.Message}"); }
+                }
+                else if (!RouteRef.TryParse(routeText, out route, out var error)) e.Add($"route: {error}");
                 else if (!allow.AllowsRoute(route!)) e.Add($"route {route} is not on the allow-list{EmptyHint(allow)}");
             }
 
@@ -159,7 +166,7 @@ static class Planner
     // has its variant, is not manual-class; review lineage differs from the author's.
     public static async Task CheckLiveAsync(Plan plan, IWorkerBackend backend, AllowList allow, CancellationToken ct)
     {
-        var checks = await backend.ValidateAsync(plan.Tasks.Select(task => new WorkerPlan(task.Spec.Id!, task.Spec.Kind!,
+        var checks = await backend.ValidateAsync(plan.Tasks.Where(task => (task.Spec.Backend ?? "opencode") == backend.Name).Select(task => new WorkerPlan(task.Spec.Id!, task.Spec.Kind!,
             task.Route ?? new RouteRef("agent", "placeholder", null), task.Spec.Agent, task.Spec.Persona,
             TaskStarter.ModesFor(new TaskRecord { Spec = task.Spec,
                 Settings = plan.Config?.Effective.Tasks[task.Spec.Id!].Settings ?? new() }), plan.Repo)).ToList(), ct);
@@ -167,6 +174,17 @@ static class Planner
         {
             plan.Errors.AddRange(check.Errors.Select(error => $"{check.TaskId}: {error}"));
             plan.Warnings.AddRange(check.Warnings.Select(warning => $"{check.TaskId}: {warning}"));
+            if (plan.Config is { } config && config.Effective.Tasks[check.TaskId].Settings.Profile is { } profile)
+            {
+                profile.Actual = check.Profile;
+                profile.Reason = check.ProfileReason;
+            }
+            if (backend.Name == "codex" && plan.Config?.Effective.Tasks[check.TaskId].Settings is { } settings)
+            {
+                var enforcement = settings.Access?.Value == "full" ? "none" : "sandbox";
+                if (settings.Access is { } access) access.Enforcement = enforcement;
+                if (settings.Network is { } network) network.Enforcement = enforcement;
+            }
         }
 
         foreach (var task in plan.Tasks.Where(t => t.Spec.ReviewOf is not null))

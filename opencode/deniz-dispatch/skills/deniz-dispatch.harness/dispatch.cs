@@ -21,6 +21,7 @@
 #:include src/Workspace/Proc.cs
 #:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs
+#:include src/Workspace/GitConfigGate.cs
 #:include src/Workspace/Worktree.cs
 #:include src/Workspace/Snapshot.cs
 #:include src/Workspace/Commit.cs
@@ -41,16 +42,20 @@
 #:include src/Cli/Commands.cs
 #:include src/Cli/Commands.Control.cs
 #:include src/Cli/Commands.SelfCheck.cs
+#:include src/Cli/BackendScope.cs
 #:include src/Backends/IWorkerBackend.cs
 #:include src/Backends/Types.cs
 #:include src/Backends/OpenCode/OpenCodeBackend.cs
 #:include src/Backends/OpenCode/OpenCodeCatalog.cs
 #:include src/Backends/OpenCode/OpenCodeHost.cs
+#:include src/Backends/OpenCode/OpenCodeProfile.cs
 #:include src/Backends/OpenCode/OpenCodeRules.cs
 #:include src/Backends/OpenCode/OpenCodeSignals.cs
 #:include src/Backends/OpenCode/OpenCodeCollect.cs
 #:include src/Backends/Codex/CodexProcess.cs
+#:include src/Backends/Codex/CodexHome.cs
 #:include src/Backends/Codex/CodexRpc.cs
 #:include src/Backends/Codex/CodexProtocol.cs
+#:include src/Backends/Codex/CodexBackend.cs
 
 return await Cli.MainAsync(args);

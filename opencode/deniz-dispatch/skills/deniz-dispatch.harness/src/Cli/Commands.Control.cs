@@ -46,18 +46,27 @@ static partial class Commands
         Locations.RequireControlFolder(ledger.RunId, setup: true);
 
         var record = ledger.LoadRecord(task);
-        record.Settings = ConfigLayers.Frozen(ledger.Dir).Tasks[task].Settings;
+        var frozen = ConfigLayers.Frozen(ledger.Dir);
+        Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
+        record.Settings = frozen.Tasks[task].Settings;
         ConfigLayers.Apply(record.Spec, record.Settings);
         if (record.Session.Id is null || record.Workspace.Path is null)
         {
             throw new HarnessException($"{task} has no session or worktree to collect");
         }
 
-        await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
-        var run = TaskRun.FromLedger(record, ledger);
-        var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
-        ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
-        return result.State == "done" ? 0 : 1;
+        try
+        {
+            var name = record.Settings.Backend?.Value ?? "opencode";
+            await using var scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
+            var backend = scope.Backends[name];
+            var run = TaskRun.FromLedger(record, ledger);
+            var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
+            ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
+            return result.State == "done" ? 0 : 1;
+        }
+        catch (OpenCodeBackend.SessionReleasedException) when (ledger.TaskStates().GetValueOrDefault(task) == "done") { throw; }
+        catch (Exception ex) { return Aborted(ledger, ex); }
     }
 
     public static async Task<int> CleanAsync(Args a, CancellationToken ct)
@@ -67,11 +76,13 @@ static partial class Commands
         using var supervisorLock = Directory.Exists(control) ? SupervisorLock.AcquireFolder(control) : null;
         var info = ledger.LoadRunInfo();
         var force = a.Has("force");
-        var refused = 0;
-        foreach (var task in ledger.TaskStates().Keys)
+        var states = ledger.TaskStates();
+        var records = states.Keys.Where(task => File.Exists(Path.Combine(ledger.Dir, task, "task.json")))
+            .Select(ledger.LoadRecord).ToList();
+        var refused = await CleanSessionsAsync(ledger, records, states, control, ct);
+        foreach (var record in records)
         {
-            if (!File.Exists(Path.Combine(ledger.Dir, task, "task.json"))) continue;
-            var record = ledger.LoadRecord(task);
+            var task = record.Spec.Id!;
             try
             {
                 var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
@@ -102,6 +113,43 @@ static partial class Commands
         }
 
         return refused == 0 ? 0 : 1;
+    }
+
+    static async Task<int> CleanSessionsAsync(Ledger ledger, IReadOnlyList<TaskRecord> records,
+        IReadOnlyDictionary<string, string> states, string control, CancellationToken ct)
+    {
+        var tasks = records.Where(x => (x.Settings.Backend?.Value ?? "opencode") == "opencode"
+            && (x.Session.Id is not null || states[x.Spec.Id!] != "queued" && x.Workspace.Path is not null)).ToList();
+        if (tasks.Count == 0) return 0;
+        var refused = 0;
+        await using var scope = new BackendScope(["opencode"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
+        var backend = scope.Backends["opencode"];
+        var recorded = tasks.Where(x => x.Session.Id is not null).Select(x => TaskRun.FromLedger(x, ledger).SavedWorker()).ToList();
+        var releases = recorded.ToDictionary(x => x.Id, StringComparer.Ordinal);
+        try
+        {
+            var known = recorded.Where(x => states[x.TaskId] is not ("done" or "failed" or "cancelled")).ToList();
+            var directories = tasks.Select(x => x.Workspace.Path).OfType<string>().ToList();
+            foreach (var orphan in await backend.FindOrphansAsync(new(ledger.RunId, known, directories), ct))
+                releases.TryAdd(orphan.Id, orphan);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
+        {
+            refused++;
+            ledger.Write(null, "error", new JsonObject { ["while"] = "find orphan sessions", ["message"] = ex.Message });
+            Console.Error.WriteLine($"orphan session cleanup failed: {ex.Message}");
+        }
+        foreach (var worker in releases.Values)
+        {
+            try { await backend.ReleaseAsync(worker, ct); }
+            catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
+            {
+                refused++;
+                ledger.Write(worker.TaskId, "error", new JsonObject { ["while"] = "release session", ["message"] = ex.Message });
+                Console.Error.WriteLine($"{worker.TaskId}: session cleanup failed: {ex.Message}");
+            }
+        }
+        return refused;
     }
 
     static void RemoveControlEntry(string path)
@@ -213,7 +261,13 @@ static partial class Commands
         while (DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            if (ledger.Read().Skip(previousEvents).Any(x => x.Type == "permission" && x.Data?["id"]?.GetValue<string>() == askId
+            var events = ledger.Read().Skip(previousEvents).ToList();
+            if (events.Any(x => x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "decision" && x.Data?["id"]?.GetValue<string>() == askId))
+            {
+                Console.WriteLine($"{askId}: decision {decision} was attempted but not confirmed; the ledger records the error");
+                return 1;
+            }
+            if (events.Any(x => x.Type == "permission" && x.Data?["id"]?.GetValue<string>() == askId
                 && x.Data?["by"]?.GetValue<string>() == "operator" && x.Data?["answer"]?.GetValue<string>() == decision))
             {
                 Console.WriteLine($"{askId}: answered {decision}; the ledger records it");

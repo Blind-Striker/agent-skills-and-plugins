@@ -26,13 +26,26 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         await Worktree.PrepareAsync(run, ledger, repo, ct, git);
         CheckAllowed(run);
         var record = run.Record;
-        RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out var route, out _);
+        RouteRef? route;
+        if (backend.Name == "codex") route = CodexBackend.ParseRoute(record.Spec.Route!);
+        else RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out route, out _);
         var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
         var created = await backend.CreateAsync(new(ledger.RunId, run.Id, record.Spec.Kind!, route!, record.Spec.Agent,
-            record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables, null,
+            record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
+            record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
             record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason), ct);
         // Persist the reference before calling PromptAsync, even if that call fails or never returns.
         run.SaveWorker(created.Worker, ledger);
+        if (backend.Name == "codex")
+        {
+            if (record.Settings.Access is { } access) access.Enforcement = created.Applied.Access;
+            if (record.Settings.Network is { } network) network.Enforcement = created.Applied.Network;
+        }
+        if (backend.Name == "codex" && record.Settings.Profile is { } profile)
+        {
+            profile.Actual = created.Worker.State["profile"]?.GetValue<string>() ?? profile.Value;
+            profile.Reason = created.Worker.State["profileReason"]?.GetValue<string>();
+        }
         if (created.Details is { } details)
         {
             record.Settings.Route ??= new Setting<string> { Value = details.Route, From = "task" };

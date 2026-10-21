@@ -11,7 +11,11 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
         var blocker = signal.BlockerRef;
         var child = blocker.OriginChildId;
         var stopped = run.IsFinal || run.State is TaskState.Settling or TaskState.Interrupted;
-        if (!stopped && policy.EscalationFor(signal.Action, signal.Resources) is { } rule)
+        var readOnlyWrite = (run.Record.Settings.Access?.Value ?? run.Record.Spec.Access) == "read-only"
+            && (signal.Action == "edit" || signal.Action == "permissions"
+                && signal.Resources.Any(resource => resource.StartsWith("fileSystem.write:", StringComparison.Ordinal)));
+        var denied = policy.DenialFor(signal.Action, signal.Resources);
+        if (!stopped && !readOnlyWrite && denied is null && policy.EscalationFor(signal.Action, signal.Resources) is { } rule)
         {
             run.Escalated++;
             var askId = $"{run.Id}-{run.Asks}";
@@ -46,6 +50,8 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
             return;
         }
         BlockerAnswer answer = stopped ? new BlockerAnswer.Reject("This task has ended; do not execute further calls.")
+            : readOnlyWrite ? new BlockerAnswer.Reject("This task is read-only; write access is not permitted.")
+            : denied is not null ? new BlockerAnswer.Reject($"This action is denied by rule {denied.Name}.")
             : blocker.Backend == "opencode" ? new BlockerAnswer.Once() : new BlockerAnswer.Reject(Policy.LeadDeclined);
         var reply = await backends[blocker.Backend].AnswerAsync(blocker, answer, ct);
         ledger.Write(run.Id, "permission", new JsonObject
@@ -109,6 +115,8 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
                 BlockerAnswer answer = reject ? new BlockerAnswer.Reject(decision.Message ?? Policy.LeadDeclined) : new BlockerAnswer.Once();
                 var reply = await backends[held.Blocker.Backend].AnswerAsync(held.Blocker, answer, ct);
                 AskQueue.Remove(ledger.RunId, ask.AskId);
+                if (!reply.Confirmed)
+                    throw new HarnessException($"answer to {ask.AskId} was not confirmed: HTTP {reply.Status}");
                 ledger.Write(ask.Task, "permission", new JsonObject
                 {
                     ["id"] = ask.AskId,

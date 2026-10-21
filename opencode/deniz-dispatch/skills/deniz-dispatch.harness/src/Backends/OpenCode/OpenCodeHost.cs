@@ -12,6 +12,10 @@ sealed class HarnessServer : IAsyncDisposable
     readonly CancellationTokenSource _pumpCts = new();
     readonly Channel<object> _bus = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
     Task _pump = Task.CompletedTask;
+    readonly Process _process;
+    Task? _disposal;
+    readonly object _disposeGate = new();
+    public bool IsStopping { get; private set; }
 
     HarnessServer(OpenCodeServer server, OpenCodeClient client, OpenCodeServerOutput output, string commandDescription)
     {
@@ -19,6 +23,8 @@ sealed class HarnessServer : IAsyncDisposable
         Client = client;
         Output = output;
         CommandDescription = commandDescription;
+        _process = Process.GetProcessById(server.ProcessId);
+        _process.EnableRaisingEvents = true;
     }
 
     public OpenCodeServer Server { get; }
@@ -43,21 +49,32 @@ sealed class HarnessServer : IAsyncDisposable
         return completion.Task.WaitAsync(ct);
     }
 
-    public static async Task<HarnessServer> StartAsync(bool subscribe, CancellationToken ct)
+    public static async Task<HarnessServer> StartAsync(bool subscribe, BackendContext context, string profileRoot, Modes modes, CancellationToken ct)
     {
         var output = new OpenCodeServerOutput();
-        var command = Command();
-        Directory.CreateDirectory(Locations.WorktreeRoot);
+        var command = Command(context.Executable);
         OpenCodeServer server;
-        var environment = Cli.RootEnvironment?.Passthrough(ConfigLayers.User?.Backends?.Opencode?.Env ?? []) ?? new Dictionary<string, string>();
+        var environment = context.Passthrough.ToDictionary(x => x.Key, x => x.Value);
+        environment["OPENCODE_FILEWATCHER_DISABLE"] = "1";
         environment["OPENCODE_DISABLE_FILEWATCHER"] = "1";
+        if (modes.Profile == "clean")
+        {
+            environment["OPENCODE_CONFIG_DIR"] = profileRoot;
+            environment["OPENCODE_CONFIG"] = "";
+            environment["OPENCODE_CONFIG_CONTENT"] = "{}";
+            environment["OPENCODE_DISABLE_CLAUDE_CODE"] = "1";
+        }
+        if (modes.Project == "off")
+        {
+            environment["OPENCODE_CONFIG_PROJECT_DISABLE"] = "1";
+            environment["OPENCODE_DISABLE_PROJECT_CONFIG"] = "1";
+        }
         try
         {
-            // The real user profile on purpose: 2.x keeps credentials in its SQLite database.
             server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
             {
                 Command = command,
-                WorkingDirectory = Locations.WorktreeRoot,
+                WorkingDirectory = profileRoot,
                 Environment = environment,
                 Output = output,
                 ReadinessTimeout = TimeSpan.FromSeconds(90),
@@ -92,9 +109,9 @@ sealed class HarnessServer : IAsyncDisposable
 
     // On Windows the npm shim runs through cmd.exe and leaves the real server outside the job
     // that ends it with its owner; start opencode.exe directly when the shim's layout is found.
-    static IReadOnlyList<string> Command()
+    static IReadOnlyList<string> Command(string? executable)
     {
-        if (ConfigLayers.User?.Backends?.Opencode?.Executable is { } explicitPath)
+        if (executable is { } explicitPath)
         {
             return [explicitPath, "serve"];
         }
@@ -174,8 +191,24 @@ sealed class HarnessServer : IAsyncDisposable
         }
     }
 
-    public async ValueTask DisposeAsync()
+    public async Task<bool> StopTreeAsync(CancellationToken ct)
     {
+        IsStopping = true;
+        if (!_process.HasExited) _process.Kill(entireProcessTree: true);
+        await _process.WaitForExitAsync(ct);
+        var stopped = _process.HasExited;
+        await DisposeAsync();
+        return stopped;
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        lock (_disposeGate) return new(_disposal ??= DisposeCoreAsync());
+    }
+
+    async Task DisposeCoreAsync()
+    {
+        IsStopping = true;
         await _pumpCts.CancelAsync();
         try
         {
@@ -191,8 +224,18 @@ sealed class HarnessServer : IAsyncDisposable
             try { Client.Dispose(); }
             finally
             {
-                try { await Server.DisposeAsync(); }
-                finally { _pumpCts.Dispose(); }
+                try
+                {
+                    if (!_process.HasExited) _process.Kill(entireProcessTree: true);
+                    await _process.WaitForExitAsync();
+                    await Server.DisposeAsync();
+                }
+                finally
+                {
+                    _bus.Writer.TryComplete();
+                    _process.Dispose();
+                    _pumpCts.Dispose();
+                }
             }
         }
     }

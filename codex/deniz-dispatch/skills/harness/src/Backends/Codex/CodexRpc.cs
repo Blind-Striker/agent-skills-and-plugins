@@ -10,6 +10,7 @@ sealed class CodexRpc : IAsyncDisposable
     readonly Func<CodexServerRequest, CancellationToken, Task<CodexReply>>? handler;
     readonly Action<string>? protocolError;
     readonly Func<string>? exitDetail;
+    readonly Action<CodexNotification>? notificationReceived;
     readonly SemaphoreSlim writer = new(1);
     readonly CancellationTokenSource lifetime = new();
     readonly ConcurrentDictionary<long, TaskCompletionSource<JsonElement>> pending = new();
@@ -25,13 +26,15 @@ sealed class CodexRpc : IAsyncDisposable
 
     public CodexRpc(Stream stdin, Stream stdout,
         Func<CodexServerRequest, CancellationToken, Task<CodexReply>>? handler = null,
-        Action<string>? protocolError = null, Func<string>? exitDetail = null)
+        Action<string>? protocolError = null, Func<string>? exitDetail = null,
+        Action<CodexNotification>? notificationReceived = null)
     {
         this.stdin = stdin;
         this.stdout = stdout;
         this.handler = handler;
         this.protocolError = protocolError;
         this.exitDetail = exitDetail;
+        this.notificationReceived = notificationReceived;
         Completion = Task.Run(ReadLoopAsync);
     }
 
@@ -209,8 +212,14 @@ sealed class CodexRpc : IAsyncDisposable
                         throw new JsonException("invalid request id");
                     StartHandler(new(id.Clone(), name, parameters));
                 }
-                else if (KnownNotification(name) && !notifications.Writer.TryWrite(new(name, parameters)))
-                    throw new IOException($"app-server notification queue overflow ({MaxNotifications} messages)");
+                else if (KnownNotification(name))
+                {
+                    var notification = new CodexNotification(name, parameters);
+                    // Synchronous admission preserves wire order for state needed by later requests.
+                    notificationReceived?.Invoke(notification);
+                    if (!notifications.Writer.TryWrite(notification))
+                        throw new IOException($"app-server notification queue overflow ({MaxNotifications} messages)");
+                }
             }
             else if (hasId && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var number))
             {
@@ -249,10 +258,11 @@ sealed class CodexRpc : IAsyncDisposable
                 {
                     reply = handler is null ? new(null, new(-32601, $"method not found: {request.Method}"))
                         : await handler(request, lifetime.Token).WaitAsync(lifetime.Token);
+                    if (request.Resolved) return;
                     reply = reply.ValidateApproval(request.Method);
                 }
                 catch (CodexRpcException ex) { reply = new(null, new(ex.Code, ex.Message, ex.ErrorData)); }
-                catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
+                catch (OperationCanceledException) when (lifetime.IsCancellationRequested || request.Resolved) { return; }
                 catch (Exception ex) { reply = new(null, new(-32603, ex.Message)); }
                 await WriteAsync(json =>
                 {
@@ -270,12 +280,14 @@ sealed class CodexRpc : IAsyncDisposable
                         else json.WriteNullValue();
                     }
                 }, lifetime.Token);
+                request.ResponseWritten.TrySetResult(true);
             }
             catch (Exception ex) when (lifetime.IsCancellationRequested || ex is IOException or ObjectDisposedException)
             {
                 // Close faults the pending callers; a reply after shutdown has no receiver.
                 Close(new IOException("app-server reply failed", ex));
             }
+            finally { request.ResponseWritten.TrySetResult(false); }
         });
         handlers[key] = task;
         _ = task.ContinueWith(_ => handlers.TryRemove(key, out var ignored), CancellationToken.None,

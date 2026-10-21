@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-sealed record CodexProcessIdentity(int Pid, DateTime StartTime);
+sealed record CodexProcessIdentity(int Pid, DateTime? StartTime);
 
 /// <summary>
 /// Owns an app-server, its Windows job or optional Linux session, and observed descendants.
@@ -20,6 +20,7 @@ sealed class CodexProcess : IAsyncDisposable
     readonly ErrorTail stderr = new();
     readonly object gate = new();
     readonly Dictionary<int, CodexProcessIdentity> descendants = [];
+    readonly HashSet<int> unobservable = [];
     readonly List<string> errors = [];
     Task<InterruptResult>? stopping;
     bool disposed;
@@ -45,6 +46,9 @@ sealed class CodexProcess : IAsyncDisposable
     public Stream Stdin => process.StandardInput.BaseStream;
     public Stream Stdout => process.StandardOutput.BaseStream;
     public IReadOnlyList<CodexProcessIdentity> Descendants { get { lock (gate) return descendants.Values.ToArray(); } }
+    internal Func<int, Process> OpenProcess { get; set; } = Process.GetProcessById;
+    internal Func<int, DateTime?> QueryLimitedStartTime { get; set; } = ReadLimitedStartTime;
+    internal Action<int, string>? DescendantUnobservable { get; set; }
 
     // Supervisor snapshots are best effort: a wrapper can exit before its children are observed.
     public void RefreshDescendants()
@@ -53,9 +57,9 @@ sealed class CodexProcess : IAsyncDisposable
         {
             var parents = ReadParents();
             var owners = new HashSet<int>();
-            if (IsAlive(new(Id, StartTime))) owners.Add(Id);
+            if (IsAlive(new(Id, StartTime), OpenProcess, QueryLimitedStartTime)) owners.Add(Id);
             foreach (var identity in descendants.Values)
-                if (IsAlive(identity)) owners.Add(identity.Pid);
+                if (IsAlive(identity, OpenProcess, QueryLimitedStartTime)) owners.Add(identity.Pid);
             bool added;
             do
             {
@@ -65,26 +69,42 @@ sealed class CodexProcess : IAsyncDisposable
                     if (!owners.Contains(parent) || owners.Contains(pid)) continue;
                     try
                     {
-                        using var child = Process.GetProcessById(pid);
-                        if (child.HasExited) continue;
-                        descendants[pid] = new(pid, child.StartTime.ToUniversalTime());
-                        owners.Add(pid);
-                        added = true;
+                        var start = ReadStartTime(pid, OpenProcess, QueryLimitedStartTime);
+                        if (start is null) continue;
+                        descendants[pid] = new(pid, start);
                     }
                     catch (ArgumentException) { continue; } // Exited between the snapshot and lookup.
                     catch (InvalidOperationException) { continue; } // Exited before its start time was read.
+                    catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException)
+                    {
+                        descendants.TryAdd(pid, new(pid, null));
+                        if (unobservable.Add(pid)) DescendantUnobservable?.Invoke(pid, exception.Message);
+                    }
+                    owners.Add(pid);
+                    added = true;
                 }
             } while (added);
         }
     }
 
+    internal void SetPendingStop(Task<InterruptResult> pendingStop)
+    {
+        lock (gate) stopping = pendingStop;
+    }
+
     public Task<InterruptResult> StopAsync()
     {
-        lock (gate) return stopping ??= StopCoreAsync();
+        lock (gate)
+        {
+            if (stopping is null || stopping.IsCompleted && (!stopping.IsCompletedSuccessfully || !stopping.Result.Stopped))
+                stopping = StopCoreAsync();
+            return stopping;
+        }
     }
 
     async Task<InterruptResult> StopCoreAsync()
     {
+        trackingReliable = true;
         var groupKill = false;
         var treeKill = false;
         var killed = 0;
@@ -108,18 +128,8 @@ sealed class CodexProcess : IAsyncDisposable
         // Also used on Windows as a second net for children born before job assignment.
         foreach (var identity in Descendants.Reverse())
         {
-            if (!IsAlive(identity)) continue;
-            try
-            {
-                using var child = Process.GetProcessById(identity.Pid);
-                if (child.StartTime.ToUniversalTime() != identity.StartTime) continue;
-                child.Kill(entireProcessTree: true);
-                killed++;
-            }
-            catch (ArgumentException) { continue; } // Already gone.
-            catch (InvalidOperationException) { continue; } // Exit raced the kill.
-            catch (Win32Exception exception) { RecordError("kill descendant", exception); }
-            catch (AggregateException exception) { RecordError("kill descendant tree", exception); }
+            if (!IsAlive(identity, OpenProcess, QueryLimitedStartTime)) continue;
+            if (KillRecorded(identity, OpenProcess, RecordError)) killed++;
         }
         if (!process.HasExited)
         {
@@ -177,7 +187,7 @@ sealed class CodexProcess : IAsyncDisposable
 
     bool TreeStopped()
     {
-        if (!process.HasExited || Descendants.Any(IsAlive)) return false;
+        if (!process.HasExited || Descendants.Any(identity => IsAlive(identity, OpenProcess, QueryLimitedStartTime))) return false;
         if (job is null || job.IsClosed) return true;
         if (!Native.QueryInformationJobObject(job, 1, out var accounting, (uint)Marshal.SizeOf<Native.JobAccounting>(), IntPtr.Zero))
             return false;
@@ -185,14 +195,14 @@ sealed class CodexProcess : IAsyncDisposable
     }
 
     bool HasGroupMember(int group) => new[] { new CodexProcessIdentity(Id, StartTime) }.Concat(Descendants)
-        .Any(identity => IsAlive(identity) && Native.getpgid(identity.Pid) == group);
+        .Any(identity => IsAlive(identity, OpenProcess, QueryLimitedStartTime) && Native.getpgid(identity.Pid) == group);
 
-    static bool IsAlive(CodexProcessIdentity identity)
+    static bool IsAlive(CodexProcessIdentity identity, Func<int, Process> openProcess, Func<int, DateTime?> limitedStartTime)
     {
         try
         {
-            using var child = Process.GetProcessById(identity.Pid);
-            if (child.HasExited || child.StartTime.ToUniversalTime() != identity.StartTime) return false;
+            var start = ReadStartTime(identity.Pid, openProcess, limitedStartTime);
+            if (start is null || identity.StartTime is { } expected && start != expected) return false;
             // A reparented Unix zombie is already dead, but may await reaping by init.
             if (OperatingSystem.IsLinux())
             {
@@ -205,8 +215,78 @@ sealed class CodexProcess : IAsyncDisposable
         catch (InvalidOperationException) { return false; }
         catch (FileNotFoundException) { return false; }
         catch (DirectoryNotFoundException) { return false; }
-        catch (Win32Exception) { return true; } // Access failure is not proof of exit.
-        catch (UnauthorizedAccessException) { return true; }
+        catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException)
+        {
+            // A PID absent from a fresh system snapshot is gone; denied access alone proves nothing.
+            try { return ReadParents().ContainsKey(identity.Pid); }
+            catch (Exception snapshotError) when (snapshotError is IOException or Win32Exception or UnauthorizedAccessException) { return true; }
+        }
+    }
+
+    static DateTime? ReadStartTime(int pid, Func<int, Process> openProcess, Func<int, DateTime?> limitedStartTime)
+    {
+        try
+        {
+            using var child = openProcess(pid);
+            return child.HasExited ? null : child.StartTime.ToUniversalTime();
+        }
+        catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException)
+        { return limitedStartTime(pid); }
+    }
+
+    static DateTime? ReadLimitedStartTime(int pid)
+    {
+        if (!OperatingSystem.IsWindows()) throw new UnauthorizedAccessException("process creation time is unavailable");
+        using var handle = Native.OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+        if (handle.IsInvalid)
+        {
+            var error = Marshal.GetLastWin32Error();
+            if (error == 87) return null; // No process with this PID.
+            throw new Win32Exception(error);
+        }
+        return ReadHandleStartTime(handle);
+    }
+
+    static DateTime? ReadHandleStartTime(SafeProcessHandle handle)
+    {
+        if (!Native.GetExitCodeProcess(handle, out var exit)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        if (exit != 259) return null; // STILL_ACTIVE; an exit code of 259 remains conservatively live.
+        if (!Native.GetProcessTimes(handle, out var creation, out _, out _, out _)) throw new Win32Exception(Marshal.GetLastWin32Error());
+        return DateTime.FromFileTimeUtc(creation);
+    }
+
+    static bool KillRecorded(CodexProcessIdentity identity, Func<int, Process> openProcess, Action<string, Exception> recordError)
+    {
+        try
+        {
+            // Never terminate a recycled PID when no creation time was observable.
+            if (identity.StartTime is null) throw new UnauthorizedAccessException("creation time unavailable; cannot safely terminate by PID");
+            try
+            {
+                using var child = openProcess(identity.Pid);
+                if (child.HasExited || child.StartTime.ToUniversalTime() != identity.StartTime) return false;
+                child.Kill(entireProcessTree: true);
+            }
+            catch (Exception exception) when (OperatingSystem.IsWindows() && exception is (Win32Exception or UnauthorizedAccessException or AggregateException))
+            {
+                // A sandbox identity may deny the rights requested by Process.Kill's tree walk.
+                // Query and terminate through the same owned handle to avoid a PID reuse race.
+                using var handle = Native.OpenProcess(0x1001, false, identity.Pid); // QUERY_LIMITED_INFORMATION | TERMINATE
+                if (handle.IsInvalid)
+                {
+                    var error = Marshal.GetLastWin32Error();
+                    if (error == 87) return false;
+                    throw new Win32Exception(error);
+                }
+                if (ReadHandleStartTime(handle) != identity.StartTime) return false;
+                if (!Native.TerminateProcess(handle, 1)) throw new Win32Exception(Marshal.GetLastWin32Error());
+            }
+            return true;
+        }
+        catch (ArgumentException) { return false; } // Already gone.
+        catch (InvalidOperationException) { return false; } // Exit raced the kill.
+        catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or AggregateException)
+        { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
     }
 
     void Signal(int pid, int signal)
@@ -223,13 +303,11 @@ sealed class CodexProcess : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         if (disposed) return;
-        try { await StopAsync(); }
-        finally
-        {
-            job?.Dispose(); // KILL_ON_JOB_CLOSE covers exception and supervisor-exit paths too.
-            process.Dispose();
-            disposed = true;
-        }
+        var stopped = await StopAsync();
+        if (!stopped.Stopped) throw new HarnessException($"Codex stop unconfirmed: {stopped.Detail}");
+        job?.Dispose();
+        process.Dispose();
+        disposed = true;
     }
 
     public static CodexProcess Start(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment)
@@ -387,8 +465,80 @@ sealed class CodexProcess : IAsyncDisposable
         }
         catch (HarnessException exception)
         {
-            throw new HarnessException($"cannot start codex: {exception.Message}. Install with npm install -g @openai/codex@0.163.0 or set backends.codex.executable in user config");
+            throw new HarnessException($"cannot start codex: {exception.Message}. Install with npm install -g @openai/codex@{CodexBackend.PinnedVersion} or set backends.codex.executable in user config");
         }
+    }
+
+    public static async Task<ProcessResult> CommandAsync(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment,
+        bool version, CancellationToken ct)
+    {
+        var executable = ResolveExecutable(context.Executable, environment);
+        var variables = environment.ToDictionary(x => x.Key, x => x.Value);
+        foreach (var (name, value) in context.Passthrough) variables[name] = value;
+        if (OperatingSystem.IsWindows() && Path.GetExtension(executable).ToLowerInvariant() is ".cmd" or ".bat")
+        {
+            // ArgumentList applies CreateProcess quoting, not cmd's /s /c quoting. Only a trusted
+            // executable path and these fixed literals enter the raw command line, as at app-server start.
+            var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"))
+            {
+                Arguments = $"/d /s /c \"\"{executable}\" {(version ? "--version" : "login status")}\"",
+                WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            start.Environment.Clear();
+            foreach (var (name, value) in variables) start.Environment[name] = value;
+            using var process = Process.Start(start) ?? throw new HarnessException("Codex preflight command did not start");
+            using var output = new MemoryStream();
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromSeconds(30));
+            var stdout = process.StandardOutput.BaseStream.CopyToAsync(output, deadline.Token);
+            var stderr = process.StandardError.ReadToEndAsync(deadline.Token);
+            try
+            {
+                await Task.WhenAll(process.WaitForExitAsync(deadline.Token), stdout, stderr);
+                return new(process.ExitCode, output.ToArray(), await stderr, false);
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) when (process.HasExited) { /* Exit raced cancellation. */ }
+                await process.WaitForExitAsync(CancellationToken.None);
+                ct.ThrowIfCancellationRequested();
+                return new(-1, output.ToArray(), "Codex preflight command timed out", true);
+            }
+        }
+        return await Proc.RunAsync(executable, version ? ["--version"] : ["login", "status"], directory, ct, TimeSpan.FromSeconds(30), environment: variables);
+    }
+
+    public static async Task<InterruptResult> StopRecordedAsync(JsonObject state, CancellationToken ct,
+        Func<int, Process>? openProcess = null, Func<int, DateTime?>? limitedStartTime = null)
+    {
+        openProcess ??= Process.GetProcessById;
+        limitedStartTime ??= ReadLimitedStartTime;
+        bool Alive(CodexProcessIdentity identity) => IsAlive(identity, openProcess, limitedStartTime);
+        var identities = new List<CodexProcessIdentity>();
+        if (state["pid"] is { } pid && state["processStartTime"] is { } start)
+            identities.Add(new(pid.GetValue<int>(), DateTime.Parse(start.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime()));
+        foreach (var child in state["descendants"]?.AsArray() ?? [])
+            identities.Add(new(child!["pid"]!.GetValue<int>(), child["startTime"] is { } childStart
+                ? DateTime.Parse(childStart.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime() : null));
+        var errors = new List<string>();
+        if (!OperatingSystem.IsWindows() && identities.Count > 0 && state["processGroup"]?.GetValue<bool>() == true)
+        {
+            var group = identities[0].Pid;
+            if (identities.Any(identity => Alive(identity) && Native.getpgid(identity.Pid) == group))
+                if (Native.kill(-group, 9) != 0 && Marshal.GetLastPInvokeError() != 3)
+                    errors.Add($"kill recorded group: OS error {Marshal.GetLastPInvokeError()}");
+        }
+        foreach (var identity in identities.AsEnumerable().Reverse())
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!Alive(identity)) continue;
+            KillRecorded(identity, openProcess, (operation, exception) => errors.Add($"{operation}: {exception.Message}"));
+        }
+        var deadline = Stopwatch.StartNew();
+        while (identities.Any(Alive) && deadline.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(50, ct);
+        return new(!identities.Any(Alive), $"recorded process recovery; {string.Join("; ", errors)}");
     }
 
     sealed class ErrorTail
@@ -446,6 +596,19 @@ sealed class CodexProcess : IAsyncDisposable
     // DllImport keeps the file-based app and source-including tests free of unsafe build settings.
     static class Native
     {
+        // DWORD rights / BOOL inheritance / DWORD PID -> owned CloseHandle-safe process handle.
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        internal static extern SafeProcessHandle OpenProcess(uint access, [MarshalAs(UnmanagedType.Bool)] bool inherit, int pid);
+        // FILETIME is two DWORDs (one 64-bit value); all output storage belongs to the caller.
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetProcessTimes(SafeProcessHandle process, out long creation, out long exit, out long kernel, out long user);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool GetExitCodeProcess(SafeProcessHandle process, out uint exit);
+        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        internal static extern bool TerminateProcess(SafeProcessHandle process, uint exit);
         [StructLayout(LayoutKind.Sequential)]
         internal struct BasicLimits
         {

@@ -3,12 +3,21 @@ using OpenCode.Sdk.Models;
 static class OpenCodeRules
 {
     // Agent rules precede these. Last match wins, so every deny follows every escalation.
-    public static List<PermissionRule> Render(WorkerRules source, string? run = null)
+    public static AppliedEnforcement Enforcement(Modes modes) => new(
+        modes.Access == "read-only" ? "policy" : "none", modes.Network == "off" ? "policy" : "none", "policy");
+
+    public static List<PermissionRule> Render(WorkerRules source, string? run = null, Modes? modes = null)
     {
         List<PermissionRule> rules = [.. source.Escalate.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
         { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Ask })),
          .. source.Deny.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
          { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Deny }))];
+        if (modes?.Access == "read-only") rules.Add(new() { Action = "edit", Resource = "*", Effect = PermissionEffect.Deny });
+        if (modes?.Network == "off")
+        {
+            rules.Add(new() { Action = "webfetch", Resource = "*", Effect = PermissionEffect.Deny });
+            rules.Add(new() { Action = "websearch", Resource = "*", Effect = PermissionEffect.Deny });
+        }
         rules.Add(new() { Action = "edit", Resource = Path.GetFullPath(Path.Combine(Locations.ControlRoot, "**")).Replace('\\', '/'), Effect = PermissionEffect.Deny });
         if (run is not null)
             rules.Add(new() { Action = "edit", Resource = Path.GetFullPath(Path.Combine(Locations.LedgerRoot, run, "**")).Replace('\\', '/'), Effect = PermissionEffect.Deny });

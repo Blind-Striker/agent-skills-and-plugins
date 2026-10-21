@@ -8,7 +8,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     readonly Dictionary<(string Task, string Turn, string Id), DateTimeOffset> toolStarts = [];
     readonly HashSet<(string Task, string Turn, string Id)> completedTools = [];
     List<TaskRun> runs = [];
-    int watchdogFailures;
+    readonly Dictionary<string, int> watchdogFailures = new(StringComparer.Ordinal);
     volatile bool ledgerFailed;
 
     void Error(TaskRun? run, string operation, Exception ex)
@@ -397,16 +397,24 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
 
     async Task PollAsync()
     {
-        try
+        foreach (var backend in backends.Values)
         {
-            foreach (var backend in backends.Values)
-                await backend.PollAsync(runs.Where(x => x.State == TaskState.Running && Backend(x) == backend).Select(x => x.SavedWorker()).ToList(), ct);
-            watchdogFailures = 0;
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            ledger.Write(null, "error", new JsonObject { ["while"] = "watchdog", ["message"] = ex.Message });
-            if (++watchdogFailures >= 3) throw new HarnessException($"the private server stopped answering; run `resume {ledger.RunId}` after checking it");
+            try
+            {
+                var active = runs.Where(x => x.State == TaskState.Running && Backend(x) == backend).ToList();
+                await backend.PollAsync(active.Select(x => x.SavedWorker()).ToList(), ct);
+                // Codex recovery needs the latest observed descendant identities on disk.
+                if (backend.Name == "codex")
+                    foreach (var run in active) run.SaveWorker(run.SavedWorker(), ledger);
+                watchdogFailures[backend.Name] = 0;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                ledger.Write(null, "error", new JsonObject { ["while"] = "watchdog", ["backend"] = backend.Name, ["message"] = ex.Message });
+                var failures = watchdogFailures[backend.Name] = watchdogFailures.GetValueOrDefault(backend.Name) + 1;
+                var server = backend.Name == "codex" ? "codex app-server" : $"{backend.Name} server";
+                if (failures >= 3) throw new HarnessException($"the {server} stopped answering; run `resume {ledger.RunId}` after checking it");
+            }
         }
     }
 
@@ -491,6 +499,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         {
             var result = await Settlement.SettleAsync(Backend(run), ledger, run, outcome, CancellationToken.None, git);
             Finish(run, result.State switch { "done" => TaskState.Done, "cancelled" => TaskState.Cancelled, _ => TaskState.Failed }, result.Outcome, null);
+            if (run.State == TaskState.Done)
+            {
+                try { await Backend(run).ReleaseAsync(run.SavedWorker(), CancellationToken.None); }
+                catch (Exception ex) { Error(run, "release", ex); }
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

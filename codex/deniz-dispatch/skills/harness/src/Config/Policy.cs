@@ -35,10 +35,15 @@ sealed class Policy
         $"policy {Path}: deny [{string.Join(", ", Deny.Select(x => x.Name))}], escalate [{string.Join(", ", Escalate.Select(x => x.Name))}], "
         + (RawPrompt ? "raw prompts (no standing instructions)" : $"{Instructions.Count} standing instructions");
 
-    // The escalation entry that names this ask, or null, which means "approve once".
+    public PolicyRule? DenialFor(string action, IReadOnlyList<string> resources) =>
+        Deny.FirstOrDefault(rule => Matches(rule, action, resources));
+
+    // No escalation match leaves the backend-specific default decision to the core.
     public PolicyRule? EscalationFor(string action, IReadOnlyList<string> resources) =>
-        Escalate.FirstOrDefault(rule =>
-            Wildcard.Match(action, rule.Action!, OperatingSystem.IsWindows())
-            && resources.Any(resource => rule.Resources!.Any(pattern => Wildcard.Match(resource, pattern, OperatingSystem.IsWindows()))));
+        Escalate.FirstOrDefault(rule => Matches(rule, action, resources));
+
+    static bool Matches(PolicyRule rule, string action, IReadOnlyList<string> resources) =>
+        Wildcard.Match(action, rule.Action!, OperatingSystem.IsWindows())
+        && resources.Any(resource => rule.Resources!.Any(pattern => Wildcard.Match(resource, pattern, OperatingSystem.IsWindows())));
 
 }

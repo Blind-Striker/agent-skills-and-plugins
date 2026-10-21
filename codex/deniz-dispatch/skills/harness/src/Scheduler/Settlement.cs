@@ -25,7 +25,8 @@ static class Settlement
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
         if (!run.Zombie)
         {
-            await Commit.CollectAsync(ledger, run, result, ct, git);
+            try { await Commit.CollectAsync(ledger, run, result, ct, git); }
+            catch (GitConfigChangedException) { result.Failures.Add("git-config-changed"); }
             await Verifier.VerifyAsync(ledger, run, result, ct);
         }
         if (run.Zombie) result.Failures.Add("zombie");

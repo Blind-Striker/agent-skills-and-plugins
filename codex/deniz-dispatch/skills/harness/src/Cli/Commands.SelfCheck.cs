@@ -19,11 +19,17 @@ static partial class Commands
         if (add.ExitCode != 0) return 1;
         try
         {
-            await using IWorkerBackend backend = new OpenCodeBackend();
+            var selected = BackendScope.Selected(a, layers);
+            Console.WriteLine($"backend {selected}");
+            await using var scope = new BackendScope([selected]);
+            var backend = scope.Backends[selected];
             var probe = await backend.ProbeAsync(new(worktree, TaskStarter.RulesFor(layers.Policy)), ct);
             foreach (var check in probe.Checks ?? []) Check(check.Name, check.Ok, check.Detail);
             var listing = await backend.ListRoutesAsync(worktree, ct);
-            foreach (var route in allow.Routes)
+            var allowedRoutes = selected == "codex"
+                ? (layers.Effective.Restrictions?.Routes?.Value ?? []).Where(x => x.StartsWith("codex:", StringComparison.Ordinal)).Select(CodexBackend.ParseRoute)
+                : allow.Routes;
+            foreach (var route in allowedRoutes)
             {
                 var model = listing.Routes.FirstOrDefault(x => x.Route.Provider == route.Provider && x.Route.Model == route.Model);
                 var manual = listing.Agents.Any(x => x.Manual && RouteRef.TryParse(x.Model ?? "", out var pinned, out _) && pinned!.Matches(route));
@@ -31,7 +37,7 @@ static partial class Commands
                     : route.VariantOrDefault != "default" && !model.Variants.Contains(route.Variant!) ? "variant not listed" : manual ? "manual-class" : null;
                 Check($"allowed route {route}", reason is null, reason ?? "listed");
             }
-            foreach (var agent in allow.Agents)
+            foreach (var agent in selected == "opencode" ? allow.Agents : [])
             {
                 var entry = listing.Agents.FirstOrDefault(x => x.Name == agent);
                 Check($"allowed agent {agent}", entry?.Usable == true, entry?.Reason ?? (entry is null ? "agent not found at this location" : "listed"));

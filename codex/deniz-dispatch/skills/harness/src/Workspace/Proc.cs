@@ -1,6 +1,7 @@
 sealed record ProcessResult(int ExitCode, byte[] Stdout, string Stderr, bool TimedOut)
 {
     public string Output => Encoding.UTF8.GetString(Stdout);
+    public bool Killed { get; init; }
 }
 
 static class Proc
@@ -54,6 +55,7 @@ static class Proc
 
         var completion = Task.WhenAll(process.WaitForExitAsync(CancellationToken.None), stdout, stderr);
         var timedOut = false;
+        var killed = false;
         try
         {
             await completion.WaitAsync(window.Token);
@@ -61,7 +63,14 @@ static class Proc
         catch (OperationCanceledException)
         {
             timedOut = true;
-            try { process.Kill(entireProcessTree: true); }
+            try
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                    killed = true;
+                }
+            }
             catch (InvalidOperationException) when (process.HasExited) { /* Exit raced cancellation. */ }
             try { await completion.WaitAsync(TimeSpan.FromSeconds(2)); }
             catch (TimeoutException)
@@ -75,7 +84,7 @@ static class Proc
         {
             captureClosed = true;
             return new ProcessResult(timedOut ? -1 : process.ExitCode, output.ToArray(),
-                Encoding.UTF8.GetString(error.ToArray()) + (timedOut ? "\n[harness] timed out" : ""), timedOut);
+                Encoding.UTF8.GetString(error.ToArray()) + (timedOut ? "\n[harness] timed out" : ""), timedOut) { Killed = killed && process.HasExited };
         }
 
         async Task ReadAsync(Stream source, MemoryStream destination)

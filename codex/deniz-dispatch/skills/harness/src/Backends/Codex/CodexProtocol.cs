@@ -1,5 +1,12 @@
 record CodexNotification(string Method, JsonElement Params);
-record CodexServerRequest(JsonElement Id, string Method, JsonElement Params);
+record CodexServerRequest(JsonElement Id, string Method, JsonElement Params)
+{
+    int resolved;
+    public bool Resolved => Volatile.Read(ref resolved) != 0;
+    public void Resolve() => Interlocked.Exchange(ref resolved, 1);
+    // A decline's steer must follow the flushed response, not race it on the writer lock.
+    public TaskCompletionSource<bool> ResponseWritten { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+}
 record CodexRpcError(long Code, string Message, JsonElement? Data = null);
 record CodexReply(JsonElement? Result, CodexRpcError? Error = null)
 {

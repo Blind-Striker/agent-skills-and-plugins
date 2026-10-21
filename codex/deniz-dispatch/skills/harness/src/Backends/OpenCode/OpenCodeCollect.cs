@@ -3,9 +3,12 @@ using OpenCode.Sdk.Models;
 
 sealed partial class OpenCodeBackend
 {
+    public sealed class SessionReleasedException(string task) : HarnessException(
+        $"{task}: the session was released when the task finished; result.json is final");
+
     async Task<WorkerReport> CollectCoreAsync(WorkerRef worker, CancellationToken ct)
     {
-        var session = (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id);
+        var session = (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id);
         SessionInfo info;
         List<SessionMessageAssistant> assistants;
         SessionMessageIdle? idle;
@@ -14,7 +17,10 @@ sealed partial class OpenCodeBackend
         var complete = false;
         while (true)
         {
-            info = (await session.GetAsync(cancellationToken: ct)).Session;
+            var response = await session.GetAsync(OpenCodeRequestOptions.NoThrow, ct);
+            if (response.Status == 404) throw new SessionReleasedException(worker.TaskId);
+            if (response.IsError) throw new HarnessException($"session {worker.Id} collection failed: HTTP {response.Status} {response.Error?.Tag}");
+            info = response.Session;
             assistants = [];
             idle = null;
             await foreach (var message in session.EnumerateMessagesAsync(new SessionMessageListRequest { Order = ListOrder.Descending }, cancellationToken: ct))

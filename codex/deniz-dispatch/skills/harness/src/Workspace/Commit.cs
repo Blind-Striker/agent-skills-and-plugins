@@ -4,7 +4,14 @@ static class Commit
     {
         var record = run.Record;
         var wt = record.Workspace.Path!;
-        var git = runner ?? Worktree.Runner(ledger, run.Id);
+        var git = (runner ?? Worktree.Runner(ledger, run.Id)).ForWorkspace(ledger, run.Id, (type, data) =>
+        {
+            if (type == "git-config-changed" && data["blocking"]?.GetValue<bool>() == false)
+            {
+                result.Warnings ??= [];
+                if (!result.Warnings.Contains("git-config-changed")) result.Warnings.Add("git-config-changed");
+            }
+        });
         if (Worktree.InPlace(record)) wt = (await git.CheckAsync(wt, ct, "rev-parse", "--show-toplevel")).Trim();
         result.CommitMode = Worktree.CommitMode(record);
         if (result.CommitMode == "none")
@@ -39,8 +46,9 @@ static class Commit
         result.DiffStat = (await git.CheckAsync(wt, ct, "diff", "--ignore-submodules=none", "--no-ext-diff", "--no-textconv", "--shortstat", start, end)).Trim();
         result.FilesChanged = (await git.CheckAsync(wt, ct, "diff", "--ignore-submodules=none", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "--no-renames", start, end))
             .Split('\0', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var ignoreCase = await Scope.IgnoreCaseAsync(git, wt, ct);
         result.OutOfScope = record.Spec.Kind is "review" or "research" ? [.. result.FilesChanged]
-            : result.FilesChanged.Where(x => IsDispatch(x) || (record.Settings.Scope is { } scope ? !ConfigResolver.InScope(x, scope) : !Scope.InScope(x, record.Spec.Scope))).ToList();
+            : result.FilesChanged.Where(x => IsDispatch(x) || (record.Settings.Scope is { } scope ? !Scope.InScope(x, scope, ignoreCase) : !Scope.InScope(x, record.Spec.Scope, ignoreCase))).ToList();
         if (result.CommitMode != "none")
         {
             var leftover = await git.CheckAsync(wt, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames");

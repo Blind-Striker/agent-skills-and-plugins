@@ -5,14 +5,18 @@ sealed class Git
     readonly string file;
     readonly string controlFolder;
     readonly Dictionary<string, string> environment;
+    Action<string, JsonObject>? report;
+    bool gated;
+    readonly TimeSpan timeout;
 
-    public Git(string executablePath, string controlFolder, IReadOnlyDictionary<string, string> environment)
+    public Git(string executablePath, string controlFolder, IReadOnlyDictionary<string, string> environment, TimeSpan? timeout = null)
     {
         if (!Path.IsPathFullyQualified(executablePath)) throw new HarnessException("git executable must be an absolute path");
         if (!Path.IsPathFullyQualified(controlFolder)) throw new HarnessException("git control folder must be an absolute path");
         file = executablePath;
         this.controlFolder = controlFolder;
         this.environment = new(environment, OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        this.timeout = timeout ?? TimeSpan.FromMinutes(5);
     }
 
     public static IDisposable Initialize()
@@ -29,12 +33,29 @@ sealed class Git
     public Git WithIndex(string path) => new(file, controlFolder, new Dictionary<string, string>(environment, environment.Comparer)
     {
         ["GIT_INDEX_FILE"] = Path.GetFullPath(path),
-    });
+    }, timeout) { report = report, gated = gated };
+
+    public Git ForWorkspace(Ledger ledger, string task, Action<string, JsonObject>? observer = null) =>
+        new(file, controlFolder, environment, timeout) { gated = true, report = (type, data) => { ledger.Write(task, type, data); observer?.Invoke(type, data); } };
+
+    public void Report(string type, JsonObject data) => report?.Invoke(type, data);
+
+    public Task InitializeBaselineAsync(string repo, CancellationToken ct) => new GitConfigGate(this).InitializeAsync(repo, ct);
 
     public static Git Default => ForTask("git");
 
     public async Task<ProcessResult> RunAsync(string repo, CancellationToken ct, params string[] args)
     {
+        var command = args.FirstOrDefault();
+        var writesIndex = command is "add" or "commit" or "reset" or "read-tree" or "write-tree" or "update-index";
+        // Include the checks and path lookup in the uncancellable write, not only the child.
+        var callToken = writesIndex || command is "worktree" or "branch" ? CancellationToken.None : ct;
+        if (gated && (writesIndex || command is "status" or "worktree" or "branch"))
+            await new GitConfigGate(this).CheckAsync(repo, callToken);
+        string? lockPath = null;
+        if (writesIndex)
+            lockPath = environment.TryGetValue("GIT_INDEX_FILE", out var index) ? index + ".lock"
+                : Path.GetFullPath((await CheckAsync(repo, callToken, "rev-parse", "--git-path", "index.lock")).Trim(), repo);
         var hooks = "/dev/null";
         if (OperatingSystem.IsWindows())
         {
@@ -53,12 +74,20 @@ sealed class Git
             childEnvironment.Remove("GIT_OPTIONAL_LOCKS");
             if (args.FirstOrDefault() is "status" or "diff" or "rev-parse" or "merge-base" or "show" or "ls-files")
                 childEnvironment["GIT_OPTIONAL_LOCKS"] = "0";
-            var command = args.FirstOrDefault();
             string[] commandArgs = command == "commit" && !args.Contains("--no-verify") ? ["commit", "--no-verify", .. args.Skip(1)] : args;
-            return await Proc.RunAsync(file,
+            var lockExisted = lockPath is not null && File.Exists(lockPath);
+            var started = DateTime.UtcNow;
+            var result = await Proc.RunAsync(file,
                 ["-C", repo, "-c", $"core.hooksPath={hooks}", "-c", "core.fsmonitor=false", "-c", "commit.gpgSign=false",
                     "-c", "gc.auto=0", "-c", "maintenance.auto=false", .. commandArgs],
-                repo, command is "add" or "commit" ? CancellationToken.None : ct, TimeSpan.FromMinutes(5), environment: childEnvironment);
+                repo, callToken, timeout, environment: childEnvironment);
+            if (result.TimedOut && result.Killed && !lockExisted && lockPath is not null && File.Exists(lockPath)
+                && File.GetCreationTimeUtc(lockPath) >= started)
+            {
+                File.Delete(lockPath);
+                Report("index-lock-removed", new JsonObject { ["path"] = lockPath });
+            }
+            return result;
         }
         finally
         {

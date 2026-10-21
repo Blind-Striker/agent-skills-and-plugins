@@ -12,14 +12,22 @@ static class Worktree
     public static Git Runner(Ledger ledger, string task)
     {
         var info = File.Exists(Path.Combine(ledger.Dir, "run.json")) ? ledger.LoadRunInfo() : null;
-        return Git.ForTask(task, ledger.RunId, Path.Combine(Locations.StateRoot, "control", info?.ControlId ?? ledger.RunId));
+        return Git.ForTask(task, ledger.RunId, Path.Combine(Locations.StateRoot, "control", info?.ControlId ?? ledger.RunId)).ForWorkspace(ledger, task);
     }
 
     public static async Task PrepareAsync(TaskRun run, Ledger ledger, string repo, CancellationToken ct, Git? runner = null)
     {
         var record = run.Record;
         if (record.Workspace.Path is not null) return;
-        var git = runner ?? Runner(ledger, run.Id);
+        var git = (runner ?? Runner(ledger, run.Id)).ForWorkspace(ledger, run.Id);
+        await git.InitializeBaselineAsync(repo, ct);
+        try { await new GitConfigGate(git).CheckAsync(repo, ct); }
+        catch (GitConfigChangedException)
+        {
+            ledger.SaveResult(new TaskResult { Run = ledger.RunId, Task = run.Id, Kind = record.Spec.Kind,
+                State = "failed", CommitMode = CommitMode(record), Failures = ["git-config-changed"] });
+            throw;
+        }
         repo = Path.GetFullPath((await git.CheckAsync(repo, ct, "rev-parse", "--show-toplevel")).Trim());
         Directory.CreateDirectory(Locations.TaskTemp(run.Id, ledger.RunId));
         if (InPlace(record))
