@@ -59,7 +59,7 @@ sealed class Args
             }
         }
 
-        if (Command is "plan" or "run" && Positional.Count > 0 && !Path.IsPathFullyQualified(Positional[0]))
+        if (Command is "plan" or "run" or "selfcheck" && Positional.Count > 0 && !Path.IsPathFullyQualified(Positional[0]))
         {
             throw new HarnessException("task file must be an absolute path");
         }

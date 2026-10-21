@@ -112,6 +112,14 @@ static class ConfigResolver
             string? variant = null;
             if (text is not null)
             {
+                var colon = text.IndexOf(':');
+                if (colon >= 0)
+                {
+                    var routeBackend = text[..colon];
+                    if (routeBackend != settings.Backend.Value)
+                        throw new HarnessException($"{task.Id}: route backend {routeBackend} from {name} differs from task backend {settings.Backend.Value} from {settings.Backend.From}");
+                    text = text[(colon + 1)..];
+                }
                 var split = text.Split('#');
                 if (split.Length > 2 || split[0].Length == 0 || (split.Length == 2 && split[1].Length == 0))
                     throw new HarnessException($"{task.Id}: invalid route from {name}: {text}");

@@ -5,66 +5,70 @@ static partial class Commands
 
     public static async Task<int> RoutesAsync(Args a, CancellationToken ct)
     {
-        var dir = Path.GetFullPath(a.Get("dir") ?? a.Get("repo") ?? throw new HarnessException("routes needs --dir or --repo"));
+        var dir = Path.GetFullPath(a.Get("repo") ?? throw new HarnessException("routes needs --repo"));
         var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
         var allow = layers.Allow;
-        var selected = BackendScope.Selected(a, layers);
-        Console.WriteLine($"backend {selected}");
-        await using var scope = new BackendScope([selected], subscribe: false);
-        var backend = scope.Backends[selected];
-        var probe = await backend.ProbeAsync(new(dir), ct);
-        var catalog = await backend.ListRoutesAsync(dir, ct);
-
-        if (selected == "codex")
+        var selectedBackends = BackendScope.Selected(a, layers);
+        await using var scope = new BackendScope(selectedBackends, subscribe: false);
+        foreach (var selected in selectedBackends)
         {
-            Console.WriteLine($"location {dir}\nCodex {probe.Version}");
-            foreach (var entry in catalog.Routes)
-                Console.WriteLine($"  codex:{entry.Route.Model} efforts: {string.Join(',', entry.Variants)}");
-            Console.WriteLine(allow.IsRestricted ? "route allow-list applies" : "no route restriction");
-            return probe.Ready ? 0 : 2;
-        }
+            Console.WriteLine($"backend {selected}");
+            var backend = scope.Backends[selected];
+            var probe = await backend.ProbeAsync(new(dir), ct);
+            if (!probe.Ready) throw new HarnessException($"{selected} is not ready: {string.Join("; ", probe.Errors)}");
+            var catalog = await backend.ListRoutesAsync(dir, ct);
 
-        Console.WriteLine($"location {dir}");
-        Console.WriteLine($"server {probe.Version}{(probe.Version == Constants.PinnedUpstream ? "" : $" (SDK pin is {Constants.PinnedUpstream})")}");
-        Console.WriteLine();
-        Console.WriteLine($"agents ({catalog.Agents.Count}; manual-class {catalog.Agents.Count(x => x.Manual)})");
-        foreach (var agent in catalog.Agents.OrderBy(x => x.Name, StringComparer.Ordinal))
-        {
-            var model = agent.Model ?? "-";
-            var flags = new List<string>();
-            if (agent.Manual) flags.Add("MANUAL");
-            if (allow.AllowsAgent(agent.Name)) flags.Add("allowed");
-            if (agent.Hidden) flags.Add("hidden");
-            Console.WriteLine($"  {agent.Name,-40} {agent.Mode,-9} {model} {string.Join(' ', flags)}");
-        }
+            if (selected == "codex")
+            {
+                Console.WriteLine($"location {dir}\nCodex {probe.Version}");
+                foreach (var entry in catalog.Routes)
+                    Console.WriteLine($"  codex:{entry.Route.Model} efforts: {string.Join(',', entry.Variants)}");
+                Console.WriteLine(allow.IsRestricted ? "route allow-list applies" : "no route restriction");
+                continue;
+            }
 
-        Console.WriteLine();
-        var models = catalog.Routes.Where(x => a.Has("all") || x.Enabled).OrderBy(x => x.Route.Provider).ThenBy(x => x.Route.Model).ToList();
-        Console.WriteLine($"models ({models.Count} shown of {catalog.Routes.Count})");
-        foreach (var model in models)
-        {
-            var route = model.Route;
-            var variants = model.Variants.Count == 0 ? "-" : string.Join(',', model.Variants);
-            var allowed = allow.Routes.Where(r => r.Provider == route.Provider && r.Model == route.Model).Select(r => r.VariantOrDefault).ToList();
-            Console.WriteLine($"  {route.Provider}/{route.Model,-50} variants: {variants}{(model.Enabled ? "" : " disabled")}{(allowed.Count > 0 ? $" allowed: {string.Join(',', allowed)}" : "")}");
-        }
+            Console.WriteLine($"location {dir}");
+            Console.WriteLine($"server {probe.Version}{(probe.Version == Constants.PinnedUpstream ? "" : $" (SDK pin is {Constants.PinnedUpstream})")}");
+            Console.WriteLine();
+            Console.WriteLine($"agents ({catalog.Agents.Count}; manual-class {catalog.Agents.Count(x => x.Manual)})");
+            foreach (var agent in catalog.Agents.OrderBy(x => x.Name, StringComparer.Ordinal))
+            {
+                var model = agent.Model ?? "-";
+                var flags = new List<string>();
+                if (agent.Manual) flags.Add("MANUAL");
+                if (allow.AllowsAgent(agent.Name)) flags.Add("allowed");
+                if (agent.Hidden) flags.Add("hidden");
+                Console.WriteLine($"  opencode:{agent.Name,-40} {agent.Mode,-9} {model} {string.Join(' ', flags)}");
+            }
 
-        Console.WriteLine();
-        Console.WriteLine(allow.IsRestricted ? $"allow-list: {allow.Count} opencode entries" : "no route restriction");
-        foreach (var route in allow.Routes)
-        {
-            var entry = catalog.Routes.FirstOrDefault(x => x.Route.Provider == route.Provider && x.Route.Model == route.Model);
-            var manual = catalog.Agents.Any(x => x.Manual && RouteRef.TryParse(x.Model ?? "", out var pinned, out _) && pinned!.Matches(route));
-            var state = manual ? "refused: equals a manual-class agent's model" : entry is null ? "not listed at this location"
-                : !entry.Enabled ? "listed but disabled" : route.VariantOrDefault != "default" && !entry.Variants.Contains(route.Variant!)
-                    ? $"variant {route.Variant} not listed (has: {string.Join(',', entry.Variants)})" : "ok";
-            Console.WriteLine($"  {route} {state}");
-        }
+            Console.WriteLine();
+            var models = catalog.Routes.Where(x => a.Has("all") || x.Enabled).OrderBy(x => x.Route.Provider).ThenBy(x => x.Route.Model).ToList();
+            Console.WriteLine($"models ({models.Count} shown of {catalog.Routes.Count})");
+            foreach (var model in models)
+            {
+                var route = model.Route;
+                var variants = model.Variants.Count == 0 ? "-" : string.Join(',', model.Variants);
+                var allowed = allow.Routes.Where(r => r.Provider == route.Provider && r.Model == route.Model).Select(r => r.VariantOrDefault).ToList();
+                Console.WriteLine($"  opencode:{route.Provider}/{route.Model,-50} variants: {variants}{(model.Enabled ? "" : " disabled")}{(allowed.Count > 0 ? $" allowed: {string.Join(',', allowed)}" : "")}");
+            }
 
-        foreach (var agent in allow.Agents.Order(StringComparer.Ordinal))
-        {
-            var state = catalog.Agents.FirstOrDefault(x => x.Name == agent)?.Reason ?? (catalog.Agents.Any(x => x.Name == agent) ? "ok" : "agent not found at this location");
-            Console.WriteLine($"  {agent} {state}");
+            Console.WriteLine();
+            Console.WriteLine(allow.IsRestricted ? $"allow-list: {allow.Count} opencode entries" : "no route restriction");
+            foreach (var route in allow.Routes)
+            {
+                var entry = catalog.Routes.FirstOrDefault(x => x.Route.Provider == route.Provider && x.Route.Model == route.Model);
+                var manual = catalog.Agents.Any(x => x.Manual && RouteRef.TryParse(x.Model ?? "", out var pinned, out _) && pinned!.Matches(route));
+                var state = manual ? "refused: equals a manual-class agent's model" : entry is null ? "not listed at this location"
+                    : !entry.Enabled ? "listed but disabled" : route.VariantOrDefault != "default" && !entry.Variants.Contains(route.Variant!)
+                        ? $"variant {route.Variant} not listed (has: {string.Join(',', entry.Variants)})" : "ok";
+                Console.WriteLine($"  opencode:{route} {state}");
+            }
+
+            foreach (var agent in allow.Agents.Order(StringComparer.Ordinal))
+            {
+                var state = catalog.Agents.FirstOrDefault(x => x.Name == agent)?.Reason ?? (catalog.Agents.Any(x => x.Name == agent) ? "ok" : "agent not found at this location");
+                Console.WriteLine($"  opencode:{agent} {state}");
+            }
         }
 
         return 0;

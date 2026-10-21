@@ -9,6 +9,35 @@ public sealed class ConfigTests
     static TaskFile Tasks() => new() { Tasks = [new TaskSpec { Id = "inspect", Kind = "research", Route = "fixture/model" }] };
 
     [Test]
+    [Arguments("codex", "codex", "model-y#high")]
+    [Arguments("opencode", "opencode", "fixture/model#high")]
+    [Arguments("codex", "opencode", "fixture/model#high")]
+    [Arguments("opencode", "codex", "model-y#high")]
+    public async Task Qualified_task_routes_must_match_the_effective_backend(string backend, string routeBackend, string route)
+    {
+        var file = Tasks();
+        var task = file.Tasks![0];
+        task.Backend = backend;
+        task.Route = $"{routeBackend}:{route}";
+        if (backend != routeBackend)
+        {
+            var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+            await Assert.That(error!.Message).Contains($"route backend {routeBackend}");
+            await Assert.That(error!.Message).Contains($"task backend {backend}");
+            return;
+        }
+
+        var qualified = ConfigResolver.Resolve(file).Tasks["inspect"].Settings;
+        await Assert.That(qualified.Route!.Value).IsEqualTo($"{backend}:{route}");
+        task.Route = route;
+        var bare = ConfigResolver.Resolve(file).Tasks["inspect"].Settings;
+        await Assert.That(bare.Route!.Value).IsEqualTo(qualified.Route.Value);
+        await Assert.That(bare.Effort!.Value).IsEqualTo("high");
+        ConfigLayers.Apply(task, qualified);
+        await Assert.That(task.Route).IsEqualTo(route);
+    }
+
+    [Test]
     public async Task Preferences_use_the_last_present_layer_and_keep_provenance()
     {
         for (var mask = 0; mask < 32; mask++)

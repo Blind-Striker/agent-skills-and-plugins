@@ -69,7 +69,7 @@ static class Cli
         Console.WriteLine($"""
             usage: dotnet dispatch.cs -- <command> [arguments]
 
-              routes --dir <path>|--repo <path> [--all]
+              routes [--backend <name>] --repo <path> [--all]
                                                    list roster agents and models at a location
               plan <tasks.jsonc> [--repo <path>] [--policy <file>]
                                                    validate a task file; sends no prompt
@@ -84,7 +84,7 @@ static class Cli
               asks [<run>]                         list escalated asks that wait for the operator
               reply <run> <askId> once|reject [--message <text>]
                                                    answer one escalated ask
-              selfcheck --repo <path> [--policy <file>]
+              selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]
                                                    live check without any prompt
 
             User config: {Locations.UserConfigFile}
