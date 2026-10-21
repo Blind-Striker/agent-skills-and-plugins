@@ -11,6 +11,115 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Unknown_identity_cannot_adopt_or_kill_children_after_pid_reuse(bool childInitiallyObservable, CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"spawnChild":true}
+            {"spawnChild":true}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        var identities = ObserveRecordedProcesses(environment);
+        var children = identities.Where(identity => identity.Pid != process.Id).ToArray();
+        var unreadable = 0;
+        var reused = false;
+        process.DescendantUnobservable = (pid, _) => unreadable = pid;
+        process.OpenProcess = pid =>
+        {
+            if (!reused && children.Any(identity => identity.Pid == pid))
+            {
+                // Only the first generation is observable in the initial snapshot.
+                if (unreadable == 0 || pid == unreadable) throw new System.ComponentModel.Win32Exception(5);
+                if (!childInitiallyObservable) throw new ArgumentException("process not present in this snapshot");
+            }
+            return Process.GetProcessById(pid);
+        };
+        process.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5);
+        try
+        {
+            process.RefreshDescendants();
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == unreadable).StartTime).IsNull();
+            await Assert.That(process.Descendants.Where(identity => children.Any(child => child.Pid == identity.Pid) && identity.Pid != unreadable)).IsEmpty();
+            using (var wrapper = Process.GetProcessById(process.Id))
+            {
+                wrapper.Kill();
+                await wrapper.WaitForExitAsync(cancellationToken);
+            }
+            // The lookup now represents an unrelated occupant of the recorded PID, without
+            // relying on OS PID recycling. Its child becomes observable only after replacement.
+            reused = true;
+            process.RefreshDescendants();
+            var adopted = process.Descendants.Where(identity => children.Any(child => child.Pid == identity.Pid) && identity.Pid != unreadable).ToArray();
+            var state = new JsonObject
+            {
+                ["descendants"] = new JsonArray(process.Descendants.Select(identity => (JsonNode)new JsonObject
+                {
+                    ["pid"] = identity.Pid, ["startTime"] = identity.StartTime?.ToString("O"),
+                }).ToArray()),
+            };
+            var stopped = await CodexProcess.StopRecordedAsync(state, cancellationToken);
+            foreach (var child in children) await Assert.That(IsAlive(child)).IsTrue();
+            await Assert.That(adopted).IsEmpty();
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == unreadable).StartTime).IsNull();
+            await Assert.That(stopped.Stopped).IsFalse();
+            await Assert.That(stopped.Detail).Contains("cannot safely terminate by PID");
+        }
+        finally
+        {
+            process.OpenProcess = Process.GetProcessById;
+            await CleanupAsync(identities);
+        }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Recorded_stop_rechecks_handle_creation_time_after_liveness_passes(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows limited process handles only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"spawnChild":true}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        var child = ObserveRecordedProcesses(environment).Single(identity => identity.Pid != process.Id);
+        var recordedStart = child.StartTime.AddMinutes(-1);
+        var state = new JsonObject
+        {
+            ["descendants"] = new JsonArray(new JsonObject { ["pid"] = child.Pid, ["startTime"] = recordedStart.ToString("O") }),
+        };
+        var limitedReads = 0;
+        var opens = 0;
+        Process Denied(int pid)
+        {
+            if (pid != child.Pid) throw new ArgumentException("unexpected PID");
+            opens++;
+            throw new System.ComponentModel.Win32Exception(5);
+        }
+        // Liveness observes the old identity; the actual termination handle belongs to its replacement.
+        DateTime? LimitedStart(int _) => ++limitedReads == 1 ? recordedStart : child.StartTime;
+        try
+        {
+            var stopped = await CodexProcess.StopRecordedAsync(state, cancellationToken, Denied, LimitedStart);
+            await Assert.That(IsAlive(child)).IsTrue();
+            await Assert.That(opens).IsGreaterThanOrEqualTo(2);
+            await Assert.That(limitedReads).IsGreaterThanOrEqualTo(2);
+            await Assert.That(stopped.Stopped).IsTrue();
+        }
+        finally { await CleanupAsync([child]); }
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Recorded_stop_uses_limited_access_without_killing_a_mismatched_identity(CancellationToken cancellationToken)
     {

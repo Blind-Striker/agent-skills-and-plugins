@@ -59,7 +59,7 @@ sealed class CodexProcess : IAsyncDisposable
             var owners = new HashSet<int>();
             if (IsAlive(new(Id, StartTime), OpenProcess, QueryLimitedStartTime)) owners.Add(Id);
             foreach (var identity in descendants.Values)
-                if (IsAlive(identity, OpenProcess, QueryLimitedStartTime)) owners.Add(identity.Pid);
+                if (identity.StartTime is not null && IsAlive(identity, OpenProcess, QueryLimitedStartTime)) owners.Add(identity.Pid);
             bool added;
             do
             {
@@ -79,6 +79,7 @@ sealed class CodexProcess : IAsyncDisposable
                     {
                         descendants.TryAdd(pid, new(pid, null));
                         if (unobservable.Add(pid)) DescendantUnobservable?.Invoke(pid, exception.Message);
+                        continue; // Keep the uncertain identity for stop reporting, never as ancestry proof.
                     }
                     owners.Add(pid);
                     added = true;
