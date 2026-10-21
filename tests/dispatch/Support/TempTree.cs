@@ -54,7 +54,11 @@ internal sealed class TempTree : IDisposable
         environment["TEMP"] = temp;
         environment["TMP"] = temp;
         environment["TMPDIR"] = temp;
-        environment["DOTNET_CLI_HOME"] = Folder("dotnet-home");
+        // On Windows the SDK's first run for a new CLI home appends that home's tools folder to the
+        // user's PATH in the registry, which no environment isolation undoes. Share one CLI home per
+        // checkout and switch the append off.
+        environment["DOTNET_CLI_HOME"] = SharedDotnetCliHome.Value;
+        environment["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = "false";
         // Reuse installed packages without inheriting the user's NuGet configuration or credentials.
         environment["NUGET_PACKAGES"] = Environment.GetEnvironmentVariable("NUGET_PACKAGES")
             ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget", "packages");
@@ -66,6 +70,9 @@ internal sealed class TempTree : IDisposable
         environment["MSBUILDDISABLENODEREUSE"] = "1";
         environment["UseSharedCompilation"] = "false";
     }
+
+    static readonly Lazy<string> SharedDotnetCliHome = new(() =>
+        Directory.CreateDirectory(Path.Combine(TestPaths.Tests, "bin", "dotnet-cli-home")).FullName);
 
     public Dictionary<string, string?> ChildEnvironment() => new(environment, environment.Comparer);
 

@@ -52,6 +52,9 @@ static class WorkerEnvironment
         // A reused MSBuild server keeps the environment of whoever started it, so the per-task
         // temporary folder would not apply to its NuGet scratch work.
         variables["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
+        // A worker that points DOTNET_CLI_HOME at a new folder would otherwise make the SDK's first
+        // run append that folder's tools path to the user's PATH in the Windows registry.
+        variables["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = "false";
         variables["GIT_TERMINAL_PROMPT"] = "0";
         removed.Sort(StringComparer.Ordinal);
         return (variables, removed);
