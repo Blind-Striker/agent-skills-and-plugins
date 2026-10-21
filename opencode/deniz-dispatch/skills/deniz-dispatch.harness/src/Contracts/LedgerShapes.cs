@@ -141,6 +141,8 @@ sealed class ContractRecord
 
 sealed class TaskRecord : VersionedContract
 {
+    [JsonIgnore]
+    public Prompt.Inputs? PromptInputs { get; set; }
     public TaskSpec Spec { get; set; } = new();
     public string PromptText { get; set; } = "";
     public EffectiveSettings Settings { get; set; } = new();
@@ -250,6 +252,16 @@ sealed class ValidationError
 {
     public string At { get; set; } = "";
     public string Message { get; set; } = "";
+}
+
+// Tool completions use seconds, like the other ledger durations. Task identity is on LedgerLine.
+sealed record ToolEvent(string Tool, string Resource, string Outcome, double Duration)
+{
+    public JsonObject Data() => new()
+    {
+        ["tool"] = Tool, ["resource"] = ToolResource.Summary(Resource),
+        ["outcome"] = Outcome, ["duration"] = Duration,
+    };
 }
 
 sealed class LedgerLine : IJsonOnDeserialized

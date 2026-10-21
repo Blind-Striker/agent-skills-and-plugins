@@ -1,11 +1,19 @@
 static class Cli
 {
+    public static WorkerEnvironment.Scrubbed? RootEnvironment { get; private set; }
+
+    public static void RestrictEnvironment(IEnumerable<string>? patterns)
+    {
+        if (RootEnvironment is not { } previous || patterns is null) return;
+        RootEnvironment = previous.Restrict(patterns);
+        foreach (var name in RootEnvironment.Removed.Except(previous.Removed, StringComparer.Ordinal))
+            Environment.SetEnvironmentVariable(name, null);
+    }
     public static async Task<int> MainAsync(string[] argv)
     {
         // Ledger text and console numbers stay machine-neutral.
         CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
         CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
-        var a = Args.Parse(argv);
         using var cts = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) =>
         {
@@ -16,9 +24,12 @@ static class Cli
 
         try
         {
+            var a = Args.Parse(argv);
             Locations.Resolve();
             a.ValidatePaths();
             ConfigLayers.Initialize(a);
+            RootEnvironment = WorkerEnvironment.Scrub(WorkerEnvironment.Snapshot(), ConfigLayers.User?.Restrictions?.Scrub);
+            foreach (var name in RootEnvironment.Removed) Environment.SetEnvironmentVariable(name, null);
             using var gitControl = Git.Initialize();
             return a.Command switch
             {
@@ -41,15 +52,15 @@ static class Cli
             Console.Error.WriteLine($"dispatch: {ex.Message}");
             return 2;
         }
-        catch (OpenCodeException ex)
-        {
-            Console.Error.WriteLine($"dispatch: the server call failed: {ex.GetType().Name}: {ex.Message}");
-            return 2;
-        }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             Console.Error.WriteLine("dispatch: cancelled");
-            return 130;
+            return 2;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"dispatch: {ex.GetType().Name}: {ex.Message.Replace('\r', ' ').Replace('\n', ' ')}");
+            return 2;
         }
     }
 
@@ -67,8 +78,8 @@ static class Cli
               status [<run>]                       summarize one run, or list runs
               resume <run> [--continue] [--policy <file>]
                                                    reconcile a run; --continue re-prompts
-              cancel <task> [--run <run>]          interrupt a task (resume = false)
-              collect <task> [--run <run>]         redo settle: messages, commit, diff, verify
+              cancel <run> <task>                 interrupt a task (resume = false)
+              collect <run> <task>                redo settle: messages, commit, diff, verify
               clean <run> [--force]                remove worktrees and branches
               asks [<run>]                         list escalated asks that wait for the operator
               reply <run> <askId> once|reject [--message <text>]
@@ -80,6 +91,7 @@ static class Cli
             Repository config: committed .dispatch/config.jsonc at HEAD.
             Preferences override user, repository, task file, then CLI; restrictions accumulate.
             --ledger <absolute path> overrides the ledger root for every command.
+            --contract <absolute path> prepends a contract to every task; repeatable.
             """);
         // Nothing started: an unknown or missing command is a refusal.
         return 2;

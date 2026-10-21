@@ -1,15 +1,75 @@
 record CodexNotification(string Method, JsonElement Params);
 record CodexServerRequest(JsonElement Id, string Method, JsonElement Params);
-record CodexRpcError(int Code, string Message, JsonElement? Data = null);
+record CodexRpcError(long Code, string Message, JsonElement? Data = null);
 record CodexReply(JsonElement? Result, CodexRpcError? Error = null)
 {
     public static CodexReply Success<T>(T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> typeInfo) =>
         new(JsonSerializer.SerializeToElement(value, typeInfo));
+
+    public CodexReply ValidateApproval(string method)
+    {
+        if (Error is not null) return this;
+        var result = Result.GetValueOrDefault();
+        // Approval results cross back through closed response types, never arbitrary handler JSON.
+        return method switch
+        {
+            "item/commandExecution/requestApproval" => Success(new CodexCommandExecutionRequestApprovalResponse(Decision()), CodexJson.Wire.CodexCommandExecutionRequestApprovalResponse),
+            "item/fileChange/requestApproval" => Success(new CodexFileChangeRequestApprovalResponse(Decision()), CodexJson.Wire.CodexFileChangeRequestApprovalResponse),
+            "item/permissions/requestApproval" => Permissions(),
+            "execCommandApproval" or "applyPatchApproval" => LegacyDenial(),
+            _ => this,
+        };
+
+        InvalidOperationException InvalidReply() => new($"invalid approval reply for {method}: only one-shot decisions and turn-scoped permissions are permitted");
+
+        void Require(bool valid)
+        {
+            if (!valid) throw InvalidReply();
+        }
+
+        void ExactObject(JsonElement value, params string[] members) => Require(value.ValueKind == JsonValueKind.Object
+            && value.EnumerateObject().Select(p => p.Name).Order(StringComparer.Ordinal).SequenceEqual(members.Order(StringComparer.Ordinal)));
+
+        CodexApprovalDecision Decision()
+        {
+            ExactObject(result, "decision");
+            var decision = result.GetProperty("decision");
+            Require(decision.ValueKind == JsonValueKind.String);
+            return decision.GetString() switch
+            {
+                "accept" => CodexApprovalDecision.Accept,
+                "decline" => CodexApprovalDecision.Decline,
+                _ => throw InvalidReply(),
+            };
+        }
+
+        CodexReply Permissions()
+        {
+            ExactObject(result, "permissions", "scope");
+            var scope = result.GetProperty("scope");
+            Require(scope.ValueKind == JsonValueKind.String && scope.GetString() == "turn"
+                && result.GetProperty("permissions").ValueKind == JsonValueKind.Object);
+            var response = result.Deserialize(CodexJson.Wire.CodexPermissionsRequestApprovalResponse) ?? throw InvalidReply();
+            return Success(response, CodexJson.Wire.CodexPermissionsRequestApprovalResponse);
+        }
+
+        CodexReply LegacyDenial()
+        {
+            ExactObject(result, "decision");
+            var decision = result.GetProperty("decision");
+            ExactObject(decision, "denied");
+            var denied = decision.GetProperty("denied");
+            ExactObject(denied, "rejection");
+            Require(denied.GetProperty("rejection").ValueKind == JsonValueKind.String);
+            var response = result.Deserialize(CodexJson.Wire.CodexLegacyApprovalResponse) ?? throw InvalidReply();
+            return Success(response, CodexJson.Wire.CodexLegacyApprovalResponse);
+        }
+    }
 }
 
-sealed class CodexRpcException(int code, string message, JsonElement? errorData) : Exception(message)
+sealed class CodexRpcException(long code, string message, JsonElement? errorData) : Exception(message)
 {
-    public int Code { get; } = code;
+    public long Code { get; } = code;
     public JsonElement? ErrorData { get; } = errorData;
 }
 
@@ -77,9 +137,9 @@ enum CodexApprovalDecision
     [JsonStringEnumMemberName("accept")] Accept,
     [JsonStringEnumMemberName("decline")] Decline,
 }
-record CodexCommandExecutionRequestApprovalResponse(CodexApprovalDecision Decision);
-record CodexFileChangeRequestApprovalResponse(CodexApprovalDecision Decision);
-record CodexPermissionsRequestApprovalResponse(JsonObject Permissions)
+sealed record CodexCommandExecutionRequestApprovalResponse(CodexApprovalDecision Decision);
+sealed record CodexFileChangeRequestApprovalResponse(CodexApprovalDecision Decision);
+sealed record CodexPermissionsRequestApprovalResponse(JsonObject Permissions)
 {
     public string Scope => "turn";
 }
@@ -93,7 +153,7 @@ record CodexMcpServerElicitationRequestResponse
 {
     public string Action => "decline";
 }
-record CodexLegacyApprovalResponse(CodexDeniedDecision Decision);
+sealed record CodexLegacyApprovalResponse(CodexDeniedDecision Decision);
 record CodexDeniedDecision(CodexRejection Denied);
 record CodexRejection(string Rejection);
 

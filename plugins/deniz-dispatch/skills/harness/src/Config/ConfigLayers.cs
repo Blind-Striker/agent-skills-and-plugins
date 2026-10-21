@@ -58,6 +58,7 @@ sealed class ConfigLayers
                 {
                     repoBytes = content.Stdout;
                     repository = Read(repoBytes, "repo", repoPath!);
+                    Cli.RestrictEnvironment(repository.Restrictions?.Scrub);
                 }
             }
             var working = File.Exists(repoPath) ? ReadBytes(repoPath!, "repo working copy") : null;

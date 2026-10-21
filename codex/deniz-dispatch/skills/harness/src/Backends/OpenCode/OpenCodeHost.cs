@@ -1,6 +1,11 @@
+using OpenCode.Sdk;
+using OpenCode.Sdk.Models;
+
 sealed record BusDisconnected(string Reason);
 
 sealed record BusConnected(int Attempt);
+
+sealed record BusBarrier(TaskCompletionSource Completion);
 
 sealed class HarnessServer : IAsyncDisposable
 {
@@ -30,12 +35,22 @@ sealed class HarnessServer : IAsyncDisposable
 
     public ChannelReader<object> Events => _bus.Reader;
 
+    public Task DrainEventsAsync(CancellationToken ct)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_bus.Writer.TryWrite(new BusBarrier(completion)))
+            throw new HarnessException("the event stream is closed");
+        return completion.Task.WaitAsync(ct);
+    }
+
     public static async Task<HarnessServer> StartAsync(bool subscribe, CancellationToken ct)
     {
         var output = new OpenCodeServerOutput();
         var command = Command();
         Directory.CreateDirectory(Locations.WorktreeRoot);
         OpenCodeServer server;
+        var environment = Cli.RootEnvironment?.Passthrough(ConfigLayers.User?.Backends?.Opencode?.Env ?? []) ?? new Dictionary<string, string>();
+        environment["OPENCODE_DISABLE_FILEWATCHER"] = "1";
         try
         {
             // The real user profile on purpose: 2.x keeps credentials in its SQLite database.
@@ -43,7 +58,7 @@ sealed class HarnessServer : IAsyncDisposable
             {
                 Command = command,
                 WorkingDirectory = Locations.WorktreeRoot,
-                Environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["OPENCODE_DISABLE_FILEWATCHER"] = "1" },
+                Environment = environment,
                 Output = output,
                 ReadinessTimeout = TimeSpan.FromSeconds(90),
             }, ct);
@@ -171,8 +186,14 @@ sealed class HarnessServer : IAsyncDisposable
             // The pump ends by cancellation; nothing to report.
         }
 
-        Client.Dispose();
-        await Server.DisposeAsync();
-        _pumpCts.Dispose();
+        finally
+        {
+            try { Client.Dispose(); }
+            finally
+            {
+                try { await Server.DisposeAsync(); }
+                finally { _pumpCts.Dispose(); }
+            }
+        }
     }
 }

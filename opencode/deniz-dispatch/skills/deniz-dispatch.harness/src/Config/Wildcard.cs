@@ -3,7 +3,7 @@
 // " *" also matches nothing, and Windows compares case-insensitively.
 static class Wildcard
 {
-    public static bool Match(string input, string pattern, bool? ignoreCase = null)
+    public static bool Match(string input, string pattern, bool ignoreCase)
     {
         var escaped = new StringBuilder();
         foreach (var c in pattern.Replace('\\', '/'))
@@ -23,7 +23,7 @@ static class Wildcard
             regex = regex[..^3] + "( .*)?";
         }
 
-        var options = RegexOptions.Singleline | RegexOptions.CultureInvariant | ((ignoreCase ?? OperatingSystem.IsWindows()) ? RegexOptions.IgnoreCase : RegexOptions.None);
+        var options = RegexOptions.Singleline | RegexOptions.CultureInvariant | (ignoreCase ? RegexOptions.IgnoreCase : RegexOptions.None);
         return Regex.IsMatch(input.Replace('\\', '/'), $"^{regex}\\z", options);
     }
 }

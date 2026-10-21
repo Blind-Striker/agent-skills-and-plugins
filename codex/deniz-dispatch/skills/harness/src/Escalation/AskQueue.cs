@@ -1,6 +1,4 @@
-// Escalated asks, one JSON file each, under <wt-root>/.dispatch/<run>/asks/, and the operator's
-// decisions under .../decisions/. Files are written to a temporary name and then renamed, so a
-// file monitor never sees a half-written file.
+// Escalated asks and operator decisions are published atomically in the run's control folder.
 static class AskQueue
 {
     // A new supervisor owns a new server: asks left by a dead one cannot be answered anymore.
@@ -23,7 +21,12 @@ static class AskQueue
 
     public static List<PendingAsk> List(string run)
     {
-        var dir = Locations.AsksDir(run);
+        return ListFolder(Locations.ControlDir(run));
+    }
+
+    public static List<PendingAsk> ListFolder(string control)
+    {
+        var dir = Path.Combine(control, "asks");
         if (!Directory.Exists(dir)) return [];
         var asks = new List<PendingAsk>();
         foreach (var file in Directory.GetFiles(dir, "*.json").Order(StringComparer.Ordinal))
@@ -45,7 +48,7 @@ static class AskQueue
         WriteAtomic(Locations.DecisionsDir(run), decision.AskId, JsonSerializer.Serialize(decision, ControlJson.Files.AskDecision));
 
     // Decisions waiting for the supervisor; each is removed once read.
-    public static List<AskDecision> TakeDecisions(string run)
+    public static List<AskDecision> TakeDecisions(string run, Action<string, string> invalid)
     {
         var dir = Locations.DecisionsDir(run);
         if (!Directory.Exists(dir)) return [];
@@ -54,13 +57,17 @@ static class AskQueue
         {
             try
             {
-                if (JsonSerializer.Deserialize(File.ReadAllText(file), ControlJson.Files.AskDecision) is { } decision) decisions.Add(decision);
+                var decision = JsonSerializer.Deserialize(File.ReadAllText(file), ControlJson.Files.AskDecision)
+                    ?? throw new JsonException("expected a decision");
+                decisions.Add(decision);
                 File.Delete(file);
             }
-            catch (Exception ex) when (ex is IOException or JsonException)
+            catch (JsonException ex)
             {
-                // Locked or unreadable for now; the next tick tries again.
+                File.Delete(file);
+                invalid(Path.GetFileName(file), ex.Message);
             }
+            catch (IOException ex) { invalid(Path.GetFileName(file), $"cannot read decision: {ex.Message}"); }
         }
 
         return decisions;
@@ -68,9 +75,7 @@ static class AskQueue
 
     static void WriteAtomic(string dir, string name, string json)
     {
-        Directory.CreateDirectory(dir);
-        var temp = Path.Combine(dir, $"{name}.tmp");
-        File.WriteAllText(temp, json + "\n");
-        File.Move(temp, Path.Combine(dir, $"{name}.json"), overwrite: true);
+        if (!Regex.IsMatch(name, "\\A[a-z0-9][a-z0-9-]*\\z")) throw new HarnessException("invalid ask id");
+        Json.WriteBytes(Path.Combine(dir, $"{name}.json"), Encoding.UTF8.GetBytes(json + "\n"));
     }
 }

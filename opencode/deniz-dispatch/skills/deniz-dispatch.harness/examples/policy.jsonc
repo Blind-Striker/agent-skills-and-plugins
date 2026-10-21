@@ -2,13 +2,14 @@
 // --policy, or copy its members into user or repository config. It is never applied by default.
 // opencode has no OS sandbox. Deny refuses a call; escalate waits for an operator's reply.
 // Shell rules match the whole command text from its first character. "gh *" includes bare "gh".
-// "git * push*" also matches "git stash push" or later words containing " push".
-// The "*/" forms match paths ending in /git or /gh. Not caught: compound commands such as
-// "cd x && git push", git aliases, scripts, or other path spellings. These are text rules.
+// The "*/" forms match paths ending in /git or /gh. These are text rules.
 {
   "schemaVersion": 2,
   "restrictions": {
     "deny": [
+      // The git patterns also deny "git stash push" and "git log --grep push", plus later words containing " push".
+      // A path-prefixed git command or a git alias is matched only when its text matches one of the listed forms.
+      // Not caught: a git alias that pushes, or a script that calls git. These are text rules, not a sandbox.
       {
         "name": "no-git-push",
         "action": "shell",

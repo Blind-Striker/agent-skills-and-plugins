@@ -123,7 +123,12 @@ static class Json
             {
                 try
                 {
-                    File.Move(temp, path, overwrite: true);
+                    // Windows MoveFileEx cannot overwrite an open target even with delete sharing.
+                    // ReplaceFile preserves existing readers' snapshots while publishing the new file.
+                    if (OperatingSystem.IsWindows() && File.Exists(path))
+                        File.Replace(temp, path, destinationBackupFileName: null);
+                    else
+                        File.Move(temp, path, overwrite: true);
                     break;
                 }
                 catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && timer.Elapsed < TimeSpan.FromSeconds(2))
@@ -140,14 +145,4 @@ static class Json
 
     public static JsonArray Array(IEnumerable<string> items) => new(items.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray());
 
-    public static JsonObject? Error(SessionStructuredError? error) => error is null
-        ? null
-        : new JsonObject { ["type"] = error.Type, ["message"] = error.Message, ["status"] = error.Status };
-
-    // A concrete type on purpose: Optional<T> offers no conversion from an interface-typed value.
-    public static Dictionary<string, JsonElement> Metadata(string run, string task) => new(StringComparer.Ordinal)
-    {
-        ["dispatch.run"] = JsonSerializer.SerializeToElement(run, InputJson.Read.String),
-        ["dispatch.task"] = JsonSerializer.SerializeToElement(task, InputJson.Read.String),
-    };
 }

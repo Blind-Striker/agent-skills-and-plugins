@@ -33,6 +33,8 @@ abstract record WorkerSignal
 {
     private WorkerSignal() { }
 
+    public sealed record Fault(string? TaskId, string Operation, string Message) : WorkerSignal;
+
     public abstract record TaskSignal : WorkerSignal
     {
         public string TaskId { get; }
@@ -59,6 +61,18 @@ abstract record WorkerSignal
     public sealed record Retry(string TaskId, string Turn, int Attempt, string Message, DateTimeOffset? Next, string? Reason, string? Provider)
         : TaskSignal(TaskId, Turn);
 
+    // Call ids are unique within a turn, including calls from child sessions.
+    // Codex item/started and item/completed notifications map to this same signal.
+    public sealed record ToolCall(string TaskId, string Turn, string Id, string Tool, string Resource,
+        string Marker, string? Outcome, DateTimeOffset Time) : TaskSignal(TaskId, Turn)
+    {
+        public string Resource { get; } = ToolResource.Summary(Resource);
+        public string Marker { get; } = BackendValues.OneOf(Marker, nameof(Marker), "start", "end");
+        public string? Outcome { get; } = Marker == "end"
+            ? BackendValues.OneOf(Outcome ?? "", nameof(Outcome), "succeeded", "failed", "interrupted", "cancelled")
+            : Outcome is null ? null : throw new ArgumentException("a tool start has no outcome", nameof(Outcome));
+    }
+
     public sealed record Status(string TaskId, string Turn, string Execution, string? Detail) : TaskSignal(TaskId, Turn)
     {
         public string Execution { get; } = BackendValues.OneOf(Execution, nameof(Execution), "succeeded", "failed", "interrupted");
@@ -73,6 +87,26 @@ abstract record WorkerSignal
     public sealed record Host(string HostKey, string State, string Reason, int Attempt) : WorkerSignal
     {
         public string State { get; } = BackendValues.OneOf(State, nameof(State), "connected", "disconnected");
+    }
+}
+
+static class ToolResource
+{
+    // Use the environment scrub's value and name rules, including for URL credentials and
+    // credential assignments. Redact before shortening so a cut cannot hide the matching suffix.
+    public static string Summary(string resource)
+    {
+        if (WorkerEnvironment.Scrub(new Dictionary<string, string> { ["resource"] = resource }).Removed.Count > 0)
+            return "[REDACTED]";
+        foreach (Match assignment in Regex.Matches(resource, @"(?<name>[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
+            if (WorkerEnvironment.Scrub(new Dictionary<string, string> { [assignment.Groups["name"].Value] = assignment.Groups["value"].Value }).Removed.Count > 0)
+                return "[REDACTED]";
+        if (Cli.RootEnvironment is { } environment)
+            foreach (var value in environment.Passthrough(environment.Removed).Values.Where(x => x.Length > 0).OrderByDescending(x => x.Length))
+                resource = resource.Replace(value, "[REDACTED]", StringComparison.Ordinal);
+        var lineEnd = resource.IndexOfAny(['\r', '\n']);
+        if (lineEnd >= 0) resource = resource[..lineEnd];
+        return resource[..Math.Min(resource.Length, 200)];
     }
 }
 
@@ -93,7 +127,7 @@ abstract record BlockerAnswer
 
 enum InterruptKind { Cancel, Timeout, Hard, Shutdown }
 
-sealed record InterruptResult(bool Stopped, string Detail)
+sealed record InterruptResult(bool Stopped, string Detail, bool? Interrupted = null, int? Status = null)
 {
     public string Detail { get; } = BackendValues.NonBlank(Detail, nameof(Detail));
 }
@@ -106,7 +140,15 @@ sealed record LiveCheck(
     public string? ProfileReason { get; } = ProfileReason;
 }
 
-sealed record CreateResult(WorkerRef Worker, AppliedEnforcement Applied);
+sealed record CreateResult(WorkerRef Worker, AppliedEnforcement Applied, WorkerStartDetails? Details = null);
+
+// A failed creation must not hide a worker whose release could not be confirmed.
+sealed class WorkerCreationException(WorkerRef worker, string message) : HarnessException(message)
+{
+    public WorkerRef Worker { get; } = worker;
+}
+
+sealed record WorkerStartDetails(string Route, string Agent, string Lineage, string ProjectId, IReadOnlyList<string> Rules);
 
 sealed record WorkerReport(
     string Outcome, string? FinalText, TokenTotals Usage, double? Cost, bool UsageComplete,
@@ -166,14 +208,15 @@ sealed record BackendContext(string ProfilesFolder, string? Executable, IReadOnl
         : throw new ArgumentException("profiles folder must be absolute", nameof(ProfilesFolder));
 }
 
-sealed record ProbeRequest(string Directory);
-sealed record BackendProbe(bool Ready, string? Version, IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings);
-sealed record AnswerResult(bool Confirmed, string? Detail);
+sealed record ProbeRequest(string Directory, WorkerRules? CheckRules = null);
+sealed record ProbeCheck(string Name, bool Ok, string Detail);
+sealed record BackendProbe(bool Ready, string? Version, IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings, IReadOnlyList<ProbeCheck>? Checks = null);
+sealed record AnswerResult(bool Confirmed, string? Detail, int? Status = null);
 sealed record PollResult(IReadOnlyList<WorkerSignal.Host> Hosts);
 sealed record OrphanQuery(string RunId, IReadOnlyList<WorkerRef> KnownWorkers, IReadOnlyList<string> Directories);
 sealed record RouteListing(IReadOnlyList<RouteEntry> Routes, IReadOnlyList<AgentEntry> Agents, IReadOnlyList<RouteAllowance> AllowList);
 sealed record RouteEntry(RouteRef Route, bool Enabled, IReadOnlyList<string> Variants, string Lineage);
-sealed record AgentEntry(string Name, bool Usable, string? Reason);
+sealed record AgentEntry(string Name, bool Usable, string? Reason, string? Model = null, string? Mode = null, bool Hidden = false, bool Manual = false);
 sealed record RouteAllowance(string Entry, string State, string? Reason);
 
 enum OutcomeAction { Settle, Interrupted, KeepState }

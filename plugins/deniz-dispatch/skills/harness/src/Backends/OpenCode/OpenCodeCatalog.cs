@@ -1,3 +1,6 @@
+using OpenCode.Sdk;
+using OpenCode.Sdk.Models;
+
 sealed class Catalog
 {
     public required IReadOnlyList<AgentInfo> Agents { get; init; }
@@ -52,7 +55,7 @@ sealed class Catalog
             Agents = agents,
             Models = models,
             Manual = manual,
-            ManualRoutes = agents.Where(x => manual.Contains(x.Id) && x.Model is not null).Select(x => RouteRef.From(x.Model!)).ToList(),
+            ManualRoutes = agents.Where(x => manual.Contains(x.Id) && x.Model is not null).Select(x => OpenCodeModels.From(x.Model!)).ToList(),
         };
     }
 
@@ -120,10 +123,31 @@ sealed class Catalog
         if (agent is null) return "agent not found at this location";
         if (Manual.Contains(id)) return "manual-class agent";
         if (agent.Model is null) return "agent pins no model";
-        return CheckRoute(RouteRef.From(agent.Model));
+        return CheckRoute(OpenCodeModels.From(agent.Model));
     }
 
     public bool IsManualRoute(RouteRef route) => ManualRoutes.Any(x => x.Matches(route));
 
     public string Lineage(RouteRef route) => FindModel(route)?.Family is { Length: > 0 } family ? family : route.Provider;
+}
+
+// A fresh location can answer 503 while its plugins activate. Bound every startup listing.
+static class Ready
+{
+    public static bool IsNotReady(OpenCodeApiException ex) => ex.Status == 503;
+
+    public static async Task<T> PollAsync<T>(Func<Task<T>> call, TimeSpan wait, string what, CancellationToken ct)
+    {
+        var deadline = DateTime.UtcNow + wait;
+        while (true)
+        {
+            try { return await call(); }
+            catch (OpenCodeApiException ex) when (IsNotReady(ex))
+            {
+                if (DateTime.UtcNow >= deadline)
+                    throw new NotReadyException($"{what}: the server still answered {ex.Status} after {wait.TotalSeconds:0} s: {ex.Message}");
+            }
+            await Task.Delay(TimeSpan.FromSeconds(1), ct);
+        }
+    }
 }

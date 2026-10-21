@@ -3,6 +3,8 @@ using System.Text.Json.Serialization.Metadata;
 sealed class CodexRpc : IAsyncDisposable
 {
     const int MaxLineBytes = 64 * 1024 * 1024;
+    const int MaxNotifications = 10_000;
+    const int MaxHandlers = 64;
     readonly Stream stdin;
     readonly Stream stdout;
     readonly Func<CodexServerRequest, CancellationToken, Task<CodexReply>>? handler;
@@ -12,7 +14,10 @@ sealed class CodexRpc : IAsyncDisposable
     readonly CancellationTokenSource lifetime = new();
     readonly ConcurrentDictionary<long, TaskCompletionSource<JsonElement>> pending = new();
     readonly ConcurrentDictionary<long, Task> handlers = new();
-    readonly Channel<CodexNotification> notifications = Channel.CreateUnbounded<CodexNotification>(new() { SingleReader = true, SingleWriter = true });
+    readonly Channel<CodexNotification> notifications = Channel.CreateBounded<CodexNotification>(new BoundedChannelOptions(MaxNotifications)
+    {
+        SingleReader = true, SingleWriter = true, FullMode = BoundedChannelFullMode.Wait,
+    });
     readonly object state = new();
     Exception? closed;
     long nextId;
@@ -85,6 +90,8 @@ sealed class CodexRpc : IAsyncDisposable
 
     async Task WriteAsync(Action<Utf8JsonWriter> envelope, CancellationToken token)
     {
+        lock (state) { if (closed is not null) throw closed; }
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         using var buffer = new MemoryStream();
         using (var json = new Utf8JsonWriter(buffer, new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }))
         {
@@ -93,24 +100,32 @@ sealed class CodexRpc : IAsyncDisposable
             json.WriteEndObject();
         }
         buffer.WriteByte((byte)'\n');
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
-        await writer.WaitAsync(linked.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token, deadline.Token);
+        var acquired = false;
+        var writing = false;
         try
         {
+            await writer.WaitAsync(linked.Token);
+            acquired = true;
             lock (state) { if (closed is not null) throw closed; }
-            try
-            {
-                await stdin.WriteAsync(buffer.GetBuffer().AsMemory(0, checked((int)buffer.Length)), linked.Token);
-                await stdin.FlushAsync(linked.Token);
-            }
-            catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException)
-            {
-                // A partial frame cannot safely be followed by another message.
-                Close(new IOException("app-server input failed", ex));
-                throw;
-            }
+            writing = true;
+            await stdin.WriteAsync(buffer.GetBuffer().AsMemory(0, checked((int)buffer.Length)), linked.Token).AsTask().WaitAsync(linked.Token);
+            await stdin.FlushAsync(linked.Token).WaitAsync(linked.Token);
         }
-        finally { writer.Release(); }
+        catch (OperationCanceledException ex) when (deadline.IsCancellationRequested)
+        {
+            var reason = new TimeoutException("app-server write timed out after 30 seconds", ex);
+            Close(reason);
+            throw reason;
+        }
+        catch (Exception ex) when (ex is IOException or OperationCanceledException or ObjectDisposedException)
+        {
+            // A partial frame cannot safely be followed by another message.
+            if (writing) Close(new IOException("app-server input failed", ex));
+            lock (state) { if (closed is not null) throw closed; }
+            throw;
+        }
+        finally { if (acquired) writer.Release(); }
     }
 
     async Task ReadLoopAsync()
@@ -167,7 +182,7 @@ sealed class CodexRpc : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            reason = new IOException("app-server read failed", ex);
+            reason = new IOException($"app-server read failed: {ex.Message}" + (exitDetail is null ? "" : $" ({exitDetail()})"), ex);
         }
         finally
         {
@@ -194,13 +209,14 @@ sealed class CodexRpc : IAsyncDisposable
                         throw new JsonException("invalid request id");
                     StartHandler(new(id.Clone(), name, parameters));
                 }
-                else if (KnownNotification(name)) notifications.Writer.TryWrite(new(name, parameters));
+                else if (KnownNotification(name) && !notifications.Writer.TryWrite(new(name, parameters)))
+                    throw new IOException($"app-server notification queue overflow ({MaxNotifications} messages)");
             }
             else if (hasId && id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var number))
             {
                 if (root.TryGetProperty("error", out var error))
                 {
-                    var exception = new CodexRpcException(error.GetProperty("code").GetInt32(),
+                    var exception = new CodexRpcException(error.GetProperty("code").GetInt64(),
                         error.GetProperty("message").GetString()!, error.TryGetProperty("data", out var data) ? data.Clone() : null);
                     if (pending.TryRemove(number, out var waiting)) waiting.TrySetException(exception);
                 }
@@ -220,6 +236,9 @@ sealed class CodexRpc : IAsyncDisposable
 
     void StartHandler(CodexServerRequest request)
     {
+        // Only the reader adds handlers; completions may remove them concurrently.
+        if (handlers.Count >= MaxHandlers)
+            throw new IOException($"app-server server request overflow ({MaxHandlers} in flight)");
         var key = Interlocked.Increment(ref nextHandler);
         var task = Task.Run(async () =>
         {
@@ -230,6 +249,7 @@ sealed class CodexRpc : IAsyncDisposable
                 {
                     reply = handler is null ? new(null, new(-32601, $"method not found: {request.Method}"))
                         : await handler(request, lifetime.Token).WaitAsync(lifetime.Token);
+                    reply = reply.ValidateApproval(request.Method);
                 }
                 catch (CodexRpcException ex) { reply = new(null, new(ex.Code, ex.Message, ex.ErrorData)); }
                 catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }

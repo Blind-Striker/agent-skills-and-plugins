@@ -2,19 +2,30 @@ static partial class Commands
 {
     public static int Cancel(Args a)
     {
-        var task = a.Require(0, "task");
-        var ledger = Ledger.FindRunFor(task, a.Get("run"));
-        if (SupervisorLock.IsHeld(ledger.RunId))
+        var ledger = new Ledger(a.Require(0, "run"));
+        var task = a.Require(1, "task");
+        var control = Locations.RequireControlFolder(ledger.RunId);
+        var states = ledger.TaskStates();
+        if (!states.TryGetValue(task, out var state)) throw new HarnessException($"no task {task} in run {ledger.RunId}");
+        if (state is "done" or "failed" or "cancelled") return 0;
+        using var supervisorLock = SupervisorLock.TryAcquireFolder(control);
+        if (supervisorLock is null)
         {
-            var control = Locations.ControlDir(ledger.RunId);
-            Directory.CreateDirectory(control);
-            File.WriteAllText(Path.Combine(control, $"{task}.cancel"), Json.Timestamp());
+            var time = Json.Timestamp();
+            Json.WriteFile(Path.Combine(control, "cancel", $"{task}.json"),
+                new CancelRequest { Run = ledger.RunId, Task = task, Time = time }, ControlJson.Files.CancelRequest);
             Console.WriteLine($"cancel requested for {ledger.RunId}/{task}; the supervisor interrupts it within seconds");
-            return 0;
+            var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
+            while (DateTimeOffset.UtcNow < deadline)
+            {
+                if (ledger.Read().Any(x => x.Task == task && x.Type == "cancel" && x.Data?["time"]?.GetValue<string>() == time)) return 0;
+                Thread.Sleep(100);
+            }
+            return 1;
         }
 
         // Without a supervisor nothing runs: the private server and its sessions ended with it.
-        var state = ledger.TaskStates().GetValueOrDefault(task);
+        state = ledger.TaskStates().GetValueOrDefault(task);
         if (state is "done" or "failed" or "cancelled")
         {
             Console.WriteLine($"{task} is already {state}");
@@ -28,12 +39,11 @@ static partial class Commands
 
     public static async Task<int> CollectAsync(Args a, CancellationToken ct)
     {
-        var task = a.Require(0, "task");
-        var ledger = Ledger.FindRunFor(task, a.Get("run"));
-        if (SupervisorLock.IsHeld(ledger.RunId))
-        {
-            throw new HarnessException($"run {ledger.RunId} is supervised now; wait for it or cancel the task first");
-        }
+        var ledger = new Ledger(a.Require(0, "run"));
+        var task = a.Require(1, "task");
+        var control = Locations.RequireControlFolder(ledger.RunId);
+        using var supervisorLock = SupervisorLock.AcquireFolder(control);
+        Locations.RequireControlFolder(ledger.RunId, setup: true);
 
         var record = ledger.LoadRecord(task);
         record.Settings = ConfigLayers.Frozen(ledger.Dir).Tasks[task].Settings;
@@ -43,84 +53,74 @@ static partial class Commands
             throw new HarnessException($"{task} has no session or worktree to collect");
         }
 
-        await using var host = await HarnessServer.StartAsync(subscribe: false, ct);
+        await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
         var run = TaskRun.FromLedger(record, ledger);
-        var result = await Settlement.SettleAsync(host.Client, ledger, run, outcomeOverride: null, ct);
+        var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
         ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
-        return 0;
+        return result.State == "done" ? 0 : 1;
     }
 
     public static async Task<int> CleanAsync(Args a, CancellationToken ct)
     {
         var ledger = new Ledger(a.Require(0, "run"));
-        ledger.EnsureExists();
-        if (SupervisorLock.IsHeld(ledger.RunId))
-        {
-            throw new HarnessException($"run {ledger.RunId} is supervised now");
-        }
-
+        var control = Locations.ControlDir(ledger.RunId);
+        using var supervisorLock = Directory.Exists(control) ? SupervisorLock.AcquireFolder(control) : null;
         var info = ledger.LoadRunInfo();
         var force = a.Has("force");
         var refused = 0;
         foreach (var task in ledger.TaskStates().Keys)
         {
+            if (!File.Exists(Path.Combine(ledger.Dir, task, "task.json"))) continue;
             var record = ledger.LoadRecord(task);
-            if (record.Workspace.Path is null || record.Workspace.Branch is null)
+            try
             {
-                continue;
+                var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
+                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git)) refused++;
             }
-
-            var exists = Directory.Exists(record.Workspace.Path);
-            var git = Git.ForTask(task);
-            var dirty = exists && (await git.RunAsync(record.Workspace.Path, ct, "status", "--porcelain")).Output.Trim().Length > 0;
-            var merged = record.Workspace.BaseRef is not null
-                && (await git.RunAsync(info.Repo!, ct, "merge-base", "--is-ancestor", record.Workspace.Branch, record.Workspace.BaseRef)).ExitCode == 0;
-            if (!force && (dirty || !merged))
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
             {
-                Console.WriteLine($"{task}: refused ({(dirty ? "dirty worktree" : "")}{(dirty && !merged ? ", " : "")}{(!merged ? $"{record.Workspace.Branch} is not merged into {record.Workspace.BaseRef}" : "")}); --force removes it anyway");
                 refused++;
-                continue;
+                ledger.Write(task, "cleaned", new JsonObject { ["error"] = ex.Message, ["force"] = force });
             }
-
-            if (exists)
-            {
-                var remove = force
-                    ? await git.RunAsync(info.Repo!, ct, "worktree", "remove", "--force", record.Workspace.Path)
-                    : await git.RunAsync(info.Repo!, ct, "worktree", "remove", record.Workspace.Path);
-                if (remove.ExitCode != 0)
-                {
-                    Console.WriteLine($"{task}: worktree remove failed: {remove.Stderr.Trim()}");
-                    refused++;
-                    continue;
-                }
-            }
-
-            var branch = await git.RunAsync(info.Repo!, ct, "branch", force ? "-D" : "-d", record.Workspace.Branch);
-            var temp = Locations.TaskTemp(task);
-            if (Directory.Exists(temp))
-            {
-                Directory.Delete(temp, recursive: true);
-            }
-
-            ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["branchDeleted"] = branch.ExitCode == 0, ["force"] = force });
         }
 
-        if (refused == 0 && Directory.Exists(Locations.ControlDir(ledger.RunId)))
+        if (refused == 0 && Directory.Exists(control))
         {
-            Directory.Delete(Locations.ControlDir(ledger.RunId), recursive: true);
+            try
+            {
+                foreach (var entry in Directory.GetFileSystemEntries(control))
+                {
+                    if (Path.GetFileName(entry) is "supervisor.lock" or "run.ref") continue;
+                    RemoveControlEntry(entry);
+                }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Console.Error.WriteLine($"control cleanup failed: {ex.Message}");
+                refused++;
+            }
         }
 
         return refused == 0 ? 0 : 1;
     }
 
+    static void RemoveControlEntry(string path)
+    {
+        if (!Path.Exists(path)) return;
+        var attributes = File.GetAttributes(path);
+        if ((attributes & FileAttributes.Directory) != 0 && (attributes & FileAttributes.ReparsePoint) == 0)
+            foreach (var child in Directory.GetFileSystemEntries(path)) RemoveControlEntry(child);
+        File.SetAttributes(path, attributes & ~FileAttributes.ReadOnly);
+        if ((attributes & FileAttributes.Directory) != 0) Directory.Delete(path);
+        else File.Delete(path);
+    }
+
     // Escalated asks that wait for the operator, for one run or for every run with a control folder.
     public static int Asks(Args a)
     {
-        List<string> runs = a.Positional.Count > 0
-            ? [a.Positional[0]]
-            : Directory.Exists(Locations.ControlRoot)
-                ? Directory.GetDirectories(Locations.ControlRoot).Select(Path.GetFileName).OfType<string>().Order(StringComparer.Ordinal).ToList()
-                : [];
+        if (a.Positional.Count == 0) return ListControlFolders();
+        Locations.RequireControlFolder(a.Require(0, "run"));
+        List<string> runs = [a.Positional[0]];
         var shown = 0;
         foreach (var run in runs)
         {
@@ -148,6 +148,28 @@ static partial class Commands
         return 0;
     }
 
+    static int ListControlFolders()
+    {
+        if (!Directory.Exists(Locations.ControlRoot)) return 0;
+        foreach (var folder in Directory.GetDirectories(Locations.ControlRoot).Order(StringComparer.Ordinal))
+        {
+            if (!Locations.IsControlId(Path.GetFileName(folder))) continue;
+            try
+            {
+                var reference = JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(folder, "run.ref")), ControlJson.Files.RunReference)
+                    ?? throw new JsonException("expected run.ref");
+                Console.WriteLine($"control {Path.GetFileName(folder)}: run {reference.Run}, ledger {reference.LedgerRoot}");
+            }
+            catch (Exception ex) when (ex is IOException or JsonException)
+            {
+                Console.WriteLine($"control {Path.GetFileName(folder)}: run.ref missing or invalid");
+            }
+            foreach (var ask in AskQueue.ListFolder(folder))
+                Console.WriteLine($"  {ask.AskId}  task {ask.Task}  {ask.Action} {string.Join(", ", ask.Resources)}");
+        }
+        return 0;
+    }
+
     // The operator's answer to one escalated ask. The running supervisor picks the decision file up.
     public static async Task<int> ReplyAsync(Args a, CancellationToken ct)
     {
@@ -166,7 +188,7 @@ static partial class Commands
         }
 
         var ledger = new Ledger(run);
-        ledger.EnsureExists();
+        Locations.RequireControlFolder(run);
         if (AskQueue.List(run).All(x => x.AskId != askId))
         {
             throw new HarnessException($"no escalated ask {askId} waits in run {run}; `asks {run}` lists them");
@@ -177,6 +199,7 @@ static partial class Commands
             throw new HarnessException($"run {run} has no supervisor: its server ended, and the ask with it. `resume {run} --continue` re-prompts the task");
         }
 
+        var previousEvents = ledger.Read().Count;
         AskQueue.WriteDecision(run, new AskDecision
         {
             AskId = askId,
@@ -190,7 +213,8 @@ static partial class Commands
         while (DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            if (AskQueue.List(run).All(x => x.AskId != askId))
+            if (ledger.Read().Skip(previousEvents).Any(x => x.Type == "permission" && x.Data?["id"]?.GetValue<string>() == askId
+                && x.Data?["by"]?.GetValue<string>() == "operator" && x.Data?["answer"]?.GetValue<string>() == decision))
             {
                 Console.WriteLine($"{askId}: answered {decision}; the ledger records it");
                 return 0;
@@ -198,6 +222,6 @@ static partial class Commands
         }
 
         Console.WriteLine($"{askId}: decision {decision} is queued; the supervisor has not picked it up yet");
-        return 0;
+        return 1;
     }
 }

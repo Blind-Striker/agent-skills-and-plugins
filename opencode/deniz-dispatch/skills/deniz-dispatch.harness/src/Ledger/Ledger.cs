@@ -1,3 +1,5 @@
+sealed class LedgerWriteException(string message) : HarnessException(message);
+
 sealed class Ledger(string runId)
 {
     readonly Lock _gate = new();
@@ -21,7 +23,21 @@ sealed class Ledger(string runId)
         return dir;
     }
 
+    public Task WriteArtifactAsync(string task, string name, string text, CancellationToken ct) =>
+        File.WriteAllTextAsync(Path.Combine(TaskDir(task), name), text, ct);
+
+    public Task WriteArtifactAsync(string task, string name, byte[] bytes, CancellationToken ct) =>
+        File.WriteAllBytesAsync(Path.Combine(TaskDir(task), name), bytes, ct);
+
+    public void SaveResult(TaskResult result) =>
+        WriteFile(() => Json.WriteFile(Path.Combine(TaskDir(result.Task), "result.json"), result, LedgerJson.Files.TaskResult));
+
     public void Write(string? task, string type, JsonObject? data = null)
+    {
+        WriteFile(() => WriteCore(task, type, data));
+    }
+
+    void WriteCore(string? task, string type, JsonObject? data)
     {
         var line = new LedgerLine { Ts = Json.Timestamp(), Run = RunId, Task = task, Type = type, Data = data };
         lock (_gate)
@@ -33,7 +49,10 @@ sealed class Ledger(string runId)
                 Parse(text, out var torn);
                 if (torn)
                 {
-                    var bytes = File.ReadAllBytes(EventsFile);
+                    using var source = new FileStream(EventsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                    using var copy = new MemoryStream();
+                    source.CopyTo(copy);
+                    var bytes = copy.ToArray();
                     var start = Array.LastIndexOf(bytes, (byte)'\n') + 1;
                     var timestamp = DateTime.UtcNow;
                     string sidecar;
@@ -77,23 +96,25 @@ sealed class Ledger(string runId)
     void Append(LedgerLine line)
     {
         var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(line, LedgerJson.Events.LedgerLine) + "\n");
-        using var stream = OpenAppend();
+        using var stream = new FileStream(EventsFile, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
         stream.Write(bytes);
         stream.Flush(flushToDisk: true);
     }
 
-    FileStream OpenAppend()
+    static void WriteFile(Action write)
     {
         var timer = Stopwatch.StartNew();
         while (true)
         {
             try
             {
-                return new FileStream(EventsFile, FileMode.Append, FileAccess.Write, FileShare.Read | FileShare.Delete);
+                write();
+                return;
             }
-            catch (IOException ex) when (OperatingSystem.IsWindows() &&
-                (ex.HResult & 0xffff) is 32 or 33 && timer.Elapsed < TimeSpan.FromSeconds(2))
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
+                if (timer.Elapsed >= TimeSpan.FromSeconds(2))
+                    throw new LedgerWriteException($"ledger write failed: {ex.GetType().Name}: {ex.Message}");
                 Thread.Sleep(25);
             }
         }
@@ -140,7 +161,10 @@ sealed class Ledger(string runId)
             {
                 "final" => line.Data?["state"]?.GetValue<string>() ?? "final",
                 "queued" => "queued",
+                "interrupted" => "interrupted",
                 "worktree" or "route" or "session" or "environment" => "dispatching",
+                "permission" or "form" or "retry" or "status" or "timeout" or "cancel" or "escalation-dropped"
+                    when states.GetValueOrDefault(line.Task!) == "interrupted" => "interrupted",
                 "prompt" or "permission" or "form" or "retry" or "status" or "timeout" or "cancel" or "escalation-dropped" => "running",
                 "escalated" => "waiting",
                 "collected" or "verified" or "outcome" => "settling",
@@ -152,27 +176,34 @@ sealed class Ledger(string runId)
     }
 
     public void SaveRecord(TaskRecord record) =>
-        Json.WriteFile(Path.Combine(TaskDir(record.Spec.Id!), "task.json"), record, LedgerJson.Files.TaskRecord);
+        WriteFile(() => Json.WriteFile(Path.Combine(TaskDir(record.Spec.Id!), "task.json"), record, LedgerJson.Files.TaskRecord));
+
+    static string ReadFile(string path)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 
     public TaskRecord LoadRecord(string task)
     {
         var path = Path.Combine(Dir, task, "task.json");
         return File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.TaskRecord)!
+            ? JsonSerializer.Deserialize(ReadFile(path), LedgerJson.Files.TaskRecord)!
             : throw new HarnessException($"no task record {path}");
     }
 
     public TaskResult? LoadResult(string task)
     {
         var path = Path.Combine(Dir, task, "result.json");
-        return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.TaskResult) : null;
+        return File.Exists(path) ? JsonSerializer.Deserialize(ReadFile(path), LedgerJson.Files.TaskResult) : null;
     }
 
     public RunInfo LoadRunInfo()
     {
         var path = Path.Combine(Dir, "run.json");
         return File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.RunInfo)!
+            ? JsonSerializer.Deserialize(ReadFile(path), LedgerJson.Files.RunInfo)!
             : throw new HarnessException($"no run.json in {Dir}");
     }
 
