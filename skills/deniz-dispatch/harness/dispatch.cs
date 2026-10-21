@@ -31,6 +31,8 @@
 #:include src/Cli/Commands.cs
 #:include src/Cli/Commands.Control.cs
 #:include src/Cli/Commands.SelfCheck.cs
+#:include src/Backends/IWorkerBackend.cs
+#:include src/Backends/Types.cs
 #:include src/Backends/OpenCode/Catalog.cs
 #:include src/Backends/OpenCode/Ready.cs
 #:include src/Backends/OpenCode/HarnessServer.cs
