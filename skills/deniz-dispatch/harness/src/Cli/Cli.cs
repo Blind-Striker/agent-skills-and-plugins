@@ -55,7 +55,12 @@ static class Cli
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             Console.Error.WriteLine("dispatch: cancelled");
-            return 130;
+            return 2;
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"dispatch: {ex.GetType().Name}: {ex.Message.Replace('\r', ' ').Replace('\n', ' ')}");
+            return 2;
         }
     }
 

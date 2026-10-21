@@ -196,9 +196,7 @@ static partial class Commands
         }
         catch (Exception ex) when (claimed)
         {
-            ledger.Write(null, "aborted", new JsonObject { ["message"] = ex.Message });
-            Console.Error.WriteLine($"dispatch: {ex.GetType().Name}: {ex.Message}");
-            return 1;
+            return Aborted(ledger, ex);
         }
         catch (Exception ex) when (ex is not HarnessException)
         {
@@ -212,6 +210,21 @@ static partial class Commands
     }
 
     static HarnessException RecordedRun(string run) => new($"run {run} is already recorded; a rerun takes a new run id; `collect` or `resume` recovers it");
+
+    static int Aborted(Ledger ledger, Exception error)
+    {
+        var message = $"{error.GetType().Name}: {error.Message}";
+        try
+        {
+            ledger.Write(null, "aborted", new JsonObject { ["message"] = error.Message });
+        }
+        catch (Exception writeError)
+        {
+            message += $"; could not record aborted event: {writeError.GetType().Name}: {writeError.Message}";
+        }
+        Console.Error.WriteLine($"dispatch: {message.Replace('\r', ' ').Replace('\n', ' ')}");
+        return 1;
+    }
 
     public static int Status(Args a)
     {
@@ -282,36 +295,44 @@ static partial class Commands
         AskQueue.Reset(ledger.RunId);
         await using IWorkerBackend backend = new OpenCodeBackend();
         var probe = await backend.ProbeAsync(new(info.Repo!), ct);
-        var states = ledger.TaskStates();
-        var runs = new List<TaskRun>();
-        foreach (var (task, state) in states)
+        try
         {
-            if (state is "done" or "failed" or "cancelled")
+            var states = ledger.TaskStates();
+            var runs = new List<TaskRun>();
+            foreach (var (task, state) in states)
             {
-                continue;
+                if (state is "done" or "failed" or "cancelled")
+                {
+                    continue;
+                }
+
+                var record = ledger.LoadRecord(task);
+                record.Settings = frozen.Tasks[task].Settings;
+                ConfigLayers.Apply(record.Spec, record.Settings);
+                var run = TaskRun.FromLedger(record, ledger);
+                if (record.Session.Id is null && !proceed)
+                {
+                    Console.WriteLine($"{task}: never prompted; `resume --continue` dispatches it");
+                    continue;
+                }
+
+                runs.Add(run);
             }
 
-            var record = ledger.LoadRecord(task);
-            record.Settings = frozen.Tasks[task].Settings;
-            ConfigLayers.Apply(record.Spec, record.Settings);
-            var run = TaskRun.FromLedger(record, ledger);
-            if (record.Session.Id is null && !proceed)
+            if (runs.Count == 0)
             {
-                Console.WriteLine($"{task}: never prompted; `resume --continue` dispatches it");
-                continue;
+                Console.WriteLine("nothing to resume");
+                return states.Values.All(x => x == "done") ? 0 : 1;
             }
 
-            runs.Add(run);
+            ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count, ["server"] = probe.Version });
+            var supervisor = new Supervisor(backend, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
+            var exit = await supervisor.ResumeAsync(runs, proceed);
+            return exit == 0 && ledger.TaskStates().Values.All(x => x == "done") ? 0 : 1;
         }
-
-        if (runs.Count == 0)
+        catch (Exception ex)
         {
-            Console.WriteLine("nothing to resume");
-            return 0;
+            return Aborted(ledger, ex);
         }
-
-        ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count, ["server"] = probe.Version });
-        var supervisor = new Supervisor(backend, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
-        return await supervisor.ResumeAsync(runs, proceed);
     }
 }

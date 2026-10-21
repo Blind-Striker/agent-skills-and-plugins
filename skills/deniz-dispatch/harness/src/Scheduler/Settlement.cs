@@ -22,19 +22,36 @@ static class Settlement
             TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped, ExecutionError = report.ExecutionError,
             BaseSha = record.Workspace.BaseSha, CommitMode = Worktree.CommitMode(record), Error = run.StartFailure,
         };
+        // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
         if (!run.Zombie)
         {
             await Commit.CollectAsync(ledger, run, result, ct, git);
             await Verifier.VerifyAsync(ledger, run, result, ct);
         }
-        if (outcome != "succeeded" && outcome != "cancelled") result.Failures.Add($"outcome:{outcome ?? "unknown"}");
         if (run.Zombie) result.Failures.Add("zombie");
-        if (outcome == "succeeded" && string.IsNullOrWhiteSpace(report.FinalText))
-            result.Error ??= "the session succeeded but left no final assistant text; run `dispatch collect` later";
-        result.State = outcome switch
+        if (outcome == "cancelled")
         {
-            "cancelled" => "cancelled", "succeeded" when result.Error is null => "done", _ => "failed",
-        };
+            result.Failures = result.Failures.Where(x => x == "zombie").Distinct().ToList();
+            result.State = "cancelled";
+        }
+        else
+        {
+            if (outcome != "succeeded") result.Failures.Add($"outcome:{outcome ?? "unknown"}");
+            if (result.Error is not null)
+                result.Failures.Add(result.Error.StartsWith("harness commit failed:", StringComparison.Ordinal) ? "commit-failed" : "settle-error");
+            if (result.ExecutionError is not null) result.Failures.Add("settle-error");
+            if (string.IsNullOrWhiteSpace(report.FinalText))
+            {
+                result.Failures.Add("no-final-text");
+                if (outcome == "succeeded")
+                    result.Error ??= "the session succeeded but left no final assistant text; run `dispatch collect` later";
+            }
+            if (result.Verify.Any(x => x.ExitCode != 0 || x.TimedOut)) result.Failures.Add("verify-failed");
+            if (result.OutOfScope.Count > 0) result.Failures.Add("out-of-scope");
+            if (record.Spec.Kind == "structured" && result.Validation?.Ok != true) result.Failures.Add("invalid-output");
+            result.Failures = result.Failures.Distinct().ToList();
+            result.State = result.Failures.Count == 0 ? "done" : "failed";
+        }
         ledger.SaveResult(result);
         ledger.Write(run.Id, "outcome", new JsonObject
         {

@@ -94,7 +94,7 @@ public sealed class GitRunnerTests
         using var controlTree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, ct);
         var control = await LabRepo.CreateAsync(controlTree, ct);
-        var run = await PrepareAsync(tree, repo, ["README.md"], ct);
+        var run = await PrepareAsync(tree, repo, customPath ? ["README.md", ".husky/**"] : ["README.md"], ct);
         string[] hooks = ["pre-commit", "prepare-commit-msg", "post-commit", "post-index-change", "reference-transaction"];
         await InstallHooksAsync(control, control.Root, controlTree.Root, hooks, customPath, ct);
         await File.AppendAllTextAsync(Path.Combine(control.Root, "README.md"), "control\n", ct);
@@ -151,7 +151,7 @@ public sealed class GitRunnerTests
         await repo.GitAsync(["commit", "-m", "Add rename source"], cancellationToken);
         var run = await PrepareAsync(tree, repo, ["inside.txt"], cancellationToken);
         File.Move(Path.Combine(run.Worktree, "outside.txt"), Path.Combine(run.Worktree, "inside.txt"));
-        await CollectAsync(tree, run.RunId, cancellationToken);
+        await CollectAsync(tree, run.RunId, cancellationToken, expectedExit: 1);
         var result = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(run.TaskDir, "result.json"), cancellationToken))!;
         await Assert.That(result["filesChanged"]!.AsArray().Select(x => x!.GetValue<string>())).IsEquivalentTo(["outside.txt", "inside.txt"]);
         await Assert.That(result["outOfScope"]!.AsArray().Select(x => x!.GetValue<string>())).IsEquivalentTo(["outside.txt"]);
@@ -189,7 +189,7 @@ public sealed class GitRunnerTests
         };
         foreach (var (name, bytes) in files)
             await File.WriteAllBytesAsync(Path.Combine(run.Worktree, name), bytes, cancellationToken);
-        await CollectAsync(tree, run.RunId, cancellationToken);
+        await CollectAsync(tree, run.RunId, cancellationToken, expectedExit: 1);
         var apply = Path.Combine(tree.WorktreeRoot, "apply");
         await repo.GitAsync(["worktree", "add", "--detach", apply, run.BaseSha], cancellationToken);
         await repo.GitAsync(["-C", apply, "apply", "--index", Path.Combine(run.TaskDir, "diff.patch")], cancellationToken);
@@ -222,10 +222,11 @@ public sealed class GitRunnerTests
         return (Path.GetFileName(ledger), record["workspace"]!["path"]!.GetValue<string>(), taskDir, record["workspace"]!["baseSha"]!.GetValue<string>());
     }
 
-    static async Task CollectAsync(TempTree tree, string runId, CancellationToken ct)
+    static async Task CollectAsync(TempTree tree, string runId, CancellationToken ct, int expectedExit = 0)
     {
         using var harness = new HarnessProcess(tree);
-        (await harness.RunAsync(["collect", runId, "inspect"], ct,
-            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value))).RequireSuccess("collect harness task");
+        var result = await harness.RunAsync(["collect", runId, "inspect"], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(result.ExitCode).IsEqualTo(expectedExit);
     }
 }
