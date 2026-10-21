@@ -20,6 +20,7 @@ static class Snapshot
 
     public static void Delete(Git git, string task)
     {
-        File.Delete(Index(git, task));
+        try { File.Delete(Index(git, task)); }
+        catch (DirectoryNotFoundException) { return; } // An absent control folder is already cleaned.
     }
 }

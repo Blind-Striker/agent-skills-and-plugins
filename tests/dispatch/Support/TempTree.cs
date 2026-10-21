@@ -54,6 +54,9 @@ internal sealed class TempTree : IDisposable
         environment["TEMP"] = temp;
         environment["TMP"] = temp;
         environment["TMPDIR"] = temp;
+        // Unix pipe names have a much smaller limit than filesystem paths. Only testing-platform
+        // sockets use the short system temp; lab files and all other child temp stay in the checkout.
+        if (!OperatingSystem.IsWindows()) environment["TESTINGPLATFORM_PIPE_DIRECTORY"] = "/tmp";
         // On Windows the SDK's first run for a new CLI home appends that home's tools folder to the
         // user's PATH in the registry, which no environment isolation undoes. Share one CLI home per
         // checkout and switch the append off.

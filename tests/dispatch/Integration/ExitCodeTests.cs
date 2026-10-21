@@ -306,11 +306,16 @@ public sealed class ExitCodeTests
     public async Task Unexpected_exception_before_start_exits_2_with_one_line(CancellationToken ct)
     {
         using var tree = new TempTree();
-        var blocked = Path.Combine(tree.Root, "blocked-home");
-        File.WriteAllText(blocked, "not a directory");
+        // A valid JSON event with an invalid state type reaches the catch-all on every OS.
+        // A blocked home only throws when startup creates a Windows hooks folder.
+        var ledger = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "state", "ledgers", "recorded")).FullName;
+        File.WriteAllText(Path.Combine(ledger, "events.jsonl"), """
+            {"type":"final","task":"inspect","data":{"state":42}}
+
+            """);
         using var child = new HarnessProcess(tree);
 
-        var result = await child.RunAsync(["status"], ct, new Dictionary<string, string?> { ["DISPATCH_HOME"] = blocked });
+        var result = await child.RunAsync(["status"], ct);
 
         await Assert.That(result.ExitCode).IsEqualTo(2);
         await Assert.That(result.Stderr.Trim().Split('\n').Length).IsEqualTo(1);

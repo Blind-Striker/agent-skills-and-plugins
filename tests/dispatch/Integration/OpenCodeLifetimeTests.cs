@@ -12,6 +12,7 @@ public sealed class OpenCodeLifetimeTests
     [Timeout(60_000)]
     public async Task Exited_server_descendants_end_on_disposal(CancellationToken ct)
     {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows kill-on-close jobs only; POSIX successful exits leave the group alone, covered separately");
         using var tree = new TempTree();
         try
         {
@@ -25,6 +26,7 @@ public sealed class OpenCodeLifetimeTests
     [Timeout(120_000)]
     public async Task Exited_server_descendants_end_on_owner_exit(CancellationToken ct)
     {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows kill-on-close jobs only; POSIX successful exits leave the group alone, covered separately");
         if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_OWNER_PROBE") is { } root)
         {
             // The outer test owns cleanup: it must observe the descendants after this process exits.
@@ -46,6 +48,52 @@ public sealed class OpenCodeLifetimeTests
             var evidence = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(tree.Root, "evidence.json"), ct))!.AsObject();
             Console.WriteLine($"After owner exit: {evidence.ToJsonString()}");
             await RequireStoppedAsync(evidence, ct);
+        }
+        finally { await ObservedProcess.CleanupRecordedChildrenAsync(tree.Root); }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Posix_successful_server_exit_leaves_descendants_on_disposal(CancellationToken ct)
+    {
+        if (OperatingSystem.IsWindows()) Skip.Test("POSIX process groups only; Windows job cleanup is covered separately");
+        using var tree = new TempTree();
+        try
+        {
+            var evidence = await ObserveAsync(tree.Root, tree.ChildEnvironment(), ct);
+            var (child, grandchild) = ObservedProcess.Descendants(evidence["descendants"]!);
+            await Assert.That(child.IsAlive()).IsTrue();
+            await Assert.That(grandchild.IsAlive()).IsTrue();
+        }
+        finally { await ObservedProcess.CleanupRecordedChildrenAsync(tree.Root); }
+    }
+
+    [Test]
+    [Timeout(120_000)]
+    public async Task Posix_successful_server_exit_leaves_descendants_on_owner_exit(CancellationToken ct)
+    {
+        if (OperatingSystem.IsWindows()) Skip.Test("POSIX process groups only; Windows job cleanup is covered separately");
+        if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_OWNER_PROBE") is { } root)
+        {
+            var observed = await ObserveAsync(root, new Dictionary<string, string?>(), ct);
+            await File.WriteAllTextAsync(Path.Combine(root, "evidence.json"), observed.ToJsonString(), ct);
+            return;
+        }
+
+        using var tree = new TempTree();
+        using var owner = new CapturedProcess();
+        var environment = tree.ChildEnvironment();
+        environment["FAKE_OPENCODE_OWNER_PROBE"] = tree.Root;
+        try
+        {
+            var result = await owner.RunAsync("dotnet", [typeof(OpenCodeLifetimeTests).Assembly.Location,
+                "--treenode-filter", "/*/*/OpenCodeLifetimeTests/Posix_successful_server_exit_leaves_descendants_on_owner_exit"],
+                TestPaths.Tests, environment, ct);
+            result.RequireSuccess("host owner process");
+            var evidence = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(tree.Root, "evidence.json"), ct))!;
+            var (child, grandchild) = ObservedProcess.Descendants(evidence["descendants"]!);
+            await Assert.That(child.IsAlive()).IsTrue();
+            await Assert.That(grandchild.IsAlive()).IsTrue();
         }
         finally { await ObservedProcess.CleanupRecordedChildrenAsync(tree.Root); }
     }
@@ -77,9 +125,9 @@ public sealed class OpenCodeLifetimeTests
             };
             await Assert.That(child.IsAlive() && grandchild.IsAlive()).IsTrue();
             await File.WriteAllTextAsync(exitWhen, "exit", ct);
-            using var process = Process.GetProcessById(server.Pid);
-            await process.WaitForExitAsync(ct);
-            await Assert.That(process.ExitCode).IsEqualTo(0);
+            // On POSIX the SDK owns waitpid; a separately opened Process cannot read its status.
+            var exit = await host.Server.Exited.WaitAsync(ct);
+            await Assert.That(exit.ExitCode).IsEqualTo(0);
         }
         var identities = ObservedProcess.Descendants(evidence["descendants"]!);
         evidence["childAliveAfterDisposal"] = identities.Child.IsAlive();

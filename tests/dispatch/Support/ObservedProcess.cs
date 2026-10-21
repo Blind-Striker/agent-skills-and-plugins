@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
@@ -13,7 +14,7 @@ internal sealed record ObservedProcess(int Pid, long StartTime)
     public static ObservedProcess Capture(int pid)
     {
         using var process = Process.GetProcessById(pid);
-        return new(pid, process.StartTime.ToUniversalTime().Ticks);
+        return new(pid, ReadStartTime(process));
     }
 
     public bool IsAlive()
@@ -21,9 +22,23 @@ internal sealed record ObservedProcess(int Pid, long StartTime)
         try
         {
             using var process = Process.GetProcessById(Pid);
-            return !process.HasExited && process.StartTime.ToUniversalTime().Ticks == StartTime;
+            if (process.HasExited || ReadStartTime(process) != StartTime) return false;
+            if (!OperatingSystem.IsLinux()) return true;
+            var stat = File.ReadAllText($"/proc/{Pid}/stat");
+            return stat[(stat.LastIndexOf(')') + 2)..].Split(' ')[0] != "Z";
         }
         catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+        catch (IOException exception) when (OperatingSystem.IsLinux() && exception.HResult is 2 or 3) { return false; }
+    }
+
+    static long ReadStartTime(Process process)
+    {
+        if (!OperatingSystem.IsLinux()) return process.StartTime.ToUniversalTime().Ticks;
+        var stat = File.ReadAllText($"/proc/{process.Id}/stat");
+        return long.Parse(stat[(stat.LastIndexOf(')') + 2)..].Split(' ')[19], CultureInfo.InvariantCulture);
     }
 
     public bool? IsInJob()
@@ -71,7 +86,7 @@ internal sealed record ObservedProcess(int Pid, long StartTime)
         try
         {
             using var process = Process.GetProcessById(Pid);
-            if (process.HasExited || process.StartTime.ToUniversalTime().Ticks != StartTime) return;
+            if (!IsAlive() || ReadStartTime(process) != StartTime) return;
             process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
         }

@@ -11,6 +11,38 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Arguments(2)]
+    [Arguments(3)]
+    [Timeout(60_000)]
+    public async Task Vanished_proc_entry_does_not_make_stop_unconfirmed(int errno, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux proc filesystem exit races only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"notify":"ready","params":{}}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        var injected = false;
+        process.ReadProcStat = path =>
+        {
+            if (!injected)
+            {
+                injected = true;
+                throw new IOException("proc entry exited during snapshot", errno);
+            }
+            return File.ReadAllText(path);
+        };
+
+        var stopped = await process.StopAsync();
+
+        await Assert.That(injected).IsTrue();
+        await Assert.That(stopped.Stopped).IsTrue();
+        await Assert.That(stopped.Detail.Contains("descendant snapshot", StringComparison.Ordinal)).IsFalse();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]

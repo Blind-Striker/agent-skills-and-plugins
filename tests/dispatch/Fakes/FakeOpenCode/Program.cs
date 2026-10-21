@@ -1,5 +1,6 @@
 using System.Net;
 using System.Diagnostics;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -35,7 +36,7 @@ if (args.FirstOrDefault() == "--hung-tool")
     { UseShellExecute = false, ArgumentList = { "--hung-leaf" } })!;
     using var self = Process.GetCurrentProcess();
     var observation = new JsonObject { ["child"] = Environment.ProcessId, ["grandchild"] = leaf.Id,
-        ["childStartTime"] = self.StartTime.ToUniversalTime().Ticks, ["grandchildStartTime"] = leaf.StartTime.ToUniversalTime().Ticks };
+        ["childStartTime"] = StartTime(self), ["grandchildStartTime"] = StartTime(leaf) };
     var temporary = args[1] + ".tmp";
     await File.WriteAllTextAsync(temporary, observation.ToJsonString());
     File.Move(temporary, args[1]);
@@ -100,13 +101,11 @@ var authorization = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("op
 var script = new Scenario(scenario, record);
 // Only the hung-process fixture needs this additional ownership; ordinary HTTP fakes spawn none.
 if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is not null) ChildJob.HoldForProcess();
-using var childLifetime = new ChildLifetime();
 if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is { } childRecord)
 {
     var path = $"{childRecord}.{Environment.ProcessId}.json";
     using var child = Process.Start(new ProcessStartInfo(Environment.ProcessPath!)
     { UseShellExecute = false, ArgumentList = { "--hung-tool", path } })!;
-    childLifetime.Observe(child);
     while (!File.Exists(path)) await Task.Delay(10);
 }
 var modeEnvironment = new JsonObject();
@@ -155,23 +154,11 @@ if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_EXIT_WHEN") is { } exitWhe
 await app.WaitForShutdownAsync();
 return 0;
 
-// POSIX has no Windows job handle to close. On a normal fake exit, end its still-attached tree.
-sealed class ChildLifetime : IDisposable
+// Linux Process.StartTime converts boot-relative ticks using a per-observer wall-clock estimate.
+// Record kernel start ticks instead, so another process can compare the same identity exactly.
+static long StartTime(Process process)
 {
-    Process? child;
-
-    public void Observe(Process process) => child = Process.GetProcessById(process.Id);
-
-    public void Dispose()
-    {
-        if (child is not { } process) return;
-        using (process)
-        {
-            if (!OperatingSystem.IsWindows())
-            {
-                if (!process.HasExited) process.Kill(entireProcessTree: true);
-                process.WaitForExit();
-            }
-        }
-    }
+    if (!OperatingSystem.IsLinux()) return process.StartTime.ToUniversalTime().Ticks;
+    var stat = File.ReadAllText($"/proc/{process.Id}/stat");
+    return long.Parse(stat[(stat.LastIndexOf(')') + 2)..].Split(' ')[19], CultureInfo.InvariantCulture);
 }
