@@ -9,7 +9,7 @@ public sealed class ControlRulesTests
     public async Task OpenCodeRules_DefaultLocations_WorktreeEditAllowedControlEditDenied()
     {
         var rules = OpenCodeRules.Render(new WorkerRules([], []), "example");
-        PermissionEffect Effect(string path) => rules.LastOrDefault(x => x.Action == "edit" && Wildcard.Match(path, x.Resource))?.Effect ?? PermissionEffect.Allow;
+        PermissionEffect Effect(string path) => rules.LastOrDefault(x => x.Action == "edit" && Wildcard.Match(path, x.Resource, OperatingSystem.IsWindows()))?.Effect ?? PermissionEffect.Allow;
         var worktreeFile = Path.GetFullPath(Path.Combine(Locations.StateRoot, "worktrees", "example", "inspect", "file.txt"));
         var controlFile = Path.GetFullPath(Path.Combine(Locations.StateRoot, "control", "abcdefghijklmnopqrstuvwxyz", "decisions", "inspect-1.json"));
         await Assert.That(Effect(worktreeFile)).IsEqualTo(PermissionEffect.Allow);
