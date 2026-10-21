@@ -1,6 +1,6 @@
 static class Planner
 {
-    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct, Git? git = null, Args? args = null)
+    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct, Git? git = null, Args? args = null, string? executableSearchPath = null)
     {
         tasksPath = Path.GetFullPath(tasksPath);
         if (!File.Exists(tasksPath))
@@ -54,6 +54,12 @@ static class Planner
             if (!Regex.IsMatch(spec.Id ?? "", "^[a-z0-9][a-z0-9-]{0,39}$")) e.Add("id must match ^[a-z0-9][a-z0-9-]{0,39}$");
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
+            if (spec.Kind == "structured" && spec.Shell is not null) e.Add("shell is forbidden for structured tasks");
+            else if (spec.Shell is not null || spec.Verify is { Count: > 0 })
+            {
+                try { Verifier.ResolveShell(spec, executableSearchPath); }
+                catch (HarnessException ex) { e.Add($"verify shell: {ex.Message}"); }
+            }
 
             RouteRef? route = null;
             if ((spec.Agent is null) == (spec.Route is null)) e.Add("name exactly one of agent or route");
