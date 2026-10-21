@@ -516,6 +516,16 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     {
         if (run.Worker is not null && !run.WorkerEnded && !run.Zombie)
             throw new InvalidOperationException("cannot finalize a task before its worker ended or was released");
+        if (!run.Zombie && Scratch.Required(run.Record.Spec))
+        {
+            try { Scratch.Delete(run.Record); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)
+            {
+                Error(run, "scratch cleanup", error);
+                state = TaskState.Failed;
+                reason = "scratch cleanup failed: " + error.Message;
+            }
+        }
         try
         {
             if (reason is not null && state == TaskState.Failed) ledger.Write(run.Id, "error", new JsonObject { ["message"] = reason });

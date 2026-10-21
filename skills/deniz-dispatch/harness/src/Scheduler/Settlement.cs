@@ -6,10 +6,12 @@ static class Settlement
         var report = run.Zombie ? new WorkerReport("lost", null, new(), null, false, [], null, false)
             : await backend.CollectAsync(run.SavedWorker(), ct);
         var outcome = outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
+        var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
         await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
             # {ledger.RunId}/{run.Id}
 
             Outcome: {outcome}
+            {timeout}
 
             {report.FinalText ?? "_No final assistant text without an error._"}
             """, ct);
@@ -17,13 +19,26 @@ static class Settlement
         {
             Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name, Outcome = outcome,
             Session = record.Session, RouteRequested = record.Settings.Route?.Value, RoutesUsed = report.RoutesUsed.ToList(),
-            Cost = report.Cost, Tokens = report.Usage, TokensComplete = report.UsageComplete,
+            Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,
+            TokensComplete = report.UsageComplete,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
             TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped, ExecutionError = report.ExecutionError,
-            BaseSha = record.Workspace.BaseSha, CommitMode = Worktree.CommitMode(record), Error = run.StartFailure,
+            BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,
+            CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = run.StartFailure,
         };
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
-        if (!run.Zombie)
+        if (record.Spec.Kind == "structured")
+        {
+            ledger.Write(run.Id, "collected", new JsonObject { ["outcome"] = outcome, ["routesUsed"] = Json.Array(result.RoutesUsed) });
+            await StructuredOutput.ValidateAsync(ledger, run, result, report.FinalText, ct);
+            if (!run.Zombie)
+            {
+                try { Scratch.Delete(record); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)
+                { result.Error = "scratch cleanup failed: " + error.Message; }
+            }
+        }
+        else if (!run.Zombie)
         {
             try { await Commit.CollectAsync(ledger, run, result, ct, git); }
             catch (GitConfigChangedException) { result.Failures.Add("git-config-changed"); }

@@ -19,32 +19,36 @@ static class Planner
         }
 
         var baseDir = Path.GetDirectoryName(tasksPath)!;
-        var repo = Path.GetFullPath(repoOverride ?? (file.Repo is { } r ? Path.Combine(baseDir, r) : throw new HarnessException("task file needs repo or --repo")));
+        var repoPath = repoOverride ?? (file.Repo is { } r ? Path.Combine(baseDir, r) : null);
+        var repo = Path.GetFullPath(repoPath ?? baseDir);
         var plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
         var useDefaultGit = git is null;
         git ??= Git.Default;
-        var top = await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel");
-        if (top.ExitCode != 0)
+        if (repoPath is not null)
         {
-            plan.Errors.Add($"repo {repo} is not a git work tree");
-            return plan;
+            var top = await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel");
+            if (top.ExitCode != 0)
+            {
+                plan.Errors.Add($"repo {repo} is not a git work tree");
+                return plan;
+            }
+            repo = Path.GetFullPath(top.Output.Trim());
         }
-        repo = Path.GetFullPath(top.Output.Trim());
         plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
 
         var specs = file.Tasks ?? [];
         if (args is not null)
         {
-            plan.Config = await ConfigLayers.LoadAsync(repo, file, tasksPath, args, ct, git);
+            plan.Config = await ConfigLayers.LoadAsync(repoPath is null ? null : repo, file, tasksPath, args, ct, git);
             if (useDefaultGit) git = Git.Default;
             allow = plan.Config.Allow;
             foreach (var spec in specs) ConfigLayers.Apply(spec, plan.Config.Effective.Tasks[spec.Id!].Settings);
             plan.Warnings.AddRange(plan.Config.Effective.Warnings);
         }
         var runId = Commands.CreateRunId(args?.Get("run") ?? file.Run ?? Path.GetFileNameWithoutExtension(tasksPath));
-        if (specs.Any(x => x.Workspace == "in-place") && Worktree.IsInside(Locations.WorktreeRoot, repo))
+        if (specs.Any(x => !Scratch.Required(x) && x.Workspace == "in-place") && Worktree.IsInside(Locations.WorktreeRoot, repo))
             plan.Errors.Add("in-place workspace refuses a worktree root inside the repository");
-        if (specs.Any(x => x.Workspace == "in-place") && Worktree.IsInside(Locations.LedgerRoot, repo))
+        if (specs.Any(x => !Scratch.Required(x) && x.Workspace == "in-place") && Worktree.IsInside(Locations.LedgerRoot, repo))
             plan.Errors.Add("in-place workspace refuses a ledger root inside the repository");
         foreach (var path in file.SharedPaths ?? [])
             if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path) || path.Replace('\\', '/').Split('/').Contains("..") || path.IndexOfAny(['*', '?', '!']) >= 0)
@@ -95,7 +99,18 @@ static class Planner
 
             if (prompt is not null && string.IsNullOrWhiteSpace(prompt)) e.Add("prompt is empty");
             if (spec.TimeoutMinutes is < 1 or > 720) e.Add("timeoutMinutes must be between 1 and 720");
-            if (spec.Workspace == "in-place")
+            if (Scratch.Required(spec))
+            {
+                try { _ = Scratch.Candidate(); }
+                catch (HarnessException error) { e.Add(error.Message); }
+            }
+            else if (repoPath is null) e.Add("task needs repo or --repo");
+            else if (spec.Kind == "structured")
+            {
+                // Project-enabled structured tasks use the named folder without creating a Git workspace.
+                if (spec.Dir is { } dir && !Directory.Exists(Path.GetFullPath(dir, repo))) e.Add("structured project dir does not exist");
+            }
+            else if (spec.Workspace == "in-place")
             {
                 try { await Worktree.FolderAsync(git, repo, spec.Dir, ct); }
                 catch (HarnessException ex) { e.Add(ex.Message); }
@@ -117,7 +132,7 @@ static class Planner
             }
 
             if (spec.Kind is "code" or "mechanical" && spec.Scope is not { Count: > 0 }) e.Add("code and mechanical tasks declare a scope");
-            if (spec.Workspace != "in-place")
+            if (spec.Kind != "structured" && spec.Workspace != "in-place")
             {
                 var path = Locations.Worktree(spec.Id ?? "", runId);
                 if (Path.Exists(path)) e.Add($"worktree {path} already exists; clean it first");
@@ -169,7 +184,8 @@ static class Planner
         var checks = await backend.ValidateAsync(plan.Tasks.Where(task => (task.Spec.Backend ?? "opencode") == backend.Name).Select(task => new WorkerPlan(task.Spec.Id!, task.Spec.Kind!,
             task.Route ?? new RouteRef("agent", "placeholder", null), task.Spec.Agent, task.Spec.Persona,
             TaskStarter.ModesFor(new TaskRecord { Spec = task.Spec,
-                Settings = plan.Config?.Effective.Tasks[task.Spec.Id!].Settings ?? new() }), plan.Repo)).ToList(), ct);
+                Settings = plan.Config?.Effective.Tasks[task.Spec.Id!].Settings ?? new() }),
+            Scratch.Required(task.Spec) ? Scratch.Candidate() : plan.Repo)).ToList(), ct);
         foreach (var check in checks)
         {
             plan.Errors.AddRange(check.Errors.Select(error => $"{check.TaskId}: {error}"));

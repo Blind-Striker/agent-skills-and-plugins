@@ -22,7 +22,7 @@ public sealed class SettlementStateTests
         using var lab = new CoreLab();
         var run = await lab.TaskAsync("inspect", ct);
         if (condition is "verify" or "both") run.Record.Spec.Verify = ["exit 0", "exit 3"];
-        if (condition == "structured") run.Record.Spec.Kind = "structured";
+        if (condition == "structured") lab.Structured(run);
         if (condition == "cancelled") run.CancelRequested = true;
         run.SaveWorker(new("opencode", run.Id, "worker", "turn", new()), lab.Ledger);
         lab.Backend.OnCollect = (_, _) =>

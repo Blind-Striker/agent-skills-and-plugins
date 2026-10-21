@@ -1,8 +1,9 @@
 sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, AllowList allow, Policy policy, Git? git = null, TimeProvider? timeProvider = null)
 {
     public static Modes ModesFor(TaskRecord record) => new(
-        record.Settings.Profile?.Value ?? "full", record.Settings.Project?.Value ?? "on",
-        record.Settings.Access?.Value ?? (record.Spec.Kind is "review" or "research" ? "read-only" : "workspace"),
+        record.Settings.Profile?.Value ?? record.Spec.Profile ?? (record.Spec.Kind == "structured" ? "clean" : "full"),
+        record.Settings.Project?.Value ?? record.Spec.Project ?? (record.Spec.Kind == "structured" ? "off" : "on"),
+        record.Settings.Access?.Value ?? (record.Spec.Kind is "review" or "research" or "structured" ? "read-only" : "workspace"),
         record.Settings.Network?.Value ?? "on", record.Settings.Workspace?.Value ?? "worktree");
 
     public static WorkerRules RulesFor(Policy policy) => new(
@@ -23,7 +24,19 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
 
     public async Task StartAsync(TaskRun run, CancellationToken ct)
     {
-        await Worktree.PrepareAsync(run, ledger, repo, ct, git);
+        if (run.Record.Spec.Kind == "structured" && run.Record.PromptInputs is null)
+        {
+            if (run.Record.Contracts is { Count: > 0 })
+                throw new HarnessException("original contract text is unavailable; cannot start an unprompted task from the ledger");
+            run.Record.PromptInputs = StructuredOutput.Load(ledger, run);
+        }
+        if (Scratch.Required(run.Record.Spec)) Scratch.Prepare(run, ledger);
+        else if (run.Record.Spec.Kind == "structured")
+        {
+            run.Record.Workspace.Path ??= Path.GetFullPath(run.Record.Spec.Dir ?? ".", repo);
+            ledger.SaveRecord(run.Record);
+        }
+        else await Worktree.PrepareAsync(run, ledger, repo, ct, git);
         CheckAllowed(run);
         var record = run.Record;
         RouteRef? route;

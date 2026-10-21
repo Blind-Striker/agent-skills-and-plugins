@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Dispatch.Tests.Support;
 
 internal sealed class CoreLab : IDisposable
@@ -52,6 +54,22 @@ internal sealed class CoreLab : IDisposable
 
     public Scheduler Scheduler(CancellationToken ct, int max = 1, AllowList? allow = null, TimeProvider? time = null) =>
         new(new Dictionary<string, IWorkerBackend> { [Backend.Name] = Backend }, Ledger, Tree.Repository, allow ?? AllowList.From(null), Policy, max, ct, Git, time);
+
+    public void Structured(TaskRun run)
+    {
+        run.Record.Spec.Kind = "structured";
+        run.Record.Spec.Project = "on";
+        run.Record.Spec.RawPrompt = false;
+        run.Record.Spec.Input = new() { Items = JsonNode.Parse(StructuredLab.Valid)!["items"]!.AsArray() };
+        run.Record.Spec.Result = new() { Schema = "schema.json", ItemsAt = "/items", Immutable = ["key"] };
+        run.Record.PromptInputs = new([], run.Record.Spec.Input.Items, JsonNode.Parse(StructuredLab.Schema));
+        Json.WriteFile(Path.Combine(Ledger.Dir, "config.json"), new EffectiveConfig
+        {
+            Tasks = new() { [run.Id] = new() { Settings = run.Record.Settings } },
+        }, LedgerJson.Files.EffectiveConfig);
+        StructuredOutput.Freeze(Ledger, [run]);
+        Ledger.SaveRecord(run.Record);
+    }
 
     public void End(TaskRun run, string outcome = "succeeded", string? turn = null) =>
         Backend.Emit(new WorkerSignal.Ended(run.Id, turn ?? run.Worker!.Turn!, outcome, null));

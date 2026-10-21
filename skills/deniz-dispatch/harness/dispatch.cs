@@ -23,9 +23,11 @@
 #:include src/Workspace/Git.cs
 #:include src/Workspace/GitConfigGate.cs
 #:include src/Workspace/Worktree.cs
+#:include src/Workspace/Scratch.cs
 #:include src/Workspace/Snapshot.cs
 #:include src/Workspace/Commit.cs
 #:include src/Verify/Deliverable.cs
+#:include src/Verify/StructuredOutput.cs
 #:include src/Verify/Verifier.cs
 #:include src/Scheduler/Plan.cs
 #:include src/Scheduler/Prompt.cs
