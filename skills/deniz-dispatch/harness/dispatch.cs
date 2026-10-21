@@ -18,6 +18,7 @@
 #:include src/Workspace/Proc.cs
 #:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs
+#:include src/Verify/Deliverable.cs
 #:include src/Scheduler/Plan.cs
 #:include src/Scheduler/Planner.cs
 #:include src/Scheduler/TaskRun.cs
