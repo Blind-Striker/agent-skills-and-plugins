@@ -22,8 +22,8 @@ sealed class Ledger(string runId)
 
     public void Write(string? task, string type, JsonObject? data = null)
     {
-        var line = new LedgerLine { Ts = DateTimeOffset.UtcNow.ToString("o"), Run = RunId, Task = task, Type = type, Data = data };
-        var json = JsonSerializer.Serialize(line, DispatchJson.Default.LedgerLine);
+        var line = new LedgerLine { Ts = Json.Timestamp(), Run = RunId, Task = task, Type = type, Data = data };
+        var json = JsonSerializer.Serialize(line, LedgerJson.Events.LedgerLine);
         lock (_gate)
         {
             Directory.CreateDirectory(Dir);
@@ -42,7 +42,7 @@ sealed class Ledger(string runId)
             lines = File.ReadAllLines(EventsFile);
         }
 
-        return lines.Where(x => x.Length > 0).Select(x => JsonSerializer.Deserialize(x, DispatchJson.Default.LedgerLine)!).ToList();
+        return lines.Where(x => x.Length > 0).Select(x => JsonSerializer.Deserialize(x, LedgerJson.Events.LedgerLine)!).ToList();
     }
 
     // Per task, in queue order: done, failed, cancelled (from the final event), or the last
@@ -68,27 +68,27 @@ sealed class Ledger(string runId)
     }
 
     public void SaveRecord(TaskRecord record) =>
-        Json.WriteFile(Path.Combine(TaskDir(record.Spec.Id!), "task.json"), record, DispatchJsonIndented.Default.TaskRecord);
+        Json.WriteFile(Path.Combine(TaskDir(record.Spec.Id!), "task.json"), record, LedgerJson.Files.TaskRecord);
 
     public TaskRecord LoadRecord(string task)
     {
         var path = Path.Combine(Dir, task, "task.json");
         return File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.TaskRecord)!
+            ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.TaskRecord)!
             : throw new HarnessException($"no task record {path}");
     }
 
     public TaskResult? LoadResult(string task)
     {
         var path = Path.Combine(Dir, task, "result.json");
-        return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.TaskResult) : null;
+        return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.TaskResult) : null;
     }
 
     public RunInfo LoadRunInfo()
     {
         var path = Path.Combine(Dir, "run.json");
         return File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.RunInfo)!
+            ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.RunInfo)!
             : throw new HarnessException($"no run.json in {Dir}");
     }
 

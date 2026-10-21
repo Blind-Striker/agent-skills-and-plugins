@@ -13,10 +13,10 @@ public sealed class OpenCodeGoldenTests
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, cancellationToken);
         var config = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "config")).FullName;
-        await File.WriteAllTextAsync(Path.Combine(config, "routes.allow.jsonc"), """{"routes":["fixture/model"]}""", cancellationToken);
-        await File.WriteAllTextAsync(Path.Combine(config, "policy.jsonc"), """{"instructions":["Report findings only."],"deny":[{"name":"no-edits","action":"edit","resources":["*"]}]}""", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(config, "routes.allow.jsonc"), """{"schemaVersion":2,"routes":["fixture/model"]}""", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(config, "policy.jsonc"), """{"schemaVersion":2,"instructions":["Report findings only."],"deny":[{"name":"no-edits","action":"edit","resources":["*"]}]}""", cancellationToken);
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
-        await File.WriteAllTextAsync(tasks, """{"run":"golden","tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
+        await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"run":"golden","tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
         using var harness = new HarnessProcess(tree);
 
         var result = await harness.RunAsync(["run", tasks, "--repo", repo.Root, "--max", "1"], cancellationToken,

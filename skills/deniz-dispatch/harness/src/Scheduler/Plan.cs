@@ -6,7 +6,6 @@ sealed class PlannedTask
 
     public RouteRef? Route { get; init; }
 
-    public List<RouteRef> Fallback { get; init; } = [];
 }
 
 // What the contract needs from either a planned task or a ledger record.

@@ -1,5 +1,8 @@
 static partial class Commands
 {
+    public static string CreateRunId(string name, TimeProvider? time = null) =>
+        $"{(time ?? TimeProvider.System).GetUtcNow().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}-{name}";
+
     public static async Task<int> RoutesAsync(Args a, CancellationToken ct)
     {
         var allow = AllowList.Load();
@@ -94,7 +97,7 @@ static partial class Commands
             throw new HarnessException($"run name '{name}' must match ^[a-z0-9][a-z0-9-]{{0,40}}$");
         }
 
-        var runId = $"{DateTime.Now:yyyy-MM-dd}-{name}";
+        var runId = CreateRunId(name);
         var ledger = new Ledger(runId);
         if (Directory.Exists(ledger.Dir))
         {
@@ -125,13 +128,11 @@ static partial class Commands
             Run = runId,
             Repo = plan.Repo,
             TasksFile = plan.TasksPath,
-            PolicyFile = policy.Path,
-            Created = DateTimeOffset.UtcNow.ToString("o"),
-            WorktreeRoot = Locations.WorktreeRoot,
-            ServerVersion = host.Version,
+            Created = Json.Timestamp(),
+            Backends = new() { ["opencode"] = new BackendInfo { Version = host.Version } },
             MaxParallel = max,
         };
-        Json.WriteFile(Path.Combine(ledger.Dir, "run.json"), info, DispatchJsonIndented.Default.RunInfo);
+        Json.WriteFile(Path.Combine(ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
         var started = new JsonObject
         {
             ["repo"] = plan.Repo,
@@ -200,7 +201,7 @@ static partial class Commands
             var verify = result is null || result.Verify.Count == 0
                 ? "-"
                 : string.Join(' ', result.Verify.Select(v => v.ExitCode == 0 ? "ok" : $"exit {v.ExitCode}"));
-            Console.WriteLine($"  {task,-24} {state,-10} {result?.Outcome ?? "-",-12} {result?.Cost?.ToString("0.0000", CultureInfo.InvariantCulture) ?? "-",8} {tokens,-16} {result?.FilesChanged.Count.ToString(CultureInfo.InvariantCulture) ?? "-",5} {result?.OutOfScope.Count.ToString(CultureInfo.InvariantCulture) ?? "-",6} {result?.PermissionAsks.ToString(CultureInfo.InvariantCulture) ?? "-",4} {result?.AsksEscalated.ToString(CultureInfo.InvariantCulture) ?? "-",3} {verify}");
+            Console.WriteLine($"  {task,-24} {state,-10} {result?.Outcome ?? "-",-12} {result?.Cost?.ToString("0.0000", CultureInfo.InvariantCulture) ?? "-",8} {tokens,-16} {result?.FilesChanged.Count.ToString(CultureInfo.InvariantCulture) ?? "-",5} {result?.OutOfScope.Count.ToString(CultureInfo.InvariantCulture) ?? "-",6} {result?.Asks.ToString(CultureInfo.InvariantCulture) ?? "-",4} {result?.AsksEscalated.ToString(CultureInfo.InvariantCulture) ?? "-",3} {verify}");
         }
 
         var pending = AskQueue.List(run.RunId);
@@ -243,7 +244,7 @@ static partial class Commands
 
             var record = ledger.LoadRecord(task);
             var run = TaskRun.FromLedger(record, ledger);
-            if (record.SessionId is null && !proceed)
+            if (record.Session.Id is null && !proceed)
             {
                 Console.WriteLine($"{task}: never prompted; `resume --continue` dispatches it");
                 continue;
@@ -259,7 +260,7 @@ static partial class Commands
         }
 
         ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count, ["server"] = host.Version });
-        var supervisor = new Supervisor(host, ledger, info.Repo, allow, policy, info.MaxParallel, ct);
+        var supervisor = new Supervisor(host, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
         return await supervisor.ResumeAsync(runs, proceed);
     }
 }

@@ -8,7 +8,7 @@ static partial class Commands
         {
             var control = Locations.ControlDir(ledger.RunId);
             Directory.CreateDirectory(control);
-            File.WriteAllText(Path.Combine(control, $"{task}.cancel"), DateTimeOffset.UtcNow.ToString("o"));
+            File.WriteAllText(Path.Combine(control, $"{task}.cancel"), Json.Timestamp());
             Console.WriteLine($"cancel requested for {ledger.RunId}/{task}; the supervisor interrupts it within seconds");
             return 0;
         }
@@ -36,7 +36,7 @@ static partial class Commands
         }
 
         var record = ledger.LoadRecord(task);
-        if (record.SessionId is null || record.Worktree is null)
+        if (record.Session.Id is null || record.Workspace.Path is null)
         {
             throw new HarnessException($"{task} has no session or worktree to collect");
         }
@@ -63,18 +63,18 @@ static partial class Commands
         foreach (var task in ledger.TaskStates().Keys)
         {
             var record = ledger.LoadRecord(task);
-            if (record.Worktree is null || record.Branch is null)
+            if (record.Workspace.Path is null || record.Workspace.Branch is null)
             {
                 continue;
             }
 
-            var exists = Directory.Exists(record.Worktree);
-            var dirty = exists && (await Git.RunAsync(record.Worktree, ct, "status", "--porcelain")).Output.Trim().Length > 0;
-            var merged = record.BaseRef is not null
-                && (await Git.RunAsync(info.Repo, ct, "merge-base", "--is-ancestor", record.Branch, record.BaseRef)).ExitCode == 0;
+            var exists = Directory.Exists(record.Workspace.Path);
+            var dirty = exists && (await Git.RunAsync(record.Workspace.Path, ct, "status", "--porcelain")).Output.Trim().Length > 0;
+            var merged = record.Workspace.BaseRef is not null
+                && (await Git.RunAsync(info.Repo!, ct, "merge-base", "--is-ancestor", record.Workspace.Branch, record.Workspace.BaseRef)).ExitCode == 0;
             if (!force && (dirty || !merged))
             {
-                Console.WriteLine($"{task}: refused ({(dirty ? "dirty worktree" : "")}{(dirty && !merged ? ", " : "")}{(!merged ? $"{record.Branch} is not merged into {record.BaseRef}" : "")}); --force removes it anyway");
+                Console.WriteLine($"{task}: refused ({(dirty ? "dirty worktree" : "")}{(dirty && !merged ? ", " : "")}{(!merged ? $"{record.Workspace.Branch} is not merged into {record.Workspace.BaseRef}" : "")}); --force removes it anyway");
                 refused++;
                 continue;
             }
@@ -82,8 +82,8 @@ static partial class Commands
             if (exists)
             {
                 var remove = force
-                    ? await Git.RunAsync(info.Repo, ct, "worktree", "remove", "--force", record.Worktree)
-                    : await Git.RunAsync(info.Repo, ct, "worktree", "remove", record.Worktree);
+                    ? await Git.RunAsync(info.Repo!, ct, "worktree", "remove", "--force", record.Workspace.Path)
+                    : await Git.RunAsync(info.Repo!, ct, "worktree", "remove", record.Workspace.Path);
                 if (remove.ExitCode != 0)
                 {
                     Console.WriteLine($"{task}: worktree remove failed: {remove.Output.Trim()}");
@@ -92,14 +92,14 @@ static partial class Commands
                 }
             }
 
-            var branch = await Git.RunAsync(info.Repo, ct, "branch", force ? "-D" : "-d", record.Branch);
+            var branch = await Git.RunAsync(info.Repo!, ct, "branch", force ? "-D" : "-d", record.Workspace.Branch);
             var temp = Locations.TaskTemp(task);
             if (Directory.Exists(temp))
             {
                 Directory.Delete(temp, recursive: true);
             }
 
-            ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Worktree, ["branch"] = record.Branch, ["branchDeleted"] = branch.ExitCode == 0, ["force"] = force });
+            ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["branchDeleted"] = branch.ExitCode == 0, ["force"] = force });
         }
 
         if (refused == 0 && Directory.Exists(Locations.ControlDir(ledger.RunId)))
@@ -179,7 +179,7 @@ static partial class Commands
             AskId = askId,
             Decision = decision,
             Message = message,
-            Time = DateTimeOffset.UtcNow.ToString("o"),
+            Time = Json.Timestamp(),
         });
 
         // The supervisor reads decisions every few seconds; wait briefly to confirm.

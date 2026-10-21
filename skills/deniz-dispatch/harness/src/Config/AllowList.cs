@@ -16,7 +16,7 @@ sealed class AllowList
         AllowListFile? file;
         try
         {
-            file = JsonSerializer.Deserialize(File.ReadAllText(Locations.AllowListFile), DispatchJson.Default.AllowListFile);
+            file = JsonSerializer.Deserialize(File.ReadAllText(Locations.AllowListFile), InputJson.Read.AllowListFile);
         }
         catch (JsonException ex)
         {

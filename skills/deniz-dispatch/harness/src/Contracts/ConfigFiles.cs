@@ -1,9 +1,9 @@
-sealed class AllowListFile
+sealed class AllowListFile : VersionedContract
 {
     public List<string>? Routes { get; set; }
 }
 
-sealed class PolicyFile
+sealed class PolicyFile : VersionedContract
 {
     public List<PolicyRule>? Deny { get; set; }
 
@@ -14,7 +14,7 @@ sealed class PolicyFile
     public bool? RawPrompt { get; set; }
 }
 
-sealed class PolicyRule
+sealed class PolicyRule : AnnotatedObject
 {
     public string? Name { get; set; }
 

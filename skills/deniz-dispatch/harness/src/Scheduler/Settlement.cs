@@ -4,7 +4,7 @@ static class Settlement
     {
         var record = run.Record;
         var dir = ledger.TaskDir(run.Id);
-        var session = client.Sessions.GetSessionClient(record.SessionId!);
+        var session = client.Sessions.GetSessionClient(record.Session.Id!);
         SessionInfo info;
         List<SessionMessageAssistant> assistants;
         SessionMessageIdle? idle;
@@ -23,7 +23,7 @@ static class Settlement
             idle = null;
             await foreach (var message in session.EnumerateMessagesAsync(new SessionMessageListRequest { Order = ListOrder.Descending }, cancellationToken: ct))
             {
-                if (message.Id is not null && message.Id == record.PromptId) break;
+                if (message.Id is not null && message.Id == record.BackendState.PromptId) break;
                 if (message is SessionMessageAssistant assistant) assistants.Add(assistant);
                 if (message is SessionMessageIdle marker && idle is null) idle = marker;
             }
@@ -54,9 +54,11 @@ static class Settlement
         {
             Task = run.Id,
             Run = ledger.RunId,
+            Kind = record.Spec.Kind,
+            Backend = "opencode",
             Outcome = outcome,
-            SessionId = record.SessionId,
-            RouteRequested = record.Route,
+            Session = record.Session,
+            RouteRequested = record.Settings.Route?.Value,
             RoutesUsed = assistants.Select(x => RouteRef.From(x.Model).ToString()).Distinct().ToList(),
             Cost = info.Cost,
             Tokens = new TokenTotals
@@ -69,18 +71,19 @@ static class Settlement
             },
             // A failed step can leave an assistant message without usage; then totals are partial.
             TokensComplete = assistants.All(x => x.Tokens is not null),
-            PermissionAsks = run.Asks,
+            Asks = run.Asks,
             AsksEscalated = run.Escalated,
             FormsCancelled = run.Forms,
             Retries = run.Retries,
             TimedOut = run.TimedOut,
             CancelRequested = run.CancelRequested,
             ExecutionError = idle?.Error?.Message ?? assistants.FirstOrDefault(x => x.Error is not null)?.Error?.Message,
-            BaseSha = record.BaseSha,
+            BaseSha = record.Workspace.BaseSha,
+            CommitMode = "harness",
         };
 
         // Git is the ground truth. The harness commits on its own branch; it never pushes or merges.
-        var wt = record.Worktree!;
+        var wt = record.Workspace.Path!;
         if ((await Git.CheckAsync(wt, ct, "status", "--porcelain")).Trim().Length > 0)
         {
             await Git.CheckAsync(wt, ct, "add", "-A");
@@ -89,15 +92,15 @@ static class Settlement
         }
 
         var head = (await Git.CheckAsync(wt, ct, "rev-parse", "HEAD")).Trim();
-        result.Commit = head == record.BaseSha ? null : head;
-        result.DiffStat = (await Git.CheckAsync(wt, ct, "diff", "--shortstat", record.BaseSha!, "HEAD")).Trim();
-        result.FilesChanged = (await Git.CheckAsync(wt, ct, "diff", "--name-only", record.BaseSha!, "HEAD"))
+        result.Commit = head == record.Workspace.BaseSha ? null : head;
+        result.DiffStat = (await Git.CheckAsync(wt, ct, "diff", "--shortstat", record.Workspace.BaseSha!, "HEAD")).Trim();
+        result.FilesChanged = (await Git.CheckAsync(wt, ct, "diff", "--name-only", record.Workspace.BaseSha!, "HEAD"))
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         // Nothing fences a read-only task's edits anymore, so every file it changed is flagged.
         result.OutOfScope = record.Spec.Kind is "review" or "research"
             ? [.. result.FilesChanged]
             : result.FilesChanged.Where(x => !Scope.InScope(x, record.Spec.Scope)).ToList();
-        await File.WriteAllTextAsync(Path.Combine(dir, "diff.patch"), await Git.CheckAsync(wt, ct, "diff", record.BaseSha!, "HEAD"), ct);
+        await File.WriteAllTextAsync(Path.Combine(dir, "diff.patch"), await Git.CheckAsync(wt, ct, "diff", record.Workspace.BaseSha!, "HEAD"), ct);
         ledger.Write(run.Id, "collected", new JsonObject
         {
             ["outcome"] = outcome,
@@ -146,7 +149,7 @@ static class Settlement
             "succeeded" when result.Error is null => "done",
             _ => "failed",
         };
-        Json.WriteFile(Path.Combine(dir, "result.json"), result, DispatchJsonIndented.Default.TaskResult);
+        Json.WriteFile(Path.Combine(dir, "result.json"), result, LedgerJson.Files.TaskResult);
         ledger.Write(run.Id, "outcome", new JsonObject
         {
             ["outcome"] = outcome,

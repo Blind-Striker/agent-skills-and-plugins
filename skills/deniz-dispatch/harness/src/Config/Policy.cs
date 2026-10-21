@@ -33,7 +33,7 @@ sealed class Policy
         PolicyFile file;
         try
         {
-            file = JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.PolicyFile)
+            file = JsonSerializer.Deserialize(File.ReadAllText(path), InputJson.Read.PolicyFile)
                 ?? throw new HarnessException($"policy {path} is empty");
         }
         catch (JsonException ex)

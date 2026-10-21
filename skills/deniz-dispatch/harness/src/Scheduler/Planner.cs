@@ -11,8 +11,7 @@ static class Planner
         TaskFile file;
         try
         {
-            file = JsonSerializer.Deserialize(File.ReadAllText(tasksPath), DispatchJson.Default.TaskFile)
-                ?? throw new HarnessException("task file is empty");
+            file = Json.ReadTaskFile(File.ReadAllText(tasksPath));
         }
         catch (JsonException ex)
         {
@@ -48,14 +47,6 @@ static class Planner
                 else if (!allow.AllowsRoute(route!)) e.Add($"route {route} is not on the allow-list{EmptyHint(allow)}");
             }
 
-            var fallback = new List<RouteRef>();
-            foreach (var text in spec.Fallback ?? [])
-            {
-                if (!RouteRef.TryParse(text, out var f, out var error)) e.Add($"fallback {text}: {error}");
-                else if (!allow.AllowsRoute(f!)) e.Add($"fallback {f} is not on the allow-list");
-                else fallback.Add(f!);
-            }
-
             var prompt = spec.Prompt;
             if ((spec.Prompt is null) == (spec.PromptFile is null)) e.Add("name exactly one of prompt or promptFile");
             else if (spec.PromptFile is { } promptFile)
@@ -66,7 +57,7 @@ static class Planner
             }
 
             if (prompt is not null && string.IsNullOrWhiteSpace(prompt)) e.Add("prompt is empty");
-            if (spec.MaxMinutes is < 1 or > 720) e.Add("maxMinutes must be between 1 and 720");
+            if (spec.TimeoutMinutes is < 1 or > 720) e.Add("timeoutMinutes must be between 1 and 720");
             if (spec.ReviewOf is null)
             {
                 if (spec.Base is null) e.Add("base is required (a branch, tag or commit of the repo)");
@@ -83,7 +74,7 @@ static class Planner
             foreach (var error in e) plan.Errors.Add($"{spec.Id ?? "<no id>"}: {error}");
             if (e.Count == 0)
             {
-                plan.Tasks.Add(new PlannedTask { Spec = spec, PromptText = prompt!, Route = route, Fallback = fallback });
+                plan.Tasks.Add(new PlannedTask { Spec = spec, PromptText = prompt!, Route = route });
             }
         }
 
@@ -133,12 +124,6 @@ static class Planner
                 if (catalog.IsManualRoute(route)) plan.Errors.Add($"{id}: route {route} equals a manual-class agent's model");
                 else if (catalog.CheckRoute(route) is { } why) plan.Errors.Add($"{id}: route {route}: {why}");
                 else resolved[id] = route;
-            }
-
-            foreach (var fallback in task.Fallback)
-            {
-                if (catalog.IsManualRoute(fallback)) plan.Errors.Add($"{id}: fallback {fallback} equals a manual-class agent's model");
-                else if (catalog.CheckRoute(fallback) is { } why) plan.Warnings.Add($"{id}: fallback {fallback}: {why}");
             }
         }
 
