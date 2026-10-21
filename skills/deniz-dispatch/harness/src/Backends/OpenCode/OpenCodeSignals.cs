@@ -9,6 +9,9 @@ sealed partial class OpenCodeBackend
     readonly ConcurrentDictionary<string, string> ended = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, WorkerSignal.Ask> asks = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, string> completionChecks = new(StringComparer.Ordinal);
+    readonly Dictionary<string, string> toolNames = new(StringComparer.Ordinal);
+    readonly Dictionary<string, WorkerSignal.ToolCall> toolStarts = new(StringComparer.Ordinal);
+    readonly HashSet<string> completedTools = new(StringComparer.Ordinal);
 
     async Task PumpAsync(HarnessServer server, CancellationToken ct)
     {
@@ -40,6 +43,18 @@ sealed partial class OpenCodeBackend
                         case FormCreated form:
                             await FormAsync(form.Data.Form.SessionId, form.Data.Form.Id, form.Data.Form.Title, ct);
                             break;
+                        case SessionToolInputStarted tool:
+                            lock (eventGate) toolNames.TryAdd(ToolKey(tool.Data.SessionId, tool.Data.AssistantMessageId, tool.Data.Id), tool.Data.Name);
+                            break;
+                        case SessionToolCalled tool:
+                            await ToolStartedAsync(tool, ct);
+                            break;
+                        case SessionToolSuccess tool:
+                            await ToolEndedAsync(tool.Data.SessionId, ToolKey(tool.Data.SessionId, tool.Data.AssistantMessageId, tool.Data.Id), tool.Created, "succeeded", ct);
+                            break;
+                        case SessionToolFailed tool:
+                            await ToolEndedAsync(tool.Data.SessionId, ToolKey(tool.Data.SessionId, tool.Data.AssistantMessageId, tool.Data.Id), tool.Created, "failed", ct);
+                            break;
                         case SessionStatusUpdated { Data.Status: SessionStatusRetry retry } status when workers.TryGetValue(status.Data.SessionId, out var worker):
                             var attempt = checked((int)retry.Attempt);
                             var next = DateTimeOffset.FromUnixTimeMilliseconds(checked((long)retry.Next));
@@ -70,6 +85,41 @@ sealed partial class OpenCodeBackend
     }
 
     void Emit(WorkerSignal signal) => signals.Writer.TryWrite(signal);
+
+    static string ToolKey(string session, string message, string id) => $"{session}/{message}/{id}";
+
+    async Task ToolStartedAsync(SessionToolCalled tool, CancellationToken ct)
+    {
+        var key = ToolKey(tool.Data.SessionId, tool.Data.AssistantMessageId, tool.Data.Id);
+        if (await OwnerAsync(tool.Data.SessionId, ct) is not { } owner) return;
+        var resource = new[] { "filePath", "path", "url", "command", "pattern", "query" }
+            .Select(name => tool.Data.Input.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null)
+            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "";
+        Publish(owner, admitted =>
+        {
+            var turn = turns.GetValueOrDefault(admitted.Id)?.LastOrDefault(x =>
+                x.State["promptCreated"] is not { } time || time.GetValue<double>() <= tool.Created) ?? admitted;
+            if (turn.Turn is null || completedTools.Contains(key) || toolStarts.ContainsKey(key)) return;
+            var start = new WorkerSignal.ToolCall(turn.TaskId, turn.Turn, key, toolNames.GetValueOrDefault(key, "unknown"), resource,
+                "start", null, DateTimeOffset.FromUnixTimeMilliseconds(checked((long)tool.Created)));
+            toolStarts[key] = start;
+            Emit(start);
+        });
+    }
+
+    async Task ToolEndedAsync(string session, string key, double created, string outcome, CancellationToken ct)
+    {
+        // Publish also buffers a completion that races prompt admission. The start keeps the
+        // immutable owning turn, so a delayed completion cannot be relabelled on continue.
+        if (await OwnerAsync(session, ct) is not { } owner) return;
+        Publish(owner, _ =>
+        {
+            if (!toolStarts.Remove(key, out var begun) || !completedTools.Add(key)) return;
+            toolNames.Remove(key);
+            Emit(new WorkerSignal.ToolCall(begun.TaskId, begun.Turn, key, begun.Tool, begun.Resource,
+                "end", outcome, DateTimeOffset.FromUnixTimeMilliseconds(checked((long)created))));
+        });
+    }
 
     void RememberTurn(WorkerRef worker)
     {

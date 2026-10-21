@@ -4,6 +4,8 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     readonly ConcurrentQueue<Task> work = new();
     readonly HashSet<WorkerSignal> observed = [];
     readonly Dictionary<string, List<WorkerSignal>> pending = new(StringComparer.Ordinal);
+    readonly Dictionary<(string Task, string Turn, string Id), DateTimeOffset> toolStarts = [];
+    readonly HashSet<(string Task, string Turn, string Id)> completedTools = [];
     List<TaskRun> runs = [];
     int watchdogFailures;
 
@@ -267,10 +269,20 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         }
         if (pending.Remove(run.Id, out var admitted))
             foreach (var queued in admitted) await HandleAsync(queued);
-        if (signal is WorkerSignal.Ended or WorkerSignal.Status && task.Turn != run.Worker?.Turn) return;
+        if (signal is WorkerSignal.Ended or WorkerSignal.Status or WorkerSignal.ToolCall && task.Turn != run.Worker?.Turn) return;
         if (signal is WorkerSignal.Ended or WorkerSignal.Status or WorkerSignal.Retry && !observed.Add(signal)) return;
         switch (signal)
         {
+            case WorkerSignal.ToolCall tool when !run.IsFinal:
+                var key = (tool.TaskId, tool.Turn, tool.Id);
+                if (completedTools.Contains(key)) break;
+                if (tool.Marker == "start") toolStarts.TryAdd(key, tool.Time);
+                else if (completedTools.Add(key))
+                {
+                    var duration = toolStarts.Remove(key, out var start) ? Math.Max(0, (tool.Time - start).TotalSeconds) : 0;
+                    ledger.Write(run.Id, "tool", new ToolEvent(tool.Tool, tool.Resource, tool.Outcome!, duration).Data());
+                }
+                break;
             case WorkerSignal.Ask ask: await escalation.AnswerAsync(run, ask, ct); break;
             case WorkerSignal.AskClosed closed: escalation.Close(closed); break;
             case WorkerSignal.Form form: await escalation.CancelFormAsync(run, form, ct); break;

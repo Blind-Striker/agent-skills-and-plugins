@@ -61,6 +61,18 @@ abstract record WorkerSignal
     public sealed record Retry(string TaskId, string Turn, int Attempt, string Message, DateTimeOffset? Next, string? Reason, string? Provider)
         : TaskSignal(TaskId, Turn);
 
+    // Call ids are unique within a turn, including calls from child sessions.
+    // Codex item/started and item/completed notifications map to this same signal.
+    public sealed record ToolCall(string TaskId, string Turn, string Id, string Tool, string Resource,
+        string Marker, string? Outcome, DateTimeOffset Time) : TaskSignal(TaskId, Turn)
+    {
+        public string Resource { get; } = ToolResource.Summary(Resource);
+        public string Marker { get; } = BackendValues.OneOf(Marker, nameof(Marker), "start", "end");
+        public string? Outcome { get; } = Marker == "end"
+            ? BackendValues.OneOf(Outcome ?? "", nameof(Outcome), "succeeded", "failed", "interrupted", "cancelled")
+            : Outcome is null ? null : throw new ArgumentException("a tool start has no outcome", nameof(Outcome));
+    }
+
     public sealed record Status(string TaskId, string Turn, string Execution, string? Detail) : TaskSignal(TaskId, Turn)
     {
         public string Execution { get; } = BackendValues.OneOf(Execution, nameof(Execution), "succeeded", "failed", "interrupted");
@@ -75,6 +87,26 @@ abstract record WorkerSignal
     public sealed record Host(string HostKey, string State, string Reason, int Attempt) : WorkerSignal
     {
         public string State { get; } = BackendValues.OneOf(State, nameof(State), "connected", "disconnected");
+    }
+}
+
+static class ToolResource
+{
+    // Use the environment scrub's value and name rules, including for URL credentials and
+    // credential assignments. Redact before shortening so a cut cannot hide the matching suffix.
+    public static string Summary(string resource)
+    {
+        if (WorkerEnvironment.Scrub(new Dictionary<string, string> { ["resource"] = resource }).Removed.Count > 0)
+            return "[REDACTED]";
+        foreach (Match assignment in Regex.Matches(resource, @"(?<name>[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
+            if (WorkerEnvironment.Scrub(new Dictionary<string, string> { [assignment.Groups["name"].Value] = assignment.Groups["value"].Value }).Removed.Count > 0)
+                return "[REDACTED]";
+        if (Cli.RootEnvironment is { } environment)
+            foreach (var value in environment.Passthrough(environment.Removed).Values.Where(x => x.Length > 0).OrderByDescending(x => x.Length))
+                resource = resource.Replace(value, "[REDACTED]", StringComparison.Ordinal);
+        var lineEnd = resource.IndexOfAny(['\r', '\n']);
+        if (lineEnd >= 0) resource = resource[..lineEnd];
+        return resource[..Math.Min(resource.Length, 200)];
     }
 }
 

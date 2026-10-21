@@ -6,6 +6,7 @@
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"environment","data":{"variables":"$environment-count","removed":[]}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"prompt","data":{"turn":"$prompt","chars":"$prompt-chars","sha256":"$prompt-sha256","promptId":"$prompt"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"permission","data":{"id":"$permission","session":null,"action":"read","resources":["README.md"],"answer":"once","by":"harness","status":204}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"tool","data":{"tool":"read","resource":"README.md","outcome":"succeeded","duration":0.001}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"status","data":{"execution":"succeeded"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"collected","data":{"outcome":"succeeded","commit":null,"diffstat":"","files":0,"outOfScope":[],"routesUsed":["fixture/model#default"]}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"verified","data":{"commands":0,"failed":0}}
