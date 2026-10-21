@@ -24,7 +24,7 @@ public sealed class WildcardTests
     [Arguments("abc", "a*d", false)]
     public async Task Patterns_match_the_whole_input(string input, string pattern, bool expected)
     {
-        await Assert.That(Wildcard.Match(input, pattern)).IsEqualTo(expected);
+        await Assert.That(Wildcard.Match(input, pattern, OperatingSystem.IsWindows())).IsEqualTo(expected);
     }
 
     [Test]
@@ -36,7 +36,7 @@ public sealed class WildcardTests
     [Arguments("git pushes", false)]
     public async Task A_trailing_space_star_also_matches_no_suffix_Today(string input, bool expected)
     {
-        await Assert.That(Wildcard.Match(input, "git push *")).IsEqualTo(expected);
+        await Assert.That(Wildcard.Match(input, "git push *", OperatingSystem.IsWindows())).IsEqualTo(expected);
     }
 
     [Test]
@@ -47,7 +47,7 @@ public sealed class WildcardTests
     [Arguments("git ", "git **", true)]
     public async Task Only_the_final_space_single_star_is_optional_Today(string input, string pattern, bool expected)
     {
-        await Assert.That(Wildcard.Match(input, pattern)).IsEqualTo(expected);
+        await Assert.That(Wildcard.Match(input, pattern, OperatingSystem.IsWindows())).IsEqualTo(expected);
     }
 
     [Test]
@@ -56,7 +56,7 @@ public sealed class WildcardTests
     [Arguments(@"src\nested/file.cs", @"src/nested\file.cs")]
     public async Task Backslashes_in_both_input_and_pattern_are_normalized(string input, string pattern)
     {
-        await Assert.That(Wildcard.Match(input, pattern)).IsTrue();
+        await Assert.That(Wildcard.Match(input, pattern, OperatingSystem.IsWindows())).IsTrue();
     }
 
     [Test]
@@ -73,8 +73,8 @@ public sealed class WildcardTests
     [Arguments("]")]
     public async Task Regex_metacharacters_are_literal(string literal)
     {
-        await Assert.That(Wildcard.Match($"a{literal}b", $"a{literal}b")).IsTrue();
-        await Assert.That(Wildcard.Match("axb", $"a{literal}b")).IsFalse();
+        await Assert.That(Wildcard.Match($"a{literal}b", $"a{literal}b", OperatingSystem.IsWindows())).IsTrue();
+        await Assert.That(Wildcard.Match("axb", $"a{literal}b", OperatingSystem.IsWindows())).IsFalse();
     }
 
     [Test]
@@ -82,6 +82,6 @@ public sealed class WildcardTests
     [Arguments("GIT PUSH origin", "git push *")]
     public async Task Case_is_ignored_only_on_Windows_Today(string input, string pattern)
     {
-        await Assert.That(Wildcard.Match(input, pattern)).IsEqualTo(OperatingSystem.IsWindows());
+        await Assert.That(Wildcard.Match(input, pattern, OperatingSystem.IsWindows())).IsEqualTo(OperatingSystem.IsWindows());
     }
 }

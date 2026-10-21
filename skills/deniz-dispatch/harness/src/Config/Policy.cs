@@ -38,7 +38,7 @@ sealed class Policy
     // The escalation entry that names this ask, or null, which means "approve once".
     public PolicyRule? EscalationFor(string action, IReadOnlyList<string> resources) =>
         Escalate.FirstOrDefault(rule =>
-            Wildcard.Match(action, rule.Action!)
-            && resources.Any(resource => rule.Resources!.Any(pattern => Wildcard.Match(resource, pattern))));
+            Wildcard.Match(action, rule.Action!, OperatingSystem.IsWindows())
+            && resources.Any(resource => rule.Resources!.Any(pattern => Wildcard.Match(resource, pattern, OperatingSystem.IsWindows()))));
 
 }
