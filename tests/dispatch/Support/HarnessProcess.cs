@@ -17,6 +17,8 @@ internal sealed class HarnessProcess(TempTree tree) : IDisposable
         return child.RunAsync("dotnet", ["dispatch.cs", "--", .. arguments], TestPaths.Harness, childEnvironment, cancellationToken);
     }
 
+    public void Kill() => child.Kill();
+
     public void Dispose() => child.Dispose();
 }
 
@@ -102,6 +104,11 @@ internal sealed class CapturedProcess : IDisposable
             // A normal exit raced the kill; it has already achieved the cleanup postcondition.
             return;
         }
+    }
+
+    public void Kill()
+    {
+        if (process is { } child) KillTree(child);
     }
 
     public void Dispose()

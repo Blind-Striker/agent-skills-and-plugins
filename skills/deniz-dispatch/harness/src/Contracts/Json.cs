@@ -103,23 +103,40 @@ static class Json
     public static string Timestamp(TimeProvider? time = null) =>
         (time ?? TimeProvider.System).GetUtcNow().UtcDateTime.ToString("o", CultureInfo.InvariantCulture);
 
-    public static void WriteFile<T>(string path, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> info)
+    public static void WriteFile<T>(string path, T value, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> info, Action<string>? beforeMove = null)
+        => WriteBytes(path, Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, info) + "\n"), beforeMove);
+
+    public static void WriteBytes(string path, ReadOnlySpan<byte> bytes, Action<string>? beforeMove = null)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var temp = $"{path}.tmp-{Environment.ProcessId}-{Guid.NewGuid():N}";
+        var created = false;
         try
         {
-            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(value, info) + "\n");
-            using (var stream = new FileStream(temporary, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+            using (var stream = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.Read))
             {
+                created = true;
                 stream.Write(bytes);
                 stream.Flush(flushToDisk: true);
             }
-            File.Move(temporary, path, overwrite: true);
+            beforeMove?.Invoke(temp);
+            var timer = Stopwatch.StartNew();
+            while (true)
+            {
+                try
+                {
+                    File.Move(temp, path, overwrite: true);
+                    break;
+                }
+                catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && timer.Elapsed < TimeSpan.FromSeconds(2))
+                {
+                    Thread.Sleep(25);
+                }
+            }
         }
         finally
         {
-            if (File.Exists(temporary)) File.Delete(temporary);
+            if (created) File.Delete(temp);
         }
     }
 
