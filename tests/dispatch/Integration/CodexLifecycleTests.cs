@@ -10,6 +10,74 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexLifecycleTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Unreadable_descendant_does_not_fail_polls_or_normal_settlement(bool unobservable, CancellationToken cancellationToken)
+    {
+        using var core = new CoreLab();
+        using var codex = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("inspect", cancellationToken);
+        run.Record.Spec.Route = "model-y#high";
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Settings.Route = new() { Value = "codex:model-y#high" };
+        run.Record.Settings.Access = new() { Value = "read-only" };
+        codex.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Replace("workspaceWrite", "readOnly").Replace(
+            "{\"expect\":\"turn/start\"", "{\"spawnChild\":true}\n{\"expect\":\"turn/start\"") + """
+            {"request":"item/commandExecution/requestApproval","params":{"threadId":"$threadId","turnId":"$turnId","itemId":"held","command":"inspect"},"result":{"decision":"decline"}}
+            {"expect":"turn/steer","reply":{}}
+
+            """ + CodexLab.Final);
+        await using var backend = codex.Backend();
+        await new TaskStarter(backend, core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, core.Git).StartAsync(run, cancellationToken);
+        var process = backend.WorkerProcesses.Single().Process;
+        var child = Directory.GetFiles(codex.Records, "start.json", SearchOption.AllDirectories)
+            .Select(path => JsonNode.Parse(File.ReadAllText(path))!["pid"]!.GetValue<int>()).Single(pid => pid != process.Id);
+        var observed = ObservedProcess.Capture(child);
+        process.OpenProcess = pid => pid == child ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        if (unobservable) process.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5);
+        try
+        {
+            for (var poll = 0; poll < 3; poll++) await backend.PollAsync([run.SavedWorker()], cancellationToken);
+            await Assert.That(run.State).IsEqualTo(TaskState.Running);
+            await Assert.That(run.Worker!.State["descendants"]!.AsArray().Select(node => node!["pid"]!.GetValue<int>())).Contains(child);
+            var identity = run.Worker.State["descendants"]!.AsArray().Single(node => node!["pid"]!.GetValue<int>() == child)!;
+            var unknown = unobservable || !OperatingSystem.IsWindows();
+            if (unknown)
+            {
+                await Assert.That(identity["startTime"]).IsNull();
+                var stop = await CodexProcess.StopRecordedAsync(new JsonObject { ["descendants"] = new JsonArray(identity.DeepClone()) },
+                    cancellationToken, process.OpenProcess, process.QueryLimitedStartTime);
+                await Assert.That(stop.Stopped).IsFalse();
+                await Assert.That(stop.Detail).Contains($"pid={child}");
+                await Assert.That(stop.Detail).Contains("cannot safely terminate");
+                await Assert.That(observed.IsAlive()).IsTrue();
+            }
+            else await Assert.That(DateTime.Parse(identity["startTime"]!.GetValue<string>(), System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind).Ticks).IsEqualTo(observed.StartTime);
+            var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["codex"] = backend }, core.Ledger,
+                core.Tree.Repository, AllowList.From(null), core.Policy, 1, cancellationToken, core.Git);
+            await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(0);
+            await Assert.That(core.Ledger.LoadResult(run.Id)!.State).IsEqualTo("done");
+            await Assert.That(core.Ledger.Read().Where(item => item.Type == "aborted")).IsEmpty();
+            var errors = core.Ledger.Read().Where(item => item.Type == "error").ToArray();
+            await Assert.That(errors.Length).IsEqualTo(unknown ? 1 : 0);
+            if (unknown)
+            {
+                await Assert.That(errors.Single().Task).IsEqualTo(run.Id);
+                await Assert.That(errors.Single().Data!["while"]!.GetValue<string>()).IsEqualTo("descendant-unobservable");
+                await Assert.That(errors.Single().Data!["message"]!.GetValue<string>()).Contains($"pid={child}");
+            }
+            await Assert.That(observed.IsAlive()).IsFalse();
+        }
+        finally
+        {
+            process.OpenProcess = Process.GetProcessById;
+            await observed.CleanupAsync();
+        }
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Task_start_forwards_the_structured_schema_to_the_native_backend(CancellationToken cancellationToken)
     {

@@ -4,6 +4,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     readonly IReadOnlyDictionary<string, string> environment = environment ?? WorkerEnvironment.Snapshot();
     readonly Channel<WorkerSignal> signals = Channel.CreateUnbounded<WorkerSignal>();
     readonly ConcurrentDictionary<string, Connection> workers = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<Connection, byte> connections = new();
     readonly ConcurrentDictionary<string, InterruptResult> recovered = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, byte> released = new(StringComparer.Ordinal);
     Connection? probe;
@@ -14,6 +15,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public string Name => "codex";
     public BackendCapabilities Capabilities { get; } = new("sandbox", "approval-gate", "native", false);
     public ChannelReader<WorkerSignal> Signals => signals.Reader;
+    internal IEnumerable<(WorkerRef Worker, CodexProcess Process)> WorkerProcesses => connections.Keys
+        .Where(connection => connection.Worker is not null).Select(connection => (connection.Worker!, connection.Process));
 
     public static RouteRef ParseRoute(string text)
     {
@@ -37,7 +40,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             models = await InspectAsync(connection, ct);
             return probe = connection;
         }
-        catch { await connection.DisposeAsync(); throw; }
+        catch { await DisposeConnectionAsync(connection); throw; }
     }
 
     static async Task<CodexModel[]> InspectAsync(Connection connection, CancellationToken ct)
@@ -66,17 +69,21 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     async Task<(string Actual, string? Reason)> ProbeCleanAsync(string directory, CancellationToken ct)
     {
         if (cleanProfile is { } cached) return cached;
-        using var home = CodexHome.CreateProbe(context, UserHome, directory, windowsSandbox: CodexHome.ReadWindowsSandbox(UserHome));
+        var home = CodexHome.CreateProbe(context, UserHome, directory, windowsSandbox: CodexHome.ReadWindowsSandbox(UserHome));
         if (!home.Temporary) return (cleanProfile = (home.Profile, home.Reason)).Value;
         try
         {
             var variables = environment.ToDictionary(x => x.Key, x => x.Value);
             variables["CODEX_HOME"] = home.Home;
-            await using var connection = await ConnectAsync(directory, variables, home, ct);
-            await InspectAsync(connection, ct);
-            var reason = !home.MatchesReportedHome(connection.ReportedHome) ? "temporary Codex home marker missing from reported home"
-                : OperatingSystem.IsWindows() && connection.Readiness != "ready" ? $"temporary Windows sandbox is {connection.Readiness}" : null;
-            return (cleanProfile = reason is null ? ("clean", null) : ("clean-partial", reason)).Value;
+            var connection = await ConnectAsync(directory, variables, home, ct);
+            try
+            {
+                await InspectAsync(connection, ct);
+                var reason = !home.MatchesReportedHome(connection.ReportedHome) ? "temporary Codex home marker missing from reported home"
+                    : OperatingSystem.IsWindows() && connection.Readiness != "ready" ? $"temporary Windows sandbox is {connection.Readiness}" : null;
+                return (cleanProfile = reason is null ? ("clean", null) : ("clean-partial", reason)).Value;
+            }
+            finally { await DisposeConnectionAsync(connection); }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         { return (cleanProfile = ("clean-partial", $"temporary Codex home probe failed: {ex.Message}")).Value; }
@@ -111,12 +118,23 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
 
     async Task<Connection> ConnectAsync(string directory, IReadOnlyDictionary<string, string> variables, CodexHome? home, CancellationToken ct)
     {
-        var process = CodexProcess.Start(context, directory, variables);
+        CodexProcess process;
+        try { process = CodexProcess.Start(context, directory, variables); }
+        catch { home?.Dispose(); throw; }
         var connection = new Connection(process, home);
+        process.DescendantUnobservable = (pid, message) => signals.Writer.TryWrite(new WorkerSignal.Fault(connection.Launch?.TaskId,
+            "descendant-unobservable", $"pid={pid}; {message}"));
+        connections[connection] = 0;
         connection.Rpc = new(process.Stdin, process.Stdout,
             (request, token) => RequestAsync(connection, request, token),
             protocolError: message => signals.Writer.TryWrite(new WorkerSignal.Fault(connection.Launch?.TaskId, "protocol", message)),
-            exitDetail: () => $"exit={process.ExitCode}; stderr: {process.StderrTail}");
+            exitDetail: () => $"exit={process.ExitCode}; stderr: {process.StderrTail}",
+            notificationReceived: notification =>
+            {
+                if (notification.Method != "item/started") return;
+                var started = notification.Params.Deserialize(CodexJson.Wire.CodexItemStartedNotification)!;
+                connection.Items[(started.ThreadId, started.TurnId, started.Item.Id)] = started.Item;
+            });
         try
         {
             var initialized = (await connection.Rpc.RequestAsync("initialize", new CodexInitializeParams(new("dispatch", Constants.HarnessVersion),
@@ -126,24 +144,28 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             await connection.Rpc.NotifyAsync("initialized", ct);
             return connection;
         }
-        catch { await connection.DisposeAsync(); throw; }
+        catch { await DisposeConnectionAsync(connection); throw; }
     }
 
     public async Task<CreateResult> CreateAsync(WorkerLaunch launch, CancellationToken ct)
     {
+        var sandbox = launch.Modes.Access switch
+        {
+            "read-only" => "read-only", "workspace" => "workspace-write", "full" => "danger-full-access",
+            _ => throw new HarnessException($"unknown Codex access: {launch.Modes.Access}"),
+        };
         var userHome = UserHome;
         var home = CodexHome.Create(context, launch, userHome, CodexHome.ReadWindowsSandbox(userHome));
         var variables = launch.Environment.ToDictionary(x => x.Key, x => x.Value);
         variables["CODEX_HOME"] = home.Home;
         Connection connection;
-        try { connection = await ConnectAsync(launch.Directory, variables, home, ct); }
-        catch { home.Dispose(); throw; }
+        connection = await ConnectAsync(launch.Directory, variables, home, ct);
         try
         {
             if (home.Temporary && !home.MatchesReportedHome(connection.ReportedHome))
             {
                 var fallback = home.Fallback(userHome, "temporary Codex home marker missing from reported home");
-                await connection.DisposeAsync();
+                await DisposeConnectionAsync(connection);
                 home = fallback;
                 variables["CODEX_HOME"] = home.Home;
                 connection = await ConnectAsync(launch.Directory, variables, home, ct);
@@ -164,7 +186,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             connection.Effort = launch.Route.Variant ?? model?.DefaultReasoningEffort
                 ?? throw new HarnessException($"Codex model {launch.Route.Model} has no catalog default effort");
             var thread = (await connection.Rpc.RequestAsync("thread/start", new CodexThreadStartParams(launch.Route.Model, launch.Directory,
-                launch.Modes.Access switch { "read-only" => "read-only", "workspace" => "workspace-write", _ => "danger-full-access" }, home.RuntimeConfig),
+                sandbox, home.RuntimeConfig),
                 CodexJson.Wire.CodexThreadStartParams, cancellationToken: ct)).Deserialize(CodexJson.Wire.CodexThreadStartResponse)!;
             if (thread.Sandbox["type"]?.GetValue<string>() != SandboxPolicy(launch)["type"]!.GetValue<string>())
                 throw new HarnessException($"Codex sandbox mismatch: requested {SandboxPolicy(launch)["type"]}, applied {thread.Sandbox["type"]}");
@@ -175,14 +197,15 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 launch.Modes.Access == "full" ? "none" : "sandbox", "approval-gate"),
                 new($"codex:{thread.Model}#{connection.Effort}", "", thread.Model, "", []));
         }
-        catch { await connection.DisposeAsync(); throw; }
+        catch { await DisposeConnectionAsync(connection); throw; }
     }
 
     static JsonObject SandboxPolicy(WorkerLaunch launch) => launch.Modes.Access switch
     {
         "read-only" => new() { ["type"] = "readOnly", ["networkAccess"] = launch.Modes.Network == "on" },
         "workspace" => new() { ["type"] = "workspaceWrite", ["writableRoots"] = Json.Array([launch.Directory]), ["networkAccess"] = launch.Modes.Network == "on" },
-        _ => new() { ["type"] = "dangerFullAccess" },
+        "full" => new() { ["type"] = "dangerFullAccess" },
+        _ => throw new HarnessException($"unknown Codex access: {launch.Modes.Access}"),
     };
 
     static JsonObject State(Connection connection) => new()
@@ -193,7 +216,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         ["profile"] = connection.Home?.Profile, ["profileReason"] = connection.Home?.Reason,
         ["descendants"] = new JsonArray(connection.Process.Descendants.Select(identity => (JsonNode?)new JsonObject
         {
-            ["pid"] = identity.Pid, ["startTime"] = identity.StartTime.ToString("O", CultureInfo.InvariantCulture),
+            ["pid"] = identity.Pid, ["startTime"] = identity.StartTime?.ToString("O", CultureInfo.InvariantCulture),
         }).ToArray()),
     };
 
@@ -224,6 +247,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                     var thread = data.TryGetProperty("threadId", out var threadId) ? threadId.GetString() : null;
                     var taskThread = thread == worker.Id;
                     var taskTurn = taskThread && data.TryGetProperty("turnId", out var turnId) && turnId.GetString() == worker.Turn;
+                    if (taskThread && (data.TryGetProperty("turnId", out var eventTurn) && eventTurn.GetString() != worker.Turn
+                        || data.TryGetProperty("turn", out var nestedTurn) && nestedTurn.GetProperty("id").GetString() != worker.Turn))
+                        continue;
                     switch (notification.Method)
                     {
                         case "item/started":
@@ -231,7 +257,6 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                             var item = notification.Method == "item/started"
                                 ? data.Deserialize(CodexJson.Wire.CodexItemStartedNotification)!.Item
                                 : data.Deserialize(CodexJson.Wire.CodexItemCompletedNotification)!.Item;
-                            connection.Items[(thread!, item.Id)] = item;
                             if (notification.Method == "item/completed" && taskTurn && item.Type == "agentMessage")
                             {
                                 connection.LastText = item.Text;
@@ -333,6 +358,13 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         var worker = await connection.Admitted.Task.WaitAsync(ct);
         var data = request.Params;
         var thread = data.GetProperty("threadId").GetString()!;
+        if (!form && thread == worker.Id && data.GetProperty("turnId").GetString() != worker.Turn)
+            return request.Method switch
+            {
+                "item/commandExecution/requestApproval" => CodexReply.Success(new CodexCommandExecutionRequestApprovalResponse(CodexApprovalDecision.Decline), CodexJson.Wire.CodexCommandExecutionRequestApprovalResponse),
+                "item/fileChange/requestApproval" => CodexReply.Success(new CodexFileChangeRequestApprovalResponse(CodexApprovalDecision.Decline), CodexJson.Wire.CodexFileChangeRequestApprovalResponse),
+                _ => CodexReply.Success(new CodexPermissionsRequestApprovalResponse(new()), CodexJson.Wire.CodexPermissionsRequestApprovalResponse),
+            };
         var key = request.Id.GetRawText();
         var blocker = new BlockerRef(Name, worker.Id, thread == worker.Id ? null : thread, key);
         var held = new HeldRequest(request, blocker);
@@ -349,7 +381,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                     request.Method == "item/tool/requestUserInput" ? "User input requested" : data.GetProperty("message").GetString() ?? "MCP input requested"));
             else
             {
-                connection.Items.TryGetValue((thread, data.GetProperty("itemId").GetString()!), out var item);
+                connection.Items.TryGetValue((thread, data.GetProperty("turnId").GetString()!, data.GetProperty("itemId").GetString()!), out var item);
                 var action = request.Method switch { "item/commandExecution/requestApproval" => "shell", "item/fileChange/requestApproval" => "edit", _ => "permissions" };
                 var resources = action switch
                 {
@@ -365,15 +397,25 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         return await held.Reply.Task.WaitAsync(ct);
     }
 
-    static IEnumerable<string> PermissionResources(JsonElement value)
+    static IEnumerable<string> PermissionResources(JsonElement value, string path = "")
     {
-        if (value.ValueKind == JsonValueKind.String) yield return value.GetString()!;
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            var resource = value.GetString()!;
+            yield return resource;
+            // Keep paths matchable while retaining the access intent for the core's ceiling.
+            if (path == "fileSystem.write") yield return "fileSystem.write:" + resource;
+        }
         else if (value.ValueKind == JsonValueKind.Object)
+        {
+            if (path == "fileSystem.entries" && value.TryGetProperty("access", out var access) && access.GetString() == "write")
+                yield return "fileSystem.write:" + value.GetProperty("path").GetRawText();
             foreach (var property in value.EnumerateObject())
-                foreach (var resource in PermissionResources(property.Value)) yield return resource;
+                foreach (var resource in PermissionResources(property.Value, path.Length == 0 ? property.Name : path + "." + property.Name)) yield return resource;
+        }
         else if (value.ValueKind == JsonValueKind.Array)
             foreach (var element in value.EnumerateArray())
-                foreach (var resource in PermissionResources(element)) yield return resource;
+                foreach (var resource in PermissionResources(element, path)) yield return resource;
     }
 
     void CloseAsk(Connection connection, string key)
@@ -481,7 +523,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (!stopped.Stopped) return new ReattachResult.Unreadable($"Codex stop unconfirmed: {stopped.Detail}");
             if (connection is not null)
             {
-                await connection.DisposeAsync();
+                await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
             if (Regex.IsMatch(worker.TaskId, "^[a-z0-9][a-z0-9-]{0,39}$"))
@@ -495,7 +537,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     }
     public async Task ReleaseAsync(WorkerRef worker, CancellationToken ct)
     {
-        if (workers.TryRemove(worker.Id, out var connection)) await connection.DisposeAsync();
+        if (workers.TryGetValue(worker.Id, out var connection))
+        {
+            await DisposeConnectionAsync(connection);
+            workers.TryRemove(worker.Id, out _);
+        }
         else
         {
             var stopped = await CodexProcess.StopRecordedAsync(worker.State, ct);
@@ -512,9 +558,25 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     }
     public async ValueTask DisposeAsync()
     {
-        foreach (var connection in workers.Values) await connection.DisposeAsync();
-        if (probe is not null) await probe.DisposeAsync();
+        var failures = new List<Exception>();
+        foreach (var connection in connections.Keys)
+        {
+            try
+            {
+                await DisposeConnectionAsync(connection);
+                if (connection.Worker is { } worker) workers.TryRemove(worker.Id, out _);
+                if (ReferenceEquals(probe, connection)) probe = null;
+            }
+            catch (Exception ex) { failures.Add(ex); }
+        }
+        if (failures.Count > 0) throw new AggregateException("Codex cleanup unconfirmed", failures);
         signals.Writer.TryComplete();
+    }
+
+    async ValueTask DisposeConnectionAsync(Connection connection)
+    {
+        await connection.DisposeAsync();
+        connections.TryRemove(connection, out _);
     }
 
     sealed class Connection(CodexProcess process, CodexHome? home) : IAsyncDisposable
@@ -529,7 +591,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public HashSet<string> Resolved { get; } = new(StringComparer.Ordinal);
         public TaskCompletionSource<WorkerRef> Admitted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public ConcurrentDictionary<string, HeldRequest> Pending { get; } = new(StringComparer.Ordinal);
-        public ConcurrentDictionary<(string Thread, string Item), CodexItem> Items { get; } = new();
+        public ConcurrentDictionary<(string Thread, string Turn, string Item), CodexItem> Items { get; } = new();
         public string ReportedHome { get; set; } = "";
         public string? Readiness { get; set; }
         public string? Outcome { get; set; }
@@ -544,13 +606,17 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public string Effort { get; set; } = "";
         public HashSet<string> Routes { get; } = new(StringComparer.Ordinal);
         public Task Pump { get; set; } = Task.CompletedTask;
+        bool disposed;
         public async ValueTask DisposeAsync()
         {
-            await Process.StopAsync();
+            if (disposed) return;
+            var stopped = await Process.StopAsync();
+            if (!stopped.Stopped) throw new HarnessException($"Codex stop unconfirmed: {stopped.Detail}");
             await Rpc.DisposeAsync();
             await Pump;
             Home?.Dispose();
             await Process.DisposeAsync();
+            disposed = true;
         }
     }
 

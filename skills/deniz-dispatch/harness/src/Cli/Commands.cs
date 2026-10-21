@@ -8,7 +8,8 @@ static partial class Commands
         var dir = Path.GetFullPath(a.Get("dir") ?? a.Get("repo") ?? throw new HarnessException("routes needs --dir or --repo"));
         var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
         var allow = layers.Allow;
-        var selected = BackendScope.Selected(a);
+        var selected = BackendScope.Selected(a, layers);
+        Console.WriteLine($"backend {selected}");
         await using var scope = new BackendScope([selected], subscribe: false);
         var backend = scope.Backends[selected];
         var probe = await backend.ProbeAsync(new(dir), ct);

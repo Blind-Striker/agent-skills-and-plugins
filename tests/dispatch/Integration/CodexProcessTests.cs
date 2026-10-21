@@ -11,6 +11,40 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Timeout(180_000)]
+    public async Task Recorded_stop_uses_limited_access_without_killing_a_mismatched_identity(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows limited process handles only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"spawnChild":true}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        var child = ObserveRecordedProcesses(environment).Single(identity => identity.Pid != process.Id);
+        var state = new JsonObject
+        {
+            ["descendants"] = new JsonArray(new JsonObject { ["pid"] = child.Pid, ["startTime"] = child.StartTime.AddMinutes(-1).ToString("O") }),
+        };
+        Process Denied(int pid) => pid == child.Pid ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        try
+        {
+            var mismatch = await CodexProcess.StopRecordedAsync(state, cancellationToken, Denied);
+            await Assert.That(mismatch.Stopped).IsTrue();
+            await Assert.That(IsAlive(child)).IsTrue();
+            state["descendants"]![0]!["startTime"] = child.StartTime.ToString("O");
+            var stopped = await CodexProcess.StopRecordedAsync(state, cancellationToken, Denied);
+            await Assert.That(stopped.Stopped).IsTrue();
+            await Assert.That(IsAlive(child)).IsFalse();
+            await Assert.That((await process.StopAsync()).Stopped).IsTrue();
+        }
+        finally { await CleanupAsync([child]); }
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]

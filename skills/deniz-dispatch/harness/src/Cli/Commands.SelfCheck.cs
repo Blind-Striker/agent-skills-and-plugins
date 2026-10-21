@@ -19,7 +19,8 @@ static partial class Commands
         if (add.ExitCode != 0) return 1;
         try
         {
-            var selected = BackendScope.Selected(a);
+            var selected = BackendScope.Selected(a, layers);
+            Console.WriteLine($"backend {selected}");
             await using var scope = new BackendScope([selected]);
             var backend = scope.Backends[selected];
             var probe = await backend.ProbeAsync(new(worktree, TaskStarter.RulesFor(layers.Policy)), ct);

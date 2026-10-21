@@ -8,6 +8,105 @@ public sealed class CodexBackendTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Unknown_internal_access_is_refused_instead_of_requesting_full_access(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Replace("workspaceWrite", "dangerFullAccess"));
+        await using var backend = lab.Backend();
+        var modes = new Modes("full", "on", "workspace", "on", "worktree");
+        // Bypass the contract guard to exercise the backend's independent fail-closed boundary.
+        typeof(Modes).GetField("<Access>k__BackingField", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(modes, "unknown");
+        var failure = await Assert.ThrowsAsync<HarnessException>(() => backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            modes, lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken));
+        await Assert.That(failure!.Message).Contains("access");
+        if (Directory.Exists(lab.Records))
+            await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("routes")]
+    [Arguments("selfcheck")]
+    [Timeout(180_000)]
+    public async Task Catalog_commands_select_Codex_from_the_committed_repository_config(string command, CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, cancellationToken);
+        var userPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
+        var user = JsonNode.Parse(File.ReadAllText(userPath))!;
+        user["preferences"]!.AsObject().Remove("backend");
+        File.WriteAllText(userPath, user.ToJsonString());
+        var repositoryPath = Path.Combine(Directory.CreateDirectory(Path.Combine(repo.Root, ".dispatch")).FullName, "config.jsonc");
+        File.WriteAllText(repositoryPath, """{"schemaVersion":2,"preferences":{"backend":"codex"}}""");
+        await repo.GitAsync(["add", ".dispatch/config.jsonc"], cancellationToken);
+        await repo.GitAsync(["commit", "-qm", "Configure backend"], cancellationToken);
+        File.WriteAllText(repositoryPath, """{"schemaVersion":2,"preferences":{"backend":"opencode"}}""");
+        using var harness = new HarnessProcess(lab.Tree);
+        var result = await harness.RunAsync([command, "--repo", repo.Root], cancellationToken,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("repository-selected catalog command");
+        await Assert.That(result.Stdout).Contains("backend codex");
+        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.163.0");
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Stale_main_turn_approval_is_declined_without_admitting_an_ask(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + """
+            {"request":"item/commandExecution/requestApproval","params":{"threadId":"$threadId","turnId":"old-turn","itemId":"old-call","command":"old-command"},"result":{"decision":"decline"}}
+
+            """ + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), cancellationToken);
+        WorkerSignal signal;
+        do { signal = await backend.Signals.ReadAsync(cancellationToken); }
+        while (signal is not (WorkerSignal.Ask or WorkerSignal.Ended));
+        await Assert.That(signal).IsTypeOf<WorkerSignal.Ended>();
+        await Assert.That((await backend.CollectAsync(worker, cancellationToken)).FinalText).IsEqualTo("Completed.");
+        await Assert.That(lab.Input().Single(x => x.ContainsKey("result"))["result"]!["decision"]!.GetValue<string>()).IsEqualTo("decline");
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() == "turn/steer")).IsEmpty();
+    }
+
+    [Test]
+    [Arguments("usage")]
+    [Arguments("reroute")]
+    [Arguments("error")]
+    [Timeout(180_000)]
+    public async Task Stale_main_turn_events_do_not_mutate_the_current_report_or_signals(string kind, CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        var stale = kind switch
+        {
+            "usage" => """{"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"old-turn","tokenUsage":{"total":{"inputTokens":900,"outputTokens":900}}}}""",
+            "reroute" => """{"notify":"model/rerouted","params":{"threadId":"$threadId","turnId":"old-turn","toModel":"stale-model","fromModel":"model-y","reason":"capacity"}}""",
+            _ => """{"notify":"error","params":{"threadId":"$threadId","turnId":"old-turn","willRetry":true,"error":{"message":"stale error"}}}""",
+        };
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + """
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"inputTokens":10,"outputTokens":2}}}}
+
+            """ + stale + "\n" + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), cancellationToken);
+        var report = await backend.CollectAsync(worker, cancellationToken);
+        await Assert.That(report.Usage.Input).IsEqualTo(10);
+        await Assert.That(report.Usage.Output).IsEqualTo(2);
+        await Assert.That(report.RoutesUsed).IsEquivalentTo(new[] { "codex:model-y#high" });
+        var signals = new List<WorkerSignal>();
+        while (backend.Signals.TryRead(out var signal)) signals.Add(signal);
+        await Assert.That(signals.OfType<WorkerSignal.Fault>()).IsEmpty();
+        await Assert.That(signals.OfType<WorkerSignal.Retry>()).IsEmpty();
+        await Assert.That(report.FinalText).IsEqualTo("Completed.");
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Preflight_resolves_a_configured_command_shim_with_spaces_on_Windows(CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows command shims only");
@@ -227,15 +326,21 @@ public sealed class CodexBackendTests
         lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Replace("workspaceWrite", sandboxType) + CodexLab.Final);
         await using var backend = lab.Backend();
         var route = new RouteRef("codex", "model-y", null);
-        var modes = new Modes("full", kind == "structured" ? "off" : "on", access, network, "worktree");
+        var spec = new TaskSpec { Id = "edit", Kind = kind, Access = access == "full" ? "full" : null, Network = network,
+            Input = new() { Items = JsonNode.Parse("[{\"id\":\"a\",\"text\":\"İyi günler 世界\"}]")!.AsArray() }, Result = new() { ItemsAt = "/items" } };
+        var resolved = ConfigResolver.Resolve(new TaskFile { Tasks = [spec] }, new ConfigFile
+        {
+            Preferences = new() { Backend = "codex", DefaultRoutes = new() { ["codex"] = "model-y" } },
+        }).Tasks["edit"].Settings;
+        await Assert.That(resolved.Access!.From).IsEqualTo(access == "full" ? "task" : "tool");
+        var modes = new Modes(resolved.Profile!.Value!, resolved.Project!.Value!, resolved.Access.Value!, resolved.Network!.Value!, resolved.Workspace!.Value!);
         var checks = await backend.ValidateAsync([new("edit", kind, route, null, null, modes, lab.Tree.Repository)], cancellationToken);
         await Assert.That(checks.Single().Errors).IsEmpty();
         var schema = JsonNode.Parse("{\"type\":\"object\",\"properties\":{\"items\":{\"type\":\"array\"}},\"required\":[\"items\"],\"additionalProperties\":false}")!.AsObject();
-        var spec = new TaskSpec { Id = "edit", Kind = kind, Input = new() { Items = JsonNode.Parse("[{\"id\":\"a\",\"text\":\"İyi günler 世界\"}]")!.AsArray() }, Result = new() { ItemsAt = "/items" } };
         var promptInputs = new Prompt.Inputs(contracts ? [new(new(), "First contract\r\n"), new(new(), "Second contract")] : [], spec.Input.Items, schema);
         var text = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] }.Render(new(spec, "Perform the task."), lab.Tree.Repository, promptInputs);
         var created = await backend.CreateAsync(new("run", "edit", kind, route, null, null, modes, lab.Tree.Repository, new([], []), lab.Environment,
-            kind == "structured" ? schema : null, "full", null), cancellationToken);
+            kind == "structured" ? schema : null, checks.Single().Profile, checks.Single().ProfileReason), cancellationToken);
         var worker = await backend.PromptAsync(created.Worker, new(text, false), cancellationToken);
         var report = await backend.CollectAsync(worker, cancellationToken);
         await Assert.That(report.Outcome).IsEqualTo("succeeded");

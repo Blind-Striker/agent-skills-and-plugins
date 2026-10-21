@@ -1,6 +1,7 @@
 sealed class BackendScope : IAsyncDisposable
 {
     readonly string? ownedFolder;
+    internal string? OwnedFolder => ownedFolder;
     public IReadOnlyDictionary<string, IWorkerBackend> Backends { get; }
 
     public BackendScope(IEnumerable<string> names, string? controlFolder = null, bool subscribe = true, string? runId = null)
@@ -24,10 +25,26 @@ sealed class BackendScope : IAsyncDisposable
         });
     }
 
-    public static string Selected(Args args) => args.Get("backend") ?? ConfigLayers.User?.Preferences?.Backend ?? "opencode";
+    public static string Selected(Args args, ConfigLayers layers)
+    {
+        if (args.Get("backend") is { } explicitBackend) return explicitBackend;
+        // Catalog commands have no task settings. Merge their preference from the loaded copies,
+        // including the committed repository bytes rather than its possibly edited working copy.
+        foreach (var layer in new[] { "repo", "user" })
+            if (layers.Copies.TryGetValue(layer + ".jsonc", out var bytes)
+                && ConfigLayers.Read(bytes, layer, layer + " config").Preferences?.Backend is { } backend)
+                return backend;
+        return "opencode";
+    }
     public async ValueTask DisposeAsync()
     {
-        try { foreach (var backend in Backends.Values) await backend.DisposeAsync(); }
-        finally { if (ownedFolder is not null && Directory.Exists(ownedFolder)) Directory.Delete(ownedFolder, recursive: true); }
+        var failures = new List<Exception>();
+        foreach (var backend in Backends.Values)
+        {
+            try { await backend.DisposeAsync(); }
+            catch (Exception ex) { failures.Add(ex); }
+        }
+        if (failures.Count > 0) throw new AggregateException("Backend cleanup unconfirmed", failures);
+        if (ownedFolder is not null && Directory.Exists(ownedFolder)) Directory.Delete(ownedFolder, recursive: true);
     }
 }

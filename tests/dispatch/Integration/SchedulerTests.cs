@@ -1,4 +1,5 @@
 using Dispatch.Tests.Support;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Dispatch.Tests.Integration;
 
@@ -6,6 +7,41 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel]
 public sealed class SchedulerTests
 {
+    [Test]
+    [Arguments("codex", "codex app-server")]
+    [Arguments("opencode", "opencode server")]
+    [Timeout(30_000)]
+    public async Task Watchdog_failure_names_the_backend_that_stopped_answering(string name, string server, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = name };
+        run.SaveWorker(new(name, run.Id, "worker", "turn", new()), lab.Ledger);
+        run.State = TaskState.Running;
+        var failing = new FakeBackend(name, lab.Backend.Capabilities)
+        {
+            OnPoll = (_, _) => throw new IOException("poll failed"),
+        };
+        var other = new FakeBackend(name == "codex" ? "opencode" : "codex", lab.Backend.Capabilities)
+        {
+            OnPoll = (_, _) => Task.FromResult(new PollResult([])),
+        };
+        var time = new FakeTimeProvider();
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { [other.Name] = other, [name] = failing },
+            lab.Ledger, lab.Tree.Repository, AllowList.From(null), lab.Policy, 1, ct, lab.Git, time);
+        var running = scheduler.RunAsync([run]);
+        while (!running.IsCompleted)
+        {
+            time.Advance(TimeSpan.FromSeconds(30));
+            await Task.Delay(20, ct);
+        }
+        var failure = await Assert.ThrowsAsync<HarnessException>(() => running);
+        await Assert.That(failure!.Message).Contains($"the {server} stopped answering");
+        await Assert.That(failure.Message).Contains($"resume {lab.Ledger.RunId}");
+        await Assert.That(lab.Ledger.Read().Single(item => item.Type == "aborted").Data!["reason"]!.GetValue<string>()).Contains(server);
+        await Assert.That(lab.Ledger.Read().Count(item => item.Type == "error" && item.Data?["while"]?.GetValue<string>() == "watchdog")).IsEqualTo(3);
+    }
+
     [Test]
     [Timeout(30_000)]
     public async Task Run_ControlPathNeverInWorkerEnvOrPrompt(CancellationToken ct)
