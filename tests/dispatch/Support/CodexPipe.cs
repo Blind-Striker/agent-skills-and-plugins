@@ -34,6 +34,8 @@ internal sealed class CodexPipe : IAsyncDisposable
 
     public Task EndAsync() => output.Writer.CompleteAsync().AsTask();
 
+    public Task FailAsync(Exception error) => output.Writer.CompleteAsync(error).AsTask();
+
     public async ValueTask DisposeAsync()
     {
         await Client.DisposeAsync();
