@@ -7,6 +7,47 @@ namespace Dispatch.Tests.Integration;
 public sealed class RunSetupTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(30_000)]
+    public async Task Run_RetainsLockUntilBackendShutdownCompletes(bool shutdownFails, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var tasks = Path.Combine(lab.Tree.Root, "tasks.jsonc");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"run":"shutdown","defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
+        var backend = new FakeBackend("opencode", new("policy", "policy", "text", true));
+        backend.OnProbe = (_, _) => Task.FromResult(new BackendProbe(true, "fixture", [], []));
+        backend.OnValidate = (plans, _) => Task.FromResult<IReadOnlyList<LiveCheck>>(plans.Select(x => new LiveCheck(x.TaskId, [], [], "fixture", "full", null)).ToList());
+        var stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        backend.OnDispose = async () =>
+        {
+            stopping.TrySetResult();
+            await release.Task.WaitAsync(ct);
+            if (shutdownFails) throw new IOException("shutdown failed");
+        };
+        string? control = null;
+        var running = Commands.RunAsync(Args.Parse(["run", tasks, "--repo", repo.Root]), ct, (info, _) =>
+        {
+            control = Locations.ControlDir(info.Run);
+            throw new IOException("setup interrupted");
+        }, () => backend);
+        bool held;
+        try
+        {
+            await stopping.Task.WaitAsync(ct);
+            using var contender = SupervisorLock.TryAcquireFolder(control!);
+            held = contender is null;
+        }
+        finally { release.TrySetResult(); }
+        await Assert.That(await running).IsEqualTo(1);
+        await Assert.That(held).IsTrue();
+        using var acquired = SupervisorLock.AcquireFolder(control!);
+        await Assert.That(acquired).IsNotNull();
+    }
+
+    [Test]
     [Arguments("claimed")]
     [Arguments("queued")]
     [Timeout(60_000)]

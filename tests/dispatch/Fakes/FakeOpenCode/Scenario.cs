@@ -107,7 +107,8 @@ internal sealed class Scenario
     {
         var safeBody = body?.DeepClone();
         if (safeBody?["variables"] is JsonObject environment)
-            foreach (var name in environment.Select(pair => pair.Key).ToArray()) environment[name] = "<redacted>";
+            foreach (var name in environment.Select(pair => pair.Key).ToArray())
+                if (name is not ("TEMP" or "TMP" or "TMPDIR")) environment[name] = "<redacted>";
         // No headers or host environment values are persisted, especially the SDK lease credential.
         var line = JsonSerializer.Serialize(new
         {

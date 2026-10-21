@@ -4,7 +4,7 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
-[NotInParallel("processes")]
+[NotInParallel]
 public sealed class ControlCommandTests
 {
     const string Run = "recorded";
@@ -32,6 +32,69 @@ public sealed class ControlCommandTests
         Json.WriteFile(Path.Combine(control, "run.ref"), new RunReference { Run = Run, LedgerRoot = Path.GetDirectoryName(ledger)! }, ControlJson.Files.RunReference);
         if (complete) File.WriteAllText(Path.Combine(control, "setup.done"), "");
         return control;
+    }
+
+    [Test]
+    [Arguments("resume")]
+    [Arguments("collect")]
+    [Timeout(45_000)]
+    public async Task Recovery_ReappliesFrozenScrubBeforeBackendAndVerify(string command, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        Seed(tree);
+        var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", Run);
+        var configPath = Path.Combine(ledger, "config.json");
+        var config = JsonNode.Parse(File.ReadAllText(configPath))!;
+        config["restrictions"] = new JsonObject { ["scrub"] = new JsonArray("^FAKE_EXTRA_") };
+        File.WriteAllText(configPath, config.ToJsonString());
+        Json.WriteFile(Path.Combine(ledger, "inspect", "task.json"), new TaskRecord
+        {
+            Spec = new() { Id = "inspect", Kind = "research", Verify = [OperatingSystem.IsWindows()
+                ? "[Environment]::GetEnvironmentVariables().Keys | Sort-Object" : "env | cut -d= -f1 | sort"] },
+            Session = new() { Id = "ses_fixture" },
+            Workspace = new() { Path = repo.Root, BaseSha = await repo.GitAsync(["rev-parse", "HEAD"], ct) },
+        }, LedgerJson.Files.TaskRecord);
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        var namesFile = Path.Combine(tree.Root, "names.json");
+        environment["FAKE_ENV_NAMES"] = namesFile;
+        environment["FAKE_EXTRA_VALUE"] = "synthetic";
+        environment["FAKE_KEEP"] = "kept";
+        using var child = new HarnessProcess(tree);
+        var result = await child.RunAsync(command == "collect" ? [command, Run, "inspect"] : [command, Run], ct, environment);
+        result.RequireSuccess("recovery");
+        var names = JsonNode.Parse(File.ReadAllText(namesFile))!.AsArray().Select(x => x!.GetValue<string>()).ToArray();
+        await Assert.That(names).DoesNotContain("FAKE_EXTRA_VALUE");
+        await Assert.That(names).Contains("FAKE_KEEP");
+        var log = File.ReadAllText(Path.Combine(ledger, "inspect", "verify.log"));
+        await Assert.That(log).DoesNotContain("FAKE_EXTRA_VALUE");
+        await Assert.That(log).Contains("FAKE_KEEP");
+    }
+
+    [Test]
+    [Timeout(45_000)]
+    public async Task Reply_UnconfirmedBackendAnswer_Exits1(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        var control = Seed(lab.Tree);
+        var ledger = new Ledger(Run);
+        var backend = new FakeBackend("opencode", new("policy", "policy", "text", true))
+        { OnAnswer = (_, _) => Task.FromResult(new AnswerResult(false, "answer failed", 500)) };
+        await using var owned = backend;
+        var policy = new Policy { Path = "config.json", Deny = [], Instructions = [], Escalate = [new() { Name = "shell", Action = "shell", Resources = ["*"] }] };
+        var escalation = new Escalation(new Dictionary<string, IWorkerBackend> { [backend.Name] = backend }, ledger, policy);
+        var run = new TaskRun { Record = new() { Spec = new() { Id = "inspect" } }, State = TaskState.Running };
+        await escalation.AnswerAsync(run, new("inspect", "turn", new("opencode", "worker", null, "backend-ask"), "shell", ["command"]), ct);
+        using var held = SupervisorLock.AcquireFolder(control);
+        var replying = Commands.ReplyAsync(Args.Parse(["reply", Run, "inspect-1", "once"]), ct);
+        try
+        {
+            while (!File.Exists(Path.Combine(control, "decisions", "inspect-1.json")))
+            { ct.ThrowIfCancellationRequested(); await Task.Yield(); }
+            await escalation.CheckDecisionsAsync(ct);
+        }
+        finally { await replying; }
+        await Assert.That(await replying).IsEqualTo(1);
     }
 
     [Test]

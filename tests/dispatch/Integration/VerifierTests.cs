@@ -84,7 +84,8 @@ public sealed class VerifierTests
         {
             ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "1", ["MSBUILDDISABLENODEREUSE"] = "0", ["UseSharedCompilation"] = "true",
         });
-        var taskTemp = Path.Combine(tree.DispatchHome, "state", "worktrees", ".dispatch-tmp", "inspect");
+        var ledger = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var taskTemp = Path.Combine(tree.DispatchHome, "state", "worktrees", Path.GetFileName(ledger), ".tmp", "inspect");
         await Assert.That(log.Replace("\r\n", "\n")).Contains($"[stdout]\n{taskTemp}\n{taskTemp}\n{taskTemp}\n0\n1\nfalse\n");
         await Assert.That(result["verify"]![0]!["exitCode"]!.GetValue<int>()).IsEqualTo(0);
         await Assert.That(Directory.Exists(workspace)).IsTrue();

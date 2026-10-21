@@ -9,6 +9,58 @@ public sealed class OpenCodeSeamTests
 {
     [Test]
     [Timeout(30_000)]
+    public async Task Reattached_continue_uses_run_scoped_temp(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "interrupted"));
+        lab.Add("PUT /api/session/worker/environment", status: 204);
+        lab.Prompt("worker", "new-turn", 10);
+        lab.Write();
+        var worker = new WorkerRef("opencode", "inspect", "worker", "old-turn", new() { ["promptCreated"] = 2d });
+        await lab.Backend.ReattachAsync(worker, ct);
+        await lab.Backend.PromptAsync(worker, new("Continue.", true), ct);
+        var request = File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+            .Single(x => x["method"]!.GetValue<string>() == "PUT");
+        var expected = Path.Combine(lab.Tree.WorktreeRoot, "run", ".tmp", "inspect");
+        foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+            await Assert.That(request["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(expected);
+        await Assert.That(Directory.Exists(Path.Combine(lab.Tree.WorktreeRoot, ".dispatch-tmp", "inspect"))).IsFalse();
+    }
+
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    [Timeout(30_000)]
+    public async Task Continue_stale_outcome_without_current_end_marker_does_not_settle(bool missingIdle, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "interrupted"));
+        lab.Add("PUT /api/session/worker/environment", status: 204);
+        lab.Prompt("worker", "new-turn", 10);
+        lab.Add("GET /api/session/active", new JsonObject { ["data"] = new JsonObject() }, repeat: true);
+        lab.Add("GET /api/permission/request", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        var stale = OpenCodeLab.Session("worker", "succeeded", 3);
+        if (missingIdle) stale["data"]!["time"]!.AsObject().Remove("idle");
+        lab.Add("GET /api/session/worker", stale);
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "succeeded", 11), repeat: true);
+        lab.Write();
+        var old = new WorkerRef("opencode", "task", "worker", "old-turn", new() { ["promptCreated"] = 2d });
+        await lab.Backend.ReattachAsync(old, ct);
+        var current = await lab.Backend.PromptAsync(old, new("Continue.", true), ct);
+        await lab.Backend.PollAsync([current], ct);
+        await lab.Backend.PollAsync([current], ct);
+        var premature = new List<WorkerSignal>();
+        while (lab.Backend.Signals.TryRead(out var signal)) premature.Add(signal);
+        await Assert.That(premature.OfType<WorkerSignal.Ended>().Any()).IsFalse();
+        await lab.Backend.PollAsync([current], ct);
+        var ended = (WorkerSignal.Ended)await lab.ReadAsync(x => x is WorkerSignal.Ended, ct);
+        await Assert.That(ended.Turn).IsEqualTo("new-turn");
+        await Assert.That(ended.Outcome).IsEqualTo("succeeded");
+    }
+
+    [Test]
+    [Timeout(30_000)]
     public async Task Completion_poll_drains_already_received_execution_events_before_ended(CancellationToken ct)
     {
         await using var lab = new OpenCodeLab();
@@ -28,7 +80,7 @@ public sealed class OpenCodeSeamTests
         lab.Add("GET /api/permission/request", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() });
         lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() });
         lab.Write();
-        var worker = new WorkerRef("opencode", "task", "worker", "turn", new());
+        var worker = new WorkerRef("opencode", "task", "worker", "turn", new() { ["promptCreated"] = 2d });
         await lab.Backend.ReattachAsync(worker, ct);
         await lab.Backend.InterruptAsync(worker, InterruptKind.Cancel, ct);
         while (!File.Exists(arrived)) { ct.ThrowIfCancellationRequested(); await Task.Yield(); }
@@ -220,7 +272,7 @@ public sealed class OpenCodeSeamTests
         lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
         lab.Write();
         var bad = new WorkerRef("opencode", "bad", "bad", "turn", new());
-        var good = new WorkerRef("opencode", "good", "good", "turn", new());
+        var good = new WorkerRef("opencode", "good", "good", "turn", new() { ["promptCreated"] = 2d });
         await lab.Backend.ReattachAsync(bad, ct);
         await lab.Backend.ReattachAsync(good, ct);
 

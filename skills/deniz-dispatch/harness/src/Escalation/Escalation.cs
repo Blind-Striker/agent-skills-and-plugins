@@ -109,6 +109,8 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
                 BlockerAnswer answer = reject ? new BlockerAnswer.Reject(decision.Message ?? Policy.LeadDeclined) : new BlockerAnswer.Once();
                 var reply = await backends[held.Blocker.Backend].AnswerAsync(held.Blocker, answer, ct);
                 AskQueue.Remove(ledger.RunId, ask.AskId);
+                if (!reply.Confirmed)
+                    throw new HarnessException($"answer to {ask.AskId} was not confirmed: HTTP {reply.Status}");
                 ledger.Write(ask.Task, "permission", new JsonObject
                 {
                     ["id"] = ask.AskId,

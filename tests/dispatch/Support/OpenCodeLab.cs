@@ -6,7 +6,7 @@ internal sealed class OpenCodeLab : IAsyncDisposable
 {
     readonly Dictionary<string, string?> saved = new();
     public TempTree Tree { get; } = new();
-    public OpenCodeBackend Backend { get; } = new();
+    public OpenCodeBackend Backend { get; } = new(runId: "run");
     public List<JsonObject> Steps { get; } = File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl"))
         .Take(4).Select(x => JsonNode.Parse(x)!.AsObject()).ToList();
     public string Scenario => Path.Combine(Tree.Root, "scenario.jsonl");

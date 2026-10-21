@@ -228,6 +228,26 @@ public sealed class WorkspaceTests
     [Arguments("plan")]
     [Arguments("run")]
     [Timeout(60_000)]
+    public async Task InPlace_LedgerRootInsideRepo_RefusedExit2(string command, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","workspace":"in-place","route":"fixture/model","prompt":"Inspect."}]}""", ct);
+        var ledger = Path.Combine(repo.Root, "runs");
+        using var harness = new HarnessProcess(tree);
+        var result = await harness.RunAsync([command, tasks, "--repo", repo.Root, "--ledger", ledger], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await Assert.That(result.Stdout + result.Stderr).Contains("ledger root inside the repository");
+        await Assert.That(Directory.Exists(ledger)).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(tree.Root, "requests.jsonl"))).IsFalse();
+    }
+
+    [Test]
+    [Arguments("plan")]
+    [Arguments("run")]
+    [Timeout(60_000)]
     public async Task InPlace_DirtyFolder_CommitHarness_RefusedExit2(string command, CancellationToken ct)
     {
         using var tree = new TempTree();

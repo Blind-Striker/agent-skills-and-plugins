@@ -178,6 +178,27 @@ public sealed class ExitCodeTests
     }
 
     [Test]
+    [Timeout(30_000)]
+    public async Task Collect_CorruptMiddleLedgerLine_Exits1(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var ledger = Seed(tree, "done");
+        Json.WriteFile(Path.Combine(ledger, "inspect", "task.json"), new TaskRecord
+        {
+            Spec = new() { Id = "inspect", Kind = "research" },
+            Session = new() { Id = "ses_fixture" }, Workspace = new() { Path = tree.Repository },
+        }, LedgerJson.Files.TaskRecord);
+        File.AppendAllText(Path.Combine(ledger, "events.jsonl"), "not-json\n{\"run\":\"recorded\",\"type\":\"tail\"}\n");
+        using var child = new HarnessProcess(tree);
+        var result = await child.RunAsync(["collect", "recorded", "inspect"], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await Assert.That(result.Stderr).Contains("events.jsonl");
+        await Assert.That(result.Stderr).Contains("line 3");
+        await Assert.That(File.Exists(Path.Combine(tree.Root, "requests.jsonl"))).IsFalse();
+    }
+
+    [Test]
     [Arguments("status", 2)]
     [Arguments("resume", 1)]
     [Timeout(30_000)]

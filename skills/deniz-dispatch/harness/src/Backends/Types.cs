@@ -98,8 +98,20 @@ static class ToolResource
     {
         if (WorkerEnvironment.Scrub(new Dictionary<string, string> { ["resource"] = resource }).Removed.Count > 0)
             return "[REDACTED]";
+        // Inspect URL queries independently: an assignment scan can consume the whole URL
+        // as a value after its scheme and miss every credential parameter inside it.
+        foreach (Match url in Regex.Matches(resource, "[A-Za-z][A-Za-z0-9+.-]*://[^\\s\"'<>]+"))
+            if (Uri.TryCreate(url.Value, UriKind.Absolute, out var uri))
+                foreach (var parameter in uri.Query.TrimStart('?').Split('&', ';'))
+                {
+                    var pair = parameter.Split('=', 2);
+                    if (pair.Length == 2 && Credential(Uri.UnescapeDataString(pair[0]), Uri.UnescapeDataString(pair[1])))
+                        return "[REDACTED]";
+                }
+        if (Regex.IsMatch(resource, @"\b(?:proxy-)?authorization\s*[:=]|\bbearer\s+\S+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+            return "[REDACTED]";
         foreach (Match assignment in Regex.Matches(resource, @"(?<name>[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
-            if (WorkerEnvironment.Scrub(new Dictionary<string, string> { [assignment.Groups["name"].Value] = assignment.Groups["value"].Value }).Removed.Count > 0)
+            if (Credential(assignment.Groups["name"].Value, assignment.Groups["value"].Value))
                 return "[REDACTED]";
         if (Cli.RootEnvironment is { } environment)
             foreach (var value in environment.Passthrough(environment.Removed).Values.Where(x => x.Length > 0).OrderByDescending(x => x.Length))
@@ -108,6 +120,9 @@ static class ToolResource
         if (lineEnd >= 0) resource = resource[..lineEnd];
         return resource[..Math.Min(resource.Length, 200)];
     }
+
+    static bool Credential(string name, string value) => WorkerEnvironment.Scrub(
+        new Dictionary<string, string> { [name.Replace('-', '_')] = value }).Removed.Count > 0;
 }
 
 abstract record BlockerAnswer

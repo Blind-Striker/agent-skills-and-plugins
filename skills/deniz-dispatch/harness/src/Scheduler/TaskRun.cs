@@ -89,10 +89,11 @@ sealed class TaskRun
             run.StopKind = stop.Type == "timeout" ? InterruptKind.Timeout : InterruptKind.Cancel;
             run.StopStarted = DateTimeOffset.Parse(stop.Ts, CultureInfo.InvariantCulture);
             run.CancelSent = run.StopKind == InterruptKind.Cancel;
-            if (lines.FirstOrDefault(x => x.Type == "hard-stop") is { } hard)
+            if (lines.LastOrDefault(x => x.Type == "hard-stop") is { } hard)
             {
                 run.HardStopSent = true;
                 run.WorkerStopped = hard.Data?["stopped"]?.GetValue<bool>() ?? false;
+                run.Zombie = run.WorkerStopped != true;
             }
         }
         return run;

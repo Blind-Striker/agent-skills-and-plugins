@@ -255,7 +255,7 @@ sealed partial class OpenCodeBackend
         if (active.ContainsKey(worker.Id)) { absent[worker.Id] = 0; return; }
         var info = (await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id).GetAsync(cancellationToken: ct)).Session;
         var created = worker.State["promptCreated"]?.GetValue<double>();
-        var idleAfterPrompt = info.Time.Idle is null || created is null || info.Time.Idle >= created;
+        var idleAfterPrompt = info.Time.Idle is { } idle && created is { } promptCreated && idle >= promptCreated;
         var outcome = info.Outcome is not null && idleAfterPrompt ? info.Outcome.Value.ToString().ToLowerInvariant() : null;
         if (outcome is null && absent.AddOrUpdate(worker.Id, 1, (_, count) => count + 1) >= 4) outcome = "lost";
         if (outcome is null) return;

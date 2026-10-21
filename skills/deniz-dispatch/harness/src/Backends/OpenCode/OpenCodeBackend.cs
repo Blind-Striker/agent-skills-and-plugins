@@ -1,7 +1,7 @@
 using OpenCode.Sdk;
 using OpenCode.Sdk.Models;
 
-sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
+sealed partial class OpenCodeBackend(bool subscribe = true, string? runId = null) : IWorkerBackend
 {
     readonly SemaphoreSlim hostGate = new(1);
     readonly CancellationTokenSource lifetime = new();
@@ -153,7 +153,8 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
         if (prompt.IsContinue)
         {
             lock (eventGate) admissions[worker.Id] = [];
-            var variables = launches.TryGetValue(worker.Id, out var launch) ? launch.Environment : WorkerEnvironment.Environment(worker.TaskId).Variables;
+            var variables = launches.TryGetValue(worker.Id, out var launch) ? launch.Environment
+                : WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id")).Variables;
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
         }

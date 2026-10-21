@@ -46,18 +46,24 @@ static partial class Commands
         Locations.RequireControlFolder(ledger.RunId, setup: true);
 
         var record = ledger.LoadRecord(task);
-        record.Settings = ConfigLayers.Frozen(ledger.Dir).Tasks[task].Settings;
+        var frozen = ConfigLayers.Frozen(ledger.Dir);
+        Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
+        record.Settings = frozen.Tasks[task].Settings;
         ConfigLayers.Apply(record.Spec, record.Settings);
         if (record.Session.Id is null || record.Workspace.Path is null)
         {
             throw new HarnessException($"{task} has no session or worktree to collect");
         }
 
-        await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
-        var run = TaskRun.FromLedger(record, ledger);
-        var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
-        ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
-        return result.State == "done" ? 0 : 1;
+        try
+        {
+            await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
+            var run = TaskRun.FromLedger(record, ledger);
+            var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
+            ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
+            return result.State == "done" ? 0 : 1;
+        }
+        catch (Exception ex) { return Aborted(ledger, ex); }
     }
 
     public static async Task<int> CleanAsync(Args a, CancellationToken ct)
@@ -213,7 +219,13 @@ static partial class Commands
         while (DateTimeOffset.UtcNow < deadline)
         {
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
-            if (ledger.Read().Skip(previousEvents).Any(x => x.Type == "permission" && x.Data?["id"]?.GetValue<string>() == askId
+            var events = ledger.Read().Skip(previousEvents).ToList();
+            if (events.Any(x => x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "decision" && x.Data?["id"]?.GetValue<string>() == askId))
+            {
+                Console.WriteLine($"{askId}: decision {decision} was attempted but not confirmed; the ledger records the error");
+                return 1;
+            }
+            if (events.Any(x => x.Type == "permission" && x.Data?["id"]?.GetValue<string>() == askId
                 && x.Data?["by"]?.GetValue<string>() == "operator" && x.Data?["answer"]?.GetValue<string>() == decision))
             {
                 Console.WriteLine($"{askId}: answered {decision}; the ledger records it");

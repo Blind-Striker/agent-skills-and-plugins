@@ -8,6 +8,26 @@ public sealed class VerifierWorkspaceTests
 {
     [Test]
     [Timeout(30_000)]
+    public async Task Verify_SameTaskInTwoRuns_UsesDistinctRunScopedTemps(CancellationToken ct)
+    {
+        using var lab = new CoreLab("verify-a");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Spec.Verify = [OperatingSystem.IsWindows() ? "$env:TEMP; $env:TMP; $env:TMPDIR" : "printf '%s\\n' \"$TEMP\" \"$TMP\" \"$TMPDIR\""];
+        foreach (var id in new[] { "verify-a", "verify-b" })
+        {
+            var ledger = new Ledger(id);
+            var result = new TaskResult { Outcome = "succeeded" };
+            await Verifier.VerifyAsync(ledger, run, result, ct);
+            var expected = Path.Combine(lab.Tree.WorktreeRoot, id, ".tmp", "inspect");
+            var log = File.ReadAllText(Path.Combine(ledger.TaskDir("inspect"), "verify.log")).Replace("\r\n", "\n");
+            await Assert.That(log).Contains($"[stdout]\n{expected}\n{expected}\n{expected}\n");
+            await Assert.That(result.Verify.Single().ExitCode).IsEqualTo(0);
+        }
+        await Assert.That(Directory.Exists(Path.Combine(lab.Tree.WorktreeRoot, ".dispatch-tmp", "inspect"))).IsFalse();
+    }
+
+    [Test]
+    [Timeout(30_000)]
     public async Task Verify_RunsOnCommittedTreeInWorktree(CancellationToken ct)
     {
         using var lab = new CoreLab();

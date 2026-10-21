@@ -71,7 +71,8 @@ static partial class Commands
         return plan.Report();
     }
 
-    public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null)
+    public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null,
+        Func<IWorkerBackend>? backendFactory = null)
     {
         var tasksPath = a.Require(0, "task file");
         var plan = await Planner.LoadAsync(tasksPath, a.Get("repo"), AllowList.From(null), ct, args: a);
@@ -107,29 +108,30 @@ static partial class Commands
         }
 
         Locations.ValidateControlLocation(plan.Repo);
-        await using IWorkerBackend backend = new OpenCodeBackend();
-        var probe = await backend.ProbeAsync(new(plan.Repo), ct);
-        await Planner.CheckLiveAsync(plan, backend, allow, ct);
-        if (plan.Errors.Count > 0)
-        {
-            return plan.Report();
-        }
-
-        var info = new RunInfo
-        {
-            Run = runId,
-            ControlId = Locations.NewControlId(),
-            Repo = plan.Repo,
-            TasksFile = plan.TasksPath,
-            Created = Json.Timestamp(),
-            Backends = new() { ["opencode"] = new BackendInfo { Version = probe.Version! } },
-            MaxParallel = max,
-        };
-        var control = Path.Combine(Locations.ControlRoot, info.ControlId);
         SupervisorLock? supervisorLock = null;
+        string? control = null;
         var claimed = false;
         try
         {
+            await using IWorkerBackend backend = backendFactory?.Invoke() ?? new OpenCodeBackend(runId: runId);
+            var probe = await backend.ProbeAsync(new(plan.Repo), ct);
+            await Planner.CheckLiveAsync(plan, backend, allow, ct);
+            if (plan.Errors.Count > 0)
+            {
+                return plan.Report();
+            }
+
+            var info = new RunInfo
+            {
+                Run = runId,
+                ControlId = Locations.NewControlId(),
+                Repo = plan.Repo,
+                TasksFile = plan.TasksPath,
+                Created = Json.Timestamp(),
+                Backends = new() { ["opencode"] = new BackendInfo { Version = probe.Version! } },
+                MaxParallel = max,
+            };
+            control = Path.Combine(Locations.ControlRoot, info.ControlId);
             Locations.CreateControlFolder(info.ControlId);
             supervisorLock = SupervisorLock.AcquireFolder(control);
             Json.WriteFile(Path.Combine(control, "run.ref"), new RunReference { Run = runId, LedgerRoot = Locations.LedgerRoot }, ControlJson.Files.RunReference);
@@ -205,7 +207,7 @@ static partial class Commands
         finally
         {
             supervisorLock?.Dispose();
-            if (!claimed && Directory.Exists(control)) Directory.Delete(control, recursive: true);
+            if (!claimed && control is not null && Directory.Exists(control)) Directory.Delete(control, recursive: true);
         }
     }
 
@@ -288,12 +290,13 @@ static partial class Commands
         var info = ledger.LoadRunInfo();
         var proceed = a.Has("continue");
         var frozen = ConfigLayers.Frozen(ledger.Dir);
+        Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
         var allow = proceed ? (await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct)).Allow
             : AllowList.From(frozen.Restrictions?.Routes);
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
         AskQueue.Reset(ledger.RunId);
-        await using IWorkerBackend backend = new OpenCodeBackend();
+        await using IWorkerBackend backend = new OpenCodeBackend(runId: ledger.RunId);
         var probe = await backend.ProbeAsync(new(info.Repo!), ct);
         try
         {

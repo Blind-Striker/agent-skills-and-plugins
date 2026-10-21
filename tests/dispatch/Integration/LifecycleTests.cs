@@ -9,6 +9,36 @@ namespace Dispatch.Tests.Integration;
 public sealed class LifecycleTests
 {
     [Test]
+    [Arguments("timeout")]
+    [Arguments("cancel")]
+    [Timeout(30_000)]
+    public async Task Collect_RestoredZombie_SkipsWorkspaceUntilAffirmativeStop(string stop, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var original = await lab.TaskAsync("inspect", ct);
+        original.SaveWorker(new("opencode", original.Id, "worker", "turn", new()), lab.Ledger);
+        var repo = new LabRepo(lab.Tree);
+        var before = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+        await File.WriteAllTextAsync(Path.Combine(repo.Root, "worker.txt"), "still writing", ct);
+        lab.Ledger.Write(original.Id, stop);
+        lab.Ledger.Write(original.Id, "hard-stop", new() { ["stopped"] = false });
+        var restored = TaskRun.FromLedger(lab.Ledger.LoadRecord(original.Id), lab.Ledger);
+        var result = await Settlement.SettleAsync(lab.Backend, lab.Ledger, restored, null, ct, lab.Git);
+        await Assert.That(result.Failures).Contains("zombie");
+        await Assert.That(result.WorkerStopped).IsFalse();
+        await Assert.That(result.Commit).IsNull();
+        await Assert.That(await repo.GitAsync(["rev-parse", "HEAD"], ct)).IsEqualTo(before);
+        await Assert.That(lab.Ledger.Read().Any(x => x.Type is "collected" or "verified")).IsFalse();
+
+        lab.Ledger.Write(original.Id, "hard-stop", new() { ["stopped"] = true });
+        restored = TaskRun.FromLedger(lab.Ledger.LoadRecord(original.Id), lab.Ledger);
+        result = await Settlement.SettleAsync(lab.Backend, lab.Ledger, restored, null, ct, lab.Git);
+        await Assert.That(result.Failures.Contains("zombie")).IsFalse();
+        await Assert.That(result.WorkerStopped).IsTrue();
+        await Assert.That(result.Commit).IsNotNull();
+    }
+
+    [Test]
     [Timeout(30_000)]
     public async Task Resume_PersistedTimeout_ContinuesStopLadder(CancellationToken ct)
     {
