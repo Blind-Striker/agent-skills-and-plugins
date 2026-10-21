@@ -1,7 +1,9 @@
 static partial class Commands
 {
-    public static async Task<int> SelfCheckAsync(Args a, CancellationToken ct)
+    public static async Task<int> SelfCheckAsync(Args a, CancellationToken ct, Func<string?>? userPathReader = null)
     {
+        var userPath = new UserPathGuard(userPathReader);
+        if (userPath.SelfCheckWarning is { } warning) Console.Error.WriteLine(warning);
         var checks = new List<ProbeCheck>();
         void Check(string name, bool ok, string detail)
         {

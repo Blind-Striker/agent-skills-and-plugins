@@ -75,16 +75,26 @@ public sealed class ControlCommandTests
             return reader.ReadToEnd();
         }
         var running = child.RunAsync(["resume", Run, "--continue"], ct, environment);
+        ObservedProcess? server = null;
         try
         {
             while (!running.IsCompleted)
             {
-                if (File.Exists(requests) && SharedText(requests).Split('\n').Any(x => x.Contains("\"method\":\"PUT\"", StringComparison.Ordinal) && x.EndsWith('}'))) break;
+                if (File.Exists(requests) && SharedText(requests).Split('\n').Any(x => x.Contains("\"method\":\"PUT\"", StringComparison.Ordinal) && x.EndsWith('}')))
+                {
+                    var observedHost = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
+                    server = ObservedProcess.Capture(observedHost["pid"]!.GetValue<int>());
+                    break;
+                }
                 if (SharedText(events).Contains("\"while\":\"resume\"", StringComparison.Ordinal)) break;
                 await Task.Delay(10, ct);
             }
         }
-        finally { child.Kill(); await running; }
+        finally
+        {
+            try { child.Kill(); await running; }
+            finally { if (server is not null) await server.CleanupAsync(); }
+        }
 
         var sent = File.ReadLines(requests).Where(x => x.EndsWith('}')).Select(x => JsonNode.Parse(x)!)
             .Where(x => x["method"]!.GetValue<string>() == "PUT").ToArray();

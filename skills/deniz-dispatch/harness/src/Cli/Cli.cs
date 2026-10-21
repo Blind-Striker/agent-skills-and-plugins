@@ -92,6 +92,13 @@ static class Cli
             Preferences override user, repository, task file, then CLI; restrictions accumulate.
             --ledger <absolute path> overrides the ledger root for every command.
             --contract <absolute path> prepends a contract to every task; repeatable.
+
+            Windows user PATH ({UserPathGuard.ValueName}):
+              selfcheck warns above {UserPathGuard.WarningLength:N0} characters.
+              run refuses above {UserPathGuard.RefusalLength:N0} characters (exit 2).
+              Inspect with: reg query HKCU\Environment /v Path
+              At run end, a changed value prints a warning and records added/removed entries
+              in the ledger. Child .NET commands disable global tools PATH appends.
             """);
         // Nothing started: an unknown or missing command is a refusal.
         return 2;

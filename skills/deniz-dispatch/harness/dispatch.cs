@@ -18,6 +18,7 @@
 #:include src/Ledger/SupervisorLock.cs
 #:include src/Workspace/Scope.cs
 #:include src/Workspace/WorkerEnvironment.cs
+#:include src/Workspace/UserPathGuard.cs
 #:include src/Workspace/Proc.cs
 #:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs

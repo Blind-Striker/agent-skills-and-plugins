@@ -84,8 +84,14 @@ static partial class Commands
     }
 
     public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null,
-        Func<IWorkerBackend>? backendFactory = null)
+        Func<IWorkerBackend>? backendFactory = null, Func<string?>? userPathReader = null)
     {
+        var userPath = new UserPathGuard(userPathReader);
+        if (userPath.RunRefusal is { } refusal)
+        {
+            Console.Error.WriteLine($"dispatch: {refusal}");
+            return 2;
+        }
         var tasksPath = a.Require(0, "task file");
         var plan = await Planner.LoadAsync(tasksPath, a.Get("repo"), AllowList.From(null), ct, args: a);
         if (plan.Errors.Count > 0)
@@ -235,8 +241,15 @@ static partial class Commands
         }
         finally
         {
-            supervisorLock?.Dispose();
-            if (!claimed && control is not null && Directory.Exists(control)) Directory.Delete(control, recursive: true);
+            try
+            {
+                if (claimed) userPath.ReportChanges(ledger);
+            }
+            finally
+            {
+                supervisorLock?.Dispose();
+                if (!claimed && control is not null && Directory.Exists(control)) Directory.Delete(control, recursive: true);
+            }
         }
     }
 
