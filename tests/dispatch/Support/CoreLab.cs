@@ -47,8 +47,8 @@ internal sealed class CoreLab : IDisposable
         return run;
     }
 
-    public Scheduler Scheduler(CancellationToken ct, int max = 1, AllowList? allow = null) =>
-        new(new Dictionary<string, IWorkerBackend> { [Backend.Name] = Backend }, Ledger, Tree.Repository, allow ?? AllowList.From(null), Policy, max, ct, Git);
+    public Scheduler Scheduler(CancellationToken ct, int max = 1, AllowList? allow = null, TimeProvider? time = null) =>
+        new(new Dictionary<string, IWorkerBackend> { [Backend.Name] = Backend }, Ledger, Tree.Repository, allow ?? AllowList.From(null), Policy, max, ct, Git, time);
 
     public void End(TaskRun run, string outcome = "succeeded", string? turn = null) =>
         Backend.Emit(new WorkerSignal.Ended(run.Id, turn ?? run.Worker!.Turn!, outcome, null));

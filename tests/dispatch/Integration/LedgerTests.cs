@@ -9,6 +9,64 @@ public sealed class LedgerTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Append_WhileOtherProcessReads_Succeeds(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows file sharing is required");
+        using var tree = new TempTree();
+        var ledger = new Ledger(tree.Root);
+        var independent = new Ledger(tree.Root);
+        ledger.Write(null, "queued");
+        var environment = tree.ChildEnvironment();
+        environment["LEDGER_TEST_PATH"] = Path.Combine(tree.Root, "events.jsonl");
+        environment["LEDGER_TEST_READY"] = Path.Combine(tree.Root, "reader.ready");
+        environment["LEDGER_TEST_DONE"] = Path.Combine(tree.Root, "reader.done");
+        using var child = new CapturedProcess();
+        var reading = child.RunAsync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", """
+            $ErrorActionPreference = 'Stop'
+            [System.IO.File]::WriteAllText($env:LEDGER_TEST_READY, '')
+            $count = 0
+            do {
+                $stream = [System.IO.FileStream]::new($env:LEDGER_TEST_PATH, 'Open', 'Read', 'ReadWrite')
+                try { $stream.CopyTo([System.IO.Stream]::Null); $count++ } finally { $stream.Dispose() }
+            } while (-not [System.IO.File]::Exists($env:LEDGER_TEST_DONE))
+            Write-Output $count
+            """], tree.Root, environment, cancellationToken);
+        while (!File.Exists(environment["LEDGER_TEST_READY"]))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (reading.IsCompleted) (await reading).RequireSuccess("ledger reader startup");
+            await Task.Yield();
+        }
+        try
+        {
+            for (var i = 0; i < 1_000; i++)
+            {
+                ledger.Write("inspect", "retry", new JsonObject { ["attempt"] = i });
+                _ = independent.Read();
+            }
+        }
+        finally { File.WriteAllText(environment["LEDGER_TEST_DONE"]!, ""); }
+        var result = await reading;
+        result.RequireSuccess("independent ledger reader");
+        await Assert.That(int.Parse(result.Stdout.Trim())).IsGreaterThan(0);
+        await Assert.That(independent.Read().Count).IsEqualTo(1_001);
+        await Assert.That(independent.Read().Last().Data!["attempt"]!.GetValue<int>()).IsEqualTo(999);
+    }
+
+    [Test]
+    public async Task Append_WhileIndependentWriterOpen_Succeeds()
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows file sharing is required");
+        using var tree = new TempTree();
+        var ledger = new Ledger(tree.Root);
+        ledger.Write(null, "queued");
+        using var holder = new FileStream(Path.Combine(tree.Root, "events.jsonl"), FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+        ledger.Write(null, "resumed");
+        await Assert.That(new Ledger(tree.Root).Read().Select(x => x.Type)).IsEquivalentTo(["queued", "resumed"]);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Append_WhileThirdPartyHoldsReadOnlyShare_RetriesThenSucceeds(CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows file sharing is required");

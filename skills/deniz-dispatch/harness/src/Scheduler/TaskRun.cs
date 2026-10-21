@@ -30,6 +30,17 @@ sealed class TaskRun
 
     public bool CancelSent { get; set; }
 
+    public DateTimeOffset? StopStarted { get; set; }
+    public DateTimeOffset? NextInterrupt { get; set; }
+    public InterruptKind? StopKind { get; set; }
+    public bool HardStopSent { get; set; }
+    public Task? InterruptWork { get; set; }
+    public CancellationTokenSource? InterruptCancellation { get; set; }
+    public bool? WorkerStopped { get; set; }
+    public bool Zombie { get; set; }
+    public bool PromptAttempted { get; set; }
+    public string? StartFailure { get; set; }
+
     public Task? Work { get; set; }
 
     public WorkerRef? Worker { get; set; }
@@ -73,6 +84,17 @@ sealed class TaskRun
         }
 
         run.Asks = run.Answered.Count;
+        if (lines.FirstOrDefault(x => x.Type is "timeout" or "cancel") is { } stop)
+        {
+            run.StopKind = stop.Type == "timeout" ? InterruptKind.Timeout : InterruptKind.Cancel;
+            run.StopStarted = DateTimeOffset.Parse(stop.Ts, CultureInfo.InvariantCulture);
+            run.CancelSent = run.StopKind == InterruptKind.Cancel;
+            if (lines.FirstOrDefault(x => x.Type == "hard-stop") is { } hard)
+            {
+                run.HardStopSent = true;
+                run.WorkerStopped = hard.Data?["stopped"]?.GetValue<bool>() ?? false;
+            }
+        }
         return run;
     }
 }

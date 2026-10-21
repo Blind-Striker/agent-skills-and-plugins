@@ -129,8 +129,13 @@ public sealed class SchedulerTests
         lab.Backend.OnPrompt = (_, _) => throw new IOException("continue failed");
         lab.Backend.OnRelease = (worker, _) => failure == "release" && worker.TaskId == bad.Id
             ? throw new IOException("release failed") : Task.CompletedTask;
+        lab.Backend.OnInterrupt = (input, _) =>
+        {
+            if (failure == "prompt") lab.End(bad, "interrupted");
+            return Task.FromResult(new InterruptResult(false, "interrupt"));
+        };
 
-        var exit = await lab.Scheduler(ct).ResumeAsync([bad, good], true);
+        var exit = await lab.Scheduler(ct, allow: failure == "release" ? AllowList.From(new RouteRestriction()) : null).ResumeAsync([bad, good], true);
 
         await Assert.That(exit).IsEqualTo(1);
         await Assert.That(good.State).IsEqualTo(TaskState.Done);
@@ -138,7 +143,7 @@ public sealed class SchedulerTests
         if (failure is "prompt" or "release")
         {
             await Assert.That(lab.Backend.Calls.Any(x => x.Member == "InterruptAsync")).IsTrue();
-            await Assert.That(lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync")).IsTrue();
+            await Assert.That(lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync")).IsEqualTo(failure == "release");
         }
         await Assert.That(lab.Ledger.Read().Any(x => x.Task == bad.Id && x.Type == "final")).IsEqualTo(failure != "release");
     }
@@ -526,29 +531,30 @@ public sealed class SchedulerTests
 
     [Test]
     [Timeout(30_000)]
-    public async Task Prompt_failure_releases_the_saved_worker_before_final(CancellationToken ct)
+    public async Task Prompt_failure_waits_for_confirmed_stop_before_final(CancellationToken ct)
     {
         using var lab = new CoreLab();
         var run = await lab.TaskAsync("inspect", ct);
         var savedBeforePrompt = false;
-        var releasedBeforeFinal = false;
+        var interruptedBeforeFinal = false;
         lab.Backend.OnPrompt = (input, _) =>
         {
             savedBeforePrompt = lab.Ledger.LoadRecord(run.Id).Session.Id == input.Worker.Id;
             throw new IOException("prompt failed");
         };
-        lab.Backend.OnRelease = (_, _) =>
+        lab.Backend.OnInterrupt = (_, _) =>
         {
-            releasedBeforeFinal = !run.IsFinal && !lab.Ledger.Read().Any(x => x.Type == "final");
-            return Task.CompletedTask;
+            interruptedBeforeFinal = !run.IsFinal && !lab.Ledger.Read().Any(x => x.Type == "final");
+            return Task.FromResult(new InterruptResult(true, "worker stopped"));
         };
 
         var exit = await lab.Scheduler(ct).RunAsync([run]);
 
         await Assert.That(savedBeforePrompt).IsTrue();
-        await Assert.That(releasedBeforeFinal).IsTrue();
+        await Assert.That(interruptedBeforeFinal).IsTrue();
         await Assert.That(run.State).IsEqualTo(TaskState.Failed);
         await Assert.That(exit).IsEqualTo(1);
-        await Assert.That(lab.Backend.Calls.Select(x => x.Member)).IsEquivalentTo(["CreateAsync", "PromptAsync", "InterruptAsync", "ReleaseAsync"]);
+        await Assert.That(lab.Backend.Calls.Select(x => x.Member)).IsEquivalentTo(["CreateAsync", "PromptAsync", "InterruptAsync", "CollectAsync"]);
+        await Assert.That(lab.Ledger.LoadResult(run.Id)!.Outcome).IsEqualTo("unknown");
     }
 }

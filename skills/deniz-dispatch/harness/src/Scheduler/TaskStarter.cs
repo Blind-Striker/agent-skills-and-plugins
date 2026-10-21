@@ -1,4 +1,4 @@
-sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, AllowList allow, Policy policy, Git? git = null)
+sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, AllowList allow, Policy policy, Git? git = null, TimeProvider? timeProvider = null)
 {
     public static Modes ModesFor(TaskRecord record) => new(
         record.Settings.Profile?.Value ?? "full", record.Settings.Project?.Value ?? "on",
@@ -46,12 +46,13 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         if (record.PromptInputs is null && record.Contracts is { Count: > 0 })
             throw new HarnessException("original contract text is unavailable; cannot start an unprompted task from the ledger");
         var text = policy.Render(new PlannedOrRecord(record.Spec, record.PromptText), record.Workspace.Path!, record.PromptInputs);
+        run.PromptAttempted = true;
         var prompted = await backend.PromptAsync(created.Worker, new(text, false), ct);
         run.SaveWorker(prompted, ledger);
         var data = Prompt.Event(text, prompted.Turn!, record.PromptInputs, record.Spec.RawPrompt == true);
         data["promptId"] = prompted.Turn;
         ledger.Write(run.Id, "prompt", data);
-        run.Deadline = DateTimeOffset.UtcNow.AddMinutes(record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
+        run.Deadline = (timeProvider ?? TimeProvider.System).GetUtcNow().AddMinutes(record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
         run.State = TaskState.Running;
     }
 }
