@@ -1,0 +1,5 @@
+{"expect":"initialize","reply":{"codexHome":"$codexHome","platformFamily":"$platformFamily","platformOs":"$platformOs","userAgent":"fake-codex"}}
+{"expect":"initialized"}
+{"expect":"account/read","reply":{"account":{"type":"apiKey"},"requiresOpenaiAuth":true}}
+{"expect":"model/list","reply":{"data":[{"id":"model-y","model":"model-y","displayName":"Test model","description":"Scenario model","hidden":false,"isDefault":true,"defaultReasoningEffort":"medium","supportedReasoningEfforts":[{"reasoningEffort":"medium","description":"Standard effort"}]}],"nextCursor":null}}
+{"os":"windows","expect":"windowsSandbox/readiness","reply":{"status":"ready"}}

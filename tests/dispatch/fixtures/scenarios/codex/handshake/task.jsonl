@@ -1,0 +1,3 @@
+{"expect":"initialize","reply":{"codexHome":"$codexHome","platformFamily":"$platformFamily","platformOs":"$platformOs","userAgent":"fake-codex"}}
+{"expect":"initialized"}
+{"expect":"thread/start","params":{"model":"model-y","sandbox":"read-only","approvalPolicy":"on-request","approvalsReviewer":"user","ephemeral":true},"reply":{"thread":{"id":"$threadId","sessionId":"session-main","cliVersion":"0.163.0","createdAt":0,"updatedAt":0,"cwd":"$cwd","ephemeral":true,"modelProvider":"provider-a","preview":"","projectId":null,"source":"appServer","status":{"type":"idle"},"turns":[]},"model":"model-y","modelProvider":"provider-a","cwd":"$cwd","approvalPolicy":"on-request","approvalsReviewer":"user","sandbox":{"type":"readOnly","networkAccess":true}}}

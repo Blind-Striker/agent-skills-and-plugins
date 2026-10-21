@@ -27,6 +27,7 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.75.0" />
+    <ProjectReference Include="Fakes/FakeCodex/FakeCodex.csproj" ReferenceOutputAssembly="false" />
     <ProjectReference Include="Fakes/FakeOpenCode/FakeOpenCode.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
