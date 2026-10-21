@@ -43,9 +43,9 @@ static partial class Commands
             throw new HarnessException($"{task} has no session or worktree to collect");
         }
 
-        await using var host = await HarnessServer.StartAsync(subscribe: false, ct);
+        await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
         var run = TaskRun.FromLedger(record, ledger);
-        var result = await Settlement.SettleAsync(host.Client, ledger, run, outcomeOverride: null, ct);
+        var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
         ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
         return 0;
     }

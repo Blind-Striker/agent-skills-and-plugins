@@ -21,6 +21,15 @@ sealed class Ledger(string runId)
         return dir;
     }
 
+    public Task WriteArtifactAsync(string task, string name, string text, CancellationToken ct) =>
+        File.WriteAllTextAsync(Path.Combine(TaskDir(task), name), text, ct);
+
+    public Task WriteArtifactAsync(string task, string name, byte[] bytes, CancellationToken ct) =>
+        File.WriteAllBytesAsync(Path.Combine(TaskDir(task), name), bytes, ct);
+
+    public void SaveResult(TaskResult result) =>
+        Json.WriteFile(Path.Combine(TaskDir(result.Task), "result.json"), result, LedgerJson.Files.TaskResult);
+
     public void Write(string? task, string type, JsonObject? data = null)
     {
         var line = new LedgerLine { Ts = Json.Timestamp(), Run = RunId, Task = task, Type = type, Data = data };

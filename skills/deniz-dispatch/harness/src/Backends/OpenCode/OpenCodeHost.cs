@@ -1,3 +1,6 @@
+using OpenCode.Sdk;
+using OpenCode.Sdk.Models;
+
 sealed record BusDisconnected(string Reason);
 
 sealed record BusConnected(int Attempt);

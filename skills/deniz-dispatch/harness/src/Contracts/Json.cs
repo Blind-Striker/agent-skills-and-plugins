@@ -145,14 +145,4 @@ static class Json
 
     public static JsonArray Array(IEnumerable<string> items) => new(items.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray());
 
-    public static JsonObject? Error(SessionStructuredError? error) => error is null
-        ? null
-        : new JsonObject { ["type"] = error.Type, ["message"] = error.Message, ["status"] = error.Status };
-
-    // A concrete type on purpose: Optional<T> offers no conversion from an interface-typed value.
-    public static Dictionary<string, JsonElement> Metadata(string run, string task) => new(StringComparer.Ordinal)
-    {
-        ["dispatch.run"] = JsonSerializer.SerializeToElement(run, InputJson.Read.String),
-        ["dispatch.task"] = JsonSerializer.SerializeToElement(task, InputJson.Read.String),
-    };
 }

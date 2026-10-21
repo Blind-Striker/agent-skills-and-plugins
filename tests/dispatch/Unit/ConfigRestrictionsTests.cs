@@ -47,7 +47,7 @@ public sealed class ConfigRestrictionsTests
         file.Policy = new() { Deny = [Rule()], Scope = ["!src/allowed/hidden/**"], Instructions = ["Third"] };
         var config = ConfigResolver.Resolve(file, user, repo, policy: new() { Restrictions = new() { Deny = [Rule()] }, Instructions = ["Fourth"] });
         await Assert.That(config.Restrictions!.Deny.Select(r => r.Name).ToArray()).IsEquivalentTo(new[] { "user/same", "task-file/same", "cli/same" });
-        var rules = Policy.From(config).Rules();
+        var rules = OpenCodeRules.Render(TaskStarter.RulesFor(Policy.From(config)));
         await Assert.That(rules[0].Effect).IsEqualTo(OpenCode.Sdk.Models.PermissionEffect.Ask);
         await Assert.That(rules.Skip(1).All(r => r.Effect == OpenCode.Sdk.Models.PermissionEffect.Deny)).IsTrue();
         await Assert.That(config.Instructions.Select(i => i.Text).ToArray()).IsEquivalentTo(new[] { "First", "Repeat", "Second", "Third", "Fourth" });

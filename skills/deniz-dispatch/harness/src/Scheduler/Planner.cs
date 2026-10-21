@@ -123,34 +123,25 @@ static class Planner
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,
     // has its variant, is not manual-class; review lineage differs from the author's.
-    public static void CheckLive(Plan plan, Catalog catalog, AllowList allow)
+    public static async Task CheckLiveAsync(Plan plan, IWorkerBackend backend, AllowList allow, CancellationToken ct)
     {
-        var resolved = new Dictionary<string, RouteRef>(StringComparer.Ordinal);
-        foreach (var task in plan.Tasks)
+        var checks = await backend.ValidateAsync(plan.Tasks.Select(task => new WorkerPlan(task.Spec.Id!, task.Spec.Kind!,
+            task.Route ?? new RouteRef("agent", "placeholder", null), task.Spec.Agent, task.Spec.Persona,
+            TaskStarter.ModesFor(new TaskRecord { Spec = task.Spec,
+                Settings = plan.Config?.Effective.Tasks[task.Spec.Id!].Settings ?? new() }), plan.Repo)).ToList(), ct);
+        foreach (var check in checks)
         {
-            var id = task.Spec.Id!;
-            if (task.Spec.Agent is { } agent)
-            {
-                if (catalog.CheckAgent(agent) is { } why) plan.Errors.Add($"{id}: agent {agent}: {why}");
-                else resolved[id] = RouteRef.From(catalog.Agents.First(x => x.Id == agent).Model!);
-            }
-            else if (task.Route is { } route)
-            {
-                var persona = task.Spec.Persona ?? Constants.DefaultPersona;
-                if (catalog.Agents.All(x => x.Id != persona)) plan.Errors.Add($"{id}: persona {persona} not found");
-                else if (catalog.Manual.Contains(persona)) plan.Errors.Add($"{id}: persona {persona} is manual-class");
-                if (catalog.IsManualRoute(route)) plan.Errors.Add($"{id}: route {route} equals a manual-class agent's model");
-                else if (catalog.CheckRoute(route) is { } why) plan.Errors.Add($"{id}: route {route}: {why}");
-                else resolved[id] = route;
-            }
+            plan.Errors.AddRange(check.Errors.Select(error => $"{check.TaskId}: {error}"));
+            plan.Warnings.AddRange(check.Warnings.Select(warning => $"{check.TaskId}: {warning}"));
         }
 
         foreach (var task in plan.Tasks.Where(t => t.Spec.ReviewOf is not null))
         {
-            if (resolved.TryGetValue(task.Spec.Id!, out var reviewer) && resolved.TryGetValue(task.Spec.ReviewOf!, out var author)
-                && catalog.Lineage(reviewer) == catalog.Lineage(author))
+            var reviewer = checks.FirstOrDefault(x => x.TaskId == task.Spec.Id);
+            var author = checks.FirstOrDefault(x => x.TaskId == task.Spec.ReviewOf);
+            if (reviewer is not null && author is not null && reviewer.Lineage == author.Lineage)
             {
-                plan.Errors.Add($"{task.Spec.Id}: reviewer and author share lineage {catalog.Lineage(author)}");
+                plan.Errors.Add($"{task.Spec.Id}: reviewer and author share lineage {author.Lineage}");
             }
         }
 

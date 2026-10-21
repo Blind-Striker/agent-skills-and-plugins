@@ -35,25 +35,6 @@ sealed class Policy
         $"policy {Path}: deny [{string.Join(", ", Deny.Select(x => x.Name))}], escalate [{string.Join(", ", Escalate.Select(x => x.Name))}], "
         + (RawPrompt ? "raw prompts (no standing instructions)" : $"{Instructions.Count} standing instructions");
 
-    // Session rules come after the agent's rules, and the last matching rule wins
-    // (core/src/permission.ts). Escalations become asks so the server raises them; the denies
-    // come last so nothing reopens them.
-    public List<PermissionRule> Rules()
-    {
-        var rules = new List<PermissionRule>();
-        foreach (var rule in Escalate)
-        {
-            rules.AddRange(rule.Resources!.Select(resource => new PermissionRule { Action = rule.Action!, Resource = resource, Effect = PermissionEffect.Ask }));
-        }
-
-        foreach (var rule in Deny)
-        {
-            rules.AddRange(rule.Resources!.Select(resource => new PermissionRule { Action = rule.Action!, Resource = resource, Effect = PermissionEffect.Deny }));
-        }
-
-        return rules;
-    }
-
     // The escalation entry that names this ask, or null, which means "approve once".
     public PolicyRule? EscalationFor(string action, IReadOnlyList<string> resources) =>
         Escalate.FirstOrDefault(rule =>

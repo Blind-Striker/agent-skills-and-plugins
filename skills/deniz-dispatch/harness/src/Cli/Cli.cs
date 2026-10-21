@@ -52,11 +52,6 @@ static class Cli
             Console.Error.WriteLine($"dispatch: {ex.Message}");
             return 2;
         }
-        catch (OpenCodeException ex)
-        {
-            Console.Error.WriteLine($"dispatch: the server call failed: {ex.GetType().Name}: {ex.Message}");
-            return 2;
-        }
         catch (OperationCanceledException) when (cts.IsCancellationRequested)
         {
             Console.Error.WriteLine("dispatch: cancelled");

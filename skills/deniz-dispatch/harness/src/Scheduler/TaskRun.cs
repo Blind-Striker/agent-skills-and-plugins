@@ -1,4 +1,4 @@
-enum TaskState { Pending, Dispatching, Running, Settling, Done, Failed, Cancelled }
+enum TaskState { Pending, Dispatching, Running, Settling, Interrupted, Done, Failed, Cancelled }
 
 sealed class TaskRun
 {
@@ -31,6 +31,23 @@ sealed class TaskRun
     public bool CancelSent { get; set; }
 
     public Task? Work { get; set; }
+
+    public WorkerRef? Worker { get; set; }
+    public bool WorkerEnded { get; set; }
+
+    public WorkerRef SavedWorker() => Worker ??= new(
+        Record.Settings.Backend?.Value ?? "opencode", Id, Record.Session.Id!,
+        Record.Session.Turn ?? Record.BackendState.PromptId,
+        JsonSerializer.SerializeToNode(Record.BackendState, LedgerJson.Files.BackendState)!.AsObject());
+
+    public void SaveWorker(WorkerRef worker, Ledger ledger)
+    {
+        Worker = worker;
+        Record.Session.Id = worker.Id;
+        Record.Session.Turn = worker.Turn;
+        Record.BackendState = worker.State.Deserialize(LedgerJson.Files.BackendState)!;
+        ledger.SaveRecord(Record);
+    }
 
     public bool IsFinal => State is TaskState.Done or TaskState.Failed or TaskState.Cancelled;
 

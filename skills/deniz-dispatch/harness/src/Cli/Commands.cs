@@ -8,30 +8,31 @@ static partial class Commands
         var dir = Path.GetFullPath(a.Get("dir") ?? a.Get("repo") ?? throw new HarnessException("routes needs --dir or --repo"));
         var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
         var allow = layers.Allow;
-        await using var host = await HarnessServer.StartAsync(subscribe: false, ct);
-        var catalog = await Catalog.LoadAsync(host.Client, dir, TimeSpan.FromSeconds(60), ct);
+        await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
+        var probe = await backend.ProbeAsync(new(dir), ct);
+        var catalog = await backend.ListRoutesAsync(dir, ct);
 
         Console.WriteLine($"location {dir}");
-        Console.WriteLine($"server {host.Version}{(host.Version == Constants.PinnedUpstream ? "" : $" (SDK pin is {Constants.PinnedUpstream})")}");
+        Console.WriteLine($"server {probe.Version}{(probe.Version == Constants.PinnedUpstream ? "" : $" (SDK pin is {Constants.PinnedUpstream})")}");
         Console.WriteLine();
-        Console.WriteLine($"agents ({catalog.Agents.Count}; manual-class {catalog.Manual.Count})");
-        foreach (var agent in catalog.Agents.OrderBy(x => x.Id, StringComparer.Ordinal))
+        Console.WriteLine($"agents ({catalog.Agents.Count}; manual-class {catalog.Agents.Count(x => x.Manual)})");
+        foreach (var agent in catalog.Agents.OrderBy(x => x.Name, StringComparer.Ordinal))
         {
-            var model = agent.Model is { } m ? RouteRef.From(m).ToString() : "-";
+            var model = agent.Model ?? "-";
             var flags = new List<string>();
-            if (catalog.Manual.Contains(agent.Id)) flags.Add("MANUAL");
-            if (allow.AllowsAgent(agent.Id)) flags.Add("allowed");
+            if (agent.Manual) flags.Add("MANUAL");
+            if (allow.AllowsAgent(agent.Name)) flags.Add("allowed");
             if (agent.Hidden) flags.Add("hidden");
-            Console.WriteLine($"  {agent.Id,-40} {agent.Mode.ToString().ToLowerInvariant(),-9} {model} {string.Join(' ', flags)}");
+            Console.WriteLine($"  {agent.Name,-40} {agent.Mode,-9} {model} {string.Join(' ', flags)}");
         }
 
         Console.WriteLine();
-        var models = catalog.Models.Where(x => a.Has("all") || x.Enabled).OrderBy(x => x.ProviderId).ThenBy(x => x.Id).ToList();
-        Console.WriteLine($"models ({models.Count} shown of {catalog.Models.Count})");
+        var models = catalog.Routes.Where(x => a.Has("all") || x.Enabled).OrderBy(x => x.Route.Provider).ThenBy(x => x.Route.Model).ToList();
+        Console.WriteLine($"models ({models.Count} shown of {catalog.Routes.Count})");
         foreach (var model in models)
         {
-            var route = new RouteRef(model.ProviderId, model.Id, null);
-            var variants = model.Variants.Count == 0 ? "-" : string.Join(',', model.Variants.Select(v => v.Id));
+            var route = model.Route;
+            var variants = model.Variants.Count == 0 ? "-" : string.Join(',', model.Variants);
             var allowed = allow.Routes.Where(r => r.Provider == route.Provider && r.Model == route.Model).Select(r => r.VariantOrDefault).ToList();
             Console.WriteLine($"  {route.Provider}/{route.Model,-50} variants: {variants}{(model.Enabled ? "" : " disabled")}{(allowed.Count > 0 ? $" allowed: {string.Join(',', allowed)}" : "")}");
         }
@@ -40,13 +41,17 @@ static partial class Commands
         Console.WriteLine(allow.IsRestricted ? $"allow-list: {allow.Count} opencode entries" : "no route restriction");
         foreach (var route in allow.Routes)
         {
-            var state = catalog.IsManualRoute(route) ? "refused: equals a manual-class agent's model" : catalog.CheckRoute(route) ?? "ok";
+            var entry = catalog.Routes.FirstOrDefault(x => x.Route.Provider == route.Provider && x.Route.Model == route.Model);
+            var manual = catalog.Agents.Any(x => x.Manual && RouteRef.TryParse(x.Model ?? "", out var pinned, out _) && pinned!.Matches(route));
+            var state = manual ? "refused: equals a manual-class agent's model" : entry is null ? "not listed at this location"
+                : !entry.Enabled ? "listed but disabled" : route.VariantOrDefault != "default" && !entry.Variants.Contains(route.Variant!)
+                    ? $"variant {route.Variant} not listed (has: {string.Join(',', entry.Variants)})" : "ok";
             Console.WriteLine($"  {route} {state}");
         }
 
         foreach (var agent in allow.Agents.Order(StringComparer.Ordinal))
         {
-            var state = catalog.CheckAgent(agent) ?? "ok";
+            var state = catalog.Agents.FirstOrDefault(x => x.Name == agent)?.Reason ?? (catalog.Agents.Any(x => x.Name == agent) ? "ok" : "agent not found at this location");
             Console.WriteLine($"  {agent} {state}");
         }
 
@@ -59,9 +64,8 @@ static partial class Commands
         var allow = plan.Config?.Allow ?? AllowList.From(null);
         if (plan.Errors.Count == 0)
         {
-            await using var host = await HarnessServer.StartAsync(subscribe: false, ct);
-            var catalog = await Catalog.LoadAsync(host.Client, plan.Repo, TimeSpan.FromSeconds(60), ct);
-            Planner.CheckLive(plan, catalog, allow);
+            await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
+            await Planner.CheckLiveAsync(plan, backend, allow, ct);
         }
 
         return plan.Report();
@@ -104,9 +108,9 @@ static partial class Commands
 
         using var supervisorLock = SupervisorLock.Acquire(runId);
         AskQueue.Reset(runId);
-        await using var host = await HarnessServer.StartAsync(subscribe: true, ct);
-        var catalog = await Catalog.LoadAsync(host.Client, plan.Repo, TimeSpan.FromSeconds(60), ct);
-        Planner.CheckLive(plan, catalog, allow);
+        await using IWorkerBackend backend = new OpenCodeBackend();
+        var probe = await backend.ProbeAsync(new(plan.Repo), ct);
+        await Planner.CheckLiveAsync(plan, backend, allow, ct);
         if (plan.Errors.Count > 0)
         {
             return plan.Report();
@@ -121,7 +125,7 @@ static partial class Commands
             Repo = plan.Repo,
             TasksFile = plan.TasksPath,
             Created = Json.Timestamp(),
-            Backends = new() { ["opencode"] = new BackendInfo { Version = host.Version } },
+            Backends = new() { ["opencode"] = new BackendInfo { Version = probe.Version! } },
             MaxParallel = max,
         };
         Json.WriteFile(Path.Combine(ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
@@ -129,7 +133,7 @@ static partial class Commands
         {
             ["repo"] = plan.Repo,
             ["max"] = max,
-            ["server"] = host.Version,
+            ["server"] = probe.Version,
             ["tasks"] = plan.Tasks.Count,
             ["policy"] = policy.Path,
             ["deny"] = Json.Array(policy.Deny.Select(x => x.Name!)),
@@ -161,7 +165,7 @@ static partial class Commands
             runs.Add(new TaskRun { Record = record });
         }
 
-        var supervisor = new Supervisor(host, ledger, plan.Repo, allow, policy, max, ct);
+        var supervisor = new Supervisor(backend, ledger, plan.Repo, allow, policy, max, ct);
         return await supervisor.RunAsync(runs);
     }
 
@@ -222,7 +226,8 @@ static partial class Commands
         Console.WriteLine(policy.Describe());
         using var supervisorLock = SupervisorLock.Acquire(ledger.RunId);
         AskQueue.Reset(ledger.RunId);
-        await using var host = await HarnessServer.StartAsync(subscribe: true, ct);
+        await using IWorkerBackend backend = new OpenCodeBackend();
+        var probe = await backend.ProbeAsync(new(info.Repo!), ct);
         var states = ledger.TaskStates();
         var runs = new List<TaskRun>();
         foreach (var (task, state) in states)
@@ -251,8 +256,8 @@ static partial class Commands
             return 0;
         }
 
-        ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count, ["server"] = host.Version });
-        var supervisor = new Supervisor(host, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
+        ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count, ["server"] = probe.Version });
+        var supervisor = new Supervisor(backend, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
         return await supervisor.ResumeAsync(runs, proceed);
     }
 }

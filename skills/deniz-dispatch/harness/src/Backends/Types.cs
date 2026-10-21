@@ -106,7 +106,9 @@ sealed record LiveCheck(
     public string? ProfileReason { get; } = ProfileReason;
 }
 
-sealed record CreateResult(WorkerRef Worker, AppliedEnforcement Applied);
+sealed record CreateResult(WorkerRef Worker, AppliedEnforcement Applied, WorkerStartDetails? Details = null);
+
+sealed record WorkerStartDetails(string Route, string Agent, string Lineage, string ProjectId, IReadOnlyList<string> Rules);
 
 sealed record WorkerReport(
     string Outcome, string? FinalText, TokenTotals Usage, double? Cost, bool UsageComplete,
@@ -166,14 +168,15 @@ sealed record BackendContext(string ProfilesFolder, string? Executable, IReadOnl
         : throw new ArgumentException("profiles folder must be absolute", nameof(ProfilesFolder));
 }
 
-sealed record ProbeRequest(string Directory);
-sealed record BackendProbe(bool Ready, string? Version, IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings);
-sealed record AnswerResult(bool Confirmed, string? Detail);
+sealed record ProbeRequest(string Directory, WorkerRules? CheckRules = null);
+sealed record ProbeCheck(string Name, bool Ok, string Detail);
+sealed record BackendProbe(bool Ready, string? Version, IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings, IReadOnlyList<ProbeCheck>? Checks = null);
+sealed record AnswerResult(bool Confirmed, string? Detail, int? Status = null);
 sealed record PollResult(IReadOnlyList<WorkerSignal.Host> Hosts);
 sealed record OrphanQuery(string RunId, IReadOnlyList<WorkerRef> KnownWorkers, IReadOnlyList<string> Directories);
 sealed record RouteListing(IReadOnlyList<RouteEntry> Routes, IReadOnlyList<AgentEntry> Agents, IReadOnlyList<RouteAllowance> AllowList);
 sealed record RouteEntry(RouteRef Route, bool Enabled, IReadOnlyList<string> Variants, string Lineage);
-sealed record AgentEntry(string Name, bool Usable, string? Reason);
+sealed record AgentEntry(string Name, bool Usable, string? Reason, string? Model = null, string? Mode = null, bool Hidden = false, bool Manual = false);
 sealed record RouteAllowance(string Entry, string State, string? Reason);
 
 enum OutcomeAction { Settle, Interrupted, KeepState }

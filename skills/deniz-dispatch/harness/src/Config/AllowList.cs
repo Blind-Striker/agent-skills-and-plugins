@@ -89,19 +89,10 @@ sealed record RouteRef(string Provider, string Model, string? Variant)
         return true;
     }
 
-    public static RouteRef From(ModelRef model) => new(model.ProviderId, model.Id, model.Variant);
-
     public bool Matches(RouteRef other) =>
         string.Equals(Provider, other.Provider, StringComparison.Ordinal)
         && string.Equals(Model, other.Model, StringComparison.Ordinal)
         && string.Equals(VariantOrDefault, other.VariantOrDefault, StringComparison.Ordinal);
-
-    public ModelRef ToModelRef() => new()
-    {
-        ProviderId = Provider,
-        Id = Model,
-        Variant = VariantOrDefault == "default" ? null : Variant,
-    };
 
     public override string ToString() => $"{Provider}/{Model}#{VariantOrDefault}";
 }

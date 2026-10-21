@@ -1,3 +1,5 @@
+using OpenCode.Sdk.Models;
+
 namespace Dispatch.Tests.Unit;
 
 [Category("Unit")]
@@ -69,7 +71,7 @@ public sealed class RouteRefTests
         await Assert.That(route.ToString()).IsEqualTo("provider/model#default");
         await Assert.That(route.Matches(explicitDefault)).IsTrue();
         await Assert.That(explicitDefault.Matches(route)).IsTrue();
-        await Assert.That(route.ToModelRef().Variant).IsNull();
+        await Assert.That(OpenCodeModels.ToModelRef(route).Variant).IsNull();
     }
 
     [Test]
@@ -101,14 +103,14 @@ public sealed class RouteRefTests
     [Arguments("fast")]
     public async Task Model_refs_preserve_identity_and_normalize_the_default_variant(string? variant)
     {
-        var route = RouteRef.From(new ModelRef { ProviderId = "provider", Id = "family/model", Variant = variant });
-        var model = route.ToModelRef();
+        var route = OpenCodeModels.From(new ModelRef { ProviderId = "provider", Id = "family/model", Variant = variant });
+        var model = OpenCodeModels.ToModelRef(route);
 
         await Assert.That(route).IsEqualTo(new RouteRef("provider", "family/model", variant));
         await Assert.That(model.ProviderId).IsEqualTo("provider");
         await Assert.That(model.Id).IsEqualTo("family/model");
         await Assert.That(model.Variant).IsEqualTo(variant == "default" ? null : variant);
-        await Assert.That(RouteRef.From(model).Matches(route)).IsTrue();
+        await Assert.That(OpenCodeModels.From(model).Matches(route)).IsTrue();
     }
 
     [Test]
