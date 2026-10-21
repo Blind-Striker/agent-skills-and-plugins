@@ -1,6 +1,7 @@
 using Dispatch.Tests.Support;
 using OpenCode.Sdk;
 using System.Net;
+using System.Text.Json.Nodes;
 
 namespace Dispatch.Tests.Integration;
 
@@ -8,6 +9,41 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel("processes")]
 public sealed class FakeOpenCodeTests
 {
+    [Test]
+    [Timeout(60_000)]
+    public async Task The_fake_keeps_quiet_event_streams_alive_without_reconnecting(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        await using var server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
+        {
+            Command = [FakeOpenCode.Executable, "serve"],
+            WorkingDirectory = tree.Root,
+            Environment = FakeOpenCode.Environment(tree, "one-task.jsonl"),
+        }, ct);
+        // Shorten the SDK's idle window, not the server's real keepalive cadence.
+        using var client = server.CreateClient(options => options.EventStreamIdleTimeout = TimeSpan.FromSeconds(20));
+        using var subscription = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        await using var stream = client.Events.SubscribeAsync(cancellationToken: subscription.Token).GetAsyncEnumerator();
+        await Assert.That(await stream.MoveNextAsync()).IsTrue();
+        await Assert.That(stream.Current).IsTypeOf<OpenCode.Sdk.Models.EventServerConnected>();
+        var next = stream.MoveNextAsync().AsTask();
+        // Observe two keepalives and exceed the idle window; silence must not cause another GET.
+        try { await Task.Delay(TimeSpan.FromSeconds(32), ct); }
+        finally
+        {
+            await subscription.CancelAsync();
+            try { await next; }
+            catch (OperationCanceledException) when (subscription.IsCancellationRequested) { /* Owned shutdown. */ }
+        }
+
+        var events = File.ReadAllLines(Path.Combine(tree.Root, "requests.jsonl"))
+            .Select(line => JsonNode.Parse(line)!)
+            .Where(request => request["path"]!.GetValue<string>() == "/api/event").ToArray();
+        await Assert.That(events.Length).IsEqualTo(1);
+        await Assert.That(events[0]["authenticated"]!.GetValue<bool>()).IsTrue();
+        await Assert.That(events[0]["unexpected"]!.GetValue<bool>()).IsFalse();
+    }
+
     [Test]
     [Timeout(180_000)]
     public async Task The_fake_starts_through_the_sdk_and_answers_server_info(CancellationToken cancellationToken)

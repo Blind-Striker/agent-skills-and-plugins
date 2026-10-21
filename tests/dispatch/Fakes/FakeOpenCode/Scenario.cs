@@ -14,7 +14,7 @@ internal sealed class Scenario
     readonly object gate = new();
     readonly SemaphoreSlim recordGate = new(1);
     readonly string record;
-    readonly ConcurrentDictionary<Guid, Channel<JsonNode>> streams = new();
+    readonly ConcurrentDictionary<Guid, Channel<JsonNode?>> streams = new();
     readonly ConcurrentDictionary<string, string> locations = new(StringComparer.Ordinal);
 
     public Scenario(string path, string record)
@@ -75,8 +75,10 @@ internal sealed class Scenario
         {
             context.Response.ContentType = "text/event-stream";
             var id = Guid.NewGuid();
-            var channel = Channel.CreateUnbounded<JsonNode>();
+            var channel = Channel.CreateUnbounded<JsonNode?>();
             streams[id] = channel;
+            using var streamLifetime = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var keepalive = KeepAliveAsync(channel.Writer, streamLifetime.Token);
             try
             {
                 foreach (var frame in selected["events"]?.AsArray() ?? []) await WriteFrameAsync(context, frame!);
@@ -90,6 +92,9 @@ internal sealed class Scenario
             finally
             {
                 streams.TryRemove(id, out _);
+                await streamLifetime.CancelAsync();
+                try { await keepalive; }
+                catch (OperationCanceledException) when (streamLifetime.IsCancellationRequested) { /* Owned shutdown. */ }
                 channel.Writer.TryComplete();
             }
             return;
@@ -125,9 +130,16 @@ internal sealed class Scenario
         finally { recordGate.Release(); }
     }
 
-    static async Task WriteFrameAsync(HttpContext context, JsonNode frame)
+    static async Task KeepAliveAsync(ChannelWriter<JsonNode?> stream, CancellationToken ct)
     {
-        await context.Response.WriteAsync($"data: {frame.ToJsonString()}\n\n", context.RequestAborted);
+        // Match the real server's quiet-stream cadence. The reader serializes these with events.
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(15));
+        while (await timer.WaitForNextTickAsync(ct)) await stream.WriteAsync(null, ct);
+    }
+
+    static async Task WriteFrameAsync(HttpContext context, JsonNode? frame)
+    {
+        await context.Response.WriteAsync(frame is null ? ": keepalive\n\n" : $"data: {frame.ToJsonString()}\n\n", context.RequestAborted);
         await context.Response.Body.FlushAsync(context.RequestAborted);
     }
 
