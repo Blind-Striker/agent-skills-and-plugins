@@ -6,6 +6,8 @@ static class Locations
 
     public static void Resolve()
     {
+        ledgerRoot = null;
+        worktreeRoot = null;
         if (Environment.GetEnvironmentVariable("DISPATCH_HOME") is { Length: > 0 } root)
         {
             if (!Path.IsPathFullyQualified(root))
@@ -35,13 +37,28 @@ static class Locations
             ? value
             : fallback;
 
-    public static string AllowListFile => Path.Combine(ConfigRoot, "routes.allow.jsonc");
+    public static string UserConfigFile => Path.Combine(ConfigRoot, "config.jsonc");
+    static string? ledgerRoot;
+    static string? worktreeRoot;
+    public static string LedgerRoot => ledgerRoot ?? Path.Combine(StateRoot, "ledgers");
+    public static string WorktreeRoot => worktreeRoot ?? Path.Combine(StateRoot, "worktrees");
 
-    public static string PolicyFile => Path.Combine(ConfigRoot, "policy.jsonc");
+    public static void Configure(ConfigLocations? locations, string? ledgerOverride)
+    {
+        ledgerRoot = ledgerOverride is not null ? Absolute(ledgerOverride, "--ledger")
+            : locations?.LedgerRoot is { } ledger ? Expand(ledger, "locations.ledgerRoot") : null;
+        worktreeRoot = locations?.WorktreeRoot is { } worktree ? Expand(worktree, "locations.worktreeRoot") : null;
+    }
 
-    public static string LedgerRoot => Path.Combine(StateRoot, "ledgers");
+    public static string Expand(string value, string member)
+    {
+        if (value == "~" || value.StartsWith("~/", StringComparison.Ordinal) || value.StartsWith("~\\", StringComparison.Ordinal))
+            value = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), value.Length > 2 ? value[2..] : "");
+        return Absolute(value, member);
+    }
 
-    public static string WorktreeRoot => Path.Combine(StateRoot, "worktrees");
+    static string Absolute(string value, string member) => Path.IsPathFullyQualified(value)
+        ? Path.GetFullPath(value) : throw new HarnessException($"{member} must be an absolute path (or ~ in user locations)");
 
     public static string Worktree(string task) => Path.Combine(WorktreeRoot, task);
 

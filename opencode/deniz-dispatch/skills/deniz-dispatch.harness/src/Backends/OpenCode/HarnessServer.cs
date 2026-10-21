@@ -79,7 +79,7 @@ sealed class HarnessServer : IAsyncDisposable
     // that ends it with its owner; start opencode.exe directly when the shim's layout is found.
     static IReadOnlyList<string> Command()
     {
-        if (System.Environment.GetEnvironmentVariable("DISPATCH_OPENCODE") is { Length: > 0 } explicitPath)
+        if (ConfigLayers.User?.Backends?.Opencode?.Executable is { } explicitPath)
         {
             return [explicitPath, "serve"];
         }

@@ -23,7 +23,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
     public async Task<int> ResumeAsync(List<TaskRun> runs, bool proceed)
     {
         _runs = runs;
-        foreach (var run in runs.Where(x => x.Record.SessionId is not null))
+        foreach (var run in runs.Where(x => x.Record.Session.Id is not null))
         {
             try
             {
@@ -41,16 +41,16 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
     // A restarted server runs nothing: settle what ended, or re-prompt an interrupted session.
     async Task ReattachAsync(TaskRun run, bool proceed)
     {
-        var session = Client.Sessions.GetSessionClient(run.Record.SessionId!);
+        var session = Client.Sessions.GetSessionClient(run.Record.Session.Id!);
         var read = await session.GetAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (read.IsError)
         {
-            Finish(run, TaskState.Failed, null, $"session {run.Record.SessionId} unreadable: HTTP {read.Status} {read.Error?.Tag}");
+            Finish(run, TaskState.Failed, null, $"session {run.Record.Session.Id} unreadable: HTTP {read.Status} {read.Error?.Tag}");
             return;
         }
 
-        _bySession[run.Record.SessionId!] = run;
-        _owners[run.Record.SessionId!] = run;
+        _bySession[run.Record.Session.Id!] = run;
+        _owners[run.Record.Session.Id!] = run;
         var outcome = read.Session.Outcome;
         if (!proceed || (outcome == SessionInfoOutcome.Succeeded || outcome == SessionInfoOutcome.Failed) || run.CancelRequested)
         {
@@ -60,34 +60,34 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
 
         var allowed = run.Record.Spec.Agent is { } agent
             ? allow.AllowsAgent(agent)
-            : RouteRef.TryParse(run.Record.Route ?? "", out var route, out _) && allow.AllowsRoute(route!);
+            : RouteRef.TryParse(run.Record.Spec.Route ?? "", out var route, out _) && allow.AllowsRoute(route!);
         if (!allowed)
         {
-            Finish(run, TaskState.Failed, null, $"{run.Record.Spec.Agent ?? run.Record.Route} is no longer on the allow-list");
+            Finish(run, TaskState.Failed, null, $"{run.Record.Spec.Agent ?? run.Record.Settings.Route?.Value} is no longer on the allow-list");
             return;
         }
 
         // Re-apply the scrubbed environment: whether it outlives a server restart is unverified.
-        var (variables, removed) = Policy.Environment(run.Id);
+        var (variables, removed) = WorkerEnvironment.Environment(run.Id);
         await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables }, cancellationToken: ct);
         ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
         var prompt = await session.PromptAsync(new SessionPromptRequest
         {
-            Text = policy.RawPrompt
+            Text = run.Record.Spec.RawPrompt == true
                 ? "Continue the task from where you stopped."
                 : "Continue the task from where you stopped. The standing instructions and the task above still apply.",
         }, cancellationToken: ct);
-        run.Record.PromptId = prompt.Prompt.Id;
-        run.Record.PromptCreated = prompt.Prompt.Time.Created;
+        run.Record.BackendState.PromptId = prompt.Prompt.Id;
+        run.Record.BackendState.PromptCreated = prompt.Prompt.Time.Created;
         ledger.SaveRecord(run.Record);
         var resumed = new JsonObject { ["promptId"] = prompt.Prompt.Id, ["resume"] = true };
-        if (policy.RawPrompt)
+        if (run.Record.Spec.RawPrompt == true)
         {
             resumed["rawPrompt"] = true;
         }
 
         ledger.Write(run.Id, "prompt", resumed);
-        run.Deadline = DateTimeOffset.UtcNow.AddMinutes(run.Record.Spec.MaxMinutes ?? Constants.DefaultMaxMinutes);
+        run.Deadline = DateTimeOffset.UtcNow.AddMinutes(run.Record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
         run.State = TaskState.Running;
         await SweepBlockersAsync(run);
     }
@@ -224,26 +224,27 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
         try
         {
             // 1. Worktree on the harness's own branch.
-            if (record.Worktree is null)
+            if (record.Workspace.Path is null)
             {
-                var baseRef = spec.ReviewOf is { } author ? ledger.LoadRecord(author).Branch! : spec.Base!;
-                var baseSha = (await Git.CheckAsync(repo, ct, "rev-parse", "--verify", $"{baseRef}^{{commit}}")).Trim();
+                var baseRef = spec.ReviewOf is { } author ? ledger.LoadRecord(author).Workspace.Branch! : spec.Base!;
+                var git = Git.ForTask(run.Id);
+                var baseSha = await git.IdAsync(repo, ct, "rev-parse", "--verify", $"{baseRef}^{{commit}}");
                 var worktree = Locations.Worktree(run.Id);
                 var branch = $"dispatch/{ledger.RunId}/{run.Id}";
-                await Git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, worktree, baseSha);
-                record.Worktree = worktree;
-                record.Branch = branch;
-                record.BaseRef = baseRef;
-                record.BaseSha = baseSha;
+                await git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, worktree, baseSha);
+                record.Workspace.Path = worktree;
+                record.Workspace.Branch = branch;
+                record.Workspace.BaseRef = baseRef;
+                record.Workspace.BaseSha = baseSha;
                 ledger.SaveRecord(record);
                 ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = worktree, ["branch"] = branch, ["base"] = baseRef, ["baseSha"] = baseSha });
             }
 
-            var where = new LocationSelector { Directory = record.Worktree };
+            var where = new LocationSelector { Directory = record.Workspace.Path };
 
             // 2. Route: an agent's pinned model is passed explicitly, because session create
             //    does not apply the agent's model.
-            var catalog = await Catalog.LoadAsync(Client, record.Worktree, TimeSpan.FromSeconds(60), ct);
+            var catalog = await Catalog.LoadAsync(Client, record.Workspace.Path, TimeSpan.FromSeconds(60), ct);
             RouteRef route;
             string agent;
             if (spec.Agent is { } agentId)
@@ -263,12 +264,12 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
                 if (catalog.Manual.Contains(agent)) throw new HarnessException($"persona {agent} is manual-class");
             }
 
-            await WaitForRouteAsync(route, record.Worktree);
-            record.Route = route.ToString();
+            await WaitForRouteAsync(route, record.Workspace.Path);
+            record.Settings.Route ??= new Setting<string> { Value = $"opencode:{route}", From = "task" };
             record.Agent = agent;
             record.Lineage = catalog.Lineage(route);
             ledger.SaveRecord(record);
-            ledger.Write(run.Id, "route", new JsonObject { ["route"] = record.Route, ["agent"] = agent, ["lineage"] = record.Lineage });
+            ledger.Write(run.Id, "route", new JsonObject { ["route"] = record.Settings.Route.Value, ["agent"] = agent, ["lineage"] = record.Lineage });
 
             // 3. Session with the policy's rules (subagent children inherit them). Agent always
             //    goes with Model.
@@ -278,12 +279,12 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
                 Title = $"dispatch {ledger.RunId}/{run.Id}",
                 Agent = agent,
                 Model = route.ToModelRef(),
-                Location = new LocationPublicRef { Directory = record.Worktree },
+                Location = new LocationPublicRef { Directory = record.Workspace.Path },
                 Permissions = rules,
                 Metadata = Json.Metadata(ledger.RunId, run.Id),
             }, cancellationToken: ct);
             var sessionId = created.Session.Id;
-            record.SessionId = sessionId;
+            record.Session.Id = sessionId;
             ledger.SaveRecord(record);
             _bySession[sessionId] = run;
             _owners[sessionId] = run;
@@ -295,26 +296,26 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
             });
 
             var session = Client.Sessions.GetSessionClient(sessionId);
-            var (variables, removed) = Policy.Environment(run.Id);
+            var (variables, removed) = WorkerEnvironment.Environment(run.Id);
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables }, cancellationToken: ct);
             ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
 
             // 4. Prompt (standing instructions first), then close the admission race.
             var prompt = await session.PromptAsync(new SessionPromptRequest
             {
-                Text = policy.Prompt(new PlannedOrRecord(spec, record.PromptText), record.Worktree),
+                Text = spec.RawPrompt == true ? record.PromptText : policy.Render(new PlannedOrRecord(spec, record.PromptText), record.Workspace.Path),
             }, cancellationToken: ct);
-            record.PromptId = prompt.Prompt.Id;
-            record.PromptCreated = prompt.Prompt.Time.Created;
+            record.BackendState.PromptId = prompt.Prompt.Id;
+            record.BackendState.PromptCreated = prompt.Prompt.Time.Created;
             ledger.SaveRecord(record);
             var prompted = new JsonObject { ["promptId"] = prompt.Prompt.Id, ["chars"] = record.PromptText.Length };
-            if (policy.RawPrompt)
+            if (spec.RawPrompt == true)
             {
                 prompted["rawPrompt"] = true;
             }
 
             ledger.Write(run.Id, "prompt", prompted);
-            run.Deadline = DateTimeOffset.UtcNow.AddMinutes(spec.MaxMinutes ?? Constants.DefaultMaxMinutes);
+            run.Deadline = DateTimeOffset.UtcNow.AddMinutes(spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
             run.State = TaskState.Running;
             await SweepBlockersAsync(run);
         }
@@ -469,7 +470,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
         }
 
         run.Asks++;
-        var child = sessionId == run.Record.SessionId ? null : sessionId;
+        var child = sessionId == run.Record.Session.Id ? null : sessionId;
         if (policy.EscalationFor(action, resources) is { } rule)
         {
             run.Escalated++;
@@ -477,14 +478,16 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
             {
                 Run = ledger.RunId,
                 Task = run.Id,
+                Backend = "opencode",
                 Session = sessionId,
-                RootSession = run.Record.SessionId!,
+                RootSession = run.Record.Session.Id!,
                 AskId = requestId,
+                BackendRef = new JsonObject { ["requestId"] = requestId },
                 Action = action,
                 Resources = resources.ToList(),
                 Rule = rule.Name!,
-                Time = DateTimeOffset.UtcNow.ToString("o"),
-                Reply = $"dispatch reply {ledger.RunId} {requestId} once|reject",
+                Time = Json.Timestamp(),
+                Reply = ["reply", ledger.RunId, requestId, "once|reject"],
             };
             _escalated[requestId] = new Escalation(ask, DateTimeOffset.UtcNow);
             AskQueue.Write(ask);
@@ -543,7 +546,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
                     ["action"] = ask.Action,
                     ["resources"] = Json.Array(ask.Resources),
                     ["answer"] = reject ? "reject" : "once",
-                    ["by"] = "lead",
+                    ["by"] = "operator",
                     ["message"] = reject ? decision.Message ?? Policy.LeadDeclined : null,
                     ["waitedSeconds"] = Math.Round((DateTimeOffset.UtcNow - held.Queued).TotalSeconds, 1),
                     ["status"] = reply.Status,
@@ -579,7 +582,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
         ledger.Write(run.Id, "form", new JsonObject
         {
             ["id"] = formId,
-            ["session"] = sessionId == run.Record.SessionId ? null : sessionId,
+            ["session"] = sessionId == run.Record.Session.Id ? null : sessionId,
             ["title"] = title,
             ["answer"] = "cancel",
             ["status"] = reply.Status,
@@ -591,7 +594,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
     async Task SweepBlockersAsync(TaskRun run)
     {
         var listed = DateTimeOffset.UtcNow;
-        var where = new LocationSelector { Directory = run.Record.Worktree };
+        var where = new LocationSelector { Directory = run.Record.Workspace.Path };
         var requests = (await Client.Permissions.ListRequestsAsync(new PermissionRequestListRequest { Location = where }, cancellationToken: ct)).Requests;
         foreach (var request in requests)
         {
@@ -646,7 +649,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
                     await InterruptAsync(run, "timeout");
                 }
 
-                if (active.ContainsKey(run.Record.SessionId!))
+                if (active.ContainsKey(run.Record.Session.Id!))
                 {
                     await SweepBlockersAsync(run);
                 }
@@ -664,14 +667,14 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
     // execution that went idle after this task's prompt.
     async Task CheckDoneAsync(TaskRun run, IReadOnlyDictionary<string, SessionActive> active)
     {
-        if (active.ContainsKey(run.Record.SessionId!))
+        if (active.ContainsKey(run.Record.Session.Id!))
         {
             run.AbsentChecks = 0;
             return;
         }
 
-        var info = (await Client.Sessions.GetSessionClient(run.Record.SessionId!).GetAsync(cancellationToken: ct)).Session;
-        var idleAfterPrompt = info.Time.Idle is null || run.Record.PromptCreated is null || info.Time.Idle >= run.Record.PromptCreated;
+        var info = (await Client.Sessions.GetSessionClient(run.Record.Session.Id!).GetAsync(cancellationToken: ct)).Session;
+        var idleAfterPrompt = info.Time.Idle is null || run.Record.BackendState.PromptCreated is null || info.Time.Idle >= run.Record.BackendState.PromptCreated;
         if (info.Outcome is not null && idleAfterPrompt)
         {
             BeginSettle(run, null);
@@ -704,7 +707,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
 
     async Task InterruptAsync(TaskRun run, string type)
     {
-        var response = await Client.Sessions.GetSessionClient(run.Record.SessionId!).InterruptAsync(new SessionInterruptRequest { Resume = false }, OpenCodeRequestOptions.NoThrow, ct);
+        var response = await Client.Sessions.GetSessionClient(run.Record.Session.Id!).InterruptAsync(new SessionInterruptRequest { Resume = false }, OpenCodeRequestOptions.NoThrow, ct);
         ledger.Write(run.Id, type, new JsonObject { ["interrupted"] = response.IsError ? null : response.Interrupt.Interrupted, ["status"] = response.Status });
         run.NextCheck = DateTimeOffset.UtcNow.AddSeconds(2);
     }

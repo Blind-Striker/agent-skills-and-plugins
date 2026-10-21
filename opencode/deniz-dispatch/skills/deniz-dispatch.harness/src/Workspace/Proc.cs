@@ -1,30 +1,44 @@
-sealed record ProcessResult(int ExitCode, string Output, bool TimedOut);
+sealed record ProcessResult(int ExitCode, byte[] Stdout, string Stderr, bool TimedOut)
+{
+    public string Output => Encoding.UTF8.GetString(Stdout);
+}
 
 static class Proc
 {
-    public static async Task<ProcessResult> RunAsync(string file, IReadOnlyList<string> args, string? cwd, CancellationToken ct, TimeSpan? timeout = null, bool belowNormal = false)
+    public static async Task<ProcessResult> RunAsync(string file, IReadOnlyList<string> args, string cwd, CancellationToken ct, TimeSpan? timeout = null, bool belowNormal = false, IReadOnlyDictionary<string, string>? environment = null)
     {
+        if (!Path.IsPathFullyQualified(cwd)) throw new HarnessException("child working directory must be absolute");
+        ct.ThrowIfCancellationRequested();
         var psi = new ProcessStartInfo(file)
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
-            WorkingDirectory = cwd ?? "",
-            StandardOutputEncoding = Encoding.UTF8,
+            WorkingDirectory = cwd,
             StandardErrorEncoding = Encoding.UTF8,
         };
         foreach (var arg in args) psi.ArgumentList.Add(arg);
+        if (environment is not null)
+        {
+            psi.Environment.Clear();
+            foreach (var (name, value) in environment) psi.Environment[name] = value;
+        }
 
-        // Verify builds never join a long-lived MSBuild server (see Policy.Environment).
+        // Verify builds never join a long-lived MSBuild server (see WorkerEnvironment.Environment).
         psi.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
 
         using var process = new Process { StartInfo = psi };
-        var output = new StringBuilder();
-        var gate = new Lock();
-        process.OutputDataReceived += (_, e) => { if (e.Data is not null) lock (gate) output.AppendLine(e.Data); };
-        process.ErrorDataReceived += (_, e) => { if (e.Data is not null) lock (gate) output.AppendLine(e.Data); };
         process.Start();
+        using var window = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (timeout is { } t) window.CancelAfter(t);
+        using var drain = new CancellationTokenSource();
+        using var output = new MemoryStream();
+        using var error = new MemoryStream();
+        var captureLock = new object();
+        var captureClosed = false;
+        var stdout = ReadAsync(process.StandardOutput.BaseStream, output);
+        var stderr = ReadAsync(process.StandardError.BaseStream, error);
         if (belowNormal && OperatingSystem.IsWindows())
         {
             try
@@ -38,23 +52,50 @@ static class Proc
             }
         }
 
-        process.BeginOutputReadLine();
-        process.BeginErrorReadLine();
-        using var window = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        if (timeout is { } t) window.CancelAfter(t);
+        var completion = Task.WhenAll(process.WaitForExitAsync(CancellationToken.None), stdout, stderr);
+        var timedOut = false;
         try
         {
-            await process.WaitForExitAsync(window.Token);
+            await completion.WaitAsync(window.Token);
         }
         catch (OperationCanceledException)
         {
-            process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync(CancellationToken.None);
-            ct.ThrowIfCancellationRequested();
-            lock (gate) return new ProcessResult(-1, output.ToString() + "\n[harness] timed out", true);
+            timedOut = true;
+            try { process.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) when (process.HasExited) { /* Exit raced cancellation. */ }
+            try { await completion.WaitAsync(TimeSpan.FromSeconds(2)); }
+            catch (TimeoutException)
+            {
+                // An orphan can retain inherited pipes after its parent has already exited.
+                drain.Cancel();
+            }
         }
 
-        process.WaitForExit();
-        lock (gate) return new ProcessResult(process.ExitCode, output.ToString(), false);
+        lock (captureLock)
+        {
+            captureClosed = true;
+            return new ProcessResult(timedOut ? -1 : process.ExitCode, output.ToArray(),
+                Encoding.UTF8.GetString(error.ToArray()) + (timedOut ? "\n[harness] timed out" : ""), timedOut);
+        }
+
+        async Task ReadAsync(Stream source, MemoryStream destination)
+        {
+            var buffer = new byte[8192];
+            try
+            {
+                while (await source.ReadAsync(buffer, drain.Token) is var count && count > 0)
+                {
+                    lock (captureLock)
+                    {
+                        if (captureClosed) return;
+                        destination.Write(buffer, 0, count);
+                    }
+                }
+            }
+            catch (OperationCanceledException) when (drain.IsCancellationRequested)
+            {
+                // The bounded drain grace expired; the captured prefix is the result.
+            }
+        }
     }
 }

@@ -1,0 +1,39 @@
+// Example policy for opencode workers: denies only pushing and the GitHub CLI. Pass it with
+// --policy, or copy its members into user or repository config. It is never applied by default.
+// opencode has no OS sandbox. Deny refuses a call; escalate waits for an operator's reply.
+// Shell rules match the whole command text from its first character. "gh *" includes bare "gh".
+// "git * push*" also matches "git stash push" or later words containing " push".
+// The "*/" forms match paths ending in /git or /gh. Not caught: compound commands such as
+// "cd x && git push", git aliases, scripts, or other path spellings. These are text rules.
+{
+  "schemaVersion": 2,
+  "restrictions": {
+    "deny": [
+      {
+        "name": "no-git-push",
+        "action": "shell",
+        "resources": [
+          "git push*",
+          "git * push*",
+          "git.exe push*",
+          "git.exe * push*",
+          "*/git push*",
+          "*/git * push*",
+          "*/git.exe push*",
+          "*/git.exe * push*",
+          "*/git.exe\" push*",
+          "*/git.exe\" * push*"
+        ]
+      },
+      { "name": "no-gh", "action": "shell", "resources": ["gh *", "gh.exe *", "*/gh *", "*/gh.exe *", "*/gh.exe\" *"] }
+    ],
+    "escalate": [
+      // { "name": "webfetch", "action": "webfetch", "resources": ["*"] }
+    ]
+  },
+  "instructions": [
+    "Work only inside your working folder. You may read files elsewhere when the task needs them, but do not create, change or delete anything outside it.",
+    "Do not commit, push, open pull requests or merge.",
+    "Never print, copy or send secrets or credential files (for example .env files, tokens or keys)."
+  ]
+}

@@ -13,7 +13,7 @@ static class AskQueue
     }
 
     public static void Write(PendingAsk ask) =>
-        WriteAtomic(Locations.AsksDir(ask.Run), ask.AskId, JsonSerializer.Serialize(ask, DispatchJsonIndented.Default.PendingAsk));
+        WriteAtomic(Locations.AsksDir(ask.Run), ask.AskId, JsonSerializer.Serialize(ask, ControlJson.Files.PendingAsk));
 
     public static void Remove(string run, string askId)
     {
@@ -30,7 +30,7 @@ static class AskQueue
         {
             try
             {
-                if (JsonSerializer.Deserialize(File.ReadAllText(file), DispatchJson.Default.PendingAsk) is { } ask) asks.Add(ask);
+                if (JsonSerializer.Deserialize(File.ReadAllText(file), ControlJson.Files.PendingAsk) is { } ask) asks.Add(ask);
             }
             catch (Exception ex) when (ex is IOException or JsonException)
             {
@@ -42,7 +42,7 @@ static class AskQueue
     }
 
     public static void WriteDecision(string run, AskDecision decision) =>
-        WriteAtomic(Locations.DecisionsDir(run), decision.AskId, JsonSerializer.Serialize(decision, DispatchJsonIndented.Default.AskDecision));
+        WriteAtomic(Locations.DecisionsDir(run), decision.AskId, JsonSerializer.Serialize(decision, ControlJson.Files.AskDecision));
 
     // Decisions waiting for the supervisor; each is removed once read.
     public static List<AskDecision> TakeDecisions(string run)
@@ -54,7 +54,7 @@ static class AskQueue
         {
             try
             {
-                if (JsonSerializer.Deserialize(File.ReadAllText(file), DispatchJson.Default.AskDecision) is { } decision) decisions.Add(decision);
+                if (JsonSerializer.Deserialize(File.ReadAllText(file), ControlJson.Files.AskDecision) is { } decision) decisions.Add(decision);
                 File.Delete(file);
             }
             catch (Exception ex) when (ex is IOException or JsonException)

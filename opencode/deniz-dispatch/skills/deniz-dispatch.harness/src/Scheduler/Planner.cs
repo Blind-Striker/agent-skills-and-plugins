@@ -1,6 +1,6 @@
 static class Planner
 {
-    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct)
+    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct, Git? git = null, Args? args = null)
     {
         tasksPath = Path.GetFullPath(tasksPath);
         if (!File.Exists(tasksPath))
@@ -11,24 +11,34 @@ static class Planner
         TaskFile file;
         try
         {
-            file = JsonSerializer.Deserialize(File.ReadAllText(tasksPath), DispatchJson.Default.TaskFile)
-                ?? throw new HarnessException("task file is empty");
+            file = Json.ReadTaskFile(File.ReadAllText(tasksPath));
         }
         catch (JsonException ex)
         {
-            throw new HarnessException($"task file is not valid: {ex.Message}");
+            throw new HarnessException($"{tasksPath} (task-file): {ex.Message}");
         }
 
         var baseDir = Path.GetDirectoryName(tasksPath)!;
         var repo = Path.GetFullPath(repoOverride ?? (file.Repo is { } r ? Path.Combine(baseDir, r) : throw new HarnessException("task file needs repo or --repo")));
         var plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
-        if ((await Git.RunAsync(repo, ct, "rev-parse", "--show-toplevel")).ExitCode != 0)
+        git ??= Git.Default;
+        if ((await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel")).ExitCode != 0)
         {
             plan.Errors.Add($"repo {repo} is not a git work tree");
             return plan;
         }
 
         var specs = file.Tasks ?? [];
+        if (args is not null)
+        {
+            plan.Config = await ConfigLayers.LoadAsync(repo, file, tasksPath, args, ct, git);
+            allow = plan.Config.Allow;
+            foreach (var spec in specs) ConfigLayers.Apply(spec, plan.Config.Effective.Tasks[spec.Id!].Settings);
+            plan.Warnings.AddRange(plan.Config.Effective.Warnings);
+        }
+        foreach (var path in file.SharedPaths ?? [])
+            if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path) || path.Replace('\\', '/').Split('/').Contains("..") || path.IndexOfAny(['*', '?', '!']) >= 0)
+                plan.Errors.Add("sharedPaths must contain repository-relative paths, not globs or parent paths");
         if (specs.Count == 0) plan.Errors.Add("no tasks");
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var spec in specs)
@@ -48,14 +58,6 @@ static class Planner
                 else if (!allow.AllowsRoute(route!)) e.Add($"route {route} is not on the allow-list{EmptyHint(allow)}");
             }
 
-            var fallback = new List<RouteRef>();
-            foreach (var text in spec.Fallback ?? [])
-            {
-                if (!RouteRef.TryParse(text, out var f, out var error)) e.Add($"fallback {text}: {error}");
-                else if (!allow.AllowsRoute(f!)) e.Add($"fallback {f} is not on the allow-list");
-                else fallback.Add(f!);
-            }
-
             var prompt = spec.Prompt;
             if ((spec.Prompt is null) == (spec.PromptFile is null)) e.Add("name exactly one of prompt or promptFile");
             else if (spec.PromptFile is { } promptFile)
@@ -66,11 +68,11 @@ static class Planner
             }
 
             if (prompt is not null && string.IsNullOrWhiteSpace(prompt)) e.Add("prompt is empty");
-            if (spec.MaxMinutes is < 1 or > 720) e.Add("maxMinutes must be between 1 and 720");
+            if (spec.TimeoutMinutes is < 1 or > 720) e.Add("timeoutMinutes must be between 1 and 720");
             if (spec.ReviewOf is null)
             {
                 if (spec.Base is null) e.Add("base is required (a branch, tag or commit of the repo)");
-                else if ((await Git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}")).ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
+                else if ((await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}")).ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
             }
             else if (spec.Base is not null)
             {
@@ -83,7 +85,7 @@ static class Planner
             foreach (var error in e) plan.Errors.Add($"{spec.Id ?? "<no id>"}: {error}");
             if (e.Count == 0)
             {
-                plan.Tasks.Add(new PlannedTask { Spec = spec, PromptText = prompt!, Route = route, Fallback = fallback });
+                plan.Tasks.Add(new PlannedTask { Spec = spec, PromptText = prompt!, Route = route });
             }
         }
 
@@ -101,7 +103,7 @@ static class Planner
         {
             for (var j = i + 1; j < writers.Count; j++)
             {
-                var overlap = Scope.Overlap(writers[i].Spec.Scope!, writers[j].Spec.Scope!);
+                var overlap = Scope.Overlap(writers[i].Spec.Scope!, writers[j].Spec.Scope!, file.SharedPaths);
                 if (overlap is not null) plan.Errors.Add($"{writers[i].Spec.Id} and {writers[j].Spec.Id} share scope ({overlap})");
             }
         }
@@ -110,7 +112,7 @@ static class Planner
     }
 
     static string EmptyHint(AllowList allow) =>
-        allow.Count == 0 ? " (routes.allow.jsonc is empty; the allow-list owner fills it)" : "";
+        allow.IsRestricted && allow.Count == 0 ? " (the effective allow-list allows no opencode routes)" : "";
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,
     // has its variant, is not manual-class; review lineage differs from the author's.
@@ -134,12 +136,6 @@ static class Planner
                 else if (catalog.CheckRoute(route) is { } why) plan.Errors.Add($"{id}: route {route}: {why}");
                 else resolved[id] = route;
             }
-
-            foreach (var fallback in task.Fallback)
-            {
-                if (catalog.IsManualRoute(fallback)) plan.Errors.Add($"{id}: fallback {fallback} equals a manual-class agent's model");
-                else if (catalog.CheckRoute(fallback) is { } why) plan.Warnings.Add($"{id}: fallback {fallback}: {why}");
-            }
         }
 
         foreach (var task in plan.Tasks.Where(t => t.Spec.ReviewOf is not null))
@@ -151,6 +147,6 @@ static class Planner
             }
         }
 
-        if (allow.Count == 0) plan.Warnings.Add("the allow-list is empty");
+        if (allow.IsRestricted && allow.Count == 0) plan.Warnings.Add("the allow-list is empty");
     }
 }

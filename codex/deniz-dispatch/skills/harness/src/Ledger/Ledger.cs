@@ -1,6 +1,7 @@
 sealed class Ledger(string runId)
 {
     readonly Lock _gate = new();
+    bool _initialized;
 
     public string RunId { get; } = runId;
 
@@ -22,12 +23,44 @@ sealed class Ledger(string runId)
 
     public void Write(string? task, string type, JsonObject? data = null)
     {
-        var line = new LedgerLine { Ts = DateTimeOffset.UtcNow.ToString("o"), Run = RunId, Task = task, Type = type, Data = data };
-        var json = JsonSerializer.Serialize(line, DispatchJson.Default.LedgerLine);
+        var line = new LedgerLine { Ts = Json.Timestamp(), Run = RunId, Task = task, Type = type, Data = data };
         lock (_gate)
         {
             Directory.CreateDirectory(Dir);
-            File.AppendAllText(EventsFile, json + "\n");
+            if (!_initialized)
+            {
+                var text = File.Exists(EventsFile) ? ReadText() : "";
+                Parse(text, out var torn);
+                if (torn)
+                {
+                    var bytes = File.ReadAllBytes(EventsFile);
+                    var start = Array.LastIndexOf(bytes, (byte)'\n') + 1;
+                    var timestamp = DateTime.UtcNow;
+                    string sidecar;
+                    while (true)
+                    {
+                        sidecar = $"events.torn-{timestamp.ToString("yyyyMMddTHHmmssZ", CultureInfo.InvariantCulture)}.jsonl";
+                        var path = Path.Combine(Dir, sidecar);
+                        if (File.Exists(path))
+                        {
+                            timestamp = timestamp.AddSeconds(1);
+                            continue;
+                        }
+                        using var backup = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                        backup.Write(bytes.AsSpan(start));
+                        backup.Flush(flushToDisk: true);
+                        break;
+                    }
+                    Json.WriteBytes(EventsFile, bytes.AsSpan(0, start));
+                    Append(new LedgerLine
+                    {
+                        Ts = Json.Timestamp(), Run = RunId, Type = "ledger-repaired",
+                        Data = new JsonObject { ["file"] = sidecar, ["bytes"] = bytes.Length - start },
+                    });
+                }
+                _initialized = true;
+            }
+            Append(line);
         }
 
         Console.WriteLine($"{DateTime.Now:HH:mm:ss} {task ?? "-",-20} {type,-11} {data?.ToJsonString() ?? ""}");
@@ -35,14 +68,65 @@ sealed class Ledger(string runId)
 
     public List<LedgerLine> Read()
     {
-        if (!File.Exists(EventsFile)) return [];
-        string[] lines;
         lock (_gate)
         {
-            lines = File.ReadAllLines(EventsFile);
+            return File.Exists(EventsFile) ? Parse(ReadText(), out _) : [];
         }
+    }
 
-        return lines.Where(x => x.Length > 0).Select(x => JsonSerializer.Deserialize(x, DispatchJson.Default.LedgerLine)!).ToList();
+    void Append(LedgerLine line)
+    {
+        var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(line, LedgerJson.Events.LedgerLine) + "\n");
+        using var stream = OpenAppend();
+        stream.Write(bytes);
+        stream.Flush(flushToDisk: true);
+    }
+
+    FileStream OpenAppend()
+    {
+        var timer = Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                return new FileStream(EventsFile, FileMode.Append, FileAccess.Write, FileShare.Read | FileShare.Delete);
+            }
+            catch (IOException ex) when (OperatingSystem.IsWindows() &&
+                (ex.HResult & 0xffff) is 32 or 33 && timer.Elapsed < TimeSpan.FromSeconds(2))
+            {
+                Thread.Sleep(25);
+            }
+        }
+    }
+
+    string ReadText()
+    {
+        using var stream = new FileStream(EventsFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
+
+    List<LedgerLine> Parse(string text, out bool torn)
+    {
+        var lines = text.Split('\n');
+        var parsed = new List<LedgerLine>();
+        for (var i = 0; i < lines.Length - 1; i++)
+        {
+            if (lines[i].Length == 0) continue;
+            try
+            {
+                parsed.Add(JsonSerializer.Deserialize(lines[i], LedgerJson.Events.LedgerLine)
+                    ?? throw new JsonException("expected a ledger event"));
+            }
+            catch (JsonException ex)
+            {
+                throw new HarnessException($"corrupt ledger {EventsFile} at line {i + 1}: {ex.Message}");
+            }
+        }
+        torn = lines[^1].Length > 0;
+        if (lines[^1].Length > 0)
+            Console.Error.WriteLine($"ignoring torn ledger line {EventsFile}:{lines.Length}");
+        return parsed;
     }
 
     // Per task, in queue order: done, failed, cancelled (from the final event), or the last
@@ -68,27 +152,27 @@ sealed class Ledger(string runId)
     }
 
     public void SaveRecord(TaskRecord record) =>
-        Json.WriteFile(Path.Combine(TaskDir(record.Spec.Id!), "task.json"), record, DispatchJsonIndented.Default.TaskRecord);
+        Json.WriteFile(Path.Combine(TaskDir(record.Spec.Id!), "task.json"), record, LedgerJson.Files.TaskRecord);
 
     public TaskRecord LoadRecord(string task)
     {
         var path = Path.Combine(Dir, task, "task.json");
         return File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.TaskRecord)!
+            ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.TaskRecord)!
             : throw new HarnessException($"no task record {path}");
     }
 
     public TaskResult? LoadResult(string task)
     {
         var path = Path.Combine(Dir, task, "result.json");
-        return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.TaskResult) : null;
+        return File.Exists(path) ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.TaskResult) : null;
     }
 
     public RunInfo LoadRunInfo()
     {
         var path = Path.Combine(Dir, "run.json");
         return File.Exists(path)
-            ? JsonSerializer.Deserialize(File.ReadAllText(path), DispatchJson.Default.RunInfo)!
+            ? JsonSerializer.Deserialize(File.ReadAllText(path), LedgerJson.Files.RunInfo)!
             : throw new HarnessException($"no run.json in {Dir}");
     }
 

@@ -9,15 +9,21 @@
 #:include src/Contracts/LedgerShapes.cs
 #:include src/Contracts/Json.cs
 #:include src/Config/Locations.cs
+#:include src/Config/ConfigResolver.cs
+#:include src/Config/ConfigLayers.cs
 #:include src/Config/AllowList.cs
 #:include src/Config/Policy.cs
 #:include src/Config/Wildcard.cs
 #:include src/Ledger/Ledger.cs
 #:include src/Ledger/SupervisorLock.cs
 #:include src/Workspace/Scope.cs
+#:include src/Workspace/WorkerEnvironment.cs
 #:include src/Workspace/Proc.cs
+#:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs
+#:include src/Verify/Deliverable.cs
 #:include src/Scheduler/Plan.cs
+#:include src/Scheduler/Prompt.cs
 #:include src/Scheduler/Planner.cs
 #:include src/Scheduler/TaskRun.cs
 #:include src/Scheduler/Supervisor.cs
@@ -29,8 +35,13 @@
 #:include src/Cli/Commands.cs
 #:include src/Cli/Commands.Control.cs
 #:include src/Cli/Commands.SelfCheck.cs
+#:include src/Backends/IWorkerBackend.cs
+#:include src/Backends/Types.cs
 #:include src/Backends/OpenCode/Catalog.cs
 #:include src/Backends/OpenCode/Ready.cs
 #:include src/Backends/OpenCode/HarnessServer.cs
+#:include src/Backends/Codex/CodexProcess.cs
+#:include src/Backends/Codex/CodexRpc.cs
+#:include src/Backends/Codex/CodexProtocol.cs
 
 return await Cli.MainAsync(args);

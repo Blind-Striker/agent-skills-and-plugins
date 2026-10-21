@@ -6,7 +6,6 @@ sealed class PlannedTask
 
     public RouteRef? Route { get; init; }
 
-    public List<RouteRef> Fallback { get; init; } = [];
 }
 
 // What the contract needs from either a planned task or a ledger record.
@@ -19,6 +18,7 @@ sealed class Plan
     public required string TasksPath { get; init; }
 
     public required string Repo { get; init; }
+    public ConfigLayers? Config { get; set; }
 
     public List<PlannedTask> Tasks { get; } = [];
 
@@ -33,6 +33,6 @@ sealed class Plan
         Console.WriteLine(Errors.Count == 0
             ? $"plan ok: {Tasks.Count} task(s) against {Repo}"
             : $"plan refused: {Errors.Count} error(s)");
-        return Errors.Count == 0 ? 0 : 1;
+        return Errors.Count == 0 ? 0 : 2;
     }
 }

@@ -1,54 +1,51 @@
 sealed class AllowList
 {
+    HashSet<string>? qualified;
+    public bool IsRestricted { get; private init; } = true;
+
+    public static AllowList From(RouteRestriction? restriction)
+    {
+        var list = new AllowList { IsRestricted = restriction is not null,
+            qualified = restriction?.Value.Select(Normalize).ToHashSet(StringComparer.Ordinal) };
+        foreach (var entry in list.qualified ?? [])
+        {
+            if (!entry.StartsWith("opencode:", StringComparison.Ordinal)) continue;
+            var text = entry[9..];
+            if (text.Contains('/')) { RouteRef.TryParse(text, out var route, out _); list.Routes.Add(route!); }
+            else list.Agents.Add(text);
+        }
+        return list;
+    }
+
+    public bool Allows(string qualifiedRoute) => !IsRestricted || (qualified?.Contains(Normalize(qualifiedRoute)) ?? false);
+
+    public static string Normalize(string text)
+    {
+        var colon = text.IndexOf(':');
+        if (colon <= 0 || text.Any(char.IsWhiteSpace)) throw new HarnessException($"invalid qualified route: {text}");
+        var backend = text[..colon];
+        var route = text[(colon + 1)..];
+        if (backend == "opencode")
+        {
+            if (route.Contains('/'))
+            {
+                if (!RouteRef.TryParse(route, out _, out var error)) throw new HarnessException($"invalid route {text}: {error}");
+            }
+            else if (!Regex.IsMatch(route, "^[A-Za-z0-9][A-Za-z0-9._-]*$")) throw new HarnessException($"invalid agent route: {text}");
+        }
+        else if (backend != "codex" || !Regex.IsMatch(route, "^[^#\\s:]+(#[^#\\s:]+)?$"))
+            throw new HarnessException($"invalid route: {text}");
+        return text.EndsWith("#default", StringComparison.Ordinal) ? text[..^8] : text;
+    }
     public List<RouteRef> Routes { get; } = [];
 
     public HashSet<string> Agents { get; } = new(StringComparer.Ordinal);
 
     public int Count => Routes.Count + Agents.Count;
 
-    public static AllowList Load()
-    {
-        if (!File.Exists(Locations.AllowListFile))
-        {
-            throw new HarnessException($"missing allow-list {Locations.AllowListFile}");
-        }
+    public bool AllowsRoute(RouteRef route) => !IsRestricted || (qualified is not null ? Allows($"opencode:{route}") : Routes.Any(x => x.Matches(route)));
 
-        AllowListFile? file;
-        try
-        {
-            file = JsonSerializer.Deserialize(File.ReadAllText(Locations.AllowListFile), DispatchJson.Default.AllowListFile);
-        }
-        catch (JsonException ex)
-        {
-            throw new HarnessException($"allow-list is not valid JSONC: {ex.Message}");
-        }
-
-        var list = new AllowList();
-        foreach (var raw in file?.Routes ?? [])
-        {
-            var entry = raw.Trim();
-            if (entry.Contains('/'))
-            {
-                list.Routes.Add(RouteRef.TryParse(entry, out var route, out var error)
-                    ? route!
-                    : throw new HarnessException($"allow-list entry '{entry}': {error}"));
-            }
-            else if (Regex.IsMatch(entry, "^[A-Za-z0-9][A-Za-z0-9._-]*$"))
-            {
-                list.Agents.Add(entry);
-            }
-            else
-            {
-                throw new HarnessException($"allow-list entry '{entry}' is neither a route nor an agent name");
-            }
-        }
-
-        return list;
-    }
-
-    public bool AllowsRoute(RouteRef route) => Routes.Any(x => x.Matches(route));
-
-    public bool AllowsAgent(string agent) => Agents.Contains(agent);
+    public bool AllowsAgent(string agent) => !IsRestricted || (qualified is not null ? Allows($"opencode:{agent}") : Agents.Contains(agent));
 }
 
 // provider/model#variant. The model part may contain '/', so the provider ends at the first '/'
