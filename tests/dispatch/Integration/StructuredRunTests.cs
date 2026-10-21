@@ -12,6 +12,85 @@ public sealed class StructuredRunTests
     [Arguments("codex")]
     [Arguments("opencode")]
     [Timeout(180_000)]
+    public async Task Structured_fresh_projectless_run_uses_system_temp_scratch_and_removes_it(string backend, CancellationToken ct)
+    {
+        using var lab = new StructuredLab(backend);
+        var tasks = JsonNode.Parse(File.ReadAllText(lab.Tasks))!;
+        tasks["tasks"]![0]!["project"] = "off";
+        tasks["tasks"]![0]!.AsObject().Remove("base");
+        var tasksPath = Path.Combine(lab.Tree.Repository, "tasks.jsonc");
+        File.WriteAllText(tasksPath, tasks.ToJsonString());
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "schema.json"), StructuredLab.Schema);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var scratchParent = Directory.CreateTempSubdirectory("dispatch-projectless-").FullName;
+        try
+        {
+            foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" }) lab.Environment[name] = scratchParent;
+            (await harness.RunAsync(["run", tasksPath], ct, lab.Environment)).RequireSuccess("fresh projectless run");
+
+            var record = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.TaskFolder, "task.json")))!;
+            var scratch = record["workspace"]!["path"]!.GetValue<string>();
+            await Assert.That(Path.GetFileName(scratch)).StartsWith("dispatch-scratch-");
+            await Assert.That(Path.GetRelativePath(Path.GetTempPath(), scratch).StartsWith("..", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(Path.GetDirectoryName(scratch)).IsEqualTo(scratchParent);
+            await Assert.That(Directory.Exists(scratch)).IsFalse();
+            await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("done");
+            await Assert.That(lab.Result["deliverable"]!.GetValue<string>()).IsEqualTo("deliverable.json");
+            await Assert.That(JsonNode.DeepEquals(JsonNode.Parse(File.ReadAllText(Path.Combine(lab.TaskFolder, "deliverable.json"))), JsonNode.Parse(StructuredLab.Valid))).IsTrue();
+            var directory = backend == "codex"
+                ? lab.CodexInput().Single(x => x["method"]?.GetValue<string>() == "thread/start")["params"]!["cwd"]!.GetValue<string>()
+                : File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+                    .Single(x => x["method"]!.GetValue<string>() == "POST" && x["path"]!.GetValue<string>() == "/api/session")["body"]!["location"]!["directory"]!.GetValue<string>();
+            await Assert.That(directory).IsEqualTo(scratch);
+        }
+        finally
+        {
+            Directory.Delete(scratchParent, recursive: true);
+        }
+    }
+
+    [Test]
+    [Arguments("codex", "collect", "input.json")]
+    [Arguments("codex", "resume", "input.json")]
+    [Arguments("codex", "collect", "result.schema.json")]
+    [Arguments("codex", "resume", "result.schema.json")]
+    [Arguments("opencode", "collect", "input.json")]
+    [Arguments("opencode", "resume", "input.json")]
+    [Arguments("opencode", "collect", "result.schema.json")]
+    [Arguments("opencode", "resume", "result.schema.json")]
+    [Timeout(180_000)]
+    public async Task Structured_control_commands_refuse_changed_frozen_copies_before_backend_start(string backend, string command, string name, CancellationToken ct)
+    {
+        using var lab = new StructuredLab(backend);
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        using var first = new HarnessProcess(lab.Tree);
+        (await first.RunAsync(["run", lab.Tasks, "--repo", repo.Root], ct, lab.Environment)).RequireSuccess("initial structured run");
+        var run = Path.GetFileName(lab.RunFolder);
+        if (command == "resume")
+            File.AppendAllText(Path.Combine(lab.RunFolder, "events.jsonl"), new JsonObject
+            {
+                ["schemaVersion"] = 2, ["run"] = run, ["task"] = "answer", ["type"] = "interrupted", ["time"] = Json.Timestamp(),
+            }.ToJsonString() + "\n");
+        File.AppendAllText(Path.Combine(lab.TaskFolder, name), " ");
+        var evidence = Directory.GetFiles(lab.RunFolder, "*", SearchOption.AllDirectories).ToDictionary(x => x, File.ReadAllBytes);
+        var calls = backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Length;
+        using var second = new HarnessProcess(lab.Tree);
+
+        var result = await second.RunAsync(command == "collect" ? [command, run, "answer"] : [command, run, "--continue"], ct, lab.Environment);
+
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await Assert.That(result.Stderr).Contains("answer");
+        await Assert.That(result.Stderr).Contains(name);
+        await Assert.That(result.Stderr).Contains("SHA-256 mismatch");
+        foreach (var (path, bytes) in evidence) await Assert.That(File.ReadAllBytes(path).SequenceEqual(bytes)).IsTrue();
+        await Assert.That(backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Length).IsEqualTo(calls);
+    }
+
+    [Test]
+    [Arguments("codex")]
+    [Arguments("opencode")]
+    [Timeout(180_000)]
     public async Task Structured_timeout_settles_failed_without_a_deliverable(string backend, CancellationToken ct)
     {
         using var lab = new StructuredLab(backend, null, "timeout");
@@ -155,6 +234,7 @@ public sealed class StructuredRunTests
     public async Task Structured_projectless_plan_refuses_candidates_beneath_a_git_ancestor(string backend, CancellationToken ct)
     {
         using var lab = new StructuredLab(backend);
+        File.WriteAllText(Path.Combine(lab.Tree.Root, ".git"), "fixture");
         var tasks = JsonNode.Parse(File.ReadAllText(lab.Tasks))!;
         tasks["tasks"]![0]!["project"] = "off";
         tasks["tasks"]![0]!.AsObject().Remove("base");

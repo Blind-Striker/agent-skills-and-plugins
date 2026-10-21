@@ -7,6 +7,36 @@ namespace Dispatch.Tests.Integration;
 public sealed class RunSetupTests
 {
     [Test]
+    [Timeout(30_000)]
+    public async Task Structured_setup_crash_before_frozen_config_publish_leaves_no_setup_marker(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        using var structured = new StructuredLab("opencode");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var backend = new FakeBackend("opencode", new("policy", "policy", "text", true));
+        backend.OnProbe = (_, _) => Task.FromResult(new BackendProbe(true, "fixture", [], []));
+        backend.OnValidate = (plans, _) => Task.FromResult<IReadOnlyList<LiveCheck>>(plans.Select(x => new LiveCheck(x.TaskId, [], [], "fixture", "clean", null)).ToList());
+        var visited = false;
+        string? folder = null;
+        var result = await Commands.RunAsync(Args.Parse(["run", structured.Tasks, "--repo", repo.Root]), ct,
+            backendFactory: () => backend, beforeFrozenConfigMove: pending =>
+            {
+                visited = true;
+                folder = Path.GetDirectoryName(pending)!;
+                throw new IOException("interrupted before frozen config publish");
+            });
+
+        await Assert.That(visited).IsTrue();
+        await Assert.That(result).IsEqualTo(1);
+        await Assert.That(File.Exists(Path.Combine(folder!, "answer", "input.json"))).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(folder!, "answer", "result.schema.json"))).IsTrue();
+        var ledger = new Ledger(folder!);
+        await Assert.That(File.Exists(Path.Combine(Locations.ControlDir(ledger.RunId), "setup.done"))).IsFalse();
+        await Assert.That(ConfigLayers.Frozen(folder!).Tasks["answer"].InputSha256).IsNull();
+        await Assert.That(backend.Calls.Any(x => x.Member == nameof(IWorkerBackend.CreateAsync))).IsFalse();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(30_000)]

@@ -63,6 +63,7 @@ internal sealed class CoreLab : IDisposable
         run.Record.Spec.Input = new() { Items = JsonNode.Parse(StructuredLab.Valid)!["items"]!.AsArray() };
         run.Record.Spec.Result = new() { Schema = "schema.json", ItemsAt = "/items", Immutable = ["key"] };
         run.Record.PromptInputs = new([], run.Record.Spec.Input.Items, JsonNode.Parse(StructuredLab.Schema));
+        Json.WriteFile(Path.Combine(Ledger.Dir, "tasks.jsonc"), new TaskFile { Tasks = [run.Record.Spec] }, InputJson.Read.TaskFile);
         Json.WriteFile(Path.Combine(Ledger.Dir, "config.json"), new EffectiveConfig
         {
             Tasks = new() { [run.Id] = new() { Settings = run.Record.Settings } },

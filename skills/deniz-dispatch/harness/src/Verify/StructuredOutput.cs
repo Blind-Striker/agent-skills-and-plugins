@@ -1,6 +1,6 @@
 static class StructuredOutput
 {
-    public static void Freeze(Ledger ledger, IReadOnlyList<TaskRun> runs)
+    public static void Freeze(Ledger ledger, IReadOnlyList<TaskRun> runs, Action<string>? beforeConfigMove = null)
     {
         var structured = runs.Where(x => x.Record.Spec.Kind == "structured").ToList();
         if (structured.Count == 0) return;
@@ -19,7 +19,7 @@ static class StructuredOutput
                 return Hash(bytes);
             }
         }
-        Json.WriteFile(Path.Combine(ledger.Dir, "config.json"), config, LedgerJson.Files.EffectiveConfig);
+        Json.WriteFile(Path.Combine(ledger.Dir, "config.json"), config, LedgerJson.Files.EffectiveConfig, beforeConfigMove);
     }
 
     public static async Task ValidateAsync(Ledger ledger, TaskRun run, TaskResult result, string? text, CancellationToken ct)
@@ -30,9 +30,10 @@ static class StructuredOutput
         try
         {
             var inputs = Load(ledger, run);
-            var options = run.Record.Spec.Result ?? throw new HarnessException("structured result is missing");
+            var spec = ledger.FrozenSpec(run.Id);
+            var options = spec.Result ?? throw new HarnessException("structured result is missing");
             var check = Deliverable.LoadSchema(inputs.Schema!.ToJsonString()).Validate(text ?? "", inputs.Items!, options,
-                run.Record.Spec.Input?.IdField ?? "id");
+                spec.Input?.IdField ?? "id");
             result.Validation = check.Validation;
             if (check.Validation.Ok)
             {
@@ -54,19 +55,26 @@ static class StructuredOutput
 
     }
 
-    public static Prompt.Inputs Load(Ledger ledger, TaskRun run)
+    public static Prompt.Inputs Load(Ledger ledger, TaskRun run) => Load(ledger, run.Id);
+
+    public static Prompt.Inputs Load(Ledger ledger, string task)
     {
-        var frozen = ConfigLayers.Frozen(ledger.Dir).Tasks[run.Id];
+        var frozen = ConfigLayers.Frozen(ledger.Dir).Tasks[task];
         return new([], JsonNode.Parse(Read("input.json", frozen.InputSha256))!.AsArray(),
             JsonNode.Parse(Read("result.schema.json", frozen.ResultSchemaSha256)));
 
         string Read(string name, string? expected)
         {
-            var bytes = File.ReadAllBytes(Path.Combine(ledger.TaskDir(run.Id), name));
-            if (expected is null || Hash(bytes) != expected) throw new HarnessException($"{name}: frozen SHA-256 mismatch");
+            byte[] bytes;
+            try { bytes = File.ReadAllBytes(Path.Combine(ledger.TaskDir(task), name)); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+            { throw new FrozenInputException($"{task}: {name}: frozen copy is unavailable: {error.Message}"); }
+            if (expected is null || Hash(bytes) != expected) throw new FrozenInputException($"{task}: {name}: frozen SHA-256 mismatch");
             return Encoding.UTF8.GetString(bytes);
         }
     }
 
     static string Hash(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();
 }
+
+sealed class FrozenInputException(string message) : HarnessException(message);

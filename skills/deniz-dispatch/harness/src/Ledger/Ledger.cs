@@ -193,6 +193,15 @@ sealed class Ledger(string runId)
             : throw new HarnessException($"no task record {path}");
     }
 
+    public TaskSpec FrozenSpec(string task)
+    {
+        var path = Path.Combine(Dir, "tasks.jsonc");
+        var file = JsonSerializer.Deserialize(ReadFile(path), InputJson.Read.TaskFile)
+            ?? throw new HarnessException("tasks.jsonc: frozen task file is empty");
+        return file.Tasks!.SingleOrDefault(x => x.Id == task)
+            ?? throw new HarnessException($"tasks.jsonc: no frozen task {task}");
+    }
+
     public TaskResult? LoadResult(string task)
     {
         var path = Path.Combine(Dir, task, "result.json");

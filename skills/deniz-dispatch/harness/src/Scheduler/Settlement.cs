@@ -33,7 +33,7 @@ static class Settlement
             await StructuredOutput.ValidateAsync(ledger, run, result, report.FinalText, ct);
             if (!run.Zombie)
             {
-                try { Scratch.Delete(record); }
+                try { Scratch.Delete(record, ledger); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)
                 { result.Error = "scratch cleanup failed: " + error.Message; }
             }

@@ -84,7 +84,8 @@ static partial class Commands
     }
 
     public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null,
-        Func<IWorkerBackend>? backendFactory = null, Func<string?>? userPathReader = null)
+        Func<IWorkerBackend>? backendFactory = null, Func<string?>? userPathReader = null,
+        Action<string>? beforeFrozenConfigMove = null)
     {
         var userPath = new UserPathGuard(userPathReader);
         if (userPath.RunRefusal is { } refusal)
@@ -224,6 +225,7 @@ static partial class Commands
             }
 
             if (setupCheckpoint is not null) await setupCheckpoint(info, "queued");
+            StructuredOutput.Freeze(ledger, runs, beforeFrozenConfigMove);
             using (var done = new FileStream(Path.Combine(control, "setup.done"), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                 done.Flush(flushToDisk: true);
             await using var scope = injectedBackend is null ? new BackendScope(versions.Keys, control, runId: runId) : null;
@@ -332,6 +334,9 @@ static partial class Commands
         var info = ledger.LoadRunInfo();
         var proceed = a.Has("continue");
         var frozen = ConfigLayers.Frozen(ledger.Dir);
+        foreach (var (task, config) in frozen.Tasks)
+            if (config.InputSha256 is not null || config.ResultSchemaSha256 is not null)
+                StructuredOutput.Load(ledger, task);
         Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
         var allow = proceed ? (await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct)).Allow
             : AllowList.From(frozen.Restrictions?.Routes);
@@ -351,6 +356,8 @@ static partial class Commands
                 }
 
                 var record = ledger.LoadRecord(task);
+                if (record.Spec.Kind == "structured" || frozen.Tasks[task].InputSha256 is not null)
+                    record.Spec = ledger.FrozenSpec(task);
                 record.Settings = frozen.Tasks[task].Settings;
                 ConfigLayers.Apply(record.Spec, record.Settings);
                 var run = TaskRun.FromLedger(record, ledger);

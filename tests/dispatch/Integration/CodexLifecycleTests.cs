@@ -85,6 +85,7 @@ public sealed class CodexLifecycleTests
         using var codex = new CodexLab(core.Tree);
         var run = await core.TaskAsync("edit", cancellationToken);
         run.Record.Spec.Kind = "structured";
+        run.Record.Spec.Project = "on";
         run.Record.Spec.RawPrompt = false;
         run.Record.Spec.Route = "model-y#high";
         run.Record.Settings.Backend = new() { Value = "codex" };
