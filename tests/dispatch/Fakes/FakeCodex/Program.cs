@@ -43,9 +43,11 @@ internal static class Program
             }
             Directory.CreateDirectory(output);
             wire = new Wire(output);
+            using var self = Process.GetCurrentProcess();
             var start = new JsonObject
             {
                 ["pid"] = Environment.ProcessId,
+                ["startTime"] = self.StartTime.ToUniversalTime().ToString("O", System.Globalization.CultureInfo.InvariantCulture),
                 ["argv"] = new JsonArray(args.Select(argument => (JsonNode?)JsonValue.Create(argument)).ToArray()),
                 ["cwd"] = Environment.CurrentDirectory,
                 ["environmentNames"] = new JsonArray(Environment.GetEnvironmentVariables().Keys.Cast<string>()

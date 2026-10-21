@@ -5,6 +5,13 @@ using Microsoft.Win32.SafeHandles;
 
 sealed record CodexProcessIdentity(int Pid, DateTime StartTime);
 
+/// <summary>
+/// Owns an app-server, its Windows job or optional Linux session, and observed descendants.
+/// Descendant snapshots also track children that create their own Unix sessions. They cannot
+/// discover a child orphaned before a snapshot, or prove an unrecorded escaped child has stopped.
+/// A successful stop confirms only the recorded PID/start-time identities and the Windows job.
+/// Windows job assignment occurs after launch; children born before assignment can escape it.
+/// </summary>
 sealed class CodexProcess : IAsyncDisposable
 {
     readonly Process process;
@@ -18,13 +25,13 @@ sealed class CodexProcess : IAsyncDisposable
     bool disposed;
     bool trackingReliable = true;
 
-    CodexProcess(Process process, SafeFileHandle? job)
+    CodexProcess(Process process, SafeFileHandle? job, int? processGroup)
     {
         this.process = process;
         this.job = job;
         Id = process.Id;
         StartTime = process.StartTime.ToUniversalTime();
-        ProcessGroup = !OperatingSystem.IsWindows() && Native.getpgid(Id) == Id ? Id : null;
+        ProcessGroup = processGroup;
         stderrDrain = DrainStderrAsync();
     }
 
@@ -39,7 +46,7 @@ sealed class CodexProcess : IAsyncDisposable
     public Stream Stdout => process.StandardOutput.BaseStream;
     public IReadOnlyList<CodexProcessIdentity> Descendants { get { lock (gate) return descendants.Values.ToArray(); } }
 
-    // Called on supervisor ticks, before a wrapper can exit and orphan a sandbox's new session.
+    // Supervisor snapshots are best effort: a wrapper can exit before its children are observed.
     public void RefreshDescendants()
     {
         lock (gate)
@@ -125,6 +132,9 @@ sealed class CodexProcess : IAsyncDisposable
         var stopped = await WaitAsync(TimeSpan.FromSeconds(5), rootOnly: false) && trackingReliable;
         // An escaped process holding stderr must not make an unconfirmed stop hang forever.
         if (stopped && !await DrainFinishedAsync()) stopped = false;
+        // Recheck after the drain too: Stopped must not outlive its identity-based evidence.
+        TryRefreshDescendants();
+        stopped = stopped && trackingReliable && TreeStopped();
         var exit = process.HasExited ? process.ExitCode.ToString(CultureInfo.InvariantCulture) : "running";
         return new(stopped, $"exit={exit}; processGroup={ProcessGroup?.ToString(CultureInfo.InvariantCulture) ?? "false"}; groupKill={groupKill}; treeKill={treeKill}; descendantsKilled={killed}; stderrDroppedLines={StderrDroppedLines}; {string.Join("; ", errors)}\nstderr:\n{StderrTail}");
     }
@@ -148,8 +158,8 @@ sealed class CodexProcess : IAsyncDisposable
         var clock = Stopwatch.StartNew();
         do
         {
-            if (rootOnly ? process.HasExited : TreeStopped()) return true;
             TryRefreshDescendants();
+            if (rootOnly ? process.HasExited : TreeStopped()) return true;
             await Task.Delay(100);
         } while (clock.Elapsed < timeout);
         return rootOnly ? process.HasExited : TreeStopped();
@@ -225,8 +235,9 @@ sealed class CodexProcess : IAsyncDisposable
     public static CodexProcess Start(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment)
     {
         var executable = ResolveExecutable(context.Executable, environment);
+        var sessionLauncher = ResolveSessionLauncher(environment);
         var batch = OperatingSystem.IsWindows() && Path.GetExtension(executable).ToLowerInvariant() is ".cmd" or ".bat";
-        var start = new ProcessStartInfo(batch ? Path.Combine(Environment.SystemDirectory, "cmd.exe") : executable)
+        var start = new ProcessStartInfo(sessionLauncher ?? (batch ? Path.Combine(Environment.SystemDirectory, "cmd.exe") : executable))
         {
             WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardInput = true,
@@ -234,11 +245,19 @@ sealed class CodexProcess : IAsyncDisposable
             StandardInputEncoding = new UTF8Encoding(false), StandardOutputEncoding = new UTF8Encoding(false),
             StandardErrorEncoding = new UTF8Encoding(false),
         };
-        // .NET exposes this property only on Windows; Unix verifies getpgid and keeps the descendant net.
+        // setsid creates the Unix session before exec; snapshots still cover observed session escapees.
         if (OperatingSystem.IsWindows()) start.CreateNewProcessGroup = true;
         // Windows cannot CreateProcess a batch file. Only a trusted executable path and fixed literals reach cmd.
         if (batch) start.Arguments = $"/d /s /c \"\"{executable}\" app-server\"";
-        else start.ArgumentList.Add("app-server");
+        else
+        {
+            if (sessionLauncher is not null)
+            {
+                start.ArgumentList.Add("--");
+                start.ArgumentList.Add(executable);
+            }
+            start.ArgumentList.Add("app-server");
+        }
         start.Environment.Clear();
         foreach (var (name, value) in environment) start.Environment[name] = value;
         foreach (var (name, value) in context.Passthrough) start.Environment[name] = value;
@@ -253,7 +272,16 @@ sealed class CodexProcess : IAsyncDisposable
                 if (!Native.AssignProcessToJobObject(job, process.SafeHandle)) throw new Win32Exception(Marshal.GetLastWin32Error());
             }
             else if (Native.setpriority(0, process.Id, 10) != 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
-            return new(process, job);
+            int? processGroup = null;
+            if (sessionLauncher is not null)
+            {
+                // Process.Start can return before setsid runs. Never record an inherited group.
+                if (!SpinWait.SpinUntil(() => Native.getpgid(process.Id) == process.Id || process.HasExited, TimeSpan.FromSeconds(5))
+                    || Native.getpgid(process.Id) != process.Id)
+                    throw new HarnessException("cannot confirm codex app-server session creation");
+                processGroup = process.Id;
+            }
+            return new(process, job, processGroup);
         }
         catch (Exception exception) when (exception is Win32Exception or InvalidOperationException or HarnessException)
         {
@@ -265,6 +293,13 @@ sealed class CodexProcess : IAsyncDisposable
             }
             throw new HarnessException($"cannot start codex app-server: {exception.Message}");
         }
+    }
+
+    static string? ResolveSessionLauncher(IReadOnlyDictionary<string, string> environment)
+    {
+        if (!OperatingSystem.IsLinux()) return null;
+        try { return Executables.Resolve("setsid", environment.GetValueOrDefault("PATH") ?? ""); }
+        catch (HarnessException) { return null; } // No util-linux: only observed descendants can be tracked.
     }
 
     static SafeFileHandle CreateJob()

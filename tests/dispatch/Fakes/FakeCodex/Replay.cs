@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Threading.Channels;
@@ -19,6 +20,7 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
         ["$platformFamily"] = JsonValue.Create(OperatingSystem.IsWindows() ? "windows" : "unix"),
     };
     long requestId;
+    PosixSignalRegistration? termRegistration;
 
     public async Task<int> RunAsync(int offset)
     {
@@ -72,6 +74,16 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
                 var bytes = Encoding.UTF8.GetBytes(stderr.GetValue<string>());
                 await Console.OpenStandardError().WriteAsync(bytes);
             }
+            else if (action["termMarker"] is { } marker)
+            {
+                if (OperatingSystem.IsWindows()) throw new InvalidDataException("SIGTERM requires Unix");
+                termRegistration?.Dispose();
+                termRegistration = PosixSignalRegistration.Create(PosixSignal.SIGTERM, _ =>
+                {
+                    File.WriteAllText(marker.GetValue<string>(), "SIGTERM\n");
+                    Environment.Exit(0);
+                });
+            }
             else if (action["exit"] is { } exit) return exit.GetValue<int>();
             else if (action["hang"]?.GetValue<bool>() == true)
             {
@@ -80,7 +92,7 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
                 await Task.Delay(Timeout.Infinite);
             }
             else if (action["spawnChild"]?.GetValue<bool>() == true)
-                return await SpawnAsync(index + 1, action["setsid"]?.GetValue<bool>() == true);
+                return await SpawnAsync(index + 1, action["setsid"]?.GetValue<bool>() == true, action["orphan"]?.GetValue<bool>() == true);
             else throw new InvalidDataException($"unknown scenario step {index + 1}");
         }
         // Normal EOF succeeds only after every step; extra client frames are always errors.
@@ -138,7 +150,7 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
         return new InvalidDataException($"{reason}: {message.ToJsonString()}");
     }
 
-    async Task<int> SpawnAsync(int offset, bool newSession)
+    async Task<int> SpawnAsync(int offset, bool newSession, bool orphan)
     {
         // Record alongside this process, never in the immutable fixture folder.
         var record = Environment.GetEnvironmentVariable("FAKE_CODEX_RECORD")!;
@@ -151,6 +163,14 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
         foreach (var argument in new[] { "--child", scenarioPath, offset.ToString(System.Globalization.CultureInfo.InvariantCulture), directory, newSession ? "setsid" : "inherited" })
             start.ArgumentList.Add(argument);
         using var child = Process.Start(start) ?? throw new IOException("could not spawn child");
+        if (orphan)
+        {
+            // Forward readiness once, then exit without waiting for the child or its pipes.
+            using var ready = new StreamReader(child.StandardOutput.BaseStream, new UTF8Encoding(false, true));
+            var line = await ready.ReadLineAsync() ?? throw new IOException("orphan child did not report readiness");
+            await SendAsync(JsonNode.Parse(line)!.AsObject());
+            return 0;
+        }
         using var forwardingCancellation = new CancellationTokenSource();
         var input = ForwardAsync();
         var output = CopyOutputAsync();

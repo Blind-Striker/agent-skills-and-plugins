@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
@@ -23,7 +24,7 @@ public sealed class CodexProcessTests
             : $"#!/bin/sh\nexec \"{Executable}\" \"$@\"\n");
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(shim, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var environment = Scenario(tree, """
-            {"expect":"roundtrip","reply":{"text":"İyi günler 世界"}}
+            {"expect":"roundtrip","params":{"text":"İyi günler 世界"},"reply":{"text":"İyi günler 世界"}}
             """);
         environment["PATH"] = shimFolder;
         environment["PATHEXT"] = ".EXE;.CMD";
@@ -46,6 +47,10 @@ public sealed class CodexProcessTests
         using (var child = Process.GetProcessById(record["pid"]!.GetValue<int>()))
             await Assert.That(child.PriorityClass).IsEqualTo(ProcessPriorityClass.BelowNormal);
         await Assert.That((await process.StopAsync()).Stopped).IsTrue();
+        var received = File.ReadAllLines(Directory.GetFiles(environment["FAKE_CODEX_RECORD"], "wire.jsonl", SearchOption.AllDirectories).Single())
+            .Select(line => JsonNode.Parse(line)!)
+            .Single(line => line["direction"]!.GetValue<string>() == "in");
+        await Assert.That(Convert.FromBase64String(received["raw"]!.GetValue<string>()).SequenceEqual(request)).IsTrue();
     }
 
     [Test]
@@ -91,10 +96,9 @@ public sealed class CodexProcessTests
         using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
         await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
         process.RefreshDescendants();
-        var pids = Directory.GetFiles(environment["FAKE_CODEX_RECORD"], "start.json", SearchOption.AllDirectories)
-            .Select(path => JsonNode.Parse(File.ReadAllText(path))!["pid"]!.GetValue<int>()).ToArray();
-        await Assert.That(pids.Length).IsEqualTo(3);
-        foreach (var pid in pids) await Assert.That(IsAlive(pid)).IsTrue();
+        var identities = ObserveRecordedProcesses(environment);
+        await Assert.That(identities.Length).IsEqualTo(3);
+        foreach (var identity in identities) await Assert.That(IsAlive(identity)).IsTrue();
         try
         {
             if (wrapperExits)
@@ -105,23 +109,142 @@ public sealed class CodexProcessTests
             }
             var stopped = await process.StopAsync();
             await Assert.That(stopped.Stopped).IsTrue();
-            foreach (var pid in pids) await Assert.That(IsAlive(pid)).IsFalse();
+            foreach (var identity in identities) await Assert.That(IsAlive(identity)).IsFalse();
             await Assert.That((await process.StopAsync()).Stopped).IsTrue();
         }
-        finally
+        finally { await CleanupAsync(identities); }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Stop_job_kills_an_early_orphan_before_any_refresh_on_Windows(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows job objects only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"spawnChild":true,"orphan":true}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(30), cancellationToken)).Contains("ready");
+        var children = ObserveRecordedProcesses(environment).Where(identity => identity.Pid != process.Id).ToArray();
+        try
         {
-            foreach (var pid in pids)
-            {
-                try
-                {
-                    using var child = Process.GetProcessById(pid);
-                    if (!child.HasExited) child.Kill(entireProcessTree: true);
-                    await child.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
-                }
-                catch (ArgumentException) { continue; }
-                catch (InvalidOperationException) { continue; }
-            }
+            var clock = Stopwatch.StartNew();
+            while (!process.HasExited && clock.Elapsed < TimeSpan.FromSeconds(10)) await Task.Delay(20, cancellationToken);
+            await Assert.That(process.HasExited).IsTrue();
+            await Assert.That(children.Length).IsEqualTo(1);
+            await Assert.That(process.Descendants.Count).IsEqualTo(0);
+            foreach (var child in children) await Assert.That(IsAlive(child)).IsTrue();
+            var result = await process.StopAsync();
+            foreach (var child in children) await Assert.That(IsAlive(child)).IsFalse();
+            await Assert.That(result.Stopped).IsTrue();
         }
+        finally { await CleanupAsync(children); }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Stop_kills_all_descendants_launched_through_a_cmd_shim_on_Windows(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows batch shims only");
+        using var tree = new TempTree();
+        var directory = Directory.CreateDirectory(Path.Combine(tree.Root, "shim with spaces & punctuation")).FullName;
+        var shim = Path.Combine(directory, "codex.cmd");
+        File.WriteAllText(shim, $"@echo off\r\n\"{Executable}\" %*\r\n");
+        var environment = Scenario(tree, """
+            {"spawnChild":true,"orphan":true}
+            {"spawnChild":true}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        var context = new BackendContext(tree.Root, shim, new Dictionary<string, string>());
+        await using var process = CodexProcess.Start(context, tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(30), cancellationToken)).Contains("ready");
+        var identities = ObserveRecordedProcesses(environment);
+        try
+        {
+            var clock = Stopwatch.StartNew();
+            while (!process.HasExited && clock.Elapsed < TimeSpan.FromSeconds(10)) await Task.Delay(20, cancellationToken);
+            await Assert.That(process.HasExited).IsTrue();
+            await Assert.That(identities.Length).IsEqualTo(3);
+            await Assert.That(identities.Count(IsAlive)).IsEqualTo(2);
+            await Assert.That(process.Descendants.Count).IsEqualTo(0);
+            var result = await process.StopAsync();
+            foreach (var identity in identities) await Assert.That(IsAlive(identity)).IsFalse();
+            await Assert.That(result.Stopped).IsTrue();
+        }
+        finally { await CleanupAsync(identities); }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Linux_launch_creates_a_session_and_group_whose_signal_reaches_the_grandchild(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux setsid launcher only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"spawnChild":true}
+            {"spawnChild":true}
+            {"termMarker":"$cwd/grandchild-term.txt"}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        // This case requires util-linux, rather than testing the documented no-setsid fallback.
+        _ = Executables.Resolve("setsid", environment["PATH"]);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(30), cancellationToken)).Contains("ready");
+        var identities = ObserveRecordedProcesses(environment);
+        try
+        {
+            await Assert.That(identities.Length).IsEqualTo(3);
+            await Assert.That(process.ProcessGroup).IsEqualTo(process.Id);
+            await Assert.That(getsid(process.Id)).IsEqualTo(process.Id);
+            foreach (var identity in identities)
+            {
+                await Assert.That(IsAlive(identity)).IsTrue();
+                await Assert.That(getpgid(identity.Pid)).IsEqualTo(process.Id);
+            }
+            var result = await process.StopAsync();
+            foreach (var identity in identities) await Assert.That(IsAlive(identity)).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(tree.Repository, "grandchild-term.txt"))).IsTrue();
+            await Assert.That(File.ReadAllText(Path.Combine(tree.Repository, "grandchild-term.txt"))).IsEqualTo("SIGTERM\n");
+            await Assert.That(result.Detail).Contains("groupKill=True");
+            await Assert.That(result.Stopped).IsTrue();
+        }
+        finally { await CleanupAsync(identities); }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Launch_without_a_session_launcher_reports_no_group_and_stops_tracked_descendants(CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"spawnChild":true}
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        environment["PATH"] = Directory.CreateDirectory(Path.Combine(tree.Root, "empty-path")).FullName;
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken).AsTask().WaitAsync(TimeSpan.FromSeconds(30), cancellationToken)).Contains("ready");
+        var identities = ObserveRecordedProcesses(environment);
+        try
+        {
+            await Assert.That(process.ProcessGroup).IsNull();
+            await Assert.That(identities.Length).IsEqualTo(2);
+            foreach (var identity in identities) await Assert.That(IsAlive(identity)).IsTrue();
+            process.RefreshDescendants();
+            var result = await process.StopAsync();
+            foreach (var identity in identities) await Assert.That(IsAlive(identity)).IsFalse();
+            await Assert.That(result.Stopped).IsTrue();
+        }
+        finally { await CleanupAsync(identities); }
     }
 
     [Test]
@@ -153,9 +276,61 @@ public sealed class CodexProcessTests
         return environment;
     }
 
-    static bool IsAlive(int pid)
+    sealed record ObservedProcess(int Pid, DateTime StartTime);
+
+    static ObservedProcess[] ObserveRecordedProcesses(Dictionary<string, string> environment) =>
+        Directory.GetFiles(environment["FAKE_CODEX_RECORD"], "start.json", SearchOption.AllDirectories)
+            .Select(path => JsonNode.Parse(File.ReadAllText(path))!)
+            .Select(record =>
+            {
+                var pid = record["pid"]!.GetValue<int>();
+                try
+                {
+                    // Unix wall-clock start times can differ between observers. Capture them here,
+                    // independently of the owner's list, just as subsequent survival checks do.
+                    using var process = Process.GetProcessById(pid);
+                    return new ObservedProcess(pid, process.StartTime.ToUniversalTime());
+                }
+                catch (ArgumentException) { return new ObservedProcess(pid, record["startTime"]!.GetValue<DateTime>()); } // Early wrapper already exited.
+                catch (InvalidOperationException) { return new ObservedProcess(pid, record["startTime"]!.GetValue<DateTime>()); } // Exit raced observation.
+            }).ToArray();
+
+    static bool IsAlive(ObservedProcess identity)
     {
-        try { using var process = Process.GetProcessById(pid); return !process.HasExited; }
+        try
+        {
+            using var process = Process.GetProcessById(identity.Pid);
+            if (process.HasExited || process.StartTime.ToUniversalTime() != identity.StartTime) return false;
+            if (!OperatingSystem.IsLinux()) return true;
+            var stat = File.ReadAllText($"/proc/{identity.Pid}/stat");
+            return stat[(stat.LastIndexOf(')') + 2)..].Split(' ')[0] != "Z";
+        }
         catch (ArgumentException) { return false; }
+        catch (InvalidOperationException) { return false; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
     }
+
+    static async Task CleanupAsync(IEnumerable<ObservedProcess> identities)
+    {
+        foreach (var identity in identities)
+        {
+            if (!IsAlive(identity)) continue;
+            try
+            {
+                using var process = Process.GetProcessById(identity.Pid);
+                if (process.StartTime.ToUniversalTime() != identity.StartTime) continue;
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            catch (ArgumentException) { continue; } // Exit raced cleanup.
+            catch (InvalidOperationException) { continue; } // Exit raced cleanup.
+        }
+    }
+
+    // pid_t getpgid(pid_t) / getsid(pid_t), borrowed process identities, no owned native memory.
+    [DllImport("libc", ExactSpelling = true, SetLastError = true)]
+    static extern int getpgid(int pid);
+    [DllImport("libc", ExactSpelling = true, SetLastError = true)]
+    static extern int getsid(int pid);
 }
