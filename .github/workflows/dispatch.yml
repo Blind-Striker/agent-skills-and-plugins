@@ -41,6 +41,16 @@ jobs:
             echo "expected the usage exit code 2, got $code"
             exit 1
           fi
+      # The schema contract test (P2) runs on one OS with the Codex CLI the harness pins. The CLI goes
+      # into a private prefix, never globally and never on PATH, so only P2 can resolve it, and only
+      # through DISPATCH_CONTRACT_CODEX. Its schema generation needs no login. Keep the version equal
+      # to the harness pin; S5 compares them.
+      - name: Pinned Codex CLI for the schema contract test (Linux only)
+        if: runner.os == 'Linux'
+        run: npm install --no-save --prefix "$RUNNER_TEMP/codex" @openai/codex@0.163.0
       - name: Unit and Integration tests
         working-directory: tests/dispatch
+        env:
+          DISPATCH_CONTRACT: ${{ runner.os == 'Linux' && '1' || '' }}
+          DISPATCH_CONTRACT_CODEX: ${{ runner.os == 'Linux' && format('{0}/codex/node_modules/.bin/codex', runner.temp) || '' }}
         run: dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"
