@@ -95,29 +95,42 @@ sealed partial class OpenCodeBackend
 
     async Task<WorkerRef?> OwnerAsync(string id, CancellationToken ct)
     {
-        if (workers.TryGetValue(id, out var root)) return root;
-        if (owners.TryGetValue(id, out var known)) return workers.GetValueOrDefault(known);
-        var chain = new List<string> { id };
+        var chain = new HashSet<string>(StringComparer.Ordinal);
         var current = id;
-        for (var depth = 0; depth < 8; depth++)
+        while (true)
         {
-            var read = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(current).GetAsync(OpenCodeRequestOptions.NoThrow, ct);
-            if (read.IsError) return null;
-            if (read.Session.ParentId is not { } parent) break;
-            if (workers.TryGetValue(parent, out root))
+            if (workers.TryGetValue(current, out var root)
+                || owners.TryGetValue(current, out var known) && workers.TryGetValue(known, out root))
             {
                 foreach (var child in chain) owners.TryAdd(child, root.Id);
                 return root;
             }
-            chain.Add(parent);
+            // A released worker is not a negative ownership result. Re-read the ancestry.
+            owners.TryRemove(current, out _);
+            if (chain.Count == 64 || !chain.Add(current)) return Cut();
+            var read = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(current).GetAsync(OpenCodeRequestOptions.NoThrow, ct);
+            if (read.IsError) return Cut();
+            if (read.Session.ParentId is not { } parent) return null;
             current = parent;
         }
-        return null;
+
+        WorkerRef? Cut()
+        {
+            Emit(new WorkerSignal.Fault(null, "owner-chain-cut", new JsonObject { ["session"] = id, ["depth"] = chain.Count }.ToJsonString()));
+            return null;
+        }
     }
 
     async Task AskAsync(string session, string id, string action, IReadOnlyList<string> resources, CancellationToken ct)
     {
-        if (await OwnerAsync(session, ct) is not { } owner) return;
+        if (await OwnerAsync(session, ct) is not { } owner)
+        {
+            var reply = await AnswerCoreAsync(new(Name, session, null, id),
+                new BlockerAnswer.Reject("This session has no owning task; the request was rejected."), ct);
+            if (!reply.Confirmed)
+                Emit(new WorkerSignal.Fault(null, "unowned permission", $"request {id} rejection unconfirmed: HTTP {reply.Status}"));
+            return;
+        }
         Publish(owner, worker =>
         {
             var ask = new WorkerSignal.Ask(worker.TaskId, worker.Turn!, new(Name, worker.Id, session == worker.Id ? null : session, id), action, resources);

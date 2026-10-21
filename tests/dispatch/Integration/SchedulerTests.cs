@@ -108,11 +108,11 @@ public sealed class SchedulerTests
             }
             return input.Worker with { Turn = "turn-" + input.Worker.TaskId };
         };
-        lab.Backend.OnPoll = async (live, _) =>
+        lab.Backend.OnPoll = (live, _) =>
         {
             if (live.Any(x => x.TaskId == fast.Id))
-                await File.WriteAllTextAsync(Path.Combine(lab.Ledger.RunId, fast.Id + ".cancel"), "cancel", ct);
-            return new([]);
+                Json.WriteBytes(Path.Combine(lab.Ledger.RunId, fast.Id + ".cancel"), "cancel"u8);
+            return Task.FromResult(new PollResult([]));
         };
         lab.Backend.OnInterrupt = (input, _) =>
         {
