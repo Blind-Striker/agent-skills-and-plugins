@@ -157,6 +157,7 @@ sealed class TaskRecord : VersionedContract
 sealed class WorkspaceRecord
 {
     public string? Path { get; set; }
+    public string? ScratchAllocationId { get; set; }
     public string? Branch { get; set; }
     public string? BaseRef { get; set; }
     public string? BaseSha { get; set; }

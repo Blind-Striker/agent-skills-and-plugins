@@ -40,13 +40,15 @@ static class Scratch
         }
         var parent = Candidate();
         Directory.CreateDirectory(parent);
-        var path = Path.Combine(parent, Prefix + Guid.NewGuid().ToString("N"));
+        var allocationId = Guid.NewGuid().ToString("N");
+        var path = Path.Combine(parent, Prefix + allocationId);
         Directory.CreateDirectory(path);
         Json.WriteBytes(Path.Combine(path, OwnerFile), Encoding.UTF8.GetBytes(new JsonObject
         {
-            ["run"] = ledger.RunId, ["task"] = run.Id,
+            ["run"] = ledger.RunId, ["task"] = run.Id, ["allocationId"] = allocationId,
         }.ToJsonString()));
         run.Record.Workspace.Path = path;
+        run.Record.Workspace.ScratchAllocationId = allocationId;
         ledger.SaveRecord(run.Record);
     }
 
@@ -61,8 +63,9 @@ static class Scratch
         JsonNode? owner;
         try { owner = JsonNode.Parse(File.ReadAllText(marker)); }
         catch (JsonException) { throw new HarnessException("structured scratch ownership marker is invalid"); }
-        if (owner is not JsonObject document || document["run"]?.ToString() != ledger.RunId || document["task"]?.ToString() != record.Spec.Id)
-            throw new HarnessException("structured scratch ownership does not match the run and task");
+        if (owner is not JsonObject document || document["run"]?.ToString() != ledger.RunId || document["task"]?.ToString() != record.Spec.Id
+            || string.IsNullOrEmpty(record.Workspace.ScratchAllocationId) || document["allocationId"]?.ToString() != record.Workspace.ScratchAllocationId)
+            throw new HarnessException("structured scratch ownership does not match the run, task and allocation");
     }
 
     public static void Delete(TaskRecord record, Ledger ledger)

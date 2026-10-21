@@ -12,10 +12,13 @@ public sealed class StructuredSettlementTests
     public async Task Structured_recovery_refuses_unowned_scratch_before_another_prompt(CancellationToken ct)
     {
         using var lab = new CoreLab("recovery");
+        using var scratch = new ScratchFixture();
+        await ScratchFixture.AssertNoRepositoryAsync(scratch.Root);
         var run = await lab.TaskAsync("answer", ct);
         lab.Structured(run);
         run.Record.Spec.Project = "off";
-        var folder = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "dispatch-scratch-unrelated")).FullName;
+        var folder = Directory.CreateDirectory(Path.Combine(scratch.Root, "dispatch-scratch-unrelated")).FullName;
+        await ScratchFixture.AssertNoRepositoryAsync(folder);
         var file = Path.Combine(folder, "keep.txt");
         File.WriteAllText(file, "untouched");
         run.Record.Workspace = new() { Path = folder };
@@ -36,6 +39,8 @@ public sealed class StructuredSettlementTests
         await Assert.That(lab.Backend.Calls.Count(x => x.Member == nameof(IWorkerBackend.ReattachAsync))).IsEqualTo(0);
         await Assert.That(File.ReadAllText(file)).IsEqualTo("untouched");
         await Assert.That(lab.Ledger.TaskStates()[run.Id]).IsEqualTo("failed");
+        var final = lab.Ledger.Read().Single(x => x.Task == run.Id && x.Type == "final");
+        await Assert.That(final.Data!["reason"]!.GetValue<string>()).Contains("structured scratch ownership marker is missing or unsafe");
     }
 
     [Test]
@@ -206,12 +211,13 @@ public sealed class StructuredSettlementTests
     public async Task Recovered_structured_scratch_is_forwarded_empty_and_removed_only_after_a_confirmed_stop(bool zombie, CancellationToken ct)
     {
         using var lab = new CoreLab();
+        using var fixture = new ScratchFixture();
+        await ScratchFixture.AssertNoRepositoryAsync(fixture.Root);
         var run = await lab.TaskAsync("answer", ct);
         lab.Structured(run);
         run.Record.Spec.Project = "off";
-        run.Record.Workspace = new();
-        Scratch.Prepare(run, lab.Ledger);
-        var scratch = run.Record.Workspace.Path!;
+        var scratch = fixture.Allocate(run, lab.Ledger, "owned");
+        await ScratchFixture.AssertNoRepositoryAsync(scratch);
         lab.Backend.OnCreate = (launch, _) =>
         {
             if (launch.Directory != scratch || Directory.EnumerateFileSystemEntries(launch.Directory).Any(x => Path.GetFileName(x) != ".dispatch-owner.json"))
