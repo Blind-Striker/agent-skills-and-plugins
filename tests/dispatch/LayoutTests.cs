@@ -8,6 +8,7 @@ namespace Dispatch.Tests;
 /// The shape ADR-0009 gives the harness: an entry file that holds every directive, a src/ tree that
 /// holds none, every src/ file included by the entry, and one set of package pins.
 /// </summary>
+[Category("Unit")]
 public sealed partial class LayoutTests
 {
     static readonly string Root = RepositoryRoot();
