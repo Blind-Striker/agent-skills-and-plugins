@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.13.0",
-  "digest": "sha256:bc7a022b87c8fe549ad33f1dad9fc411f44a175d79a1a6620f9d679b38244e5a",
+  "version": "0.13.1",
+  "digest": "sha256:7670b8f031f824a9fa488b23351d3e41594348acf8cff8954da26272a9997272",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -522,7 +522,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:29837fd79aa09f31322cbc3add54306afe7987c149368f812ee957c21f2ddd8d",
+      "sha256": "sha256:b31c62d37d1c3b8f1b1db22e46a004f88f8128584ce6a4a31b11680714006b94",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {
