@@ -84,23 +84,25 @@ static class Settlement
 
         // Git is the ground truth. The harness commits on its own branch; it never pushes or merges.
         var wt = record.Workspace.Path!;
-        if ((await Git.CheckAsync(wt, ct, "status", "--porcelain")).Trim().Length > 0)
+        var git = Git.ForTask(run.Id);
+        if ((await git.CheckAsync(wt, ct, "status", "--porcelain")).Trim().Length > 0)
         {
-            await Git.CheckAsync(wt, ct, "add", "-A");
-            var commit = await Git.RunAsync(wt, ct, "commit", "-q", "-m", $"dispatch: {ledger.RunId}/{run.Id}");
-            if (commit.ExitCode != 0) result.Error = $"harness commit failed: {commit.Output.Trim()}";
+            await git.CheckAsync(wt, ct, "add", "-A");
+            var commit = await git.RunAsync(wt, ct, "commit", "-q", "--no-verify", "-m", $"dispatch: {ledger.RunId}/{run.Id}");
+            if (commit.ExitCode != 0) result.Error = $"harness commit failed: {commit.Stderr.Trim()}";
         }
 
-        var head = (await Git.CheckAsync(wt, ct, "rev-parse", "HEAD")).Trim();
+        var head = await git.IdAsync(wt, ct, "rev-parse", "HEAD");
         result.Commit = head == record.Workspace.BaseSha ? null : head;
-        result.DiffStat = (await Git.CheckAsync(wt, ct, "diff", "--shortstat", record.Workspace.BaseSha!, "HEAD")).Trim();
-        result.FilesChanged = (await Git.CheckAsync(wt, ct, "diff", "--name-only", record.Workspace.BaseSha!, "HEAD"))
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+        result.DiffStat = (await git.CheckAsync(wt, ct, "diff", "--ignore-submodules=none", "--no-ext-diff", "--no-textconv", "--shortstat", record.Workspace.BaseSha!, "HEAD")).Trim();
+        result.FilesChanged = (await git.CheckAsync(wt, ct, "diff", "--ignore-submodules=none", "--no-ext-diff", "--no-textconv", "--name-only", "-z", "--no-renames", record.Workspace.BaseSha!, "HEAD"))
+            .Split('\0', StringSplitOptions.RemoveEmptyEntries).ToList();
         // Nothing fences a read-only task's edits anymore, so every file it changed is flagged.
         result.OutOfScope = record.Spec.Kind is "review" or "research"
             ? [.. result.FilesChanged]
             : result.FilesChanged.Where(x => !Scope.InScope(x, record.Spec.Scope)).ToList();
-        await File.WriteAllTextAsync(Path.Combine(dir, "diff.patch"), await Git.CheckAsync(wt, ct, "diff", record.Workspace.BaseSha!, "HEAD"), ct);
+        var patch = await git.CheckBytesAsync(wt, ct, "diff", "--ignore-submodules=none", "--submodule=short", "--binary", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", record.Workspace.BaseSha!, "HEAD");
+        await File.WriteAllBytesAsync(Path.Combine(dir, "diff.patch"), patch, ct);
         ledger.Write(run.Id, "collected", new JsonObject
         {
             ["outcome"] = outcome,
@@ -123,7 +125,8 @@ static class Settlement
                     : ("bash", new[] { "-lc", command });
                 var outcomeOfCommand = await Proc.RunAsync(shell.Item1, shell.Item2, wt, ct, Constants.VerifyTimeout, belowNormal: true);
                 result.Verify.Add(new VerifyResult { Command = command, ExitCode = outcomeOfCommand.ExitCode, Seconds = Math.Round(started.Elapsed.TotalSeconds, 1), TimedOut = outcomeOfCommand.TimedOut });
-                log.AppendLine($"$ {command}").AppendLine(outcomeOfCommand.Output).AppendLine($"[exit {outcomeOfCommand.ExitCode} after {started.Elapsed.TotalSeconds:0.0}s]").AppendLine();
+                log.AppendLine($"$ {command}").AppendLine("[stdout]").AppendLine(outcomeOfCommand.Output)
+                    .AppendLine("[stderr]").AppendLine(outcomeOfCommand.Stderr).AppendLine($"[exit {outcomeOfCommand.ExitCode} after {started.Elapsed.TotalSeconds:0.0}s]").AppendLine();
             }
         }
         else if (record.Spec.Verify is { Count: > 0 })

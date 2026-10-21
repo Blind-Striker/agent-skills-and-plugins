@@ -17,8 +17,8 @@ static partial class Commands
         Check("policy", true, policy.Describe());
         var repo = Path.GetFullPath(a.Get("repo") ?? throw new HarnessException("selfcheck needs --repo"));
         var worktree = Path.Combine(Locations.WorktreeRoot, $"selfcheck-{DateTime.Now:HHmmss}");
-        var add = await Git.RunAsync(repo, ct, "worktree", "add", "--detach", worktree, "HEAD");
-        Check("worktree", add.ExitCode == 0, add.ExitCode == 0 ? worktree : add.Output.Trim());
+        var add = await Git.Default.RunAsync(repo, ct, "worktree", "add", "--detach", worktree, "HEAD");
+        Check("worktree", add.ExitCode == 0, add.ExitCode == 0 ? worktree : add.Stderr.Trim());
         if (add.ExitCode != 0)
         {
             return 1;
@@ -82,8 +82,8 @@ static partial class Commands
         }
         finally
         {
-            var remove = await Git.RunAsync(repo, CancellationToken.None, "worktree", "remove", "--force", worktree);
-            Check("worktree removed", remove.ExitCode == 0, remove.ExitCode == 0 ? worktree : remove.Output.Trim());
+            var remove = await Git.Default.RunAsync(repo, CancellationToken.None, "worktree", "remove", "--force", worktree);
+            Check("worktree removed", remove.ExitCode == 0, remove.ExitCode == 0 ? worktree : remove.Stderr.Trim());
         }
 
         var failed = checks.Count(x => !x.Ok);

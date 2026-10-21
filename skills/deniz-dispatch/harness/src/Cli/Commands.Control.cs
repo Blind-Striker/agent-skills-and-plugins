@@ -69,9 +69,10 @@ static partial class Commands
             }
 
             var exists = Directory.Exists(record.Workspace.Path);
-            var dirty = exists && (await Git.RunAsync(record.Workspace.Path, ct, "status", "--porcelain")).Output.Trim().Length > 0;
+            var git = Git.ForTask(task);
+            var dirty = exists && (await git.RunAsync(record.Workspace.Path, ct, "status", "--porcelain")).Output.Trim().Length > 0;
             var merged = record.Workspace.BaseRef is not null
-                && (await Git.RunAsync(info.Repo!, ct, "merge-base", "--is-ancestor", record.Workspace.Branch, record.Workspace.BaseRef)).ExitCode == 0;
+                && (await git.RunAsync(info.Repo!, ct, "merge-base", "--is-ancestor", record.Workspace.Branch, record.Workspace.BaseRef)).ExitCode == 0;
             if (!force && (dirty || !merged))
             {
                 Console.WriteLine($"{task}: refused ({(dirty ? "dirty worktree" : "")}{(dirty && !merged ? ", " : "")}{(!merged ? $"{record.Workspace.Branch} is not merged into {record.Workspace.BaseRef}" : "")}); --force removes it anyway");
@@ -82,17 +83,17 @@ static partial class Commands
             if (exists)
             {
                 var remove = force
-                    ? await Git.RunAsync(info.Repo!, ct, "worktree", "remove", "--force", record.Workspace.Path)
-                    : await Git.RunAsync(info.Repo!, ct, "worktree", "remove", record.Workspace.Path);
+                    ? await git.RunAsync(info.Repo!, ct, "worktree", "remove", "--force", record.Workspace.Path)
+                    : await git.RunAsync(info.Repo!, ct, "worktree", "remove", record.Workspace.Path);
                 if (remove.ExitCode != 0)
                 {
-                    Console.WriteLine($"{task}: worktree remove failed: {remove.Output.Trim()}");
+                    Console.WriteLine($"{task}: worktree remove failed: {remove.Stderr.Trim()}");
                     refused++;
                     continue;
                 }
             }
 
-            var branch = await Git.RunAsync(info.Repo!, ct, "branch", force ? "-D" : "-d", record.Workspace.Branch);
+            var branch = await git.RunAsync(info.Repo!, ct, "branch", force ? "-D" : "-d", record.Workspace.Branch);
             var temp = Locations.TaskTemp(task);
             if (Directory.Exists(temp))
             {

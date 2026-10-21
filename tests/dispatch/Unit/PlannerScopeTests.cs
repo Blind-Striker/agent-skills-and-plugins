@@ -57,6 +57,8 @@ public sealed class PlannerScopeTests
             JsonSerializer.Serialize(new TaskFile { Repo = repo.Root, Tasks = tasks }, InputJson.Default.TaskFile), cancellationToken);
         var allow = new AllowList();
         allow.Agents.Add("worker");
-        return await Planner.LoadAsync(path, null, allow, cancellationToken);
+        var git = new Git(Executables.Resolve("git"), Path.Combine(tree.Root, "control"),
+            tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
+        return await Planner.LoadAsync(path, null, allow, cancellationToken, git);
     }
 }

@@ -227,10 +227,11 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
             if (record.Workspace.Path is null)
             {
                 var baseRef = spec.ReviewOf is { } author ? ledger.LoadRecord(author).Workspace.Branch! : spec.Base!;
-                var baseSha = (await Git.CheckAsync(repo, ct, "rev-parse", "--verify", $"{baseRef}^{{commit}}")).Trim();
+                var git = Git.ForTask(run.Id);
+                var baseSha = await git.IdAsync(repo, ct, "rev-parse", "--verify", $"{baseRef}^{{commit}}");
                 var worktree = Locations.Worktree(run.Id);
                 var branch = $"dispatch/{ledger.RunId}/{run.Id}";
-                await Git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, worktree, baseSha);
+                await git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, worktree, baseSha);
                 record.Workspace.Path = worktree;
                 record.Workspace.Branch = branch;
                 record.Workspace.BaseRef = baseRef;

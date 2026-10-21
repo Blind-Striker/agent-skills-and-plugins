@@ -17,6 +17,7 @@ static class Cli
         try
         {
             Locations.Resolve();
+            using var gitControl = Git.Initialize();
             a.ValidatePaths();
             return a.Command switch
             {

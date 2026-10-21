@@ -1,7 +1,38 @@
 using System.Net;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+
+if (args.FirstOrDefault() == "--pipe-parent")
+{
+    using var child = Process.Start(new ProcessStartInfo(Environment.ProcessPath!)
+    {
+        UseShellExecute = false,
+        ArgumentList = { "--pipe-child" },
+    })!;
+    await File.WriteAllTextAsync(args[1], child.Id.ToString());
+    Console.Write("parent stdout");
+    Console.Error.Write("parent stderr");
+    return 0;
+}
+
+if (args.SequenceEqual(new[] { "--pipe-child" }))
+{
+    Console.Write("child stdout");
+    Console.Error.Write("child stderr");
+    // Keep inherited pipes open well beyond the runner's timeout and drain grace.
+    await Task.Delay(TimeSpan.FromSeconds(12));
+    return 0;
+}
+
+// The same native apphost also supplies the injected git process boundary.
+if (Environment.GetEnvironmentVariable("FAKE_GIT_PROBE") == "warn")
+{
+    Console.Error.Write("warning: synthetic git diagnostic\n");
+    Console.Write((args.LastOrDefault() == "HEAD" ? new string('b', 40) : new string('a', 40)) + "\n");
+    return 0;
+}
 
 if (!args.SequenceEqual(new[] { "serve", "--stdio", "--port", "0" }))
 {

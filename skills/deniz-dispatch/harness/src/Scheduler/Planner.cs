@@ -1,6 +1,6 @@
 static class Planner
 {
-    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct)
+    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct, Git? git = null)
     {
         tasksPath = Path.GetFullPath(tasksPath);
         if (!File.Exists(tasksPath))
@@ -21,7 +21,8 @@ static class Planner
         var baseDir = Path.GetDirectoryName(tasksPath)!;
         var repo = Path.GetFullPath(repoOverride ?? (file.Repo is { } r ? Path.Combine(baseDir, r) : throw new HarnessException("task file needs repo or --repo")));
         var plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
-        if ((await Git.RunAsync(repo, ct, "rev-parse", "--show-toplevel")).ExitCode != 0)
+        git ??= Git.Default;
+        if ((await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel")).ExitCode != 0)
         {
             plan.Errors.Add($"repo {repo} is not a git work tree");
             return plan;
@@ -61,7 +62,7 @@ static class Planner
             if (spec.ReviewOf is null)
             {
                 if (spec.Base is null) e.Add("base is required (a branch, tag or commit of the repo)");
-                else if ((await Git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}")).ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
+                else if ((await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}")).ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
             }
             else if (spec.Base is not null)
             {

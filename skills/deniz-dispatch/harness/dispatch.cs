@@ -16,6 +16,7 @@
 #:include src/Ledger/SupervisorLock.cs
 #:include src/Workspace/Scope.cs
 #:include src/Workspace/Proc.cs
+#:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs
 #:include src/Scheduler/Plan.cs
 #:include src/Scheduler/Planner.cs
