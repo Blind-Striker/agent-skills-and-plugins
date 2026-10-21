@@ -77,6 +77,8 @@ static partial class Commands
     public static async Task<int> PlanAsync(Args a, CancellationToken ct)
     {
         var plan = await Planner.LoadAsync(a.Require(0, "task file"), a.Get("repo"), AllowList.From(null), ct, args: a);
+        foreach (var (id, task) in plan.Config?.Effective.Tasks ?? [])
+            if (task.Settings.ReadOnlyShell is { } shell) Console.WriteLine($"{id}: readOnlyShell {shell.Value} ({shell.From})");
         var allow = plan.Config?.Allow ?? AllowList.From(null);
         if (plan.Errors.Count == 0)
         {

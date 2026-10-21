@@ -104,6 +104,7 @@ sealed class EffectiveSettings
     public Setting<string>? Profile { get; set; }
     public Setting<string>? Project { get; set; }
     public Setting<string>? Access { get; set; }
+    public Setting<string>? ReadOnlyShell { get; set; }
     public Setting<string>? Network { get; set; }
     public Setting<string>? Workspace { get; set; }
     public Setting<string>? Dir { get; set; }
@@ -215,6 +216,7 @@ sealed class TaskResult : VersionedContract
     public string State { get; set; } = "";
     public List<string> Failures { get; set; } = [];
     public List<string>? Warnings { get; set; }
+    public List<string>? CapabilityNotes { get; set; }
     public string? Outcome { get; set; }
     public SessionRecord? Session { get; set; }
     public string? RouteRequested { get; set; }

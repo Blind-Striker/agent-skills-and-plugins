@@ -1,6 +1,6 @@
 sealed class Args
 {
-    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "profile", "project", "access", "network", "workspace", "commit", "raw-prompt", "contract"];
+    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "profile", "project", "access", "read-only-shell", "network", "workspace", "commit", "raw-prompt", "contract"];
     public List<string> Original { get; private init; } = [];
     public List<string> Routes { get; } = [];
     public List<string> Contracts { get; } = [];

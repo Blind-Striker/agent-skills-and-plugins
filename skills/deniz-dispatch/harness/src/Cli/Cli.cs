@@ -92,6 +92,7 @@ static class Cli
             Preferences override user, repository, task file, then CLI; restrictions accumulate.
             --ledger <absolute path> overrides the ledger root for every command.
             --contract <absolute path> prepends a contract to every task; repeatable.
+            --read-only-shell decline|escalate selects the read-only shell approval policy (default decline).
 
             Windows user PATH ({UserPathGuard.ValueName}):
               selfcheck warns above {UserPathGuard.WarningLength:N0} characters.

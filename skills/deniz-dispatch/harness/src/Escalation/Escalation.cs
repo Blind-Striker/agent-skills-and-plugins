@@ -11,11 +11,15 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
         var blocker = signal.BlockerRef;
         var child = blocker.OriginChildId;
         var stopped = run.IsFinal || run.State is TaskState.Settling or TaskState.Interrupted;
-        var readOnlyWrite = (run.Record.Settings.Access?.Value ?? run.Record.Spec.Access) == "read-only"
+        var readOnly = (run.Record.Settings.Access?.Value ?? run.Record.Spec.Access) == "read-only";
+        var readOnlyShell = readOnly && signal.Action is "shell" or "bash";
+        var shellDeclined = readOnlyShell && (run.Record.Spec.Kind == "structured"
+            || (run.Record.Settings.ReadOnlyShell?.Value ?? run.Record.Spec.ReadOnlyShell ?? "decline") != "escalate");
+        var readOnlyWrite = readOnly
             && (signal.Action == "edit" || signal.Action == "permissions"
                 && signal.Resources.Any(resource => resource.StartsWith("fileSystem.write:", StringComparison.Ordinal)));
         var denied = policy.DenialFor(signal.Action, signal.Resources);
-        if (!stopped && !readOnlyWrite && denied is null && policy.EscalationFor(signal.Action, signal.Resources) is { } rule)
+        if (!stopped && !readOnlyWrite && !shellDeclined && denied is null && policy.EscalationFor(signal.Action, signal.Resources) is { } rule)
         {
             run.Escalated++;
             var askId = $"{run.Id}-{run.Asks}";
@@ -51,6 +55,7 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
         }
         BlockerAnswer answer = stopped ? new BlockerAnswer.Reject("This task has ended; do not execute further calls.")
             : readOnlyWrite ? new BlockerAnswer.Reject("This task is read-only; write access is not permitted.")
+            : readOnlyShell ? new BlockerAnswer.Reject("This task is read-only; shell access requires readOnlyShell escalate and a matching escalation rule.")
             : denied is not null ? new BlockerAnswer.Reject($"This action is denied by rule {denied.Name}.")
             : blocker.Backend == "opencode" ? new BlockerAnswer.Once() : new BlockerAnswer.Reject(Policy.LeadDeclined);
         var reply = await backends[blocker.Backend].AnswerAsync(blocker, answer, ct);

@@ -31,7 +31,9 @@ public sealed class OpenCodeGoldenTests
         await Assert.That(requests.All(request => request["authenticated"]!.GetValue<bool>())).IsTrue();
         await Assert.That(requests.Where(request => request["unexpected"]!.GetValue<bool>())).IsEmpty();
         var permissions = requests.Single(request => request["method"]!.GetValue<string>() == "POST" && request["path"]!.GetValue<string>() == "/api/session")["body"]!["permissions"]!.AsArray();
-        await Assert.That(permissions.Count).IsEqualTo(4);
+        await Assert.That(permissions.Count).IsEqualTo(5);
+        await Assert.That(permissions[2]!["action"]!.GetValue<string>()).IsEqualTo("shell");
+        await Assert.That(permissions[2]!["effect"]!.GetValue<string>()).IsEqualTo("deny");
         await Assert.That(permissions[0]!["resource"]!.GetValue<string>()).IsEqualTo("*");
         await Assert.That(permissions[^2]!["resource"]!.GetValue<string>()).IsEqualTo(Path.Combine(tree.DispatchHome, "state", "control", "**").Replace('\\', '/'));
         await Assert.That(permissions[^1]!["resource"]!.GetValue<string>()).IsEqualTo(Path.Combine(ledger, "**").Replace('\\', '/'));

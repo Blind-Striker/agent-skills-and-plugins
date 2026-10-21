@@ -200,6 +200,12 @@ static class Planner
                 var enforcement = settings.Access?.Value == "full" ? "none" : "sandbox";
                 if (settings.Access is { } access) access.Enforcement = enforcement;
                 if (settings.Network is { } network) network.Enforcement = enforcement;
+                foreach (var note in ConfigResolver.CapabilityNotes(settings))
+                {
+                    var warning = $"{check.TaskId}: {note}";
+                    if (!plan.Warnings.Contains(warning)) plan.Warnings.Add(warning);
+                    if (!plan.Config.Effective.Warnings.Contains(warning)) plan.Config.Effective.Warnings.Add(warning);
+                }
             }
         }
 

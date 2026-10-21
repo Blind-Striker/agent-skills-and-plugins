@@ -4,7 +4,8 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         record.Settings.Profile?.Value ?? record.Spec.Profile ?? (record.Spec.Kind == "structured" ? "clean" : "full"),
         record.Settings.Project?.Value ?? record.Spec.Project ?? (record.Spec.Kind == "structured" ? "off" : "on"),
         record.Settings.Access?.Value ?? (record.Spec.Kind is "review" or "research" or "structured" ? "read-only" : "workspace"),
-        record.Settings.Network?.Value ?? "on", record.Settings.Workspace?.Value ?? "worktree");
+        record.Settings.Network?.Value ?? "on", record.Settings.Workspace?.Value ?? "worktree",
+        record.Settings.ReadOnlyShell?.Value ?? record.Spec.ReadOnlyShell ?? "decline");
 
     public static WorkerRules RulesFor(Policy policy) => new(
         policy.Deny.Select(Convert).ToList(), policy.Escalate.Select(Convert).ToList());

@@ -25,6 +25,7 @@ static class Settlement
             TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped, ExecutionError = report.ExecutionError,
             BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,
             CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = run.StartFailure,
+            CapabilityNotes = ConfigResolver.CapabilityNotes(record.Settings) is { Count: > 0 } notes ? notes : null,
         };
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
         if (record.Spec.Kind == "structured")
