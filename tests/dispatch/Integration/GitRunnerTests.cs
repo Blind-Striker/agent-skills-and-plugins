@@ -225,7 +225,7 @@ public sealed class GitRunnerTests
     static async Task CollectAsync(TempTree tree, string runId, CancellationToken ct)
     {
         using var harness = new HarnessProcess(tree);
-        (await harness.RunAsync(["collect", "inspect", "--run", runId], ct,
+        (await harness.RunAsync(["collect", runId, "inspect"], ct,
             FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value))).RequireSuccess("collect harness task");
     }
 }

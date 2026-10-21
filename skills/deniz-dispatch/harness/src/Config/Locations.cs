@@ -64,14 +64,76 @@ static class Locations
 
     public static string TaskTemp(string task, string? run = null) => run is null ? Path.Combine(WorktreeRoot, ".dispatch-tmp", task) : Path.Combine(WorktreeRoot, run, ".tmp", task);
 
-    public static string ControlRoot => Path.Combine(WorktreeRoot, ".dispatch");
+    public static string ControlRoot => Path.Combine(StateRoot, "control");
 
-    public static string ControlDir(string run) => Path.Combine(ControlRoot, run);
+    public static string ControlDir(string run)
+    {
+        try
+        {
+            var id = new Ledger(run).LoadRunInfo().ControlId;
+            if (id is null || !IsControlId(id)) throw new HarnessException($"run {run} has no valid controlId");
+            return Path.Combine(ControlRoot, id);
+        }
+        catch (Exception ex) when (ex is JsonException or IOException)
+        { throw new HarnessException($"invalid run.json for {run}: {ex.Message}"); }
+    }
+
+    public static bool IsControlId(string id) => Regex.IsMatch(id, "\\A[a-z2-7]{26}\\z");
+
+    public static string NewControlId()
+    {
+        const string alphabet = "abcdefghijklmnopqrstuvwxyz234567";
+        var result = new StringBuilder(26);
+        var buffer = 0;
+        var bits = 0;
+        foreach (var value in System.Security.Cryptography.RandomNumberGenerator.GetBytes(16))
+        {
+            buffer = (buffer << 8) | value;
+            bits += 8;
+            while (bits >= 5) { bits -= 5; result.Append(alphabet[(buffer >> bits) & 31]); }
+        }
+        if (bits > 0) result.Append(alphabet[(buffer << (5 - bits)) & 31]);
+        return result.ToString();
+    }
+
+    public static string CreateControlFolder(string id)
+    {
+        var path = Path.Combine(ControlRoot, id);
+        if (OperatingSystem.IsWindows()) Directory.CreateDirectory(path);
+        else
+        {
+            const UnixFileMode mode = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+            Directory.CreateDirectory(ControlRoot, mode);
+            File.SetUnixFileMode(ControlRoot, mode);
+            Directory.CreateDirectory(path, mode);
+        }
+        return path;
+    }
+
+    public static void ValidateControlLocation(string repo)
+    {
+        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+        bool Within(string child, string parent) => Same(child, parent)
+            || Path.GetFullPath(child).StartsWith(Path.TrimEndingDirectorySeparator(Path.GetFullPath(parent)) + Path.DirectorySeparatorChar, comparison);
+        foreach (var root in new[] { WorktreeRoot, LedgerRoot, repo })
+            if (Within(ControlRoot, root) || Within(root, ControlRoot))
+                throw new HarnessException($"control folder {ControlRoot} must be outside the repository, worktree root and ledger root: {root}");
+    }
+
+    public static string RequireControlFolder(string run, bool setup = false)
+    {
+        var path = ControlDir(run);
+        if (!Directory.Exists(path) || (setup && !File.Exists(Path.Combine(path, "setup.done"))))
+            throw new HarnessException($"run {run}: control folder {path}: setup never finished; a new run id retries it");
+        return path;
+    }
 
     // Escalated asks wait here as one JSON file each; the operator's decisions arrive next to them.
     public static string AsksDir(string run) => Path.Combine(ControlDir(run), "asks");
 
     public static string DecisionsDir(string run) => Path.Combine(ControlDir(run), "decisions");
+
+    public static string CancelDir(string run) => Path.Combine(ControlDir(run), "cancel");
 
     public static bool Same(string a, string b) =>
         string.Equals(

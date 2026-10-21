@@ -109,11 +109,14 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
         }
         else if (catalog.IsManualRoute(route)) throw new HarnessException($"route {route} equals a manual-class agent's model");
         await WaitForRouteAsync(client, route, launch.Directory, ct);
-        var rules = OpenCodeRules.Render(launch.Rules);
+        var rules = OpenCodeRules.Render(launch.Rules, launch.RunId);
         var created = await client.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
-            Title = $"dispatch {launch.RunId}/{launch.TaskId}", Agent = agent, Model = OpenCodeModels.ToModelRef(route),
-            Location = new LocationPublicRef { Directory = launch.Directory }, Permissions = rules,
+            Title = $"dispatch {launch.RunId}/{launch.TaskId}",
+            Agent = agent,
+            Model = OpenCodeModels.ToModelRef(route),
+            Location = new LocationPublicRef { Directory = launch.Directory },
+            Permissions = rules,
             Metadata = OpenCodeJson.Metadata(launch.RunId, launch.TaskId),
         }, cancellationToken: ct);
         var worker = new WorkerRef(Name, launch.TaskId, created.Session.Id, null, new JsonObject
@@ -270,8 +273,10 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
         Check("mcp", true, $"{mcp.Count} MCP servers at the worktree, allowed: {string.Join(", ", mcp)}");
         var created = await host.Client.Sessions.CreateSessionAsync(new SessionCreateRequest
         {
-            Title = "dispatch selfcheck (no prompt)", Location = new LocationPublicRef { Directory = directory },
-            Permissions = rules, Metadata = OpenCodeJson.Metadata("selfcheck", "selfcheck"),
+            Title = "dispatch selfcheck (no prompt)",
+            Location = new LocationPublicRef { Directory = directory },
+            Permissions = rules,
+            Metadata = OpenCodeJson.Metadata("selfcheck", "selfcheck"),
         }, cancellationToken: ct);
         var session = host.Client.Sessions.GetSessionClient(created.Session.Id);
         Check("session create", true, $"{created.Session.Id} project {created.Session.ProjectId}");

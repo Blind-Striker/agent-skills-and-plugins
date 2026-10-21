@@ -38,8 +38,12 @@ public sealed class ConfigLayerTests
         await File.WriteAllTextAsync(repoPath, """{"schemaVersion":2,"restrictions":{"deny":[]}}""", cancellationToken);
         var userPath = Path.Combine(Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "config")).FullName, "config.jsonc");
         var ignoredLedger = Path.Combine(tree.Root, "user-ledgers");
-        var user = new JsonObject { ["schemaVersion"] = 2, ["preferences"] = new JsonObject { ["backend"] = "opencode", ["maxParallel"] = 2, ["profile"] = "full" },
-            ["locations"] = new JsonObject { ["ledgerRoot"] = ignoredLedger } };
+        var user = new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["preferences"] = new JsonObject { ["backend"] = "opencode", ["maxParallel"] = 2, ["profile"] = "full" },
+            ["locations"] = new JsonObject { ["ledgerRoot"] = ignoredLedger }
+        };
         await File.WriteAllTextAsync(userPath, user.ToJsonString(), cancellationToken);
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
         await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"run":"layered","sharedPaths":["shared.txt"],"defaults":{"timeoutMinutes":19},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
@@ -48,7 +52,9 @@ public sealed class ConfigLayerTests
         var scenario = Path.Combine(tree.Root, "layered.jsonl");
         var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
         steps.Single(s => s["expect"]!.GetValue<string>() == "POST /api/session")["body"]!["permissions"] =
-            JsonNode.Parse("""[{"action":"shell","resource":"git push*","effect":"deny"}]""");
+            new JsonArray(new JsonObject { ["action"] = "shell", ["resource"] = "git push*", ["effect"] = "deny" },
+                new JsonObject { ["action"] = "edit", ["resource"] = Path.Combine(tree.DispatchHome, "state", "control", "**").Replace('\\', '/'), ["effect"] = "deny" },
+                new JsonObject { ["action"] = "edit", ["resource"] = Path.Combine(ledgerRoot, Commands.CreateRunId("layered"), "**").Replace('\\', '/'), ["effect"] = "deny" });
         await File.WriteAllLinesAsync(scenario, steps.Select(s => s.ToJsonString()), cancellationToken);
         environment["FAKE_OPENCODE_SCENARIO"] = scenario;
         using var harness = new HarnessProcess(tree);

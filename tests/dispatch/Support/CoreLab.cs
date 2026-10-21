@@ -7,12 +7,18 @@ internal sealed class CoreLab : IDisposable
     public Policy Policy { get; } = new() { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
     public Git Git { get; }
     public FakeBackend Backend { get; } = new("opencode", new("policy", "policy", "text", true));
+    readonly string controlFolder;
 
-    public CoreLab(string? runId = null)
+    public CoreLab(string? runId = null, bool recorded = true)
     {
+        Locations.Resolve();
         Locations.Configure(new ConfigLocations { WorktreeRoot = Tree.WorktreeRoot }, runId is null ? null : Path.Combine(Tree.Root, "ledgers"));
         Ledger = new(runId ?? Tree.Root);
-        Git = new(Executables.Resolve("git"), Path.Combine(Tree.Root, "control"),
+        var controlId = Locations.NewControlId();
+        controlFolder = Locations.CreateControlFolder(controlId);
+        if (recorded)
+            Json.WriteFile(Path.Combine(Ledger.Dir, "run.json"), new RunInfo { Run = Ledger.RunId, ControlId = controlId }, LedgerJson.Files.RunInfo);
+        Git = new(Executables.Resolve("git"), controlFolder,
             Tree.ChildEnvironment().Where(x => x.Value is not null).ToDictionary(x => x.Key, x => x.Value!));
         Backend.OnCreate = (launch, _) => Task.FromResult(new CreateResult(new("opencode", launch.TaskId, "worker-" + launch.TaskId, null, new()), new("none", "none", "policy")));
         Backend.OnPrompt = (input, _) => Task.FromResult(input.Worker with { Turn = "turn-" + input.Worker.TaskId });
@@ -27,12 +33,16 @@ internal sealed class CoreLab : IDisposable
     {
         var repo = Directory.Exists(Path.Combine(Tree.Repository, ".git")) ? new LabRepo(Tree) : await LabRepo.CreateAsync(Tree, ct);
         var sha = await repo.GitAsync(["rev-parse", "HEAD"], ct);
-        var run = new TaskRun { Record = new TaskRecord
+        var run = new TaskRun
         {
-            Spec = new() { Id = id, Kind = "research", Route = "fixture/model", RawPrompt = true },
-            PromptText = "Inspect.", Settings = new() { Backend = new() { Value = "opencode" }, Route = new() { Value = "opencode:fixture/model" } },
-            Workspace = new() { Path = repo.Root, BaseSha = sha },
-        } };
+            Record = new TaskRecord
+            {
+                Spec = new() { Id = id, Kind = "research", Route = "fixture/model", RawPrompt = true },
+                PromptText = "Inspect.",
+                Settings = new() { Backend = new() { Value = "opencode" }, Route = new() { Value = "opencode:fixture/model" } },
+                Workspace = new() { Path = repo.Root, BaseSha = sha },
+            }
+        };
         Ledger.SaveRecord(run.Record);
         return run;
     }
@@ -45,6 +55,7 @@ internal sealed class CoreLab : IDisposable
 
     public void Dispose()
     {
+        Directory.Delete(controlFolder, recursive: true);
         Locations.Configure(null, null);
         Tree.Dispose();
     }

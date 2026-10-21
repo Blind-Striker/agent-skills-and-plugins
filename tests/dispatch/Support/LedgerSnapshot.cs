@@ -42,7 +42,7 @@ internal static class LedgerSnapshot
             }
         }
 
-        string NormalizeText(string text) => text.Replace(root, "$lab", StringComparison.Ordinal)
+        string NormalizeText(string text) => text.Replace('\\', '/').Replace(root.Replace('\\', '/'), "$lab", StringComparison.Ordinal)
             .Replace(run, "$run", StringComparison.Ordinal).Replace(baseSha, "$base", StringComparison.Ordinal)
             .Replace("ses_fixture", "$session", StringComparison.Ordinal).Replace("proj_fixture", "$project", StringComparison.Ordinal)
             .Replace("msg_prompt", "$prompt", StringComparison.Ordinal).Replace("per_fixture", "$permission", StringComparison.Ordinal)

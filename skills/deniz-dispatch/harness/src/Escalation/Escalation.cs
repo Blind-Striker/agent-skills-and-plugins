@@ -14,21 +14,34 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
         if (!stopped && policy.EscalationFor(signal.Action, signal.Resources) is { } rule)
         {
             run.Escalated++;
+            var askId = $"{run.Id}-{run.Asks}";
             var ask = new PendingAsk
             {
-                Run = ledger.RunId, Task = run.Id, Backend = blocker.Backend,
-                Session = child ?? blocker.WorkerId, RootSession = blocker.WorkerId,
-                AskId = blocker.AskId, BackendRef = new JsonObject { ["requestId"] = blocker.AskId },
-                Action = signal.Action, Resources = signal.Resources.ToList(), Rule = rule.Name!,
-                Time = Json.Timestamp(), Reply = ["reply", ledger.RunId, blocker.AskId, "once|reject"],
+                Run = ledger.RunId,
+                Task = run.Id,
+                Backend = blocker.Backend,
+                Session = child ?? blocker.WorkerId,
+                RootSession = blocker.WorkerId,
+                AskId = askId,
+                BackendRef = new JsonObject { ["requestId"] = blocker.AskId },
+                Action = signal.Action,
+                Resources = signal.Resources.ToList(),
+                Rule = rule.Name!,
+                Time = Json.Timestamp(),
+                Reply = ["reply", ledger.RunId, askId, "once|reject"],
             };
-            pending[blocker.AskId] = new(ask, blocker, DateTimeOffset.UtcNow);
+            if (!Locations.Same(Locations.LedgerRoot, Path.Combine(Locations.StateRoot, "ledgers")))
+                ask.Reply.AddRange(["--ledger", Locations.LedgerRoot]);
+            pending[askId] = new(ask, blocker, DateTimeOffset.UtcNow);
             AskQueue.Write(ask);
             ledger.Write(run.Id, "escalated", new JsonObject
             {
-                ["id"] = blocker.AskId, ["session"] = child, ["action"] = signal.Action,
-                ["resources"] = Json.Array(signal.Resources), ["rule"] = rule.Name,
-                ["file"] = Path.Combine(Locations.AsksDir(ledger.RunId), $"{blocker.AskId}.json"),
+                ["id"] = askId,
+                ["session"] = child,
+                ["action"] = signal.Action,
+                ["resources"] = Json.Array(signal.Resources),
+                ["rule"] = rule.Name,
+                ["file"] = Path.Combine(Locations.AsksDir(ledger.RunId), $"{askId}.json"),
             });
             return;
         }
@@ -37,9 +50,13 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
         var reply = await backends[blocker.Backend].AnswerAsync(blocker, answer, ct);
         ledger.Write(run.Id, "permission", new JsonObject
         {
-            ["id"] = blocker.AskId, ["session"] = child, ["action"] = signal.Action,
-            ["resources"] = Json.Array(signal.Resources), ["answer"] = answer is BlockerAnswer.Once ? "once" : "reject",
-            ["by"] = "harness", ["status"] = reply.Status,
+            ["id"] = blocker.AskId,
+            ["session"] = child,
+            ["action"] = signal.Action,
+            ["resources"] = Json.Array(signal.Resources),
+            ["answer"] = answer is BlockerAnswer.Once ? "once" : "reject",
+            ["by"] = "harness",
+            ["status"] = reply.Status,
         });
     }
 
@@ -50,31 +67,41 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
         var reply = await backends[signal.BlockerRef.Backend].AnswerAsync(signal.BlockerRef, new BlockerAnswer.Cancel(Policy.NoHuman), ct);
         ledger.Write(run.Id, "form", new JsonObject
         {
-            ["id"] = signal.BlockerRef.AskId, ["session"] = signal.BlockerRef.OriginChildId,
-            ["title"] = signal.Title, ["answer"] = "cancel", ["status"] = reply.Status,
+            ["id"] = signal.BlockerRef.AskId,
+            ["session"] = signal.BlockerRef.OriginChildId,
+            ["title"] = signal.Title,
+            ["answer"] = "cancel",
+            ["status"] = reply.Status,
         });
     }
 
     public void Close(WorkerSignal.AskClosed closed)
     {
-        if (!pending.TryRemove(closed.AskId, out var held)) return;
-        AskQueue.Remove(ledger.RunId, closed.AskId);
+        var match = pending.FirstOrDefault(x => x.Value.Ask.Task == closed.TaskId && x.Value.Blocker.AskId == closed.AskId);
+        if (match.Key is null || !pending.TryRemove(match.Key, out var held)) return;
+        AskQueue.Remove(ledger.RunId, held.Ask.AskId);
         if (closed.By == "gone")
-            ledger.Write(held.Ask.Task, "escalation-dropped", new JsonObject { ["id"] = closed.AskId, ["action"] = held.Ask.Action, ["reason"] = "no longer pending on the server" });
+            ledger.Write(held.Ask.Task, "escalation-dropped", new JsonObject { ["id"] = held.Ask.AskId, ["action"] = held.Ask.Action, ["reason"] = "no longer pending on the server" });
         else
-            ledger.Write(held.Ask.Task, "permission", new JsonObject { ["id"] = closed.AskId, ["action"] = held.Ask.Action,
-                ["answer"] = closed.Answer is BlockerAnswer.Once ? "once" : "reject", ["by"] = "server" });
+            ledger.Write(held.Ask.Task, "permission", new JsonObject
+            {
+                ["id"] = held.Ask.AskId,
+                ["action"] = held.Ask.Action,
+                ["answer"] = closed.Answer is BlockerAnswer.Once ? "once" : "reject",
+                ["by"] = "server"
+            });
     }
 
     public async Task CheckDecisionsAsync(CancellationToken ct)
     {
-        foreach (var decision in AskQueue.TakeDecisions(ledger.RunId))
+        foreach (var decision in AskQueue.TakeDecisions(ledger.RunId, (file, message) =>
+            ledger.Write(null, "error", new JsonObject { ["while"] = "decision", ["file"] = file, ["message"] = message })))
         {
             try
             {
                 if (!pending.TryRemove(decision.AskId, out var held))
                 {
-                    ledger.Write(null, "decision", new JsonObject { ["id"] = decision.AskId, ["decision"] = decision.Decision, ["result"] = "no such pending ask" });
+                    ledger.Write(null, "decision-refused", new JsonObject { ["askId"] = decision.AskId, ["reason"] = "unknown-ask" });
                     continue;
                 }
                 var ask = held.Ask;
@@ -84,10 +111,15 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
                 AskQueue.Remove(ledger.RunId, ask.AskId);
                 ledger.Write(ask.Task, "permission", new JsonObject
                 {
-                    ["id"] = ask.AskId, ["session"] = held.Blocker.OriginChildId, ["action"] = ask.Action,
-                    ["resources"] = Json.Array(ask.Resources), ["answer"] = reject ? "reject" : "once", ["by"] = "operator",
+                    ["id"] = ask.AskId,
+                    ["session"] = held.Blocker.OriginChildId,
+                    ["action"] = ask.Action,
+                    ["resources"] = Json.Array(ask.Resources),
+                    ["answer"] = reject ? "reject" : "once",
+                    ["by"] = "operator",
                     ["message"] = reject ? decision.Message ?? Policy.LeadDeclined : null,
-                    ["waitedSeconds"] = Math.Round((DateTimeOffset.UtcNow - held.Queued).TotalSeconds, 1), ["status"] = reply.Status,
+                    ["waitedSeconds"] = Math.Round((DateTimeOffset.UtcNow - held.Queued).TotalSeconds, 1),
+                    ["status"] = reply.Status,
                 });
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -102,6 +134,30 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
             if (!pending.TryRemove(held.Ask.AskId, out _)) continue;
             AskQueue.Remove(ledger.RunId, held.Ask.AskId);
             ledger.Write(task, "escalation-dropped", new JsonObject { ["id"] = held.Ask.AskId, ["action"] = held.Ask.Action, ["reason"] = reason });
+        }
+    }
+
+    public void CheckCancelRequests(IReadOnlyList<TaskRun> tasks)
+    {
+        var dir = Locations.CancelDir(ledger.RunId);
+        if (!Directory.Exists(dir)) return;
+        foreach (var file in Directory.GetFiles(dir, "*.json"))
+        {
+            try
+            {
+                var request = JsonSerializer.Deserialize(File.ReadAllText(file), ControlJson.Files.CancelRequest)
+                    ?? throw new JsonException("expected a cancel request");
+                var task = tasks.FirstOrDefault(x => x.Id == request.Task);
+                if (request.Run != ledger.RunId || task is null || task.IsFinal)
+                    throw new JsonException("cancel must name a non-final task of this run");
+                task.CancelRequested = true;
+                ledger.Write(task.Id, "cancel", new JsonObject { ["time"] = request.Time, ["state"] = task.State.ToString().ToLowerInvariant() });
+            }
+            catch (JsonException ex)
+            {
+                ledger.Write(null, "error", new JsonObject { ["while"] = "cancel", ["file"] = Path.GetFileName(file), ["message"] = ex.Message });
+            }
+            File.Delete(file);
         }
     }
 }

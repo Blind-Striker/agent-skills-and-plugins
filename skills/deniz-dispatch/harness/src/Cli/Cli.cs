@@ -73,8 +73,8 @@ static class Cli
               status [<run>]                       summarize one run, or list runs
               resume <run> [--continue] [--policy <file>]
                                                    reconcile a run; --continue re-prompts
-              cancel <task> [--run <run>]          interrupt a task (resume = false)
-              collect <task> [--run <run>]         redo settle: messages, commit, diff, verify
+              cancel <run> <task>                 interrupt a task (resume = false)
+              collect <run> <task>                redo settle: messages, commit, diff, verify
               clean <run> [--force]                remove worktrees and branches
               asks [<run>]                         list escalated asks that wait for the operator
               reply <run> <askId> once|reject [--message <text>]

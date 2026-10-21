@@ -95,7 +95,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 foreach (var failed in work.Where(x => x.IsFaulted).ToList()) await failed;
                 StartReady();
                 if (!runs.Any(x => !x.ReleaseUnconfirmed && x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling)) break;
-                CheckCancelRequests();
+                escalation.CheckCancelRequests(runs);
                 await escalation.CheckDecisionsAsync(ct);
                 var received = false;
                 foreach (var backend in backends.Values)
@@ -233,7 +233,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
 
     TaskState StateFromLedger(string task) => ledger.TaskStates().GetValueOrDefault(task) switch
     {
-        "done" => TaskState.Done, "failed" => TaskState.Failed, "cancelled" => TaskState.Cancelled, "interrupted" => TaskState.Interrupted, _ => TaskState.Pending,
+        "done" => TaskState.Done,
+        "failed" => TaskState.Failed,
+        "cancelled" => TaskState.Cancelled,
+        "interrupted" => TaskState.Interrupted,
+        _ => TaskState.Pending,
     };
 
     async Task HandleAsync(WorkerSignal signal)
@@ -323,19 +327,6 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         {
             ledger.Write(null, "error", new JsonObject { ["while"] = "watchdog", ["message"] = ex.Message });
             if (++watchdogFailures >= 3) throw new HarnessException($"the private server stopped answering; run `resume {ledger.RunId}` after checking it");
-        }
-    }
-
-    void CheckCancelRequests()
-    {
-        var control = Locations.ControlDir(ledger.RunId);
-        foreach (var run in runs.Where(x => !x.IsFinal && !x.CancelRequested))
-        {
-            var file = Path.Combine(control, $"{run.Id}.cancel");
-            if (!File.Exists(file)) continue;
-            File.Delete(file);
-            run.CancelRequested = true;
-            if (run.State != TaskState.Running) ledger.Write(run.Id, "cancel", new JsonObject { ["state"] = run.State.ToString().ToLowerInvariant() });
         }
     }
 

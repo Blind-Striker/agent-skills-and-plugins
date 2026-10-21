@@ -8,6 +8,66 @@ public sealed class SchedulerTests
 {
     [Test]
     [Timeout(30_000)]
+    public async Task Run_ControlPathNeverInWorkerEnvOrPrompt(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        WorkerLaunch? launch = null;
+        WorkerPrompt? prompt = null;
+        var create = lab.Backend.OnCreate!;
+        var send = lab.Backend.OnPrompt!;
+        lab.Backend.OnCreate = (input, token) => { launch = input; return create(input, token); };
+        lab.Backend.OnPrompt = (input, token) => { prompt = input.Prompt; return send(input, token); };
+        lab.Backend.OnPoll = (_, _) => { lab.End(run); return Task.FromResult(new PollResult([])); };
+
+        await lab.Scheduler(ct).RunAsync([run]);
+
+        await Assert.That(launch).IsNotNull();
+        await Assert.That(prompt).IsNotNull();
+        var control = Locations.ControlDir(lab.Ledger.RunId);
+        await Assert.That(control.StartsWith(lab.Tree.WorktreeRoot, StringComparison.OrdinalIgnoreCase)).IsFalse();
+        await Assert.That(control.StartsWith(lab.Ledger.Dir, StringComparison.OrdinalIgnoreCase)).IsFalse();
+        await Assert.That(launch!.Environment.Values.Any(x => x.Contains(control, StringComparison.OrdinalIgnoreCase))).IsFalse();
+        await Assert.That(prompt!.Text.Contains(control, StringComparison.OrdinalIgnoreCase)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("valid")]
+    [Arguments("other-run")]
+    [Arguments("unknown")]
+    [Arguments("extra")]
+    [Arguments("malformed")]
+    [Arguments("final")]
+    [Timeout(30_000)]
+    public async Task Cancel_ForOtherRunUnknownOrFinalTask_IsIgnoredAndLogged(string kind, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        var final = await lab.TaskAsync("finished", ct);
+        final.State = TaskState.Done;
+        var request = new System.Text.Json.Nodes.JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["run"] = kind == "other-run" ? "another-run" : lab.Ledger.RunId,
+            ["task"] = kind == "unknown" ? "missing" : kind == "final" ? "finished" : "inspect",
+            ["time"] = Json.Timestamp()
+        };
+        if (kind == "extra") request["by"] = "operator";
+        var dir = Directory.CreateDirectory(Path.Combine(Locations.ControlDir(lab.Ledger.RunId), "cancel")).FullName;
+        File.WriteAllText(Path.Combine(dir, "inspect.json"), kind == "malformed" ? "{" : request.ToJsonString());
+        lab.Backend.OnPoll = (_, _) => { lab.End(run); return Task.FromResult(new PollResult([])); };
+        lab.Backend.OnInterrupt = (_, _) => { lab.End(run); return Task.FromResult(new InterruptResult(true, "interrupt")); };
+
+        await lab.Scheduler(ct).RunAsync([run, final]);
+
+        await Assert.That(Directory.GetFiles(dir)).IsEmpty();
+        await Assert.That(run.CancelRequested).IsEqualTo(kind == "valid");
+        await Assert.That(final.State).IsEqualTo(TaskState.Done);
+        await Assert.That(lab.Ledger.Read().Any(x => x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "cancel")).IsEqualTo(kind != "valid");
+    }
+
+    [Test]
+    [Timeout(30_000)]
     public async Task Cancel_ledger_does_not_substitute_confirmed_stop_for_interrupt_response(CancellationToken ct)
     {
         using var lab = new CoreLab();
@@ -111,7 +171,8 @@ public sealed class SchedulerTests
         lab.Backend.OnPoll = (live, _) =>
         {
             if (live.Any(x => x.TaskId == fast.Id))
-                Json.WriteBytes(Path.Combine(lab.Ledger.RunId, fast.Id + ".cancel"), "cancel"u8);
+                Json.WriteFile(Path.Combine(Locations.CancelDir(lab.Ledger.RunId), fast.Id + ".json"),
+                    new CancelRequest { Run = lab.Ledger.RunId, Task = fast.Id, Time = Json.Timestamp() }, ControlJson.Files.CancelRequest);
             return Task.FromResult(new PollResult([]));
         };
         lab.Backend.OnInterrupt = (input, _) =>
@@ -301,7 +362,8 @@ public sealed class SchedulerTests
         };
         var running = lab.Scheduler(ct).RunAsync([run]);
         await entered.Task.WaitAsync(ct);
-        await File.WriteAllTextAsync(Path.Combine(lab.Ledger.RunId, run.Id + ".cancel"), "cancel", ct);
+        Json.WriteFile(Path.Combine(Locations.CancelDir(lab.Ledger.RunId), run.Id + ".json"),
+            new CancelRequest { Run = lab.Ledger.RunId, Task = run.Id, Time = Json.Timestamp() }, ControlJson.Files.CancelRequest);
         while (!lab.Ledger.Read().Any(x => x.Type == "cancel"))
         {
             ct.ThrowIfCancellationRequested();

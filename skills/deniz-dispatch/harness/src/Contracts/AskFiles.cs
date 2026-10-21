@@ -16,15 +16,19 @@ sealed class PendingAsk : VersionedContract
 
 sealed class AskDecision : VersionedContract, IJsonOnDeserialized
 {
+    [JsonRequired]
     public string AskId { get; set; } = "";
+    [JsonRequired]
     public string Decision { get; set; } = "";
     public string? Message { get; set; }
+    [JsonRequired]
     public string Time { get; set; } = "";
     public string By { get; set; } = "operator";
 
     void IJsonOnDeserialized.OnDeserialized()
     {
         Json.CheckVersion(SchemaVersion);
+        if (string.IsNullOrEmpty(AskId) || !Regex.IsMatch(AskId, "\\A[a-z0-9][a-z0-9-]*\\z")) throw new JsonException("askId must be a safe ask identifier");
         if (Decision is not ("once" or "reject")) throw new JsonException("decision must be once or reject");
         if (Decision == "once" && Message is not null) throw new JsonException("message goes with reject only");
     }
@@ -42,6 +46,8 @@ sealed class CancelRequest : VersionedContract
 
 sealed class RunReference : VersionedContract
 {
+    [JsonRequired]
     public string Run { get; set; } = "";
+    [JsonRequired]
     public string LedgerRoot { get; set; } = "";
 }

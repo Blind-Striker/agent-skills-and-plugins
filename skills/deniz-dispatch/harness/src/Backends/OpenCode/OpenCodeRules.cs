@@ -3,11 +3,17 @@ using OpenCode.Sdk.Models;
 static class OpenCodeRules
 {
     // Agent rules precede these. Last match wins, so every deny follows every escalation.
-    public static List<PermissionRule> Render(WorkerRules source) =>
-        [.. source.Escalate.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
+    public static List<PermissionRule> Render(WorkerRules source, string? run = null)
+    {
+        List<PermissionRule> rules = [.. source.Escalate.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
         { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Ask })),
          .. source.Deny.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
-        { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Deny }))];
+         { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Deny }))];
+        rules.Add(new() { Action = "edit", Resource = Path.GetFullPath(Path.Combine(Locations.ControlRoot, "**")).Replace('\\', '/'), Effect = PermissionEffect.Deny });
+        if (run is not null)
+            rules.Add(new() { Action = "edit", Resource = Path.GetFullPath(Path.Combine(Locations.LedgerRoot, run, "**")).Replace('\\', '/'), Effect = PermissionEffect.Deny });
+        return rules;
+    }
 }
 
 static class OpenCodeModels
@@ -15,7 +21,9 @@ static class OpenCodeModels
     public static RouteRef From(ModelRef model) => new(model.ProviderId, model.Id, model.Variant);
     public static ModelRef ToModelRef(RouteRef route) => new()
     {
-        ProviderId = route.Provider, Id = route.Model, Variant = route.VariantOrDefault == "default" ? null : route.Variant,
+        ProviderId = route.Provider,
+        Id = route.Model,
+        Variant = route.VariantOrDefault == "default" ? null : route.Variant,
     };
 }
 

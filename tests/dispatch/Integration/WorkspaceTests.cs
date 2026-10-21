@@ -40,7 +40,7 @@ public sealed class WorkspaceTests
     [Timeout(60_000)]
     public async Task Workspace_UnsafeLayout_PlanRefusesExit2(string obstacle, CancellationToken ct)
     {
-        using var lab = new CoreLab("workspace");
+        using var lab = new CoreLab("workspace", recorded: false);
         var repo = await LabRepo.CreateAsync(lab.Tree, ct);
         var tasks = Path.Combine(lab.Tree.Root, "tasks.jsonc");
         var document = System.Text.Json.Nodes.JsonNode.Parse("""{"schemaVersion":2,"run":"workspace","tasks":[{"id":"inspect","kind":"code","base":"main","route":"fixture/model","scope":["a.txt"],"prompt":"Inspect."}]}""")!;
@@ -62,6 +62,7 @@ public sealed class WorkspaceTests
 
         await Assert.That(plan.Report()).IsEqualTo(2);
         await Assert.That(File.Exists(Path.Combine(lab.Ledger.Dir, "run.json"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(Locations.LedgerRoot, runId, "run.json"))).IsFalse();
     }
 
     [Test]
@@ -298,7 +299,8 @@ public sealed class WorkspaceTests
         await repo.GitAsync(["-C", apply, "read-tree", "--reset", "-u", start], ct);
         await repo.GitAsync(["-C", apply, "apply", "--index", Path.Combine(lab.Ledger.TaskDir(run.Id), "diff.patch")], ct);
         await Assert.That(await repo.GitAsync(["-C", apply, "write-tree"], ct)).IsEqualTo(end);
-        await Assert.That(File.Exists(Path.Combine(lab.Tree.Root, "control", "index-inspect"))).IsFalse();
+        await Assert.That(lab.Git.ControlFolder).IsEqualTo(Locations.ControlDir(lab.Ledger.RunId));
+        await Assert.That(File.Exists(Path.Combine(lab.Git.ControlFolder, "index-inspect"))).IsFalse();
     }
 
     static async Task<TaskRun> InPlaceAsync(CoreLab lab, CancellationToken ct, string? commit = null, string id = "inspect")

@@ -71,7 +71,7 @@ static partial class Commands
         return plan.Report();
     }
 
-    public static async Task<int> RunAsync(Args a, CancellationToken ct)
+    public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null)
     {
         var tasksPath = a.Require(0, "task file");
         var plan = await Planner.LoadAsync(tasksPath, a.Get("repo"), AllowList.From(null), ct, args: a);
@@ -95,9 +95,9 @@ static partial class Commands
 
         var runId = CreateRunId(name);
         var ledger = new Ledger(runId);
-        if (Directory.Exists(ledger.Dir))
+        if (new[] { "run.json", "config.json", "tasks.jsonc", "events.jsonl" }.Any(file => File.Exists(Path.Combine(ledger.Dir, file))))
         {
-            throw new HarnessException($"run {runId} already exists; use `resume {runId}` or choose --run");
+            throw RecordedRun(runId);
         }
 
         var max = layers.Effective.MaxParallel!.Value;
@@ -106,8 +106,7 @@ static partial class Commands
             throw new HarnessException("--max must be between 1 and 8");
         }
 
-        using var supervisorLock = SupervisorLock.Acquire(runId);
-        AskQueue.Reset(runId);
+        Locations.ValidateControlLocation(plan.Repo);
         await using IWorkerBackend backend = new OpenCodeBackend();
         var probe = await backend.ProbeAsync(new(plan.Repo), ct);
         await Planner.CheckLiveAsync(plan, backend, allow, ct);
@@ -116,58 +115,103 @@ static partial class Commands
             return plan.Report();
         }
 
-        Directory.CreateDirectory(ledger.Dir);
-        File.Copy(plan.TasksPath, Path.Combine(ledger.Dir, "tasks.jsonc"));
-        layers.Freeze(ledger.Dir);
         var info = new RunInfo
         {
             Run = runId,
+            ControlId = Locations.NewControlId(),
             Repo = plan.Repo,
             TasksFile = plan.TasksPath,
             Created = Json.Timestamp(),
             Backends = new() { ["opencode"] = new BackendInfo { Version = probe.Version! } },
             MaxParallel = max,
         };
-        Json.WriteFile(Path.Combine(ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
-        var started = new JsonObject
+        var control = Path.Combine(Locations.ControlRoot, info.ControlId);
+        SupervisorLock? supervisorLock = null;
+        var claimed = false;
+        try
         {
-            ["repo"] = plan.Repo,
-            ["max"] = max,
-            ["server"] = probe.Version,
-            ["tasks"] = plan.Tasks.Count,
-            ["policy"] = policy.Path,
-            ["deny"] = Json.Array(policy.Deny.Select(x => x.Name!)),
-            ["escalate"] = Json.Array(policy.Escalate.Select(x => x.Name!)),
-            ["removed"] = Json.Array(Cli.RootEnvironment?.Removed ?? []),
-        };
-        if (plan.File.SharedPaths is { Count: > 0 } shared)
-            started["sharedPaths"] = new JsonObject { ["paths"] = Json.Array(shared), ["mergedBy"] = "coordinator" };
-        if (policy.RawPrompt)
-        {
-            started["rawPrompt"] = true;
-        }
-
-        ledger.Write(null, "run", started);
-
-        var runs = new List<TaskRun>();
-        foreach (var task in plan.Tasks)
-        {
-            var record = new TaskRecord { Spec = task.Spec, PromptText = task.PromptText, Settings = layers.Effective.Tasks[task.Spec.Id!].Settings,
-                PromptInputs = task.PromptInputs, Contracts = layers.Effective.Tasks[task.Spec.Id!].Contracts };
-            ledger.SaveRecord(record);
-            ledger.Write(task.Spec.Id, "queued", new JsonObject
+            Locations.CreateControlFolder(info.ControlId);
+            supervisorLock = SupervisorLock.AcquireFolder(control);
+            Json.WriteFile(Path.Combine(control, "run.ref"), new RunReference { Run = runId, LedgerRoot = Locations.LedgerRoot }, ControlJson.Files.RunReference);
+            var bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(info, LedgerJson.Files.RunInfo) + "\n");
+            Directory.CreateDirectory(ledger.Dir);
+            try
             {
-                ["kind"] = task.Spec.Kind,
-                ["route"] = layers.Effective.Tasks[task.Spec.Id!].Settings.Route?.Value,
-                ["agent"] = task.Spec.Agent,
-                ["reviewOf"] = task.Spec.ReviewOf,
-            });
-            runs.Add(new TaskRun { Record = record });
-        }
+                using var claim = new FileStream(Path.Combine(ledger.Dir, "run.json"), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                claimed = true;
+                claim.Write(bytes);
+                claim.Flush(flushToDisk: true);
+            }
+            catch (IOException) when (!claimed && File.Exists(Path.Combine(ledger.Dir, "run.json"))) { throw RecordedRun(runId); }
+            if (setupCheckpoint is not null) await setupCheckpoint(info, "claimed");
+            File.Copy(plan.TasksPath, Path.Combine(ledger.Dir, "tasks.jsonc"));
+            layers.Freeze(ledger.Dir);
+            var started = new JsonObject
+            {
+                ["repo"] = plan.Repo,
+                ["max"] = max,
+                ["server"] = probe.Version,
+                ["tasks"] = plan.Tasks.Count,
+                ["policy"] = policy.Path,
+                ["deny"] = Json.Array(policy.Deny.Select(x => x.Name!)),
+                ["escalate"] = Json.Array(policy.Escalate.Select(x => x.Name!)),
+                ["removed"] = Json.Array(Cli.RootEnvironment?.Removed ?? []),
+            };
+            if (plan.File.SharedPaths is { Count: > 0 } shared)
+                started["sharedPaths"] = new JsonObject { ["paths"] = Json.Array(shared), ["mergedBy"] = "coordinator" };
+            if (policy.RawPrompt)
+            {
+                started["rawPrompt"] = true;
+            }
 
-        var supervisor = new Supervisor(backend, ledger, plan.Repo, allow, policy, max, ct);
-        return await supervisor.RunAsync(runs);
+            ledger.Write(null, "run", started);
+
+            var runs = new List<TaskRun>();
+            foreach (var task in plan.Tasks)
+            {
+                var record = new TaskRecord
+                {
+                    Spec = task.Spec,
+                    PromptText = task.PromptText,
+                    Settings = layers.Effective.Tasks[task.Spec.Id!].Settings,
+                    PromptInputs = task.PromptInputs,
+                    Contracts = layers.Effective.Tasks[task.Spec.Id!].Contracts
+                };
+                ledger.SaveRecord(record);
+                ledger.Write(task.Spec.Id, "queued", new JsonObject
+                {
+                    ["kind"] = task.Spec.Kind,
+                    ["route"] = layers.Effective.Tasks[task.Spec.Id!].Settings.Route?.Value,
+                    ["agent"] = task.Spec.Agent,
+                    ["reviewOf"] = task.Spec.ReviewOf,
+                });
+                runs.Add(new TaskRun { Record = record });
+            }
+
+            if (setupCheckpoint is not null) await setupCheckpoint(info, "queued");
+            using (var done = new FileStream(Path.Combine(control, "setup.done"), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+                done.Flush(flushToDisk: true);
+            var supervisor = new Supervisor(backend, ledger, plan.Repo, allow, policy, max, ct);
+            return await supervisor.RunAsync(runs);
+        }
+        catch (Exception ex) when (claimed)
+        {
+            ledger.Write(null, "aborted", new JsonObject { ["message"] = ex.Message });
+            Console.Error.WriteLine($"dispatch: {ex.GetType().Name}: {ex.Message}");
+            return 1;
+        }
+        catch (Exception ex) when (ex is not HarnessException)
+        {
+            throw new HarnessException($"{ex.GetType().Name}: {ex.Message}");
+        }
+        finally
+        {
+            supervisorLock?.Dispose();
+            if (!claimed && Directory.Exists(control)) Directory.Delete(control, recursive: true);
+        }
     }
+
+    static HarnessException RecordedRun(string run) => new($"run {run} is already recorded; a rerun takes a new run id; `collect` or `resume` recovers it");
 
     public static int Status(Args a)
     {
@@ -191,7 +235,8 @@ static partial class Commands
         }
 
         var run = new Ledger(a.Require(0, "run"));
-        run.EnsureExists();
+        if (File.Exists(Path.Combine(run.Dir, "run.json"))) Locations.ControlDir(run.RunId);
+        else run.EnsureExists();
         Console.WriteLine($"run {run.RunId}{(SupervisorLock.IsHeld(run.RunId) ? " (supervised now)" : "")}");
         Console.WriteLine($"  {"task",-24} {"state",-10} {"outcome",-12} {"cost",8} {"in/out tokens",-16} {"files",5} {"scope!",6} {"asks",4} {"esc",3} verify");
         var toolCalls = run.Read().Where(x => x.Type == "tool" && x.Task is not null).ToLookup(x => x.Task!);
@@ -212,7 +257,7 @@ static partial class Commands
             }
         }
 
-        var pending = AskQueue.List(run.RunId);
+        var pending = File.Exists(Path.Combine(run.Dir, "run.json")) ? AskQueue.List(run.RunId) : [];
         if (pending.Count > 0)
         {
             Console.WriteLine($"  {pending.Count} escalated ask(s) wait for the operator; `asks {run.RunId}` lists them");
@@ -224,7 +269,9 @@ static partial class Commands
     public static async Task<int> ResumeAsync(Args a, CancellationToken ct)
     {
         var ledger = new Ledger(a.Require(0, "run"));
-        ledger.EnsureExists();
+        var control = Locations.RequireControlFolder(ledger.RunId);
+        using var supervisorLock = SupervisorLock.AcquireFolder(control);
+        Locations.RequireControlFolder(ledger.RunId, setup: true);
         var info = ledger.LoadRunInfo();
         var proceed = a.Has("continue");
         var frozen = ConfigLayers.Frozen(ledger.Dir);
@@ -232,7 +279,6 @@ static partial class Commands
             : AllowList.From(frozen.Restrictions?.Routes);
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
-        using var supervisorLock = SupervisorLock.Acquire(ledger.RunId);
         AskQueue.Reset(ledger.RunId);
         await using IWorkerBackend backend = new OpenCodeBackend();
         var probe = await backend.ProbeAsync(new(info.Repo!), ct);
