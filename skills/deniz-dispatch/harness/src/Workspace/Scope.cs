@@ -1,14 +1,15 @@
 static class Scope
 {
+    static readonly RegexOptions MatchOptions = RegexOptions.CultureInvariant
+        | (OperatingSystem.IsWindows() ? RegexOptions.IgnoreCase : RegexOptions.None);
+
     public static string? Overlap(List<string> a, List<string> b)
     {
-        foreach (var x in a)
+        foreach (var x in a.Where(g => !g.StartsWith('!')))
         {
-            foreach (var y in b)
+            foreach (var y in b.Where(g => !g.StartsWith('!')))
             {
-                var px = Prefix(x);
-                var py = Prefix(y);
-                if (px.StartsWith(py, StringComparison.OrdinalIgnoreCase) || py.StartsWith(px, StringComparison.OrdinalIgnoreCase))
+                if (Intersects(Compile(Normalize(x)), Compile(Normalize(y))))
                 {
                     return $"{x} ~ {y}";
                 }
@@ -18,11 +19,113 @@ static class Scope
         return null;
     }
 
-    static string Prefix(string glob)
+    // Search the product of two glob automata. Prefixes alone cannot distinguish
+    // disjoint suffixes, segment boundaries, or literal braces and brackets.
+    static bool Intersects(List<State> a, List<State> b)
     {
-        var g = Normalize(glob);
-        var cut = g.IndexOfAny(['*', '?', '[', '{']);
-        return cut < 0 ? g : g[..cut];
+        var pending = new Queue<(int A, int B)>();
+        var seen = new HashSet<(int A, int B)>();
+        pending.Enqueue((0, 0));
+        while (pending.TryDequeue(out var pair))
+        {
+            if (!seen.Add(pair)) continue;
+            if (pair.A == a.Count - 1 && pair.B == b.Count - 1) return true;
+
+            foreach (var next in a[pair.A].Empty) pending.Enqueue((next, pair.B));
+            foreach (var next in b[pair.B].Empty) pending.Enqueue((pair.A, next));
+            foreach (var x in a[pair.A].Moves)
+            {
+                foreach (var y in b[pair.B].Moves)
+                {
+                    if (Compatible(x, y)) pending.Enqueue((x.Target, y.Target));
+                }
+            }
+        }
+
+        return false;
+    }
+
+    static bool Compatible(Move a, Move b)
+    {
+        if (a.Literal is { } x && b.Literal is { } y)
+            return x == y || (OperatingSystem.IsWindows()
+                && Regex.IsMatch(x.ToString(), Regex.Escape(y.ToString()), MatchOptions));
+        if (a.Literal is { } literalA) return Accepts(b, literalA);
+        if (b.Literal is { } literalB) return Accepts(a, literalB);
+        return true;
+    }
+
+    static bool Accepts(Move move, char c) => move.CrossesDirectories ? c != '\n' : c != '/';
+
+    sealed class State
+    {
+        public List<int> Empty { get; } = [];
+        public List<Move> Moves { get; } = [];
+    }
+
+    readonly record struct Move(int Target, char? Literal = null, bool CrossesDirectories = false);
+
+    static List<State> Compile(string glob)
+    {
+        var states = new List<State> { new() };
+        var current = 0;
+        int AddState()
+        {
+            states.Add(new State());
+            return states.Count - 1;
+        }
+
+        for (var i = 0; i < glob.Length; i++)
+        {
+            var c = glob[i];
+            if (c == '*')
+            {
+                var recursive = i + 1 < glob.Length && glob[i + 1] == '*';
+                if (recursive) i++;
+                if (recursive && i + 1 < glob.Length && glob[i + 1] == '/')
+                {
+                    i++;
+                    // **/ is empty or text ending in a slash, never a partial segment.
+                    var loop = AddState();
+                    var next = AddState();
+                    states[current].Empty.AddRange([loop, next]);
+                    states[loop].Moves.Add(new Move(loop, CrossesDirectories: true));
+                    states[loop].Moves.Add(new Move(next, '/'));
+                    current = next;
+                }
+                else
+                {
+                    states[current].Moves.Add(new Move(current, CrossesDirectories: recursive));
+                    var next = AddState();
+                    states[current].Empty.Add(next);
+                    current = next;
+                }
+            }
+            else
+            {
+                var next = AddState();
+                states[current].Moves.Add(new Move(next, c == '?' ? null : c));
+                current = next;
+            }
+        }
+
+        if (glob.IndexOfAny(['*', '?']) < 0)
+        {
+            // A plain path covers itself and its descendants, not sibling prefixes.
+            var tail = AddState();
+            var end = AddState();
+            states[current].Empty.Add(end);
+            states[current].Moves.Add(new Move(tail, '/'));
+            states[tail].Moves.Add(new Move(tail, CrossesDirectories: true));
+            states[tail].Empty.Add(end);
+            current = end;
+        }
+
+        // Preserve the matcher's $ anchor, which also accepts before a final newline.
+        var accept = AddState();
+        states[current].Empty.Add(accept);
+        states[current].Moves.Add(new Move(accept, '\n'));
+        return states;
     }
 
     static string Normalize(string glob)
@@ -88,6 +191,6 @@ static class Scope
 
         // A plain path also covers everything below it.
         sb.Append(glob.IndexOfAny(['*', '?']) < 0 ? "(?:/.*)?$" : "$");
-        return new Regex(sb.ToString(), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        return new Regex(sb.ToString(), MatchOptions);
     }
 }
