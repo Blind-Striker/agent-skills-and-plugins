@@ -297,9 +297,13 @@ public sealed class CodexBackendTests
         if (escalate)
         {
             var asks = Array.Empty<string>();
+            var controlRoot = Path.Combine(lab.Tree.DispatchHome, "state", "control");
             while (!running.IsCompleted && asks.Length == 0)
             {
-                asks = Directory.GetFiles(lab.Tree.DispatchHome, "edit-1.json", SearchOption.AllDirectories);
+                asks = Directory.Exists(controlRoot) ? Directory.GetDirectories(controlRoot)
+                    .Where(path => Locations.IsControlId(Path.GetFileName(path)))
+                    .Select(path => Path.Combine(path, "asks", "edit-1.json"))
+                    .Where(File.Exists).ToArray() : [];
                 if (asks.Length == 0) await Task.Delay(20, cancellationToken);
             }
             await Assert.That(asks.Length).IsEqualTo(1);

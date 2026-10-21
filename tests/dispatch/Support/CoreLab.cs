@@ -8,12 +8,14 @@ internal sealed class CoreLab : IDisposable
     public Git Git { get; }
     public FakeBackend Backend { get; } = new("opencode", new("policy", "policy", "text", true));
     readonly string controlFolder;
+    readonly string? savedDispatchHome = Environment.GetEnvironmentVariable("DISPATCH_HOME");
 
     public CoreLab(string? runId = null, bool recorded = true)
     {
+        Environment.SetEnvironmentVariable("DISPATCH_HOME", Tree.DispatchHome);
         Locations.Resolve();
         Locations.Configure(new ConfigLocations { WorktreeRoot = Tree.WorktreeRoot }, runId is null ? null : Path.Combine(Tree.Root, "ledgers"));
-        Ledger = new(runId ?? Tree.Root);
+        Ledger = new(runId ?? Path.Combine(Tree.Root, "ledger"));
         var controlId = Locations.NewControlId();
         controlFolder = Locations.CreateControlFolder(controlId);
         if (recorded)
@@ -56,8 +58,13 @@ internal sealed class CoreLab : IDisposable
 
     public void Dispose()
     {
-        Directory.Delete(controlFolder, recursive: true);
-        Locations.Configure(null, null);
-        Tree.Dispose();
+        try { Directory.Delete(controlFolder, recursive: true); }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DISPATCH_HOME", savedDispatchHome);
+            Locations.Resolve();
+            Locations.Configure(null, null);
+            Tree.Dispose();
+        }
     }
 }

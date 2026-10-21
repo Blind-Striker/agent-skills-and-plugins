@@ -32,7 +32,7 @@ public sealed class ToolProgressTests
     public async Task Tool_calls_are_recorded_once_in_completion_order_with_safe_resources(CancellationToken ct)
     {
         using var core = new CoreLab();
-        await using var lab = new OpenCodeLab();
+        await using var lab = new OpenCodeLab(core.Tree);
         var run = await core.TaskAsync("inspect", ct);
         lab.Create("worker");
         lab.Prompt("worker")["events"] = new JsonArray(

@@ -20,7 +20,7 @@ public sealed class GitRunnerTests
         var started = Stopwatch.StartNew();
         try
         {
-            var result = await Proc.RunAsync(FakeOpenCode.Executable, ["--pipe-parent", pidFile], tree.Root,
+            var result = await Proc.RunAsync(FakeOpenCode.Executable, ["--pipe-parent", pidFile], TestPaths.Tests,
                 window.Token, cancel ? TimeSpan.FromSeconds(20) : TimeSpan.FromSeconds(2),
                 environment: tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
             await Assert.That(started.Elapsed).IsLessThan(TimeSpan.FromSeconds(5));

@@ -35,6 +35,83 @@ public sealed class OpenCodeCleanupTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(90_000)]
+    public async Task Run_releases_done_worker_after_saving_verified_result(bool releaseFails, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var taskFile = Path.Combine(lab.Tree.Root, "tasks.jsonc");
+        File.WriteAllText(taskFile, """
+            {"schemaVersion":2,"run":"settlement","tasks":[{"id":"inspect","kind":"research","backend":"opencode","route":"fixture/model","workspace":"in-place","commit":"none","prompt":"Inspect.","verify":["exit 0"]}]}
+            """);
+        lab.Steps.AddRange(File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).Skip(4)
+            .Select(x => JsonNode.Parse(x)!.AsObject())
+            .Where(step => step["expect"]!.GetValue<string>() != "DELETE /api/session/ses_fixture"));
+        var releasing = Path.Combine(lab.Tree.Root, "releasing");
+        var continueRelease = Path.Combine(lab.Tree.Root, "continue-release");
+        var release = lab.Add("DELETE /api/session/ses_fixture", status: releaseFails ? 500 : 204);
+        release["arrived"] = releasing;
+        release["waitFor"] = continueRelease;
+        lab.Write();
+        var environment = new Dictionary<string, string?>
+        {
+            ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
+            ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl"),
+        };
+        using var runner = new HarnessProcess(lab.Tree);
+
+        var running = runner.RunAsync(["run", taskFile, "--repo", repo.Root], ct, environment);
+        try
+        {
+            using var poll = new PeriodicTimer(TimeSpan.FromMilliseconds(20));
+            while (!running.IsCompleted && !File.Exists(releasing)) await poll.WaitForNextTickAsync(ct);
+            await Assert.That(File.Exists(releasing)).IsTrue();
+            var folder = Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "ledgers")).Single();
+            var beforeRelease = JsonNode.Parse(File.ReadAllText(Path.Combine(folder, "inspect", "result.json")))!;
+            await Assert.That(beforeRelease["state"]!.GetValue<string>()).IsEqualTo("done");
+            await Assert.That(beforeRelease["verify"]![0]!["exitCode"]!.GetValue<int>()).IsEqualTo(0);
+        }
+        finally { File.WriteAllText(continueRelease, "continue"); }
+        var result = await running;
+
+        result.RequireSuccess("settle done task");
+        var runFolder = Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "ledgers")).Single();
+        var saved = JsonNode.Parse(File.ReadAllText(Path.Combine(runFolder, "inspect", "result.json")))!;
+        await Assert.That(saved["state"]!.GetValue<string>()).IsEqualTo("done");
+        await Assert.That(saved["verify"]![0]!["exitCode"]!.GetValue<int>()).IsEqualTo(0);
+        await Assert.That(Requests(lab.Tree).Count(x => x["method"]!.GetValue<string>() == "DELETE"
+            && x["path"]!.GetValue<string>() == "/api/session/ses_fixture")).IsEqualTo(1);
+        var ledger = new Ledger(Path.GetFileName(runFolder));
+        await Assert.That(ledger.Read().Last(x => x.Task == "inspect" && x.Type == "final").Data!["state"]!.GetValue<string>()).IsEqualTo("done");
+        var releaseErrors = ledger.Read().Where(x => x.Task == "inspect" && x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "release").ToArray();
+        await Assert.That(releaseErrors.Length).IsEqualTo(releaseFails ? 1 : 0);
+        if (releaseFails)
+        {
+            await Assert.That(releaseErrors[0].Data!["message"]!.GetValue<string>()).Contains("HTTP 500");
+            lab.Steps.RemoveRange(4, lab.Steps.Count - 4);
+            lab.SessionPage(repo.Root, null, null, Session("ses_fixture", ledger.RunId, "inspect"));
+            lab.Add("DELETE /api/session/ses_fixture", status: 204);
+            lab.Write();
+            using var cleaner = new HarnessProcess(lab.Tree);
+            (await cleaner.RunAsync(["clean", ledger.RunId], ct, environment)).RequireSuccess("clean after release failure");
+            await Assert.That(Requests(lab.Tree).Count(x => x["method"]!.GetValue<string>() == "DELETE")).IsEqualTo(2);
+        }
+        else
+        {
+            lab.Steps.RemoveRange(4, lab.Steps.Count - 4);
+            lab.Add("GET /api/session/ses_fixture", new JsonObject { ["_tag"] = "SessionNotFoundError", ["message"] = "missing" }, 404);
+            lab.Write();
+            using var collector = new HarnessProcess(lab.Tree);
+            var collected = await collector.RunAsync(["collect", ledger.RunId, "inspect"], ct, environment);
+            await Assert.That(collected.ExitCode).IsEqualTo(2);
+            await Assert.That(collected.Stderr).Contains("the session was released when the task finished; result.json is final");
+        }
+        await Assert.That(Requests(lab.Tree).Where(x => x["unexpected"]!.GetValue<bool>())).IsEmpty();
+    }
+
+    [Test]
     [Timeout(90_000)]
     public async Task Clean_releases_recorded_and_paged_orphan_sessions_but_preserves_foreign_sessions(CancellationToken ct)
     {

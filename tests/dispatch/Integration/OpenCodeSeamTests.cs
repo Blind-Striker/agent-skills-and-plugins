@@ -204,7 +204,7 @@ public sealed class OpenCodeSeamTests
     {
         using var core = new CoreLab();
         var run = await core.TaskAsync("inspect", ct);
-        await using var lab = new OpenCodeLab();
+        await using var lab = new OpenCodeLab(core.Tree);
         lab.Add("POST /api/session", OpenCodeLab.Session("worker"));
         lab.Add("PUT /api/session/worker/environment", new JsonObject { ["_tag"] = "InternalError", ["message"] = "environment failed" }, 500);
         lab.Add("DELETE /api/session/worker", new JsonObject { ["_tag"] = "InternalError", ["message"] = "release failed" }, 500, repeat: true);

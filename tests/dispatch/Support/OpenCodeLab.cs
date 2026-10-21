@@ -5,14 +5,17 @@ namespace Dispatch.Tests.Support;
 internal sealed class OpenCodeLab : IAsyncDisposable
 {
     readonly Dictionary<string, string?> saved = new();
-    public TempTree Tree { get; } = new();
+    readonly bool ownsTree;
+    public TempTree Tree { get; }
     public OpenCodeBackend Backend { get; } = new(runId: "run");
     public List<JsonObject> Steps { get; } = File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl"))
         .Take(4).Select(x => JsonNode.Parse(x)!.AsObject()).ToList();
     public string Scenario => Path.Combine(Tree.Root, "scenario.jsonl");
 
-    public OpenCodeLab()
+    public OpenCodeLab(TempTree? tree = null)
     {
+        ownsTree = tree is null;
+        Tree = tree ?? new();
         var environment = FakeOpenCode.Environment(Tree, "one-task.jsonl");
         environment["FAKE_OPENCODE_SCENARIO"] = Scenario;
         foreach (var name in new[] { "DISPATCH_HOME", "FAKE_OPENCODE_SCENARIO", "FAKE_OPENCODE_RECORD" })
@@ -103,7 +106,7 @@ internal sealed class OpenCodeLab : IAsyncDisposable
             foreach (var (name, value) in saved) Environment.SetEnvironmentVariable(name, value);
             Locations.Resolve();
             ConfigLayers.Initialize(Args.Parse([]));
-            Tree.Dispose();
+            if (ownsTree) Tree.Dispose();
         }
     }
 }

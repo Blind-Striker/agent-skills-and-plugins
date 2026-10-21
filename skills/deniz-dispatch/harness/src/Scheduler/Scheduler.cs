@@ -497,6 +497,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         {
             var result = await Settlement.SettleAsync(Backend(run), ledger, run, outcome, CancellationToken.None, git);
             Finish(run, result.State switch { "done" => TaskState.Done, "cancelled" => TaskState.Cancelled, _ => TaskState.Failed }, result.Outcome, null);
+            if (run.State == TaskState.Done)
+            {
+                try { await Backend(run).ReleaseAsync(run.SavedWorker(), CancellationToken.None); }
+                catch (Exception ex) { Error(run, "release", ex); }
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

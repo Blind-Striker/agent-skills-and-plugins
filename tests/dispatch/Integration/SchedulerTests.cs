@@ -143,7 +143,7 @@ public sealed class SchedulerTests
         if (failure is "prompt" or "release")
         {
             await Assert.That(lab.Backend.Calls.Any(x => x.Member == "InterruptAsync")).IsTrue();
-            await Assert.That(lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync")).IsEqualTo(failure == "release");
+            await Assert.That(lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync" && x.Input is WorkerRef worker && worker.TaskId == bad.Id)).IsEqualTo(failure == "release");
         }
         await Assert.That(lab.Ledger.Read().Any(x => x.Task == bad.Id && x.Type == "final")).IsEqualTo(failure != "release");
     }
@@ -334,12 +334,14 @@ public sealed class SchedulerTests
         await run.Work!;
         var stateAfterError = run.State;
         var finalAfterError = lab.Ledger.Read().Any(x => x.Type == "final");
+        var releasedAfterError = lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync");
         lab.End(run);
         await running;
 
         await Assert.That(stateAfterError).IsEqualTo(TaskState.Running);
         await Assert.That(finalAfterError).IsFalse();
-        await Assert.That(lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync")).IsFalse();
+        await Assert.That(releasedAfterError).IsFalse();
+        await Assert.That(lab.Backend.Calls.Count(x => x.Member == "ReleaseAsync")).IsEqualTo(1);
         await Assert.That(run.State).IsEqualTo(TaskState.Done);
         await Assert.That(lab.Ledger.Read().Count(x => x.Type == "final")).IsEqualTo(1);
     }
