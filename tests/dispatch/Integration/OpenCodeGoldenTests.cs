@@ -32,6 +32,10 @@ public sealed class OpenCodeGoldenTests
         await Assert.That(requests.Where(request => request["unexpected"]!.GetValue<bool>())).IsEmpty();
         var sentEnvironment = requests.Single(request => request["method"]!.GetValue<string>() == "PUT")["body"]!["variables"]!.AsObject();
         await Assert.That(events.Single(e => e["type"]!.GetValue<string>() == "environment")["data"]!["variables"]!.GetValue<int>()).IsEqualTo(sentEnvironment.Count);
+        var promptText = requests.Single(request => request["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))["body"]!["text"]!.GetValue<string>();
+        var promptEvent = events.Single(e => e["type"]!.GetValue<string>() == "prompt")["data"]!;
+        await Assert.That(promptEvent["chars"]!.GetValue<int>()).IsEqualTo(promptText.Length);
+        await Assert.That(promptEvent["sha256"]!.GetValue<string>()).IsEqualTo(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(promptText))).ToLowerInvariant());
         var normalized = LedgerSnapshot.Normalize(events, tree.Root, Path.GetFileName(ledger), await repo.GitAsync(["rev-parse", "HEAD"], cancellationToken));
         var expected = await File.ReadAllTextAsync(Path.Combine(TestPaths.Tests, "fixtures", "ledgers", "opencode-one-task.jsonl"), cancellationToken);
         await Assert.That(normalized).IsEqualTo(expected);

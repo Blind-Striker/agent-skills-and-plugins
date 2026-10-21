@@ -21,6 +21,7 @@ static class Planner
         var baseDir = Path.GetDirectoryName(tasksPath)!;
         var repo = Path.GetFullPath(repoOverride ?? (file.Repo is { } r ? Path.Combine(baseDir, r) : throw new HarnessException("task file needs repo or --repo")));
         var plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
+        var useDefaultGit = git is null;
         git ??= Git.Default;
         if ((await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel")).ExitCode != 0)
         {
@@ -32,6 +33,7 @@ static class Planner
         if (args is not null)
         {
             plan.Config = await ConfigLayers.LoadAsync(repo, file, tasksPath, args, ct, git);
+            if (useDefaultGit) git = Git.Default;
             allow = plan.Config.Allow;
             foreach (var spec in specs) ConfigLayers.Apply(spec, plan.Config.Effective.Tasks[spec.Id!].Settings);
             plan.Warnings.AddRange(plan.Config.Effective.Warnings);
@@ -41,9 +43,14 @@ static class Planner
                 plan.Errors.Add("sharedPaths must contain repository-relative paths, not globs or parent paths");
         if (specs.Count == 0) plan.Errors.Add("no tasks");
         var ids = new HashSet<string>(StringComparer.Ordinal);
+        var contractCache = new Dictionary<string, Prompt.Contract>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         foreach (var spec in specs)
         {
             var e = new List<string>();
+            Prompt.Inputs? promptInputs = null;
+            try { promptInputs = Prompt.Load(file, spec, tasksPath, args, plan.Config?.Policy.Instructions ?? [], contractCache); }
+            catch (Exception ex) when (ex is HarnessException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+            { e.Add(ex.Message); }
             if (!Regex.IsMatch(spec.Id ?? "", "^[a-z0-9][a-z0-9-]{0,39}$")) e.Add("id must match ^[a-z0-9][a-z0-9-]{0,39}$");
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
@@ -85,7 +92,7 @@ static class Planner
             foreach (var error in e) plan.Errors.Add($"{spec.Id ?? "<no id>"}: {error}");
             if (e.Count == 0)
             {
-                plan.Tasks.Add(new PlannedTask { Spec = spec, PromptText = prompt!, Route = route });
+                plan.Tasks.Add(new PlannedTask { Spec = spec, PromptText = prompt!, Route = route, PromptInputs = promptInputs });
             }
         }
 

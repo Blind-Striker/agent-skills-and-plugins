@@ -1,10 +1,10 @@
-{"schemaVersion":2,"ts":"$timestamp","run":"$run","type":"run","data":{"repo":"$lab/repo","max":1,"server":"2.0.32","tasks":1,"policy":"config.json","deny":["user/no-edits"],"escalate":[]}}
+{"schemaVersion":2,"ts":"$timestamp","run":"$run","type":"run","data":{"repo":"$lab/repo","max":1,"server":"2.0.32","tasks":1,"policy":"config.json","deny":["user/no-edits"],"escalate":[],"removed":["NUGET_PACKAGES"]}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"queued","data":{"kind":"research","route":"opencode:fixture/model","agent":null,"reviewOf":null}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"worktree","data":{"path":"$lab/dispatch-home/state/worktrees/inspect","branch":"dispatch/$run/inspect","base":"main","baseSha":"$base"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"route","data":{"route":"opencode:fixture/model","agent":"build","lineage":"fixture"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"session","data":{"sessionId":"$session","projectId":"$project","rules":["edit * deny"]}}
-{"ts":"$timestamp","run":"$run","task":"inspect","type":"environment","data":{"variables":"$environment-count","removed":["NUGET_PACKAGES"]}}
-{"ts":"$timestamp","run":"$run","task":"inspect","type":"prompt","data":{"promptId":"$prompt","chars":27}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"environment","data":{"variables":"$environment-count","removed":[]}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"prompt","data":{"turn":"$prompt","chars":"$prompt-chars","sha256":"$prompt-sha256","promptId":"$prompt"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"permission","data":{"id":"$permission","session":null,"action":"read","resources":["README.md"],"answer":"once","by":"harness","status":204}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"status","data":{"execution":"succeeded"}}
 {"ts":"$timestamp","run":"$run","task":"inspect","type":"collected","data":{"outcome":"succeeded","commit":null,"diffstat":"","files":0,"outOfScope":[],"routesUsed":["fixture/model#default"]}}

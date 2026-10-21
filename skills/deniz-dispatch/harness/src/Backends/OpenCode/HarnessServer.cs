@@ -36,6 +36,8 @@ sealed class HarnessServer : IAsyncDisposable
         var command = Command();
         Directory.CreateDirectory(Locations.WorktreeRoot);
         OpenCodeServer server;
+        var environment = Cli.RootEnvironment?.Passthrough(ConfigLayers.User?.Backends?.Opencode?.Env ?? []) ?? new Dictionary<string, string>();
+        environment["OPENCODE_DISABLE_FILEWATCHER"] = "1";
         try
         {
             // The real user profile on purpose: 2.x keeps credentials in its SQLite database.
@@ -43,7 +45,7 @@ sealed class HarnessServer : IAsyncDisposable
             {
                 Command = command,
                 WorkingDirectory = Locations.WorktreeRoot,
-                Environment = new Dictionary<string, string>(StringComparer.Ordinal) { ["OPENCODE_DISABLE_FILEWATCHER"] = "1" },
+                Environment = environment,
                 Output = output,
                 ReadinessTimeout = TimeSpan.FromSeconds(90),
             }, ct);

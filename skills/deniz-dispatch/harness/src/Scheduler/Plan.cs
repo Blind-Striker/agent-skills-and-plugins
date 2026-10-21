@@ -5,6 +5,7 @@ sealed class PlannedTask
     public required string PromptText { get; init; }
 
     public RouteRef? Route { get; init; }
+    public Prompt.Inputs? PromptInputs { get; init; }
 
 }
 

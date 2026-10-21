@@ -12,6 +12,12 @@ internal static class LedgerSnapshot
         {
             entry["ts"] = "$timestamp";
             if (entry["type"]!.GetValue<string>() == "environment") entry["data"]!["variables"] = "$environment-count";
+            // Prompt text includes the temporary workspace path; its measurements are checked on the wire.
+            if (entry["type"]!.GetValue<string>() == "prompt")
+            {
+                entry["data"]!["chars"] = "$prompt-chars";
+                entry["data"]!["sha256"] = "$prompt-sha256";
+            }
             ReplaceStrings(entry);
         }
         return string.Join('\n', events.Select(entry => entry.ToJsonString())) + "\n";

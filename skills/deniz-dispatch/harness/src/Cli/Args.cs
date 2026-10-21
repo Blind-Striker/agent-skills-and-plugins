@@ -1,8 +1,9 @@
 sealed class Args
 {
-    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "profile", "project", "access", "network", "workspace", "commit", "raw-prompt"];
+    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "profile", "project", "access", "network", "workspace", "commit", "raw-prompt", "contract"];
     public List<string> Original { get; private init; } = [];
     public List<string> Routes { get; } = [];
+    public List<string> Contracts { get; } = [];
 
     public string Command { get; private init; } = "";
     public List<string> Positional { get; } = [];
@@ -26,6 +27,7 @@ sealed class Args
 
                     parsed.Options[name] = argv[++i];
                     if (name == "route") parsed.Routes.Add(argv[i]);
+                    if (name == "contract") parsed.Contracts.Add(argv[i]);
                 }
                 else
                 {
@@ -47,6 +49,8 @@ sealed class Args
 
     public void ValidatePaths()
     {
+        foreach (var path in Contracts)
+            if (!Path.IsPathFullyQualified(path)) throw new HarnessException("--contract must be an absolute path");
         foreach (var name in new[] { "repo", "dir", "policy", "ledger" })
         {
             if (Get(name) is { } path && !Path.IsPathFullyQualified(path))

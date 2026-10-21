@@ -71,16 +71,19 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
         var (variables, removed) = WorkerEnvironment.Environment(run.Id);
         await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables }, cancellationToken: ct);
         ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
+        var promptText = run.Record.Spec.RawPrompt == true
+            ? "Continue the task from where you stopped."
+            : "Continue the task from where you stopped. The standing instructions and the task above still apply.";
         var prompt = await session.PromptAsync(new SessionPromptRequest
         {
-            Text = run.Record.Spec.RawPrompt == true
-                ? "Continue the task from where you stopped."
-                : "Continue the task from where you stopped. The standing instructions and the task above still apply.",
+            Text = promptText,
         }, cancellationToken: ct);
         run.Record.BackendState.PromptId = prompt.Prompt.Id;
         run.Record.BackendState.PromptCreated = prompt.Prompt.Time.Created;
         ledger.SaveRecord(run.Record);
-        var resumed = new JsonObject { ["promptId"] = prompt.Prompt.Id, ["resume"] = true };
+        var resumed = Prompt.Event(promptText, prompt.Prompt.Id, raw: run.Record.Spec.RawPrompt == true, isContinue: true);
+        resumed["promptId"] = prompt.Prompt.Id;
+        resumed["resume"] = true;
         if (run.Record.Spec.RawPrompt == true)
         {
             resumed["rawPrompt"] = true;
@@ -301,14 +304,18 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
             ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
 
             // 4. Prompt (standing instructions first), then close the admission race.
+            if (record.PromptInputs is null && record.Contracts is { Count: > 0 })
+                throw new HarnessException("original contract text is unavailable; cannot start an unprompted task from the ledger");
+            var promptText = policy.Render(new PlannedOrRecord(spec, record.PromptText), record.Workspace.Path, record.PromptInputs);
             var prompt = await session.PromptAsync(new SessionPromptRequest
             {
-                Text = spec.RawPrompt == true ? record.PromptText : policy.Render(new PlannedOrRecord(spec, record.PromptText), record.Workspace.Path),
+                Text = promptText,
             }, cancellationToken: ct);
             record.BackendState.PromptId = prompt.Prompt.Id;
             record.BackendState.PromptCreated = prompt.Prompt.Time.Created;
             ledger.SaveRecord(record);
-            var prompted = new JsonObject { ["promptId"] = prompt.Prompt.Id, ["chars"] = record.PromptText.Length };
+            var prompted = Prompt.Event(promptText, prompt.Prompt.Id, record.PromptInputs, spec.RawPrompt == true);
+            prompted["promptId"] = prompt.Prompt.Id;
             if (spec.RawPrompt == true)
             {
                 prompted["rawPrompt"] = true;

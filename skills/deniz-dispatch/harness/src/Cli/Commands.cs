@@ -77,6 +77,8 @@ static partial class Commands
         }
 
         var layers = plan.Config!;
+        foreach (var task in plan.Tasks)
+            layers.Effective.Tasks[task.Spec.Id!].Contracts = task.PromptInputs?.Contracts is { Count: > 0 } contracts ? contracts.Select(c => c.Record).ToList() : null;
         var allow = layers.Allow;
         var policy = layers.Policy;
         Console.WriteLine(policy.Describe());
@@ -132,6 +134,7 @@ static partial class Commands
             ["policy"] = policy.Path,
             ["deny"] = Json.Array(policy.Deny.Select(x => x.Name!)),
             ["escalate"] = Json.Array(policy.Escalate.Select(x => x.Name!)),
+            ["removed"] = Json.Array(Cli.RootEnvironment?.Removed ?? []),
         };
         if (plan.File.SharedPaths is { Count: > 0 } shared)
             started["sharedPaths"] = new JsonObject { ["paths"] = Json.Array(shared), ["mergedBy"] = "coordinator" };
@@ -145,7 +148,8 @@ static partial class Commands
         var runs = new List<TaskRun>();
         foreach (var task in plan.Tasks)
         {
-            var record = new TaskRecord { Spec = task.Spec, PromptText = task.PromptText, Settings = layers.Effective.Tasks[task.Spec.Id!].Settings };
+            var record = new TaskRecord { Spec = task.Spec, PromptText = task.PromptText, Settings = layers.Effective.Tasks[task.Spec.Id!].Settings,
+                PromptInputs = task.PromptInputs, Contracts = layers.Effective.Tasks[task.Spec.Id!].Contracts };
             ledger.SaveRecord(record);
             ledger.Write(task.Spec.Id, "queued", new JsonObject
             {

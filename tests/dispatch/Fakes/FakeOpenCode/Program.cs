@@ -4,6 +4,9 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
+if (Environment.GetEnvironmentVariable("FAKE_ENV_NAMES") is { } namesFile)
+    await File.WriteAllTextAsync(namesFile, JsonSerializer.Serialize(Environment.GetEnvironmentVariables().Keys.Cast<string>().ToArray()));
+
 if (args.FirstOrDefault() == "--pipe-parent")
 {
     using var child = Process.Start(new ProcessStartInfo(Environment.ProcessPath!)

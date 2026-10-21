@@ -141,6 +141,8 @@ sealed class ContractRecord
 
 sealed class TaskRecord : VersionedContract
 {
+    [JsonIgnore]
+    public Prompt.Inputs? PromptInputs { get; set; }
     public TaskSpec Spec { get; set; } = new();
     public string PromptText { get; set; } = "";
     public EffectiveSettings Settings { get; set; } = new();
