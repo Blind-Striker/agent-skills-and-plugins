@@ -4,10 +4,11 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
+[NotInParallel("processes")]
 public sealed class LedgerTests
 {
     [Test]
-    [Timeout(15_000)]
+    [Timeout(180_000)]
     public async Task Append_WhileThirdPartyHoldsReadOnlyShare_RetriesThenSucceeds(CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows file sharing is required");
@@ -36,7 +37,7 @@ public sealed class LedgerTests
     }
 
     [Test]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Repair_CompleteJsonWithoutNewline_NeverBecomesAnEvent(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();

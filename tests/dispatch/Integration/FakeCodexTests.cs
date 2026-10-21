@@ -6,6 +6,7 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
+[NotInParallel("processes")]
 public sealed class FakeCodexTests
 {
     [Test]

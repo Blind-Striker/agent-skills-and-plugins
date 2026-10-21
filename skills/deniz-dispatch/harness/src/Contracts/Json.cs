@@ -123,7 +123,12 @@ static class Json
             {
                 try
                 {
-                    File.Move(temp, path, overwrite: true);
+                    // Windows MoveFileEx cannot overwrite an open target even with delete sharing.
+                    // ReplaceFile preserves existing readers' snapshots while publishing the new file.
+                    if (OperatingSystem.IsWindows() && File.Exists(path))
+                        File.Replace(temp, path, destinationBackupFileName: null);
+                    else
+                        File.Move(temp, path, overwrite: true);
                     break;
                 }
                 catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && timer.Elapsed < TimeSpan.FromSeconds(2))

@@ -7,14 +7,17 @@ internal sealed class HarnessProcess(TempTree tree) : IDisposable
 {
     readonly CapturedProcess child = new();
 
-    public Task<CapturedResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken, IReadOnlyDictionary<string, string?>? environment = null)
+    public Task<CapturedResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, string?>? environment = null, bool documentedEntry = false)
     {
         var childEnvironment = tree.ChildEnvironment();
         if (environment is not null)
         {
             foreach (var (name, value) in environment) childEnvironment[name] = value;
         }
-        return child.RunAsync("dotnet", ["dispatch.cs", "--", .. arguments], TestPaths.Harness, childEnvironment, cancellationToken);
+        if (documentedEntry) Gates.UseBuildCache(childEnvironment);
+        string[] invocation = documentedEntry ? ["dispatch.cs", "--", .. arguments] : [Gates.HarnessDll, .. arguments];
+        return child.RunAsync("dotnet", invocation, TestPaths.Harness, childEnvironment, cancellationToken);
     }
 
     public void Kill() => child.Kill();

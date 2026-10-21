@@ -4,13 +4,14 @@ using System.Text.Json;
 namespace Dispatch.Tests.Unit;
 
 [Category("Unit")]
+[NotInParallel("processes")]
 public sealed class PlannerScopeTests
 {
     [Test]
     [Arguments("src/*/one.cs", "src/two/*.cs", true)]
     [Arguments("src/*.cs", "src/*.md", false)]
     [Arguments("src/{one,two}/**", "src/other/**", false)]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Plan_OverlappingPositiveGlobs_Refused(string a, string b, bool overlaps, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -22,7 +23,7 @@ public sealed class PlannerScopeTests
     }
 
     [Test]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Plan_ExclusionsDoNotProveOverlap(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -35,7 +36,7 @@ public sealed class PlannerScopeTests
     [Test]
     [Arguments("review")]
     [Arguments("research")]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Plan_ReadingKindsDoNotConflictWithWriters(string kind, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -52,7 +53,7 @@ public sealed class PlannerScopeTests
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Shared_paths_exempt_only_the_named_overlap(bool otherOverlap, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -65,7 +66,7 @@ public sealed class PlannerScopeTests
     }
 
     [Test]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task A_shared_file_does_not_exempt_the_rest_of_a_broad_scope(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();

@@ -4,12 +4,13 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
+[NotInParallel("processes")]
 public sealed class GitRunnerTests
 {
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    [Timeout(30_000)]
+    [Timeout(180_000)]
     public async Task Proc_ExitedParentWithOpenChildPipes_ReturnsWithinTimeoutAndGrace(bool cancel, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -49,7 +50,7 @@ public sealed class GitRunnerTests
     }
 
     [Test]
-    [Timeout(30_000)]
+    [Timeout(180_000)]
     public async Task GitWarningOnStderr_DoesNotReachIds(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();

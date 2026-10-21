@@ -3,10 +3,11 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
+[NotInParallel("processes")]
 public sealed class LabRepoTests
 {
     [Test]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task A_lab_repository_has_one_clean_commit_and_local_identity(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();

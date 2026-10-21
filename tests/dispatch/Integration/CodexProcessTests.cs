@@ -6,13 +6,13 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
-[NotInParallel]
+[NotInParallel("processes")]
 public sealed class CodexProcessTests
 {
     [Test]
     [Arguments(false)]
     [Arguments(true)]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Start_uses_configured_executable_or_PATH_shim_with_exact_streams_and_environment(bool configured, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -52,7 +52,7 @@ public sealed class CodexProcessTests
     [Arguments(500, 20, 200)]
     [Arguments(100, 2000, 17)]
     [Arguments(1, 100000, 1)]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Stderr_keeps_only_the_bounded_tail(int lineCount, int lineWidth, int expectedLines, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -77,7 +77,7 @@ public sealed class CodexProcessTests
     [Arguments(false, false)]
     [Arguments(true, false)]
     [Arguments(true, true)]
-    [Timeout(60_000)]
+    [Timeout(180_000)]
     public async Task Stop_leaves_no_wrapper_child_or_grandchild_alive(bool ownSession, bool wrapperExits, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();

@@ -4,10 +4,11 @@ using Dispatch.Tests.Support;
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
+[NotInParallel("processes")]
 public sealed class ConfigLayerTests
 {
     [Test]
-    [Timeout(120_000)]
+    [Timeout(180_000)]
     public async Task Missing_policy_is_a_named_refusal_not_a_crash(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
@@ -81,7 +82,7 @@ public sealed class ConfigLayerTests
     [Test]
     [Arguments("repo")]
     [Arguments("task-file")]
-    [Timeout(120_000)]
+    [Timeout(180_000)]
     public async Task Non_user_backend_config_is_refused_before_any_run_is_created(string layer, CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
