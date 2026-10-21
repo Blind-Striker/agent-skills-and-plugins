@@ -166,15 +166,17 @@ public sealed class GitRunnerTests
     {
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, cancellationToken);
-        await repo.GitAsync(["config", "diff.noprefix", "true"], cancellationToken);
-        await repo.GitAsync(["config", "diff.mnemonicPrefix", "true"], cancellationToken);
-        await repo.GitAsync(["config", "diff.ignoreSubmodules", ignoreSubmodules], cancellationToken);
-        await repo.GitAsync(["config", "diff.submodule", submoduleFormat], cancellationToken);
         var oldLink = await repo.GitAsync(["rev-parse", "HEAD"], cancellationToken);
         await repo.GitAsync(["commit", "--allow-empty", "-m", "Create gitlink target"], cancellationToken);
         var newLink = await repo.GitAsync(["rev-parse", "HEAD"], cancellationToken);
         await repo.GitAsync(["update-index", "--add", "--cacheinfo", $"160000,{oldLink},module"], cancellationToken);
         await repo.GitAsync(["commit", "-m", "Add gitlink"], cancellationToken);
+        // Older Git also applies diff.ignoreSubmodules when detecting changes for a commit.
+        // Enable the hostile diff settings after the submodule-only fixture commit.
+        await repo.GitAsync(["config", "diff.noprefix", "true"], cancellationToken);
+        await repo.GitAsync(["config", "diff.mnemonicPrefix", "true"], cancellationToken);
+        await repo.GitAsync(["config", "diff.ignoreSubmodules", ignoreSubmodules], cancellationToken);
+        await repo.GitAsync(["config", "diff.submodule", submoduleFormat], cancellationToken);
         var run = await PrepareAsync(tree, repo, ["*.txt", "*.bin"], cancellationToken);
         await repo.GitAsync(["-C", run.Worktree, "update-index", "--cacheinfo", $"160000,{newLink},module"], cancellationToken);
         var files = new Dictionary<string, byte[]>
