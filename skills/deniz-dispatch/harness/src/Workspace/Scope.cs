@@ -3,13 +3,15 @@ static class Scope
     static readonly RegexOptions MatchOptions = RegexOptions.CultureInvariant
         | (OperatingSystem.IsWindows() ? RegexOptions.IgnoreCase : RegexOptions.None);
 
-    public static string? Overlap(List<string> a, List<string> b)
+    public static string? Overlap(List<string> a, List<string> b, List<string>? sharedPaths = null)
     {
         foreach (var x in a.Where(g => !g.StartsWith('!')))
         {
             foreach (var y in b.Where(g => !g.StartsWith('!')))
             {
-                if (Intersects(Compile(Normalize(x)), Compile(Normalize(y))))
+                if (sharedPaths is { Count: > 0 }
+                    ? IntersectsOutsideShared(Compile(Normalize(x)), Compile(Normalize(y)), sharedPaths.Select(p => Compile(Normalize(p))).ToList())
+                    : Intersects(Compile(Normalize(x)), Compile(Normalize(y))))
                 {
                     return $"{x} ~ {y}";
                 }
@@ -17,6 +19,43 @@ static class Scope
         }
 
         return null;
+    }
+
+    // Difference against the union of the shared-path automata. Checking only a pair's
+    // prefixes would wrongly exempt a broad scope that also shares non-shared files.
+    static bool IntersectsOutsideShared(List<State> a, List<State> b, List<List<State>> excluded)
+    {
+        var machines = new List<List<State>> { a, b };
+        machines.AddRange(excluded);
+        var alphabet = machines.SelectMany(m => m).SelectMany(s => s.Moves)
+            .Where(m => m.Literal.HasValue).Select(m => m.Literal!.Value).Append('/').Append('\n').ToHashSet();
+        var other = Enumerable.Range(1, char.MaxValue).Select(n => (char)n).First(c => !alphabet.Contains(c));
+        alphabet.Add(other);
+        int[] Closure(List<State> machine, IEnumerable<int> seeds)
+        {
+            var found = new HashSet<int>();
+            var pending = new Stack<int>(seeds);
+            while (pending.TryPop(out var state))
+                if (found.Add(state)) foreach (var next in machine[state].Empty) pending.Push(next);
+            return found.Order().ToArray();
+        }
+        var queue = new Queue<int[][]>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        queue.Enqueue(machines.Select(m => Closure(m, [0])).ToArray());
+        while (queue.TryDequeue(out var states))
+        {
+            if (!seen.Add(string.Join(";", states.Select(s => string.Join(',', s))))) continue;
+            bool Final(int index) => states[index].Contains(machines[index].Count - 1);
+            if (Final(0) && Final(1) && !Enumerable.Range(2, excluded.Count).Any(Final)) return true;
+            foreach (var c in alphabet)
+            {
+                var next = machines.Select((machine, i) => Closure(machine, states[i].SelectMany(s => machine[s].Moves)
+                    .Where(m => m.Literal is { } literal ? Compatible(m, new Move(0, c)) : Accepts(m, c))
+                    .Select(m => m.Target))).ToArray();
+                if (next[0].Length > 0 && next[1].Length > 0) queue.Enqueue(next);
+            }
+        }
+        return false;
     }
 
     // Search the product of two glob automata. Prefixes alone cannot distinguish

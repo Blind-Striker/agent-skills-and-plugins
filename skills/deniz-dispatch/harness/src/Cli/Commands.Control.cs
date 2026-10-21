@@ -36,6 +36,8 @@ static partial class Commands
         }
 
         var record = ledger.LoadRecord(task);
+        record.Settings = ConfigLayers.Frozen(ledger.Dir).Tasks[task].Settings;
+        ConfigLayers.Apply(record.Spec, record.Settings);
         if (record.Session.Id is null || record.Workspace.Path is null)
         {
             throw new HarnessException($"{task} has no session or worktree to collect");

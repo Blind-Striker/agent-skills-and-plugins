@@ -49,12 +49,40 @@ public sealed class PlannerScopeTests
         Id = id, Kind = kind, Base = "main", Agent = "worker", Prompt = "Inspect the declared scope.", Scope = scope,
     };
 
-    static async Task<Plan> LoadAsync(TempTree tree, List<TaskSpec> tasks, CancellationToken cancellationToken)
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Shared_paths_exempt_only_the_named_overlap(bool otherOverlap, CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var plan = await LoadAsync(tree,
+            [Spec("first", "code", ["shared.txt", "src/one/**"]),
+             Spec("second", "mechanical", ["shared.txt", otherOverlap ? "src/one/**" : "src/two/**"])],
+            cancellationToken, ["shared.txt"]);
+        await Assert.That(plan.Errors.Count).IsEqualTo(otherOverlap ? 1 : 0);
+        if (otherOverlap) await Assert.That(plan.Errors[0]).Contains("src/one/**");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task A_shared_file_does_not_exempt_the_rest_of_a_broad_scope(CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var plan = await LoadAsync(tree,
+            [Spec("first", "code", ["src/**"]), Spec("second", "mechanical", ["src/**"])],
+            cancellationToken, ["src/shared.txt"]);
+        await Assert.That(plan.Errors.Count).IsEqualTo(1);
+        await Assert.That(plan.Errors[0]).Contains("share scope");
+    }
+
+    static async Task<Plan> LoadAsync(TempTree tree, List<TaskSpec> tasks, CancellationToken cancellationToken, string[]? shared = null)
     {
         var repo = await LabRepo.CreateAsync(tree, cancellationToken);
         var path = Path.Combine(tree.Root, "tasks.json");
-        await File.WriteAllTextAsync(path,
-            JsonSerializer.Serialize(new TaskFile { Repo = repo.Root, Tasks = tasks }, InputJson.Default.TaskFile), cancellationToken);
+        var document = JsonSerializer.SerializeToNode(new TaskFile { Repo = repo.Root, Tasks = tasks }, InputJson.Default.TaskFile)!;
+        if (shared is not null) document["sharedPaths"] = Json.Array(shared);
+        await File.WriteAllTextAsync(path, document.ToJsonString(), cancellationToken);
         var allow = new AllowList();
         allow.Agents.Add("worker");
         var git = new Git(Executables.Resolve("git"), Path.Combine(tree.Root, "control"),

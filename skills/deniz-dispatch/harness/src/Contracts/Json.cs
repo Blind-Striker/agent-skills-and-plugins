@@ -5,8 +5,6 @@
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     NewLine = "\n",
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
-[JsonSerializable(typeof(AllowListFile))]
-[JsonSerializable(typeof(PolicyFile))]
 [JsonSerializable(typeof(TaskFile))]
 [JsonSerializable(typeof(ConfigFile))]
 [JsonSerializable(typeof(string))]

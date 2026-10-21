@@ -1,6 +1,6 @@
 static class Planner
 {
-    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct, Git? git = null)
+    public static async Task<Plan> LoadAsync(string tasksPath, string? repoOverride, AllowList allow, CancellationToken ct, Git? git = null, Args? args = null)
     {
         tasksPath = Path.GetFullPath(tasksPath);
         if (!File.Exists(tasksPath))
@@ -15,7 +15,7 @@ static class Planner
         }
         catch (JsonException ex)
         {
-            throw new HarnessException($"task file is not valid: {ex.Message}");
+            throw new HarnessException($"{tasksPath} (task-file): {ex.Message}");
         }
 
         var baseDir = Path.GetDirectoryName(tasksPath)!;
@@ -29,6 +29,16 @@ static class Planner
         }
 
         var specs = file.Tasks ?? [];
+        if (args is not null)
+        {
+            plan.Config = await ConfigLayers.LoadAsync(repo, file, tasksPath, args, ct, git);
+            allow = plan.Config.Allow;
+            foreach (var spec in specs) ConfigLayers.Apply(spec, plan.Config.Effective.Tasks[spec.Id!].Settings);
+            plan.Warnings.AddRange(plan.Config.Effective.Warnings);
+        }
+        foreach (var path in file.SharedPaths ?? [])
+            if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path) || path.Replace('\\', '/').Split('/').Contains("..") || path.IndexOfAny(['*', '?', '!']) >= 0)
+                plan.Errors.Add("sharedPaths must contain repository-relative paths, not globs or parent paths");
         if (specs.Count == 0) plan.Errors.Add("no tasks");
         var ids = new HashSet<string>(StringComparer.Ordinal);
         foreach (var spec in specs)
@@ -93,7 +103,7 @@ static class Planner
         {
             for (var j = i + 1; j < writers.Count; j++)
             {
-                var overlap = Scope.Overlap(writers[i].Spec.Scope!, writers[j].Spec.Scope!);
+                var overlap = Scope.Overlap(writers[i].Spec.Scope!, writers[j].Spec.Scope!, file.SharedPaths);
                 if (overlap is not null) plan.Errors.Add($"{writers[i].Spec.Id} and {writers[j].Spec.Id} share scope ({overlap})");
             }
         }
@@ -102,7 +112,7 @@ static class Planner
     }
 
     static string EmptyHint(AllowList allow) =>
-        allow.Count == 0 ? " (routes.allow.jsonc is empty; the allow-list owner fills it)" : "";
+        allow.IsRestricted && allow.Count == 0 ? " (the effective allow-list allows no opencode routes)" : "";
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,
     // has its variant, is not manual-class; review lineage differs from the author's.
@@ -137,6 +147,6 @@ static class Planner
             }
         }
 
-        if (allow.Count == 0) plan.Warnings.Add("the allow-list is empty");
+        if (allow.IsRestricted && allow.Count == 0) plan.Warnings.Add("the allow-list is empty");
     }
 }

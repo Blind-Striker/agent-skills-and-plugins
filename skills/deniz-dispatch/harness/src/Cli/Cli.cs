@@ -17,8 +17,9 @@ static class Cli
         try
         {
             Locations.Resolve();
-            using var gitControl = Git.Initialize();
             a.ValidatePaths();
+            ConfigLayers.Initialize(a);
+            using var gitControl = Git.Initialize();
             return a.Command switch
             {
                 "routes" => await Commands.RoutesAsync(a, cts.Token),
@@ -75,8 +76,10 @@ static class Cli
               selfcheck --repo <path> [--policy <file>]
                                                    live check without any prompt
 
-            Routes come only from {Locations.AllowListFile} (allow-list owner).
-            Permissions and standing instructions come from {Locations.PolicyFile} (operator-owned).
+            User config: {Locations.UserConfigFile}
+            Repository config: committed .dispatch/config.jsonc at HEAD.
+            Preferences override user, repository, task file, then CLI; restrictions accumulate.
+            --ledger <absolute path> overrides the ledger root for every command.
             """);
         // Nothing started: an unknown or missing command is a refusal.
         return 2;

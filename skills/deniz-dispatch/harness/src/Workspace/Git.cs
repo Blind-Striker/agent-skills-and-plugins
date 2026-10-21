@@ -22,7 +22,7 @@ sealed class Git
     }
 
     public static Git ForTask(string task) => new(executable.Value,
-        commandControl.Value.Path, Policy.Environment(task).Variables);
+        commandControl.Value.Path, WorkerEnvironment.Environment(task).Variables);
 
     public static Git Default => ForTask("git");
 

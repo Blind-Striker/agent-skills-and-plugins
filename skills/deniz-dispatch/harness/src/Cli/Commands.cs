@@ -5,8 +5,9 @@ static partial class Commands
 
     public static async Task<int> RoutesAsync(Args a, CancellationToken ct)
     {
-        var allow = AllowList.Load();
         var dir = Path.GetFullPath(a.Get("dir") ?? a.Get("repo") ?? throw new HarnessException("routes needs --dir or --repo"));
+        var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
+        var allow = layers.Allow;
         await using var host = await HarnessServer.StartAsync(subscribe: false, ct);
         var catalog = await Catalog.LoadAsync(host.Client, dir, TimeSpan.FromSeconds(60), ct);
 
@@ -36,7 +37,7 @@ static partial class Commands
         }
 
         Console.WriteLine();
-        Console.WriteLine($"allow-list {Locations.AllowListFile}: {allow.Count} entries");
+        Console.WriteLine(allow.IsRestricted ? $"allow-list: {allow.Count} opencode entries" : "no route restriction");
         foreach (var route in allow.Routes)
         {
             var state = catalog.IsManualRoute(route) ? "refused: equals a manual-class agent's model" : catalog.CheckRoute(route) ?? "ok";
@@ -54,10 +55,8 @@ static partial class Commands
 
     public static async Task<int> PlanAsync(Args a, CancellationToken ct)
     {
-        var allow = AllowList.Load();
-        var policy = Policy.Load(a.Get("policy"));
-        Console.WriteLine(policy.Describe());
-        var plan = await Planner.LoadAsync(a.Require(0, "task file"), a.Get("repo"), allow, ct);
+        var plan = await Planner.LoadAsync(a.Require(0, "task file"), a.Get("repo"), AllowList.From(null), ct, args: a);
+        var allow = plan.Config?.Allow ?? AllowList.From(null);
         if (plan.Errors.Count == 0)
         {
             await using var host = await HarnessServer.StartAsync(subscribe: false, ct);
@@ -70,26 +69,17 @@ static partial class Commands
 
     public static async Task<int> RunAsync(Args a, CancellationToken ct)
     {
-        var allow = AllowList.Load();
-        if (allow.Count == 0)
-        {
-            Console.Error.WriteLine($"""
-                dispatch: run refuses to start: the route allow-list is empty.
-                  {Locations.AllowListFile}
-                The allow-list owner fills it with "provider/model#variant" routes or roster agent names;
-                until then only routes, plan, status and selfcheck are available.
-                """);
-            return 2;
-        }
-
-        var policy = Policy.Load(a.Get("policy"));
-        Console.WriteLine(policy.Describe());
         var tasksPath = a.Require(0, "task file");
-        var plan = await Planner.LoadAsync(tasksPath, a.Get("repo"), allow, ct);
+        var plan = await Planner.LoadAsync(tasksPath, a.Get("repo"), AllowList.From(null), ct, args: a);
         if (plan.Errors.Count > 0)
         {
             return plan.Report();
         }
+
+        var layers = plan.Config!;
+        var allow = layers.Allow;
+        var policy = layers.Policy;
+        Console.WriteLine(policy.Describe());
 
         var name = a.Get("run") ?? plan.File.Run ?? Path.GetFileNameWithoutExtension(tasksPath);
         if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9-]{0,40}$"))
@@ -104,7 +94,7 @@ static partial class Commands
             throw new HarnessException($"run {runId} already exists; use `resume {runId}` or choose --run");
         }
 
-        var max = int.TryParse(a.Get("max"), CultureInfo.InvariantCulture, out var m) ? m : plan.File.MaxParallel ?? Constants.DefaultMaxParallel;
+        var max = layers.Effective.MaxParallel!.Value;
         if (max is < 1 or > 8)
         {
             throw new HarnessException("--max must be between 1 and 8");
@@ -122,7 +112,7 @@ static partial class Commands
 
         Directory.CreateDirectory(ledger.Dir);
         File.Copy(plan.TasksPath, Path.Combine(ledger.Dir, "tasks.jsonc"));
-        File.Copy(policy.Path, Path.Combine(ledger.Dir, "policy.jsonc"));
+        layers.Freeze(ledger.Dir);
         var info = new RunInfo
         {
             Run = runId,
@@ -143,6 +133,8 @@ static partial class Commands
             ["deny"] = Json.Array(policy.Deny.Select(x => x.Name!)),
             ["escalate"] = Json.Array(policy.Escalate.Select(x => x.Name!)),
         };
+        if (plan.File.SharedPaths is { Count: > 0 } shared)
+            started["sharedPaths"] = new JsonObject { ["paths"] = Json.Array(shared), ["mergedBy"] = "coordinator" };
         if (policy.RawPrompt)
         {
             started["rawPrompt"] = true;
@@ -153,12 +145,12 @@ static partial class Commands
         var runs = new List<TaskRun>();
         foreach (var task in plan.Tasks)
         {
-            var record = new TaskRecord { Spec = task.Spec, PromptText = task.PromptText };
+            var record = new TaskRecord { Spec = task.Spec, PromptText = task.PromptText, Settings = layers.Effective.Tasks[task.Spec.Id!].Settings };
             ledger.SaveRecord(record);
             ledger.Write(task.Spec.Id, "queued", new JsonObject
             {
                 ["kind"] = task.Spec.Kind,
-                ["route"] = task.Route?.ToString(),
+                ["route"] = layers.Effective.Tasks[task.Spec.Id!].Settings.Route?.Value,
                 ["agent"] = task.Spec.Agent,
                 ["reviewOf"] = task.Spec.ReviewOf,
             });
@@ -217,19 +209,13 @@ static partial class Commands
     {
         var ledger = new Ledger(a.Require(0, "run"));
         ledger.EnsureExists();
-        var allow = AllowList.Load();
-        var proceed = a.Has("continue");
-        if (proceed && allow.Count == 0)
-        {
-            throw new HarnessException("resume --continue prompts models, and the route allow-list is empty");
-        }
-
-        // The run keeps the policy it started with (its copy in the ledger) unless --policy names
-        // another. Existing sessions keep the rules they were created with either way.
-        var ledgerPolicy = Path.Combine(ledger.Dir, "policy.jsonc");
-        var policy = Policy.Load(a.Get("policy") ?? (File.Exists(ledgerPolicy) ? ledgerPolicy : null));
-        Console.WriteLine(policy.Describe());
         var info = ledger.LoadRunInfo();
+        var proceed = a.Has("continue");
+        var frozen = ConfigLayers.Frozen(ledger.Dir);
+        var allow = proceed ? (await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct)).Allow
+            : AllowList.From(frozen.Restrictions?.Routes);
+        var policy = Policy.From(frozen);
+        Console.WriteLine(policy.Describe());
         using var supervisorLock = SupervisorLock.Acquire(ledger.RunId);
         AskQueue.Reset(ledger.RunId);
         await using var host = await HarnessServer.StartAsync(subscribe: true, ct);
@@ -243,6 +229,8 @@ static partial class Commands
             }
 
             var record = ledger.LoadRecord(task);
+            record.Settings = frozen.Tasks[task].Settings;
+            ConfigLayers.Apply(record.Spec, record.Settings);
             var run = TaskRun.FromLedger(record, ledger);
             if (record.Session.Id is null && !proceed)
             {

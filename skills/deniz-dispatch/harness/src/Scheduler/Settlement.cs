@@ -100,7 +100,8 @@ static class Settlement
         // Nothing fences a read-only task's edits anymore, so every file it changed is flagged.
         result.OutOfScope = record.Spec.Kind is "review" or "research"
             ? [.. result.FilesChanged]
-            : result.FilesChanged.Where(x => !Scope.InScope(x, record.Spec.Scope)).ToList();
+            : result.FilesChanged.Where(x => record.Settings.Scope is { } scope
+                ? !ConfigResolver.InScope(x, scope) : !Scope.InScope(x, record.Spec.Scope)).ToList();
         var patch = await git.CheckBytesAsync(wt, ct, "diff", "--ignore-submodules=none", "--submodule=short", "--binary", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", record.Workspace.BaseSha!, "HEAD");
         await File.WriteAllBytesAsync(Path.Combine(dir, "diff.patch"), patch, ct);
         ledger.Write(run.Id, "collected", new JsonObject

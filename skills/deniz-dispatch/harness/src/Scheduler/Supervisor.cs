@@ -60,7 +60,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
 
         var allowed = run.Record.Spec.Agent is { } agent
             ? allow.AllowsAgent(agent)
-            : RouteRef.TryParse(run.Record.Settings.Route?.Value ?? "", out var route, out _) && allow.AllowsRoute(route!);
+            : RouteRef.TryParse(run.Record.Spec.Route ?? "", out var route, out _) && allow.AllowsRoute(route!);
         if (!allowed)
         {
             Finish(run, TaskState.Failed, null, $"{run.Record.Spec.Agent ?? run.Record.Settings.Route?.Value} is no longer on the allow-list");
@@ -68,12 +68,12 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
         }
 
         // Re-apply the scrubbed environment: whether it outlives a server restart is unverified.
-        var (variables, removed) = Policy.Environment(run.Id);
+        var (variables, removed) = WorkerEnvironment.Environment(run.Id);
         await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables }, cancellationToken: ct);
         ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
         var prompt = await session.PromptAsync(new SessionPromptRequest
         {
-            Text = policy.RawPrompt
+            Text = run.Record.Spec.RawPrompt == true
                 ? "Continue the task from where you stopped."
                 : "Continue the task from where you stopped. The standing instructions and the task above still apply.",
         }, cancellationToken: ct);
@@ -81,7 +81,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
         run.Record.BackendState.PromptCreated = prompt.Prompt.Time.Created;
         ledger.SaveRecord(run.Record);
         var resumed = new JsonObject { ["promptId"] = prompt.Prompt.Id, ["resume"] = true };
-        if (policy.RawPrompt)
+        if (run.Record.Spec.RawPrompt == true)
         {
             resumed["rawPrompt"] = true;
         }
@@ -265,7 +265,7 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
             }
 
             await WaitForRouteAsync(route, record.Workspace.Path);
-            record.Settings.Route = new Setting<string> { Value = route.ToString(), From = "task" };
+            record.Settings.Route ??= new Setting<string> { Value = $"opencode:{route}", From = "task" };
             record.Agent = agent;
             record.Lineage = catalog.Lineage(route);
             ledger.SaveRecord(record);
@@ -296,20 +296,20 @@ sealed class Supervisor(HarnessServer host, Ledger ledger, string repo, AllowLis
             });
 
             var session = Client.Sessions.GetSessionClient(sessionId);
-            var (variables, removed) = Policy.Environment(run.Id);
+            var (variables, removed) = WorkerEnvironment.Environment(run.Id);
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables }, cancellationToken: ct);
             ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
 
             // 4. Prompt (standing instructions first), then close the admission race.
             var prompt = await session.PromptAsync(new SessionPromptRequest
             {
-                Text = policy.Prompt(new PlannedOrRecord(spec, record.PromptText), record.Workspace.Path),
+                Text = spec.RawPrompt == true ? record.PromptText : policy.Render(new PlannedOrRecord(spec, record.PromptText), record.Workspace.Path),
             }, cancellationToken: ct);
             record.BackendState.PromptId = prompt.Prompt.Id;
             record.BackendState.PromptCreated = prompt.Prompt.Time.Created;
             ledger.SaveRecord(record);
             var prompted = new JsonObject { ["promptId"] = prompt.Prompt.Id, ["chars"] = record.PromptText.Length };
-            if (policy.RawPrompt)
+            if (spec.RawPrompt == true)
             {
                 prompted["rawPrompt"] = true;
             }
