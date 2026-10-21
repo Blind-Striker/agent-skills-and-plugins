@@ -26,6 +26,7 @@ internal static class Gates
         var runtimeConfig = Directory.GetFiles(tree.Root, "dispatch.runtimeconfig.json", SearchOption.AllDirectories).Single();
         harnessDll = Path.Combine(Path.GetDirectoryName(runtimeConfig)!, "dispatch.dll");
         if (!File.Exists(harnessDll)) throw new FileNotFoundException("the build gate produced no runnable harness", harnessDll);
+        await LabRepo.PrepareTemplateAsync(tree, cancellationToken);
         buildResult = result;
         Console.WriteLine($"Harness build gate: exit {result.ExitCode}\n{result.Stdout}{result.Stderr}");
     }

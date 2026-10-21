@@ -64,7 +64,7 @@ public sealed class VerifierTests
     {
         using var tree = new TempTree();
         var command = OperatingSystem.IsWindows()
-            ? "& (Join-Path $PSHOME 'pwsh.exe') -NoLogo -NoProfile -NonInteractive -Command '(Get-Process -Id $PID).PriorityClass'"
+            ? "(Get-Process -Id $PID).PriorityClass"
             : "sh -c 'ps -o nice= -p $$'";
         var (_, log, _) = await RunAsync(tree, command, ct);
         var output = log.Split("[stdout]")[1].Split("[stderr]")[0].Trim();
