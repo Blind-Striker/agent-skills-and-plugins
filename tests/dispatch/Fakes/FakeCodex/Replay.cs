@@ -67,6 +67,11 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
                 await File.WriteAllBytesAsync(path, Convert.FromBase64String(file["base64"]!.GetValue<string>()));
             }
             else if (action["sleep"] is { } delay) await Task.Delay(delay.GetValue<int>());
+            else if (action["stderr"] is { } stderr)
+            {
+                var bytes = Encoding.UTF8.GetBytes(stderr.GetValue<string>());
+                await Console.OpenStandardError().WriteAsync(bytes);
+            }
             else if (action["exit"] is { } exit) return exit.GetValue<int>();
             else if (action["hang"]?.GetValue<bool>() == true)
             {

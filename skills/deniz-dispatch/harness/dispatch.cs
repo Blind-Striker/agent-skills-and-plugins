@@ -36,5 +36,6 @@
 #:include src/Backends/OpenCode/Catalog.cs
 #:include src/Backends/OpenCode/Ready.cs
 #:include src/Backends/OpenCode/HarnessServer.cs
+#:include src/Backends/Codex/CodexProcess.cs
 
 return await Cli.MainAsync(args);
