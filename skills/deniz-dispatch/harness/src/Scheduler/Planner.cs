@@ -23,11 +23,14 @@ static class Planner
         var plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
         var useDefaultGit = git is null;
         git ??= Git.Default;
-        if ((await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel")).ExitCode != 0)
+        var top = await git.RunAsync(repo, ct, "rev-parse", "--show-toplevel");
+        if (top.ExitCode != 0)
         {
             plan.Errors.Add($"repo {repo} is not a git work tree");
             return plan;
         }
+        repo = Path.GetFullPath(top.Output.Trim());
+        plan = new Plan { File = file, TasksPath = tasksPath, Repo = repo };
 
         var specs = file.Tasks ?? [];
         if (args is not null)
@@ -38,6 +41,9 @@ static class Planner
             foreach (var spec in specs) ConfigLayers.Apply(spec, plan.Config.Effective.Tasks[spec.Id!].Settings);
             plan.Warnings.AddRange(plan.Config.Effective.Warnings);
         }
+        var runId = Commands.CreateRunId(args?.Get("run") ?? file.Run ?? Path.GetFileNameWithoutExtension(tasksPath));
+        if (specs.Any(x => x.Workspace == "in-place") && Worktree.IsInside(Locations.WorktreeRoot, repo))
+            plan.Errors.Add("in-place workspace refuses a worktree root inside the repository");
         foreach (var path in file.SharedPaths ?? [])
             if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path) || path.Replace('\\', '/').Split('/').Contains("..") || path.IndexOfAny(['*', '?', '!']) >= 0)
                 plan.Errors.Add("sharedPaths must contain repository-relative paths, not globs or parent paths");
@@ -82,7 +88,18 @@ static class Planner
 
             if (prompt is not null && string.IsNullOrWhiteSpace(prompt)) e.Add("prompt is empty");
             if (spec.TimeoutMinutes is < 1 or > 720) e.Add("timeoutMinutes must be between 1 and 720");
-            if (spec.ReviewOf is null)
+            if (spec.Workspace == "in-place")
+            {
+                try { await Worktree.FolderAsync(git, repo, spec.Dir, ct); }
+                catch (HarnessException ex) { e.Add(ex.Message); }
+                if (spec.Base is not null || spec.ReviewOf is not null) e.Add("in-place workspace refuses base and reviewOf");
+                if (spec.Commit == "harness")
+                {
+                    if (await Worktree.DirtyAsync(git, repo, ct)) e.Add("workspace-dirty: in-place commit: harness requires a clean working tree");
+                    if ((await git.RunAsync(repo, ct, "rev-parse", "--verify", "HEAD^{commit}")).ExitCode != 0) e.Add("in-place commit: harness requires a HEAD commit");
+                }
+            }
+            else if (spec.ReviewOf is null)
             {
                 if (spec.Base is null) e.Add("base is required (a branch, tag or commit of the repo)");
                 else if ((await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}")).ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
@@ -93,7 +110,13 @@ static class Planner
             }
 
             if (spec.Kind is "code" or "mechanical" && spec.Scope is not { Count: > 0 }) e.Add("code and mechanical tasks declare a scope");
-            if (Directory.Exists(Locations.Worktree(spec.Id ?? ""))) e.Add($"worktree {Locations.Worktree(spec.Id ?? "")} already exists; clean it first");
+            if (spec.Workspace != "in-place")
+            {
+                var path = Locations.Worktree(spec.Id ?? "", runId);
+                if (Path.Exists(path)) e.Add($"worktree {path} already exists; clean it first");
+                if ((await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", $"refs/heads/dispatch/{runId}/{spec.Id}")).ExitCode == 0)
+                    e.Add($"branch dispatch/{runId}/{spec.Id} already exists; clean it first");
+            }
 
             foreach (var error in e) plan.Errors.Add($"{spec.Id ?? "<no id>"}: {error}");
             if (e.Count == 0)
@@ -116,6 +139,11 @@ static class Planner
         {
             for (var j = i + 1; j < writers.Count; j++)
             {
+                if (writers[i].Spec.Workspace == "in-place" && writers[j].Spec.Workspace == "in-place")
+                {
+                    plan.Errors.Add($"{writers[i].Spec.Id} and {writers[j].Spec.Id} write in the same in-place working tree");
+                    continue;
+                }
                 var overlap = Scope.Overlap(writers[i].Spec.Scope!, writers[j].Spec.Scope!, file.SharedPaths);
                 if (overlap is not null) plan.Errors.Add($"{writers[i].Spec.Id} and {writers[j].Spec.Id} share scope ({overlap})");
             }

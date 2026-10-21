@@ -27,7 +27,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         CheckAllowed(run);
         var record = run.Record;
         RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out var route, out _);
-        var (variables, removed) = WorkerEnvironment.Environment(run.Id);
+        var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
         var created = await backend.CreateAsync(new(ledger.RunId, run.Id, record.Spec.Kind!, route!, record.Spec.Agent,
             record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables, null,
             record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason), ct);

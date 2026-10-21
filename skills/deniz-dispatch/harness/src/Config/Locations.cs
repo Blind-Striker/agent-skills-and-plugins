@@ -60,9 +60,9 @@ static class Locations
     static string Absolute(string value, string member) => Path.IsPathFullyQualified(value)
         ? Path.GetFullPath(value) : throw new HarnessException($"{member} must be an absolute path (or ~ in user locations)");
 
-    public static string Worktree(string task) => Path.Combine(WorktreeRoot, task);
+    public static string Worktree(string task, string? run = null) => run is null ? Path.Combine(WorktreeRoot, task) : Path.Combine(WorktreeRoot, run, task);
 
-    public static string TaskTemp(string task) => Path.Combine(WorktreeRoot, ".dispatch-tmp", task);
+    public static string TaskTemp(string task, string? run = null) => run is null ? Path.Combine(WorktreeRoot, ".dispatch-tmp", task) : Path.Combine(WorktreeRoot, run, ".tmp", task);
 
     public static string ControlRoot => Path.Combine(WorktreeRoot, ".dispatch");
 

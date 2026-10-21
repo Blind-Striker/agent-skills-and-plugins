@@ -19,7 +19,7 @@ static class Settlement
             Cost = report.Cost, Tokens = report.Usage, TokensComplete = report.UsageComplete,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
             TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, ExecutionError = report.ExecutionError,
-            BaseSha = record.Workspace.BaseSha, CommitMode = "harness",
+            BaseSha = record.Workspace.BaseSha, CommitMode = Worktree.CommitMode(record),
         };
         await Commit.CollectAsync(ledger, run, result, ct, git);
         await Verifier.VerifyAsync(ledger, run, result, ct);

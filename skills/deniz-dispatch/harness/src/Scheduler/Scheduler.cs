@@ -40,7 +40,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             if (result is ReattachResult.Interrupted && proceed && !run.CancelRequested && !run.TimedOut)
             {
                 Starter(run).CheckAllowed(run);
-                var (variables, removed) = WorkerEnvironment.Environment(run.Id);
+                var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
                 ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
                 var prompt = new WorkerPrompt(run.Record.Spec.RawPrompt == true ? "Continue the task from where you stopped."
                     : "Continue the task from where you stopped. The standing instructions and the task above still apply.", true);
@@ -161,6 +161,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         {
             if (runs.Count(x => x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling) >= max) return;
             if (run.CancelRequested) { Finish(run, TaskState.Cancelled, null, "cancelled before dispatch"); continue; }
+            if (Worktree.InPlace(run.Record) && runs.TakeWhile(x => x != run).Any(x => Worktree.InPlace(x.Record) && !x.IsFinal)) continue;
             if (run.Record.Spec.ReviewOf is { } authorId)
             {
                 var author = runs.FirstOrDefault(x => x.Id == authorId);
@@ -201,6 +202,9 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
 
     async Task FailStartAsync(TaskRun run, Exception ex, string operation)
     {
+        if (ex is WorkspaceDirtyException)
+            ledger.SaveResult(new TaskResult { Run = ledger.RunId, Task = run.Id, Kind = run.Record.Spec.Kind,
+                State = "failed", CommitMode = Worktree.CommitMode(run.Record), Failures = ["workspace-dirty"], Error = ex.Message });
         if (ex is WorkerCreationException creation)
         {
             run.SaveWorker(creation.Worker, ledger);

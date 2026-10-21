@@ -22,6 +22,7 @@
 #:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs
 #:include src/Workspace/Worktree.cs
+#:include src/Workspace/Snapshot.cs
 #:include src/Workspace/Commit.cs
 #:include src/Verify/Deliverable.cs
 #:include src/Verify/Verifier.cs

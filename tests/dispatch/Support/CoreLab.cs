@@ -8,10 +8,10 @@ internal sealed class CoreLab : IDisposable
     public Git Git { get; }
     public FakeBackend Backend { get; } = new("opencode", new("policy", "policy", "text", true));
 
-    public CoreLab()
+    public CoreLab(string? runId = null)
     {
-        Locations.Configure(new ConfigLocations { WorktreeRoot = Tree.WorktreeRoot }, null);
-        Ledger = new(Tree.Root);
+        Locations.Configure(new ConfigLocations { WorktreeRoot = Tree.WorktreeRoot }, runId is null ? null : Path.Combine(Tree.Root, "ledgers"));
+        Ledger = new(runId ?? Tree.Root);
         Git = new(Executables.Resolve("git"), Path.Combine(Tree.Root, "control"),
             Tree.ChildEnvironment().Where(x => x.Value is not null).ToDictionary(x => x.Key, x => x.Value!));
         Backend.OnCreate = (launch, _) => Task.FromResult(new CreateResult(new("opencode", launch.TaskId, "worker-" + launch.TaskId, null, new()), new("none", "none", "policy")));

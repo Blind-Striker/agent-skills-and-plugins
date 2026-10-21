@@ -65,44 +65,7 @@ static partial class Commands
         foreach (var task in ledger.TaskStates().Keys)
         {
             var record = ledger.LoadRecord(task);
-            if (record.Workspace.Path is null || record.Workspace.Branch is null)
-            {
-                continue;
-            }
-
-            var exists = Directory.Exists(record.Workspace.Path);
-            var git = Git.ForTask(task);
-            var dirty = exists && (await git.RunAsync(record.Workspace.Path, ct, "status", "--porcelain")).Output.Trim().Length > 0;
-            var merged = record.Workspace.BaseRef is not null
-                && (await git.RunAsync(info.Repo!, ct, "merge-base", "--is-ancestor", record.Workspace.Branch, record.Workspace.BaseRef)).ExitCode == 0;
-            if (!force && (dirty || !merged))
-            {
-                Console.WriteLine($"{task}: refused ({(dirty ? "dirty worktree" : "")}{(dirty && !merged ? ", " : "")}{(!merged ? $"{record.Workspace.Branch} is not merged into {record.Workspace.BaseRef}" : "")}); --force removes it anyway");
-                refused++;
-                continue;
-            }
-
-            if (exists)
-            {
-                var remove = force
-                    ? await git.RunAsync(info.Repo!, ct, "worktree", "remove", "--force", record.Workspace.Path)
-                    : await git.RunAsync(info.Repo!, ct, "worktree", "remove", record.Workspace.Path);
-                if (remove.ExitCode != 0)
-                {
-                    Console.WriteLine($"{task}: worktree remove failed: {remove.Stderr.Trim()}");
-                    refused++;
-                    continue;
-                }
-            }
-
-            var branch = await git.RunAsync(info.Repo!, ct, "branch", force ? "-D" : "-d", record.Workspace.Branch);
-            var temp = Locations.TaskTemp(task);
-            if (Directory.Exists(temp))
-            {
-                Directory.Delete(temp, recursive: true);
-            }
-
-            ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["branchDeleted"] = branch.ExitCode == 0, ["force"] = force });
+            if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct)) refused++;
         }
 
         if (refused == 0 && Directory.Exists(Locations.ControlDir(ledger.RunId)))

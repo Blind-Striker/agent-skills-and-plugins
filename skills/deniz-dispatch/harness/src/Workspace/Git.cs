@@ -21,8 +21,15 @@ sealed class Git
         return commandControl.Value;
     }
 
-    public static Git ForTask(string task) => new(executable.Value,
-        commandControl.Value.Path, WorkerEnvironment.Environment(task).Variables);
+    public static Git ForTask(string task, string? run = null, string? control = null) => new(executable.Value,
+        control ?? commandControl.Value.Path, WorkerEnvironment.Environment(task, run).Variables);
+
+    public string ControlFolder => controlFolder;
+
+    public Git WithIndex(string path) => new(file, controlFolder, new Dictionary<string, string>(environment, environment.Comparer)
+    {
+        ["GIT_INDEX_FILE"] = Path.GetFullPath(path),
+    });
 
     public static Git Default => ForTask("git");
 
