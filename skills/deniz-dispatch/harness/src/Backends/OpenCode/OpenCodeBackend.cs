@@ -307,7 +307,25 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     }
 
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) =>
-        throw new NotSupportedException("orphan discovery is not available");
+        GuardAsync<IReadOnlyList<WorkerRef>>(async () =>
+        {
+            var server = await HostAsync(ct);
+            var knownTasks = query.KnownWorkers.Where(x => x.Backend == Name).Select(x => x.TaskId).ToHashSet(StringComparer.Ordinal);
+            var found = new Dictionary<string, WorkerRef>(StringComparer.Ordinal);
+            foreach (var directory in query.Directories.Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal))
+            {
+                await foreach (var session in server.Client.Sessions.EnumerateSessionsAsync(new SessionListRequest { Directory = directory }, cancellationToken: ct))
+                {
+                    if (session.Metadata is not { } metadata || !metadata.TryGetValue("dispatch.run", out var run)
+                        || run.ValueKind != JsonValueKind.String || run.GetString() != query.RunId
+                        || !metadata.TryGetValue("dispatch.task", out var task) || task.ValueKind != JsonValueKind.String
+                        || string.IsNullOrEmpty(task.GetString()) || knownTasks.Contains(task.GetString()!)) continue;
+                    found.TryAdd(session.Id, new(Name, task.GetString()!, session.Id, null,
+                        new JsonObject { ["projectId"] = session.ProjectId, ["host"] = DefaultHost }));
+                }
+            }
+            return found.Values.ToList();
+        });
 
     async Task<RouteListing> ListRoutesCoreAsync(string directory, CancellationToken ct)
     {

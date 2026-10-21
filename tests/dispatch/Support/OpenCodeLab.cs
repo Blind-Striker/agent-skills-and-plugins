@@ -73,6 +73,17 @@ internal sealed class OpenCodeLab : IAsyncDisposable
 
     public void Write() => File.WriteAllLines(Scenario, Steps.Select(x => x.ToJsonString()));
 
+    public void SessionPage(string directory, string? cursor, string? next, params JsonObject[] sessions)
+    {
+        var step = Add("GET /api/session", new JsonObject
+        {
+            ["data"] = new JsonArray(sessions.Select(x => (JsonNode)x).ToArray()),
+            ["cursor"] = next is null ? new JsonObject() : new JsonObject { ["next"] = next },
+        });
+        step["query"] = new JsonObject { ["directory"] = directory };
+        if (cursor is not null) step["query"]!["cursor"] = cursor;
+    }
+
     public Task<CreateResult> CreateAsync(string id, CancellationToken ct) => Backend.CreateAsync(new("run", id, "research",
         new("fixture", "model", null), null, "build", new("full", "on", "read-only", "on", "worktree"),
         Tree.Repository, new([], []), new Dictionary<string, string>(), null, "full", null), ct);

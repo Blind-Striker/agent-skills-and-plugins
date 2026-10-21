@@ -93,10 +93,11 @@ public sealed class WorkspaceTests
         var operatorIndex = await File.ReadAllBytesAsync(Path.Combine(repo.Root, ".git", "index"), ct);
         var head = await repo.GitAsync(["rev-parse", "HEAD"], ct);
 
+        var cleanupEnvironment = FakeOpenCode.Environment(tree, "cleanup.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
         using var clean = new HarnessProcess(tree);
-        (await clean.RunAsync(["clean", runId], ct)).RequireSuccess("clean in-place");
+        (await clean.RunAsync(["clean", runId], ct, cleanupEnvironment)).RequireSuccess("clean in-place");
         using var repeat = new HarnessProcess(tree);
-        (await repeat.RunAsync(["clean", runId], ct)).RequireSuccess("repeat clean in-place");
+        (await repeat.RunAsync(["clean", runId], ct, cleanupEnvironment)).RequireSuccess("repeat clean in-place");
 
         await Assert.That(Directory.Exists(temp)).IsFalse();
         await Assert.That(File.Exists(index)).IsFalse();
