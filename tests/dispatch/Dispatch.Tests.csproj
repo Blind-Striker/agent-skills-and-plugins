@@ -22,10 +22,12 @@
 
   <ItemGroup>
     <Compile Include="../../skills/deniz-dispatch/harness/src/**/*.cs" Link="Harness/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Remove="Fakes/**" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.75.0" />
+    <ProjectReference Include="Fakes/FakeOpenCode/FakeOpenCode.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- The harness entry's #:package pins, repeated; LayoutTests fails when they differ. -->
