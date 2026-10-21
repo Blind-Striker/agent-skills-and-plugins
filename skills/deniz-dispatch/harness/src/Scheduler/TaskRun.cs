@@ -34,6 +34,8 @@ sealed class TaskRun
 
     public WorkerRef? Worker { get; set; }
     public bool WorkerEnded { get; set; }
+    // Stop supervising a failed start without claiming it ended; backend disposal and resume own recovery.
+    public bool ReleaseUnconfirmed { get; set; }
 
     public WorkerRef SavedWorker() => Worker ??= new(
         Record.Settings.Backend?.Value ?? "opencode", Id, Record.Session.Id!,

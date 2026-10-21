@@ -8,6 +8,185 @@ public sealed class SchedulerTests
 {
     [Test]
     [Timeout(30_000)]
+    public async Task Cancel_ledger_does_not_substitute_confirmed_stop_for_interrupt_response(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        lab.Backend.OnPoll = (_, _) => { run.CancelRequested = true; return Task.FromResult(new PollResult([])); };
+        lab.Backend.OnInterrupt = (_, _) => { lab.End(run); return Task.FromResult(new InterruptResult(true, "tree-kill")); };
+
+        await lab.Scheduler(ct).RunAsync([run]);
+
+        var data = lab.Ledger.Read().Single(x => x.Type == "cancel").Data!;
+        await Assert.That(data["interrupted"]).IsNull();
+        await Assert.That(data.ContainsKey("status")).IsTrue();
+        await Assert.That(data.ContainsKey("detail")).IsFalse();
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Interrupt_failure_does_not_skip_other_workers(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var bad = await lab.TaskAsync("bad", ct);
+        var good = await lab.TaskAsync("good", ct);
+        lab.Backend.OnPoll = (live, _) =>
+        {
+            foreach (var worker in live) (worker.TaskId == bad.Id ? bad : good).CancelRequested = true;
+            return Task.FromResult(new PollResult([]));
+        };
+        lab.Backend.OnInterrupt = (input, _) =>
+        {
+            if (input.Worker.TaskId == bad.Id) throw new IOException("session interrupt failed");
+            lab.End(bad);
+            lab.End(good);
+            return Task.FromResult(new InterruptResult(false, "interrupt"));
+        };
+
+        var exit = await lab.Scheduler(ct, max: 2).RunAsync([bad, good]);
+
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(good.State).IsEqualTo(TaskState.Cancelled);
+        await Assert.That(lab.Ledger.Read().Any(x => x.Task == bad.Id && x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "interrupt")).IsTrue();
+    }
+
+    [Test]
+    [Arguments("reattach")]
+    [Arguments("prompt")]
+    [Arguments("unreadable")]
+    [Arguments("release")]
+    [Timeout(30_000)]
+    public async Task Resume_failure_is_isolated_and_continue_failure_is_released(string failure, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var bad = await lab.TaskAsync("bad", ct);
+        var good = await lab.TaskAsync("good", ct);
+        foreach (var run in new[] { bad, good }) run.SaveWorker(new("opencode", run.Id, run.Id, "old", new()), lab.Ledger);
+        lab.Backend.OnReattach = (worker, _) => worker.TaskId == good.Id
+            ? Task.FromResult<ReattachResult>(new ReattachResult.Ended("succeeded"))
+            : failure == "reattach" ? throw new IOException("read failed")
+            : Task.FromResult<ReattachResult>(failure == "unreadable" ? new ReattachResult.Unreadable("missing") : new ReattachResult.Interrupted());
+        lab.Backend.OnPrompt = (_, _) => throw new IOException("continue failed");
+        lab.Backend.OnRelease = (worker, _) => failure == "release" && worker.TaskId == bad.Id
+            ? throw new IOException("release failed") : Task.CompletedTask;
+
+        var exit = await lab.Scheduler(ct).ResumeAsync([bad, good], true);
+
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(good.State).IsEqualTo(TaskState.Done);
+        await Assert.That(bad.State).IsEqualTo(failure == "release" ? TaskState.Dispatching : TaskState.Failed);
+        if (failure is "prompt" or "release")
+        {
+            await Assert.That(lab.Backend.Calls.Any(x => x.Member == "InterruptAsync")).IsTrue();
+            await Assert.That(lab.Backend.Calls.Any(x => x.Member == "ReleaseAsync")).IsTrue();
+        }
+        await Assert.That(lab.Ledger.Read().Any(x => x.Task == bad.Id && x.Type == "final")).IsEqualTo(failure != "release");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(30_000)]
+    public async Task Pre_admission_signal_does_not_block_another_workers_cancel(bool resume, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var slow = await lab.TaskAsync("slow", ct);
+        var fast = await lab.TaskAsync("fast", ct);
+        if (resume)
+        {
+            foreach (var run in new[] { slow, fast }) run.SaveWorker(new("opencode", run.Id, "worker-" + run.Id, "old-turn", new()), lab.Ledger);
+            lab.Backend.OnReattach = (_, _) => Task.FromResult<ReattachResult>(new ReattachResult.Interrupted());
+        }
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var interrupted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        lab.Backend.OnPrompt = async (input, _) =>
+        {
+            if (input.Worker.TaskId == slow.Id)
+            {
+                lab.Backend.Emit(new WorkerSignal.Ask(slow.Id, "turn-slow", new("opencode", input.Worker.Id, null, "early"), "read", ["README.md"]));
+                await release.Task.WaitAsync(ct);
+            }
+            return input.Worker with { Turn = "turn-" + input.Worker.TaskId };
+        };
+        lab.Backend.OnPoll = async (live, _) =>
+        {
+            if (live.Any(x => x.TaskId == fast.Id))
+                await File.WriteAllTextAsync(Path.Combine(lab.Ledger.RunId, fast.Id + ".cancel"), "cancel", ct);
+            return new([]);
+        };
+        lab.Backend.OnInterrupt = (input, _) =>
+        {
+            interrupted.TrySetResult();
+            lab.End(fast);
+            return Task.FromResult(new InterruptResult(false, "interrupt"));
+        };
+        lab.Backend.OnAnswer = (_, _) => { lab.End(slow); return Task.FromResult(new AnswerResult(true, null)); };
+        var scheduler = lab.Scheduler(ct, max: 2);
+        var running = resume ? scheduler.ResumeAsync([slow, fast], true) : scheduler.RunAsync([slow, fast]);
+        var progressed = await Task.WhenAny(interrupted.Task, Task.Delay(TimeSpan.FromSeconds(2), ct)) == interrupted.Task;
+        release.TrySetResult();
+        await running;
+
+        await Assert.That(progressed).IsTrue();
+        var events = lab.Ledger.Read().Where(x => x.Task == slow.Id).Select(x => x.Type).ToList();
+        await Assert.That(events.IndexOf("permission")).IsGreaterThan(events.IndexOf("prompt"));
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Interrupted_author_is_persisted_and_leaves_review_pending(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var author = await lab.TaskAsync("author", ct);
+        var review = await lab.TaskAsync("review", ct);
+        var healthy = await lab.TaskAsync("healthy", ct);
+        review.Record.Spec.ReviewOf = author.Id;
+        lab.Backend.OnPoll = (live, _) =>
+        {
+            if (live.Any(x => x.TaskId == author.Id))
+            {
+                lab.End(author, "interrupted");
+                lab.Backend.Emit(new WorkerSignal.Ask(author.Id, author.Worker!.Turn!, new("opencode", author.Worker.Id, null, "late"), "read", ["README.md"]));
+            }
+            return Task.FromResult(new PollResult([]));
+        };
+        lab.Backend.OnAnswer = (_, _) => { lab.End(healthy); return Task.FromResult(new AnswerResult(true, null)); };
+
+        var exit = await lab.Scheduler(ct, max: 2).RunAsync([author, review, healthy]);
+
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(lab.Ledger.TaskStates()[author.Id]).IsEqualTo("interrupted");
+        await Assert.That(review.State).IsEqualTo(TaskState.Pending);
+        await Assert.That(lab.Ledger.Read().Any(x => x.Task == review.Id && x.Type == "final")).IsFalse();
+    }
+
+    [Test]
+    [Arguments("cancel", "succeeded")]
+    [Arguments("cancel", "failed")]
+    [Arguments("cancel", "interrupted")]
+    [Arguments("timeout", "succeeded")]
+    [Arguments("timeout", "failed")]
+    [Arguments("timeout", "interrupted")]
+    [Timeout(30_000)]
+    public async Task Resume_preserves_persisted_interrupt_outcome(string interrupt, string outcome, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var original = await lab.TaskAsync("inspect", ct);
+        original.SaveWorker(new("opencode", original.Id, "worker", "turn", new()), lab.Ledger);
+        lab.Ledger.Write(original.Id, interrupt, new());
+        var run = TaskRun.FromLedger(lab.Ledger.LoadRecord(original.Id), lab.Ledger);
+        lab.Backend.OnReattach = (_, _) => Task.FromResult<ReattachResult>(outcome == "interrupted"
+            ? new ReattachResult.Interrupted() : new ReattachResult.Ended(outcome));
+
+        var exit = await lab.Scheduler(ct).ResumeAsync([run], false);
+
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(lab.Ledger.LoadResult(run.Id)!.Outcome).IsEqualTo(interrupt == "cancel" ? "cancelled" : "timeout");
+        await Assert.That(run.State).IsEqualTo(interrupt == "cancel" ? TaskState.Cancelled : TaskState.Failed);
+    }
+
+    [Test]
+    [Timeout(30_000)]
     public async Task Unprompted_task_with_recorded_contracts_refuses_missing_original_text(CancellationToken ct)
     {
         using var lab = new CoreLab();

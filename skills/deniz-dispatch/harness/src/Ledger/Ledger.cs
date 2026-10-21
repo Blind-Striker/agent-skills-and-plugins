@@ -149,7 +149,10 @@ sealed class Ledger(string runId)
             {
                 "final" => line.Data?["state"]?.GetValue<string>() ?? "final",
                 "queued" => "queued",
+                "interrupted" => "interrupted",
                 "worktree" or "route" or "session" or "environment" => "dispatching",
+                "permission" or "form" or "retry" or "status" or "timeout" or "cancel" or "escalation-dropped"
+                    when states.GetValueOrDefault(line.Task!) == "interrupted" => "interrupted",
                 "prompt" or "permission" or "form" or "retry" or "status" or "timeout" or "cancel" or "escalation-dropped" => "running",
                 "escalated" => "waiting",
                 "collected" or "verified" or "outcome" => "settling",

@@ -8,7 +8,10 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
     readonly Channel<WorkerSignal> signals = Channel.CreateUnbounded<WorkerSignal>();
     readonly ConcurrentDictionary<string, WorkerRef> workers = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, WorkerLaunch> launches = new(StringComparer.Ordinal);
-    readonly ConcurrentDictionary<string, TaskCompletionSource> admissions = new(StringComparer.Ordinal);
+    readonly object eventGate = new();
+    readonly Dictionary<string, List<Action<WorkerRef>>> admissions = new(StringComparer.Ordinal);
+    readonly Dictionary<string, List<WorkerRef>> turns = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, string> initialSweeps = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, InterruptKind> interrupts = new(StringComparer.Ordinal);
     HarnessServer? host;
     Task pump = Task.CompletedTask;
@@ -118,8 +121,11 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
             ["projectId"] = created.Session.ProjectId,
             ["host"] = "profile=full;project=on",
         });
-        workers[worker.Id] = worker;
-        admissions[worker.Id] = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        lock (eventGate)
+        {
+            admissions[worker.Id] = [];
+            workers[worker.Id] = worker;
+        }
         launches[worker.Id] = launch;
         directories[worker.Id] = launch.Directory;
         try
@@ -127,9 +133,11 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
             await client.Sessions.GetSessionClient(worker.Id).SetEnvironmentAsync(new SessionEnvironmentRequest
             { Variables = launch.Environment.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
         }
-        catch
+        catch (Exception ex)
         {
-            await ReleaseCoreAsync(worker, CancellationToken.None);
+            try { await ReleaseCoreAsync(worker, CancellationToken.None); }
+            catch (Exception releaseError)
+            { throw new WorkerCreationException(worker, $"worker setup failed: {ex.Message}; release unconfirmed: {releaseError.Message}"); }
             throw;
         }
         return new(worker, new("none", "none", "policy"), new($"opencode:{route}", agent, catalog.Lineage(route),
@@ -141,6 +149,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
         var session = (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id);
         if (prompt.IsContinue)
         {
+            lock (eventGate) admissions[worker.Id] = [];
             var variables = launches.TryGetValue(worker.Id, out var launch) ? launch.Environment : WorkerEnvironment.Environment(worker.TaskId).Variables;
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
@@ -150,8 +159,15 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
         state["promptId"] = response.Prompt.Id;
         state["promptCreated"] = response.Prompt.Time.Created;
         var prompted = worker with { Turn = response.Prompt.Id, State = state };
-        workers[worker.Id] = prompted;
-        admissions.GetValueOrDefault(worker.Id)?.TrySetResult();
+        lock (eventGate)
+        {
+            workers[worker.Id] = prompted;
+            RememberTurn(worker);
+            RememberTurn(prompted);
+            initialSweeps[worker.Id] = prompted.Turn!;
+            if (admissions.Remove(worker.Id, out var buffered))
+                foreach (var publish in buffered) publish(prompted);
+        }
         return prompted;
     }
 
@@ -178,14 +194,18 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
         interrupts[worker.Id] = kind;
         var response = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id)
             .InterruptAsync(new SessionInterruptRequest { Resume = false }, OpenCodeRequestOptions.NoThrow, ct);
-        return new(false, response.IsError ? $"HTTP {response.Status}" : "interrupt");
+        return new(false, response.IsError ? $"HTTP {response.Status}" : "interrupt", response.IsError ? null : response.Interrupt.Interrupted, response.Status);
     }
 
     async Task<ReattachResult> ReattachCoreAsync(WorkerRef worker, CancellationToken ct)
     {
         var read = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id).GetAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (read.IsError) return new ReattachResult.Unreadable($"session {worker.Id} unreadable: HTTP {read.Status} {read.Error?.Tag}");
-        workers[worker.Id] = worker;
+        lock (eventGate)
+        {
+            workers[worker.Id] = worker;
+            RememberTurn(worker);
+        }
         directories[worker.Id] = read.Session.Location.Directory;
         if (read.Session.Outcome == SessionInfoOutcome.Succeeded) return new ReattachResult.Ended("succeeded");
         if (read.Session.Outcome == SessionInfoOutcome.Failed) return new ReattachResult.Ended("failed");
@@ -194,9 +214,13 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
 
     async Task ReleaseCoreAsync(WorkerRef worker, CancellationToken ct)
     {
-        await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(cancellationToken: ct);
-        workers.TryRemove(worker.Id, out _);
-        if (admissions.TryRemove(worker.Id, out var admission)) admission.TrySetResult();
+        var response = await (await HostAsync(ct)).Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(OpenCodeRequestOptions.NoThrow, ct);
+        if (response.IsError && response.Status != 404) throw new HarnessException($"session {worker.Id} release failed: HTTP {response.Status}");
+        lock (eventGate)
+        {
+            workers.TryRemove(worker.Id, out _);
+            admissions.Remove(worker.Id);
+        }
     }
 
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) =>
@@ -269,12 +293,21 @@ sealed partial class OpenCodeBackend(bool subscribe = true) : IWorkerBackend
 
     public async ValueTask DisposeAsync()
     {
-        await lifetime.CancelAsync();
-        try { await pump; }
-        catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { }
-        if (host is not null) await host.DisposeAsync();
-        signals.Writer.TryComplete();
-        lifetime.Dispose();
-        hostGate.Dispose();
+        try
+        {
+            await lifetime.CancelAsync();
+            try { await pump; }
+            catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { /* Owned shutdown. */ }
+        }
+        finally
+        {
+            try { if (host is not null) await host.DisposeAsync(); }
+            finally
+            {
+                signals.Writer.TryComplete();
+                lifetime.Dispose();
+                hostGate.Dispose();
+            }
+        }
     }
 }

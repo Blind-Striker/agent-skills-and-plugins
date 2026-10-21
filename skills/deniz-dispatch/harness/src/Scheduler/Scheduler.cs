@@ -1,8 +1,9 @@
 sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Ledger ledger, string repo, AllowList allow, Policy policy, int max, CancellationToken ct, Git? git = null)
 {
     readonly Escalation escalation = new(backends, ledger, policy);
-    readonly List<Task> work = [];
+    readonly ConcurrentQueue<Task> work = new();
     readonly HashSet<WorkerSignal> observed = [];
+    readonly Dictionary<string, List<WorkerSignal>> pending = new(StringComparer.Ordinal);
     List<TaskRun> runs = [];
     int watchdogFailures;
 
@@ -22,46 +23,63 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         {
             foreach (var run in runs.Where(x => x.Record.Session.Id is not null))
             {
-                var backend = Backend(run);
-                var result = await backend.ReattachAsync(run.SavedWorker(), ct);
-                if (result is ReattachResult.Interrupted && proceed && !run.CancelRequested)
-                {
-                    Starter(run).CheckAllowed(run);
-                    var (variables, removed) = WorkerEnvironment.Environment(run.Id);
-                    ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
-                    var prompt = new WorkerPrompt(run.Record.Spec.RawPrompt == true ? "Continue the task from where you stopped."
-                        : "Continue the task from where you stopped. The standing instructions and the task above still apply.", true);
-                    var worker = await backend.PromptAsync(run.SavedWorker(), prompt, ct);
-                    run.SaveWorker(worker, ledger);
-                    var data = Prompt.Event(prompt.Text, worker.Turn!, raw: run.Record.Spec.RawPrompt == true, isContinue: true);
-                    data["promptId"] = worker.Turn;
-                    data["resume"] = true;
-                    ledger.Write(run.Id, "prompt", data);
-                    run.Deadline = DateTimeOffset.UtcNow.AddMinutes(run.Record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
-                    run.State = TaskState.Running;
-                    await PollAsync();
-                }
-                else if (result is ReattachResult.Live) run.State = TaskState.Running;
-                else if (result is ReattachResult.Unreadable unreadable)
-                {
-                    await backend.ReleaseAsync(run.SavedWorker(), ct);
-                    run.WorkerEnded = true;
-                    Finish(run, TaskState.Failed, "unknown", unreadable.Reason);
-                }
-                else
-                {
-                    run.WorkerEnded = true;
-                    BeginSettle(run, result switch
-                    {
-                        ReattachResult.Ended ended => ended.Outcome,
-                        ReattachResult.Interrupted => "interrupted",
-                        _ => "unknown",
-                    });
-                }
+                run.State = TaskState.Dispatching;
+                Track(run, ResumeOneAsync(run, proceed));
             }
             return await LoopAsync();
         }
         finally { await DrainAsync(); }
+    }
+
+    async Task ResumeOneAsync(TaskRun run, bool proceed)
+    {
+        try
+        {
+            var backend = Backend(run);
+            var result = await backend.ReattachAsync(run.SavedWorker(), ct);
+            if (result is ReattachResult.Interrupted && proceed && !run.CancelRequested && !run.TimedOut)
+            {
+                Starter(run).CheckAllowed(run);
+                var (variables, removed) = WorkerEnvironment.Environment(run.Id);
+                ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
+                var prompt = new WorkerPrompt(run.Record.Spec.RawPrompt == true ? "Continue the task from where you stopped."
+                    : "Continue the task from where you stopped. The standing instructions and the task above still apply.", true);
+                var worker = await backend.PromptAsync(run.SavedWorker(), prompt, ct);
+                run.SaveWorker(worker, ledger);
+                var data = Prompt.Event(prompt.Text, worker.Turn!, raw: run.Record.Spec.RawPrompt == true, isContinue: true);
+                data["promptId"] = worker.Turn;
+                data["resume"] = true;
+                ledger.Write(run.Id, "prompt", data);
+                run.Deadline = DateTimeOffset.UtcNow.AddMinutes(run.Record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
+                run.State = TaskState.Running;
+                await backend.PollAsync([worker], ct);
+            }
+            else if (result is ReattachResult.Live) run.State = TaskState.Running;
+            else if (result is ReattachResult.Unreadable unreadable)
+            {
+                await backend.ReleaseAsync(run.SavedWorker(), ct);
+                run.WorkerEnded = true;
+                Finish(run, TaskState.Failed, "unknown", unreadable.Reason);
+            }
+            else
+            {
+                run.WorkerEnded = true;
+                var outcome = result switch
+                {
+                    ReattachResult.Ended ended => ended.Outcome,
+                    ReattachResult.Interrupted => "interrupted",
+                    _ => "unknown",
+                };
+                BeginSettle(run, run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : outcome);
+            }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            if (run.State == TaskState.Running)
+                ledger.Write(run.Id, "error", new JsonObject { ["while"] = "resume poll", ["message"] = ex.Message });
+            else await FailStartAsync(run, ex, "resume");
+            ct.ThrowIfCancellationRequested();
+        }
     }
 
     async Task<int> LoopAsync()
@@ -69,26 +87,33 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         try
         {
             var watchdog = DateTimeOffset.UtcNow;
-            while (runs.Any(x => !x.IsFinal && x.State != TaskState.Interrupted))
+            while (runs.Any(x => !x.IsFinal && x.State != TaskState.Interrupted && !x.ReleaseUnconfirmed))
             {
                 ct.ThrowIfCancellationRequested();
                 foreach (var failed in work.Where(x => x.IsFaulted).ToList()) await failed;
                 StartReady();
+                if (!runs.Any(x => !x.ReleaseUnconfirmed && x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling)) break;
                 CheckCancelRequests();
                 await escalation.CheckDecisionsAsync(ct);
                 var received = false;
                 foreach (var backend in backends.Values)
+                {
                     while (backend.Signals.TryRead(out var signal))
                     {
                         received = true;
                         await HandleAsync(signal);
                     }
+                    if (backend.Signals.Completion.IsFaulted) await backend.Signals.Completion;
+                }
+                foreach (var id in pending.Keys.ToList())
+                    if (runs.First(x => x.Id == id).State != TaskState.Dispatching && pending.Remove(id, out var buffered))
+                        foreach (var signal in buffered) await HandleAsync(signal);
                 if (DateTimeOffset.UtcNow - watchdog >= Constants.Watchdog)
                 {
                     watchdog = DateTimeOffset.UtcNow;
                     await PollAsync();
                 }
-                foreach (var run in runs.Where(x => x.State == TaskState.Running).ToList())
+                foreach (var run in runs.Where(x => x.State == TaskState.Running && !x.ReleaseUnconfirmed).ToList())
                 {
                     if (run.CancelRequested && !run.CancelSent)
                     {
@@ -140,7 +165,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             {
                 var author = runs.FirstOrDefault(x => x.Id == authorId);
                 var state = author?.State ?? StateFromLedger(authorId);
-                if (state is TaskState.Pending or TaskState.Dispatching or TaskState.Running or TaskState.Settling) continue;
+                if (state is TaskState.Pending or TaskState.Dispatching or TaskState.Running or TaskState.Settling or TaskState.Interrupted) continue;
                 var result = ledger.LoadResult(authorId);
                 if (state != TaskState.Done || result?.Outcome != "succeeded" || result.Commit is null)
                 {
@@ -153,7 +178,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         }
     }
 
-    void Track(TaskRun run, Task task) { run.Work = task; work.Add(task); }
+    void Track(TaskRun run, Task task) { run.Work = task; work.Enqueue(task); }
 
     async Task StartAsync(TaskRun run)
     {
@@ -169,21 +194,40 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 ledger.Write(run.Id, "error", new JsonObject { ["while"] = "dispatch", ["message"] = ex.Message });
                 return;
             }
-            if (run.Worker is { } worker)
-            {
-                try { await Backend(run).InterruptAsync(worker, InterruptKind.Cancel, CancellationToken.None); }
-                catch (Exception interruptError)
-                { ledger.Write(run.Id, "error", new JsonObject { ["while"] = "interrupt", ["message"] = interruptError.Message }); }
-                await Backend(run).ReleaseAsync(worker, CancellationToken.None);
-                run.WorkerEnded = true;
-            }
-            Finish(run, TaskState.Failed, null, $"dispatch failed: {ex.GetType().Name}: {ex.Message}");
+            await FailStartAsync(run, ex, "dispatch");
+            ct.ThrowIfCancellationRequested();
         }
+    }
+
+    async Task FailStartAsync(TaskRun run, Exception ex, string operation)
+    {
+        if (ex is WorkerCreationException creation)
+        {
+            run.SaveWorker(creation.Worker, ledger);
+            ledger.Write(run.Id, "session", new JsonObject { ["sessionId"] = creation.Worker.Id });
+        }
+        if (run.Worker is { } worker && !run.WorkerEnded)
+        {
+            try { await Backend(run).InterruptAsync(worker, InterruptKind.Cancel, CancellationToken.None); }
+            catch (Exception interruptError)
+            { ledger.Write(run.Id, "error", new JsonObject { ["while"] = "interrupt", ["message"] = interruptError.Message }); }
+            try { await Backend(run).ReleaseAsync(worker, CancellationToken.None); }
+            catch (Exception releaseError)
+            {
+                ledger.Write(run.Id, "error", new JsonObject { ["while"] = "release", ["message"] = releaseError.Message });
+                run.State = TaskState.Dispatching;
+                run.ReleaseUnconfirmed = true;
+                ledger.Write(run.Id, "error", new JsonObject { ["while"] = operation, ["message"] = $"{operation} failed; worker release unconfirmed: {ex.Message}" });
+                return;
+            }
+            run.WorkerEnded = true;
+        }
+        Finish(run, TaskState.Failed, "unknown", $"{operation} failed: {ex.GetType().Name}: {ex.Message}");
     }
 
     TaskState StateFromLedger(string task) => ledger.TaskStates().GetValueOrDefault(task) switch
     {
-        "done" => TaskState.Done, "failed" => TaskState.Failed, "cancelled" => TaskState.Cancelled, _ => TaskState.Pending,
+        "done" => TaskState.Done, "failed" => TaskState.Failed, "cancelled" => TaskState.Cancelled, "interrupted" => TaskState.Interrupted, _ => TaskState.Pending,
     };
 
     async Task HandleAsync(WorkerSignal signal)
@@ -195,6 +239,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
 
     async Task HandleCoreAsync(WorkerSignal signal)
     {
+        if (signal is WorkerSignal.Fault fault)
+        {
+            ledger.Write(fault.TaskId, "error", new JsonObject { ["while"] = fault.Operation, ["message"] = fault.Message });
+            return;
+        }
         if (signal is WorkerSignal.Host host)
         {
             if (host.State == "disconnected" || host.Attempt > 0)
@@ -206,7 +255,14 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             return;
         }
         if (signal is not WorkerSignal.TaskSignal task || runs.FirstOrDefault(x => x.Id == task.TaskId) is not { } run) return;
-        if (run.State == TaskState.Dispatching && run.Work is { } start) await start;
+        if (run.State == TaskState.Dispatching)
+        {
+            if (!pending.TryGetValue(run.Id, out var buffered)) pending[run.Id] = buffered = [];
+            buffered.Add(signal);
+            return;
+        }
+        if (pending.Remove(run.Id, out var admitted))
+            foreach (var queued in admitted) await HandleAsync(queued);
         if (signal is WorkerSignal.Ended or WorkerSignal.Status && task.Turn != run.Worker?.Turn) return;
         if (signal is WorkerSignal.Ended or WorkerSignal.Status or WorkerSignal.Retry && !observed.Add(signal)) return;
         switch (signal)
@@ -223,6 +279,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 if (status.Execution == "failed") data["error"] = status.Detail is null ? null : JsonNode.Parse(status.Detail);
                 if (status.Execution == "interrupted") data["reason"] = status.Detail;
                 ledger.Write(run.Id, "status", data);
+                run.NextCheck = DateTimeOffset.UtcNow.AddSeconds(2);
                 break;
             case WorkerSignal.Ended ended when !run.IsFinal && run.State != TaskState.Settling:
                 run.WorkerEnded = true;
@@ -268,8 +325,13 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
 
     async Task InterruptAsync(TaskRun run, InterruptKind kind)
     {
-        var response = await Backend(run).InterruptAsync(run.SavedWorker(), kind, ct);
-        ledger.Write(run.Id, kind == InterruptKind.Cancel ? "cancel" : "timeout", new JsonObject { ["interrupted"] = response.Stopped, ["detail"] = response.Detail });
+        try
+        {
+            var response = await Backend(run).InterruptAsync(run.SavedWorker(), kind, ct);
+            ledger.Write(run.Id, kind == InterruptKind.Cancel ? "cancel" : "timeout", new JsonObject { ["interrupted"] = response.Interrupted, ["status"] = response.Status });
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        { ledger.Write(run.Id, "error", new JsonObject { ["while"] = "interrupt", ["message"] = ex.Message }); }
         run.NextCheck = DateTimeOffset.UtcNow.AddSeconds(2);
     }
 

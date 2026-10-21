@@ -66,6 +66,11 @@ internal sealed class Scenario
         }
 
         context.Response.StatusCode = selected["status"]?.GetValue<int>() ?? 200;
+        foreach (var frame in selected["beforeEvents"]?.AsArray() ?? [])
+            foreach (var channel in streams.Values) await channel.Writer.WriteAsync(frame!, ct);
+        if (selected["arrived"]?.GetValue<string>() is { } arrived) await File.WriteAllTextAsync(arrived, "arrived", ct);
+        if (selected["waitFor"]?.GetValue<string>() is { } release)
+            while (!File.Exists(release)) await Task.Delay(10, ct);
         if (selected["stream"]?.GetValue<bool>() == true)
         {
             context.Response.ContentType = "text/event-stream";
@@ -106,6 +111,7 @@ internal sealed class Scenario
         // No headers or host environment values are persisted, especially the SDK lease credential.
         var line = JsonSerializer.Serialize(new
         {
+            pid = Environment.ProcessId,
             method = context.Request.Method,
             path = context.Request.Path.Value,
             query = context.Request.QueryString.Value,

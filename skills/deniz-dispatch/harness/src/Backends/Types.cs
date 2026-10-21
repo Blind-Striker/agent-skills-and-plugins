@@ -33,6 +33,8 @@ abstract record WorkerSignal
 {
     private WorkerSignal() { }
 
+    public sealed record Fault(string? TaskId, string Operation, string Message) : WorkerSignal;
+
     public abstract record TaskSignal : WorkerSignal
     {
         public string TaskId { get; }
@@ -93,7 +95,7 @@ abstract record BlockerAnswer
 
 enum InterruptKind { Cancel, Timeout, Hard, Shutdown }
 
-sealed record InterruptResult(bool Stopped, string Detail)
+sealed record InterruptResult(bool Stopped, string Detail, bool? Interrupted = null, int? Status = null)
 {
     public string Detail { get; } = BackendValues.NonBlank(Detail, nameof(Detail));
 }
@@ -107,6 +109,12 @@ sealed record LiveCheck(
 }
 
 sealed record CreateResult(WorkerRef Worker, AppliedEnforcement Applied, WorkerStartDetails? Details = null);
+
+// A failed creation must not hide a worker whose release could not be confirmed.
+sealed class WorkerCreationException(WorkerRef worker, string message) : HarnessException(message)
+{
+    public WorkerRef Worker { get; } = worker;
+}
 
 sealed record WorkerStartDetails(string Route, string Agent, string Lineage, string ProjectId, IReadOnlyList<string> Rules);
 

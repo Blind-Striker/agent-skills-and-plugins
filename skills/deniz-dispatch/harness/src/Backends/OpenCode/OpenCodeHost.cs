@@ -5,6 +5,8 @@ sealed record BusDisconnected(string Reason);
 
 sealed record BusConnected(int Attempt);
 
+sealed record BusBarrier(TaskCompletionSource Completion);
+
 sealed class HarnessServer : IAsyncDisposable
 {
     readonly CancellationTokenSource _pumpCts = new();
@@ -32,6 +34,14 @@ sealed class HarnessServer : IAsyncDisposable
     public long Pid { get; private set; }
 
     public ChannelReader<object> Events => _bus.Reader;
+
+    public Task DrainEventsAsync(CancellationToken ct)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (!_bus.Writer.TryWrite(new BusBarrier(completion)))
+            throw new HarnessException("the event stream is closed");
+        return completion.Task.WaitAsync(ct);
+    }
 
     public static async Task<HarnessServer> StartAsync(bool subscribe, CancellationToken ct)
     {
@@ -176,8 +186,14 @@ sealed class HarnessServer : IAsyncDisposable
             // The pump ends by cancellation; nothing to report.
         }
 
-        Client.Dispose();
-        await Server.DisposeAsync();
-        _pumpCts.Dispose();
+        finally
+        {
+            try { Client.Dispose(); }
+            finally
+            {
+                try { await Server.DisposeAsync(); }
+                finally { _pumpCts.Dispose(); }
+            }
+        }
     }
 }
