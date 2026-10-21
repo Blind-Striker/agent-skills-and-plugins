@@ -147,31 +147,30 @@ public sealed class OpenCodeModesTests
         lab.Create("worker");
         lab.Add("POST /api/session/worker/interrupt", new JsonObject { ["interrupted"] = false }, repeat: true);
         lab.Write();
-        var worker = (await lab.Backend.CreateAsync(Launch(lab, "worker"), ct)).Worker;
-        var pid = lab.Hosts().Single()["pid"]!.GetValue<int>();
-        var descendants = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.Tree.Root, $"children.{pid}.json")))!;
-        using var server = System.Diagnostics.Process.GetProcessById(pid);
-        using var child = System.Diagnostics.Process.GetProcessById(descendants["child"]!.GetValue<int>());
-        using var grandchild = System.Diagnostics.Process.GetProcessById(descendants["grandchild"]!.GetValue<int>());
         try
         {
+            var worker = (await lab.Backend.CreateAsync(Launch(lab, "worker"), ct)).Worker;
+            var pid = lab.Hosts().Single()["pid"]!.GetValue<int>();
+            var descendants = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.Tree.Root, $"children.{pid}.json")))!;
+            using var server = System.Diagnostics.Process.GetProcessById(pid);
+            var (child, grandchild) = ObservedProcess.Descendants(descendants);
             await lab.Backend.InterruptAsync(worker, InterruptKind.Timeout, ct);
             var stopped = await lab.Backend.InterruptAsync(worker, InterruptKind.Hard, ct);
 
             await Assert.That(stopped.Stopped).IsTrue();
             await Assert.That(stopped.Detail).IsEqualTo("tree-kill");
             await Assert.That(server.HasExited).IsTrue();
-            await child.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(5), ct);
-            await grandchild.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(5), ct);
-            await Assert.That(child.HasExited).IsTrue();
-            await Assert.That(grandchild.HasExited).IsTrue();
+            var deadline = System.Diagnostics.Stopwatch.StartNew();
+            while ((child.IsAlive() || grandchild.IsAlive()) && deadline.Elapsed < TimeSpan.FromSeconds(5))
+                await Task.Delay(20, ct);
+            await Assert.That(child.IsAlive()).IsFalse();
+            await Assert.That(grandchild.IsAlive()).IsFalse();
             var requests = File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!).ToList();
             await Assert.That(requests.Count(x => x["method"]!.GetValue<string>() == "DELETE")).IsEqualTo(0);
         }
         finally
         {
-            foreach (var process in new[] { server, child, grandchild })
-                if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None); }
+            await ObservedProcess.CleanupRecordedChildrenAsync(lab.Tree.Root);
         }
     }
 
