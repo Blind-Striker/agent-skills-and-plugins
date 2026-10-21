@@ -54,7 +54,7 @@ public sealed class PlannerScopeTests
         var repo = await LabRepo.CreateAsync(tree, cancellationToken);
         var path = Path.Combine(tree.Root, "tasks.json");
         await File.WriteAllTextAsync(path,
-            JsonSerializer.Serialize(new TaskFile { Repo = repo.Root, Tasks = tasks }, DispatchJson.Default.TaskFile), cancellationToken);
+            JsonSerializer.Serialize(new TaskFile { Repo = repo.Root, Tasks = tasks }, InputJson.Default.TaskFile), cancellationToken);
         var allow = new AllowList();
         allow.Agents.Add("worker");
         return await Planner.LoadAsync(path, null, allow, cancellationToken);
