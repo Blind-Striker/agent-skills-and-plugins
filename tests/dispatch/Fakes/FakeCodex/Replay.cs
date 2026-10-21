@@ -57,10 +57,13 @@ internal sealed class Replay(JsonObject[] steps, Wire wire, string home, string 
                 var id = JsonValue.Create($"server-{++requestId}");
                 variables["$id"] = id.DeepClone();
                 await SendAsync(new JsonObject { ["id"] = id, ["method"] = request.DeepClone(), ["params"] = action["params"]?.DeepClone() });
+                if (action["defer"]?.GetValue<bool>() == true) continue;
                 var (raw, response) = await ReceiveAsync();
                 if (!JsonNode.DeepEquals(response["id"], id) || response.ContainsKey("method") || response.ContainsKey("jsonrpc")
                     || response.ContainsKey("result") == response.ContainsKey("error"))
                     throw Unexpected(raw, response, "expected server request response");
+                if (action.ContainsKey("result") && !JsonNode.DeepEquals(action["result"], response["result"]))
+                    throw Unexpected(raw, response, "server request result differs");
             }
             else if (action["writeFile"] is { } file)
             {

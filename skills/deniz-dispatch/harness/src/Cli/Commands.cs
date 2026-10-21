@@ -8,9 +8,20 @@ static partial class Commands
         var dir = Path.GetFullPath(a.Get("dir") ?? a.Get("repo") ?? throw new HarnessException("routes needs --dir or --repo"));
         var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
         var allow = layers.Allow;
-        await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
+        var selected = BackendScope.Selected(a);
+        await using var scope = new BackendScope([selected], subscribe: false);
+        var backend = scope.Backends[selected];
         var probe = await backend.ProbeAsync(new(dir), ct);
         var catalog = await backend.ListRoutesAsync(dir, ct);
+
+        if (selected == "codex")
+        {
+            Console.WriteLine($"location {dir}\nCodex {probe.Version}");
+            foreach (var entry in catalog.Routes)
+                Console.WriteLine($"  codex:{entry.Route.Model} efforts: {string.Join(',', entry.Variants)}");
+            Console.WriteLine(allow.IsRestricted ? "route allow-list applies" : "no route restriction");
+            return probe.Ready ? 0 : 2;
+        }
 
         Console.WriteLine($"location {dir}");
         Console.WriteLine($"server {probe.Version}{(probe.Version == Constants.PinnedUpstream ? "" : $" (SDK pin is {Constants.PinnedUpstream})")}");
@@ -64,8 +75,8 @@ static partial class Commands
         var allow = plan.Config?.Allow ?? AllowList.From(null);
         if (plan.Errors.Count == 0)
         {
-            await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
-            await Planner.CheckLiveAsync(plan, backend, allow, ct);
+            await using var scope = new BackendScope(plan.Tasks.Select(t => t.Spec.Backend ?? "opencode"), subscribe: false);
+            foreach (var backend in scope.Backends.Values) await Planner.CheckLiveAsync(plan, backend, allow, ct);
         }
 
         return plan.Report();
@@ -113,9 +124,24 @@ static partial class Commands
         var claimed = false;
         try
         {
-            await using IWorkerBackend backend = backendFactory?.Invoke() ?? new OpenCodeBackend(runId: runId);
-            var probe = await backend.ProbeAsync(new(plan.Repo), ct);
-            await Planner.CheckLiveAsync(plan, backend, allow, ct);
+            await using var injectedBackend = backendFactory?.Invoke();
+            var versions = new Dictionary<string, BackendInfo>();
+            if (injectedBackend is not null)
+            {
+                var probe = await injectedBackend.ProbeAsync(new(plan.Repo), ct);
+                versions[injectedBackend.Name] = new() { Version = probe.Version! };
+                await Planner.CheckLiveAsync(plan, injectedBackend, allow, ct);
+            }
+            else
+            {
+                await using var preflight = new BackendScope(plan.Tasks.Select(t => t.Spec.Backend ?? "opencode"));
+                foreach (var backend in preflight.Backends.Values)
+                {
+                    var probe = await backend.ProbeAsync(new(plan.Repo), ct);
+                    versions[backend.Name] = new() { Version = probe.Version! };
+                    await Planner.CheckLiveAsync(plan, backend, allow, ct);
+                }
+            }
             if (plan.Errors.Count > 0)
             {
                 return plan.Report();
@@ -128,7 +154,7 @@ static partial class Commands
                 Repo = plan.Repo,
                 TasksFile = plan.TasksPath,
                 Created = Json.Timestamp(),
-                Backends = new() { ["opencode"] = new BackendInfo { Version = probe.Version! } },
+                Backends = versions,
                 MaxParallel = max,
             };
             control = Path.Combine(Locations.ControlRoot, info.ControlId);
@@ -152,7 +178,7 @@ static partial class Commands
             {
                 ["repo"] = plan.Repo,
                 ["max"] = max,
-                ["server"] = probe.Version,
+                ["server"] = versions.Values.First().Version,
                 ["tasks"] = plan.Tasks.Count,
                 ["policy"] = policy.Path,
                 ["deny"] = Json.Array(policy.Deny.Select(x => x.Name!)),
@@ -193,7 +219,9 @@ static partial class Commands
             if (setupCheckpoint is not null) await setupCheckpoint(info, "queued");
             using (var done = new FileStream(Path.Combine(control, "setup.done"), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                 done.Flush(flushToDisk: true);
-            var supervisor = new Supervisor(backend, ledger, plan.Repo, allow, policy, max, ct);
+            await using var scope = injectedBackend is null ? new BackendScope(versions.Keys, control, runId: runId) : null;
+            var backends = scope?.Backends ?? new Dictionary<string, IWorkerBackend> { [injectedBackend!.Name] = injectedBackend };
+            var supervisor = new Supervisor(backends, ledger, plan.Repo, allow, policy, max, ct);
             return await supervisor.RunAsync(runs);
         }
         catch (Exception ex) when (claimed)
@@ -296,8 +324,7 @@ static partial class Commands
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
         AskQueue.Reset(ledger.RunId);
-        await using IWorkerBackend backend = new OpenCodeBackend(runId: ledger.RunId);
-        var probe = await backend.ProbeAsync(new(info.Repo!), ct);
+        await using var scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
         try
         {
             var states = ledger.TaskStates();
@@ -328,8 +355,8 @@ static partial class Commands
                 return states.Values.All(x => x == "done") ? 0 : 1;
             }
 
-            ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count, ["server"] = probe.Version });
-            var supervisor = new Supervisor(backend, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
+            ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count });
+            var supervisor = new Supervisor(scope.Backends, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
             var exit = await supervisor.ResumeAsync(runs, proceed);
             return exit == 0 && ledger.TaskStates().Values.All(x => x == "done") ? 0 : 1;
         }

@@ -249,10 +249,11 @@ sealed class CodexRpc : IAsyncDisposable
                 {
                     reply = handler is null ? new(null, new(-32601, $"method not found: {request.Method}"))
                         : await handler(request, lifetime.Token).WaitAsync(lifetime.Token);
+                    if (request.Resolved) return;
                     reply = reply.ValidateApproval(request.Method);
                 }
                 catch (CodexRpcException ex) { reply = new(null, new(ex.Code, ex.Message, ex.ErrorData)); }
-                catch (OperationCanceledException) when (lifetime.IsCancellationRequested) { return; }
+                catch (OperationCanceledException) when (lifetime.IsCancellationRequested || request.Resolved) { return; }
                 catch (Exception ex) { reply = new(null, new(-32603, ex.Message)); }
                 await WriteAsync(json =>
                 {
@@ -270,12 +271,14 @@ sealed class CodexRpc : IAsyncDisposable
                         else json.WriteNullValue();
                     }
                 }, lifetime.Token);
+                request.ResponseWritten.TrySetResult(true);
             }
             catch (Exception ex) when (lifetime.IsCancellationRequested || ex is IOException or ObjectDisposedException)
             {
                 // Close faults the pending callers; a reply after shutdown has no receiver.
                 Close(new IOException("app-server reply failed", ex));
             }
+            finally { request.ResponseWritten.TrySetResult(false); }
         });
         handlers[key] = task;
         _ = task.ContinueWith(_ => handlers.TryRemove(key, out var ignored), CancellationToken.None,

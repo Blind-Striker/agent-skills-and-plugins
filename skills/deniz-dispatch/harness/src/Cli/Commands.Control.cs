@@ -57,7 +57,9 @@ static partial class Commands
 
         try
         {
-            await using IWorkerBackend backend = new OpenCodeBackend(subscribe: false);
+            var name = record.Settings.Backend?.Value ?? "opencode";
+            await using var scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
+            var backend = scope.Backends[name];
             var run = TaskRun.FromLedger(record, ledger);
             var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
             ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });

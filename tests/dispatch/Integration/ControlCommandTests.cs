@@ -35,6 +35,69 @@ public sealed class ControlCommandTests
     }
 
     [Test]
+    [Arguments("full")]
+    [Arguments("clean")]
+    [Timeout(45_000)]
+    public async Task Resume_continue_preserves_the_run_profile_and_temp_folders(string profile, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var control = Seed(tree);
+        await repo.BaselineAsync(control, ct);
+        var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", Run);
+        var configPath = Path.Combine(ledger, "config.json");
+        var config = JsonNode.Parse(File.ReadAllText(configPath))!;
+        config["tasks"]!["inspect"]!["settings"]!["profile"] = new JsonObject { ["value"] = profile, ["actual"] = profile };
+        File.WriteAllText(configPath, config.ToJsonString());
+        Json.WriteFile(Path.Combine(ledger, "inspect", "task.json"), new TaskRecord
+        {
+            Spec = new() { Id = "inspect", Kind = "research" },
+            Session = new() { Id = "ses_fixture", Turn = "old-turn" },
+            Workspace = new() { Path = repo.Root, BaseSha = await repo.GitAsync(["rev-parse", "HEAD"], ct) },
+        }, LedgerJson.Files.TaskRecord);
+        var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(x => JsonNode.Parse(x)!).ToList();
+        var interrupted = steps[11].DeepClone();
+        interrupted["repeat"] = false;
+        interrupted["reply"]!["data"]!["outcome"] = "interrupted";
+        steps.Insert(4, interrupted);
+        var scenario = Path.Combine(tree.Root, "resume.jsonl");
+        File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        using var child = new HarnessProcess(tree);
+
+        var requests = Path.Combine(tree.Root, "requests.jsonl");
+        var events = Path.Combine(ledger, "events.jsonl");
+        static string SharedText(string path)
+        {
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var reader = new StreamReader(stream);
+            return reader.ReadToEnd();
+        }
+        var running = child.RunAsync(["resume", Run, "--continue"], ct, environment);
+        try
+        {
+            while (!running.IsCompleted)
+            {
+                if (File.Exists(requests) && SharedText(requests).Split('\n').Any(x => x.Contains("\"method\":\"PUT\"", StringComparison.Ordinal) && x.EndsWith('}'))) break;
+                if (SharedText(events).Contains("\"while\":\"resume\"", StringComparison.Ordinal)) break;
+                await Task.Delay(10, ct);
+            }
+        }
+        finally { child.Kill(); await running; }
+
+        var sent = File.ReadLines(requests).Where(x => x.EndsWith('}')).Select(x => JsonNode.Parse(x)!)
+            .Where(x => x["method"]!.GetValue<string>() == "PUT").ToArray();
+        await Assert.That(sent.Length).IsEqualTo(1);
+        var variables = sent[0]["body"]!["variables"]!;
+        var expected = Path.Combine(tree.DispatchHome, "state", "worktrees", Run, ".tmp", "inspect");
+        foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+            await Assert.That(variables[name]!.GetValue<string>()).IsEqualTo(expected);
+        var host = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
+        await Assert.That(host["directory"]!.GetValue<string>()).IsEqualTo(Path.Combine(control, "profiles", "opencode"));
+    }
+
+    [Test]
     [Arguments("resume")]
     [Arguments("collect")]
     [Timeout(45_000)]

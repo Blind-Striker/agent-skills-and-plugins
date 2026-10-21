@@ -387,8 +387,82 @@ sealed class CodexProcess : IAsyncDisposable
         }
         catch (HarnessException exception)
         {
-            throw new HarnessException($"cannot start codex: {exception.Message}. Install with npm install -g @openai/codex@0.163.0 or set backends.codex.executable in user config");
+            throw new HarnessException($"cannot start codex: {exception.Message}. Install with npm install -g @openai/codex@{CodexBackend.PinnedVersion} or set backends.codex.executable in user config");
         }
+    }
+
+    public static async Task<ProcessResult> CommandAsync(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment,
+        bool version, CancellationToken ct)
+    {
+        var executable = ResolveExecutable(context.Executable, environment);
+        var variables = environment.ToDictionary(x => x.Key, x => x.Value);
+        foreach (var (name, value) in context.Passthrough) variables[name] = value;
+        if (OperatingSystem.IsWindows() && Path.GetExtension(executable).ToLowerInvariant() is ".cmd" or ".bat")
+        {
+            // ArgumentList applies CreateProcess quoting, not cmd's /s /c quoting. Only a trusted
+            // executable path and these fixed literals enter the raw command line, as at app-server start.
+            var start = new ProcessStartInfo(Path.Combine(Environment.SystemDirectory, "cmd.exe"))
+            {
+                Arguments = $"/d /s /c \"\"{executable}\" {(version ? "--version" : "login status")}\"",
+                WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            start.Environment.Clear();
+            foreach (var (name, value) in variables) start.Environment[name] = value;
+            using var process = Process.Start(start) ?? throw new HarnessException("Codex preflight command did not start");
+            using var output = new MemoryStream();
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            deadline.CancelAfter(TimeSpan.FromSeconds(30));
+            var stdout = process.StandardOutput.BaseStream.CopyToAsync(output, deadline.Token);
+            var stderr = process.StandardError.ReadToEndAsync(deadline.Token);
+            try
+            {
+                await Task.WhenAll(process.WaitForExitAsync(deadline.Token), stdout, stderr);
+                return new(process.ExitCode, output.ToArray(), await stderr, false);
+            }
+            catch (OperationCanceledException)
+            {
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+                catch (InvalidOperationException) when (process.HasExited) { /* Exit raced cancellation. */ }
+                await process.WaitForExitAsync(CancellationToken.None);
+                ct.ThrowIfCancellationRequested();
+                return new(-1, output.ToArray(), "Codex preflight command timed out", true);
+            }
+        }
+        return await Proc.RunAsync(executable, version ? ["--version"] : ["login", "status"], directory, ct, TimeSpan.FromSeconds(30), environment: variables);
+    }
+
+    public static async Task<InterruptResult> StopRecordedAsync(JsonObject state, CancellationToken ct)
+    {
+        var identities = new List<CodexProcessIdentity>();
+        if (state["pid"] is { } pid && state["processStartTime"] is { } start)
+            identities.Add(new(pid.GetValue<int>(), DateTime.Parse(start.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime()));
+        foreach (var child in state["descendants"]?.AsArray() ?? [])
+            identities.Add(new(child!["pid"]!.GetValue<int>(), DateTime.Parse(child["startTime"]!.GetValue<string>(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime()));
+        var errors = new List<string>();
+        if (!OperatingSystem.IsWindows() && identities.Count > 0 && state["processGroup"]?.GetValue<bool>() == true)
+        {
+            var group = identities[0].Pid;
+            if (identities.Any(identity => IsAlive(identity) && Native.getpgid(identity.Pid) == group))
+                if (Native.kill(-group, 9) != 0 && Marshal.GetLastPInvokeError() != 3)
+                    errors.Add($"kill recorded group: OS error {Marshal.GetLastPInvokeError()}");
+        }
+        foreach (var identity in identities.AsEnumerable().Reverse())
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!IsAlive(identity)) continue;
+            try
+            {
+                using var process = Process.GetProcessById(identity.Pid);
+                if (process.StartTime.ToUniversalTime() == identity.StartTime) process.Kill(entireProcessTree: true);
+            }
+            catch (ArgumentException) { continue; } // Exit raced recovery.
+            catch (InvalidOperationException) { continue; }
+            catch (Exception ex) when (ex is Win32Exception or AggregateException) { errors.Add(ex.Message); }
+        }
+        var deadline = Stopwatch.StartNew();
+        while (identities.Any(IsAlive) && deadline.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(50, ct);
+        return new(!identities.Any(IsAlive), $"recorded process recovery; {string.Join("; ", errors)}");
     }
 
     sealed class ErrorTail

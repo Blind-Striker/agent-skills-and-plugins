@@ -400,7 +400,13 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         try
         {
             foreach (var backend in backends.Values)
-                await backend.PollAsync(runs.Where(x => x.State == TaskState.Running && Backend(x) == backend).Select(x => x.SavedWorker()).ToList(), ct);
+            {
+                var active = runs.Where(x => x.State == TaskState.Running && Backend(x) == backend).ToList();
+                await backend.PollAsync(active.Select(x => x.SavedWorker()).ToList(), ct);
+                // Codex recovery needs the latest observed descendant identities on disk.
+                if (backend.Name == "codex")
+                    foreach (var run in active) run.SaveWorker(run.SavedWorker(), ledger);
+            }
             watchdogFailures = 0;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

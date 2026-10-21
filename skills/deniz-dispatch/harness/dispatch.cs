@@ -42,6 +42,7 @@
 #:include src/Cli/Commands.cs
 #:include src/Cli/Commands.Control.cs
 #:include src/Cli/Commands.SelfCheck.cs
+#:include src/Cli/BackendScope.cs
 #:include src/Backends/IWorkerBackend.cs
 #:include src/Backends/Types.cs
 #:include src/Backends/OpenCode/OpenCodeBackend.cs
@@ -55,5 +56,6 @@
 #:include src/Backends/Codex/CodexHome.cs
 #:include src/Backends/Codex/CodexRpc.cs
 #:include src/Backends/Codex/CodexProtocol.cs
+#:include src/Backends/Codex/CodexBackend.cs
 
 return await Cli.MainAsync(args);

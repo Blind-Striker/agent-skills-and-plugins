@@ -27,6 +27,21 @@ sealed class CodexHome : IDisposable
         catch (UnauthorizedAccessException) { return false; }
     }
 
+    public CodexHome Fallback(string userHome, string reason) => new()
+    {
+        Home = userHome, Profile = "clean-partial", Reason = reason, RuntimeConfig = (JsonObject)RuntimeConfig.DeepClone(),
+    };
+
+    public static string? ReadWindowsSandbox(string userHome)
+    {
+        if (!OperatingSystem.IsWindows() || !File.Exists(Path.Combine(userHome, "config.toml"))) return null;
+        var text = File.ReadAllText(Path.Combine(userHome, "config.toml"));
+        var table = Regex.Match(text, @"(?ms)^\s*\[windows\]\s*(?<body>.*?)(?=^\s*\[|\z)");
+        var value = Regex.Match(table.Groups["body"].Value, "(?m)^\\s*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
+        if (!value.Success) value = Regex.Match(text, "(?m)^\\s*windows\\s*=\\s*\\{[^}]*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
+        return value.Success ? value.Groups["value"].Value : null;
+    }
+
     public static CodexHome CreateProbe(BackendContext context, string userHome, string directory,
         string project = "off", string? windowsSandbox = null, Action<string, string>? createHardLink = null) =>
         CreateClean(context, "probe-codex", "preflight", "probe", RuntimeOverrides(directory, project, "clean"),
