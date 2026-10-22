@@ -6,6 +6,7 @@ namespace Dispatch.Tests.Support;
 internal sealed class HarnessProcess(TempTree tree) : IDisposable
 {
     readonly CapturedProcess child = new();
+    public int ProcessId => child.ProcessId;
 
     public Task<CapturedResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken,
         IReadOnlyDictionary<string, string?>? environment = null, bool documentedEntry = false)
@@ -38,6 +39,7 @@ internal sealed record CapturedResult(int ExitCode, string Stdout, string Stderr
 internal sealed class CapturedProcess : IDisposable
 {
     Process? process;
+    public int ProcessId => process?.Id ?? throw new InvalidOperationException("the child has not started");
 
     public async Task<CapturedResult> RunAsync(
         string executable,
