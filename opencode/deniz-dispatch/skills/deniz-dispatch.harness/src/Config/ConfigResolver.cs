@@ -55,6 +55,7 @@ static class ConfigResolver
             Profile = Pick(structured ? "clean" : "full", p => p.Profile),
             Project = Pick(structured ? "off" : "on", p => p.Project),
             Access = Pick(task.Kind is "code" or "mechanical" ? "workspace" : "read-only", p => p.Access),
+            ReadOnlyShell = Pick("decline", p => p.ReadOnlyShell),
             Network = Pick("on", p => p.Network),
             Workspace = Pick("worktree", p => p.Workspace),
             Commit = Pick("none", p => p.Commit),
@@ -77,6 +78,10 @@ static class ConfigResolver
         Choice(settings.Profile, "clean", "full");
         Choice(settings.Project, "on", "off");
         Choice(settings.Access, "read-only", "workspace", "full");
+        if (settings.ReadOnlyShell.Value is not ("decline" or "escalate"))
+            throw new HarnessException($"{task.Id}: readOnlyShell from {settings.ReadOnlyShell.From} must be decline or escalate");
+        if (structured && settings.ReadOnlyShell.Value != "decline")
+            throw new HarnessException($"{task.Id}: structured tasks require readOnlyShell decline; escalate came from {settings.ReadOnlyShell.From}");
         Choice(settings.Network, "on", "off");
         Choice(settings.Workspace, "worktree", "in-place");
         Choice(settings.Commit, "none", "harness");
@@ -112,6 +117,14 @@ static class ConfigResolver
             string? variant = null;
             if (text is not null)
             {
+                var colon = text.IndexOf(':');
+                if (colon >= 0)
+                {
+                    var routeBackend = text[..colon];
+                    if (routeBackend != settings.Backend.Value)
+                        throw new HarnessException($"{task.Id}: route backend {routeBackend} from {name} differs from task backend {settings.Backend.Value} from {settings.Backend.From}");
+                    text = text[(colon + 1)..];
+                }
                 var split = text.Split('#');
                 if (split.Length > 2 || split[0].Length == 0 || (split.Length == 2 && split[1].Length == 0))
                     throw new HarnessException($"{task.Id}: invalid route from {name}: {text}");
@@ -136,9 +149,18 @@ static class ConfigResolver
             new RuleEnforcement { Name = rule.Name, Enforcement = rule.Enforcement[settings.Backend.Value!] }).ToList();
         if (settings.Backend.Value == "codex")
             config.Warnings.AddRange(settings.Rules.Select(r => $"{task.Id}: {r.Name} is enforced at the approval gate only"));
+        config.Warnings.AddRange(CapabilityNotes(settings).Select(note => $"{task.Id}: {note}"));
         if (settings.RawPrompt.Value && (config.Instructions.Count > 0 || task.Contracts is { Count: > 0 }))
             throw new HarnessException($"{task.Id}: rawPrompt from {settings.RawPrompt.From} conflicts with contracts or instructions from {string.Join(", ", config.Instructions.Select(i => i.From).Distinct())}");
         return settings;
+    }
+
+    public static List<string> CapabilityNotes(EffectiveSettings settings)
+    {
+        if (settings.Backend?.Value != "codex" || settings.Access?.Value != "read-only") return [];
+        var layers = (settings.Profile?.Actual ?? settings.Profile?.Value) == "clean"
+            ? "only system-level" : "user and system-level";
+        return [$"The pinned Codex app-server cannot disable inherited exec-policy rules; with this profile, {layers} explicit allow rules can bypass the read-only sandbox without approval."];
     }
 
     static void Accumulate(EffectiveConfig config, string layer, RestrictionValues? restrictions, List<string>? instructions)

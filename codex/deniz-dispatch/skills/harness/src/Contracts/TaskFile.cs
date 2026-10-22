@@ -29,6 +29,7 @@ class TaskPreferences : AnnotatedObject
     public string? Profile { get; set; }
     public string? Project { get; set; }
     public string? Access { get; set; }
+    public string? ReadOnlyShell { get; set; }
     public string? Network { get; set; }
     public string? Workspace { get; set; }
     public string? Commit { get; set; }

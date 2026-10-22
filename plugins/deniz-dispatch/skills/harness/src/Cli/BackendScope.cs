@@ -25,16 +25,33 @@ sealed class BackendScope : IAsyncDisposable
         });
     }
 
-    public static string Selected(Args args, ConfigLayers layers)
+    public static IReadOnlyList<string> Selected(Args args, ConfigLayers layers)
     {
-        if (args.Get("backend") is { } explicitBackend) return explicitBackend;
-        // Catalog commands have no task settings. Merge their preference from the loaded copies,
-        // including the committed repository bytes rather than its possibly edited working copy.
-        foreach (var layer in new[] { "repo", "user" })
-            if (layers.Copies.TryGetValue(layer + ".jsonc", out var bytes)
-                && ConfigLayers.Read(bytes, layer, layer + " config").Preferences?.Backend is { } backend)
-                return backend;
-        return "opencode";
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (args.Get("backend") is { } explicitBackend) names.Add(explicitBackend);
+        else
+        {
+            string? preferred = null;
+            var configured = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var layer in new[] { "user", "repo" })
+                if (layers.Copies.TryGetValue(layer + ".jsonc", out var bytes)
+                    && ConfigLayers.Read(bytes, layer, layer + " config") is { } config)
+                {
+                    preferred = config.Preferences?.Backend ?? preferred;
+                    names.UnionWith(config.Preferences?.DefaultRoutes?.Keys.AsEnumerable() ?? []);
+                    if (config.Backends?.Opencode is not null) configured.Add("opencode");
+                    if (config.Backends?.Codex is not null) configured.Add("codex");
+                }
+            if (preferred is not null) names.Add(preferred);
+            foreach (var route in layers.Effective.Restrictions?.Routes?.Value ?? []) names.Add(route[..route.IndexOf(':')]);
+            foreach (var task in layers.Effective.Tasks.Values)
+                if (task.Settings.Backend?.Value is { } backend) names.Add(backend);
+            if (names.Count == 0) names.UnionWith(configured);
+        }
+        if (names.Count == 0) throw new HarnessException("no backend configured; set preferences.backend, defaultRoutes or --backend");
+        foreach (var name in names)
+            if (name is not ("opencode" or "codex")) throw new HarnessException($"unknown backend: {name}");
+        return names.Order(StringComparer.Ordinal).ToArray();
     }
     public async ValueTask DisposeAsync()
     {

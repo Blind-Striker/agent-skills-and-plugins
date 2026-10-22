@@ -30,3 +30,6 @@ original_skills:
     # loads it from inside another skill, so the model must be able to invoke it: a manual skill
     # cannot be loaded through the skill tool. The narrow description keeps it off ordinary work, and
     # the trigger probe tunes that description, not this choice
+    depends_on: [delegating-to-worker-models] # the body sends a coordinator who writes a code task's
+    # prompt or judges a worker's output to the judgment skill; a caller with structured tasks owns
+    # its own prompt and does not need it

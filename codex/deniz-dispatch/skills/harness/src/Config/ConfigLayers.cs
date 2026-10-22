@@ -122,7 +122,7 @@ sealed class ConfigLayers
             _ => throw new HarnessException("--raw-prompt needs true or false") };
         return new() { Backend = args.Get("backend"), DefaultRoutes = routes, Effort = args.Get("effort"), MaxParallel = Number("max"),
             TimeoutMinutes = Number("timeout-minutes"), Profile = args.Get("profile"), Project = args.Get("project"), Access = args.Get("access"),
-            Network = args.Get("network"), Workspace = args.Get("workspace"), Commit = args.Get("commit"), RawPrompt = rawPrompt };
+            ReadOnlyShell = args.Get("read-only-shell"), Network = args.Get("network"), Workspace = args.Get("workspace"), Commit = args.Get("commit"), RawPrompt = rawPrompt };
     }
 
     public static void Apply(TaskSpec task, EffectiveSettings settings)
@@ -134,6 +134,7 @@ sealed class ConfigLayers
         task.Profile = settings.Profile?.Value;
         task.Project = settings.Project?.Value;
         task.Access = settings.Access?.Value;
+        task.ReadOnlyShell = settings.ReadOnlyShell?.Value;
         task.Network = settings.Network?.Value;
         task.Workspace = settings.Workspace?.Value;
         task.RawPrompt = settings.RawPrompt?.Value;

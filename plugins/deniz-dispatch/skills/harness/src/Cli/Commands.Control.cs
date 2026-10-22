@@ -47,6 +47,11 @@ static partial class Commands
 
         var record = ledger.LoadRecord(task);
         var frozen = ConfigLayers.Frozen(ledger.Dir);
+        if (record.Spec.Kind == "structured" || frozen.Tasks[task].InputSha256 is not null)
+        {
+            record.Spec = ledger.FrozenSpec(task);
+            StructuredOutput.Load(ledger, task);
+        }
         Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
         record.Settings = frozen.Tasks[task].Settings;
         ConfigLayers.Apply(record.Spec, record.Settings);

@@ -8,11 +8,17 @@ static class OpenCodeRules
 
     public static List<PermissionRule> Render(WorkerRules source, string? run = null, Modes? modes = null)
     {
-        List<PermissionRule> rules = [.. source.Escalate.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
+        List<PermissionRule> rules = [];
+        // Override inherited shell allows; only explicit escalation may reach the harness.
+        if (modes?.Access == "read-only" && modes.ReadOnlyShell == "escalate")
+            rules.Add(new() { Action = "shell", Resource = "*", Effect = PermissionEffect.Ask });
+        rules.AddRange([.. source.Escalate.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
         { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Ask })),
          .. source.Deny.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
-         { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Deny }))];
+         { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Deny }))]);
         if (modes?.Access == "read-only") rules.Add(new() { Action = "edit", Resource = "*", Effect = PermissionEffect.Deny });
+        if (modes?.Access == "read-only" && modes.ReadOnlyShell == "decline")
+            rules.Add(new() { Action = "shell", Resource = "*", Effect = PermissionEffect.Deny });
         if (modes?.Network == "off")
         {
             rules.Add(new() { Action = "webfetch", Resource = "*", Effect = PermissionEffect.Deny });

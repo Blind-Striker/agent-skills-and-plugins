@@ -49,17 +49,18 @@ sealed class CodexProcess : IAsyncDisposable
     internal Func<int, Process> OpenProcess { get; set; } = Process.GetProcessById;
     internal Func<int, DateTime?> QueryLimitedStartTime { get; set; } = ReadLimitedStartTime;
     internal Action<int, string>? DescendantUnobservable { get; set; }
+    internal Func<string, string> ReadProcStat { get; set; } = File.ReadAllText;
 
     // Supervisor snapshots are best effort: a wrapper can exit before its children are observed.
     public void RefreshDescendants()
     {
         lock (gate)
         {
-            var parents = ReadParents();
+            var parents = ReadParents(ReadProcStat);
             var owners = new HashSet<int>();
             if (IsAlive(new(Id, StartTime), OpenProcess, QueryLimitedStartTime)) owners.Add(Id);
             foreach (var identity in descendants.Values)
-                if (IsAlive(identity, OpenProcess, QueryLimitedStartTime)) owners.Add(identity.Pid);
+                if (identity.StartTime is not null && IsAlive(identity, OpenProcess, QueryLimitedStartTime)) owners.Add(identity.Pid);
             bool added;
             do
             {
@@ -79,6 +80,7 @@ sealed class CodexProcess : IAsyncDisposable
                     {
                         descendants.TryAdd(pid, new(pid, null));
                         if (unobservable.Add(pid)) DescendantUnobservable?.Invoke(pid, exception.Message);
+                        continue; // Keep the uncertain identity for stop reporting, never as ancestry proof.
                     }
                     owners.Add(pid);
                     added = true;
@@ -393,7 +395,7 @@ sealed class CodexProcess : IAsyncDisposable
         throw new Win32Exception(error);
     }
 
-    static Dictionary<int, int> ReadParents()
+    static Dictionary<int, int> ReadParents(Func<string, string>? readProcStat = null)
     {
         var parents = new Dictionary<int, int>();
         if (OperatingSystem.IsWindows())
@@ -412,12 +414,15 @@ sealed class CodexProcess : IAsyncDisposable
                 if (!int.TryParse(Path.GetFileName(path), out var pid)) continue;
                 try
                 {
-                    var stat = File.ReadAllText(Path.Combine(path, "stat"));
+                    var stat = (readProcStat ?? File.ReadAllText)(Path.Combine(path, "stat"));
                     var fields = stat[(stat.LastIndexOf(')') + 2)..].Split(' ');
                     parents[pid] = int.Parse(fields[1], CultureInfo.InvariantCulture);
                 }
                 catch (FileNotFoundException) { continue; }
                 catch (DirectoryNotFoundException) { continue; }
+                // Linux reports raw errno in IOException.HResult. A proc entry can disappear
+                // after enumeration or while stat is read: ENOENT / ESRCH both mean exited.
+                catch (IOException exception) when (exception.HResult is 2 or 3) { continue; }
             }
         }
         else

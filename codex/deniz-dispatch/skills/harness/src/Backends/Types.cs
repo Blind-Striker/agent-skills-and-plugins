@@ -1,13 +1,14 @@
 sealed record WorkerPlan(
     string TaskId, string Kind, RouteRef Route, string? Agent, string? Persona, Modes Modes, string Directory);
 
-sealed record Modes(string Profile, string Project, string Access, string Network, string Workspace)
+sealed record Modes(string Profile, string Project, string Access, string Network, string Workspace, string ReadOnlyShell = "decline")
 {
     public string Profile { get; } = BackendValues.OneOf(Profile, nameof(Profile), "clean", "full");
     public string Project { get; } = BackendValues.OneOf(Project, nameof(Project), "on", "off");
     public string Access { get; } = BackendValues.OneOf(Access, nameof(Access), "read-only", "workspace", "full");
     public string Network { get; } = BackendValues.OneOf(Network, nameof(Network), "on", "off");
     public string Workspace { get; } = BackendValues.OneOf(Workspace, nameof(Workspace), "worktree", "in-place");
+    public string ReadOnlyShell { get; } = BackendValues.OneOf(ReadOnlyShell, nameof(ReadOnlyShell), "decline", "escalate");
 }
 
 sealed record WorkerRules(IReadOnlyList<EffectiveRule> Deny, IReadOnlyList<EffectiveRule> Escalate);

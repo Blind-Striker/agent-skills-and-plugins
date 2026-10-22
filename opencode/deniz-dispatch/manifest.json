@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dispatch",
   "version": "0.1.0",
-  "digest": "sha256:b4db1569bab5a0e722e303c8c9849226934e2ccf314ae6fe983ada5a4cc775c9",
+  "digest": "sha256:639cbae59e58362e178be1c047e30fd1bd0adaf8d49d38a44803938e4773f557",
   "requiredModules": [
     "deniz-process"
   ],
@@ -72,11 +72,11 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/SKILL.md": {
-      "sha256": "sha256:e62d889e7a2b02ea4c97e789e4404f3d3e616d37a5a40c95a320339d45df56b4",
+      "sha256": "sha256:28298c456a4148623c35058f6062a5852111eb7138d362ef3cca8637f020e1e7",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/dispatch.cs": {
-      "sha256": "sha256:bb3305c5e89fd2de0883ef4a32b452e0fad3a3fd236220405bd9bc87257363d4",
+      "sha256": "sha256:e7d6d21b9d8866d31f12fb6d7545fb835f10f9a9642f12a49c3b696d324225ea",
       "mode": "100755"
     },
     "skills/deniz-dispatch.harness/examples/config.jsonc": {
@@ -91,6 +91,26 @@
       "sha256": "sha256:a647fbc942871cef23ce38ef75c362bd02269b0bb634aa348a4537cadc926c3f",
       "mode": "100644"
     },
+    "skills/deniz-dispatch.harness/references/backends.md": {
+      "sha256": "sha256:ac7064836a9808861b92336e28400f75f43ca0c32b7fbb5df6e4fa19d97810b0",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/references/cli.md": {
+      "sha256": "sha256:ee5a81f5b9cd64e7b21a0e11963ea539b1a39c9ff6f5db5a2a658199392aa117",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/references/config.md": {
+      "sha256": "sha256:7495c6b12772a1a5da0a1c8895e210e294d608dbef9b87f0b1b21e7a95e593a8",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/references/ledger.md": {
+      "sha256": "sha256:d93a8cdd273debf7b68c45933b7768beceededd5e158064b79e9ceb43f6d90b1",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/references/task-file.md": {
+      "sha256": "sha256:3139db98d3ad87a76d225685b6572cf279478c510c3f02e560e0d878e25cfbfa",
+      "mode": "100644"
+    },
     "skills/deniz-dispatch.harness/src/Backends/Codex/CodexBackend.cs": {
       "sha256": "sha256:be54e57c9886f7bbf64a031bb4ce85c0fd96b04118765782188412c3574fd85b",
       "mode": "100644"
@@ -100,7 +120,7 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Backends/Codex/CodexProcess.cs": {
-      "sha256": "sha256:65b15e3be787687bdd14ca112d96c262e8d2d5acc477122e86817d72eaa1181f",
+      "sha256": "sha256:2227d0d58bbde10011a7883d80d05cd9a92d4b55684536bc9d9e99d58c52ef3d",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Backends/Codex/CodexProtocol.cs": {
@@ -136,7 +156,7 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Backends/OpenCode/OpenCodeRules.cs": {
-      "sha256": "sha256:6ae4d75902a632688413616da513a6ca7cfb5ce07c23a1b8dbf7a0f8f9451365",
+      "sha256": "sha256:024c4666b1e4692db06b336aa362349be97fb739475e9208fd8bf0eb7b094f29",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Backends/OpenCode/OpenCodeSignals.cs": {
@@ -144,31 +164,31 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Backends/Types.cs": {
-      "sha256": "sha256:48395918ee0c08e7f465a13fe8e288d3e2dca5d054ae8f54a84523878b0a9237",
+      "sha256": "sha256:1cbd78825802b179af2ba1fe591fb49d5414f3ae4d43fb26e793397fc8f69c6a",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Cli/Args.cs": {
-      "sha256": "sha256:a39fc8df227cc540583edb6cc2883c645dfe39db30a0756b4f24400fa27afbfb",
+      "sha256": "sha256:b0cae7de5743c5b8c31f75785e18dc2c5489ec73018ed524e2a083c61947c0c9",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Cli/BackendScope.cs": {
-      "sha256": "sha256:b2846a883bd374f5e63227ad6ee268a49bf448627c2a13fb5cae75f308aa7af9",
+      "sha256": "sha256:d0235c1dae75ebafda7ec99a02cdfc312b9fa8e82b40fd5a39de284df6cdeb1c",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Cli/Cli.cs": {
-      "sha256": "sha256:e482dea483a10ee4b43b6cde5b2b1883b0ce6928cb2ac7186110b862e7ebbd76",
+      "sha256": "sha256:2e3db8c0519f22067c4ac4fd6ea9e3bcca252de7f2eca6e5961de6e794026fe2",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Cli/Commands.Control.cs": {
-      "sha256": "sha256:1bb827f33a6e4a95274990b5ee9fba67f93e444a6e01b8c77fed912523f79bec",
+      "sha256": "sha256:8f8cac80b38494fa817fc5992c44c9cacf83be9345f2b23df64f95db650dcfc4",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Cli/Commands.SelfCheck.cs": {
-      "sha256": "sha256:b0cf2c26a25981501999ebc807f184dd0c09374e695722a8dc369bb2ce48a5a7",
+      "sha256": "sha256:c5f218e079b0f4d07058480cf7c6e1db866e00a1e2172df6e04cdc3f729c5afd",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Cli/Commands.cs": {
-      "sha256": "sha256:e62af4763bedc5e6a510481b177e3caff12f1df67f44e5e2f9f339c11a69cd78",
+      "sha256": "sha256:023083afa8b7d1b24bc92b1165e32a47fe3d2ce3f03742327c7da7d2f7e21ec5",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Config/AllowList.cs": {
@@ -176,11 +196,11 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Config/ConfigLayers.cs": {
-      "sha256": "sha256:9923043fcbd25eb20674192ef69a9c35283717e4c2521550e05c8dfbbbe53903",
+      "sha256": "sha256:8d076dfca8d2b05081254618bfd9161c70a6e9b8ba6dd09e6d54ca02e3cb89e0",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Config/ConfigResolver.cs": {
-      "sha256": "sha256:0f6d0274c98db32ce195e90567f78c4c129ed16eb090e6b81d29be82be06f6e3",
+      "sha256": "sha256:2175e8d9ba358ca3249c4d0b0dbf606d2e147b76ed3dba41a820aae65337a1c3",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Config/Locations.cs": {
@@ -216,11 +236,11 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Contracts/LedgerShapes.cs": {
-      "sha256": "sha256:40d42355eab3a2620fa31202285c5c5184528df8f4ed930949f1526ee88a04a9",
+      "sha256": "sha256:63f98bcd913684bb0addf4cae9541e39d0dbfc0759cf048eb865c7897656a24d",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Contracts/TaskFile.cs": {
-      "sha256": "sha256:070d92dcd1211a08e438944a00ed4243273196ebadc3c3bbd219659f404e2dc8",
+      "sha256": "sha256:dd752d85dbd3c68522a379473f78caab1d9bd0b790ab56a4db3a742a1246c351",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Escalation/AskQueue.cs": {
@@ -228,11 +248,11 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Escalation/Escalation.cs": {
-      "sha256": "sha256:3eb13fb52c3e9b5fa66c8335423b883569f8e67483759cf7a60fc6799347f598",
+      "sha256": "sha256:d508da437cebe4319edb321678671214dc43c3d1d5e32d7f338382fa116e6dc8",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Ledger/Ledger.cs": {
-      "sha256": "sha256:12365a17b7515a6999794202ff668e7f9f5a07604c2ac0402918826dde28cd36",
+      "sha256": "sha256:a09c127a4486eacac2aac11cdc70c3a08669247bffe5609904d7699cef6a09ce",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Ledger/SupervisorLock.cs": {
@@ -244,19 +264,19 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Scheduler/Planner.cs": {
-      "sha256": "sha256:4a6f55739f962c1f141ce4b8e3bf7f78641dc3d8f44f4fb71b1e2206a5edfbb0",
+      "sha256": "sha256:2ac734b38c3ae7eb70a70ed404f56d4fa9a88d57e9fb32fbbe63cd1c3a1f1215",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Scheduler/Prompt.cs": {
-      "sha256": "sha256:d9eba8fe8e3d3c6057b54227c8b6fafdba9da530256545cffc351919a690fc56",
+      "sha256": "sha256:594bd69a41a565875e74afc70750ccfefcd9bbb3534873bdbc6bd18afae0fda4",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Scheduler/Scheduler.cs": {
-      "sha256": "sha256:65793f961a99be753627818b07135ee3c3c8d912f9dcddddabd10b41c5488cbc",
+      "sha256": "sha256:fc511cf2006d56676b1ab4ff0d0443f2c0987c148292cbcced0285272aa50bfb",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Scheduler/Settlement.cs": {
-      "sha256": "sha256:2d855ed939b51c8641ee29f5b67afd8b2ab5318f1e8adf56cc01c96b1f1ad202",
+      "sha256": "sha256:238d7d650c09a9c5e916b0d223ef4caffffb28ee1b4cbe5bf7646a575df82528",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Scheduler/Supervisor.cs": {
@@ -268,7 +288,7 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Scheduler/TaskStarter.cs": {
-      "sha256": "sha256:fa9758345364ecafda3c338c25bb2787c627a85f7ff74fd266042964459017c2",
+      "sha256": "sha256:2920414216428efaccd1b5cdd0a198ee914be61beab6b7579f2b8da5464c37b9",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Usings.cs": {
@@ -276,7 +296,11 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Verify/Deliverable.cs": {
-      "sha256": "sha256:ba8989fc856f3b677a5a7043dd9527e69b5b703422272a3b84b716bac1b52d5f",
+      "sha256": "sha256:0d40f0d0d058c43e43bea8d88ab804064cf08829c56052938918d63f27d0ab12",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/src/Verify/StructuredOutput.cs": {
+      "sha256": "sha256:e7833e227bed96edf069a9fb79ea9dae105184a922695862b29a248b4ef54c24",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Verify/Verifier.cs": {
@@ -307,12 +331,20 @@
       "sha256": "sha256:3b20c504bbd7214e3e57f348768241fb4af1833b64cb14a817c380a70eda31ef",
       "mode": "100644"
     },
+    "skills/deniz-dispatch.harness/src/Workspace/Scratch.cs": {
+      "sha256": "sha256:313b1309a97c6ac2e97cc3278d27fa12aba6c3723c6edecdad957f50b76b728b",
+      "mode": "100644"
+    },
     "skills/deniz-dispatch.harness/src/Workspace/Snapshot.cs": {
-      "sha256": "sha256:c5ee5291c77f0ef156c85b107b63b4234a4e1adcd2119bb778fb2d5f9178004b",
+      "sha256": "sha256:e61a0a735134c4b47e3f0b2af8e25a1eac464ad9146d59b99524e138a81c3f40",
+      "mode": "100644"
+    },
+    "skills/deniz-dispatch.harness/src/Workspace/UserPathGuard.cs": {
+      "sha256": "sha256:1190ab38a283f1c34f23a750ce1cf497d87bf417750124e0741adf453cd99df4",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Workspace/WorkerEnvironment.cs": {
-      "sha256": "sha256:69bb09e1423fbed5dd6e86558e0b90757897e605f36e80794395565d35b2c5fd",
+      "sha256": "sha256:7c25c898f0245914520bc9bb914a8bb99a0014a41e0aed1d59275efe39363167",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/src/Workspace/Worktree.cs": {

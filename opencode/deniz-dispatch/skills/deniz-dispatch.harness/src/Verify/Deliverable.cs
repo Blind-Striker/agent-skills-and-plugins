@@ -141,14 +141,7 @@ sealed class Deliverable
 
     public DeliverableCheck Validate(string text, JsonArray input, StructuredResult result, string idField = "id")
     {
-        var originals = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
-        foreach (var item in input)
-        {
-            if (item is not JsonObject obj || obj[idField] is not JsonValue value || !value.TryGetValue<string>(out var id) || !originals.TryAdd(id, obj))
-                throw new HarnessException($"input: each item must have a unique string {idField}");
-            foreach (var field in result.Immutable ?? [])
-                if (!obj.ContainsKey(field)) throw new HarnessException($"input: id \"{id}\" lacks immutable field \"{field}\"");
-        }
+        var originals = InputItems(input, result, idField);
         try
         {
             var document = Parse(text);
@@ -161,6 +154,19 @@ sealed class Deliverable
         {
             return new(null, new ValidationResult { Errors = [new() { At = "", Message = "parse: " + error.Message }] });
         }
+    }
+
+    public static Dictionary<string, JsonObject> InputItems(JsonArray input, StructuredResult result, string idField)
+    {
+        var originals = new Dictionary<string, JsonObject>(StringComparer.Ordinal);
+        foreach (var item in input)
+        {
+            if (item is not JsonObject obj || obj[idField] is not JsonValue value || !value.TryGetValue<string>(out var id) || !originals.TryAdd(id, obj))
+                throw new HarnessException($"input: each item must have a unique string {idField}");
+            foreach (var field in result.Immutable ?? [])
+                if (!obj.ContainsKey(field)) throw new HarnessException($"input: id \"{id}\" lacks immutable field \"{field}\"");
+        }
+        return originals;
     }
 
     void Evaluate(JsonNode node, JsonNode? instance, string at, List<ValidationError> errors)

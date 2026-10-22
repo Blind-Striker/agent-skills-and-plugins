@@ -56,10 +56,14 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         try
         {
             var backend = Backend(run);
+            run.SavedWorker();
+            if (run.Record.Spec.Kind == "structured") StructuredOutput.Load(ledger, run);
+            if (Scratch.Required(run.Record.Spec)) Scratch.Prepare(run, ledger);
             var result = await backend.ReattachAsync(run.SavedWorker(), ct);
             if (result is ReattachResult.Interrupted && proceed && !run.CancelRequested && !run.TimedOut)
             {
                 Starter(run).CheckAllowed(run);
+                if (run.Record.Spec.Kind == "structured") StructuredOutput.Load(ledger, run);
                 var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
                 ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
                 var prompt = new WorkerPrompt(run.Record.Spec.RawPrompt == true ? "Continue the task from where you stopped."
@@ -301,6 +305,10 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             }
             run.WorkerEnded = true;
         }
+        if (ex is FrozenInputException)
+            ledger.SaveResult(new TaskResult { Run = ledger.RunId, Task = run.Id, Kind = run.Record.Spec.Kind,
+                State = "failed", Failures = ["invalid-output"], Error = ex.Message,
+                Validation = new() { Errors = [new() { Message = ex.Message }] } });
         Finish(run, TaskState.Failed, "unknown", $"{operation} failed: {ex.GetType().Name}: {ex.Message}");
     }
 
@@ -516,6 +524,16 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     {
         if (run.Worker is not null && !run.WorkerEnded && !run.Zombie)
             throw new InvalidOperationException("cannot finalize a task before its worker ended or was released");
+        if (!run.Zombie && Scratch.Required(run.Record.Spec))
+        {
+            try { Scratch.Delete(run.Record, ledger); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)
+            {
+                Error(run, "scratch cleanup", error);
+                state = TaskState.Failed;
+                reason = "scratch cleanup failed: " + error.Message;
+            }
+        }
         try
         {
             if (reason is not null && state == TaskState.Failed) ledger.Write(run.Id, "error", new JsonObject { ["message"] = reason });

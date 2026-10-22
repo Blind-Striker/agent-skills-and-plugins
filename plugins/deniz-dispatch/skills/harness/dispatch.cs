@@ -18,14 +18,17 @@
 #:include src/Ledger/SupervisorLock.cs
 #:include src/Workspace/Scope.cs
 #:include src/Workspace/WorkerEnvironment.cs
+#:include src/Workspace/UserPathGuard.cs
 #:include src/Workspace/Proc.cs
 #:include src/Workspace/Executables.cs
 #:include src/Workspace/Git.cs
 #:include src/Workspace/GitConfigGate.cs
 #:include src/Workspace/Worktree.cs
+#:include src/Workspace/Scratch.cs
 #:include src/Workspace/Snapshot.cs
 #:include src/Workspace/Commit.cs
 #:include src/Verify/Deliverable.cs
+#:include src/Verify/StructuredOutput.cs
 #:include src/Verify/Verifier.cs
 #:include src/Scheduler/Plan.cs
 #:include src/Scheduler/Prompt.cs
