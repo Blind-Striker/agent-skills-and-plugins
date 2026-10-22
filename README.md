@@ -271,6 +271,13 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.13.0 is being prepared with Process 0.14.0, General 0.14.1, Akka 0.4.1, Aspire 0.6.0,
+and the first release of Coordination 0.1.0. `delegating-to-worker-models` and `verified-waves` move
+from Process into Coordination, so an OpenCode Selection that uses either one adds
+`deniz-coordination`. The verified recipe below remains on the last published Release until the new
+asset passes publication checks. For the current recipe after publication, use the
+[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.12.0`, targeting commit `63b29a5`.
 It carries OpenCode 2 Bundles: Process 0.13.1, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. They
 need OpenCode 2 at v2.0.4 or later; OpenCode 1 is not supported and there is no compatibility layer.
