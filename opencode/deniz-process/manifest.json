@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.14.0",
-  "digest": "sha256:c08dc40bc1cfab68c3bb24f03d605a4b7389b9768ddf0867e7da5a764fe419d6",
+  "digest": "sha256:f90fdded794301bcc88d4118ed1eaf3057200c107d628e078ebd9cb69a5ec49e",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -278,11 +278,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
-      "sha256": "sha256:defbfba99fe59ea26791f30e319d120a37b156d229d599b28ac3d56d488d123c",
+      "sha256": "sha256:498cdd2458e80acbfbd1e8dc8d5a58cb60bddcf040f44836305c481ebd772088",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/code-reviewer.md": {
-      "sha256": "sha256:fe29deff2359d64fc45427f1bfc297b27aaab8a0c7a15758971a16886dc6d03e",
+      "sha256": "sha256:0efcf40726f4e6659cf6e8f33f9ed0b4a4264d7ea4da420faede2b39c69201b2",
       "mode": "100644"
     },
     "skills/deniz-process.research/SKILL.md": {
@@ -462,7 +462,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:b31c62d37d1c3b8f1b1db22e46a004f88f8128584ce6a4a31b11680714006b94",
+      "sha256": "sha256:65f20156a2592bb625fd086a29c2c1a33eb12292c5bea50a066252f84cca3ae4",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {
