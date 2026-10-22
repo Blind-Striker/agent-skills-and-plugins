@@ -31,7 +31,10 @@ is the package directory name.
 Packaged Windows hosts may see a private application-data location. Set `DISPATCH_HOME` to an
 external location when the host needs stable shared state. Deep default worktree paths can exceed
 Windows path limits; choose a short `locations.worktreeRoot` or enable Git `core.longpaths`.
-The current `selfcheck` does not print these resolved roots or check `core.longpaths`.
+`selfcheck` prints the resolved state, worktree and control roots and warns when `core.longpaths`
+is not true. `DISPATCH_HOME` moves only the harness's own folders: keep the backends' own homes
+(`CODEX_HOME`, opencode's data root under `XDG_DATA_HOME`) where they are, because their sign-in
+lives there; the harness gives each worker a clean profile itself when `profile: clean` asks.
 
 ## File fields
 

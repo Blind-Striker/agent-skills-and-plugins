@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dispatch",
   "version": "0.1.0",
-  "digest": "sha256:639cbae59e58362e178be1c047e30fd1bd0adaf8d49d38a44803938e4773f557",
+  "digest": "sha256:369ebd160ca35ff7c72ed71d40924029bc70b1f356776aad6ff60e6dc42ecbdd",
   "requiredModules": [
     "deniz-process"
   ],
@@ -72,7 +72,7 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/SKILL.md": {
-      "sha256": "sha256:28298c456a4148623c35058f6062a5852111eb7138d362ef3cca8637f020e1e7",
+      "sha256": "sha256:794b270b60b2fb23ccbf861076399955cc0b414b7ce1bccb93d4806ebc5fac45",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/dispatch.cs": {
@@ -96,11 +96,11 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/references/cli.md": {
-      "sha256": "sha256:ee5a81f5b9cd64e7b21a0e11963ea539b1a39c9ff6f5db5a2a658199392aa117",
+      "sha256": "sha256:d15357d4873910d69d57d4b6d195bafdf4adfcb0d43e666cea5325fa7dc9a24b",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/references/config.md": {
-      "sha256": "sha256:7495c6b12772a1a5da0a1c8895e210e294d608dbef9b87f0b1b21e7a95e593a8",
+      "sha256": "sha256:daa85ec6a0f23e29c09a0c36b999eda9073362606997fcb282ea6dba6b434bd3",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/references/ledger.md": {

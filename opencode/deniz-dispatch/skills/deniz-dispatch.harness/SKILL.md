@@ -94,8 +94,8 @@ output. Each task resolves four modes:
 ## Run lifecycle
 
 1. **Plan.** `plan <tasks.jsonc>` validates the file, contracts, allow-list and live catalog.
-2. **Run.** `run <tasks.jsonc> [--run <name>]` starts a supervisor and blocks until every task is
-   final. Start it in a background shell; a killed shell does not stop the supervisor.
+2. **Run.** `run <tasks.jsonc> [--run <name>]` is the supervisor: it blocks until every task is
+   final. To keep working meanwhile, start it from a background shell and watch from another one.
 3. **Watch.** `status <run>` shows each task's state, tool count and last tool call. States:
    `queued`, `dispatching`, `running`, `waiting` (escalated ask), `settling`, `interrupted`, and the
    final `done`, `failed`, `cancelled`.
@@ -133,8 +133,10 @@ A recorded run is never run again and its ledger is never edited by hand.
 
 - **Machine-wide state.** Environment isolation does not cover the Windows registry, scheduled
   tasks or the credential store. A new `DOTNET_CLI_HOME` makes the .NET SDK append a tools folder
-  to the user PATH in the registry; the harness sets `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` for its
-  workers, `selfcheck` warns on a long user PATH and `run` refuses a very long one.
+  to the user PATH in the registry and may install an HTTPS development certificate; the harness
+  switches both off for its workers, `selfcheck` warns on a long user PATH and `run` refuses a very
+  long one. Do not point `DOTNET_CLI_HOME`, `CODEX_HOME` or `XDG_DATA_HOME` at new folders yourself:
+  the backends' sign-in lives in their homes.
 - **Inherited Codex rules.** Codex's app-server loads exec-policy rules it cannot be told to
   ignore: an `allow` rule can run a matching command outside the sandbox without asking. `profile:
   clean` drops your own rules; system-level rules always load. `plan` and `result.json`
