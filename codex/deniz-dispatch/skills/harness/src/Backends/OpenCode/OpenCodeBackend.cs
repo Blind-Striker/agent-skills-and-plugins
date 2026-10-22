@@ -164,7 +164,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             Model = OpenCodeModels.ToModelRef(route),
             Location = new LocationPublicRef { Directory = launch.Directory },
             Permissions = rules,
-            Metadata = OpenCodeJson.Metadata(launch.RunId, launch.TaskId),
+            Metadata = OpenCodeJson.Metadata(launch.RunId, launch.TaskId, RunControlId(launch.RunId)),
         }, cancellationToken: ct);
         var worker = new WorkerRef(Name, launch.TaskId, created.Session.Id, null, new JsonObject
         {
@@ -309,6 +309,8 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) =>
         GuardAsync<IReadOnlyList<WorkerRef>>(async () =>
         {
+            var controlId = RunControlId(query.RunId);
+            if (controlId is null) return [];
             var server = await HostAsync(ct);
             var knownTasks = query.KnownWorkers.Where(x => x.Backend == Name).Select(x => x.TaskId).ToHashSet(StringComparer.Ordinal);
             var found = new Dictionary<string, WorkerRef>(StringComparer.Ordinal);
@@ -318,6 +320,8 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
                 {
                     if (session.Metadata is not { } metadata || !metadata.TryGetValue("dispatch.run", out var run)
                         || run.ValueKind != JsonValueKind.String || run.GetString() != query.RunId
+                        || !metadata.TryGetValue("dispatch.controlId", out var control) || control.ValueKind != JsonValueKind.String
+                        || control.GetString() != controlId
                         || !metadata.TryGetValue("dispatch.task", out var task) || task.ValueKind != JsonValueKind.String
                         || string.IsNullOrEmpty(task.GetString()) || knownTasks.Contains(task.GetString()!)) continue;
                     found.TryAdd(session.Id, new(Name, task.GetString()!, session.Id, null,
@@ -326,6 +330,9 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             }
             return found.Values.ToList();
         });
+
+    static string? RunControlId(string run) => File.Exists(Path.Combine(Locations.LedgerRoot, run, "run.json"))
+        ? Path.GetFileName(Locations.ControlDir(run)) : null;
 
     async Task<RouteListing> ListRoutesCoreAsync(string directory, CancellationToken ct)
     {

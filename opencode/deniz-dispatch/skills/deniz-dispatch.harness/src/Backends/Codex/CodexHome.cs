@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 // Dispose only after the app-server and its descendants have stopped.
 sealed class CodexHome : IDisposable
@@ -13,6 +14,8 @@ sealed class CodexHome : IDisposable
     public string Profile { get; private init; } = "";
     public string? Reason { get; private init; }
     public JsonObject RuntimeConfig { get; private init; } = new();
+    public string? MarkerName => markerName;
+    public string? MarkerText => markerText;
     // These are the values of individual -c arguments, not shell command text. Never flatten
     // descendants: the app-server splits dotted override names even inside quoted path keys.
     public IReadOnlyList<string> ConfigOverrides => RuntimeConfig.Select(pair => $"{pair.Key}={TomlValue(pair.Value!)}").ToArray();
@@ -38,7 +41,8 @@ sealed class CodexHome : IDisposable
         var text = File.ReadAllText(Path.Combine(userHome, "config.toml"));
         var table = Regex.Match(text, @"(?ms)^\s*\[windows\]\s*(?<body>.*?)(?=^\s*\[|\z)");
         var value = Regex.Match(table.Groups["body"].Value, "(?m)^\\s*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
-        if (!value.Success) value = Regex.Match(text, "(?m)^\\s*windows\\s*=\\s*\\{[^}]*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
+        if (!value.Success) value = Regex.Match(text,
+            """(?m)^\s*(?:windows|"windows"|'windows')\s*=\s*\{[^}]*(?:sandbox|"sandbox"|'sandbox')\s*=\s*["'](?<value>elevated|unelevated)["']""");
         return value.Success ? value.Groups["value"].Value : null;
     }
 
@@ -86,49 +90,98 @@ sealed class CodexHome : IDisposable
     {
         if (File.Exists(Path.Combine(userHome, "auth.json")))
         {
-            var folder = Path.Combine(context.ProfilesFolder, folderName);
-            if (Path.Exists(folder))
-                return new() { Home = userHome, Profile = "clean-partial", Reason = "temporary Codex home already exists", RuntimeConfig = config };
-            if (OperatingSystem.IsWindows()) Directory.CreateDirectory(folder);
-            else Directory.CreateDirectory(folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            var complete = false;
-            try
+            var owner = Owner(context);
+            var candidates = new[]
             {
-                try { (createHardLink ?? CreateHardLink)(Path.Combine(folder, "auth.json"), Path.Combine(userHome, "auth.json")); }
-                catch (Exception exception) when (exception is Win32Exception or IOException or UnauthorizedAccessException)
+                (Kind: "temp", Root: Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex")),
+                (Kind: "sibling", Root: Path.Combine(Path.GetDirectoryName(Path.TrimEndingDirectorySeparator(Path.GetFullPath(userHome)))
+                    ?? Path.GetFullPath(userHome), ".dispatch-codex")),
+            };
+            var failures = new List<string>();
+            foreach (var candidate in candidates)
+            {
+                var folder = Path.Combine(candidate.Root, owner, folderName);
+                var location = $"{candidate.Kind} volume '{Volume(folder)}'";
+                if (Path.Exists(folder))
                 {
-                    var detail = exception is Win32Exception native
-                        ? $"OS error {native.NativeErrorCode.ToString(CultureInfo.InvariantCulture)}"
-                        : exception.GetType().Name;
-                    return new()
-                    {
-                        Home = userHome, Profile = "clean-partial", Reason = $"auth.json hardlink failed ({detail})", RuntimeConfig = config,
-                    };
+                    failures.Add($"{location}: temporary Codex home already exists");
+                    continue;
                 }
-                var fileConfig = (JsonObject)config.DeepClone();
-                fileConfig["cli_auth_credentials_store"] = "file";
-                if (OperatingSystem.IsWindows() && windowsSandbox is not null)
-                    fileConfig["windows"] = new JsonObject { ["sandbox"] = windowsSandbox };
-                Json.WriteBytes(Path.Combine(folder, "config.toml"), Encoding.UTF8.GetBytes(
-                    string.Join("\n", fileConfig.Select(pair => $"{pair.Key} = {TomlValue(pair.Value!)}")) + "\n"));
-                var marker = new JsonObject { ["run"] = runId, ["task"] = taskId };
-                var name = $".dispatch-home-{Guid.NewGuid():N}";
-                var text = marker.ToJsonString() + "\n";
-                Json.WriteBytes(Path.Combine(folder, name), Encoding.UTF8.GetBytes(text));
-                var home = new CodexHome { Home = folder, Temporary = true, Profile = "clean", RuntimeConfig = config, markerName = name, markerText = text };
-                complete = true;
-                return home;
+                try
+                {
+                    if (OperatingSystem.IsWindows()) Directory.CreateDirectory(folder);
+                    else Directory.CreateDirectory(folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    failures.Add($"{location}: directory creation failed ({exception.GetType().Name})");
+                    continue;
+                }
+                var complete = false;
+                try
+                {
+                    var linking = "auth.json";
+                    try
+                    {
+                        (createHardLink ?? CreateHardLink)(Path.Combine(folder, linking), Path.Combine(userHome, linking));
+                        if (OperatingSystem.IsWindows())
+                        {
+                            // Only setup receipts and machine-local accounts are shared. Logs, capability
+                            // SIDs and helper binaries remain private and are materialized by Codex.
+                            foreach (var relative in new[] { ".sandbox/setup_marker.json", ".sandbox-secrets/sandbox_users.json" })
+                            {
+                                var source = Path.Combine(userHome, relative);
+                                if (!File.Exists(source)) continue; // Readiness, not file presence, decides usability.
+                                linking = relative;
+                                var destination = Path.Combine(folder, relative);
+                                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                                // Hardlinks preserve the setup file's ACL, including sandbox-account denies.
+                                (createHardLink ?? CreateHardLink)(destination, source);
+                            }
+                        }
+                    }
+                    catch (Exception exception) when (exception is Win32Exception or IOException or UnauthorizedAccessException)
+                    {
+                        var detail = exception is Win32Exception native
+                            ? $"OS error {native.NativeErrorCode.ToString(CultureInfo.InvariantCulture)}"
+                            : exception.GetType().Name;
+                        failures.Add($"{location}: {linking} hardlink failed ({detail})");
+                        continue;
+                    }
+                    var fileConfig = (JsonObject)config.DeepClone();
+                    fileConfig["cli_auth_credentials_store"] = "file";
+                    if (OperatingSystem.IsWindows() && windowsSandbox is not null)
+                        fileConfig["windows"] = new JsonObject { ["sandbox"] = windowsSandbox };
+                    Json.WriteBytes(Path.Combine(folder, "config.toml"), Encoding.UTF8.GetBytes(
+                        string.Join("\n", fileConfig.Select(pair => $"{pair.Key} = {TomlValue(pair.Value!)}")) + "\n"));
+                    var marker = new JsonObject { ["run"] = runId, ["task"] = taskId };
+                    var name = $".dispatch-home-{Guid.NewGuid():N}";
+                    var text = marker.ToJsonString() + "\n";
+                    Json.WriteBytes(Path.Combine(folder, name), Encoding.UTF8.GetBytes(text));
+                    var home = new CodexHome { Home = folder, Temporary = true, Profile = "clean", RuntimeConfig = config, markerName = name, markerText = text };
+                    complete = true;
+                    return home;
+                }
+                finally
+                {
+                    if (!complete) Directory.Delete(folder, recursive: true);
+                }
             }
-            finally
+            return new()
             {
-                if (!complete) Directory.Delete(folder, recursive: true);
-            }
+                Home = userHome, Profile = "clean-partial", RuntimeConfig = config,
+                Reason = $"no usable same-volume Codex home; source volume '{Volume(userHome)}'; {string.Join("; ", failures)}",
+            };
         }
         return new()
         {
             Home = userHome, Profile = "clean-partial", Reason = "user home has no auth.json", RuntimeConfig = config,
         };
     }
+
+    static string Volume(string path) => DriveInfo.GetDrives().Select(drive => drive.RootDirectory.FullName)
+        .Where(root => Path.GetFullPath(path).StartsWith(root, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+        .OrderByDescending(root => root.Length).FirstOrDefault() ?? Path.GetPathRoot(Path.GetFullPath(path))!;
 
     static string TrustKey(string directory)
     {
@@ -171,7 +224,40 @@ sealed class CodexHome : IDisposable
 
     public void Dispose()
     {
-        if (Temporary && Directory.Exists(Home)) Directory.Delete(Home, recursive: true);
+        if (Temporary) DeleteOwned(Home, markerName, markerText);
+    }
+
+    public static void DeleteRecorded(BackendContext context, WorkerRef worker)
+    {
+        if (worker.State["codexHomeTemporary"]?.GetValue<bool>() != true) return;
+        var folder = worker.State["codexHome"]?.GetValue<string>();
+        if (folder is null || !Path.IsPathFullyQualified(folder)
+            || Path.GetFileName(folder) != "codex-" + worker.TaskId
+            || Directory.GetParent(folder)?.Name != Owner(context))
+            throw new HarnessException("temporary Codex home ownership is not recognized");
+        DeleteOwned(folder, worker.State["codexHomeMarkerName"]?.GetValue<string>(), worker.State["codexHomeMarkerText"]?.GetValue<string>());
+    }
+
+    static string Owner(BackendContext context) => Convert.ToHexString(SHA256.HashData(
+        Encoding.UTF8.GetBytes(Path.GetFullPath(context.ProfilesFolder)))).ToLowerInvariant();
+
+    static void DeleteOwned(string folder, string? name, string? text)
+    {
+        if (!Path.Exists(folder)) return;
+        var directory = new DirectoryInfo(folder);
+        if (directory.LinkTarget is not null || directory.Parent?.LinkTarget is not null
+            || directory.Parent?.Parent?.Name is not ("deniz-dispatch-codex" or ".dispatch-codex")
+            || name is null || !Regex.IsMatch(name, "^\\.dispatch-home-[a-f0-9]{32}$") || text is null)
+            throw new HarnessException("temporary Codex home ownership is not recognized");
+        var marker = Path.Combine(folder, name);
+        try
+        {
+            if (new FileInfo(marker).LinkTarget is not null || File.ReadAllText(marker) != text)
+                throw new HarnessException("temporary Codex home ownership marker does not match");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        { throw new HarnessException($"temporary Codex home ownership cannot be confirmed ({exception.GetType().Name})"); }
+        Directory.Delete(folder, recursive: true);
     }
 
     static class Native

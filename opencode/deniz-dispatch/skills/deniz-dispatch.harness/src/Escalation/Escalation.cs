@@ -57,7 +57,7 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
             : readOnlyWrite ? new BlockerAnswer.Reject("This task is read-only; write access is not permitted.")
             : readOnlyShell ? new BlockerAnswer.Reject("This task is read-only; shell access requires readOnlyShell escalate and a matching escalation rule.")
             : denied is not null ? new BlockerAnswer.Reject($"This action is denied by rule {denied.Name}.")
-            : blocker.Backend == "opencode" ? new BlockerAnswer.Once() : new BlockerAnswer.Reject(Policy.LeadDeclined);
+            : !readOnly && blocker.Backend == "opencode" ? new BlockerAnswer.Once() : new BlockerAnswer.Reject(Policy.LeadDeclined);
         var reply = await backends[blocker.Backend].AnswerAsync(blocker, answer, ct);
         ledger.Write(run.Id, "permission", new JsonObject
         {

@@ -67,7 +67,7 @@ locations, backends, `restrictions.routes` and `restrictions.scrub`.
 | `readOnlyShell` | string enum preference | `decline` | `decline` rejects shell approval for a read-only task. `escalate` lets a matching escalation rule reach the operator. |
 
 Set it in user or repository preferences, task-file defaults, the task, or CLI, following the usual
-preference order. Opt into `escalate` for a reviewed command that must run outside the sandbox.
+preference order. An operator reply of `once` permits one command, outside the sandbox on Codex.
 A deny still wins, and read-only write requests stay declined. With `escalate`, a shell request
 that matches no escalation rule is still declined, and every further request raises a new ask.
 On the command line the flag is `--read-only-shell <value>`. A `structured` task resolves to
@@ -79,6 +79,10 @@ On the command line the flag is `--read-only-shell <value>`. A `structured` task
 Preferences replace earlier values in this order: tool defaults, user config, committed repository
 config, task-file defaults, task entry, CLI. Parallelism uses the task file's top-level
 `maxParallel`, not `defaults.maxParallel`. Route model and effort have separate provenance.
+
+The layer-0 `profile` default is `clean` for structured tasks and for Codex tasks whose resolved
+`access` is `read-only`, including access clamped by restrictions; otherwise it is `full`. Its
+provenance is `tool`. Any explicit profile in the preference layers overrides that default.
 
 Restrictions accumulate from user, repository, task-file `policy`, then CLI `--policy`. Deny and
 escalate lists append; each scope is another ceiling; maximum access takes the most restrictive
@@ -116,7 +120,8 @@ matching ignores case; other systems compare case. These are text rules, not she
 opencode applies rules to tool calls with `policy` enforcement. Codex applies them only when a call
 requests approval to leave its sandbox; records use `approval-gate`. Planning warns for each such
 Codex rule. A workspace command with network enabled can push without reaching that gate.
-An unmatched opencode ask receives `once`; an unmatched Codex ask is declined with feedback.
+An unmatched ask, including an MCP tool ask, is declined on both backends for a read-only task.
+Otherwise an unmatched opencode ask receives `once`; an unmatched Codex ask is declined with feedback.
 Form questions are cancelled. Replies never create standing approvals.
 
 ## Route allow-list

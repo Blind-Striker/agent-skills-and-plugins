@@ -11,7 +11,7 @@ composition and [configuration](config.md) for restrictions.
 
 | Setting | Type and default | opencode | Codex | Validation |
 |---|---|---|---|---|
-| `profile` | Enum; `clean` for structured, otherwise `full` | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
+| `profile` | Enum; `clean` for structured or read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
 | `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Read-only denies `edit`, recorded `policy`. Workspace/full add no access rule, recorded `none`. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows sandboxed tasks require ready setup. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
@@ -28,7 +28,7 @@ removes the sandbox boundary. Verify runs outside backend sandboxing as the user
 |---|---|---|---|
 | Deny rule | Tool/resource pattern; no rules by default | Applies at each matching tool call. | Applies only when approval is requested to leave the sandbox. |
 | Escalation rule | Tool/resource pattern; no rules by default | Matching ask waits for the operator. | Matching approval request waits for the operator. |
-| Unmatched ask | Backend-specific answer | `once`. | Decline with feedback. |
+| Unmatched ask, including MCP tools | Decline for read-only tasks on both backends | Read-only: reject; otherwise `once`. | Decline with feedback. |
 | Read-only write request | Immediate rejection | Core refuses any observed write ask; edit deny also applies. | Core refuses edit or write-permission approvals. |
 | Operator reply | `once` or `reject` | Backend receives a one-shot permission reply. | Backend receives accept or decline, never a session-wide approval. |
 | Reject feedback | Supplied message or default decline | Message travels with the rejection. | Decline first, then `turn/steer` with feedback; a failed steer does not undo the decline. |
@@ -42,8 +42,8 @@ planning warns per rule that enforcement is only at the approval gate. Commands 
 sandbox need no ask; with workspace access and network on, a `git push` deny is not a push boundary.
 Tool-resource patterns match text, not aliases, script contents or parsed shell operations.
 
-For the pending read-only shell behaviour, read
-[configuration](config.md#read-only-shell-preference). For pending catalog and probe coverage, read
+For the read-only shell behaviour, read
+[configuration](config.md#read-only-shell-preference). For catalog and probe coverage, read
 [configured backend coverage](cli.md#configured-backend-coverage).
 
 ## opencode process and profile
@@ -94,23 +94,32 @@ requires a Functional test.
 
 ### Clean Codex home
 
-Clean mode hardlinks the user's sign-in file into a temporary home under the control profiles
-folder. It writes minimal configuration, disables skill instructions and app/plugin features,
+Clean mode hardlinks the user's sign-in file and available Windows sandbox setup files into a
+harness-owned temporary home on the user's `CODEX_HOME` volume: it tries system temp first, then a
+sibling folder beside the user home. It writes minimal configuration, disables skill instructions and app/plugin features,
 preserves the selected Windows sandbox mode, and checks a random marker through the home reported
-by app-server. It removes the temporary home only after the process tree has stopped.
+by app-server. The worker state records the folder and ownership marker; cleanup refuses an
+unrecognized path or marker and removes the temporary home only after the process tree has stopped.
 
 If the sign-in file is unavailable, the hardlink fails, the folder already exists, the probe fails
 or the reported home cannot prove the marker, the backend can use the user home and records
-`settings.profile.actual: clean-partial` plus a reason. A different volume for dispatch state can
-prevent hardlinking. Inspect actual profile rather than treating a requested clean profile as proof
+`settings.profile.actual: clean-partial` plus a reason. When neither location works, the reason names
+the source and candidate volumes and their failures. Inspect actual profile rather than treating a requested clean profile as proof
 that user configuration did not load.
 
 For project off, Codex disables project docs and marks the working directory untrusted. Structured
 project-off tasks use empty scratch outside repositories; other task kinds keep their core-created
 workspace. The backend does not replace every project-off code workspace with an empty directory.
 
-The pending warning for inherited full-profile rules is described under
-[read-only full-profile warning](cli.md#read-only-full-profile-warning).
+The note on inherited exec-policy rules is described under
+[inherited Codex rules on read-only tasks](cli.md#inherited-codex-rules-on-read-only-tasks).
+
+**Known limit: descendants of an opencode server.** A confirmed stop proves that the opencode server
+process exited, not that every process it started did. The SDK keeps upstream opencode's behaviour:
+on Windows a server's grandchildren leave its job object, and on POSIX tool processes run in their
+own sessions and a server that exits successfully leaves its group alone. A worker's build or test
+process can therefore outlive the task. The harness cannot contain them without SDK support; check
+for leftover processes after a cancelled or timed-out opencode task.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or

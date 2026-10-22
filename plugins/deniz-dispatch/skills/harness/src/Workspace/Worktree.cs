@@ -74,6 +74,7 @@ static class Worktree
     public static async Task<bool> CleanAsync(Ledger ledger, TaskRecord record, string repo, bool force, CancellationToken ct, Git? runner = null)
     {
         var task = record.Spec.Id!;
+        Scratch.Delete(record, ledger);
         var git = runner ?? Runner(ledger, task);
         if (!InPlace(record) && record.Workspace is { Path: { } path, Branch: { } branch })
         {

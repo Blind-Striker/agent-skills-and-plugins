@@ -349,9 +349,9 @@ static partial class Commands
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
         AskQueue.Reset(ledger.RunId);
-        await using var scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
         try
         {
+            await using var scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
             var states = ledger.TaskStates();
             var runs = new List<TaskRun>();
             foreach (var (task, state) in states)

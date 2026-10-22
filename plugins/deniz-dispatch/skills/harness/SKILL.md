@@ -42,26 +42,26 @@ dotnet dispatch.cs -- <command> [arguments]
 
 ## Backend and modes
 
-Pick the backend per task: Codex when an operating-system sandbox must enforce read-only or
-workspace-only writes; opencode for a model or roster agent only it serves; either for structured
-output. Each task resolves four modes:
+Codex provides an OS sandbox; opencode serves its models and roster agents without one. Both support
+structured output. Modes and defaults:
 
 | Setting | Values | Code, mechanical | Review, research | Structured |
 |---|---|---|---|---|
-| `profile` | `clean` (sign-in only), `full` (installed profile) | `full` | `full` | `clean` |
+| `profile` | `clean` (minimal profile), `full` (installed profile) | `full` | Codex `clean`; opencode `full` | `clean` |
 | `project` | `on` (repository context loads), `off` | `on` | `on` | `off` |
 | `access` | `read-only`, `workspace`, `full` | `workspace` | `read-only` | `read-only` |
 | `workspace` | `worktree` (own branch from `base`), `in-place` (`dir`) | `worktree` | `worktree` | scratch folder |
 
-- On Codex, `access` is the sandbox. On opencode there is no sandbox: `read-only` is a deny rule on
-  the edit tool, and a shell command still writes. `full` only when the task or operator asks.
-- A read-only task's write request is declined at once. Its shell request follows `readOnlyShell`:
-  `decline` (default) answers no; `escalate` lets an escalation rule send it to the operator, and
-  `once` then runs that one command outside the sandbox. Choose `escalate` only when a reviewed
-  command must leave the sandbox, such as a review that has to run one build.
-- A deny rule wins over an escalation rule. An ask that matches no rule: opencode allows it once,
-  Codex declines it with a message. Codex asks only to leave its sandbox, so a deny holds only at
-  that gate: with `workspace` access and network on, a `git push` deny does not stop a push.
+- Read-only Codex defaults to `profile: clean`; explicit profiles win. Codex `access: full` removes
+  its sandbox. opencode `read-only` denies edit; other access adds no rule. Shell can still write.
+- `workspace: in-place` runs in `dir`, main checkout included. `commit: none` (default) records the
+  diff without committing; `commit: harness` requires a clean tree and commits on the current branch.
+- Read-only writes are declined. For shell asks, `readOnlyShell: decline` (default) rejects;
+  `escalate` lets a matching rule reach the operator. Reply `once` permits one command, outside
+  the sandbox on Codex.
+- Denies beat escalation. Both backends decline unmatched asks in read-only tasks, MCP tools included.
+  Otherwise opencode answers `once`; Codex declines with feedback. Codex denies apply only at
+  approval: with `workspace` and network on, a `git push` deny cannot stop a push.
 - On opencode the worker runs as your user: a shell command can reach the harness's control folder
   and the run's ledger. Verify commands run the worker's code as your user on every backend.
 - Preferences layer user config < repository `.dispatch/` < task file < command line. Restrictions
@@ -102,9 +102,9 @@ output. Each task resolves four modes:
 4. **Answer.** `asks [<run>]` lists escalated asks; `reply <run> <askId> once|reject [--message <text>]`
    answers one. Answers are one-shot; the harness never grants a standing approval.
 5. **Stop.** `cancel <run> <task>`. Never kill the supervisor.
-6. **Read.** Per task the ledger holds `result.json`, `final.md`, `diff.patch` and `verify.log`; a
-   structured task adds `deliverable.json`. The diff and the verify log are the evidence; the
-   worker's final text is not. Layout: `references/ledger.md`.
+6. **Read.** Each task has `result.json` and `final.md`; a code task adds `diff.patch` and
+   `verify.log`, a structured task `deliverable.json` instead. These are the evidence; the worker's
+   final text is not. Layout: `references/ledger.md`.
 7. **Clean.** After the work is merged, `clean <run>` removes worktrees, branches, temporary folders
    and backend sessions; unmerged or dirty work stays unless `--force`.
 

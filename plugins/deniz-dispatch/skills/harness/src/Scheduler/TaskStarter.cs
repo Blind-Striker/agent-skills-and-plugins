@@ -1,11 +1,16 @@
 sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, AllowList allow, Policy policy, Git? git = null, TimeProvider? timeProvider = null)
 {
-    public static Modes ModesFor(TaskRecord record) => new(
-        record.Settings.Profile?.Value ?? record.Spec.Profile ?? (record.Spec.Kind == "structured" ? "clean" : "full"),
-        record.Settings.Project?.Value ?? record.Spec.Project ?? (record.Spec.Kind == "structured" ? "off" : "on"),
-        record.Settings.Access?.Value ?? (record.Spec.Kind is "review" or "research" or "structured" ? "read-only" : "workspace"),
-        record.Settings.Network?.Value ?? "on", record.Settings.Workspace?.Value ?? "worktree",
-        record.Settings.ReadOnlyShell?.Value ?? record.Spec.ReadOnlyShell ?? "decline");
+    public static Modes ModesFor(TaskRecord record)
+    {
+        var access = record.Settings.Access?.Value ?? record.Spec.Access
+            ?? (record.Spec.Kind is "review" or "research" or "structured" ? "read-only" : "workspace");
+        var clean = record.Spec.Kind == "structured"
+            || (record.Settings.Backend?.Value ?? record.Spec.Backend) == "codex" && access == "read-only";
+        return new(record.Settings.Profile?.Value ?? record.Spec.Profile ?? (clean ? "clean" : "full"),
+            record.Settings.Project?.Value ?? record.Spec.Project ?? (record.Spec.Kind == "structured" ? "off" : "on"),
+            access, record.Settings.Network?.Value ?? "on", record.Settings.Workspace?.Value ?? "worktree",
+            record.Settings.ReadOnlyShell?.Value ?? record.Spec.ReadOnlyShell ?? "decline");
+    }
 
     public static WorkerRules RulesFor(Policy policy) => new(
         policy.Deny.Select(Convert).ToList(), policy.Escalate.Select(Convert).ToList());

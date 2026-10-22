@@ -59,7 +59,7 @@ Corresponding command-line flags win last. A backend has no tool default for a t
 | `backend` | string enum | Required after layering | `opencode` or `codex`; invalid choices name the value, layer and allowed values. |
 | `effort` | string | Route suffix or catalog default | Non-empty. A suffix and a different `effort` in the same layer fail: `route variant and effort disagree in <layer>`. A later layer wins. |
 | `timeoutMinutes` | integer | `60` | Range 1 through 720: `timeoutMinutes from <layer> must be between 1 and 720`. Each verify command separately has a 30-minute timeout. |
-| `profile` | string enum | `clean` for structured, otherwise `full` | `clean` or `full`. Actual clean isolation may be partial; see [backends](backends.md). |
+| `profile` | string enum | `clean` for structured or read-only Codex tasks, otherwise `full` | `clean` or `full`; explicit values override. Actual clean isolation may be partial; see [backends](backends.md). |
 | `project` | string enum | `off` for structured, otherwise `on` | `on` or `off`. Controls backend repository context. Non-structured tasks still need a repository and workspace. |
 | `access` | string enum | `workspace` for code and mechanical, otherwise `read-only` | `read-only`, `workspace`, `full`. An explicit value above `maxAccess` fails and names both layers; the tool default is clamped. |
 | `network` | string enum | `on` | `on` or `off`. An explicit `on` forbidden by policy fails; the tool default is clamped. Codex refuses `full` access with network `off`. |

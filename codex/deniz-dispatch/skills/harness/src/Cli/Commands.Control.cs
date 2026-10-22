@@ -124,7 +124,9 @@ static partial class Commands
         IReadOnlyDictionary<string, string> states, string control, CancellationToken ct)
     {
         var tasks = records.Where(x => (x.Settings.Backend?.Value ?? "opencode") == "opencode"
-            && (x.Session.Id is not null || states[x.Spec.Id!] != "queued" && x.Workspace.Path is not null)).ToList();
+            // Code tasks record worktree progress before creating a session; structured tasks do not.
+            && (x.Session.Id is not null || x.Workspace.Path is not null
+                && (states[x.Spec.Id!] != "queued" || x.Spec.Kind == "structured"))).ToList();
         if (tasks.Count == 0) return 0;
         var refused = 0;
         await using var scope = new BackendScope(["opencode"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);

@@ -211,12 +211,15 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     static JsonObject State(Connection connection) => new()
     {
         ["pid"] = connection.Process.Id, ["processStartTime"] = connection.Process.StartTime.ToString("O", CultureInfo.InvariantCulture),
+        ["linuxBootId"] = connection.Process.Identity.LinuxBootId, ["linuxStartTicks"] = connection.Process.Identity.LinuxStartTicks,
         ["processGroup"] = connection.Process.ProcessGroup is not null, ["codexHome"] = connection.Home?.Home,
         ["codexHomeTemporary"] = connection.Home?.Temporary,
+        ["codexHomeMarkerName"] = connection.Home?.MarkerName, ["codexHomeMarkerText"] = connection.Home?.MarkerText,
         ["profile"] = connection.Home?.Profile, ["profileReason"] = connection.Home?.Reason,
         ["descendants"] = new JsonArray(connection.Process.Descendants.Select(identity => (JsonNode?)new JsonObject
         {
             ["pid"] = identity.Pid, ["startTime"] = identity.StartTime?.ToString("O", CultureInfo.InvariantCulture),
+            ["linuxBootId"] = identity.LinuxBootId, ["linuxStartTicks"] = identity.LinuxStartTicks,
         }).ToArray()),
     };
 
@@ -468,7 +471,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             try
             {
                 await connection.Rpc.RequestAsync("turn/steer", new CodexTurnSteerParams(request.Params.GetProperty("threadId").GetString()!,
-                    request.Params.GetProperty("turnId").GetString()!, [new(message)]), CodexJson.Wire.CodexTurnSteerParams, cancellationToken: ct);
+                    request.Params.GetProperty("turnId").GetString()!, [new("The approval request was rejected. Rejection message:\n" + message)]), CodexJson.Wire.CodexTurnSteerParams, cancellationToken: ct);
             }
             catch (Exception ex) when (ex is CodexRpcException or IOException or TimeoutException)
             { return new(true, $"decline sent; steer failed: {ex.Message}"); }
@@ -526,11 +529,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
-            if (Regex.IsMatch(worker.TaskId, "^[a-z0-9][a-z0-9-]{0,39}$"))
-            {
-                var home = Path.Combine(context.ProfilesFolder, "codex-" + worker.TaskId);
-                if (Directory.Exists(home)) Directory.Delete(home, recursive: true);
-            }
+            CodexHome.DeleteRecorded(context, worker);
             recovered[worker.Id] = stopped;
         }
         return new ReattachResult.Ended("lost");
@@ -546,6 +545,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         {
             var stopped = await CodexProcess.StopRecordedAsync(worker.State, ct);
             if (!stopped.Stopped) throw new HarnessException($"Codex release unconfirmed: {stopped.Detail}");
+            CodexHome.DeleteRecorded(context, worker);
         }
         released[worker.Id] = 0;
     }

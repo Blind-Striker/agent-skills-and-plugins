@@ -24,6 +24,7 @@ sealed class HarnessServer : IAsyncDisposable
         Output = output;
         CommandDescription = commandDescription;
         _process = Process.GetProcessById(server.ProcessId);
+        _ = _process.Handle;
         _process.EnableRaisingEvents = true;
     }
 
@@ -195,7 +196,7 @@ sealed class HarnessServer : IAsyncDisposable
     {
         IsStopping = true;
         if (!_process.HasExited) _process.Kill(entireProcessTree: true);
-        await _process.WaitForExitAsync(ct);
+        await WaitForExitConfirmedAsync(ct);
         var stopped = _process.HasExited;
         await DisposeAsync();
         return stopped;
@@ -204,6 +205,13 @@ sealed class HarnessServer : IAsyncDisposable
     public ValueTask DisposeAsync()
     {
         lock (_disposeGate) return new(_disposal ??= DisposeCoreAsync());
+    }
+
+    Task WaitForExitConfirmedAsync(CancellationToken ct = default)
+    {
+        // Windows can report an exit code before process rundown releases its directory and files.
+        // WaitForExitAsync short-circuits on HasExited; a retained handle's synchronous wait does not.
+        return OperatingSystem.IsWindows() ? Task.Run(_process.WaitForExit, ct) : _process.WaitForExitAsync(ct);
     }
 
     async Task DisposeCoreAsync()
@@ -227,7 +235,7 @@ sealed class HarnessServer : IAsyncDisposable
                 try
                 {
                     if (!_process.HasExited) _process.Kill(entireProcessTree: true);
-                    await _process.WaitForExitAsync();
+                    await WaitForExitConfirmedAsync();
                     await Server.DisposeAsync();
                 }
                 finally

@@ -130,8 +130,42 @@ static partial class Commands
         {
             if (worktree is not null)
             {
+                // Every backend scope above has been disposed. Windows can briefly retain a
+                // process's directory handles after exit; retry only a failed filesystem deletion.
                 var remove = await git.RunAsync(repo!, CancellationToken.None, "worktree", "remove", "--force", worktree);
-                Check("worktree removed", remove.ExitCode == 0, remove.ExitCode == 0 ? worktree : remove.Stderr.Trim());
+                var removed = remove.ExitCode == 0;
+                var detail = remove.Stderr.Trim();
+                if (OperatingSystem.IsWindows() && !removed && Directory.Exists(worktree)
+                    && remove.Stderr.Contains("failed to delete", StringComparison.OrdinalIgnoreCase)
+                    && new[] { "Permission denied", "Invalid argument", "Directory not empty", "Device or resource busy" }
+                        .Any(error => remove.Stderr.Contains(error, StringComparison.OrdinalIgnoreCase)))
+                {
+                    for (var retry = 0; retry < 3 && !removed; retry++)
+                    {
+                        await Task.Delay(TimeSpan.FromMilliseconds(100 * (retry + 1)), CancellationToken.None);
+                        // Git can unregister a worktree even when deleting its directory fails.
+                        var listing = await git.RunAsync(repo!, CancellationToken.None, "worktree", "list", "--porcelain", "-z");
+                        if (listing.ExitCode != 0) { detail = listing.Stderr.Trim(); break; }
+                        var registered = listing.Output.Split('\0').Any(field => field.StartsWith("worktree ", StringComparison.Ordinal)
+                            && Locations.Same(field[9..], worktree));
+                        if (registered)
+                        {
+                            remove = await git.RunAsync(repo!, CancellationToken.None, "worktree", "remove", "--force", worktree);
+                            removed = remove.ExitCode == 0;
+                            detail = remove.Stderr.Trim();
+                        }
+                        else
+                        {
+                            try
+                            {
+                                if (Directory.Exists(worktree)) Directory.Delete(worktree, recursive: true);
+                                removed = true;
+                            }
+                            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { detail = ex.Message; }
+                        }
+                    }
+                }
+                Check("worktree removed", removed, removed ? worktree : detail);
             }
         }
         var failed = checks.Count(x => !x.Ok);

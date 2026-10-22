@@ -16,7 +16,7 @@ in [configuration](config.md). Run ids contain a UTC calendar-day prefix and the
 |---|---|---|---|
 | `run.json` | Versioned JSON object | Created by the exclusive run claim | Run identity, repository, backend versions and `controlId`. |
 | `config.json` | Versioned JSON object | Frozen during setup | Effective per-task settings, restrictions, source provenance and structured input hashes. |
-| `tasks.jsonc` | Original task-file bytes | Copied during setup | Evidence of the supplied task file. Recovery uses task records and frozen config, not a fresh parse of this file. |
+| `tasks.jsonc` | Original task-file bytes | Copied during setup | Evidence of the supplied task file, and the frozen task specification that structured validation and recovery read. |
 | `.sources/user.jsonc` | Original config bytes | If user config exists | User source snapshot. |
 | `.sources/repo.jsonc` | Committed config bytes | If repository config exists at HEAD | Working-copy edits do not replace this snapshot. |
 | `.sources/policy.jsonc` | Original config bytes | If `--policy` was supplied | CLI restriction source snapshot. |
@@ -33,8 +33,8 @@ in [configuration](config.md). Run ids contain a UTC calendar-day prefix and the
 
 The control folder is separate: `<state root>/control/<controlId>/`, outside worktrees and ledger
 roots. Its `supervisor.lock` is held by mutating run commands. `setup.done` is an empty setup marker;
-resume/collect refuse without it. The base writes structured input files immediately after this
-marker as supervision starts, so an interrupted setup can still lack those files.
+resume/collect refuse without it. Structured input files and their hashes are written and
+`config.json` is rewritten before this marker, so a run with `setup.done` always has them.
 
 | Control entry | Type | Default or presence | Purpose |
 |---|---|---|---|

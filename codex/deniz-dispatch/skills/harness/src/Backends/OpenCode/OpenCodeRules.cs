@@ -47,9 +47,14 @@ static class OpenCodeJson
     public static JsonObject? Error(SessionStructuredError? error) => error is null
         ? null : new JsonObject { ["type"] = error.Type, ["message"] = error.Message, ["status"] = error.Status };
 
-    public static Dictionary<string, JsonElement> Metadata(string run, string task) => new(StringComparer.Ordinal)
+    public static Dictionary<string, JsonElement> Metadata(string run, string task, string? controlId = null)
     {
-        ["dispatch.run"] = JsonSerializer.SerializeToElement(run, InputJson.Read.String),
-        ["dispatch.task"] = JsonSerializer.SerializeToElement(task, InputJson.Read.String),
-    };
+        var metadata = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
+        {
+            ["dispatch.run"] = JsonSerializer.SerializeToElement(run, InputJson.Read.String),
+            ["dispatch.task"] = JsonSerializer.SerializeToElement(task, InputJson.Read.String),
+        };
+        if (controlId is not null) metadata["dispatch.controlId"] = JsonSerializer.SerializeToElement(controlId, InputJson.Read.String);
+        return metadata;
+    }
 }
