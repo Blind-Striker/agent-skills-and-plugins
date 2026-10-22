@@ -22,9 +22,13 @@ internal static class Gates
         using var child = new CapturedProcess();
         var result = await child.RunAsync("dotnet", ["build", "dispatch.cs"], TestPaths.Harness, tree.ChildEnvironment(), cancellationToken);
         result.RequireSuccess("harness build gate");
-        // runtimeconfig sits beside the runnable DLL, unlike the reference assemblies under obj/.
-        var runtimeConfig = Directory.GetFiles(tree.Root, "dispatch.runtimeconfig.json", SearchOption.AllDirectories).Single();
-        harnessDll = Path.Combine(Path.GetDirectoryName(runtimeConfig)!, "dispatch.dll");
+        // The build names its runnable DLL: the runfile cache follows TEMP on Windows and Linux but
+        // lives under the user's Application Support folder on macOS.
+        using var query = new CapturedProcess();
+        var target = await query.RunAsync("dotnet", ["build", "dispatch.cs", "-getProperty:TargetPath"], TestPaths.Harness,
+            tree.ChildEnvironment(), cancellationToken);
+        target.RequireSuccess("harness build gate target path");
+        harnessDll = target.Stdout.Trim();
         if (!File.Exists(harnessDll)) throw new FileNotFoundException("the build gate produced no runnable harness", harnessDll);
         await LabRepo.PrepareTemplateAsync(tree, cancellationToken);
         buildResult = result;
