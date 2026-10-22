@@ -40,7 +40,8 @@ test("verified-waves OpenCode question dismissal is not approval", () => {
   assert.doesNotMatch(questions, /returns only when the user has answered/);
   assert.match(questions, /dismiss/);
   assert.match(questions, /not approval/);
-  assert.match(questions, /explicit answer/);
+  assert.match(questions, /do not take\s+it/);
+  assert.match(questions, /list it as\s+open in the final report/);
   assert.match(questions, /do not treat (?:a )?dismissal as yes/i);
   assert.doesNotMatch(questions, /dismissal is (?:a )?yes|treat dismissal as approval/i);
 });
@@ -76,10 +77,11 @@ test("verified-waves brief forbids task questions and still allows the escalatio
   assert.match(briefs, /send that question back as STATUS: BLOCKED/);
   assert.match(briefs, /harness escalation prompt[\s\S]{0,80}is allowed/);
   assert.doesNotMatch(briefs, /do not request the harness's escalation/i);
-  assert.match(
-    between(skill, "## Plan before any dispatch", "## Pick the shape"),
-    /Ask one yes\/no question before each of these/,
-  );
+  const plan = between(skill, "## Plan before any dispatch", "## Pick the shape");
+  assert.match(plan, /These actions need the user's yes, unless the request already names them/);
+  assert.match(plan, /never take it before an explicit yes/);
+  assert.match(plan, /ask about the rest once, at the end/);
+  assert.doesNotMatch(plan, /broad\s+codemod|over the announced agent total|end your turn/);
 });
 
 test("verified-waves runbook discovery does not claim the OpenCode temp-dir root moved", () => {

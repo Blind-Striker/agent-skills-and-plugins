@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.1.0",
-  "digest": "sha256:85aa37c61305855042014bfd420189387ff89bcc8ccd5fe002a747f1e5b92f81",
+  "digest": "sha256:9eb3dd1032be15102b9e643b28868000b757796ca627e567b03196f2ca4f0193",
   "requiredModules": [
     "deniz-process"
   ],
@@ -88,11 +88,11 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {
-      "sha256": "sha256:884e74f99154f5e129978a88393e24e05a3092c42cfe5d8fcf235e70ca7b3417",
+      "sha256": "sha256:9b5bceb1bb21a77caebd784de83d4dbd0e59c6cd9595d9a2d4c4d62c16898e2b",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/references/harness-tools.md": {
-      "sha256": "sha256:f73396a23073083dce7fcdde61d0fe708170756207c92d903464723f81c4227c",
+      "sha256": "sha256:3f075f508c098f923ac192331f42e3bc1ef22d329f3991ba67d9122af16803d0",
       "mode": "100644"
     }
   }

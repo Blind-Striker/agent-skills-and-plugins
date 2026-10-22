@@ -5,13 +5,16 @@ Read with this skill's `SKILL.md`; this file is part of its instructions.
 Call `subagent` with these inputs:
 
 - `agent`: the agent the user's configuration or instructions name for delegated work, such as a
-  routing agent that maps to a model; with none named, `general`. It must allow edit and write:
-  `explore` denies both, so it cannot write its results file. The read-only rule lives in the brief.
+  routing agent that maps to a model; with none named, `general`. A gate, a writer, and a
+  `reproduce` skeptic need an agent that allows edit and shell. A read, critic, or other skeptic
+  item may go to an agent that cannot write: it returns its REPORT, and you write its results file
+  from that report. The read-only rule lives in the brief.
 - `description`: 3–5 words that start with the item id.
 - `prompt`: the brief.
 - `background`: `true`.
-- `model`: leave it unset unless the user asks for one. The agent's own configuration picks the
-  model; this skill never does.
+- `model`: when the agent belongs to a routing skill the user installed, that skill's rules set
+  `model` and any tier; otherwise leave it unset unless the user asks for one. This skill never
+  picks a model.
 - `sessionID`: set it only to continue a child of this session.
 
 A `general` child cannot ask the user or start children of its own. A child that lacks information
@@ -32,15 +35,16 @@ Depth is `experimental.subagent_depth`, default 1, so a child cannot start child
 ## Completion
 
 Completion is a `<subagent sessionID state description>` message that holds the child's whole final
-text. The states `error` and `cancelled` are FAILED. So is a `completed` message whose text is
+text. The state `error` is FAILED. The state `cancelled` means the user stopped the child: it is
+FAILED with the reason "stopped by the user" and is not retried unless the user asks. So is a `completed` message whose text is
 "Subagent completed without a text response." or holds no `REPORT` block.
 
 ## Questions
 
 The `question` tool returns when the user answers, and also when the user dismisses it. A
-dismissal, or a missing answer, is not approval. For a yes/no question from `SKILL.md`, do not
-pass the gate, do not treat dismissal as yes, and do not ask it again. End the turn and wait for
-an explicit answer. A question asked in text ends your turn.
+dismissal, or a missing answer, is not approval. For an action `SKILL.md` reserves, do not take
+it, do not treat dismissal as yes, and do not ask again; finish the other work and list it as
+open in the final report.
 
 ## Commands the sandbox refuses
 
@@ -64,7 +68,6 @@ set with `git status` and `git diff`, then dispatch it again as a new child, wit
 
 ## The ledger
 
-Put the ledger directory in the system temp directory. A path outside the project asks for
-`external_directory` permission, for you and for each child that writes its results file. Tell the
-user before the first write that an "always" answer for the ledger directory covers the children's
-writes too.
+Put the ledger directory in the system temp directory. If a path outside the project raises an
+`external_directory` permission prompt, an "always" answer for the ledger directory covers the
+children's writes too.

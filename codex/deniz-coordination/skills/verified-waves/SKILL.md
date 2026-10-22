@@ -34,32 +34,39 @@ fixed report, and every finding that matters goes to a fresh skeptic before you 
 
 Write the plan in chat before the first child starts:
 
-1. **Goal**: one sentence.
+0. **Request**: the user's words, verbatim, in their language.
+1. **Goal**: one sentence, your reading of the request, labelled as yours.
 2. **Done when**: binary checks, each one PASS or FAIL when it is run.
-3. **Stop when**: the conditions that end the run early, such as a failed gate or the agent total
-   reached.
+3. **Stop when**: the conditions that end the run early, such as a failed gate.
 4. **Shape**: one from the next section.
 5. **Items**: each with an id, a kind (read | write | verify | gate | critic), and its write set
    (`none` for a read). An id is a lowercase letter, then lowercase letters, digits, or `_`, at most
    32 characters, such as `audit_04`.
-6. **Waves**: which items run in which wave, the agent total with skeptics, gates, and critics
-   counted, and the ceiling on live children: 6 unless the user names another number for this
+6. **Waves**: which items run in which wave, the estimated agent total with skeptics, gates, and
+   critics counted, and the ceiling on live children: 6 unless the user names another number for this
    run, and never above the harness limit that `references/harness-tools.md` gives. The ceiling is
    a limit, not a target, and the agent total is not the ceiling: count it from the plan, every
    item plus its skeptics, gates, and critics.
 7. **Verification plan**: which findings get skeptics, and which checks each gate runs.
 
-The agent total you announce is your budget, together with any limit the user sets. Set no other
-limit and no deadline. A retry of a FAILED item does not count against the total; only new items
-or new scope can take a run over it.
+The agent total you announce is an estimate; the final report compares it with the actual count.
+The only budget is a limit the user sets. Set no other limit and no deadline. A retry of a FAILED
+item and a fix pass toward the same done-when check are not new scope.
 
-After you write the plan, start the first wave in the same turn; wait for the user only where a
-yes/no question below applies.
+Every item names the words of the request it serves; cut an item that names none. Verification and
+one-off checks use the tools the repository already has: the plan adds no new project, script,
+runner, or evidence document in the repository unless the request asks for one. An item that would
+change what the request says done means, a public API, or what existing users of a public surface
+must write is held as an open decision, with their code before and after; the rest of the run goes on.
 
-Ask one yes/no question before each of these, unless the request already names that action:
-deleting or overwriting files, a force-push, a publish, anything that touches credentials, a broad
-codemod, and going over the announced agent total. Then end your turn and wait for the answer.
-Never go on past the question in the same turn.
+After you write the plan, start the first wave in the same turn; the plan's questions do not hold
+it up.
+
+These actions need the user's yes, unless the request already names them: deleting files the
+request does not name, discarding uncommitted changes this run did not make, a force-push, a
+publish, and anything that touches credentials. Ask about the ones you can foresee with the plan.
+Finish every item that does not depend on such an action, never take it before an explicit yes,
+and ask about the rest once, at the end, with everything else done.
 
 ## Pick the shape
 
@@ -90,7 +97,8 @@ for that location comes up once, before children run.
 
 The ledger holds:
 
-- A header: goal, done-when checks, stop-when conditions, waves, agent total, and ceiling.
+- A header: the request verbatim, your goal reading, done-when checks, stop-when conditions, waves,
+  the estimated agent total, and the ceiling.
 - One row per item, under this header:
 
   ```
@@ -112,7 +120,7 @@ ITEM <id> — read | write | verify | gate | critic
 GOAL: <one action>. The parent will use your result to <decision>.
 CONTEXT: <exact paths, prior findings; shared contract pasted unchanged>
 SCOPE: read-only | write only: <paths>   (either way, also your results file)
-DO: <musts>   DO NOT: commit, push, edit outside scope, weaken/delete tests, ask the user a task or scope question
+DO: <musts>   DO NOT: commit, push, edit outside scope, weaken/delete tests, write long-term memory, ask the user a task or scope question
 [writers] Other agents edit other files now; do not revert or reformat changes you did not make.
 DONE WHEN: <binary observable check>
 LAST STEP: write <ledger-dir>/results/<id>.md: first the REPORT block you return, unchanged, then any detail past 40 lines
@@ -121,8 +129,12 @@ Cannot proceed on the task or its scope → send that question back as STATUS: B
 Sandbox refuses a command (such as EPERM, "operation not permitted") → not a FAIL: request the harness escalation prompt once, if it has one; that prompt is allowed. Still refused, or no prompt → STATUS: BLOCKED with the exact command and the denial.
 ```
 
+A DO NOT list holds only these items and bans the request or the repository states; it never bans a
+technique the request did not ban.
+
 A skeptic's brief replaces GOAL and CONTEXT with `CLAIM: <finding + evidence>` and
-`LENS: reproduce | contract`. The skeptic's report adds `VERDICT: CONFIRMED | REFUTED` with its
+`LENS: reproduce | contract | request`. The `request` lens gets the verbatim request and judges the
+result against it, not against your goal reading. The skeptic's report adds `VERDICT: CONFIRMED | REFUTED` with its
 evidence, and it writes its results file the same way.
 
 Every child returns this report:
@@ -146,15 +158,15 @@ the ledger from disk.
 
 - Scout only until you can list the items, then delegate the per-item work.
 - Never do an item's work yourself: every edit, finding, and check of an item comes from a child.
-  When the announced agent total is spent and work is left, ask the yes/no question about going
-  over the total, or stop and report what is left. The only exceptions are the labeled sequential
-  run and a sandbox-blocked check that the user lets you run, both under Failures and fallback.
+  The only exceptions are the labeled sequential run and a sandbox-blocked check that the user lets
+  you run, both under Failures and fallback.
 - While children run, do only work that does not overlap theirs. A search you delegated stays
   delegated.
 - Keep the live children at or under the plan's ceiling, and count every pending child: skeptics,
   gates, and critics too. Size each wave to the independent items you have, not to the ceiling.
 - Every writer works in the one working tree, the tree the gate checks. Writers run in parallel
-  only on disjoint write sets; overlapping writers run in sequence.
+  only on disjoint write sets; overlapping writers run in sequence. Children that build or run the
+  test suite in that tree run one at a time.
 - After each write wave, one gate child runs the project's checks and reports each as PASS or FAIL.
 - A frozen shared contract, pasted unchanged into every brief, decides which side of a seam is
   wrong.
@@ -165,7 +177,8 @@ the ledger from disk.
 
 - Key each result by its item id, never by its position.
 - A result with no well-formed `REPORT <id>` block is FAILED under its id: an empty result, an
-  error, a cancellation, and a missing value alike. Record it before you filter or count anything.
+  error, a cancellation, and a missing value alike. A child the user stopped is FAILED with the
+  reason "stopped by the user" and is not retried unless the user asks; the rest of the run goes on. Record it before you filter or count anything.
 - A results file that does not start with `REPORT <id>` is incomplete. Log it, then put the
   well-formed report the child returned at the top of that file, above the child's detail.
 - Deduplicate each new finding against everything seen so far, refuted findings included, not only
@@ -185,8 +198,10 @@ the ledger from disk.
 - When a skeptic fails, the finding is UNVERIFIED: report it so, neither confirmed nor dropped.
 - Refuted findings stay in the final report, with their reasons.
 - Verifiers and gates run the checks themselves. A worker's account of a check is input, not proof.
+- Once per run, on the synthesized result or after the last write wave, one skeptic takes the
+  `request` lens.
 - An audit, or a task to find every instance, ends with one fresh completeness critic. It gets the
-  scope and the ledger and names missed areas, unverified claims, and unread files. Its gaps get at
+  verbatim request, the scope, and the ledger and names missed areas, unverified claims, and unread files. Its gaps get at
   most one more wave.
 
 ## Loops and stop conditions
@@ -239,11 +254,12 @@ A restart is at-least-once, not exactly-once: an item can run twice.
 
 Close or finish every child first. Then report:
 
-- the outcome, against each done-when check;
+- the outcome, against the request and each done-when check;
 - the count and the names for each status: DONE, PARTIAL, BLOCKED, FAILED, and UNVERIFIED;
 - the files changed;
 - each check as PASS, FAIL, or NOT RUN, with the reason for every FAIL and NOT RUN;
 - the refuted findings, with their reasons;
-- every cap you applied;
+- every cap you applied, and the estimated agent total beside the actual count;
+- every decision held open for the user;
 - the remaining risk;
 - the ledger path.

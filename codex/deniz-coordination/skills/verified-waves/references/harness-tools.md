@@ -55,8 +55,8 @@ multi-agent tools are deferred: call `tool_search` for `spawn_agent`, `wait_agen
   verification.
 - Every writer's brief carries the coordination line, `[writers]` in the brief template.
 - Create no goal unless the user asks for unattended continuation.
-- `request_user_input_async` posts a question and lets your turn go on. After a yes/no question
-  from `SKILL.md`, end your turn at once, whether you asked in text or through that tool.
+- `request_user_input_async` posts a question and lets your turn go on: ask the plan's questions
+  that way and keep working. Never take an action `SKILL.md` reserves before an explicit yes.
 
 ## Commands the sandbox refuses
 
