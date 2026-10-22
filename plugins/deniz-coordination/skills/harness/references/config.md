@@ -46,7 +46,7 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `instructions` | string array | `[]` | Accumulate in layer order; identical text appears once. Blank text: `<layer>: instructions must be non-empty`. |
 | `locations` | object | Default roots | User only: `<layer>: locations is user-layer-only`. |
 | `backends` | object | Built-in executable discovery | User only: `<layer>: backends is user-layer-only`. Only `opencode` and `codex` members exist. |
-| `preferences.maxParallel` | integer | `3` | Last configured value, task-file top level, then `--max`; must be 1 through 8. |
+| `preferences.maxParallel` | integer | `3` | Last configured value, task-file top level, then `--max`; must be 1 through 8. Set it by the host's memory, not by the task count: each task whose verify runs a test suite starts many processes. |
 | `preferences.defaultRoutes` | map of backend to string | No default routes | Keys must be `opencode` or `codex`: `<layer>: defaultRoutes keys must be opencode or codex`. Values use backend notation without a qualification prefix. |
 | `locations.ledgerRoot` | string path | `<state root>/ledgers` | Absolute or starts with `~`; otherwise `locations.ledgerRoot must be an absolute path (or ~ in user locations)`. |
 | `locations.worktreeRoot` | string path | `<state root>/worktrees` | Same expansion and validation as ledger root. |

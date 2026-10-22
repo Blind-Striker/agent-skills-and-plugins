@@ -136,22 +136,17 @@
     "source": "skills/deniz-coordination/harness",
     "original": true,
     "invocation": "both",
-    "dependsOn": [
-      "delegating-to-worker-models"
-    ],
     "harnesses": [
       "claude",
       "codex"
     ],
-    "description": "Use when you run the bundled dispatch harness to send a task file to worker models through OpenCode or Codex, check or resume a run, answer an escalated ask, cancel or collect a task, or read its ledger. The harness's commands, task file, modes, configuration, ledger and exit codes; whether and how to delegate is delegating-to-worker-models' judgment.",
+    "description": "The bundled dispatch harness, which runs a task file on worker models through OpenCode or Codex, escalates their asks to the operator, settles each result from git and its verify commands, and records every step in a ledger. Its commands, task file, modes, configuration, runs, ledger and exit codes.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
-        "model": [
-          "deniz-coordination:delegating-to-worker-models"
-        ],
+        "model": [],
         "pointer": []
       }
     },
@@ -167,9 +162,7 @@
       "explicit": "available",
       "policyFiles": [],
       "edges": {
-        "model": [
-          "$deniz-coordination:delegating-to-worker-models"
-        ],
+        "model": [],
         "pointer": []
       },
       "dropped": [],

@@ -87,6 +87,10 @@ backend checks the returned sandbox type. Each `turn/start` supplies the resolve
 and network value. The selected effort comes from the route or the catalog's default. Structured
 turns also supply the output schema. Approval, tool, retry and token events feed the common ledger.
 
+The `workspace-write` sandbox lets a task write only inside its workspace. A task that must write
+elsewhere (the system temp folder included, where many build and test tools keep caches) or start
+`wsl.exe` fails there: give it to opencode, or widen its `access`.
+
 On Linux and macOS, sandbox prerequisites depend on the installed runtime and host. A fake protocol
 test or build does not prove enforcement; a Functional test that tries an outside write must pass
 on the actual OS before making that claim. The effect of reject steering on model behaviour also

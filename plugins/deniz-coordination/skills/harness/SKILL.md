@@ -1,10 +1,10 @@
 ---
 name: harness
-description: Use when you run the bundled dispatch harness to send a task file
-  to worker models through OpenCode or Codex, check or resume a run, answer an
-  escalated ask, cancel or collect a task, or read its ledger. The harness's
-  commands, task file, modes, configuration, ledger and exit codes; whether and
-  how to delegate is delegating-to-worker-models' judgment.
+description: The bundled dispatch harness, which runs a task file on worker
+  models through OpenCode or Codex, escalates their asks to the operator,
+  settles each result from git and its verify commands, and records every step
+  in a ledger. Its commands, task file, modes, configuration, runs, ledger and
+  exit codes.
 ---
 
 # Dispatch harness
@@ -16,8 +16,7 @@ ledger. This skill is the harness's contract.
 
 ## Boundary
 
-- This skill says how to run a task, not what to delegate or whether the output is good. When you
-  write a code task's prompt or judge a worker's output, load `deniz-coordination:delegating-to-worker-models`.
+- This skill says how to run a task. What to hand out and how to judge the result belong to the caller.
 - The harness prepends only the contract files you name (`contracts`, `--contract`); nothing by default.
 - A calling skill that sends `structured` tasks owns their prompt and result schema.
 
@@ -139,18 +138,17 @@ A recorded run is never run again and its ledger is never edited by hand.
   clean` drops your own rules; system-level rules always load. `plan` and `result.json`
   (`capabilityNotes`) state what still applies to each read-only Codex task.
 - **Approval gates in the repository.** A worker that meets a rule asking for approval before any
-  change hands the task back: `done`, empty diff, a final text asking for a go. The fix is in
-  `delegating-to-worker-models`.
+  change returns `done` with an empty diff. The fix belongs in that repository: scope its approval
+  rules to the session that talks to the user; a dispatched worker runs the task it was given.
 - **Read-only planning.** A read-only task cannot write a plan file: return the plan in the final
   text, or run with `access: workspace` and `scope` set to the plan path.
 - **Long single-line inputs.** Worker read tools truncate them; give Markdown or pretty-printed JSON.
-- **Windows paths.** Deep repositories exceed the path limit in worktrees: set
-  `locations.worktreeRoot` to a short folder or turn on git's `core.longpaths`.
+- **Windows paths.** Deep repositories pass the path limit in worktrees: see `references/config.md`.
 - **Shell deny rules match command text only.** Treat them as a guard against mistakes.
 
 ## References
 
-Read on demand: `references/task-file.md` (every field, default and validation error),
-`references/cli.md` (each command's arguments, output and exit codes), `references/ledger.md` (run
-folder, event types, file fields), `references/config.md` (layers, policy rules, allow-list,
-locations), `references/backends.md` (how each mode, rule and limit maps onto opencode and Codex).
+Read on demand: `references/task-file.md` (every field, default, validation error), `references/cli.md`
+(arguments, output and exit codes), `references/ledger.md` (run folder, events, fields),
+`references/config.md` (layers, rules, allow-list, locations), `references/backends.md` (each mode,
+rule and limit on opencode and Codex).

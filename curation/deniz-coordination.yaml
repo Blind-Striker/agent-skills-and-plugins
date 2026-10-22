@@ -63,12 +63,9 @@ original_skills:
     # otherwise it goes to the research note's pilot log. The per-case coordinator rules from the
     # first pilot day were folded into one no-contradiction pass for that reason
   harness:
-    invocation: both # the judgment skill routes a coordinator to this skill by name, and a caller
-    # loads it from inside another skill, so the model must be able to invoke it: a manual skill
-    # cannot be loaded through the skill tool. The narrow description keeps it off ordinary work, and
-    # the trigger probe tunes that description, not this choice
+    invocation: both # model-invocable so callers (a coordinator, cockpit-tf, a colleague's skill)
+    # can load it by name: a manual skill cannot be loaded through the skill tool. It runs only when
+    # the user asks for it or starts the coordinator (ADR-0009)
     harnesses: [claude, codex] # OpenCode reaches many model families natively, so a coordinator there
     # starts workers without this tool, curator's call (ADR-0009)
-    depends_on: [delegating-to-worker-models] # the body sends a coordinator who writes a code task's
-    # prompt or judges a worker's output to the judgment skill; a caller with structured tasks owns
-    # its own prompt and does not need it
+    # no depends_on: the body names no other skill

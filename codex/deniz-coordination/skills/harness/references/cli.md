@@ -132,7 +132,9 @@ workers, settles results and runs verification. It blocks until the scheduler en
 status summary. Ledger writes also print event lines. The `run` process is the supervisor and owns
 the backend processes: never kill it (use `cancel`). To keep working while it runs, start it from a
 background shell and watch with `status <run>` from another shell; when a run's own process ends
-without settling every task, `resume <run>` settles what it left.
+without settling every task, `resume <run>` settles what it left. Watch a run through its ledger
+(`status`, `events.jsonl`), not through the shell that started it: a host under memory pressure
+can end that shell while the supervisor keeps working.
 
 A recorded id cannot run again. The refusal names `collect` and `resume` as recovery commands.
 Use a new name for a new run rather than editing or deleting recorded input.

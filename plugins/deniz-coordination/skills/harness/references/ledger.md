@@ -216,7 +216,7 @@ structured deliverable validates. Cancelled outcome produces cancelled state and
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
 | `routeRequested` | string | Absent if unavailable | Qualified requested route. |
 | `routesUsed` | string array | `[]` | Routes actually reported by backend. |
-| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. |
+| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. |
 | `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
 | `tokens.input` | number | Absent if unavailable | Input count. |
 | `tokens.output` | number | Absent if unavailable | Output count. |
