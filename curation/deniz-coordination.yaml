@@ -9,6 +9,18 @@ plugin:
   description: "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)"
   version: 0.1.0
 original_skills:
+  coordinator:
+    invocation: manual # a mode the user chooses per task: it makes the agent own the goal, plan, hand
+    # work to other agents, and review it; a model-invocable coordinator would turn ordinary subagent
+    # use into coordination ceremony, curator's call (ADR-0009). Starting it is the user's explicit
+    # request for workers, including the dispatch harness where that ships
+    depends_on: [delegating-to-worker-models, harness] # the body loads the craft; only the Claude Code
+    # and Codex notes name the harness, so its reachability is checked in those trees (ADR-0010)
+    harness_files: # each harness reads only its own worker-tool notes
+      references/harness-tools.md:
+        claude: references/claude-code-tools.md
+        codex: references/codex-tools.md
+        opencode: references/opencode-tools.md
   verified-waves:
     invocation: manual # it spends many agents on one task, so the user starts it. Its
     # small-task test counts only one item as small; a sequential chain cannot fan out but is not
@@ -35,10 +47,10 @@ original_skills:
         opencode: references/opencode-tools.md
     # no depends_on: the body names no other skill
   delegating-to-worker-models:
-    invocation: both # the user's routing decision spends the quota, not loading these rules, and the
-    # failures it prevents happen when a coordinator writes a worker prompt without them; the narrow
-    # description keeps it off ordinary in-harness subagent work, and the reliable trigger is the load
-    # line its addendum template asks each dispatching repository to carry, curator's call
+    invocation: both # the failures it prevents happen when an agent writes another agent's prompt
+    # without these rules, and coordinator loads it by name, so the model must be able to invoke it;
+    # the description names the hand-off, not a tool, so it serves every subagent mechanism, and the
+    # repository addendum's load line is the reliable trigger, curator's call (ADR-0009)
     depends_on: [delegating-to-worker-models, requesting-code-review] # requesting-code-review is the
     # coordinator's own review read, and it makes this Module require Process. The self entry is the
     # load line the addendum template hands each dispatching repository, rendered in every harness's

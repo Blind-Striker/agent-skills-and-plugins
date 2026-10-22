@@ -19,6 +19,8 @@ task's prompt must name so the worker cannot pick a weak oracle.
   fixture that lists the probe's commands may add the new query; no other expectation changes").
 - **Detectors and validators:** before you write an exemption, read the detector's own positive tests.
   Quote the measured hit list, and state that existing positive oracles win over a conflicting exemption.
+- **Fakes:** a fake copies production's limits, gaps included. A fake stricter or looser than production
+  lets a test pass for a reason production lacks.
 - **Real processes in tests:** a test that starts a real shell or tool resolves it by absolute path and is
   skipped off its target operating system.
 - **Language rules** (timers, ambient-context hold points, analyzer-rejected mutants) live in the language

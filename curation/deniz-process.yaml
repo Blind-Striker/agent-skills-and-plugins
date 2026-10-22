@@ -494,8 +494,9 @@ items:
     # open each skill's SKILL.md, a path this repo forbids into a manual body, and a load would start
     # the skill rather than read it. implement-spec, pr and retro get routes; retro pairs with
     # diagnosing-superpowers, which gathers evidence and gives no advice while retro proposes the
-    # environment changes. verified-waves moved to deniz-coordination and ships only to OpenCode and
-    # Codex (ADR-0009, ADR-0010), so the router names it in no row until per-harness rows exist.
+    # environment changes. The coordination rows that every tree ships (coordinator, the craft) stay
+    # in the body; harness and verified-waves ship to some trees only (ADR-0010), so their rows live in
+    # references/coordination.md, which each harness gets in its own form.
     # The conditional .NET map covers every General item, its nine manual ceremonies explicitly;
     # Aspire routes through its router/migration plus testing/ServiceDefaults specialists, and Akka
     # gets a compact full map. optional_refs checks those facts without requiring .NET Modules just
@@ -508,6 +509,11 @@ items:
     # in any repository, and the .NET map nearly doubled it. The description says when to load it
     # (unsure which skill fits, or asked) rather than only what it covers
     depends_on: [asd-ste100, brainstorming, codebase-design, dispatching-parallel-agents, domain-modeling, grilling, ponytail, receiving-code-review, systematic-debugging, test-driven-development, using-git-worktrees, verification-before-completion] # same-Module model facts; all conditional cross-Module facts/pointers are separate below
+    harness_files: # coordination rows per tree: each names only what that tree ships (ADR-0010)
+      references/coordination.md:
+        claude: references/coordination-claude.md
+        codex: references/coordination-codex.md
+        opencode: references/coordination-opencode.md
     optional_refs:
       - akka-hosting-actor-patterns
       - akka-net-aspire-configuration
@@ -525,6 +531,7 @@ items:
       - check-bin-obj-clash
       - code-testing
       - convert-to-cpm
+      - coordinator
       - coverage-analysis
       - cscheck
       - csharp-concurrency-patterns
@@ -548,6 +555,7 @@ items:
       - efcore-patterns
       - filter-syntax
       - generate-testability-wrappers
+      - harness
       - ilspy-decompile
       - including-generated-files
       - item-management
@@ -576,6 +584,7 @@ items:
       - testcontainers-integration-tests
       - thread-abort-migration
       - vectorization
+      - verified-waves
       - writing-tunit-tests
     omit: ["agents/**"]
   # --- superpowers, the last two (batch 2) ---

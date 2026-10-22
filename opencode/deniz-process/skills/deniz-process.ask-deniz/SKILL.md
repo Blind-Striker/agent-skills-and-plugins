@@ -183,13 +183,16 @@ Reach for these directly; they are not on any flow.
 | **`@deniz-process.ponytail-audit`** | The same quality review for a whole repo or folder, ranked. Expensive; it changes nothing. |
 | **`@deniz-process.ponytail-debt`** | List every `shortcut:` comment as a debt ledger, so a deliberate shortcut does not quietly become permanent. |
 
-## Worker delegation
+## Coordination
 
 Applies only when the `deniz-coordination` Module is installed.
 
 | Skill | For |
 |---|---|
-| `deniz-coordination.delegating-to-worker-models` | Handing a task to a worker model of another family through a dispatcher: what never to delegate, the walls preflight, the worker contract, verification on the committed tree, two-family review. Model-reachable; it arrives when a worker prompt is being written. Whether to delegate stays your call. |
+| **`@deniz-coordination.coordinator`** | You want the agent to own a task or project end to end: plan it, hand the work to other agents, review what comes back, and finish with as few questions as possible. A mode you start per task. |
+| `deniz-coordination.delegating-to-worker-models` | Handing one piece of work to another agent: what stays with you, the prompt, the worker contract, evidence from your own run, review. Model-reachable; it arrives when another agent's prompt is being written. |
+
+This harness's coordination tools are in [references/coordination.md](references/coordination.md).
 
 ## Phase boundaries
 

@@ -1,12 +1,14 @@
 # Task prompt template
 
-The coordinator fills this in; the dispatcher prepends the worker contract and the model file. Drop the
+The coordinator fills this in; the worker contract and the model's worker block go before it, prepended
+by your mechanism or pasted by you. Drop the
 sections a task type does not need. Keep every slot concrete: a slot left abstract is read in its
 strictest form.
 
 ```text
 ## Goal
 <one sentence>. Make the smallest change that satisfies the requirements below.
+It serves: "<the one line of the user's acceptance this slice delivers, quoted>".
 R1 <...>
 R2 <...>
 
@@ -43,6 +45,11 @@ Do not write: <forbidden constructs>.
 ## Status and output semantics            (code that reports results)
 <which outputs judge (pass/fail) and which only report facts, and why>
 
+## Plan task                              (plan-first tasks)
+Write the plan with a section "Contradictions and spec defects found". Verification and one-off checks
+use the tools the repository already has: plan no new project, script, harness, tool in another
+language, or evidence document in the repository unless the request asks for one.
+
 ## Pre-approved follow-on changes          (optional)
 The plan names these, so they are not changes outside it: <mechanical fallout of a planned change, e.g.
 "a length or complexity limit triggered by a planned move: extract a private method in the same file,
@@ -69,7 +76,7 @@ not apply to this task on this point; the steps above are authorized.
 net472"; a requirement only implied by the verify list is skipped>
 
 ## Verify
-The dispatcher runs: <commands>. <Walls: command and limits, when present.>
+The verify step runs: <commands>. <Walls: command and limits, when present.>
 ```
 
 Coordinator checklist before sending (not part of the prompt): the verify commands ran once on the base

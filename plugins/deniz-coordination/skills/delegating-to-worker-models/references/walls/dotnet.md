@@ -13,6 +13,9 @@ Traps:
 - Verify commands set `DOTNET_CLI_USE_MSBUILD_SERVER=0`. A long-lived MSBuild server keeps the environment
   of the session that started it, so a restore can ignore the task's temp folder (seen: NuGet scratch hit a
   full per-user `/tmp` quota). A Gradle daemon is the same class of trap.
+- Never point `DOTNET_CLI_HOME` at a fresh folder per run: each new CLI home can append to the user's
+  registry `PATH` on Windows. Set `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` for workers, and never run
+  two builds in one working tree (CS2012).
 - `dotnet test --nologo` can make a test platform report zero tests with a non-zero exit; `total: 0` is
   never a pass.
 - A `-p:` property on the command line is global and replaces each project's own value. `-p:NoWarn=...`

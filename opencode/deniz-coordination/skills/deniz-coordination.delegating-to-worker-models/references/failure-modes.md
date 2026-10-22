@@ -31,7 +31,8 @@ Most stops on the template trace back to the coordinator. The categories, most f
 | Contradiction or gap left in the prompt | a base given as a branch while the prompt stated a SHA; a test permission written as line ranges; detector exemptions that contradicted its own positive tests; preparation "as an earlier task" against an older plan's prohibition; a free-text budget exemption beside a binding checkpoint; an analyzer limit hit by a planned move | the no-contradiction pass in SKILL.md |
 | Something named that does not exist, or only implied | a nonexistent test class or registry; a runtime requirement only implied by the verify list; a verify command broken by shell expansion | verify the verify; one line per requirement |
 | A coordinator duty in the worker prompt | a base-ancestry check the policy denied the worker | keep proofs on the coordinator side |
-| Dispatch tooling | a heredoc broke JSON; deny patterns without word boundaries; builds joined another session's long-lived build server | editor-tool task files; dispatcher contract |
+| Goal divergence | the brief narrowed the user's goal; a proposal from an earlier handoff became a decision; a ban the user never set; a spec review that checked only your own plan | the request word for word in your notes and in the review; every ban traced to its source |
+| Tooling | builds joined another session's long-lived build server | `references/walls/<language>.md` traps |
 | Watching | a waiter that read only the final summary missed a run refused in its first second | read the log head in the first minute |
 | Evidence handling | an unmeasured cause written into a task as fact; a probe trusted after its failed step had restored the file; a worktree edited while its own check ran | measure first; never edit under a running check |
 | Spec shape | two example rows where an invariant was needed | invariants, not rows |

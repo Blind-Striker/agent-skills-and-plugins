@@ -80,19 +80,9 @@ test("router and cheatsheet expose every manual ceremony as a human action", () 
   const manual = manifests
     .flatMap((manifest) => declaredItems(root, manifest, components))
     .filter((target) => target.intent.invocation === "manual");
-  assert.equal(manual.length, 33);
-  // Pending: the OpenCode and Codex router rows for verified-waves, which the Claude tree does not
-  // ship (ADR-0010), arrive with the range-2 router text. Delete this exemption with them.
-  const unrouted = new Set(["verified-waves"]);
+  assert.equal(manual.length, 34);
   for (const target of manual) {
     assert.ok(cheat.includes(`\`${target.outName}\``), `cheatsheet misses manual ${target.outName}`);
-    if (unrouted.has(target.outName)) {
-      assert.ok(
-        !refs.some((ref) => ref.ns === target.plugin && ref.name === target.outName),
-        `${target.outName} is routed now: delete its exemption`,
-      );
-      continue;
-    }
     assert.ok(
       refs.some((ref) => ref.ns === target.plugin && ref.name === target.outName && ref.kind === "pointer"),
       `router misses manual pointer ${target.outName}`,

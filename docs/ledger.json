@@ -1,4 +1,73 @@
 {
+  "deniz-coordination/skill/coordinator": {
+    "source": "skills/deniz-coordination/coordinator",
+    "original": true,
+    "invocation": "manual",
+    "dependsOn": [
+      "delegating-to-worker-models",
+      "harness"
+    ],
+    "harnessFiles": {
+      "references/harness-tools.md": {
+        "claude": "references/claude-code-tools.md",
+        "codex": "references/codex-tools.md",
+        "opencode": "references/opencode-tools.md"
+      }
+    },
+    "description": "Work as the coordinator of a task or project. You own the user's goal, plan the work, hand it to other agents, review what comes back, and carry it through to verified completion with as few questions as possible.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models",
+          "deniz-coordination:harness"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination.coordinator",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-coordination.delegating-to-worker-models"
+        ],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:coordinator",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-coordination:delegating-to-worker-models",
+          "$deniz-coordination:harness"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-coordination/skill/delegating-to-worker-models": {
     "source": "skills/deniz-coordination/delegating-to-worker-models",
     "original": true,
@@ -7,7 +76,7 @@
       "delegating-to-worker-models",
       "requesting-code-review"
     ],
-    "description": "Use when you are about to write a task prompt or task file for an out-of-process worker model from another model family, dispatch it, verify its output, or review it. Covers what never to delegate, the walls preflight, the worker contract the dispatcher prepends, verification on the committed tree, two-family review, and the fix-up loop. Not for in-process subagents of your own harness.",
+    "description": "Use when you hand a piece of work (implementation, a plan, research, or a review) to another agent, write its prompt, check its output, or review it. Covers what stays with you, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.",
     "claude": {
       "artifacts": [
         "skill"
@@ -17,7 +86,9 @@
           "deniz-coordination:delegating-to-worker-models",
           "deniz-process:requesting-code-review"
         ],
-        "pointer": []
+        "pointer": [
+          "deniz-coordination:coordinator"
+        ]
       }
     },
     "opencode": {
@@ -31,7 +102,9 @@
           "deniz-coordination.delegating-to-worker-models",
           "deniz-process.requesting-code-review"
         ],
-        "pointer": []
+        "pointer": [
+          "@deniz-coordination.coordinator"
+        ]
       },
       "dropped": []
     },
@@ -51,7 +124,9 @@
           "$deniz-coordination:delegating-to-worker-models",
           "$deniz-process:requesting-code-review"
         ],
-        "pointer": []
+        "pointer": [
+          "$deniz-coordination:coordinator"
+        ]
       },
       "dropped": [],
       "bodyTransformations": []
@@ -4446,6 +4521,7 @@
       "check-bin-obj-clash",
       "code-testing",
       "convert-to-cpm",
+      "coordinator",
       "coverage-analysis",
       "cscheck",
       "csharp-concurrency-patterns",
@@ -4469,6 +4545,7 @@
       "efcore-patterns",
       "filter-syntax",
       "generate-testability-wrappers",
+      "harness",
       "ilspy-decompile",
       "including-generated-files",
       "item-management",
@@ -4497,8 +4574,16 @@
       "testcontainers-integration-tests",
       "thread-abort-migration",
       "vectorization",
+      "verified-waves",
       "writing-tunit-tests"
     ],
+    "harnessFiles": {
+      "references/coordination.md": {
+        "claude": "references/coordination-claude.md",
+        "codex": "references/coordination-codex.md",
+        "opencode": "references/coordination-opencode.md"
+      }
+    },
     "description": "Use when unsure which skill or ceremony fits, or when asked which to use, across installed deniz Modules: process workflows, .NET, Aspire, and Akka. Manual ceremonies stay user-started.",
     "claude": {
       "artifacts": [
@@ -4507,6 +4592,7 @@
       "edges": {
         "model": [
           "deniz-coordination:delegating-to-worker-models",
+          "deniz-coordination:harness",
           "deniz-dotnet-akka:akka-hosting-actor-patterns",
           "deniz-dotnet-akka:akka-net-aspire-configuration",
           "deniz-dotnet-akka:akka-net-best-practices",
@@ -4578,6 +4664,7 @@
           "deniz-process:verification-before-completion"
         ],
         "pointer": [
+          "deniz-coordination:coordinator",
           "deniz-dotnet-aspire:aspire-project-v2-migration",
           "deniz-dotnet-general:code-testing",
           "deniz-dotnet-general:convert-to-cpm",
@@ -4703,6 +4790,8 @@
           "deniz-process.verification-before-completion"
         ],
         "pointer": [
+          "@deniz-coordination.coordinator",
+          "@deniz-coordination.verified-waves",
           "@deniz-dotnet-aspire.aspire-project-v2-migration",
           "@deniz-dotnet-general.code-testing",
           "@deniz-dotnet-general.convert-to-cpm",
@@ -4763,6 +4852,7 @@
       "edges": {
         "model": [
           "$deniz-coordination:delegating-to-worker-models",
+          "$deniz-coordination:harness",
           "$deniz-dotnet-akka:akka-hosting-actor-patterns",
           "$deniz-dotnet-akka:akka-net-aspire-configuration",
           "$deniz-dotnet-akka:akka-net-best-practices",
@@ -4834,6 +4924,8 @@
           "$deniz-process:verification-before-completion"
         ],
         "pointer": [
+          "$deniz-coordination:coordinator",
+          "$deniz-coordination:verified-waves",
           "$deniz-dotnet-aspire:aspire-project-v2-migration",
           "$deniz-dotnet-general:code-testing",
           "$deniz-dotnet-general:convert-to-cpm",
