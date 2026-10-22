@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-const skillDir = join(import.meta.dirname, "..", "skills", "deniz-process", "verified-waves");
+const skillDir = join(import.meta.dirname, "..", "skills", "deniz-coordination", "verified-waves");
 
 function between(text: string, start: string, end: string): string {
   const from = text.indexOf(start);
@@ -29,24 +29,6 @@ test("verified-waves restart is a policy, not a claim that every old child is un
   assert.match(codexRestart, /followup_task/);
   assert.match(codexRestart, /dispatch\s+it again as a new child/);
   assert.match(between(codex, "## V1", "## V2"), /only within the live session/);
-});
-
-test("verified-waves Claude sandbox notes do not treat every DNS failure as a denial", () => {
-  const sandbox = between(
-    readFileSync(join(skillDir, "references", "claude-code-tools.md"), "utf8"),
-    "## Commands the sandbox refuses",
-    "## Restart",
-  );
-  assert.match(sandbox, /Operation not permitted/);
-  assert.match(sandbox, /Read-only file system/);
-  assert.match(sandbox, /Could not resolve host/);
-  assert.match(sandbox, /Network is unreachable/);
-  assert.match(sandbox, /do not\s+treat every such failure as a sandbox denial/s);
-  assert.match(sandbox, /confirmed sandbox denial/);
-  assert.match(sandbox, /once/);
-  assert.match(sandbox, /dangerouslyDisableSandbox/);
-  assert.match(sandbox, /Do not disable the sandbox or change its\s+configuration/);
-  assert.doesNotMatch(sandbox, /every (?:DNS|network) failure is a sandbox denial/i);
 });
 
 test("verified-waves OpenCode question dismissal is not approval", () => {

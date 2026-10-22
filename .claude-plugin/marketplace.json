@@ -6,9 +6,9 @@
   },
   "plugins": [
     {
-      "name": "deniz-dispatch",
-      "source": "./plugins/deniz-dispatch",
-      "description": "Deniz's worker-delegation harness and judgment (dispatch tasks to other model families)"
+      "name": "deniz-coordination",
+      "source": "./plugins/deniz-coordination",
+      "description": "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)"
     },
     {
       "name": "deniz-dotnet-akka",

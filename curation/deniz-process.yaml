@@ -20,30 +20,6 @@ plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
   version: 0.14.0
-original_skills:
-  verified-waves:
-    invocation: manual # it spends many agents on one task, so the user starts it; in Claude Code
-    # the invocation is the Workflow tool's own sanctioned opt-in (research decision 1). Its
-    # small-task test counts only one item as small; a sequential chain cannot fan out but is not
-    # small, so the agent judges whether a final gate and skeptic wave pay, asking once only when
-    # genuinely torn, curator's call. The yes/no questions before destructive or outward actions
-    # apply unless the request already names that action. The skill never picks a child's model or
-    # routing agent, curator's call: OpenCode and Claude Code use the agent the user's configuration
-    # or instructions name for delegated work (a routing agent that maps to a model), falling back to
-    # `general` or the default workflow agent, and any such agent must allow edit and write; Codex
-    # already left routing to `[agents] default_subagent_model`. GPT runs stalled after six children:
-    # the ceiling now reads as a limit, not a target, the agent total is counted from the plan and
-    # excludes retries of FAILED items, and the Codex V1 loop closes every recorded child before the
-    # next spawn and keeps waiting after a thread-limit failure instead of ending the turn. V1 is
-    # unmeasured (the Codex panel record was served V2), so the slot-leak reading is inferred, and
-    # Codex's catalog serves Sol V2, so it covers Sol only under a V1 override. On both OpenCode and
-    # Codex a child's completion is not a check-in: the next PENDING item launches without asking
-    harness_files: # each harness reads only its own tool notes; no tree carries another's tool words
-      references/harness-tools.md:
-        claude: references/claude-code-tools.md
-        codex: references/codex-tools.md
-        opencode: references/opencode-tools.md
-    # no depends_on: the body names no other skill
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -518,9 +494,8 @@ items:
     # open each skill's SKILL.md, a path this repo forbids into a manual body, and a load would start
     # the skill rather than read it. implement-spec, pr and retro get routes; retro pairs with
     # diagnosing-superpowers, which gathers evidence and gives no advice while retro proposes the
-    # environment changes. The router names the original verified-waves as a user-pointer in two
-    # rows, curator's routing call: the Standalone row is the start, and the dispatching row says
-    # which of the two a person wants.
+    # environment changes. verified-waves moved to deniz-coordination and ships only to OpenCode and
+    # Codex (ADR-0009, ADR-0010), so the router names it in no row until per-harness rows exist.
     # The conditional .NET map covers every General item, its nine manual ceremonies explicitly;
     # Aspire routes through its router/migration plus testing/ServiceDefaults specialists, and Akka
     # gets a compact full map. optional_refs checks those facts without requiring .NET Modules just

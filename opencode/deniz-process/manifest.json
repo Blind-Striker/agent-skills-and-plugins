@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-process",
   "version": "0.14.0",
-  "digest": "sha256:ec93d784f939a930140ab4ab86dd3e249fd312bd01df73171dc0f01a6e5474eb",
+  "digest": "sha256:42b867789452e30570de823b04b71dfb5095392c164277e374605dbf6da50089",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:9cc6845c8e2479a1097ffb49b5a5c1b98c5eee4fb975ba76e28a27b18a6f8963",
+      "sha256": "sha256:15a349125d2ce230235e4b6abbc73f15732e69b129e42ff7dd3a305203e40daa",
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/dotnet.md": {
@@ -431,14 +431,6 @@
     },
     "skills/deniz-process.verification-before-completion/SKILL.md": {
       "sha256": "sha256:d99dcf925749f6c3c4837306ba61301188d53a0c062b89b494daaee08d2c7781",
-      "mode": "100644"
-    },
-    "skills/deniz-process.verified-waves/SKILL.md": {
-      "sha256": "sha256:c8c7c4374c35b997a6bb3d76deb787b7b0e429c45a9f70f34d61d7fec544d58c",
-      "mode": "100644"
-    },
-    "skills/deniz-process.verified-waves/references/harness-tools.md": {
-      "sha256": "sha256:f73396a23073083dce7fcdde61d0fe708170756207c92d903464723f81c4227c",
       "mode": "100644"
     },
     "skills/deniz-process.wait-what/SKILL.md": {

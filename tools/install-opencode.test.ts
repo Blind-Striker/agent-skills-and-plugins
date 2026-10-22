@@ -986,7 +986,7 @@ test("a bin symlink process runs the real installer module", (t) => {
 // --- packed-package tests --------------------------------------------------
 
 const REQUIRED_MODULES = [
-  "deniz-dispatch",
+  "deniz-coordination",
   "deniz-dotnet-akka",
   "deniz-dotnet-aspire",
   "deniz-dotnet-general",

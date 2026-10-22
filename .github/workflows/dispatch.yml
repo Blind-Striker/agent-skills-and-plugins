@@ -24,14 +24,14 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           # The harness pins the SDK; the tests' global.json must equal it (LayoutTests).
-          global-json-file: skills/deniz-dispatch/harness/global.json
+          global-json-file: skills/deniz-coordination/harness/global.json
           cache: true
           cache-dependency-path: tests/dispatch/packages.lock.json
       - name: Build gate, from the harness folder as the skill runs it
-        working-directory: skills/deniz-dispatch/harness
+        working-directory: skills/deniz-coordination/harness
         run: dotnet build dispatch.cs
       - name: The entry prints its usage and exits 2 with no command
-        working-directory: skills/deniz-dispatch/harness
+        working-directory: skills/deniz-coordination/harness
         shell: bash
         run: |
           set +e

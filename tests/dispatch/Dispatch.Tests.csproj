@@ -2,7 +2,7 @@
 
   <!--
     Tests for the dispatch harness (ADR-0009). The harness ships as a file-based app under
-    skills/deniz-dispatch/harness/: its entry file holds every #! and #: directive, which a project
+    skills/deniz-coordination/harness/: its entry file holds every #! and #: directive, which a project
     build rejects, so this project compiles only the harness's src/ tree and repeats the entry's
     #:package pins below. LayoutTests keeps the two pin sets equal and the directives in the entry.
   -->
@@ -21,7 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="../../skills/deniz-dispatch/harness/src/**/*.cs" Link="Harness/%(RecursiveDir)%(Filename)%(Extension)" />
+    <Compile Include="../../skills/deniz-coordination/harness/src/**/*.cs" Link="Harness/%(RecursiveDir)%(Filename)%(Extension)" />
     <Compile Remove="Fakes/**" />
   </ItemGroup>
 

@@ -23,18 +23,19 @@ Matt's TDD, debugging, and code-review material is folded into three correspondi
 Superpowers-based skills, while 11 other Matt skills are excluded. Superpowers supplies most of the
 plan, build, and verify spine; Matt supplies mostly human-started ceremonies plus routing,
 domain/design, research, and teaching tools. The Superpowers SessionStart bootstrap is not shipped,
-and ASD-STE100 contributes one additional controlled-English skill. `deniz-process` also carries
-one original skill, `verified-waves`, written here from the approaches in the
-[orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved).
-Exact item decisions and reasons remain beside the items in
+and ASD-STE100 contributes one additional controlled-English skill. Exact item decisions and reasons remain beside the items in
 [`curation/deniz-process.yaml`](curation/deniz-process.yaml).
 
-`deniz-dispatch` holds worker delegation: `delegating-to-worker-models`, written from the field runs
-and controlled comparison in the
-[worker-model delegation research](docs/research/worker-model-delegation.md), and `harness`, the
-dispatcher that skill's contract describes, shipped as the source of a .NET file-based app
-([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)). Running the harness needs a
-.NET 10 SDK; no other Module ships code that needs one.
+`deniz-coordination` holds coordination
+([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)): `delegating-to-worker-models`,
+written from the field runs and controlled comparison in the
+[worker-model delegation research](docs/research/worker-model-delegation.md); `harness`, a dispatcher
+shipped as the source of a .NET file-based app, for Claude Code and Codex; and `verified-waves`,
+written here from the approaches in the
+[orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
+for OpenCode and Codex. Each skill ships only to the harnesses it serves
+([ADR-0010](docs/adr/0010-per-harness-item-emission.md)). Running the harness needs a .NET 10 SDK; no
+other Module ships code that needs one.
 
 ## How it works
 
@@ -247,18 +248,18 @@ skills and records them in its Bundle manifest. The checkout's Bundles record:
 | `deniz-dotnet-general` | `deniz-dotnet-aspire`, `deniz-process` |
 | `deniz-dotnet-akka` | `deniz-dotnet-aspire`, `deniz-dotnet-general` |
 | `deniz-dotnet-aspire` | none |
-| `deniz-dispatch` | `deniz-process` |
+| `deniz-coordination` | `deniz-process` |
 
 General requires Process for two reasons: `code-testing` hands a repair or flaky-test request to
 Process's `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order,
-to Process's `test-driven-development`. Dispatch requires Process because
+to Process's `test-driven-development`. Coordination requires Process because
 `delegating-to-worker-models` sends the coordinator's own review read to Process's
 `requesting-code-review`. So the installer refuses a Selection that has General without Aspire and
-Process, Akka without Aspire and General, or Dispatch without Process. Claude Code and Codex
+Process, Akka without Aspire and General, or Coordination without Process. Claude Code and Codex
 install each Plugin on its own, and these Plugins declare no requirement there, so install the
 required Plugins yourself: `deniz-process` and `deniz-dotnet-aspire` alongside
 `deniz-dotnet-general`, `deniz-dotnet-aspire` and `deniz-dotnet-general` alongside
-`deniz-dotnet-akka`, and `deniz-process` alongside `deniz-dispatch`.
+`deniz-dotnet-akka`, and `deniz-process` alongside `deniz-coordination`.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing

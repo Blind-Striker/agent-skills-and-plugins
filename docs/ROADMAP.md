@@ -13,9 +13,11 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
   Checkout Module versions are Process 0.14.0, General 0.14.1, Akka 0.4.1, Aspire 0.6.0, and
-  Dispatch 0.1.0. Dispatch is unreleased: it holds `delegating-to-worker-models`, moved out of
-  Process, and the `harness` skill, whose bundled .NET source is being ported
-  ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); no Release carries it yet. Their
+  Coordination 0.1.0. Coordination is unreleased: it holds `delegating-to-worker-models` and
+  `verified-waves`, both moved out of Process, and the `harness` skill with its bundled .NET
+  source ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
+  `harness` to Claude Code and Codex and `verified-waves` to OpenCode and Codex
+  ([ADR-0010](adr/0010-per-harness-item-emission.md)). No Release carries it yet. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime

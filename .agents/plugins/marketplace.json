@@ -5,10 +5,10 @@
   },
   "plugins": [
     {
-      "name": "deniz-dispatch",
+      "name": "deniz-coordination",
       "source": {
         "source": "local",
-        "path": "./codex/deniz-dispatch"
+        "path": "./codex/deniz-coordination"
       },
       "policy": {
         "installation": "AVAILABLE",

@@ -123,14 +123,14 @@ internal static class TestPaths
 {
     public static string Root { get; } = FindRoot();
     public static string Tests => Path.Combine(Root, "tests", "dispatch");
-    public static string Harness => Path.Combine(Root, "skills", "deniz-dispatch", "harness");
+    public static string Harness => Path.Combine(Root, "skills", "deniz-coordination", "harness");
 
     static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)
         {
             if (File.Exists(Path.Combine(directory.FullName, "tests", "dispatch", "Dispatch.Tests.csproj"))
-                && File.Exists(Path.Combine(directory.FullName, "skills", "deniz-dispatch", "harness", "dispatch.cs")))
+                && File.Exists(Path.Combine(directory.FullName, "skills", "deniz-coordination", "harness", "dispatch.cs")))
                 return directory.FullName;
         }
         throw new DirectoryNotFoundException("the test project and harness entry were not found above the test assembly");

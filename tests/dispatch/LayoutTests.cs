@@ -12,7 +12,7 @@ namespace Dispatch.Tests;
 public sealed partial class LayoutTests
 {
     static readonly string Root = RepositoryRoot();
-    static readonly string Harness = Path.Combine(Root, "skills", "deniz-dispatch", "harness");
+    static readonly string Harness = Path.Combine(Root, "skills", "deniz-coordination", "harness");
     static readonly string Entry = Path.Combine(Harness, "dispatch.cs");
     static readonly string Source = Path.Combine(Harness, "src");
 

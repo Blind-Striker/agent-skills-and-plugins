@@ -1,0 +1,32 @@
+{
+  "name": "deniz-coordination",
+  "version": "0.1.0",
+  "description": "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)",
+  "author": {
+    "name": "Deniz İrgin",
+    "email": "1965259+Blind-Striker@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/Blind-Striker/agent-skills-and-plugins#readme",
+  "repository": "https://github.com/Blind-Striker/agent-skills-and-plugins",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "skills"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Deniz Coordination",
+    "shortDescription": "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)",
+    "longDescription": "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)",
+    "developerName": "Deniz İrgin",
+    "category": "Productivity",
+    "capabilities": [
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/Blind-Striker/agent-skills-and-plugins#readme",
+    "defaultPrompt": [
+      "Use Deniz Coordination skills for this task."
+    ]
+  }
+}
