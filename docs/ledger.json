@@ -1,4 +1,223 @@
 {
+  "deniz-coordination/skill/coordinator": {
+    "source": "skills/deniz-coordination/coordinator",
+    "original": true,
+    "invocation": "manual",
+    "dependsOn": [
+      "delegating-to-worker-models",
+      "harness"
+    ],
+    "harnessFiles": {
+      "references/harness-tools.md": {
+        "claude": "references/claude-code-tools.md",
+        "codex": "references/codex-tools.md",
+        "opencode": "references/opencode-tools.md"
+      }
+    },
+    "description": "Work as the coordinator of a task or project. You own the user's goal, plan the work, hand it to other agents, review what comes back, and carry it through to verified completion with as few questions as possible.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models",
+          "deniz-coordination:harness"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination.coordinator",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-coordination.delegating-to-worker-models"
+        ],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:coordinator",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-coordination:delegating-to-worker-models",
+          "$deniz-coordination:harness"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-coordination/skill/delegating-to-worker-models": {
+    "source": "skills/deniz-coordination/delegating-to-worker-models",
+    "original": true,
+    "invocation": "both",
+    "dependsOn": [
+      "delegating-to-worker-models",
+      "requesting-code-review"
+    ],
+    "description": "Use when you hand a piece of work (implementation, a plan, research, or a review) to another agent, write its prompt, check its output, or review it. Covers what stays with you, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-coordination:delegating-to-worker-models",
+          "deniz-process:requesting-code-review"
+        ],
+        "pointer": [
+          "deniz-coordination:coordinator"
+        ]
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination.delegating-to-worker-models",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-coordination.delegating-to-worker-models",
+          "deniz-process.requesting-code-review"
+        ],
+        "pointer": [
+          "@deniz-coordination.coordinator"
+        ]
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:delegating-to-worker-models",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-coordination:delegating-to-worker-models",
+          "$deniz-process:requesting-code-review"
+        ],
+        "pointer": [
+          "$deniz-coordination:coordinator"
+        ]
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-coordination/skill/harness": {
+    "source": "skills/deniz-coordination/harness",
+    "original": true,
+    "invocation": "both",
+    "harnesses": [
+      "claude",
+      "codex"
+    ],
+    "description": "The bundled dispatch harness, which runs a task file on worker models through OpenCode or Codex, escalates their asks to the operator, settles each result from git and its verify commands, and records every step in a ledger. Its commands, task file, modes, configuration, runs, ledger and exit codes.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:harness",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-coordination/skill/verified-waves": {
+    "source": "skills/deniz-coordination/verified-waves",
+    "original": true,
+    "invocation": "manual",
+    "harnessFiles": {
+      "references/harness-tools.md": {
+        "claude": null,
+        "codex": "references/codex-tools.md",
+        "opencode": "references/opencode-tools.md"
+      }
+    },
+    "harnesses": [
+      "codex",
+      "opencode"
+    ],
+    "description": "Run one task as verified multi-agent waves. Plans the fan-out, sends findings to fresh skeptics, keeps a ledger, and reports N of M done; small tasks stay solo.",
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination.verified-waves",
+      "advertised": false,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-coordination:verified-waves",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-akka/agent/akka-net-specialist": {
     "source": "dotnet-skills/agents/akka-net-specialist.md",
     "description": "Expert in Akka.NET architecture, actor systems, and distributed computing patterns. Specializes in analyzing actor lifecycle issues, message passing problems, cluster coordination, persistence, and stream processing. Use for Akka.NET-specific debugging, architecture decisions, and understanding actor system behavior.",
@@ -4268,7 +4487,6 @@
       "asd-ste100",
       "brainstorming",
       "codebase-design",
-      "delegating-to-worker-models",
       "dispatching-parallel-agents",
       "domain-modeling",
       "grilling",
@@ -4296,6 +4514,7 @@
       "check-bin-obj-clash",
       "code-testing",
       "convert-to-cpm",
+      "coordinator",
       "coverage-analysis",
       "cscheck",
       "csharp-concurrency-patterns",
@@ -4303,6 +4522,7 @@
       "csharp-refactoring",
       "csharp-scripts",
       "database-performance",
+      "delegating-to-worker-models",
       "dependency-injection-patterns",
       "detect-static-dependencies",
       "directory-build-organization",
@@ -4318,6 +4538,7 @@
       "efcore-patterns",
       "filter-syntax",
       "generate-testability-wrappers",
+      "harness",
       "ilspy-decompile",
       "including-generated-files",
       "item-management",
@@ -4346,8 +4567,16 @@
       "testcontainers-integration-tests",
       "thread-abort-migration",
       "vectorization",
+      "verified-waves",
       "writing-tunit-tests"
     ],
+    "harnessFiles": {
+      "references/coordination.md": {
+        "claude": "references/coordination-claude.md",
+        "codex": "references/coordination-codex.md",
+        "opencode": "references/coordination-opencode.md"
+      }
+    },
     "description": "Use when unsure which skill or ceremony fits, or when asked which to use, across installed deniz Modules: process workflows, .NET, Aspire, and Akka. Manual ceremonies stay user-started.",
     "claude": {
       "artifacts": [
@@ -4355,6 +4584,8 @@
       ],
       "edges": {
         "model": [
+          "deniz-coordination:delegating-to-worker-models",
+          "deniz-coordination:harness",
           "deniz-dotnet-akka:akka-hosting-actor-patterns",
           "deniz-dotnet-akka:akka-net-aspire-configuration",
           "deniz-dotnet-akka:akka-net-best-practices",
@@ -4415,7 +4646,6 @@
           "deniz-process:asd-ste100",
           "deniz-process:brainstorming",
           "deniz-process:codebase-design",
-          "deniz-process:delegating-to-worker-models",
           "deniz-process:dispatching-parallel-agents",
           "deniz-process:domain-modeling",
           "deniz-process:grilling",
@@ -4427,6 +4657,7 @@
           "deniz-process:verification-before-completion"
         ],
         "pointer": [
+          "deniz-coordination:coordinator",
           "deniz-dotnet-aspire:aspire-project-v2-migration",
           "deniz-dotnet-general:code-testing",
           "deniz-dotnet-general:convert-to-cpm",
@@ -4463,7 +4694,6 @@
           "deniz-process:to-tickets",
           "deniz-process:triage",
           "deniz-process:using-superpowers",
-          "deniz-process:verified-waves",
           "deniz-process:wait-what",
           "deniz-process:wayfinder",
           "deniz-process:wizard",
@@ -4481,6 +4711,7 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-coordination.delegating-to-worker-models",
           "deniz-dotnet-akka.akka-hosting-actor-patterns",
           "deniz-dotnet-akka.akka-net-aspire-configuration",
           "deniz-dotnet-akka.akka-net-best-practices",
@@ -4541,7 +4772,6 @@
           "deniz-process.asd-ste100",
           "deniz-process.brainstorming",
           "deniz-process.codebase-design",
-          "deniz-process.delegating-to-worker-models",
           "deniz-process.dispatching-parallel-agents",
           "deniz-process.domain-modeling",
           "deniz-process.grilling",
@@ -4553,6 +4783,8 @@
           "deniz-process.verification-before-completion"
         ],
         "pointer": [
+          "@deniz-coordination.coordinator",
+          "@deniz-coordination.verified-waves",
           "@deniz-dotnet-aspire.aspire-project-v2-migration",
           "@deniz-dotnet-general.code-testing",
           "@deniz-dotnet-general.convert-to-cpm",
@@ -4589,7 +4821,6 @@
           "@deniz-process.to-tickets",
           "@deniz-process.triage",
           "@deniz-process.using-superpowers",
-          "@deniz-process.verified-waves",
           "@deniz-process.wait-what",
           "@deniz-process.wayfinder",
           "@deniz-process.wizard",
@@ -4613,6 +4844,8 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-coordination:delegating-to-worker-models",
+          "$deniz-coordination:harness",
           "$deniz-dotnet-akka:akka-hosting-actor-patterns",
           "$deniz-dotnet-akka:akka-net-aspire-configuration",
           "$deniz-dotnet-akka:akka-net-best-practices",
@@ -4673,7 +4906,6 @@
           "$deniz-process:asd-ste100",
           "$deniz-process:brainstorming",
           "$deniz-process:codebase-design",
-          "$deniz-process:delegating-to-worker-models",
           "$deniz-process:dispatching-parallel-agents",
           "$deniz-process:domain-modeling",
           "$deniz-process:grilling",
@@ -4685,6 +4917,8 @@
           "$deniz-process:verification-before-completion"
         ],
         "pointer": [
+          "$deniz-coordination:coordinator",
+          "$deniz-coordination:verified-waves",
           "$deniz-dotnet-aspire:aspire-project-v2-migration",
           "$deniz-dotnet-general:code-testing",
           "$deniz-dotnet-general:convert-to-cpm",
@@ -4721,7 +4955,6 @@
           "$deniz-process:to-tickets",
           "$deniz-process:triage",
           "$deniz-process:using-superpowers",
-          "$deniz-process:verified-waves",
           "$deniz-process:wait-what",
           "$deniz-process:wayfinder",
           "$deniz-process:wizard",
@@ -4830,70 +5063,6 @@
       "edges": {
         "model": [],
         "pointer": []
-      },
-      "dropped": [],
-      "bodyTransformations": []
-    }
-  },
-  "deniz-process/skill/delegating-to-worker-models": {
-    "source": "skills/deniz-process/delegating-to-worker-models",
-    "original": true,
-    "invocation": "both",
-    "dependsOn": [
-      "delegating-to-worker-models",
-      "requesting-code-review"
-    ],
-    "description": "Use when you are about to write a task prompt or task file for an out-of-process worker model from another model family, dispatch it, verify its output, or review it. Covers what never to delegate, the walls preflight, the worker contract the dispatcher prepends, verification on the committed tree, two-family review, and the fix-up loop. Not for in-process subagents of your own harness.",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [
-          "deniz-process:delegating-to-worker-models",
-          "deniz-process:requesting-code-review"
-        ],
-        "pointer": [
-          "deniz-process:verified-waves"
-        ]
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "identity": "deniz-process.delegating-to-worker-models",
-      "advertised": true,
-      "edges": {
-        "model": [
-          "deniz-process.delegating-to-worker-models",
-          "deniz-process.requesting-code-review"
-        ],
-        "pointer": [
-          "@deniz-process.verified-waves"
-        ]
-      },
-      "dropped": []
-    },
-    "codex": {
-      "artifacts": [
-        "skill"
-      ],
-      "identity": "deniz-process:delegating-to-worker-models",
-      "sourceKind": "skill",
-      "resolvedKind": "skill",
-      "emittedKind": "skill",
-      "implicit": "enabled",
-      "explicit": "available",
-      "policyFiles": [],
-      "edges": {
-        "model": [
-          "$deniz-process:delegating-to-worker-models",
-          "$deniz-process:requesting-code-review"
-        ],
-        "pointer": [
-          "$deniz-process:verified-waves"
-        ]
       },
       "dropped": [],
       "bodyTransformations": []
@@ -6848,63 +7017,6 @@
       "implicit": "enabled",
       "explicit": "available",
       "policyFiles": [],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": [],
-      "bodyTransformations": []
-    }
-  },
-  "deniz-process/skill/verified-waves": {
-    "source": "skills/deniz-process/verified-waves",
-    "original": true,
-    "invocation": "manual",
-    "harnessFiles": {
-      "references/harness-tools.md": {
-        "claude": "references/claude-code-tools.md",
-        "codex": "references/codex-tools.md",
-        "opencode": "references/opencode-tools.md"
-      }
-    },
-    "description": "Run one task as verified multi-agent waves. Plans the fan-out, sends findings to fresh skeptics, keeps a ledger, and reports N of M done; small tasks stay solo.",
-    "claude": {
-      "artifacts": [
-        "skill"
-      ],
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "flags": {
-        "disable-model-invocation": true
-      }
-    },
-    "opencode": {
-      "artifacts": [
-        "skill"
-      ],
-      "identity": "deniz-process.verified-waves",
-      "advertised": false,
-      "edges": {
-        "model": [],
-        "pointer": []
-      },
-      "dropped": []
-    },
-    "codex": {
-      "artifacts": [
-        "skill"
-      ],
-      "identity": "deniz-process:verified-waves",
-      "sourceKind": "skill",
-      "resolvedKind": "skill",
-      "emittedKind": "skill",
-      "implicit": "disabled",
-      "explicit": "available",
-      "policyFiles": [
-        "agents/openai.yaml"
-      ],
       "edges": {
         "model": [],
         "pointer": []

@@ -1,0 +1,71 @@
+# Intended sources: none upstream. This Module holds coordination (ADR-0009): the craft of handing
+# work to a worker model of another family, the dispatch harness (a .NET file-based app bundled as the
+# harness skill's source), and verified-waves, the verified multi-agent ceremony for harnesses
+# without a native workflow tool the user opts into. Each skill ships only to the harnesses it serves
+# (ADR-0010). It requires Process for the coordinator's review read; Process reaches it only through
+# guarded optional pointers.
+plugin:
+  name: deniz-coordination
+  description: "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)"
+  version: 0.1.0
+original_skills:
+  coordinator:
+    invocation: manual # a mode the user chooses per task: it makes the agent own the goal, plan, hand
+    # work to other agents, and review it; a model-invocable coordinator would turn ordinary subagent
+    # use into coordination ceremony, curator's call (ADR-0009). Starting it is the user's explicit
+    # request for workers, including the dispatch harness where that ships
+    depends_on: [delegating-to-worker-models, harness] # the body loads the craft; only the Claude Code
+    # and Codex notes name the harness, so its reachability is checked in those trees (ADR-0010)
+    harness_files: # each harness reads only its own worker-tool notes
+      references/harness-tools.md:
+        claude: references/claude-code-tools.md
+        codex: references/codex-tools.md
+        opencode: references/opencode-tools.md
+  verified-waves:
+    invocation: manual # it spends many agents on one task, so the user starts it. Its
+    # small-task test counts only one item as small; a sequential chain cannot fan out but is not
+    # small, so the agent judges whether a final gate and skeptic wave pay, asking once only when
+    # genuinely torn, curator's call. The yes/no questions before destructive or outward actions
+    # apply unless the request already names that action. The skill never picks a child's model or
+    # routing agent, curator's call: OpenCode uses the agent the user's configuration
+    # or instructions name for delegated work (a routing agent that maps to a model), falling back to
+    # `general` or the default workflow agent, and any such agent must allow edit and write; Codex
+    # already left routing to `[agents] default_subagent_model`. GPT runs stalled after six children:
+    # the ceiling now reads as a limit, not a target, the agent total is counted from the plan and
+    # excludes retries of FAILED items, and the Codex V1 loop closes every recorded child before the
+    # next spawn and keeps waiting after a thread-limit failure instead of ending the turn. V1 is
+    # unmeasured (the Codex panel record was served V2), so the slot-leak reading is inferred, and
+    # Codex's catalog serves Sol V2, so it covers Sol only under a V1 override. On both OpenCode and
+    # Codex a child's completion is not a check-in: the next PENDING item launches without asking
+    harnesses: [opencode, codex] # it brings a verified fan-out to harnesses without a native workflow
+    # tool the user opts into; Claude Code starts the same run through its own workflow tool, so it
+    # never carries the skill, curator's call (ADR-0009)
+    harness_files: # each harness reads only its own tool notes; no tree carries another's tool words
+      references/harness-tools.md:
+        claude: null
+        codex: references/codex-tools.md
+        opencode: references/opencode-tools.md
+    # no depends_on: the body names no other skill
+  delegating-to-worker-models:
+    invocation: both # the failures it prevents happen when an agent writes another agent's prompt
+    # without these rules, and coordinator loads it by name, so the model must be able to invoke it;
+    # the description names the hand-off, not a tool, so it serves every subagent mechanism, and the
+    # repository addendum's load line is the reliable trigger, curator's call (ADR-0009)
+    depends_on: [delegating-to-worker-models, requesting-code-review] # requesting-code-review is the
+    # coordinator's own review read, and it makes this Module require Process. The self entry is the
+    # load line the addendum template hands each dispatching repository, rendered in every harness's
+    # own spelling. Language test rules stay generic: this
+    # Module names no General skill, so a repository addendum quotes them
+    # Model-specific countermeasures live one file per model under references/models/, curator's
+    # call: not every model overbuilds, so the generic worker contract carries hygiene only.
+    # Intake for pilot lessons, curator's call: a lesson enters the body only when it holds beyond one
+    # repository or tool, is not an instance of an existing rule, and recurred or cost real money;
+    # otherwise it goes to the research note's pilot log. The per-case coordinator rules from the
+    # first pilot day were folded into one no-contradiction pass for that reason
+  harness:
+    invocation: both # model-invocable so callers (a coordinator, a task-file tool, a colleague's skill)
+    # can load it by name: a manual skill cannot be loaded through the skill tool. It runs only when
+    # the user asks for it or starts the coordinator (ADR-0009)
+    harnesses: [claude, codex] # OpenCode reaches many model families natively, so a coordinator there
+    # starts workers without this tool, curator's call (ADR-0009)
+    # no depends_on: the body names no other skill

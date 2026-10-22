@@ -16,7 +16,9 @@
       "!.claude-plugin",
       "!.agents/plugins/marketplace.json",
       "!docs/ledger.json",
-      "!experiments/**/fixtures"
+      "!experiments/**/fixtures",
+      "!tests/dispatch/**/packages.lock.json",
+      "!tests/dispatch/fixtures"
     ]
   },
   "formatter": {

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { type ParsedDoc, parseDoc } from "./frontmatter.ts";
-import type { ComponentType, CurationManifest, SkillIntent } from "./manifest.ts";
+import { type ComponentType, type CurationManifest, emitsTo, type SkillIntent } from "./manifest.ts";
 
 /**
  * Skill frontmatter OpenCode 2 reads besides `disable-model-invocation`, which the adaptation
@@ -160,7 +160,9 @@ export function collectOpenCodeEmissionProblems(manifests: CurationManifest[], a
   const problems: string[] = [];
   for (const manifest of manifests) {
     const items = assembled
-      .filter((item) => item.plugin === manifest.plugin.name && item.outType === "skill")
+      .filter(
+        (item) => item.plugin === manifest.plugin.name && item.outType === "skill" && emitsTo(item.intent, "opencode"),
+      )
       .sort((left, right) => left.outName.localeCompare(right.outName));
     for (const item of items) {
       const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
@@ -180,7 +182,7 @@ export function collectOpenCodeEmissionProblems(manifests: CurationManifest[], a
 export function openCodeSkillIds(assembled: AssembledItem[]): Map<string, string> {
   return new Map(
     assembled
-      .filter((item) => item.outType === "skill")
+      .filter((item) => item.outType === "skill" && emitsTo(item.intent, "opencode"))
       .map((item) => [item.outName, openCodeId(item.plugin, item.outName)]),
   );
 }

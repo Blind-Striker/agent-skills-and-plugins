@@ -20,9 +20,11 @@ Treat repository areas according to the action they permit:
 
 - `external/` is read-only upstream evidence. Change a pin through the upstream-sync flow; never
   author inside a submodule worktree.
-- `curation/`, `overlays/` and `overlays/overlays.lock.json`, original `skills/`, `tools/`, `docs/`,
-  `experiments/`, and root public metadata such as `LICENSE` and `THIRD_PARTY_NOTICES.md` are authored
-  inputs.
+- `curation/`, `overlays/` and `overlays/overlays.lock.json`, original `skills/`, `tools/`,
+  `tests/dispatch/`, `docs/`, `experiments/`, and root public metadata such as `LICENSE` and
+  `THIRD_PARTY_NOTICES.md` are authored inputs. `tests/dispatch/` holds the dispatch harness's .NET
+  tests, kept outside its skill folder so they never ship
+  ([ADR-0009](../adr/0009-coordination-ships-in-its-own-module.md)).
 - `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
   `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated
   review surfaces. Change their inputs and regenerate; never patch them directly.

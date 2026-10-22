@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { assembleItem } from "./lib/assemble.ts";
 import { parseDoc } from "./lib/frontmatter.ts";
 import { loadManifest } from "./lib/manifest.ts";
+import { listFiles } from "./lib/overlay.ts";
 import { ownSkillIdentities } from "./lib/own-skills.ts";
 import { extractRefs } from "./lib/refs.ts";
 import { declaredItems, resolveItem } from "./lib/resolve.ts";
@@ -35,7 +36,11 @@ function estate() {
     const map = buildRewriteMap(manifests, components, ownSkillIdentities(root, manifests));
     const text = rewriteRefs(readFileSync(join(assembled.dir, "SKILL.md"), "utf8"), map);
     const dotnet = rewriteRefs(readFileSync(join(assembled.dir, "references", "dotnet.md"), "utf8"), map);
-    return { item, text, dotnet, manifests, components, refs: extractRefs(`${text}\n${dotnet}`) };
+    // Every Markdown file the item assembles, so a row in one harness's harness_files source counts.
+    const markdown = listFiles(assembled.dir)
+      .filter((file) => file.endsWith(".md"))
+      .map((file) => rewriteRefs(readFileSync(join(assembled.dir, file), "utf8"), map));
+    return { item, text, dotnet, manifests, components, refs: extractRefs(markdown.join("\n")) };
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
@@ -75,7 +80,7 @@ test("router and cheatsheet expose every manual ceremony as a human action", () 
   const manual = manifests
     .flatMap((manifest) => declaredItems(root, manifest, components))
     .filter((target) => target.intent.invocation === "manual");
-  assert.equal(manual.length, 33);
+  assert.equal(manual.length, 34);
   for (const target of manual) {
     assert.ok(cheat.includes(`\`${target.outName}\``), `cheatsheet misses manual ${target.outName}`);
     assert.ok(

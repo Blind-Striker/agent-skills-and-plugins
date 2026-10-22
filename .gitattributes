@@ -4,5 +4,8 @@
 # A unified diff represents an empty context line as one space. Do not treat that required nested
 # patch syntax as trailing whitespace when the outer repository diff reviews a recut overlay.
 overlays/**/overlay.patch whitespace=-blank-at-eol
+# The dispatch tests' fixtures (canned backend streams, a pinned Codex schema) are compared byte for
+# byte, so Git stores and checks them out exactly as committed, with no line-ending conversion.
+tests/dispatch/fixtures/** -text
 # external/ submodules contain symlinks; checking them out on Windows needs core.symlinks=true
 # (enabled by Developer Mode or an elevated clone), otherwise git writes them as plain text files.

@@ -2001,6 +2001,74 @@ test("H and I: another harness's own file is held to the handoff and interpreter
   }
 });
 
+/** makeRepo with an original `waves` for OpenCode and Codex only and `delta` for Claude Code only. */
+function narrowedRepo(): string {
+  const root = makeRepo();
+  addOriginalSkill(root, "waves", { declaration: { invocation: "manual", harnesses: ["opencode", "codex"] } });
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "  - source: sp/skills/delta\n",
+      "  - source: sp/skills/delta\n    harnesses: [claude]\n",
+    ),
+  );
+  return root;
+}
+
+/** The fixture's own errors (alpha's edge to beta-agent) stay out: only the narrowed items count. */
+const narrowedErrors = (root: string): string[] => errorsOf(root).filter((m) => /\b(waves|delta|caller)\b/.test(m));
+
+test("harnesses: narrowed items validate clean, and a copy in a tree the item leaves out is an error", () => {
+  const root = narrowedRepo();
+  buildAll(root);
+  const clean = narrowedErrors(root);
+  assert.deepEqual(clean, [], clean.join("\n"));
+
+  mkdirSync(join(root, "plugins", "deniz-process", "skills", "waves"), { recursive: true });
+  writeFileSync(join(root, "plugins", "deniz-process", "skills", "waves", "SKILL.md"), "---\nname: waves\n---\n");
+  mkdirSync(codexPluginPath(root, "deniz-process", "skills", "delta"), { recursive: true });
+  writeFileSync(codexPluginPath(root, "deniz-process", "skills", "delta", "SKILL.md"), "---\nname: delta\n---\n");
+  const stray = narrowedErrors(root);
+  for (const expected of [
+    "plugins/deniz-process/skills/waves: deniz-process/waves names harnesses codex, opencode, but the claude tree ships it — rebuild",
+    "codex/deniz-process/skills/delta: deniz-process/delta names harnesses claude, but the codex tree ships it — rebuild",
+  ]) {
+    assert.ok(stray.includes(expected), `${expected}\n${stray.join("\n")}`);
+  }
+});
+
+test("linker: a shared fact naming an item a tree does not ship is an error in that tree", () => {
+  const root = narrowedRepo();
+  addOriginalSkill(root, "caller", {
+    declaration: { invocation: "auto", depends_on: ["delta"] },
+    body: "Load superpowers:delta.\n",
+  });
+  buildAll(root);
+  const errors = narrowedErrors(root);
+  const expected =
+    "plugins/deniz-process/skills/caller/SKILL.md: model-edge to delta: the opencode and codex trees do not ship it (harnesses in curation/deniz-process.yaml) — name it only from files those trees do not ship";
+  assert.ok(errors.includes(expected), errors.join("\n"));
+});
+
+test("linker: a fact naming a narrowed item from a file only its trees ship is clean", () => {
+  const root = narrowedRepo();
+  addOriginalSkill(root, "caller", {
+    declaration: {
+      invocation: "auto",
+      depends_on: ["delta"],
+      harness_files: {
+        "references/tools.md": { claude: "references/claude.md", codex: null, opencode: null },
+      },
+    },
+    body: "Mine.\n",
+    files: { "references/claude.md": "# Claude\n\nThen load superpowers:delta.\n" },
+  });
+  buildAll(root);
+  const errors = narrowedErrors(root);
+  assert.deepEqual(errors, [], errors.join("\n"));
+});
+
 test("harness files: a tree whose harness maps null holds nothing at the output path", () => {
   const root = makeHarnessFilesRepo("null");
   buildAll(root);

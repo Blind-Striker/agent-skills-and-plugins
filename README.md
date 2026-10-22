@@ -23,13 +23,20 @@ Matt's TDD, debugging, and code-review material is folded into three correspondi
 Superpowers-based skills, while 11 other Matt skills are excluded. Superpowers supplies most of the
 plan, build, and verify spine; Matt supplies mostly human-started ceremonies plus routing,
 domain/design, research, and teaching tools. The Superpowers SessionStart bootstrap is not shipped,
-and ASD-STE100 contributes one additional controlled-English skill. `deniz-process` also carries two
-original skills: `verified-waves`, written here from the approaches in the
-[orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
-and `delegating-to-worker-models`, written from the field runs and controlled comparison in the
-[worker-model delegation research](docs/research/worker-model-delegation.md).
-Exact item decisions and reasons remain beside the items in
+and ASD-STE100 contributes one additional controlled-English skill. Exact item decisions and reasons remain beside the items in
 [`curation/deniz-process.yaml`](curation/deniz-process.yaml).
+
+`deniz-coordination` holds coordination
+([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)): `coordinator`, the mode you start
+to make the agent own a task and hand its work to other agents; `delegating-to-worker-models`,
+written from the field runs and controlled comparison in the
+[worker-model delegation research](docs/research/worker-model-delegation.md); `harness`, a dispatcher
+shipped as the source of a .NET file-based app, for Claude Code and Codex; and `verified-waves`,
+written here from the approaches in the
+[orchestration research](docs/research/claude-ultracode-and-orchestration-ports.md#adopted-approaches-curator-approved),
+for OpenCode and Codex. Each skill ships only to the harnesses it serves
+([ADR-0010](docs/adr/0010-per-harness-item-emission.md)). Running the harness needs a .NET 10 SDK; no
+other Module ships code that needs one.
 
 ## How it works
 
@@ -166,8 +173,8 @@ posture change, yours or upstream's, shows up in review.
 
 Claude Code: `/plugin marketplace add Blind-Striker/agent-skills-and-plugins` then install `deniz-*`
 plugins. Once a `deniz-*` plugin covers an upstream source, uninstall the
-upstream plugin (avoid duplicate similar skills). General and Akka need other plugins installed
-beside them in every harness; the requirement table is under
+upstream plugin (avoid duplicate similar skills). General, Akka, and Dispatch need other plugins
+installed beside them in every harness; the requirement table is under
 [OpenCode from this checkout](#opencode-from-this-checkout).
 
 ### Codex from this repository marketplace
@@ -242,14 +249,18 @@ skills and records them in its Bundle manifest. The checkout's Bundles record:
 | `deniz-dotnet-general` | `deniz-dotnet-aspire`, `deniz-process` |
 | `deniz-dotnet-akka` | `deniz-dotnet-aspire`, `deniz-dotnet-general` |
 | `deniz-dotnet-aspire` | none |
+| `deniz-coordination` | `deniz-process` |
 
 General requires Process for two reasons: `code-testing` hands a repair or flaky-test request to
 Process's `systematic-debugging`, and `writing-tunit-tests` hands what to test, and in what order,
-to Process's `test-driven-development`. So the installer refuses a Selection that has General
-without Aspire and Process, or Akka without Aspire and General. Claude Code and Codex install each
-Plugin on its own, and these Plugins declare no requirement there, so install the required Plugins
-yourself: `deniz-process` and `deniz-dotnet-aspire` alongside `deniz-dotnet-general`, and
-`deniz-dotnet-aspire` and `deniz-dotnet-general` alongside `deniz-dotnet-akka`.
+to Process's `test-driven-development`. Coordination requires Process because
+`delegating-to-worker-models` sends the coordinator's own review read to Process's
+`requesting-code-review`. So the installer refuses a Selection that has General without Aspire and
+Process, Akka without Aspire and General, or Coordination without Process. Claude Code and Codex
+install each Plugin on its own, and these Plugins declare no requirement there, so install the
+required Plugins yourself: `deniz-process` and `deniz-dotnet-aspire` alongside
+`deniz-dotnet-general`, `deniz-dotnet-aspire` and `deniz-dotnet-general` alongside
+`deniz-dotnet-akka`, and `deniz-process` alongside `deniz-coordination`.
 
 The first installer-owned Apply requires a manual clean start. Uninstall package adapters that
 shadow the same names, then move or remove old manually staged copies named by the Plan. Existing
@@ -259,6 +270,13 @@ exists, do not delete it; restore or resolve any reported Local modification or 
 retrying.
 
 ### OpenCode from a Release Package
+
+Package 0.13.0 is being prepared with Process 0.14.0, General 0.14.1, Akka 0.4.1, Aspire 0.6.0,
+and the first release of Coordination 0.1.0. `delegating-to-worker-models` and `verified-waves` move
+from Process into Coordination, so an OpenCode Selection that uses either one adds
+`deniz-coordination`. The verified recipe below remains on the last published Release until the new
+asset passes publication checks. For the current recipe after publication, use the
+[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
 
 The current Package is attached to GitHub Release `installer-v0.12.0`, targeting commit `63b29a5`.
 It carries OpenCode 2 Bundles: Process 0.13.1, General 0.14.1, Akka 0.4.1, and Aspire 0.6.0. They

@@ -122,6 +122,9 @@ Subagent (general):
     a missing one.
 
     - Requirements the spec asked for that are missing or partial.
+    - When the user's own request is supplied beside a plan, places where the
+      change follows the plan but misses the request: report each as a Spec
+      finding, because a plan can narrow what the user asked for.
     - Behaviour in the diff that neither the spec nor a reasonable user's
       expectation asked for (scope creep).
     - Requirements that look implemented but where the implementation looks wrong.

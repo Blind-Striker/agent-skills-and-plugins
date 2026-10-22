@@ -51,6 +51,7 @@ body ownership adds review cost whenever upstream moves.
 | Change the output name | item-level `name:` | References and output identity use the new name |
 | Change who triggers it | `invocation:` | Harness-neutral intent; each emitter chooses its mechanism |
 | Ship a different file per harness at one path | `harness_files:` | Each tree gets only its own harness's source; the sources ship under no name of their own |
+| Ship the item to some harnesses only | `harnesses:` | Every other tree gets nothing from it, so every pointer to it must live where those trees ship |
 | Change the artifact shape | `as:` | Independent of who triggers it |
 | Edit part of a skill body | `body: patch` | Touched upstream files are hash-stamped; drift blocks the build |
 | Own replacement files | `body: overlay` | Replaced upstream files are hash-stamped; later upstream improvements do not flow into owned files |
@@ -135,6 +136,33 @@ harness does not ship, such as the other harnesses' own sources. How `depends_on
 read each harness's source is owned by
 [References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability).
 
+## `harnesses`
+
+`harnesses`, on an item or an [original-skill declaration](#original_skills), lists the trees the
+item ships to ([ADR-0010](../docs/adr/0010-per-harness-item-emission.md)):
+
+```yaml
+harnesses: [opencode, codex] # Claude Code starts the same run through its own workflow tool
+```
+
+Without the key, an item ships to all three harnesses. With it, an unlisted harness gets nothing from
+the item: no skill, command, or agent, no marketplace or Bundle entry, and no ledger row for that
+tree. The key records a decision for every tree, never a port still to come, so give its reason
+beside it, as for `exclude`.
+
+The manifest loader rejects an empty list, a duplicate, an unknown harness, and a list of all three:
+"everywhere" has one spelling, the absent key. A `harness_files` mapping on the item must map every
+unlisted harness to `null`. The build stops before deleting output when a Module would ship nothing
+to some harness.
+
+Every pointer to a narrowed item must stay inside the trees that ship it. The linker checks a fact's
+target in every tree that ships the fact
+([References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability)),
+and a tree without the item has nothing to reach. So a skill that ships everywhere names a narrowed
+item only from a `harness_files` source of the harnesses that have it. `depends_on` stays one list
+per item and still names that target, because some tree ships the fact. `validate` also reports a
+copy of the item in a tree it leaves out.
+
 ## `original_skills`
 
 An original skill is a directory `skills/<plugin>/<name>/` with a `SKILL.md`, written in this
@@ -149,8 +177,8 @@ original_skills:
 
 The SKILL.md owns content and description, and its body still owns the model-edge facts themselves;
 the declaration owns invocation, the `depends_on` list that declares the body's mandatory model-edge facts,
-the `optional_refs` list of conditional facts, and `harness_files`. A declaration is not a second body manifest: it holds `invocation`,
-[`depends_on`](#dependencies), [`optional_refs`](#optional_refs), and [`harness_files`](#harness_files) only, and the manifest loader
+the `optional_refs` list of conditional facts, `harness_files`, and `harnesses`. A declaration is not a second body manifest: it holds `invocation`,
+[`depends_on`](#dependencies), [`optional_refs`](#optional_refs), [`harness_files`](#harness_files), and [`harnesses`](#harnesses) only, and the manifest loader
 rejects any other key by name, the curated-item keys `source`, `name`, `as`, `frontmatter`, `omit`,
 `body`, `merged_from`, and `exclude` included. `invocation` is required, because an original has no
 upstream posture to pass through, and it maps to each harness as the
@@ -194,6 +222,10 @@ packager can strip the executable bit and a Windows shell honors no shebang. Ups
 | `.ps1` | `pwsh -File scripts/x.ps1` |
 | `.js`, `.cjs`, `.mjs`, or a `node` shebang | `node scripts/x.js` |
 | `.py`, or a `python3` shebang | `python3 scripts/x.py`, with the Windows form `py -3 scripts/x.py` beside it |
+| `.cs`, or a `dotnet` shebang: a .NET file-based app's entry file | `dotnet x.cs`, with `--` before the app's own arguments; `dotnet build x.cs` as its build gate; never `dotnet run x.cs` |
+
+Only a file-based app's entry file is run. The source files it pulls in with `#:include` are `.cs`
+too, so a body names them as mentions, never as runs.
 
 `validate` checks every Markdown file of a skill folder in the Claude tree, whose prose the other
 trees share, and each other harness's own `harness_files` source, whose paths resolve as if it sat
@@ -207,7 +239,10 @@ that only names the path is a mention. The path resolves from the Markdown file'
 skill folder; a `<skill-directory>/`-style placeholder or a leading `./` is spelling.
 
 An interpreter word before the path names the interpreter, and only the convention's words name it
-rightly: `bash`, `pwsh -File`, `node`, `python3`, and `py -3`, each with any flags of its own. Every
+rightly: `bash`, `pwsh -File`, `node`, `python3`, `py -3`, and `dotnet`, each with any flags of its
+own; `dotnet build x.cs`, a build gate that compiles the app without running it, passes, and
+`dotnet run` before a path is reported with the `dotnet x.cs` form. A shebang names its program
+after `env`'s own flags, so `#!/usr/bin/env -S dotnet --` is a dotnet script. Every
 other word the check knows is a wrong interpreter, and its message names the convention's form:
 `sh`, `zsh`, `dash`, `ksh`, `python`, `python2`, a versioned `python3.x`, `py` without `-3`,
 `powershell`, `cmd`, an `.exe` spelling of any of these, and any other letter case. A run in the

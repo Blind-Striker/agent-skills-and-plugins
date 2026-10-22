@@ -7,7 +7,7 @@ import { inlineCodeSpans } from "./rewrite.ts";
  * packager can strip the executable bit and a Windows shell runs no shebang. Upstream's own
  * writing-skills rule asks the same.
  */
-export type Interpreter = "bash" | "pwsh" | "node" | "python";
+export type Interpreter = "bash" | "pwsh" | "node" | "python" | "dotnet";
 
 /** A script a skill folder ships, as an invocation names it. */
 export interface BundledScript {
@@ -29,6 +29,8 @@ const BY_EXTENSION: Record<string, Interpreter> = {
   ".cjs": "node",
   ".mjs": "node",
   ".py": "python",
+  // A .NET file-based app's entry file (ADR-0009); `dotnet <file>.cs` builds and runs it.
+  ".cs": "dotnet",
 };
 const BY_SHEBANG: Record<string, Interpreter> = {
   bash: "bash",
@@ -37,6 +39,7 @@ const BY_SHEBANG: Record<string, Interpreter> = {
   node: "node",
   python: "python",
   python3: "python",
+  dotnet: "dotnet",
 };
 
 /** The interpreter a bundled file needs: its extension decides, or else its `#!` line; Markdown is never a script. */
@@ -48,12 +51,15 @@ export function scriptInterpreter(name: string, firstLine: string): Interpreter 
   if (extension in BY_EXTENSION) {
     return BY_EXTENSION[extension];
   }
-  const shebang = /^#!\s*(\S+)(?:\s+(\S+))?/.exec(firstLine);
-  if (!shebang) {
+  if (!firstLine.startsWith("#!")) {
     return undefined;
   }
-  const program = (shebang[1]?.endsWith("/env") ? shebang[2] : shebang[1])?.split("/").pop() ?? "";
-  return BY_SHEBANG[program];
+  const words = firstLine.slice(2).trim().split(/\s+/);
+  // `env` takes its own flags first, as `#!/usr/bin/env -S dotnet --` does; the program follows them.
+  const program = (words[0]?.endsWith("/env") ? words.slice(1).find((word) => !word.startsWith("-")) : words[0])
+    ?.split("/")
+    .pop();
+  return BY_SHEBANG[program ?? ""];
 }
 
 /** How the convention spells a run of `path`. */
@@ -67,6 +73,8 @@ function spelled(script: BundledScript): string {
       return `\`pwsh -File ${script.path}\``;
     case "python":
       return `\`python3 ${script.path}\`, with the Windows form \`py -3 ${script.path}\` beside it`;
+    case "dotnet":
+      return `\`dotnet ${script.path}\``;
   }
 }
 
@@ -81,7 +89,13 @@ function conventionName(interpreter: Interpreter): string {
  * other spelling this check knows, so a wrong one is named instead of passing unseen.
  */
 const INTERPRETER =
-  /(?:^|[\s;|&(])((bash|sh|zsh|dash|ksh|node|python[\d.]*|py|pwsh|powershell|cmd)(?:\.exe)?)((?:\s+[-/][\w.:-]*(?:\s+[A-Za-z]\w*)?)*)$/i;
+  /(?:^|[\s;|&(])((bash|sh|zsh|dash|ksh|node|python[\d.]*|py|pwsh|powershell|cmd|dotnet)(?:\.exe)?)((?:\s+[-/][\w.:-]*(?:\s+[A-Za-z]\w*)?)*)$/i;
+/**
+ * A `dotnet` verb before a path, with its flags. `dotnet build <file>.cs` is the build gate, which
+ * compiles the app without running it, so it passes for a dotnet script. `dotnet run <file>.cs` runs
+ * the app as well, but the convention has one run spelling, `dotnet <file>.cs`, so it is reported.
+ */
+const DOTNET_VERB = /(?:^|[\s;|&(])dotnet(?:\.exe)?\s+(run|build)((?:\s+-[\w.:-]+)*)$/i;
 /** A run in the current shell: PowerShell's call operator, or dot-sourcing, or bash's `source`. */
 const CURRENT_SHELL = /(?:^|[\s;(])(&|\.|source)$/;
 /** A command position: line start, a shell prompt, or after a separator or command substitution. */
@@ -126,6 +140,18 @@ export function scriptInvocationProblems(
   };
   /** Judges the interpreter word before a script path; false when no interpreter word stands there. */
   const named = (trimmed: string, script: BundledScript, index: number): boolean => {
+    const verb = DOTNET_VERB.exec(trimmed)?.[1]?.toLowerCase();
+    if (verb !== undefined) {
+      if (script.interpreter !== "dotnet") {
+        wrong(script, index, `dotnet ${verb}`);
+      } else if (verb === "run") {
+        problems.push({
+          index,
+          message: `runs bundled script ${script.path} with dotnet run — write ${spelled(script)}`,
+        });
+      }
+      return true;
+    }
     const hit = INTERPRETER.exec(trimmed);
     if (!hit) {
       return false;
@@ -135,7 +161,7 @@ export function scriptInvocationProblems(
     const used = [word, ...flags].join(" ");
     let interpreter: Interpreter | undefined;
     let py3 = false;
-    if (word === "bash" || word === "node") {
+    if (word === "bash" || word === "node" || word === "dotnet") {
       interpreter = word;
     } else if (word === "python3") {
       interpreter = "python";

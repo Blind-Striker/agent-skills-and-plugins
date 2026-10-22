@@ -1,0 +1,56 @@
+name: dispatch
+# The dispatch harness's own job (ADR-0009): its build gate, its usage exit, and its .NET tests on
+# every operating system the first release supports. It stays apart from validate, so a .NET failure
+# never hides a curation one, and it has no path filter, so it can be a required check. Tests that
+# need a model login are opt-in and never run here.
+on:
+  push:
+    branches: [master]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  dotnet:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          # The harness pins the SDK; the tests' global.json must equal it (LayoutTests).
+          global-json-file: skills/deniz-coordination/harness/global.json
+          cache: true
+          cache-dependency-path: tests/dispatch/packages.lock.json
+      - name: Build gate, from the harness folder as the skill runs it
+        working-directory: skills/deniz-coordination/harness
+        run: dotnet build dispatch.cs
+      - name: The entry prints its usage and exits 2 with no command
+        working-directory: skills/deniz-coordination/harness
+        shell: bash
+        run: |
+          set +e
+          dotnet dispatch.cs --
+          code=$?
+          if [ "$code" -ne 2 ]; then
+            echo "expected the usage exit code 2, got $code"
+            exit 1
+          fi
+      # The schema contract test (P2) runs on one OS with the Codex CLI the harness pins. The CLI goes
+      # into a private prefix, never globally and never on PATH, so only P2 can resolve it, and only
+      # through DISPATCH_CONTRACT_CODEX. Its schema generation needs no login. Keep the version equal
+      # to the harness pin; S5 compares them.
+      - name: Pinned Codex CLI for the schema contract test (Linux only)
+        if: runner.os == 'Linux'
+        run: npm install --no-save --prefix "$RUNNER_TEMP/codex" @openai/codex@0.163.0
+      - name: Unit and Integration tests
+        working-directory: tests/dispatch
+        env:
+          DISPATCH_CONTRACT: ${{ runner.os == 'Linux' && '1' || '' }}
+          DISPATCH_CONTRACT_CODEX: ${{ runner.os == 'Linux' && format('{0}/codex/node_modules/.bin/codex', runner.temp) || '' }}
+        run: dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"

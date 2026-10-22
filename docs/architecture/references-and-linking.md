@@ -364,8 +364,13 @@ source from the assembly. It reads an original skill's source from the skill's d
 assembly copies unchanged.
 
 For each fact, the linker checks the canonical neutral kind and asks whether the target has the
-required audience surface in every tree that ships the fact: all three for a file every tree ships,
-and only its own harness for a `harness_files` source. Claude reachability comes from emitted
+required audience surface in every tree that ships the fact: every tree the item ships to for a file
+all of them ship, and only its own harness for a `harness_files` source. A tree that does not ship
+the target at all, because [`harnesses`](../../curation/SCHEMA.md#harnesses) leaves it out, has no
+surface there. The fact is then an error naming that tree, and it belongs in a file only the
+target's trees ship ([ADR-0010](../adr/0010-per-harness-item-emission.md)). An item the Claude tree
+does not ship is read in Claude spelling from its neutral folder: an original skill's own
+directory, or a curated item assembled again. Claude reachability comes from emitted
 invocation flags and artifact posture. OpenCode model reachability comes from an advertised skill,
 one without the `opencode/autoinvoke: false` hiding key; OpenCode user reachability comes from any
 skill or agent, which the user attaches with `@`, or a command, which the user runs with `/`. Codex
@@ -385,7 +390,8 @@ declaration syntax are owned by [`curation/SCHEMA.md`](../../curation/SCHEMA.md#
 
 A cross-Module pointer into a nonrequired Module must declare optional intent and have that guard.
 Pointers within the source Module or into an already-required Module need no declaration. Required
-Modules are still derived only from every item's and original skill's `depends_on` lists. Independent
+Modules are still derived only from every item's and original skill's `depends_on` lists, counting
+only the items and targets the OpenCode tree ships, whose Bundle manifest records them. Independent
 mandatory dependencies win without changing another edge's optional intent or removing its guard.
 An optional model target does not join derived mandatory model targets; nonoptional model facts
 retain two-way `depends_on` enforcement. Optional facts keep their neutral kind, native rendering,
@@ -424,7 +430,10 @@ capabilities, policy files, metadata drops, and body transformations. OpenCode a
 respelled from the known neutral facts rather than rediscovered from final text. An item with
 `harness_files` also records that mapping, and each tree's edges come from the Markdown that tree
 ships: the shared files plus its own harness's sources, read in their neutral form from the
-assembly. An original skill's entry records its `skills/<plugin>/<directory>` source followed by
+assembly. An item narrowed by `harnesses` records its sorted tree list and has no `claude`,
+`opencode`, or `codex` object for a tree that does not ship it; when the Claude tree is one of
+those, its description and shared Markdown are read from the assembly in Claude spelling. An
+original skill's entry records its `skills/<plugin>/<directory>` source followed by
 `original: true`, a marker no curated entry carries, and has no body mode or merge sources; its
 invocation, dependencies, optional references, and harness files come from its declaration. Optional
 facts remain recorded separately in the ordinary model/pointer edge projections; the declaration

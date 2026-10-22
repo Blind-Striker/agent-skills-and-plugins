@@ -2,8 +2,8 @@
 
 Date: 2026-10-12
 
-This file owns the forward-test method for the `deniz-process` skill
-[`verified-waves`](../../skills/deniz-process/verified-waves/SKILL.md): its fixture, the setup per
+This file owns the forward-test method for the `deniz-coordination` skill
+[`verified-waves`](../../skills/deniz-coordination/verified-waves/SKILL.md): its fixture, the setup per
 harness, the prompts, the answer key, the repeat budget, and what each record holds. The
 [protocol](protocol.md) owns isolation, controls, and recording in general; this file adds only what
 is specific to this skill. A fixed prompt set against a deterministic fixture is approach 16 of the
@@ -22,9 +22,9 @@ It is a behavioural panel for one skill. It is not a CI gate or a completion gat
 spends tokens, so it runs only on the curator's word, with credentials supplied out of band. Only
 its records support a claim that the skill works in a harness.
 
-In Claude Code the panel runs P0 only. By curator decision, its model prompts, P1 to P8, are not
-run there, because Claude Code uses its native Workflow tool; a Claude Code record marks each of
-them `skipped` with that reason.
+The skill ships to OpenCode and Codex only ([ADR-0010](../../docs/adr/0010-per-harness-item-emission.md)).
+Claude Code starts the same kind of run through its native Workflow tool, so the panel's one
+Claude Code check, in P0, is that the Claude tree does not carry the skill.
 
 Source citations below are pinned as in the research note: Claude Code 2.1.296; OpenCode
 `anomalyco/opencode` v2.0.26, paths under `packages/`; Codex `openai/codex` rust-v0.162.1, paths
@@ -77,22 +77,7 @@ fans out, and P3 is two disjoint write items plus a gate and fans out.
 
 ### Claude Code
 
-Claude Code runs P0 only. So it needs no interactive session, ledger, or operator: items 3, 4,
-and 6 above serve the model prompts, which run in OpenCode and Codex.
-
-- `Use-ClaudeIsolation` sets `CLAUDE_CONFIG_DIR` to `<lab>/.claude-home`. Set
-  `CLAUDE_CODE_DISABLE_AUTO_MEMORY=1`, and check memory as the protocol describes
-  ([Probe cheaply](protocol.md#probe-cheaply)).
-- Run P0 from the fixture as two `-p` calls that print the `system`/`init` event: one with the
-  checkout's Process plugin mounted, and one unmounted control:
-
-  ```powershell
-  claude --output-format stream-json --verbose -p hi --plugin-dir <checkout>/plugins/deniz-process
-  claude --output-format stream-json --verbose -p hi
-  ```
-
-- P0's model-surface half, the `-p` enumeration of the model-callable skills, needs a model turn.
-  Supply a credential out of band, and pass the model explicitly (item 5).
+Claude Code needs no session, ledger, or operator. P0 there reads the built tree only.
 
 ### OpenCode 2
 
@@ -102,7 +87,7 @@ and 6 above serve the model prompts, which run in OpenCode and Codex.
   the installer. Keep `'--'` quoted in PowerShell ([README](../../README.md)):
 
   ```powershell
-  npm run install:opencode '--' install --module deniz-process --yes
+  npm run install:opencode '--' install --module deniz-process --module deniz-coordination --yes
   ```
 
 - Confirm the install with `oc2-discovery.ps1 -Lab <lab>/.opencode-home` before any model call. P0
@@ -133,25 +118,23 @@ Confirm that:
 - in OpenCode and Codex, the operator can stop one child (P4), and the P5 stop and reopen steps
   work.
 
-The dry run names the P4 operator action for OpenCode and Codex. Claude Code runs only P0, so its
-dry run covers the isolation, the fixture, and P0.
+The dry run names the P4 operator action for OpenCode and Codex.
 
 ## Prompts
 
 The prompts are verbatim. Only the invocation token changes per harness. No expected answer reaches
-the model. P1 to P8 run in OpenCode and Codex; in Claude Code only P0 runs.
+the model. P1 to P8 run in OpenCode and Codex.
 
 | Harness | `<token>` |
 |---|---|
-| OpenCode 2 | `@deniz-process.verified-waves` |
-| Codex | `$deniz-process:verified-waves` |
+| OpenCode 2 | `@deniz-coordination.verified-waves` |
+| Codex | `$deniz-coordination:verified-waves` |
 
 ### P0: structural, no model turn
 
-- Claude Code: the `system`/`init` event lists `deniz-process:verified-waves`. A `-p` enumeration
-  of the model-callable skills, paired with an unmounted control, does not list it
-  ([Probe cheaply](protocol.md#probe-cheaply)).
-- OpenCode: `oc2-discovery.ps1` reports `deniz-process.verified-waves` with `advertised: false`.
+- Claude Code: `plugins/deniz-coordination/skills/` has no `verified-waves` folder, and
+  `.claude-plugin/marketplace.json` lists none.
+- OpenCode: `oc2-discovery.ps1` reports `deniz-coordination.verified-waves` with `advertised: false`.
 - Codex: the installed `agents/openai.yaml` of `verified-waves` has
   `allow_implicit_invocation: false`.
 
@@ -202,8 +185,8 @@ child runs `npm test` and gets PASS, and no commit is made (HEAD equals `WAVES_B
 P2 again, and the operator stops one child mid-run with the action the dry run confirmed. If a
 harness has no operator stop for a child, the row is `skipped`, with the reason.
 
-Pass: that item is named FAILED or UNVERIFIED, or it is dispatched once more and reported. Coverage
-reflects it, and no result is substituted for it.
+Pass: that item is named FAILED with the reason that the user stopped it, it is not dispatched
+again, and the rest of the run goes on. Coverage reflects it, and no result is substituted for it.
 
 ### P5: restart
 

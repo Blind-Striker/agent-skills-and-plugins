@@ -5,8 +5,15 @@ import type { AssembledItem } from "./assemble.ts";
 import { CLAUDE_INVOCATION_KEYS } from "./claude-target.ts";
 import { adaptCodexSkillDocument, resolveCodexInvocation } from "./codex-plugin.ts";
 import { parseDoc } from "./frontmatter.ts";
-import { treeMarkdown } from "./harness-files.ts";
-import { type ComponentType, type CurationManifest, type Harness, type HarnessFiles, HARNESSES } from "./manifest.ts";
+import { mappedSources, treeMarkdown } from "./harness-files.ts";
+import {
+  type ComponentType,
+  type CurationManifest,
+  emitsTo,
+  type Harness,
+  type HarnessFiles,
+  HARNESSES,
+} from "./manifest.ts";
 import {
   adaptOpenCodeAgentDocument,
   adaptOpenCodeCommandDocument,
@@ -52,10 +59,12 @@ interface LedgerEntry {
   dependsOn?: string[];
   optionalRefs?: string[];
   harnessFiles?: HarnessFiles;
+  /** The trees the item ships to, when `harnesses` narrows it; each other tree has no row. */
+  harnesses?: Harness[];
   description: string;
-  claude: HarnessState;
-  opencode: OpenCodeState;
-  codex: {
+  claude?: HarnessState;
+  opencode?: OpenCodeState;
+  codex?: {
     artifacts: ["skill"];
     identity: string;
     sourceKind: string;
@@ -89,14 +98,7 @@ function emittedClaudeFlags(outType: string, frontmatter: Record<string, unknown
   return Object.keys(flags).length > 0 ? flags : undefined;
 }
 
-/** Facts in one built artifact set, filtered to our own output namespaces, spelled as found. */
-function edgesIn(files: string[], ownNs: Set<string>): Record<RefKind, string[]> {
-  return edgesInTexts(
-    files.map((f) => readFileSync(f, "utf8")),
-    ownNs,
-  );
-}
-
+/** Facts in one shipped Markdown set, filtered to our own output namespaces, spelled as found. */
 function edgesInTexts(texts: string[], ownNs: Set<string>): Record<RefKind, string[]> {
   const model: string[] = [];
   const pointer: string[] = [];
@@ -141,8 +143,10 @@ export function writeLedger(
         `${outType}s`,
         outType === "skill" ? outName : `${outName}.md`,
       );
-      const claudeFiles =
-        outType === "skill"
+      const inClaude = emitsTo(intent, "claude");
+      const claudeFiles = !inClaude
+        ? []
+        : outType === "skill"
           ? listFiles(claudeDir)
               .filter((f) => f.endsWith(".md"))
               .map((f) => join(claudeDir, f))
@@ -152,7 +156,6 @@ export function writeLedger(
         const path = join(moduleRoot, openCodeBundlePath(kind, m.plugin.name, outName));
         return existsSync(kind === "skill" ? join(path, "SKILL.md") : path);
       });
-      const doc = parseDoc(readFileSync(outType === "skill" ? join(claudeDir, "SKILL.md") : claudeDir, "utf8"));
       const neutral = assembled.find(
         (candidate) =>
           candidate.plugin === m.plugin.name &&
@@ -164,22 +167,38 @@ export function writeLedger(
         throw new Error(`internal error: missing assembled item for ${ledgerId}`);
       }
       const neutralDoc = parseDoc(readFileSync(join(neutral.dir, "SKILL.md"), "utf8"));
+      const doc = inClaude
+        ? parseDoc(readFileSync(outType === "skill" ? join(claudeDir, "SKILL.md") : claudeDir, "utf8"))
+        : neutralDoc;
       const codexAdaptation = adaptCodexSkillDocument(outName, neutralDoc);
       const codexInvocation = resolveCodexInvocation(intent.invocation);
       const claudeFlags = emittedClaudeFlags(outType, doc.frontmatter);
-      const claudeEdges = edgesIn(claudeFiles, ownNs);
       // Each tree ships its own harness files (curation/SCHEMA.md harness_files), so a tree's edges are
       // the shared Markdown plus that tree's own sources; without a mapping every tree ships the same.
+      // An item the Claude tree does not ship (harnesses) is read from the assembly in Claude spelling.
       const harnessFiles = intent.harness_files;
-      const shipped = claudeFiles.map((f) => ({
-        path: relative(claudeDir, f).split(sep).join("/"),
-        text: readFileSync(f, "utf8"),
-      }));
+      const mapped = new Set(harnessFiles ? mappedSources(harnessFiles) : []);
+      const shipped = inClaude
+        ? claudeFiles.map((f) => ({
+            path: relative(claudeDir, f).split(sep).join("/"),
+            text: readFileSync(f, "utf8"),
+          }))
+        : listFiles(neutral.dir)
+            .filter((file) => file.endsWith(".md") && !mapped.has(file) && (outType === "skill" || file === "SKILL.md"))
+            .map((file) => ({
+              path: file,
+              text: rewriteRefs(readFileSync(join(neutral.dir, file), "utf8"), rewriteMap, "claude"),
+            }));
+      // The shared Markdown in Claude spelling; for an item the Claude tree ships, exactly its files.
+      const claudeEdges = edgesInTexts(
+        shipped.map((file) => file.text),
+        ownNs,
+      );
       const edgesOf = (harness: Exclude<Harness, "claude">): Record<RefKind, string[]> =>
         harness === "codex" && outType !== "skill"
           ? edgesInTexts(
               [
-                ...claudeFiles.map((file) => readFileSync(file, "utf8")),
+                ...shipped.map((file) => file.text),
                 ...listFiles(neutral.dir)
                   .filter((file) => file.endsWith(".md") && file !== "SKILL.md")
                   .map((file) => rewriteRefs(readFileSync(join(neutral.dir, file), "utf8"), rewriteMap, "claude")),
@@ -242,36 +261,48 @@ export function writeLedger(
               ),
             }
           : {}),
+        ...(intent.harnesses ? { harnesses: [...intent.harnesses].sort() } : {}),
         description: String(doc.frontmatter.description ?? ""),
-        claude: { artifacts: [outType], edges: claudeEdges, ...(claudeFlags ? { flags: claudeFlags } : {}) },
-        opencode: {
-          artifacts: ocArtifacts,
-          identity,
-          ...(ocSkill ? { advertised: ocSkill.advertised } : {}),
-          edges: {
-            model: sortedUnique(openCodeEdges.model.map(ocId)),
-            pointer: sortedUnique(openCodeEdges.pointer.map(ocPointer)),
-          },
-          dropped: ocDropped,
-          ...(ocTransformations.length ? { metadataTransformations: ocTransformations } : {}),
-        },
-        codex: {
-          artifacts: ["skill"],
-          identity: `${m.plugin.name}:${outName}`,
-          sourceKind: neutral.sourceType,
-          resolvedKind: outType,
-          emittedKind: "skill",
-          ...(outType !== "skill" ? { kindTransformation: `${outType}->skill` } : {}),
-          implicit: codexInvocation.implicit,
-          explicit: codexInvocation.explicit,
-          policyFiles: codexInvocation.agentManifest ? ["agents/openai.yaml"] : [],
-          edges: {
-            model: codexEdges.model.map((address) => `$${address}`),
-            pointer: codexEdges.pointer.map((address) => `$${address}`),
-          },
-          dropped: codexAdaptation.dropped,
-          bodyTransformations: [],
-        },
+        // A tree the item does not ship (harnesses) gets no row.
+        ...(inClaude
+          ? { claude: { artifacts: [outType], edges: claudeEdges, ...(claudeFlags ? { flags: claudeFlags } : {}) } }
+          : {}),
+        ...(emitsTo(intent, "opencode")
+          ? {
+              opencode: {
+                artifacts: ocArtifacts,
+                identity,
+                ...(ocSkill ? { advertised: ocSkill.advertised } : {}),
+                edges: {
+                  model: sortedUnique(openCodeEdges.model.map(ocId)),
+                  pointer: sortedUnique(openCodeEdges.pointer.map(ocPointer)),
+                },
+                dropped: ocDropped,
+                ...(ocTransformations.length ? { metadataTransformations: ocTransformations } : {}),
+              },
+            }
+          : {}),
+        ...(emitsTo(intent, "codex")
+          ? {
+              codex: {
+                artifacts: ["skill"] as ["skill"],
+                identity: `${m.plugin.name}:${outName}`,
+                sourceKind: neutral.sourceType,
+                resolvedKind: outType,
+                emittedKind: "skill" as const,
+                ...(outType !== "skill" ? { kindTransformation: `${outType}->skill` } : {}),
+                implicit: codexInvocation.implicit,
+                explicit: codexInvocation.explicit,
+                policyFiles: codexInvocation.agentManifest ? ["agents/openai.yaml"] : [],
+                edges: {
+                  model: codexEdges.model.map((address) => `$${address}`),
+                  pointer: codexEdges.pointer.map((address) => `$${address}`),
+                },
+                dropped: codexAdaptation.dropped,
+                bodyTransformations: [],
+              },
+            }
+          : {}),
       };
       ledger[ledgerId] = entry;
     }

@@ -1,0 +1,14 @@
+{"schemaVersion":2,"ts":"$timestamp","run":"$run","type":"run","data":{"repo":"$lab/repo","max":1,"server":"2.0.32","tasks":1,"policy":"config.json","deny":["user/no-edits"],"escalate":[],"removed":["NUGET_PACKAGES"]}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"queued","data":{"kind":"research","route":"opencode:fixture/model","agent":null,"reviewOf":null}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"worktree","data":{"path":"$lab/dispatch-home/state/worktrees/$run/inspect","branch":"dispatch/$run/inspect","base":"main","baseSha":"$base"}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"route","data":{"route":"opencode:fixture/model","agent":"build","lineage":"fixture"}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"session","data":{"sessionId":"$session","projectId":"$project","rules":["edit * deny","edit * deny","shell * deny","edit $lab/dispatch-home/state/control/** deny","edit $lab/dispatch-home/state/ledgers/$run/** deny"]}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"environment","data":{"variables":"$environment-count","removed":[]}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"prompt","data":{"turn":"$prompt","chars":"$prompt-chars","sha256":"$prompt-sha256","promptId":"$prompt"}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"permission","data":{"id":"$permission","session":null,"action":"read","resources":["README.md"],"answer":"reject","by":"harness","status":204}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"tool","data":{"tool":"read","resource":"README.md","outcome":"succeeded","duration":0.001}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"status","data":{"execution":"succeeded"}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"collected","data":{"outcome":"succeeded","commit":null,"diffstat":"","files":0,"outOfScope":[],"routesUsed":["fixture/model#default"]}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"verified","data":{"commands":0,"failed":0}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"outcome","data":{"outcome":"succeeded","cost":0.0125,"tokensIn":12,"tokensOut":7,"tokensComplete":true,"error":null}}
+{"ts":"$timestamp","run":"$run","task":"inspect","type":"final","data":{"state":"done","outcome":"succeeded","reason":null}}

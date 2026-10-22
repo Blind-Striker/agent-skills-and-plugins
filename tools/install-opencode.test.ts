@@ -985,7 +985,13 @@ test("a bin symlink process runs the real installer module", (t) => {
 
 // --- packed-package tests --------------------------------------------------
 
-const REQUIRED_MODULES = ["deniz-dotnet-akka", "deniz-dotnet-aspire", "deniz-dotnet-general", "deniz-process"];
+const REQUIRED_MODULES = [
+  "deniz-coordination",
+  "deniz-dotnet-akka",
+  "deniz-dotnet-aspire",
+  "deniz-dotnet-general",
+  "deniz-process",
+];
 
 // The tarball carries only the committed emitted installer and the generated Module Bundles.
 // The TS sources stay out: consumers never compile.

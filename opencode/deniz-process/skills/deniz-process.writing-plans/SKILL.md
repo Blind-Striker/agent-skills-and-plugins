@@ -41,7 +41,7 @@ Before defining tasks, map out which files will be created or modified and what 
 - You reason best about code you can hold in context at once, and your edits are more reliable when files are focused. Prefer smaller, focused files over large ones that do too much.
 - Files that change together should live together. Split by responsibility, not by technical layer.
 - In existing codebases, follow established patterns. If the codebase uses large files, don't unilaterally restructure - but if a file you're modifying has grown unwieldy, including a split in the plan is reasonable.
-- Verification and one-off operations use the tools the repository and platform already have (the dotnet CLI, `dotnet test`, existing scripts). Do not plan a new project, script, harness, tool in another language, or evidence document for verification or a one-off operation unless the request asks for one. A one-off check is a command in a step, not a file.
+- Verification and one-off operations use the tools the repository and platform already have (the dotnet CLI, `dotnet test`, existing scripts). Do not plan a new project, script, harness, tool in another language, or evidence document in the repository for verification or a one-off operation unless the request asks for one. A one-off check is a command in a step, not a file.
 
 This structure informs the task decomposition. Each task should produce self-contained changes that make sense independently.
 

@@ -60,7 +60,9 @@ the merge-base rather than against whatever `main` has since collected.
 What the change was *supposed* to do, in this order:
 
 1. **The plan or task**, when one is driving the work — in subagent-driven development this is the
-   plan file, and it is the spec. Stop here.
+   plan file, and it is the spec. When this session holds the user's own request, pass it word for
+   word beside the plan, so the Spec axis can report where the change meets the plan but not the
+   request. Stop here.
 2. **Issue references in the commit messages** (`#123`, `Closes #45`) — fetch them the way this
    repo's issue-tracker notes describe. If that convention has not been set up here, tell the human
    to open `$deniz-process:setup-matt-pocock-skills` rather than guessing at a tracker.

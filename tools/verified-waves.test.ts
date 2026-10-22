@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 
-const skillDir = join(import.meta.dirname, "..", "skills", "deniz-process", "verified-waves");
+const skillDir = join(import.meta.dirname, "..", "skills", "deniz-coordination", "verified-waves");
 
 function between(text: string, start: string, end: string): string {
   const from = text.indexOf(start);
@@ -31,24 +31,6 @@ test("verified-waves restart is a policy, not a claim that every old child is un
   assert.match(between(codex, "## V1", "## V2"), /only within the live session/);
 });
 
-test("verified-waves Claude sandbox notes do not treat every DNS failure as a denial", () => {
-  const sandbox = between(
-    readFileSync(join(skillDir, "references", "claude-code-tools.md"), "utf8"),
-    "## Commands the sandbox refuses",
-    "## Restart",
-  );
-  assert.match(sandbox, /Operation not permitted/);
-  assert.match(sandbox, /Read-only file system/);
-  assert.match(sandbox, /Could not resolve host/);
-  assert.match(sandbox, /Network is unreachable/);
-  assert.match(sandbox, /do not\s+treat every such failure as a sandbox denial/s);
-  assert.match(sandbox, /confirmed sandbox denial/);
-  assert.match(sandbox, /once/);
-  assert.match(sandbox, /dangerouslyDisableSandbox/);
-  assert.match(sandbox, /Do not disable the sandbox or change its\s+configuration/);
-  assert.doesNotMatch(sandbox, /every (?:DNS|network) failure is a sandbox denial/i);
-});
-
 test("verified-waves OpenCode question dismissal is not approval", () => {
   const questions = between(
     readFileSync(join(skillDir, "references", "opencode-tools.md"), "utf8"),
@@ -58,7 +40,8 @@ test("verified-waves OpenCode question dismissal is not approval", () => {
   assert.doesNotMatch(questions, /returns only when the user has answered/);
   assert.match(questions, /dismiss/);
   assert.match(questions, /not approval/);
-  assert.match(questions, /explicit answer/);
+  assert.match(questions, /do not take\s+it/);
+  assert.match(questions, /list it as\s+open in the final report/);
   assert.match(questions, /do not treat (?:a )?dismissal as yes/i);
   assert.doesNotMatch(questions, /dismissal is (?:a )?yes|treat dismissal as approval/i);
 });
@@ -94,10 +77,11 @@ test("verified-waves brief forbids task questions and still allows the escalatio
   assert.match(briefs, /send that question back as STATUS: BLOCKED/);
   assert.match(briefs, /harness escalation prompt[\s\S]{0,80}is allowed/);
   assert.doesNotMatch(briefs, /do not request the harness's escalation/i);
-  assert.match(
-    between(skill, "## Plan before any dispatch", "## Pick the shape"),
-    /Ask one yes\/no question before each of these/,
-  );
+  const plan = between(skill, "## Plan before any dispatch", "## Pick the shape");
+  assert.match(plan, /These actions need the user's yes, unless the request already names them/);
+  assert.match(plan, /never take it before an explicit yes/);
+  assert.match(plan, /ask about the rest once, at the end/);
+  assert.doesNotMatch(plan, /broad\s+codemod|over the announced agent total|end your turn/);
 });
 
 test("verified-waves runbook discovery does not claim the OpenCode temp-dir root moved", () => {

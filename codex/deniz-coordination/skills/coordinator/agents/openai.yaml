@@ -1,0 +1,6 @@
+interface:
+  display_name: "Coordinator"
+  short_description: "Work as the coordinator of a task or project."
+  default_prompt: "Use $deniz-coordination:coordinator for this task."
+policy:
+  allow_implicit_invocation: false

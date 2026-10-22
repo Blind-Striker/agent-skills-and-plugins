@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { basename, dirname, join, relative } from "node:path";
 import { matchesGlob } from "node:path";
-import type { ComponentType, CurationItem, CurationManifest, SkillIntent } from "./manifest.ts";
+import { type ComponentType, type CurationItem, type CurationManifest, emitsTo, type SkillIntent } from "./manifest.ts";
 import type { OwnSkillIdentity } from "./own-skills.ts";
 import type { ComponentInfo } from "./scan.ts";
 import { ordinalCompare } from "./order.ts";
@@ -118,11 +118,27 @@ export function deriveModuleRequirements(
     addOwner(own.name, own.plugin);
   }
 
+  // requiredModules lives in the OpenCode Bundle manifest, so only edges the OpenCode tree ships count
+  // (ADR-0010): a fact may name an item another tree lacks only from files that tree does not ship.
+  const outsideOpenCode = new Set<string>();
+  for (const manifest of manifests) {
+    for (const { outName, intent } of declaredItems(root, manifest, components)) {
+      if (!emitsTo(intent, "opencode")) {
+        outsideOpenCode.add(outName);
+      }
+    }
+  }
   const result = new Map<string, string[]>();
   for (const manifest of [...manifests].sort((a, b) => ordinalCompare(a.plugin.name, b.plugin.name))) {
     const required = new Set<string>();
     for (const { intent } of declaredItems(root, manifest, components)) {
+      if (!emitsTo(intent, "opencode")) {
+        continue;
+      }
       for (const target of intent.depends_on ?? []) {
+        if (outsideOpenCode.has(target)) {
+          continue;
+        }
         const candidates = owners.get(target);
         if (!candidates?.size) {
           throw new Error(`${manifest.plugin.name}: unknown dependency target ${target}`);

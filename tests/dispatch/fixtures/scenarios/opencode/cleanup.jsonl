@@ -1,0 +1,3 @@
+{"expect":"GET /api/info","repeat":true,"reply":{"version":"2.0.32","pid":"$pid","urls":["$url"],"paths":{"tmp":"$cwd"}}}
+{"expect":"GET /api/session","repeat":true,"reply":{"data":[],"cursor":{}}}
+{"expect":"DELETE /api/session/ses_fixture","repeat":true,"status":204}

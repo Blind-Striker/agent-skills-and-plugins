@@ -32,8 +32,9 @@ contradicts recorded item intent; it never re-solves a runtime problem upstream 
   `docs/ledger.json`. `external/` is read-only upstream evidence; the others are generated,
   committed review surfaces.
 - Authored work belongs in `curation/`, `overlays/` and `overlays/overlays.lock.json`, original
-  `skills/`, `tools/`, `docs/`, `experiments/`, or root public metadata such as `LICENSE` and
-  `THIRD_PARTY_NOTICES.md`, according to the task owner below.
+  `skills/`, `tools/`, `tests/dispatch/` (the dispatch harness's .NET tests), `docs/`,
+  `experiments/`, or root public metadata such as `LICENSE` and `THIRD_PARTY_NOTICES.md`, according
+  to the task owner below.
 - Keep plans and specifications outside the repository and never commit them, even where a planning
   or design skill saves them under `docs/superpowers/` or prescribes a commit step
   (`docs/engineering/documentation.md#handovers-and-plans`).

@@ -6,6 +6,11 @@
   },
   "plugins": [
     {
+      "name": "deniz-coordination",
+      "source": "./plugins/deniz-coordination",
+      "description": "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)"
+    },
+    {
       "name": "deniz-dotnet-akka",
       "source": "./plugins/deniz-dotnet-akka",
       "description": "Deniz's curated Akka.NET skills"

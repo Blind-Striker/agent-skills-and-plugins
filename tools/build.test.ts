@@ -1695,6 +1695,22 @@ test("buildAll emits requiredModules for a guarded cross-Module edge", () => {
   assert.ok(existsSync(previouslyGenerated), "previous build output must survive an aborted build");
 });
 
+test("requiredModules counts only the edges of items the OpenCode tree ships", () => {
+  const root = makeRepo();
+  writeFileSync(
+    join(root, "curation", "deniz-other.yaml"),
+    "plugin:\n  name: deniz-other\n  description: Other\n  version: 0.1.0\nitems: []\n",
+  );
+  addOriginalSkill(root, "anchor", { plugin: "deniz-other" });
+  addOriginalSkill(root, "own-cross", {
+    plugin: "deniz-other",
+    declaration: { invocation: "auto", depends_on: ["delta"], harnesses: ["claude", "codex"] },
+    body: "Load superpowers:delta.\n",
+  });
+  buildAll(root);
+  assert.deepEqual(loadModuleManifest(join(root, "opencode", "deniz-other", "manifest.json")).requiredModules, []);
+});
+
 test("buildAll emits requiredModules for an original skill's cross-Module edge", () => {
   const root = makeRepo();
   writeFileSync(
@@ -1854,6 +1870,56 @@ test("harness_files preflight stops the build before deleting anything", () => {
     assert.throws(() => buildAll(root), message);
     assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "references", "tools.md")));
   }
+});
+
+test("harnesses ships an item only to the trees it names, with no trace in the others", () => {
+  const root = makeRepo();
+  addOriginalSkill(root, "waves", { declaration: { invocation: "manual", harnesses: ["opencode", "codex"] } });
+  const p = join(root, "curation", "deniz-process.yaml");
+  writeFileSync(
+    p,
+    readFileSync(p, "utf8").replace(
+      "  - source: sp/skills/delta\n",
+      "  - source: sp/skills/delta\n    harnesses: [claude]\n",
+    ),
+  );
+  buildAll(root);
+  assert.ok(!existsSync(join(root, "plugins", "deniz-process", "skills", "waves")), "the Claude tree has no waves");
+  assert.ok(existsSync(join(opencodeIdPath(root, "deniz-process", "skill", "waves"), "SKILL.md")));
+  assert.ok(existsSync(codexPluginPath(root, "deniz-process", "skills", "waves", "SKILL.md")));
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md")));
+  assert.ok(!existsSync(opencodeIdPath(root, "deniz-process", "skill", "delta")), "the OpenCode tree has no delta");
+  assert.ok(!existsSync(codexPluginPath(root, "deniz-process", "skills", "delta")), "the Codex tree has no delta");
+  const manifest = loadModuleManifest(join(opencodeModulePath(root, "deniz-process"), "manifest.json"));
+  assert.ok(manifest.files["skills/deniz-process.waves/SKILL.md"]);
+  assert.ok(!Object.keys(manifest.files).some((file) => file.startsWith("skills/deniz-process.delta/")));
+  const ledger = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"));
+  const waves = ledger["deniz-process/skill/waves"];
+  assert.deepEqual(waves.harnesses, ["codex", "opencode"]);
+  assert.equal(waves.claude, undefined, "no Claude row for a tree that ships nothing");
+  assert.equal(waves.opencode.identity, "deniz-process.waves");
+  assert.equal(waves.codex.identity, "deniz-process:waves");
+  const delta = ledger["deniz-process/skill/delta"];
+  assert.deepEqual(delta.harnesses, ["claude"]);
+  assert.equal(delta.opencode, undefined);
+  assert.equal(delta.codex, undefined);
+  assert.deepEqual(delta.claude.artifacts, ["skill"]);
+  assert.equal(ledger["deniz-process/skill/alpha"].harnesses, undefined, "an unnarrowed entry is unchanged");
+});
+
+test("a Module that one harness would get nothing from stops the build before deleting output", () => {
+  const root = makeRepo();
+  buildAll(root);
+  writeFileSync(
+    join(root, "curation", "deniz-solo.yaml"),
+    "plugin:\n  name: deniz-solo\n  description: Solo\n  version: 0.1.0\nitems: []\n",
+  );
+  addOriginalSkill(root, "only-claude", {
+    plugin: "deniz-solo",
+    declaration: { invocation: "both", harnesses: ["claude"] },
+  });
+  assert.throws(() => buildAll(root), /deniz-solo ships nothing to codex or opencode — narrow fewer items/);
+  assert.ok(existsSync(join(root, "plugins", "deniz-process", "skills", "delta", "SKILL.md")));
 });
 
 test("harness_files on an original skill ships each tree its own file at one output path", () => {

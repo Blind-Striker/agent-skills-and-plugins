@@ -90,7 +90,8 @@ implemented in
 [`digestModulePayload`](../../tools/lib/opencode-bundle.ts), and manifest creation is implemented in
 [`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
 
-`requiredModules` remains derived only from `depends_on`. Guarded `optional_refs` are compile-time
+`requiredModules` remains derived only from `depends_on`, over the items the OpenCode tree ships.
+Guarded `optional_refs` are compile-time
 reference intent, not a Bundle schema field or installer dependency; the installer does not inspect
 or rewrite them ([References and linking](references-and-linking.md#conditional-cross-module-facts)).
 
@@ -140,7 +141,10 @@ verified Package metadata and never become Destination Ownership. Any other non-
 is rejected. For each add or replacement, Apply stages the selected source bytes, verifies their hash
 and intended mode, and places them at the same relative path in the Destination. POSIX mode
 participates in matching and is applied; on Windows the intended mode remains recorded while byte
-identity is the enforced filesystem comparison.
+identity is the enforced filesystem comparison. A skill folder may bundle the source of an
+application, as the `harness` skill does with its .NET file-based app
+([ADR-0009](../adr/0009-coordination-ships-in-its-own-module.md)); the installer places those
+files like any other bundled file and never builds or runs them.
 
 Every Native-tree path already carries its Module's OpenCode namespace, because the emitter names
 each artifact `<module>.<name>`: `skills/<module>.<name>/SKILL.md` with its bundled files below that
