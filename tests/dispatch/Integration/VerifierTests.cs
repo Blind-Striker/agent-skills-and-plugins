@@ -68,8 +68,19 @@ public sealed class VerifierTests
             : "sh -c 'ps -o nice= -p $$'";
         var (_, log, _) = await RunAsync(tree, command, ct);
         var output = log.Split("[stdout]")[1].Split("[stderr]")[0].Trim();
-        if (OperatingSystem.IsWindows()) await Assert.That(output).IsEqualTo("BelowNormal");
-        else await Assert.That(int.Parse(output, System.Globalization.CultureInfo.InvariantCulture)).IsGreaterThanOrEqualTo(10);
+        if (OperatingSystem.IsWindows())
+        {
+            await Assert.That(output).IsEqualTo("BelowNormal");
+            return;
+        }
+        // nice -n 10 is relative: verify runs 10 below the harness, which inherits this process's nice.
+        using var ps = new CapturedProcess();
+        var own = await ps.RunAsync("ps", ["-o", "nice=", "-p", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)],
+            tree.Root, tree.ChildEnvironment(), ct);
+        own.RequireSuccess("read the test host's nice");
+        var baseline = int.Parse(own.Stdout.Trim(), System.Globalization.CultureInfo.InvariantCulture);
+        var verify = int.Parse(output, System.Globalization.CultureInfo.InvariantCulture);
+        await Assert.That(verify).IsEqualTo(Math.Min(20, baseline + 10)).Because($"test host nice {baseline}, verify nice {verify}");
     }
 
     [Test]
