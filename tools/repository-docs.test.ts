@@ -45,16 +45,16 @@ test("README verifies the current Release digest before package execution", () =
   const readme = readFileSync(join(root, "README.md"), "utf8");
   assert.doesNotMatch(
     readme,
-    /installer-v0\.(?:[123456789]|1[01])\.[01]|deniz-agent-skills-0\.(?:[123456789]|1[01])\.[01]\.tgz/,
+    /installer-v0\.(?:[123456789]|1[012])\.[01]|deniz-agent-skills-0\.(?:[123456789]|1[012])\.[01]\.tgz/,
   );
   assert.doesNotMatch(readme, /refuses\s+alternate\s+config-dir\s+mounts/);
   const section = readme.slice(readme.indexOf("### OpenCode from a Release Package"));
   assert.match(section, /`OPENCODE_CONFIG_DIR`/);
   // PowerShell's npm.ps1 shim consumes a bare `--`, so npm would take the installer's flags as its own.
   assert.doesNotMatch(section, /npm exec [^\n]* -- deniz-skills/);
-  const download = "gh release download installer-v0.12.0 --repo Blind-Striker/agent-skills-and-plugins";
-  const asset = '"deniz-agent-skills-0.12.0.tgz"';
-  const digest = "200f8b576eab3aa3ff526ffdab15c6d5da58e72b831bb72542c01fa3dba24b62";
+  const download = "gh release download installer-v0.13.0 --repo Blind-Striker/agent-skills-and-plugins";
+  const asset = '"deniz-agent-skills-0.13.0.tgz"';
+  const digest = "82f8ba5e4b4f144737ecce2b66f43b9890c3002ada97102f0343f58d85297177";
   const compute = "Get-FileHash -LiteralPath $package -Algorithm SHA256";
   const compare = "if ($actual -ne $expected) { throw";
   const execute = "npm exec --yes --package $package '--' deniz-skills install --all";
