@@ -571,6 +571,8 @@ public sealed class CodexProcessTests
         catch (InvalidOperationException) { return false; }
         catch (FileNotFoundException) { return false; }
         catch (DirectoryNotFoundException) { return false; }
+        // macOS cannot read an exited process's start time and throws instead of reporting the exit.
+        catch (System.ComponentModel.Win32Exception) when (OperatingSystem.IsMacOS()) { return false; }
     }
 
     static async Task CleanupAsync(IEnumerable<ObservedProcess> identities)
@@ -587,6 +589,7 @@ public sealed class CodexProcessTests
             }
             catch (ArgumentException) { continue; } // Exit raced cleanup.
             catch (InvalidOperationException) { continue; } // Exit raced cleanup.
+            catch (System.ComponentModel.Win32Exception) when (OperatingSystem.IsMacOS()) { continue; } // Exit raced cleanup.
         }
     }
 
