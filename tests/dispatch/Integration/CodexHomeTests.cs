@@ -11,6 +11,51 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexHomeTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Fake_receives_sandbox_state_without_user_context_in_probe_and_task_homes(bool probe, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox setup is Windows-only.");
+        using var lab = new CodexLab();
+        var userHome = lab.Environment["CODEX_HOME"];
+        var state = new[] { ".sandbox/setup_marker.json", ".sandbox-secrets/sandbox_users.json" };
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        File.WriteAllText(Path.Combine(userHome, "config.toml"), "[mcp_servers.canary]\ncommand = 'canary'\n");
+        foreach (var relative in state.Concat(new[] { "AGENTS.md", "history.jsonl", "rules/canary.rules", "skills/canary/SKILL.md" }))
+        {
+            var path = Path.Combine(userHome, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "synthetic-source");
+        }
+        var context = new BackendContext(Path.Combine(lab.Tree.Root, "profiles"), CodexLab.Executable, new Dictionary<string, string>());
+        using var home = probe ? CodexHome.CreateProbe(context, userHome, lab.Tree.Repository, windowsSandbox: "elevated")
+            : CodexHome.Create(context, Unit.CodexHomeTests.Launch(lab.Tree.Repository), userHome, "elevated");
+        lab.Write(probe ? "probe" : "task-task", """
+            {"notify":"ready","params":{}}
+            """);
+        lab.Environment["CODEX_HOME"] = home.Home;
+        await using (var process = CodexProcess.Start(context, lab.Tree.Repository, lab.Environment))
+        {
+            using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+            await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+            await Assert.That((await process.StopAsync()).Stopped).IsTrue();
+        }
+        var record = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Single()))!;
+        var entries = record["codexHomeEntries"]!.AsArray().Select(x => x!.GetValue<string>()).ToArray();
+        await Assert.That(entries).Contains(".sandbox");
+        await Assert.That(entries).Contains(".sandbox-secrets");
+        foreach (var entry in new[] { "AGENTS.md", "history.jsonl", "rules", "skills" })
+            await Assert.That(entries).DoesNotContain(entry);
+        foreach (var relative in state)
+            await Assert.That(File.ReadAllText(Path.Combine(record["codexHome"]!.GetValue<string>(), relative))).IsEqualTo("synthetic-source");
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, "config.toml"))).DoesNotContain("canary");
+        home.Dispose();
+        foreach (var relative in state)
+            await Assert.That(File.ReadAllText(Path.Combine(userHome, relative))).IsEqualTo("synthetic-source");
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Probe_home_is_under_command_context_profiles_and_the_fake_selects_probe(CancellationToken cancellationToken)
     {

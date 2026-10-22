@@ -38,7 +38,8 @@ sealed class CodexHome : IDisposable
         var text = File.ReadAllText(Path.Combine(userHome, "config.toml"));
         var table = Regex.Match(text, @"(?ms)^\s*\[windows\]\s*(?<body>.*?)(?=^\s*\[|\z)");
         var value = Regex.Match(table.Groups["body"].Value, "(?m)^\\s*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
-        if (!value.Success) value = Regex.Match(text, "(?m)^\\s*windows\\s*=\\s*\\{[^}]*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
+        if (!value.Success) value = Regex.Match(text,
+            """(?m)^\s*(?:windows|"windows"|'windows')\s*=\s*\{[^}]*(?:sandbox|"sandbox"|'sandbox')\s*=\s*["'](?<value>elevated|unelevated)["']""");
         return value.Success ? value.Groups["value"].Value : null;
     }
 
@@ -94,7 +95,26 @@ sealed class CodexHome : IDisposable
             var complete = false;
             try
             {
-                try { (createHardLink ?? CreateHardLink)(Path.Combine(folder, "auth.json"), Path.Combine(userHome, "auth.json")); }
+                var linking = "auth.json";
+                try
+                {
+                    (createHardLink ?? CreateHardLink)(Path.Combine(folder, linking), Path.Combine(userHome, linking));
+                    if (OperatingSystem.IsWindows())
+                    {
+                        // Only setup receipts and machine-local accounts are shared. Logs, capability
+                        // SIDs and helper binaries remain private and are materialized by Codex.
+                        foreach (var relative in new[] { ".sandbox/setup_marker.json", ".sandbox-secrets/sandbox_users.json" })
+                        {
+                            var source = Path.Combine(userHome, relative);
+                            if (!File.Exists(source)) continue; // Readiness, not file presence, decides usability.
+                            linking = relative;
+                            var destination = Path.Combine(folder, relative);
+                            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                            // Hardlinks preserve the setup file's ACL, including sandbox-account denies.
+                            (createHardLink ?? CreateHardLink)(destination, source);
+                        }
+                    }
+                }
                 catch (Exception exception) when (exception is Win32Exception or IOException or UnauthorizedAccessException)
                 {
                     var detail = exception is Win32Exception native
@@ -102,7 +122,7 @@ sealed class CodexHome : IDisposable
                         : exception.GetType().Name;
                     return new()
                     {
-                        Home = userHome, Profile = "clean-partial", Reason = $"auth.json hardlink failed ({detail})", RuntimeConfig = config,
+                        Home = userHome, Profile = "clean-partial", Reason = $"{linking} hardlink failed ({detail})", RuntimeConfig = config,
                     };
                 }
                 var fileConfig = (JsonObject)config.DeepClone();

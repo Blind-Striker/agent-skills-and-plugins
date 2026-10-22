@@ -9,6 +9,99 @@ namespace Dispatch.Tests.Unit;
 public sealed class CodexHomeTests
 {
     [Test]
+    [Arguments(".sandbox/setup_marker.json")]
+    [Arguments(".sandbox-secrets/sandbox_users.json")]
+    public async Task Sandbox_state_link_failure_records_clean_partial_and_removes_incomplete_home(string failing)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox setup is Windows-only.");
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        foreach (var relative in new[] { "auth.json", ".sandbox/setup_marker.json", ".sandbox-secrets/sandbox_users.json" })
+        {
+            var path = Path.Combine(userHome, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "synthetic-state");
+        }
+        var profiles = Path.Combine(tree.Root, "profiles");
+        using var home = CodexHome.Create(new(profiles, null, new Dictionary<string, string>()), Launch(tree.Repository), userHome,
+            "elevated", createHardLink: (destination, source) =>
+            {
+                if (source == Path.Combine(userHome, failing)) throw new Win32Exception(5);
+                // Stand in for successful link operations before the injected filesystem failure.
+                File.Copy(source, destination);
+            });
+        await Assert.That(home.Profile).IsEqualTo("clean-partial");
+        await Assert.That(home.Reason).Contains(failing);
+        await Assert.That(home.Reason).Contains("OS error 5");
+        await Assert.That(home.Home).IsEqualTo(userHome);
+        await Assert.That(home.Temporary).IsFalse();
+        await Assert.That(Directory.Exists(Path.Combine(profiles, "codex-task"))).IsFalse();
+        foreach (var relative in new[] { "auth.json", ".sandbox/setup_marker.json", ".sandbox-secrets/sandbox_users.json" })
+            await Assert.That(File.ReadAllText(Path.Combine(userHome, relative))).IsEqualTo("synthetic-state");
+    }
+
+    [Test]
+    [Arguments("elevated")]
+    [Arguments("unelevated")]
+    public async Task Minimal_home_retains_sandbox_mode_when_used_as_source_for_another_clean_home(string sandbox)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox selection is Windows-only.");
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        var context = new BackendContext(Path.Combine(tree.Root, "profiles"), null, new Dictionary<string, string>());
+        using var home = CodexHome.CreateProbe(context, userHome, tree.Repository, windowsSandbox: sandbox);
+        await Assert.That(CodexHome.ReadWindowsSandbox(home.Home)).IsEqualTo(sandbox);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Clean_home_links_only_sandbox_readiness_files_and_cleanup_preserves_sources(bool probe)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox setup is Windows-only.");
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        var state = new[] { ".sandbox/setup_marker.json", ".sandbox-secrets/sandbox_users.json" };
+        foreach (var relative in state)
+        {
+            var path = Path.Combine(userHome, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "synthetic-state");
+        }
+        var excluded = new[] { "AGENTS.md", "config.toml", "rules/canary.rules", "skills/canary/SKILL.md", "history.jsonl",
+            ".sandbox/logs/canary.log", ".sandbox-secrets/unrelated.json", ".sandbox-bin/canary.exe", "cap_sid" };
+        foreach (var relative in excluded)
+        {
+            var path = Path.Combine(userHome, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, "user-context-canary");
+        }
+        var context = new BackendContext(Path.Combine(tree.Root, "profiles"), null, new Dictionary<string, string>());
+        using var home = probe ? CodexHome.CreateProbe(context, userHome, tree.Repository, windowsSandbox: "elevated")
+            : CodexHome.Create(context, Launch(tree.Repository), userHome, "elevated");
+        await Assert.That(home.Profile).IsEqualTo("clean");
+        foreach (var relative in state)
+        {
+            var target = Path.Combine(home.Home, relative);
+            await Assert.That(File.Exists(target)).IsTrue();
+            // Synthetic source writes prove file identity without reading real sandbox credentials.
+            File.WriteAllText(Path.Combine(userHome, relative), "synthetic-updated-state");
+            await Assert.That(File.ReadAllText(target)).IsEqualTo("synthetic-updated-state");
+        }
+        foreach (var relative in excluded.Where(path => path != "config.toml"))
+            await Assert.That(Path.Exists(Path.Combine(home.Home, relative))).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, "config.toml"))).DoesNotContain("user-context-canary");
+        home.Dispose();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+        foreach (var relative in state)
+            await Assert.That(File.ReadAllText(Path.Combine(userHome, relative))).IsEqualTo("synthetic-updated-state");
+        foreach (var relative in excluded)
+            await Assert.That(File.ReadAllText(Path.Combine(userHome, relative))).IsEqualTo("user-context-canary");
+    }
+
+    [Test]
     public async Task Clean_home_without_file_auth_records_clean_partial_and_keeps_runtime_limits()
     {
         using var tree = new TempTree();
