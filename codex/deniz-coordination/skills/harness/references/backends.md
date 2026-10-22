@@ -118,12 +118,13 @@ workspace. The backend does not replace every project-off code workspace with an
 The note on inherited exec-policy rules is described under
 [inherited Codex rules on read-only tasks](cli.md#inherited-codex-rules-on-read-only-tasks).
 
-**Known limit: descendants of an opencode server.** A confirmed stop proves that the opencode server
-process exited, not that every process it started did. The SDK keeps upstream opencode's behaviour:
-on Windows a server's grandchildren leave its job object, and on POSIX tool processes run in their
-own sessions and a server that exits successfully leaves its group alone. A worker's build or test
-process can therefore outlive the task. The harness cannot contain them without SDK support; check
-for leftover processes after a cancelled or timed-out opencode task.
+**Known limit: descendants of an opencode server.** The harness ends the server only through the
+SDK's disposal and counts it stopped once the SDK reports the server's exit. A confirmed stop proves
+that the opencode server process exited, not that every process it started did. The SDK keeps
+upstream opencode's behaviour: on Windows a server's grandchildren leave its job object, and on
+POSIX tool processes run in their own sessions and a server that exits successfully leaves its group
+alone. A worker's build or test process can therefore outlive the task. The harness cannot contain
+them without SDK support; check for leftover processes after a cancelled or timed-out opencode task.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
