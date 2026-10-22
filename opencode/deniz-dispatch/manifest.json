@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dispatch",
   "version": "0.1.0",
-  "digest": "sha256:369ebd160ca35ff7c72ed71d40924029bc70b1f356776aad6ff60e6dc42ecbdd",
+  "digest": "sha256:120b7ed98ae7e0986956ed2d313d91fb8c2a316a04055ff454216e974ba79427",
   "requiredModules": [
     "deniz-process"
   ],
@@ -72,7 +72,7 @@
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/SKILL.md": {
-      "sha256": "sha256:794b270b60b2fb23ccbf861076399955cc0b414b7ce1bccb93d4806ebc5fac45",
+      "sha256": "sha256:90cdec6805cf5074abd60687c4a4e1a837590d0a36d1b9943363c06b67782945",
       "mode": "100644"
     },
     "skills/deniz-dispatch.harness/dispatch.cs": {

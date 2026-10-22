@@ -106,8 +106,7 @@ output. Each task resolves four modes:
    structured task adds `deliverable.json`. The diff and the verify log are the evidence; the
    worker's final text is not. Layout: `references/ledger.md`.
 7. **Clean.** After the work is merged, `clean <run>` removes worktrees, branches, temporary folders
-   and backend sessions; unmerged or dirty work stays unless `--force`. A done task's opencode session
-   is released at settle; a failed one stays until `clean`.
+   and backend sessions; unmerged or dirty work stays unless `--force`.
 
 ## Exit codes
 
@@ -116,8 +115,6 @@ output. Each task resolves four modes:
 | 0 | Every task done: verify green, changes in scope, structured deliverable valid |
 | 1 | A task failed, was cancelled, is out of scope, or is not final; or the run aborted after it started |
 | 2 | Nothing started: missing tool, signed-out backend, invalid task file, existing run id, usage error |
-
-`collect` on a released task and `collect` or `resume` on tampered structured inputs return 2.
 
 ## Recover, never rerun
 
@@ -153,8 +150,7 @@ A recorded run is never run again and its ledger is never edited by hand.
 
 ## References
 
-- `references/task-file.md`: every task file field, default and validation error.
-- `references/cli.md`: each command's arguments, output and exit codes.
-- `references/ledger.md`: the run folder, the event types and each file's fields.
-- `references/config.md`: config layers, policy rules, the allow-list, locations.
-- `references/backends.md`: how each mode, rule and limit maps onto opencode and Codex.
+Read on demand: `references/task-file.md` (every field, default and validation error),
+`references/cli.md` (each command's arguments, output and exit codes), `references/ledger.md` (run
+folder, event types, file fields), `references/config.md` (layers, policy rules, allow-list,
+locations), `references/backends.md` (how each mode, rule and limit maps onto opencode and Codex).
