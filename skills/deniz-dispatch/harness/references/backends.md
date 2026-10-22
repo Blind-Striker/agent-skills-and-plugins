@@ -94,15 +94,17 @@ requires a Functional test.
 
 ### Clean Codex home
 
-Clean mode hardlinks the user's sign-in file into a temporary home under the control profiles
-folder. It writes minimal configuration, disables skill instructions and app/plugin features,
+Clean mode hardlinks the user's sign-in file and available Windows sandbox setup files into a
+harness-owned temporary home on the user's `CODEX_HOME` volume: it tries system temp first, then a
+sibling folder beside the user home. It writes minimal configuration, disables skill instructions and app/plugin features,
 preserves the selected Windows sandbox mode, and checks a random marker through the home reported
-by app-server. It removes the temporary home only after the process tree has stopped.
+by app-server. The worker state records the folder and ownership marker; cleanup refuses an
+unrecognized path or marker and removes the temporary home only after the process tree has stopped.
 
 If the sign-in file is unavailable, the hardlink fails, the folder already exists, the probe fails
 or the reported home cannot prove the marker, the backend can use the user home and records
-`settings.profile.actual: clean-partial` plus a reason. A different volume for dispatch state can
-prevent hardlinking. Inspect actual profile rather than treating a requested clean profile as proof
+`settings.profile.actual: clean-partial` plus a reason. When neither location works, the reason names
+the source and candidate volumes and their failures. Inspect actual profile rather than treating a requested clean profile as proof
 that user configuration did not load.
 
 For project off, Codex disables project docs and marks the working directory untrusted. Structured

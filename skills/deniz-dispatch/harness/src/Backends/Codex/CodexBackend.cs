@@ -214,6 +214,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         ["linuxBootId"] = connection.Process.Identity.LinuxBootId, ["linuxStartTicks"] = connection.Process.Identity.LinuxStartTicks,
         ["processGroup"] = connection.Process.ProcessGroup is not null, ["codexHome"] = connection.Home?.Home,
         ["codexHomeTemporary"] = connection.Home?.Temporary,
+        ["codexHomeMarkerName"] = connection.Home?.MarkerName, ["codexHomeMarkerText"] = connection.Home?.MarkerText,
         ["profile"] = connection.Home?.Profile, ["profileReason"] = connection.Home?.Reason,
         ["descendants"] = new JsonArray(connection.Process.Descendants.Select(identity => (JsonNode?)new JsonObject
         {
@@ -528,11 +529,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
-            if (Regex.IsMatch(worker.TaskId, "^[a-z0-9][a-z0-9-]{0,39}$"))
-            {
-                var home = Path.Combine(context.ProfilesFolder, "codex-" + worker.TaskId);
-                if (Directory.Exists(home)) Directory.Delete(home, recursive: true);
-            }
+            CodexHome.DeleteRecorded(context, worker);
             recovered[worker.Id] = stopped;
         }
         return new ReattachResult.Ended("lost");
@@ -548,6 +545,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         {
             var stopped = await CodexProcess.StopRecordedAsync(worker.State, ct);
             if (!stopped.Stopped) throw new HarnessException($"Codex release unconfirmed: {stopped.Detail}");
+            CodexHome.DeleteRecorded(context, worker);
         }
         released[worker.Id] = 0;
     }

@@ -9,6 +9,43 @@ namespace Dispatch.Tests.Unit;
 public sealed class CodexHomeTests
 {
     [Test]
+    public async Task Clean_home_tries_a_sibling_when_temp_is_on_another_volume()
+    {
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        using var home = CodexHome.Create(new(Path.Combine(tree.Root, "profiles"), null, new Dictionary<string, string>()),
+            Launch(tree.Repository), userHome, createHardLink: (destination, source) =>
+            {
+                if (destination.StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex"), StringComparison.Ordinal))
+                    throw new Win32Exception(17);
+                File.Copy(source, destination);
+            });
+
+        await Assert.That(home.Profile).IsEqualTo("clean");
+        await Assert.That(home.Home).StartsWith(Path.Combine(tree.Root, ".dispatch-codex") + Path.DirectorySeparatorChar);
+        home.Dispose();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(userHome, "auth.json"))).IsEqualTo("synthetic-auth");
+    }
+
+    [Test]
+    public async Task Clean_home_uses_system_temp_instead_of_dispatch_profiles()
+    {
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        var profiles = Path.Combine(tree.Root, "profiles");
+        using var home = CodexHome.Create(new(profiles, null, new Dictionary<string, string>()), Launch(tree.Repository), userHome);
+
+        await Assert.That(home.Profile).IsEqualTo("clean");
+        await Assert.That(home.Home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(Directory.Exists(profiles)).IsFalse();
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-refresh");
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, "auth.json"))).IsEqualTo("synthetic-refresh");
+    }
+
+    [Test]
     [Arguments(".sandbox/setup_marker.json")]
     [Arguments(".sandbox-secrets/sandbox_users.json")]
     public async Task Sandbox_state_link_failure_records_clean_partial_and_removes_incomplete_home(string failing)
@@ -137,13 +174,16 @@ public sealed class CodexHomeTests
         using var home = CodexHome.Create(new(profiles, null, new Dictionary<string, string>()), Launch(tree.Repository), userHome,
             createHardLink: (destination, source) =>
             {
-                if (source != auth || destination != Path.Combine(profiles, "codex-task", "auth.json"))
-                    throw new InvalidOperationException("link did not cross the controlled roots");
+                if (source != auth || Path.GetFileName(destination) != "auth.json")
+                    throw new InvalidOperationException("unexpected hardlink source or destination");
                 throw new Win32Exception(error, "synthetic hardlink failure");
             });
 
         await Assert.That(home.Profile).IsEqualTo("clean-partial");
         await Assert.That(home.Reason).Contains(error.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await Assert.That(home.Reason).Contains("source volume");
+        await Assert.That(home.Reason).Contains("temp volume");
+        await Assert.That(home.Reason).Contains("sibling volume");
         await Assert.That(home.Home).IsEqualTo(userHome);
         await Assert.That(home.Temporary).IsFalse();
         await Assert.That(Directory.Exists(Path.Combine(profiles, "codex-task"))).IsFalse();
@@ -223,10 +263,14 @@ public sealed class CodexHomeTests
         await Assert.That(home.MatchesReportedHome(alias)).IsTrue();
         await Assert.That(home.MatchesReportedHome(userHome)).IsFalse();
         var marker = Directory.GetFiles(home.Home, ".dispatch-home-*").Single();
+        var original = File.ReadAllText(marker);
         File.WriteAllText(marker, "{\"run\":\"another-run\",\"task\":\"task\"}\n");
         await Assert.That(home.MatchesReportedHome(alias)).IsFalse();
         File.Delete(marker);
         await Assert.That(home.MatchesReportedHome(alias)).IsFalse();
+        await Assert.ThrowsAsync<HarnessException>(() => Task.Run(home.Dispose));
+        await Assert.That(Directory.Exists(home.Home)).IsTrue();
+        File.WriteAllText(marker, original);
     }
 
     [Test]
@@ -236,16 +280,21 @@ public sealed class CodexHomeTests
         var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
         File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
         var profiles = Path.Combine(tree.Root, "control", "owner", "profiles");
-        var existing = Directory.CreateDirectory(Path.Combine(profiles, "codex-task")).FullName;
+        using var first = CodexHome.Create(new(profiles, null, new Dictionary<string, string>()), Launch(tree.Repository), userHome);
+        var existing = first.Home;
         var canary = Path.Combine(existing, "canary");
         File.WriteAllText(canary, "other owner");
         using var home = CodexHome.Create(new(profiles, null, new Dictionary<string, string>()), Launch(tree.Repository), userHome,
-            createHardLink: (_, _) => throw new InvalidOperationException("must not write into an existing home"));
+            createHardLink: (destination, _) =>
+            {
+                if (Path.GetDirectoryName(destination) == existing) throw new InvalidOperationException("must not write into an existing home");
+                throw new Win32Exception(5);
+            });
         await Assert.That(home.Profile).IsEqualTo("clean-partial");
         await Assert.That(home.Reason).Contains("exists");
         home.Dispose();
         await Assert.That(File.ReadAllText(canary)).IsEqualTo("other owner");
-        await Assert.That(Directory.GetFileSystemEntries(existing).Length).IsEqualTo(1);
+        await Assert.That(first.MatchesReportedHome(existing)).IsTrue();
     }
 
     [Test]

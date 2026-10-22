@@ -57,7 +57,7 @@ public sealed class CodexHomeTests
 
     [Test]
     [Timeout(180_000)]
-    public async Task Probe_home_is_under_command_context_profiles_and_the_fake_selects_probe(CancellationToken cancellationToken)
+    public async Task Probe_home_uses_auth_volume_temp_and_the_fake_selects_probe(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
         var environment = tree.ChildEnvironment().Where(pair => pair.Value is not null)
@@ -69,7 +69,9 @@ public sealed class CodexHomeTests
             new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name, "net10.0", OperatingSystem.IsWindows() ? "codex.exe" : "codex");
         var context = new BackendContext(profiles, executable, new Dictionary<string, string>());
         using var home = CodexHome.CreateProbe(context, userHome, tree.Repository);
-        await Assert.That(home.Home).IsEqualTo(Path.Combine(profiles, "probe-codex"));
+        await Assert.That(home.Home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(Path.GetFileName(home.Home)).IsEqualTo("probe-codex");
+        await Assert.That(Directory.Exists(profiles)).IsFalse();
         var scenarios = Directory.CreateDirectory(Path.Combine(tree.Root, "scenarios")).FullName;
         File.WriteAllText(Path.Combine(scenarios, "probe.jsonl"), "{\"notify\":\"ready\",\"params\":{}}\n");
         environment["FAKE_CODEX_SCENARIOS"] = scenarios;
@@ -83,9 +85,9 @@ public sealed class CodexHomeTests
         }
         var record = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(environment["FAKE_CODEX_RECORD"], "start.json", SearchOption.AllDirectories).Single()))!;
         await Assert.That(record["scenario"]!.GetValue<string>()).IsEqualTo("probe.jsonl");
-        await Assert.That(record["codexHome"]!.GetValue<string>()).IsEqualTo(Path.Combine(profiles, "probe-codex"));
+        await Assert.That(record["codexHome"]!.GetValue<string>()).IsEqualTo(home.Home);
         home.Dispose();
-        await Assert.That(Directory.Exists(Path.Combine(profiles, "probe-codex"))).IsFalse();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
         await Assert.That(File.ReadAllText(Path.Combine(userHome, "auth.json"))).IsEqualTo("synthetic-auth");
     }
 
@@ -112,7 +114,8 @@ public sealed class CodexHomeTests
         await Assert.That(home.Profile).IsEqualTo("clean");
         await Assert.That(home.Temporary).IsTrue();
         await Assert.That(home.Reason).IsNull();
-        await Assert.That(home.Home).IsEqualTo(Path.Combine(profiles, "codex-task"));
+        await Assert.That(home.Home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(Directory.Exists(profiles)).IsFalse();
         var config = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(Path.Combine(home.Home, "config.toml")))!;
         await Assert.That(config.Keys.Order().ToArray()).IsEquivalentTo(
             (new[] { "cli_auth_credentials_store", "include_skill_instructions", "features", "projects" })
@@ -155,7 +158,7 @@ public sealed class CodexHomeTests
         await Assert.That(File.ReadAllBytes(configPath).SequenceEqual(original)).IsTrue();
         home.Dispose();
         home.Dispose();
-        await Assert.That(Directory.Exists(Path.Combine(profiles, "codex-task"))).IsFalse();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
         await Assert.That(File.ReadAllText(Path.Combine(userHome, "auth.json"))).IsEqualTo("synthetic-refreshed-auth");
         await Assert.That(File.ReadAllBytes(configPath).SequenceEqual(original)).IsTrue();
     }

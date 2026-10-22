@@ -7,6 +7,60 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexCleanupTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Recorded_clean_home_is_removed_only_by_its_owner_after_stop(bool reattach, CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var userHome = lab.Environment["CODEX_HOME"];
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
+        lab.Environment["FAKE_CODEX_AUTH_MARK"] = "synthetic-refreshed-auth";
+        lab.Write("task-edit", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0]);
+        await using var original = lab.Backend();
+        var worker = (await original.CreateAsync(Launch(lab, "edit"), ct)).Worker;
+        var home = worker.State["codexHome"]!.GetValue<string>();
+        await Assert.That(home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(File.ReadAllText(Path.Combine(userHome, "auth.json"))).IsEqualTo("synthetic-refreshed-auth");
+        await Assert.That((await original.InterruptAsync(worker, InterruptKind.Hard, ct)).Stopped).IsTrue();
+
+        await using var recovered = lab.Backend();
+        if (reattach) await recovered.ReattachAsync(worker, ct);
+        else await recovered.ReleaseAsync(worker, ct);
+        await Assert.That(Directory.Exists(home)).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(userHome, "auth.json"))).IsEqualTo("synthetic-refreshed-auth");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Recorded_cleanup_refuses_a_changed_path_or_missing_ownership_marker(bool changedPath, CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "synthetic-auth");
+        lab.Write("task-edit", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0]);
+        await using var original = lab.Backend();
+        var worker = (await original.CreateAsync(Launch(lab, "edit"), ct)).Worker;
+        await Assert.That((await original.InterruptAsync(worker, InterruptKind.Hard, ct)).Stopped).IsTrue();
+        var home = worker.State["codexHome"]!.GetValue<string>();
+        var marker = Directory.GetFiles(home, ".dispatch-home-*").Single();
+        var text = File.ReadAllText(marker);
+        var state = (System.Text.Json.Nodes.JsonObject)worker.State.DeepClone();
+        if (changedPath) state["codexHome"] = lab.Tree.Repository;
+        else File.Delete(marker);
+        try
+        {
+            await using var recovered = lab.Backend();
+            var error = await Assert.ThrowsAsync<HarnessException>(() => recovered.ReleaseAsync(worker with { State = state }, ct));
+            await Assert.That(error!.Message).Contains("ownership");
+            await Assert.That(Directory.Exists(home)).IsTrue();
+            await Assert.That(Directory.Exists(lab.Tree.Repository)).IsTrue();
+        }
+        finally { File.WriteAllText(marker, text); }
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Unconfirmed_release_keeps_the_connection_and_clean_home_for_a_retry(CancellationToken cancellationToken)
     {
@@ -16,6 +70,7 @@ public sealed class CodexCleanupTests
         await using var backend = lab.Backend();
         var created = await backend.CreateAsync(Launch(lab, "edit"), cancellationToken);
         var home = created.Worker.State["codexHome"]!.GetValue<string>();
+        await Assert.That(home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
         var stop = HoldStop(backend, created.Worker);
         var release = backend.ReleaseAsync(created.Worker, cancellationToken);
         stop.SetResult(new(false, "process stop not confirmed"));
