@@ -9,6 +9,24 @@ public sealed class ConfigTests
     static TaskFile Tasks() => new() { Tasks = [new TaskSpec { Id = "inspect", Kind = "research", Route = "fixture/model" }] };
 
     [Test]
+    public async Task OpenCode_model_tags_preserve_colons_and_only_backend_names_are_prefixes()
+    {
+        var file = Tasks();
+        var task = file.Tasks![0];
+        task.Backend = "opencode";
+        task.Route = "ollama/model:tag";
+        await Assert.That(ConfigResolver.Resolve(file).Tasks["inspect"].Settings.Route!.Value)
+            .IsEqualTo("opencode:ollama/model:tag");
+        task.Route = "opencode:ollama/model:tag";
+        await Assert.That(ConfigResolver.Resolve(file).Tasks["inspect"].Settings.Route!.Value)
+            .IsEqualTo("opencode:ollama/model:tag");
+        task.Route = "codex:";
+        var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+        await Assert.That(error!.Message).Contains("route backend codex");
+        await Assert.That(error.Message).Contains("task backend opencode");
+    }
+
+    [Test]
     [Arguments("codex", "codex", "model-y#high")]
     [Arguments("opencode", "opencode", "fixture/model#high")]
     [Arguments("codex", "opencode", "fixture/model#high")]

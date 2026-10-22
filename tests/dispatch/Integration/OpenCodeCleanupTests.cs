@@ -8,15 +8,161 @@ namespace Dispatch.Tests.Integration;
 public sealed class OpenCodeCleanupTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(90_000)]
+    public async Task Clean_structured_scratch_checks_ownership_and_removes_only_its_allocation(bool force, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        using var scratch = new ScratchFixture();
+        var ledger = new Ledger("run");
+        var control = Seed(lab.Tree, ledger);
+        var spec = new TaskSpec { Id = "inspect", Kind = "structured", Project = "off" };
+        var run = new TaskRun { Record = new() { Spec = spec } };
+        var owned = scratch.Allocate(run, ledger, "owned");
+        var other = new TaskRun { Record = new() { Spec = spec } };
+        var foreign = scratch.Allocate(other, ledger, "foreign");
+        var evidence = Path.Combine(foreign, "keep.txt");
+        File.WriteAllText(evidence, "another allocation");
+        var readOnly = Path.Combine(owned, "readonly.txt");
+        File.WriteAllText(readOnly, "temporary");
+        File.SetAttributes(readOnly, FileAttributes.ReadOnly);
+        run.Record.Workspace.Path = foreign;
+        ledger.SaveRecord(run.Record);
+        ledger.Write(run.Id, "queued");
+        lab.Add("GET /api/session", new JsonObject { ["data"] = new JsonArray(), ["cursor"] = new JsonObject() }, repeat: true);
+        lab.Write();
+        var environment = new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
+            ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") };
+        string[] arguments = force ? ["clean", "run", "--force"] : ["clean", "run"];
+        using (var cleaner = new HarnessProcess(lab.Tree))
+        {
+            var refused = await cleaner.RunAsync(arguments, ct, environment);
+            await Assert.That(refused.ExitCode).IsEqualTo(1);
+        }
+        await Assert.That(File.ReadAllText(evidence)).IsEqualTo("another allocation");
+        await Assert.That(File.Exists(readOnly)).IsTrue();
+        await Assert.That(File.Exists(Path.Combine(control, "setup.done"))).IsTrue();
+        await Assert.That(ledger.Read().Last(x => x.Type == "cleaned").Data!["error"]!.GetValue<string>())
+            .Contains("ownership does not match");
+
+        run.Record.Workspace.Path = owned;
+        ledger.SaveRecord(run.Record);
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var cleaner = new HarnessProcess(lab.Tree);
+            (await cleaner.RunAsync(arguments, ct, environment)).RequireSuccess("clean owned structured scratch");
+            await Assert.That(Directory.Exists(owned)).IsFalse();
+            await Assert.That(File.ReadAllText(evidence)).IsEqualTo("another allocation");
+        }
+        await Assert.That(Requests(lab.Tree).Where(x => x["unexpected"]!.GetValue<bool>())).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(90_000)]
+    public async Task Clean_finds_structured_sessions_created_before_the_session_reference_was_saved(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        using var scratch = new ScratchFixture();
+        var ledger = new Ledger("run");
+        Seed(lab.Tree, ledger);
+        var run = new TaskRun { Record = new() { Spec = new() { Id = "inspect", Kind = "structured", Project = "off" } } };
+        ledger.Write(run.Id, "queued");
+        var folder = scratch.Allocate(run, ledger, "queued");
+        lab.SessionPage(folder, null, null, Session("orphan", "run", run.Id, ledger.LoadRunInfo().ControlId));
+        lab.Add("DELETE /api/session/orphan", status: 204);
+        lab.Write();
+        using var cleaner = new HarnessProcess(lab.Tree);
+
+        var result = await cleaner.RunAsync(["clean", "run"], ct,
+            new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
+                ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") });
+
+        result.RequireSuccess("clean queued structured session");
+        await Assert.That(Requests(lab.Tree).Where(x => x["method"]!.GetValue<string>() == "DELETE")
+            .Select(x => x["path"]!.GetValue<string>())).IsEquivalentTo(["/api/session/orphan"]);
+        await Assert.That(Requests(lab.Tree).Where(x => x["unexpected"]!.GetValue<bool>())).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(90_000)]
+    public async Task Clean_same_run_and_task_in_two_ledgers_preserves_live_and_legacy_sessions(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        var ledger = new Ledger("run");
+        Seed(lab.Tree, ledger);
+        ledger.SaveRecord(new TaskRecord
+        {
+            Spec = new() { Id = "inspect", Kind = "research", Workspace = "in-place" },
+            Workspace = new() { Path = lab.Tree.Repository },
+        });
+        ledger.Write("inspect", "final", new JsonObject { ["state"] = "done" });
+        var firstRoot = Locations.LedgerRoot;
+        var otherRoot = Path.Combine(lab.Tree.Root, "other-ledger");
+        string otherControl;
+        lab.Create("owned");
+        lab.Create("foreign");
+        lab.Write();
+        await using (var creator = new OpenCodeBackend())
+        {
+            var launch = new WorkerLaunch("run", "inspect", "research", new("fixture", "model", null), null, "build",
+                new("full", "on", "read-only", "on", "in-place"), lab.Tree.Repository, new([], []),
+                new Dictionary<string, string>(), null, "full", null);
+            await creator.CreateAsync(launch, ct);
+            try
+            {
+                Locations.Configure(null, otherRoot);
+                var other = new Ledger("run");
+                otherControl = Seed(lab.Tree, other);
+                other.SaveRecord(new TaskRecord
+                {
+                    Spec = new() { Id = "inspect", Kind = "research", Workspace = "in-place" },
+                    Workspace = new() { Path = lab.Tree.Repository }, Session = new() { Id = "foreign" },
+                });
+                other.Write("inspect", "session", new JsonObject { ["id"] = "foreign" });
+                await creator.CreateAsync(launch, ct);
+            }
+            finally { Locations.Configure(null, firstRoot); }
+        }
+        using var otherSupervisor = SupervisorLock.AcquireFolder(otherControl);
+        var metadata = Requests(lab.Tree).Where(x => x["method"]!.GetValue<string>() == "POST"
+            && x["path"]!.GetValue<string>() == "/api/session").Select(x => x["body"]!["metadata"]!.DeepClone()).ToArray();
+        lab.Steps.RemoveRange(4, lab.Steps.Count - 4);
+        var owned = Session("owned", "run", "inspect");
+        owned["metadata"] = metadata[0];
+        var foreign = Session("foreign", "run", "inspect");
+        foreign["metadata"] = metadata[1];
+        lab.SessionPage(lab.Tree.Repository, null, null, owned, foreign, Session("legacy", "run", "inspect"));
+        foreach (var id in new[] { "owned", "foreign", "legacy" }) lab.Add($"DELETE /api/session/{id}", status: 204);
+        lab.Write();
+        using var cleaner = new HarnessProcess(lab.Tree);
+
+        var result = await cleaner.RunAsync(["clean", "run", "--ledger", firstRoot], ct,
+            new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
+                ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") });
+
+        result.RequireSuccess("clean one ledger");
+        await Assert.That(Requests(lab.Tree).Where(x => x["method"]!.GetValue<string>() == "DELETE")
+            .Select(x => x["path"]!.GetValue<string>())).IsEquivalentTo(["/api/session/owned"]);
+        await Assert.That(metadata[0]["dispatch.controlId"]!.GetValue<string>()).IsEqualTo(ledger.LoadRunInfo().ControlId);
+        await Assert.That(metadata[1]["dispatch.controlId"]!.GetValue<string>()).IsEqualTo(Path.GetFileName(otherControl));
+        await Assert.That(File.Exists(Path.Combine(otherControl, "setup.done"))).IsTrue();
+        await Assert.That(Requests(lab.Tree).Where(x => x["unexpected"]!.GetValue<bool>())).IsEmpty();
+    }
+
+    [Test]
     [Timeout(45_000)]
     public async Task Orphans_include_final_and_unknown_tasks_across_pages(CancellationToken ct)
     {
         await using var lab = new OpenCodeLab();
+        var ledger = new Ledger("run");
+        Seed(lab.Tree, ledger);
+        var controlId = ledger.LoadRunInfo().ControlId;
         lab.SessionPage(lab.Tree.Repository, null, "second",
-            Session("foreign", "another-run", "inspect"), Session("known", "run", "unfinished"));
+            Session("foreign", "another-run", "inspect"), Session("known", "run", "unfinished", controlId));
         lab.SessionPage(lab.Tree.Repository, "second", null,
-            Session("final", "run", "finished"), Session("orphan", "run", "unknown"),
-            Session("unowned", null, null), Session("another-unfinished-session", "run", "unfinished"));
+            Session("final", "run", "finished", controlId), Session("orphan", "run", "unknown", controlId),
+            Session("unowned", null, null), Session("another-unfinished-session", "run", "unfinished", controlId));
         lab.Write();
 
         var orphans = await lab.Backend.FindOrphansAsync(new("run",
@@ -27,10 +173,11 @@ public sealed class OpenCodeCleanupTests
         await Assert.That(orphans.Single(x => x.Id == "orphan").TaskId).IsEqualTo("unknown");
     }
 
-    static JsonObject Session(string id, string? run, string? task)
+    static JsonObject Session(string id, string? run, string? task, string? controlId = null)
     {
         var session = OpenCodeLab.Session(id)["data"]!.DeepClone().AsObject();
         session["metadata"] = new JsonObject { ["dispatch.run"] = run, ["dispatch.task"] = task };
+        if (controlId is not null) session["metadata"]!["dispatch.controlId"] = controlId;
         return session;
     }
 
@@ -91,7 +238,7 @@ public sealed class OpenCodeCleanupTests
         {
             await Assert.That(releaseErrors[0].Data!["message"]!.GetValue<string>()).Contains("HTTP 500");
             lab.Steps.RemoveRange(4, lab.Steps.Count - 4);
-            lab.SessionPage(repo.Root, null, null, Session("ses_fixture", ledger.RunId, "inspect"));
+            lab.SessionPage(repo.Root, null, null, Session("ses_fixture", ledger.RunId, "inspect", ledger.LoadRunInfo().ControlId));
             lab.Add("DELETE /api/session/ses_fixture", status: 204);
             lab.Write();
             using var cleaner = new HarnessProcess(lab.Tree);
@@ -142,7 +289,8 @@ public sealed class OpenCodeCleanupTests
         lab.Steps.RemoveRange(4, lab.Steps.Count - 4);
         lab.SessionPage(repo.Root, null, "second", Session("foreign", "foreign-run", "inspect"));
         lab.SessionPage(repo.Root, "second", null,
-            Session("ses_fixture", ledger.RunId, "inspect"), Session("orphan", ledger.RunId, "missing-task"));
+            Session("ses_fixture", ledger.RunId, "inspect", ledger.LoadRunInfo().ControlId),
+            Session("orphan", ledger.RunId, "missing-task", ledger.LoadRunInfo().ControlId));
         lab.Add("DELETE /api/session/ses_fixture", status: 204);
         lab.Add("DELETE /api/session/orphan", status: 204);
         lab.Write();

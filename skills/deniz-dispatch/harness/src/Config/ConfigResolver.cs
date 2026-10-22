@@ -118,7 +118,7 @@ static class ConfigResolver
             if (text is not null)
             {
                 var colon = text.IndexOf(':');
-                if (colon >= 0)
+                if (colon >= 0 && text[..colon] is "opencode" or "codex")
                 {
                     var routeBackend = text[..colon];
                     if (routeBackend != settings.Backend.Value)
