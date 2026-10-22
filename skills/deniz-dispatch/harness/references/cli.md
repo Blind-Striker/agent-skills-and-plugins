@@ -29,14 +29,14 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 
 | Flag | Type | Default | Commands and validation |
 |---|---|---|---|
-| `--repo <path>` | absolute directory | Task-file `repo` for plan/run | Target repository. Required by current `selfcheck`; routes accepts it instead of `--dir`. Relative: `--repo must be an absolute path`. |
-| `--dir <path>` | absolute directory | `--repo` for routes | Routes location. Relative: `--dir must be an absolute path`. It does not set a task's in-place directory. |
+| `--repo <path>` | absolute directory | Task-file `repo` for plan/run and selfcheck | Target repository. Required by `routes` (`routes needs --repo`); optional for `selfcheck`, which skips repository checks without one. Relative: `--repo must be an absolute path`. |
+| `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
 | `--contract <path>` | repeatable absolute file | None | Plan/run, prepended to every task after file contracts. Relative: `--contract must be an absolute path`. |
 | `--run <name>` | string | Task-file `run`, then task filename | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
-| `--backend <name>` | enum | No task default; catalog commands select configured preference or `opencode` | Plan/run preference; current routes/selfcheck select one backend. `opencode` or `codex`. |
+| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
@@ -62,7 +62,9 @@ arguments produce `missing <argument>`. Invalid preference choices name the valu
 Sends no prompt. Prints the allow-list and policy, the state, worktree and control folders, and on
 Windows a warning when git's `core.longpaths` is not true and when the user PATH in the registry
 exceeds 8,000 characters. The backends checked are `--backend`, else every backend the task file and
-the configuration layers use, else opencode; each gets its own `backend <name>` section. opencode
+the configuration layers name (preferred backend, default routes, allow-list, task backends, then
+configured backends); with none it refuses: "no backend configured; set preferences.backend,
+defaultRoutes or --backend". Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
 request. With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
@@ -200,8 +202,8 @@ It does not re-prompt. A released done opencode session is not collectible.
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | Recollected task is done. |
-| `1` | integer | Settled task is not done, or an exception occurs inside settlement. This includes structured frozen-input hash validation failure. |
-| `2` | integer | Pre-settlement refusal: active supervisor, incomplete setup, missing task/session/workspace/config, or a released done opencode session. |
+| `1` | integer | Settled task is not done, or an exception occurs inside settlement. |
+| `2` | integer | Pre-settlement refusal: active supervisor, incomplete setup, missing task/session/workspace/config, a released done opencode session, or a structured task whose frozen `input.json` or `result.schema.json` no longer matches its recorded hash. |
 
 ### `resume <run> [--continue] [--ledger <dir>]`
 
@@ -219,9 +221,9 @@ status summary. Recovery is backend-specific; see [backends](backends.md).
 | `1` | integer | Any task remains not done, or reconciliation aborts inside the command's recovery block. |
 | `2` | integer | Pre-recovery refusal, including active lock, incomplete setup, missing/unreadable frozen config or task records, invalid schema or configuration. |
 
-The base does not re-read `tasks.jsonc` during recovery. Frozen structured input checks run when
-starting or settling a structured task; failures within settlement produce a failed task rather
-than a universal exit-2 refusal. Do not alter any ledger inputs by hand.
+Recovery validates structured tasks against the frozen task specification and checks the frozen
+input and schema hashes before any reattachment or further prompt; a mismatch refuses with exit 2
+before a backend starts. Do not alter any ledger inputs by hand.
 
 ### `clean <run> [--force] [--ledger <dir>]`
 

@@ -42,8 +42,8 @@ planning warns per rule that enforcement is only at the approval gate. Commands 
 sandbox need no ask; with workspace access and network on, a `git push` deny is not a push boundary.
 Tool-resource patterns match text, not aliases, script contents or parsed shell operations.
 
-For the pending read-only shell behaviour, read
-[configuration](config.md#read-only-shell-preference). For pending catalog and probe coverage, read
+For the read-only shell behaviour, read
+[configuration](config.md#read-only-shell-preference). For catalog and probe coverage, read
 [configured backend coverage](cli.md#configured-backend-coverage).
 
 ## opencode process and profile
@@ -109,8 +109,15 @@ For project off, Codex disables project docs and marks the working directory unt
 project-off tasks use empty scratch outside repositories; other task kinds keep their core-created
 workspace. The backend does not replace every project-off code workspace with an empty directory.
 
-The pending warning for inherited full-profile rules is described under
-[read-only full-profile warning](cli.md#read-only-full-profile-warning).
+The note on inherited exec-policy rules is described under
+[inherited Codex rules on read-only tasks](cli.md#inherited-codex-rules-on-read-only-tasks).
+
+**Known limit: descendants of an opencode server.** A confirmed stop proves that the opencode server
+process exited, not that every process it started did. The SDK keeps upstream opencode's behaviour:
+on Windows a server's grandchildren leave its job object, and on POSIX tool processes run in their
+own sessions and a server that exits successfully leaves its group alone. A worker's build or test
+process can therefore outlive the task. The harness cannot contain them without SDK support; check
+for leftover processes after a cancelled or timed-out opencode task.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or

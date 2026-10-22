@@ -98,9 +98,9 @@ output. Each task resolves four modes:
 4. **Answer.** `asks [<run>]` lists escalated asks; `reply <run> <askId> once|reject [--message <text>]`
    answers one. Answers are one-shot; the harness never grants a standing approval.
 5. **Stop.** `cancel <run> <task>`. Never kill the supervisor.
-6. **Read.** Per task the ledger holds `result.json`, `final.md`, `diff.patch` and `verify.log`; a
-   structured task adds `deliverable.json`. The diff and the verify log are the evidence; the
-   worker's final text is not. Layout: `references/ledger.md`.
+6. **Read.** Each task has `result.json` and `final.md`; a code task adds `diff.patch` and
+   `verify.log`, a structured task `deliverable.json` instead. These are the evidence; the worker's
+   final text is not. Layout: `references/ledger.md`.
 7. **Clean.** After the work is merged, `clean <run>` removes worktrees, branches, temporary folders
    and backend sessions; unmerged or dirty work stays unless `--force`.
 
