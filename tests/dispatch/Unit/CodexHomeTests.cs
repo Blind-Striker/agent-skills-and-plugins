@@ -23,6 +23,7 @@ public sealed class CodexHomeTests
             });
 
         await Assert.That(home.Profile).IsEqualTo("clean");
+        await Assert.That(home.Home).StartsWith(CodexHomeExpectation.RootFor(userHome, sameVolume: false));
         await Assert.That(home.Home).StartsWith(Path.Combine(tree.Root, ".dispatch-codex") + Path.DirectorySeparatorChar);
         home.Dispose();
         await Assert.That(Directory.Exists(home.Home)).IsFalse();
@@ -33,13 +34,15 @@ public sealed class CodexHomeTests
     public async Task Clean_home_uses_system_temp_instead_of_dispatch_profiles()
     {
         using var tree = new TempTree();
-        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        using var source = new ScratchFixture();
+        var userHome = Directory.CreateDirectory(Path.Combine(source.Root, "user-codex")).FullName;
         File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-auth");
         var profiles = Path.Combine(tree.Root, "profiles");
         using var home = CodexHome.Create(new(profiles, null, new Dictionary<string, string>()), Launch(tree.Repository), userHome);
 
         await Assert.That(home.Profile).IsEqualTo("clean");
         await Assert.That(home.Home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(home.Home).StartsWith(CodexHomeExpectation.RootFor(userHome));
         await Assert.That(Directory.Exists(profiles)).IsFalse();
         File.WriteAllText(Path.Combine(userHome, "auth.json"), "synthetic-refresh");
         await Assert.That(File.ReadAllText(Path.Combine(home.Home, "auth.json"))).IsEqualTo("synthetic-refresh");

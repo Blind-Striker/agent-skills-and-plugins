@@ -20,7 +20,7 @@ public sealed class CodexCleanupTests
         await using var original = lab.Backend();
         var worker = (await original.CreateAsync(Launch(lab, "edit"), ct)).Worker;
         var home = worker.State["codexHome"]!.GetValue<string>();
-        await Assert.That(home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(home).StartsWith(CodexHomeExpectation.RootFor(userHome));
         await Assert.That(File.ReadAllText(Path.Combine(userHome, "auth.json"))).IsEqualTo("synthetic-refreshed-auth");
         await Assert.That((await original.InterruptAsync(worker, InterruptKind.Hard, ct)).Stopped).IsTrue();
 
@@ -65,12 +65,13 @@ public sealed class CodexCleanupTests
     public async Task Unconfirmed_release_keeps_the_connection_and_clean_home_for_a_retry(CancellationToken cancellationToken)
     {
         using var lab = new CodexLab();
-        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{\"synthetic\":true}");
+        var userHome = lab.Environment["CODEX_HOME"];
+        File.WriteAllText(Path.Combine(userHome, "auth.json"), "{\"synthetic\":true}");
         lab.Write("task-edit", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0]);
         await using var backend = lab.Backend();
         var created = await backend.CreateAsync(Launch(lab, "edit"), cancellationToken);
         var home = created.Worker.State["codexHome"]!.GetValue<string>();
-        await Assert.That(home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(home).StartsWith(CodexHomeExpectation.RootFor(userHome));
         var stop = HoldStop(backend, created.Worker);
         var release = backend.ReleaseAsync(created.Worker, cancellationToken);
         stop.SetResult(new(false, "process stop not confirmed"));

@@ -21,7 +21,7 @@ public sealed class FunctionalLabTests
         if (blockedTemp)
         {
             using var lab = new FunctionalLab("codex", "model-y", tree, userHome, temporaryRoot);
-            await Assert.That(lab.Environment["CODEX_HOME"]).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+            await Assert.That(lab.Environment["CODEX_HOME"]).StartsWith(CodexHomeExpectation.RootFor(userHome));
             await Assert.That(File.ReadAllText(temporaryRoot)).IsEqualTo("not-a-directory");
         }
         else
@@ -51,7 +51,7 @@ public sealed class FunctionalLabTests
         using (var lab = new FunctionalLab("codex", "model-y", tree, userHome, temporaryRoot))
         {
             home = lab.Environment["CODEX_HOME"]!;
-            await Assert.That(home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+            await Assert.That(home).StartsWith(CodexHomeExpectation.RootFor(userHome));
             await Assert.That(Path.GetRelativePath(userHome, home)).StartsWith("..");
             File.WriteAllText(Path.Combine(home, "AGENTS.md"), "temporary-canary");
             await Assert.That(File.ReadAllText(Path.Combine(userHome, "AGENTS.md"))).IsEqualTo("source-instructions");

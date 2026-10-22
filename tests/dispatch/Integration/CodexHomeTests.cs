@@ -69,7 +69,7 @@ public sealed class CodexHomeTests
             new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name, "net10.0", OperatingSystem.IsWindows() ? "codex.exe" : "codex");
         var context = new BackendContext(profiles, executable, new Dictionary<string, string>());
         using var home = CodexHome.CreateProbe(context, userHome, tree.Repository);
-        await Assert.That(home.Home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(home.Home).StartsWith(CodexHomeExpectation.RootFor(userHome));
         await Assert.That(Path.GetFileName(home.Home)).IsEqualTo("probe-codex");
         await Assert.That(Directory.Exists(profiles)).IsFalse();
         var scenarios = Directory.CreateDirectory(Path.Combine(tree.Root, "scenarios")).FullName;
@@ -114,7 +114,7 @@ public sealed class CodexHomeTests
         await Assert.That(home.Profile).IsEqualTo("clean");
         await Assert.That(home.Temporary).IsTrue();
         await Assert.That(home.Reason).IsNull();
-        await Assert.That(home.Home).StartsWith(Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex") + Path.DirectorySeparatorChar);
+        await Assert.That(home.Home).StartsWith(CodexHomeExpectation.RootFor(userHome));
         await Assert.That(Directory.Exists(profiles)).IsFalse();
         var config = TomlSerializer.Deserialize<TomlTable>(File.ReadAllText(Path.Combine(home.Home, "config.toml")))!;
         await Assert.That(config.Keys.Order().ToArray()).IsEquivalentTo(
