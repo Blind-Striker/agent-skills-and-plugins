@@ -295,6 +295,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `run` | `repo` string, `max` integer, `server` string, `tasks` integer, `policy` string, `deny`/`escalate`/`removed` string arrays; optional `sharedPaths` object, `rawPrompt` boolean | Initial event. Shared paths object has `paths` string array and `mergedBy: coordinator`. |
 | `queued` | `kind` string, `route`/`agent`/`reviewOf` optional strings | One per queued task. |
 | `worktree` | `path` string; worktree `branch`/`base`/`baseSha` strings; in-place `startTree` string | Workspace ready. Structured scratch has no worktree event. |
+| `scratch` | `path`, `root`, `resolvedRoot` strings | Structured scratch allocated. `root` is the candidate as given (system temp, then state root); `resolvedRoot` is that root with its links resolved, such as macOS `/var` into `/private/var`. The path and every later check use the resolved root. |
 | `route` | `route`/`agent`/`lineage` strings when known | Actual route details recorded. |
 | `session` | `sessionId` string, optional `projectId` string and `rules` string array | Worker created. |
 | `environment` | `variables` integer, `removed` string array | Names/count only; no secret values. |

@@ -32,8 +32,10 @@ public sealed class StructuredRunTests
             var record = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.TaskFolder, "task.json")))!;
             var scratch = record["workspace"]!["path"]!.GetValue<string>();
             await Assert.That(Path.GetFileName(scratch)).StartsWith("dispatch-scratch-");
-            await Assert.That(Path.GetRelativePath(Path.GetTempPath(), scratch).StartsWith("..", StringComparison.Ordinal)).IsFalse();
-            await Assert.That(Path.GetDirectoryName(scratch)).IsEqualTo(scratchParent);
+            // The harness allocates under the resolved temp root (macOS links /var into /private/var).
+            var resolvedParent = ScratchFixture.CanonicalDirectory(scratchParent);
+            await Assert.That(Path.GetRelativePath(ScratchFixture.CanonicalDirectory(Path.GetTempPath()), scratch).StartsWith("..", StringComparison.Ordinal)).IsFalse();
+            await Assert.That(Path.GetDirectoryName(scratch)).IsEqualTo(resolvedParent);
             await Assert.That(Directory.Exists(scratch)).IsFalse();
             await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("done");
             await Assert.That(lab.Result["deliverable"]!.GetValue<string>()).IsEqualTo("deliverable.json");

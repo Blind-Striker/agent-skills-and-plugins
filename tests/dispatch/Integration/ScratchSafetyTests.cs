@@ -171,6 +171,59 @@ public sealed class ScratchSafetyTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(30_000)]
+    public async Task Scratch_candidate_resolves_a_linked_ancestor_but_records_refuse_links(bool prepare, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        using var scratch = new ScratchFixture();
+        await ScratchFixture.AssertNoRepositoryAsync(scratch.Root);
+        var real = Directory.CreateDirectory(Path.Combine(scratch.Root, "real")).FullName;
+        var linked = Path.Combine(scratch.Root, "linked");
+        await LinkAsync(lab, linked, real, ct);
+        var inner = Path.Combine(real, "dispatch-scratch-inner");
+        try
+        {
+            // The macOS temp folder sits under /var, a link into /private: the root resolves.
+            await Assert.That(Scratch.Candidate(Path.Combine(linked, "temp"))).IsEqualTo(Path.Combine(real, "temp"));
+
+            var run = await lab.TaskAsync("answer", ct);
+            lab.Structured(run);
+            run.Record.Spec.Project = "off";
+            var folder = scratch.Allocate(run, lab.Ledger, "owned");
+            File.WriteAllText(Path.Combine(folder, "keep.txt"), "untouched");
+            await LinkAsync(lab, inner, folder, ct);
+            run.Record.Workspace.Path = inner;
+            await Assert.That(() => { if (prepare) Scratch.Prepare(run, lab.Ledger); else Scratch.Delete(run.Record, lab.Ledger); })
+                .Throws<HarnessException>().WithMessage($"structured scratch refuses a reparse point: {inner}");
+            // A recorded path through the linked ancestor is never resolved: the first link on it is refused.
+            var throughLink = Path.Combine(linked, "dispatch-scratch-inner");
+            run.Record.Workspace.Path = throughLink;
+            await Assert.That(() => { if (prepare) Scratch.Prepare(run, lab.Ledger); else Scratch.Delete(run.Record, lab.Ledger); })
+                .Throws<HarnessException>().WithMessage($"structured scratch refuses a reparse point: {throughLink}");
+            await Assert.That(File.ReadAllText(Path.Combine(folder, "keep.txt"))).IsEqualTo("untouched");
+        }
+        finally
+        {
+            foreach (var link in new[] { inner, linked })
+                if (new DirectoryInfo(link).LinkTarget is not null) Directory.Delete(link);
+        }
+    }
+
+    static async Task LinkAsync(CoreLab lab, string link, string target, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Directory.CreateSymbolicLink(link, target);
+            return;
+        }
+        using var child = new CapturedProcess();
+        (await child.RunAsync("cmd", ["/c", "mklink", "/J", link, target], lab.Tree.Root, lab.Tree.ChildEnvironment(), ct))
+            .RequireSuccess("create junction");
+    }
+
+    [Test]
     [Arguments(false, false)]
     [Arguments(false, true)]
     [Arguments(true, false)]

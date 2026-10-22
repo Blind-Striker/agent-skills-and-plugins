@@ -21,8 +21,9 @@ internal sealed class ScratchFixture : IDisposable
         return folder;
     }
 
-    static string CanonicalDirectory(string path)
+    public static string CanonicalDirectory(string path)
     {
+        path = Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
         var current = Path.GetPathRoot(path)!;
         foreach (var segment in path[current.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
         {
