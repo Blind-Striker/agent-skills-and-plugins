@@ -50,7 +50,7 @@ Write the plan in chat before the first child starts:
 7. **Verification plan**: which findings get skeptics, and which checks each gate runs.
 
 The agent total you announce is an estimate; the final report compares it with the actual count.
-The only budget is a limit the user sets. Set no other limit and no deadline. A retry of a FAILED
+The only budget is a limit the user sets. Set no other budget and no deadline. A retry of a FAILED
 item and a fix pass toward the same done-when check are not new scope.
 
 Every item names the words of the request it serves; cut an item that names none. Verification and
@@ -64,7 +64,8 @@ it up.
 
 These actions need the user's yes, unless the request already names them: deleting files the
 request does not name, discarding uncommitted changes this run did not make, a force-push, a
-publish, and anything that touches credentials. Ask about the ones you can foresee with the plan.
+publish, anything that touches credentials, and any other action the repository's rules reserve.
+Ask about the ones you can foresee with the plan.
 Finish every item that does not depend on such an action, never take it before an explicit yes,
 and ask about the rest once, at the end, with everything else done.
 
@@ -123,7 +124,7 @@ SCOPE: read-only | write only: <paths>   (either way, also your results file)
 DO: <musts>   DO NOT: commit, push, edit outside scope, weaken/delete tests, write long-term memory, ask the user a task or scope question
 [writers] Other agents edit other files now; do not revert or reformat changes you did not make.
 DONE WHEN: <binary observable check>
-LAST STEP: write <ledger-dir>/results/<id>.md: first the REPORT block you return, unchanged, then any detail past 40 lines
+LAST STEP: write <ledger-dir>/results/<id>.md: first the REPORT block you return, unchanged, then any detail past 40 lines; if you cannot write files, return the report only
 RETURN: the report below, ≤40 lines
 Cannot proceed on the task or its scope → send that question back as STATUS: BLOCKED. Do not ask the user that question.
 Sandbox refuses a command (such as EPERM, "operation not permitted") → not a FAIL: request the harness escalation prompt once, if it has one; that prompt is allowed. Still refused, or no prompt → STATUS: BLOCKED with the exact command and the denial.
@@ -134,8 +135,8 @@ technique the request did not ban.
 
 A skeptic's brief replaces GOAL and CONTEXT with `CLAIM: <finding + evidence>` and
 `LENS: reproduce | contract | request`. The `request` lens gets the verbatim request and judges the
-result against it, not against your goal reading. The skeptic's report adds `VERDICT: CONFIRMED | REFUTED` with its
-evidence, and it writes its results file the same way.
+result against it, not against your goal reading. The skeptic's report adds
+`VERDICT: CONFIRMED | REFUTED` with its evidence, and its results file is written the same way.
 
 Every child returns this report:
 
@@ -148,11 +149,12 @@ FILES CHANGED: <paths|none>   CHECKS: <cmd> → PASS | FAIL | NOT RUN (<reason>)
 OPEN: <questions|none>        RESULTS: <ledger-dir>/results/<id>.md
 ```
 
-**The results file.** As its last step, every child writes `<ledger-dir>/results/<id>.md`: first
-the same `REPORT <id>` block it returns, unchanged, then any detail past 40 lines. A file of detail
-alone is not a results file. That file is the only one a child writes outside its write set, so
-"read-only" in a brief means read-only except that file. The results files are what let you rebuild
-the ledger from disk.
+**The results file.** As its last step, every child that can write files writes
+`<ledger-dir>/results/<id>.md`: first the same `REPORT <id>` block it returns, unchanged, then any
+detail past 40 lines. For a child that cannot write files, you write it from the report it returns.
+A file of detail alone is not a results file. That file is the only one a child writes outside its
+write set, so "read-only" in a brief means read-only except that file. The results files are what
+let you rebuild the ledger from disk.
 
 ## Running waves
 
@@ -177,14 +179,16 @@ the ledger from disk.
 
 - Key each result by its item id, never by its position.
 - A result with no well-formed `REPORT <id>` block is FAILED under its id: an empty result, an
-  error, a cancellation, and a missing value alike. A child the user stopped is FAILED with the
-  reason "stopped by the user" and is not retried unless the user asks; the rest of the run goes on. Record it before you filter or count anything.
+  error, a cancellation, and a missing value alike. Record it before you filter or count anything.
+  A child the user stopped is FAILED with the reason "stopped by the user" and is not retried
+  unless the user asks; the rest of the run goes on.
 - A results file that does not start with `REPORT <id>` is incomplete. Log it, then put the
   well-formed report the child returned at the top of that file, above the child's detail.
 - Deduplicate each new finding against everything seen so far, refuted findings included, not only
   against what survived.
 - Report coverage as N of M items DONE, and name every item that is not DONE with its status.
-- An item whose child failed gets a retry or a report of the failure, never a result you wrote.
+- An item whose child failed gets a retry, unless the user stopped it, or a report of the failure;
+  never a result you wrote.
 - State every cap you applied: a top-N cut, sampling, a skipped area, a shortened wave.
 
 ## Verifying
@@ -201,29 +205,31 @@ the ledger from disk.
 - Once per run, on the synthesized result or after the last write wave, one skeptic takes the
   `request` lens.
 - An audit, or a task to find every instance, ends with one fresh completeness critic. It gets the
-  verbatim request, the scope, and the ledger and names missed areas, unverified claims, and unread files. Its gaps get at
-  most one more wave.
+  verbatim request, the scope, and the ledger, and names missed areas, unverified claims, and unread
+  files. Its gaps get at most one more wave.
 
 ## Loops and stop conditions
 
 - A discovery loop stops after 2 rounds in a row that find nothing new, or after 3 rounds in all.
 - A fix-and-review cycle allows at most 2 re-reviews, each by a fresh reviewer given only the change
   and the open blockers. Only a concern tied to a failing done-when check holds up the work. What
-  is still open after the second re-review goes to the user.
+  is still open after the second re-review goes on the list you give the user at the end.
 - An item that fails twice is BLOCKED.
 - Zero findings skip the downstream waves.
 - A stop-when condition from the plan ends the run: go to the final report.
 
 ## Failures and fallback
 
-- Retry a failed item once, as a new child with a corrected brief. Continue the same child instead
+- Retry a failed item once, unless the user stopped its child, as a new child with a corrected
+  brief. Continue the same child instead
   only when the failure was a misunderstanding.
 - On a permission denial, a refused launch included, stop that path and report it. A refusal is
   never a reason to start children another way.
 - A check that the harness sandbox refused (for example `EPERM`, or "operation not permitted"),
   with no approved escalation, did not run. It is never FAIL, and it never counts as a code
-  failure: the child's STATUS is BLOCKED, with the exact command and the denial. Ask the user for
-  the escalation, or run the check yourself with the user's approval, as
+  failure: the child's STATUS is BLOCKED, with the exact command and the denial. Put the
+  escalation on the list you give the user at the end, unless the rest of the run depends on it;
+  with the user's approval you may run the check yourself, as
   `references/harness-tools.md` describes, and record the result it then gives. If the user
   declines, the check stays NOT RUN, with the denial as the reason.
 - If children cannot start at all, or the depth limit stops them, say so. Then run the briefs one by

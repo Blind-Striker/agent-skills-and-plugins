@@ -30,7 +30,8 @@ First load `$deniz-coordination:delegating-to-worker-models`; it holds the craft
 4. A change to what done means, to a public API, or to what existing users of a public surface must
    write is the user's decision, not yours. Show their code before and after, and hold that item.
 5. At each phase boundary, and before you widen the scaffolding (a new runner, a new check, more
-   agents), reread the request and say in one line whether the current direction still delivers it.
+   agents), reread the request, note in one line of your run notes whether the current direction
+   still delivers it, and continue.
 
 ## Plan
 
@@ -45,7 +46,8 @@ First load `$deniz-coordination:delegating-to-worker-models`; it holds the craft
 
 ## Keep going
 
-- Do not stop for soft approval wording in repository documents, a proposal, a worker's completion or
+- Do not stop for approval wording in repository documents that goes beyond the destructive or
+  outward actions they reserve, nor for a proposal, a worker's completion or
   stop, an agent count, a fix-up toward the same done-when, or an unavailable model: take the next
   step, and report it at the end.
 - A decision you did not foresee joins one list that you give the user at the end, with the rest
@@ -61,7 +63,8 @@ First load `$deniz-coordination:delegating-to-worker-models`; it holds the craft
 A lane is one stream of work: a subagent, or a separate session when the scale needs it.
 
 - Give each lane a written brief, an ordered queue, the files it owns, and a short report format.
-- Keep a status file and a decisions file outside the repository, so no lane depends on your memory.
+- When several lanes or a separate session run, keep a status file and a decisions file outside the
+  repository, so no lane depends on your memory.
 - A lane that finishes an item reports and takes the next one; it asks you only when its queue is empty.
 - Propose separate sessions only when the work's scale needs them and your harness or its tools let
   sessions talk to each other. Propose it with the plan and start with subagents meanwhile; read

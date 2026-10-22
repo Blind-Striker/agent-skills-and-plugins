@@ -13,4 +13,4 @@ For whoever starts an Astra session as coordinator:
 - Configure the default child model for its subagents, so a child never inherits Astra.
 
 For its reviewer: check its plan and its final report against the user's own words, and check every
-decision it took without the user against the coordinator's reserved list.
+decision it took without the user against the decisions the coordinator reserves for the user.

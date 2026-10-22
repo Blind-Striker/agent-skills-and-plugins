@@ -10,7 +10,7 @@ Read before you brief a lane that runs in a session of its own.
   with a line cap.
 - You are the one session that talks to the user. Lanes take their decisions from you, within any
   approval the user delegated to you. An action the repository reserves (a push to a shared branch,
-  a release, a machine change, a public or bulk action) runs only in the session the user told
+  a release, a machine change, a public action such as filing issues) runs only in the session the user told
   directly; a relayed approval does not cover it.
 - A message names the task, the commit, the working folder, the files, the evidence, and the
   decision it asks for. Keep the status file current beside the messages; a message is not a record.

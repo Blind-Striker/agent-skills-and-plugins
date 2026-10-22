@@ -35,9 +35,10 @@ Depth is `experimental.subagent_depth`, default 1, so a child cannot start child
 ## Completion
 
 Completion is a `<subagent sessionID state description>` message that holds the child's whole final
-text. The state `error` is FAILED. The state `cancelled` means the user stopped the child: it is
-FAILED with the reason "stopped by the user" and is not retried unless the user asks. So is a `completed` message whose text is
-"Subagent completed without a text response." or holds no `REPORT` block.
+text. The state `error` is FAILED, and so is a `completed` message whose text is "Subagent
+completed without a text response." or holds no `REPORT` block. The state `cancelled` means the
+user stopped the child: it is FAILED with the reason "stopped by the user" and is not retried
+unless the user asks.
 
 ## Questions
 

@@ -35,9 +35,6 @@ exceeds either budget, stop and report the figures. Do not trim to fit, and do n
   for anything else is out of scope.
 - Change code where it is. Do not move existing logic into another language or layer unless the plan says
   so: a relocation loses error paths the old code had.
-- When you write a plan, verification and one-off checks use the tools the repository already has. Do
-  not plan a new project, script, harness, tool in another language, or evidence document in the
-  repository unless the request asks for one. A one-off check is a command in a step, not a file.
 
 ## Do not stop for
 

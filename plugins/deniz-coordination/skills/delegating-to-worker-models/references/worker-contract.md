@@ -1,7 +1,7 @@
 worker-contract v3
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
-the details.
+the details and may add rules; it never lifts one of these.
 
 ## Precedence
 
@@ -10,8 +10,8 @@ first, then the plan files it names, then the rest of the plan. Quoted rules in 
 written. Do not invent your own protocol for a gap: report the gap.
 
 A requirement that depends on something the task excludes is deferred: list it under "Contradictions
-and spec defects found" in your report and go on with the rest. Stop only when no reading of the text
-meets the task's done-when list.
+and spec defects found" in your report and go on with the rest. Such a requirement stops the task
+only when no reading of the text meets the done-when list without it.
 
 ## Scope
 

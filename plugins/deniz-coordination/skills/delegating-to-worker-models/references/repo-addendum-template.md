@@ -7,7 +7,6 @@ The skill reads it; repository truth stays in the repository.
 |---|---|
 | Load line (required) | "Before you write a worker prompt or review worker output, load `deniz-coordination:delegating-to-worker-models`." Put it in the repository's agent instructions too. |
 | Worker mechanism | how workers are started here (a native subagent, a cross-harness subagent, or a dispatch tool with its command and policy file) |
-| Approval scope | the line that scopes the repository's approval rules to the session that talks to the user, not to the workers it starts |
 | Merge path | an integration branch, or one change per task from a pinned base through a merge queue |
 | Work type | new code, refactor, or both |
 | Walls | the repository's own gates and how to run them; or "none" (the preflight then brings ephemeral walls) |
