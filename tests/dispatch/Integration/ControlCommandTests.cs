@@ -35,6 +35,36 @@ public sealed class ControlCommandTests
     }
 
     [Test]
+    [Timeout(45_000)]
+    public async Task Disposed_host_releases_profile_handles_before_returning(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows exit-code reporting can precede process-handle signaling");
+        using var tree = new TempTree();
+        var profile = Directory.CreateDirectory(Path.Combine(tree.Root, "profiles", "opencode")).FullName;
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl");
+        environment["FAKE_OPENCODE_PROFILE_HANDLES"] = "32768";
+        await using var host = await HarnessServer.StartAsync(false,
+            new(tree.Root, FakeOpenCode.Executable, environment), profile,
+            new("full", "on", "workspace", "on", "worktree"), ct);
+        using var process = System.Diagnostics.Process.GetProcessById(host.Server.ProcessId);
+        _ = process.Handle;
+        var holder = ObservedProcess.Capture(process.Id);
+        process.Kill();
+        while (!process.HasExited) ct.ThrowIfCancellationRequested();
+
+        await host.DisposeAsync();
+
+        var signaled = process.WaitForExit(0);
+        IOException? deletionError = null;
+        try { Directory.Delete(profile, recursive: true); }
+        catch (IOException error) { deletionError = error; }
+        Console.WriteLine($"Profile holder pid {holder.Pid}: exit reported, signaled after disposal={signaled}, delete={deletionError?.Message ?? "succeeded"}");
+        process.WaitForExit();
+        await Assert.That(signaled).IsTrue();
+        await Assert.That(deletionError).IsNull();
+    }
+
+    [Test]
     [Arguments("full")]
     [Arguments("clean")]
     [Timeout(45_000)]
@@ -60,40 +90,50 @@ public sealed class ControlCommandTests
         interrupted["repeat"] = false;
         interrupted["reply"]!["data"]!["outcome"] = "interrupted";
         steps.Insert(4, interrupted);
+        var arrived = Path.Combine(tree.Root, "environment-arrived");
+        var release = Path.Combine(tree.Root, "environment-release");
+        var environmentStep = steps.Single(x => x["expect"]!.GetValue<string>() == "PUT /api/session/ses_fixture/environment");
+        environmentStep["arrived"] = arrived;
+        environmentStep["waitFor"] = release;
         var scenario = Path.Combine(tree.Root, "resume.jsonl");
         File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
         var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
         environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        environment["FAKE_OPENCODE_PROFILE_HANDLES"] = "1";
         using var child = new HarnessProcess(tree);
 
         var requests = Path.Combine(tree.Root, "requests.jsonl");
-        var events = Path.Combine(ledger, "events.jsonl");
-        static string SharedText(string path)
-        {
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            using var reader = new StreamReader(stream);
-            return reader.ReadToEnd();
-        }
         var running = child.RunAsync(["resume", Run, "--continue"], ct, environment);
-        ObservedProcess? server = null;
+        System.Diagnostics.Process? server = null;
         try
         {
-            while (!running.IsCompleted)
+            while (!File.Exists(arrived))
             {
-                if (File.Exists(requests) && SharedText(requests).Split('\n').Any(x => x.Contains("\"method\":\"PUT\"", StringComparison.Ordinal) && x.EndsWith('}')))
-                {
-                    var observedHost = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
-                    server = ObservedProcess.Capture(observedHost["pid"]!.GetValue<int>());
-                    break;
-                }
-                if (SharedText(events).Contains("\"while\":\"resume\"", StringComparison.Ordinal)) break;
+                if (running.IsCompleted) throw new InvalidOperationException((await running).ToString());
                 await Task.Delay(10, ct);
             }
+            var observedHost = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
+            server = System.Diagnostics.Process.GetProcessById(observedHost["pid"]!.GetValue<int>());
+            _ = server.Handle;
+            File.WriteAllText(release, "go");
+            (await running).RequireSuccess("resume --continue");
+            await Assert.That(server.WaitForExit(0)).IsTrue();
         }
         finally
         {
             try { child.Kill(); await running; }
-            finally { if (server is not null) await server.CleanupAsync(); }
+            finally
+            {
+                if (server is not null)
+                {
+                    try
+                    {
+                        if (!server.HasExited) server.Kill(entireProcessTree: true);
+                        await Task.Run(server.WaitForExit);
+                    }
+                    finally { server.Dispose(); }
+                }
+            }
         }
 
         var sent = File.ReadLines(requests).Where(x => x.EndsWith('}')).Select(x => JsonNode.Parse(x)!)

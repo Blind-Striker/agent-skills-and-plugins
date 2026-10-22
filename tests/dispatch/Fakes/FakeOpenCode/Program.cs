@@ -105,6 +105,8 @@ var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
     ?? throw new InvalidOperationException("the SDK lease credential is required");
 var authorization = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + password));
 using var script = new Scenario(scenario, record);
+using var profileHandles = Environment.GetEnvironmentVariable("FAKE_OPENCODE_PROFILE_HANDLES") is { } handleCount
+    ? new ProfileHandles(Environment.CurrentDirectory, int.Parse(handleCount, CultureInfo.InvariantCulture)) : null;
 // Only the hung-process fixture needs this additional ownership; ordinary HTTP fakes spawn none.
 if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is not null) ChildJob.HoldForProcess();
 if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is { } childRecord)
@@ -167,4 +169,30 @@ static long StartTime(Process process)
     if (!OperatingSystem.IsLinux()) return process.StartTime.ToUniversalTime().Ticks;
     var stat = File.ReadAllText($"/proc/{process.Id}/stat");
     return long.Parse(stat[(stat.LastIndexOf(')') + 2)..].Split(' ')[19], CultureInfo.InvariantCulture);
+}
+
+sealed class ProfileHandles : IDisposable
+{
+    readonly List<FileStream> handles = [];
+
+    public ProfileHandles(string directory, int count)
+    {
+        try
+        {
+            // Many handles widen Windows process rundown without adding a shutdown delay.
+            for (var i = 0; i < count; i++)
+                handles.Add(new FileStream(Path.Combine(directory, "profile-held"), FileMode.OpenOrCreate,
+                    FileAccess.ReadWrite, FileShare.ReadWrite));
+        }
+        catch
+        {
+            Dispose();
+            throw;
+        }
+    }
+
+    public void Dispose()
+    {
+        foreach (var handle in handles) handle.Dispose();
+    }
 }
