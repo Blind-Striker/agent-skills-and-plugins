@@ -34,7 +34,7 @@ public sealed class RealBackendTests
         using var lab = await FunctionalLab.CreateAsync("codex", ct, requireSandbox: true);
         var outside = Path.Combine(lab.Tree.Root, "outside.txt");
         File.WriteAllText(outside, "unchanged");
-        lab.WriteTask(lab.CodeTask($"Create inside.txt with exactly inside-ok and no newline, then try to overwrite '{outside}' with outside-bad. If a write is denied, leave it denied and finish without retrying or requesting extra access.", "workspace"));
+        lab.WriteTask(lab.CodeTask($"In two separate shell calls, create inside.txt with exactly inside-ok and no newline, then try to overwrite '{outside}' with outside-bad. Attempt each write once. If a write is denied, leave it denied and finish without retrying or requesting extra access.", "workspace"));
         using var process = new HarnessProcess(lab.Tree);
         var result = await lab.CompleteAsync(lab.StartAsync(process, ct));
         await lab.AssertDoneAsync(result);
@@ -42,7 +42,10 @@ public sealed class RealBackendTests
         await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "inside.txt"))).IsEqualTo("inside-ok");
         await Assert.That(File.ReadAllText(outside)).IsEqualTo("unchanged");
         await Assert.That(lab.Patch).Contains("+inside-ok");
-        await Assert.That(lab.Events().Where(x => IsFailedTool(x) && x["data"]!["resource"]!.GetValue<string>().Contains("outside.txt", StringComparison.Ordinal)).ToArray()).IsNotEmpty();
+        // Resources are redacted first-line summaries, not complete commands or target paths.
+        var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
+        await Assert.That(tools.Where(x => x["data"]!["outcome"]!.GetValue<string>() == "succeeded").ToArray()).IsNotEmpty();
+        await Assert.That(tools.Where(IsFailedTool).ToArray()).IsNotEmpty();
     }
 
     [Test]
@@ -61,8 +64,8 @@ public sealed class RealBackendTests
         await Assert.That(File.ReadAllText(outside)).IsEqualTo("unchanged");
         await Assert.That(lab.Result["filesChanged"]!.AsArray()).IsEmpty();
         await Assert.That(lab.Patch).IsEqualTo("");
-        foreach (var target in new[] { "inside.txt", "outside.txt" })
-            await Assert.That(lab.Events().Where(x => IsFailedTool(x) && x["data"]!["resource"]!.GetValue<string>().Contains(target, StringComparison.Ordinal)).ToArray()).IsNotEmpty();
+        // Both attempted shell writes must fail; the file checks above establish containment.
+        await Assert.That(lab.Events().Count(x => IsFailedTool(x) && x["data"]!["tool"]!.GetValue<string>() == "shell")).IsGreaterThanOrEqualTo(2);
     }
 
     [Test]

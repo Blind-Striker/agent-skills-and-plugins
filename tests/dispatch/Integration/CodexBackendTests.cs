@@ -424,7 +424,62 @@ public sealed class CodexBackendTests
         await Assert.That(string.Join('\n', lab.Input().Select(x => x.ToJsonString()))).DoesNotContain("acceptForSession");
         if (!escalate)
             await Assert.That(lab.Input().Single(x => x["method"]?.GetValue<string>() == "turn/steer")["params"]!["input"]![0]!["text"]!.GetValue<string>())
-                .IsEqualTo(Policy.LeadDeclined);
+                .IsEqualTo("The approval request was rejected. Rejection message:\n" + Policy.LeadDeclined);
+    }
+
+    [Test]
+    [Arguments("commandExecution")]
+    [Arguments("fileChange")]
+    [Timeout(180_000)]
+    public async Task Operator_rejection_steer_identifies_the_exact_feedback_and_task_continues(string tool, CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, cancellationToken);
+        lab.CodeTask();
+        var tasks = JsonNode.Parse(File.ReadAllText(lab.Tasks))!;
+        tasks["policy"] = JsonNode.Parse("{\"escalate\":[{\"name\":\"operator\",\"action\":\"*\",\"resources\":[\"*\"]}]}");
+        File.WriteAllText(lab.Tasks, tasks.ToJsonString());
+        lab.Write("task", CodexLab.Handshake + CodexLab.Thread + """
+            {"request":"item/TOOL/requestApproval","params":{"threadId":"$threadId","turnId":"$turnId","itemId":"call","command":"outside-command","grantRoot":"$outside"},"result":{"decision":"decline"}}
+            {"expect":"turn/steer","params":{"threadId":"$threadId","expectedTurnId":"$turnId"},"reply":{}}
+            {"writeFile":{"path":"$cwd/a.txt","base64":"Y29udGludWVkCg=="}}
+
+            """.Replace("TOOL", tool) + CodexLab.Final);
+        using var harness = new HarnessProcess(lab.Tree);
+        var running = harness.RunAsync(["run", lab.Tasks, "--repo", repo.Root], cancellationToken,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        try
+        {
+            var controlRoot = Path.Combine(lab.Tree.DispatchHome, "state", "control");
+            string? askPath = null;
+            while (!running.IsCompleted && askPath is null)
+            {
+                askPath = Directory.Exists(controlRoot) ? Directory.GetDirectories(controlRoot)
+                    .Where(path => Locations.IsControlId(Path.GetFileName(path)))
+                    .Select(path => Path.Combine(path, "asks", "edit-1.json"))
+                    .SingleOrDefault(File.Exists) : null;
+                if (askPath is null) await Task.Delay(20, cancellationToken);
+            }
+            await Assert.That(askPath).IsNotNull();
+            var ask = JsonNode.Parse(File.ReadAllText(askPath!))!;
+            await Assert.That(lab.Input().Where(x => x.ContainsKey("result"))).IsEmpty();
+            const string feedback = "Leave that action denied.\nContinue with the local report: İyi günler.";
+            using var reply = new HarnessProcess(lab.Tree);
+            (await reply.RunAsync(["reply", ask["run"]!.GetValue<string>(), "edit-1", "reject", "--message", feedback], cancellationToken))
+                .RequireSuccess("operator rejection");
+            (await running).RequireSuccess("continued rejection run");
+            var wire = lab.Input();
+            var decline = wire.Single(x => x.ContainsKey("result"));
+            await Assert.That(decline["result"]!["decision"]!.GetValue<string>()).IsEqualTo("decline");
+            var steer = wire.Single(x => x["method"]?.GetValue<string>() == "turn/steer");
+            await Assert.That(steer["params"]!["input"]!.AsArray().Count).IsEqualTo(1);
+            await Assert.That(steer["params"]!["input"]![0]!["text"]!.GetValue<string>())
+                .IsEqualTo("The approval request was rejected. Rejection message:\n" + feedback);
+            await Assert.That(Array.IndexOf(wire, steer)).IsGreaterThan(Array.IndexOf(wire, decline));
+            await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("done");
+            await Assert.That(await repo.GitAsync(["show", lab.Result["commit"]!.GetValue<string>() + ":a.txt"], cancellationToken)).IsEqualTo("continued");
+        }
+        finally { harness.Kill(); await running; }
     }
 
     [Test]

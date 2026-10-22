@@ -468,7 +468,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             try
             {
                 await connection.Rpc.RequestAsync("turn/steer", new CodexTurnSteerParams(request.Params.GetProperty("threadId").GetString()!,
-                    request.Params.GetProperty("turnId").GetString()!, [new(message)]), CodexJson.Wire.CodexTurnSteerParams, cancellationToken: ct);
+                    request.Params.GetProperty("turnId").GetString()!, [new("The approval request was rejected. Rejection message:\n" + message)]), CodexJson.Wire.CodexTurnSteerParams, cancellationToken: ct);
             }
             catch (Exception ex) when (ex is CodexRpcException or IOException or TimeoutException)
             { return new(true, $"decline sent; steer failed: {ex.Message}"); }
