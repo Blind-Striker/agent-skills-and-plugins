@@ -114,10 +114,13 @@ public sealed class ControlCommandTests
             }
             var observedHost = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
             server = System.Diagnostics.Process.GetProcessById(observedHost["pid"]!.GetValue<int>());
-            _ = server.Handle;
+            var observedServer = ObservedProcess.Capture(server.Id);
+            if (OperatingSystem.IsWindows()) _ = server.Handle;
             File.WriteAllText(release, "go");
             (await running).RequireSuccess("resume --continue");
-            await Assert.That(server.WaitForExit(0)).IsTrue();
+            if (OperatingSystem.IsWindows()) await Assert.That(server.WaitForExit(0)).IsTrue();
+            // A POSIX non-child handle has a polling wait state, not a Windows process-exit signal.
+            else await Assert.That(observedServer.IsAlive()).IsFalse();
         }
         finally
         {
@@ -264,7 +267,11 @@ public sealed class ControlCommandTests
         File.WriteAllText(Path.Combine(config, "config.jsonc"), new JsonObject
         {
             ["schemaVersion"] = 2,
-            ["locations"] = new JsonObject { ["worktreeRoot"] = tree.WorktreeRoot }
+            ["locations"] = new JsonObject { ["worktreeRoot"] = tree.WorktreeRoot },
+            ["backends"] = new JsonObject
+            {
+                ["opencode"] = new JsonObject { ["executable"] = Path.Combine(tree.Root, "missing-opencode") }
+            }
         }.ToJsonString());
         if (missingControl) Directory.Delete(control, true);
 
