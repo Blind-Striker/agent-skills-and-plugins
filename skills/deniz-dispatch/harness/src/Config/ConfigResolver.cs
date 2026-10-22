@@ -155,12 +155,13 @@ static class ConfigResolver
         return settings;
     }
 
-    public static List<string> CapabilityNotes(EffectiveSettings settings) =>
-        settings.Backend?.Value == "codex" && settings.Access?.Value == "read-only"
-        && (settings.ReadOnlyShell?.Value ?? "decline") == "decline"
-        && (settings.Profile?.Value == "full" || settings.Profile?.Actual == "clean-partial" || settings.Project?.Value == "on")
-        ? ["The pinned Codex app-server cannot disable inherited exec-policy rules; an explicit allow rule can bypass the read-only sandbox without approval, despite readOnlyShell decline."]
-        : [];
+    public static List<string> CapabilityNotes(EffectiveSettings settings)
+    {
+        if (settings.Backend?.Value != "codex" || settings.Access?.Value != "read-only") return [];
+        var layers = (settings.Profile?.Actual ?? settings.Profile?.Value) == "clean"
+            ? "only system-level" : "user and system-level";
+        return [$"The pinned Codex app-server cannot disable inherited exec-policy rules; with this profile, {layers} explicit allow rules can bypass the read-only sandbox without approval."];
+    }
 
     static void Accumulate(EffectiveConfig config, string layer, RestrictionValues? restrictions, List<string>? instructions)
     {

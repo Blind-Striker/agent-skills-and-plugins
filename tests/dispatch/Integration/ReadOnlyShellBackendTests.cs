@@ -8,21 +8,24 @@ namespace Dispatch.Tests.Integration;
 public sealed class ReadOnlyShellBackendTests
 {
     [Test]
-    [Arguments("codex", "decline", true)]
-    [Arguments("opencode", "decline", true)]
-    [Arguments("opencode", "escalate", false)]
+    [Arguments("codex", "decline", true, "shell")]
+    [Arguments("opencode", "decline", true, "shell")]
+    [Arguments("opencode", "escalate", false, "shell")]
+    [Arguments("opencode", "decline", true, "bash")]
+    [Arguments("opencode", "escalate", false, "bash")]
     [Timeout(180_000)]
-    public async Task Read_only_shell_without_operator_authority_is_declined_on_the_wire(string name, string setting, bool matchingRule, CancellationToken ct)
-        => await Exercise(name, setting, matchingRule, false, ct);
+    public async Task Read_only_shell_without_operator_authority_is_declined_on_the_wire(string name, string setting, bool matchingRule, string action, CancellationToken ct)
+        => await Exercise(name, setting, matchingRule, false, action, ct);
 
     [Test]
-    [Arguments("codex")]
-    [Arguments("opencode")]
+    [Arguments("codex", "shell")]
+    [Arguments("opencode", "shell")]
+    [Arguments("opencode", "bash")]
     [Timeout(180_000)]
-    public async Task Cli_shell_escalation_waits_for_once_and_accepts_only_that_request(string name, CancellationToken ct)
-        => await Exercise(name, "escalate", true, true, ct);
+    public async Task Cli_shell_escalation_once_requires_a_new_ask_for_the_next_request(string name, string action, CancellationToken ct)
+        => await Exercise(name, "escalate", true, true, action, ct);
 
-    static async Task Exercise(string name, string setting, bool matchingRule, bool useCli, CancellationToken ct)
+    static async Task Exercise(string name, string setting, bool matchingRule, bool useCli, string action, CancellationToken ct)
     {
         var settings = new EffectiveSettings { Access = new() { Value = "read-only" }, ReadOnlyShell = new() { Value = setting } };
         if (useCli)
@@ -43,21 +46,28 @@ public sealed class ReadOnlyShellBackendTests
             codex.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Replace("workspaceWrite", "readOnly") + """
                 {"request":"item/commandExecution/requestApproval","params":{"threadId":"$threadId","turnId":"$turnId","itemId":"call","command":"inspect files"}}
 
-                """ + (useCli ? "" : "{\"expect\":\"turn/steer\",\"reply\":{}}\n") + CodexLab.Final);
+                """ + (useCli ? """
+                {"request":"item/commandExecution/requestApproval","params":{"threadId":"$threadId","turnId":"$turnId","itemId":"call2","command":"inspect more files"}}
+
+                """ : "{\"expect\":\"turn/steer\",\"reply\":{}}\n") + CodexLab.Final);
             backend = codexBackend!;
         }
         else
         {
             opencode!.Create("worker");
             opencode.Prompt("worker");
-            opencode.Add("GET /api/session/active", new JsonObject { ["data"] = new JsonObject() });
-            opencode.Add("GET /api/permission/request", new JsonObject
+            opencode.Add("GET /api/session/active", new JsonObject { ["data"] = new JsonObject() }, repeat: true);
+            foreach (var id in useCli ? new[] { "call", "call2" } : ["call"])
             {
-                ["location"] = new JsonObject { ["directory"] = "$directory" },
-                ["data"] = new JsonArray(new JsonObject { ["sessionID"] = "worker", ["id"] = "call", ["action"] = "shell", ["resources"] = new JsonArray("inspect files") }),
-            });
-            opencode.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() });
-            opencode.Add("POST /api/session/worker/permission/call/reply", status: 204);
+                opencode.Add("GET /api/permission/request", new JsonObject
+                {
+                    ["location"] = new JsonObject { ["directory"] = "$directory" },
+                    ["data"] = new JsonArray(new JsonObject { ["sessionID"] = "worker", ["id"] = id, ["action"] = action,
+                        ["resources"] = new JsonArray(id == "call" ? "inspect files" : "inspect more files") }),
+                });
+                opencode.Add($"POST /api/session/worker/permission/{id}/reply", status: 204);
+            }
+            opencode.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
             opencode.Write();
             backend = opencode.Backend;
         }
@@ -74,37 +84,53 @@ public sealed class ReadOnlyShellBackendTests
             await Assert.That(shell?["effect"]?.GetValue<string>()).IsEqualTo(setting == "decline" ? "deny" : "ask");
         }
         var worker = await backend.PromptAsync(created.Worker, new("Inspect.", false), ct);
-        if (opencode is not null) await backend.PollAsync([worker], ct);
-        WorkerSignal.Ask? ask = null;
-        while (ask is null) ask = await backend.Signals.ReadAsync(ct) as WorkerSignal.Ask;
-        if (matchingRule) core.Policy.Escalate.Add(new() { Name = "inspect", Action = "shell", Resources = ["inspect *"] });
+        if (matchingRule) core.Policy.Escalate.Add(new() { Name = "inspect", Action = action, Resources = ["inspect *"] });
         var run = new TaskRun { Record = new() { Spec = new() { Id = "inspect", Kind = "research" },
             Settings = settings }, State = TaskState.Running };
         var escalation = new Escalation(new Dictionary<string, IWorkerBackend> { [name] = backend }, core.Ledger, core.Policy);
 
-        await escalation.AnswerAsync(run, ask, ct);
-
-        if (useCli)
+        var count = useCli ? 2 : 1;
+        string? previousAskId = null;
+        for (var index = 0; index < count; index++)
         {
-            var pending = AskQueue.List(core.Ledger.RunId).Single();
-            await Assert.That(pending.Action).IsEqualTo("shell");
-            await Assert.That(core.Ledger.Read().Where(x => x.Type == "permission")).IsEmpty();
-            if (codex is not null) await Assert.That(codex.Input().Where(x => x.ContainsKey("result"))).IsEmpty();
-            AskQueue.WriteDecision(core.Ledger.RunId, new() { AskId = pending.AskId, Decision = "once", Time = Json.Timestamp() });
-            await escalation.CheckDecisionsAsync(ct);
+            if (opencode is not null) await backend.PollAsync([worker], ct);
+            WorkerSignal.Ask? ask = null;
+            while (ask is null) ask = await backend.Signals.ReadAsync(ct) as WorkerSignal.Ask;
+            await Assert.That(ask.Action).IsEqualTo(action);
+            if (opencode is not null) await Assert.That(ask.BlockerRef.AskId).IsEqualTo(index == 0 ? "call" : "call2");
+            await escalation.AnswerAsync(run, ask, ct);
+            if (useCli)
+            {
+                var pending = AskQueue.List(core.Ledger.RunId).Single();
+                await Assert.That(pending.Action).IsEqualTo(action);
+                await Assert.That(pending.AskId).IsNotEqualTo(previousAskId);
+                await Assert.That(pending.Resources).IsEquivalentTo(index == 0 ? new[] { "inspect files" } : ["inspect more files"]);
+                await Assert.That(core.Ledger.Read().Count(x => x.Type == "permission")).IsEqualTo(index);
+                if (codex is not null) await Assert.That(codex.Input().Count(x => x.ContainsKey("result"))).IsEqualTo(index);
+                else await Assert.That(File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+                    .Count(x => x["path"]!.GetValue<string>().EndsWith("/reply", StringComparison.Ordinal))).IsEqualTo(index);
+                AskQueue.WriteDecision(core.Ledger.RunId, new() { AskId = pending.AskId, Decision = "once", Time = Json.Timestamp() });
+                await escalation.CheckDecisionsAsync(ct);
+                previousAskId = pending.AskId;
+            }
+            await Assert.That(AskQueue.List(core.Ledger.RunId)).IsEmpty();
         }
-        await Assert.That(AskQueue.List(core.Ledger.RunId)).IsEmpty();
-        await Assert.That(core.Ledger.Read().Count(x => x.Type == "escalated")).IsEqualTo(useCli ? 1 : 0);
+        await Assert.That(core.Ledger.Read().Count(x => x.Type == "escalated")).IsEqualTo(useCli ? 2 : 0);
         if (codex is not null)
         {
             await backend.CollectAsync(worker, ct);
-            await Assert.That(codex.Input().Single(x => x.ContainsKey("result"))["result"]!["decision"]!.GetValue<string>()).IsEqualTo(useCli ? "accept" : "decline");
+            var replies = codex.Input().Where(x => x.ContainsKey("result")).ToArray();
+            await Assert.That(replies.Length).IsEqualTo(count);
+            foreach (var reply in replies)
+                await Assert.That(reply["result"]!["decision"]!.GetValue<string>()).IsEqualTo(useCli ? "accept" : "decline");
         }
         else
         {
-            var reply = File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
-                .Single(x => x["path"]!.GetValue<string>().EndsWith("/permission/call/reply", StringComparison.Ordinal));
-            await Assert.That(reply["body"]!["decision"]!.GetValue<string>()).IsEqualTo(useCli ? "once" : "reject");
+            var replies = File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+                .Where(x => x["path"]!.GetValue<string>().EndsWith("/reply", StringComparison.Ordinal)).ToArray();
+            await Assert.That(replies.Length).IsEqualTo(count);
+            foreach (var reply in replies)
+                await Assert.That(reply["body"]!["decision"]!.GetValue<string>()).IsEqualTo(useCli ? "once" : "reject");
         }
     }
 }
