@@ -92,7 +92,7 @@ Workers receive `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` to prevent the SDK's too
 The warning event carries `reason: user-path-changed`, both lengths, and the added and removed
 entries. Inspect the value with `reg query HKCU\Environment /v Path`.
 
-### `routes --dir <path>|--repo <path> [--backend <name>] [--all]`
+### `routes --repo <path> [--backend <name>] [--all]`
 
 Lists the selected backend's catalog at the location. opencode prints server version, agents,
 manual/hidden/allowed flags, model variants and allow-list diagnostics. `--all` also prints disabled
