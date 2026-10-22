@@ -9,10 +9,10 @@ sealed record BusBarrier(TaskCompletionSource Completion);
 
 sealed class HarnessServer : IAsyncDisposable
 {
+    static readonly TimeSpan ExitConfirmation = TimeSpan.FromSeconds(60);
     readonly CancellationTokenSource _pumpCts = new();
     readonly Channel<object> _bus = Channel.CreateUnbounded<object>(new UnboundedChannelOptions { SingleReader = true });
     Task _pump = Task.CompletedTask;
-    readonly Process _process;
     Task? _disposal;
     readonly object _disposeGate = new();
     public bool IsStopping { get; private set; }
@@ -23,9 +23,6 @@ sealed class HarnessServer : IAsyncDisposable
         Client = client;
         Output = output;
         CommandDescription = commandDescription;
-        _process = Process.GetProcessById(server.ProcessId);
-        _ = _process.Handle;
-        _process.EnableRaisingEvents = true;
     }
 
     public OpenCodeServer Server { get; }
@@ -195,23 +192,18 @@ sealed class HarnessServer : IAsyncDisposable
     public async Task<bool> StopTreeAsync(CancellationToken ct)
     {
         IsStopping = true;
-        if (!_process.HasExited) _process.Kill(entireProcessTree: true);
-        await WaitForExitConfirmedAsync(ct);
-        var stopped = _process.HasExited;
-        await DisposeAsync();
-        return stopped;
+        try { await DisposeAsync(); }
+        catch (Exception)
+        {
+            // Failed disposal cannot confirm a stop, even if the server has reported an exit.
+            return false;
+        }
+        return Server.Exited.IsCompletedSuccessfully;
     }
 
     public ValueTask DisposeAsync()
     {
         lock (_disposeGate) return new(_disposal ??= DisposeCoreAsync());
-    }
-
-    Task WaitForExitConfirmedAsync(CancellationToken ct = default)
-    {
-        // Windows can report an exit code before process rundown releases its directory and files.
-        // WaitForExitAsync short-circuits on HasExited; a retained handle's synchronous wait does not.
-        return OperatingSystem.IsWindows() ? Task.Run(_process.WaitForExit, ct) : _process.WaitForExitAsync(ct);
     }
 
     async Task DisposeCoreAsync()
@@ -234,14 +226,15 @@ sealed class HarnessServer : IAsyncDisposable
             {
                 try
                 {
-                    if (!_process.HasExited) _process.Kill(entireProcessTree: true);
-                    await WaitForExitConfirmedAsync();
                     await Server.DisposeAsync();
+                    // Disposal is bounded and can return before Windows process rundown releases
+                    // the profile folder; the SDK's Exited completes only once the handle signals.
+                    try { await Server.Exited.WaitAsync(ExitConfirmation); }
+                    catch (TimeoutException) { /* Unconfirmed: StopTreeAsync reports not stopped. */ }
                 }
                 finally
                 {
                     _bus.Writer.TryComplete();
-                    _process.Dispose();
                     _pumpCts.Dispose();
                 }
             }

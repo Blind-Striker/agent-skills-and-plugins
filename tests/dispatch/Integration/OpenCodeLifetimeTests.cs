@@ -9,6 +9,26 @@ namespace Dispatch.Tests.Integration;
 public sealed class OpenCodeLifetimeTests
 {
     [Test]
+    [Timeout(45_000)]
+    public async Task Stop_after_sdk_disposal_confirms_exit_on_repeated_calls(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl");
+        await using var host = await HarnessServer.StartAsync(false,
+            new(tree.Root, FakeOpenCode.Executable, environment), tree.Root,
+            new("full", "on", "workspace", "on", "worktree"), ct);
+
+        await host.Server.DisposeAsync();
+        var exit = await host.Server.Exited.WaitAsync(ct);
+        Console.WriteLine($"SDK disposal returned; exit kind={exit.Kind}, code={exit.ExitCode}, signal={exit.Signal}");
+
+        await Assert.That(await host.StopTreeAsync(ct)).IsTrue();
+        await Assert.That(await host.StopTreeAsync(ct)).IsTrue();
+        await Assert.That(await host.Server.Exited).IsEqualTo(exit);
+        await host.Events.Completion.WaitAsync(ct);
+    }
+
+    [Test]
     [Timeout(60_000)]
     public async Task Exited_server_descendants_end_on_disposal(CancellationToken ct)
     {
