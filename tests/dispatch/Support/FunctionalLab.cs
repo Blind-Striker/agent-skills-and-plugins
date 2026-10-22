@@ -9,6 +9,7 @@ namespace Dispatch.Tests.Support;
 internal sealed class FunctionalLab : IDisposable
 {
     readonly CodexHome? codexHome;
+    readonly string? codexProfiles;
     public TempTree Tree { get; }
     public Dictionary<string, string?> Environment { get; }
     public string Backend { get; }
@@ -23,39 +24,59 @@ internal sealed class FunctionalLab : IDisposable
     public string Workspace => Record["workspace"]!["path"]!.GetValue<string>();
     public string Patch => File.ReadAllText(Path.Combine(TaskFolder, "diff.patch"));
 
-    FunctionalLab(string backend, string route, TempTree tree)
+    internal FunctionalLab(string backend, string route, TempTree tree, string? userCodexHome = null, string? temporaryRoot = null)
     {
         Tree = tree;
         Backend = backend;
         Route = route;
         Environment = Tree.ChildEnvironment();
-        if (backend == "codex")
+        try
         {
-            var userHome = System.Environment.GetEnvironmentVariable("CODEX_HOME")
-                ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".codex");
-            codexHome = CodexHome.CreateProbe(new(Path.Combine(Tree.Root, "profiles"), null, new Dictionary<string, string>()),
-                userHome, Tree.Repository, project: "on", windowsSandbox: CodexHome.ReadWindowsSandbox(userHome));
-            if (!codexHome.Temporary)
-                throw new InvalidOperationException($"functional Codex home requires hardlinked file auth: {codexHome.Reason}");
-            Environment["CODEX_HOME"] = codexHome.Home;
+            if (backend == "codex")
+            {
+                var userHome = userCodexHome ?? System.Environment.GetEnvironmentVariable("CODEX_HOME")
+                    ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".codex");
+                // The auth hardlink, not the checkout's volume, determines where this home can live.
+                codexProfiles = Path.Combine(temporaryRoot ?? Path.GetTempPath(), $"dispatch-functional-codex-{Guid.NewGuid():N}");
+                if (Worktree.IsInside(codexProfiles, userHome))
+                    Skip.Test("Functional Codex home needs a temporary folder outside the user's Codex home.");
+                try
+                {
+                    codexHome = CodexHome.CreateProbe(new(codexProfiles, null, new Dictionary<string, string>()),
+                        userHome, Tree.Repository, project: "on", windowsSandbox: CodexHome.ReadWindowsSandbox(userHome));
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    Skip.Test($"Functional Codex home has no usable temporary folder on the auth volume ({exception.GetType().Name}).");
+                    throw;
+                }
+                if (!codexHome.Temporary)
+                    Skip.Test($"Functional Codex home requires a usable temporary folder on the auth volume and hardlinked file auth: {codexHome.Reason}");
+                Environment["CODEX_HOME"] = codexHome.Home;
+            }
+            else
+            {
+                // Keep the credential database in place; worker configuration is a temporary clean copy.
+                Environment["XDG_DATA_HOME"] = System.Environment.GetEnvironmentVariable("XDG_DATA_HOME")
+                    ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".local", "share");
+                // The harness reads provider/model definitions here and writes its clean copy under control/profiles.
+                Environment["OPENCODE_CONFIG_DIR"] = System.Environment.GetEnvironmentVariable("OPENCODE_CONFIG_DIR")
+                    ?? Path.Combine(System.Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
+                        ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".config"), "opencode");
+                Environment["OPENCODE_DISABLE_CLAUDE_CODE"] = "1";
+            }
+            var config = Directory.CreateDirectory(Path.Combine(Tree.DispatchHome, "config")).FullName;
+            File.WriteAllText(Path.Combine(config, "config.jsonc"), new JsonObject
+            {
+                ["schemaVersion"] = 2,
+                ["locations"] = new JsonObject { ["worktreeRoot"] = Tree.WorktreeRoot },
+            }.ToJsonString());
         }
-        else
+        catch
         {
-            // Keep the credential database in place; worker configuration is a temporary clean copy.
-            Environment["XDG_DATA_HOME"] = System.Environment.GetEnvironmentVariable("XDG_DATA_HOME")
-                ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".local", "share");
-            // The harness reads provider/model definitions here and writes its clean copy under control/profiles.
-            Environment["OPENCODE_CONFIG_DIR"] = System.Environment.GetEnvironmentVariable("OPENCODE_CONFIG_DIR")
-                ?? Path.Combine(System.Environment.GetEnvironmentVariable("XDG_CONFIG_HOME")
-                    ?? Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile), ".config"), "opencode");
-            Environment["OPENCODE_DISABLE_CLAUDE_CODE"] = "1";
+            DisposeCodexHome();
+            throw;
         }
-        var config = Directory.CreateDirectory(Path.Combine(Tree.DispatchHome, "config")).FullName;
-        File.WriteAllText(Path.Combine(config, "config.jsonc"), new JsonObject
-        {
-            ["schemaVersion"] = 2,
-            ["locations"] = new JsonObject { ["worktreeRoot"] = Tree.WorktreeRoot },
-        }.ToJsonString());
     }
 
     public static async Task<FunctionalLab> CreateAsync(string backend, CancellationToken ct, bool requireSandbox = false)
@@ -225,12 +246,22 @@ internal sealed class FunctionalLab : IDisposable
 
     static JsonObject ReadObject(string path) => JsonNode.Parse(File.ReadAllText(path))!.AsObject();
 
+    void DisposeCodexHome()
+    {
+        try { codexHome?.Dispose(); }
+        finally
+        {
+            if (codexProfiles is not null && Directory.Exists(codexProfiles))
+                Directory.Delete(codexProfiles, recursive: true);
+        }
+    }
+
     public void Dispose()
     {
         try { PrintEvidence(); }
         finally
         {
-            try { codexHome?.Dispose(); }
+            try { DisposeCodexHome(); }
             finally { Tree.Dispose(); }
         }
     }
