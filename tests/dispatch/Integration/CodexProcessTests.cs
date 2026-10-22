@@ -11,6 +11,93 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Arguments(false, 2)]
+    [Arguments(false, 3)]
+    [Arguments(true, 2)]
+    [Arguments(true, 3)]
+    [Timeout(60_000)]
+    public async Task Vanished_proc_liveness_read_confirms_stop_without_throwing(bool recovery, int errno, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux proc filesystem exit races only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"notify":"ready","params":{}}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        var reads = 0;
+        var injected = false;
+        string Read(string path)
+        {
+            if (path == $"/proc/{process.Id}/stat" && (recovery || ++reads == 2))
+            {
+                injected = true;
+                throw new IOException("proc entry exited during liveness read", errno);
+            }
+            return File.ReadAllText(path);
+        }
+        process.ReadProcStat = Read;
+        try
+        {
+            var stopped = recovery
+                ? await CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = process.Id, ["processStartTime"] = process.StartTime.ToString("O") },
+                    cancellationToken, readProcStat: Read)
+                : await process.StopAsync();
+            await Assert.That(injected).IsTrue();
+            await Assert.That(stopped.Stopped).IsTrue();
+            await Assert.That(stopped.Detail.Contains("descendant snapshot", StringComparison.Ordinal)).IsFalse();
+        }
+        finally { process.ReadProcStat = File.ReadAllText; }
+    }
+
+    [Test]
+    [Arguments(false, "match")]
+    [Arguments(true, "match")]
+    [Arguments(false, "ticks")]
+    [Arguments(true, "ticks")]
+    [Arguments(false, "boot")]
+    [Arguments(true, "boot")]
+    [Arguments(false, "legacy")]
+    [Arguments(true, "legacy")]
+    [Arguments(false, "unreadable-boot")]
+    [Arguments(true, "unreadable-boot")]
+    [Timeout(60_000)]
+    public async Task Linux_recorded_stop_uses_kernel_identity_not_observer_wall_clock(bool descendant, string identityKind, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux kernel process identities only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"notify":"ready","params":{}}
+            {"hang":true}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        var observed = Support.ObservedProcess.Capture(process.Id);
+        var record = new JsonObject
+        {
+            ["pid"] = process.Id,
+            [descendant ? "startTime" : "processStartTime"] = process.StartTime.AddMinutes(identityKind is "match" or "legacy" ? -1 : 0).ToString("O"),
+        };
+        if (identityKind != "legacy")
+        {
+            record["linuxBootId"] = identityKind == "boot" ? Guid.Empty.ToString() : File.ReadAllText("/proc/sys/kernel/random/boot_id").Trim();
+            record["linuxStartTicks"] = observed.StartTime + (identityKind == "ticks" ? 1 : 0);
+        }
+        var state = descendant ? new JsonObject { ["descendants"] = new JsonArray(record) } : record;
+        if (!descendant) state["processGroup"] = true;
+
+        var result = await CodexProcess.StopRecordedAsync(state, cancellationToken, readProcStat: path =>
+            identityKind == "unreadable-boot" && path == "/proc/sys/kernel/random/boot_id"
+                ? throw new FileNotFoundException("boot identity unavailable") : File.ReadAllText(path));
+
+        await Assert.That(observed.IsAlive()).IsEqualTo(identityKind != "match");
+        await Assert.That(result.Stopped).IsEqualTo(identityKind is not ("legacy" or "unreadable-boot"));
+        if (identityKind == "legacy") await Assert.That(result.Detail).Contains("cannot safely terminate");
+    }
+
+    [Test]
     [Arguments(2)]
     [Arguments(3)]
     [Timeout(60_000)]

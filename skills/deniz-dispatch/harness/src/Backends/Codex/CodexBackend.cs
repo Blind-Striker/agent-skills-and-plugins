@@ -211,12 +211,14 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     static JsonObject State(Connection connection) => new()
     {
         ["pid"] = connection.Process.Id, ["processStartTime"] = connection.Process.StartTime.ToString("O", CultureInfo.InvariantCulture),
+        ["linuxBootId"] = connection.Process.Identity.LinuxBootId, ["linuxStartTicks"] = connection.Process.Identity.LinuxStartTicks,
         ["processGroup"] = connection.Process.ProcessGroup is not null, ["codexHome"] = connection.Home?.Home,
         ["codexHomeTemporary"] = connection.Home?.Temporary,
         ["profile"] = connection.Home?.Profile, ["profileReason"] = connection.Home?.Reason,
         ["descendants"] = new JsonArray(connection.Process.Descendants.Select(identity => (JsonNode?)new JsonObject
         {
             ["pid"] = identity.Pid, ["startTime"] = identity.StartTime?.ToString("O", CultureInfo.InvariantCulture),
+            ["linuxBootId"] = identity.LinuxBootId, ["linuxStartTicks"] = identity.LinuxStartTicks,
         }).ToArray()),
     };
 

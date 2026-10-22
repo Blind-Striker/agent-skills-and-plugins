@@ -46,6 +46,26 @@ internal static class FunctionalProcesses
         return identities.ToArray();
     }
 
+    public static async Task<string> CommandLineAsync(ObservedProcess identity, TempTree tree, CancellationToken ct)
+    {
+        if (!identity.IsAlive()) return "";
+        try
+        {
+            if (OperatingSystem.IsLinux()) return File.ReadAllText($"/proc/{identity.Pid}/cmdline").Replace('\0', ' ');
+            using var process = new CapturedProcess();
+            var result = OperatingSystem.IsWindows()
+                ? await process.RunAsync("pwsh", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command",
+                    $"Get-CimInstance Win32_Process -Filter 'ProcessId = {identity.Pid}' | Select-Object -ExpandProperty CommandLine"], tree.Root, tree.ChildEnvironment(), ct)
+                : await process.RunAsync("ps", ["-p", identity.Pid.ToString(System.Globalization.CultureInfo.InvariantCulture), "-o", "command="], tree.Root, tree.ChildEnvironment(), ct);
+            if (!identity.IsAlive()) return "";
+            result.RequireSuccess("observe marked worker shell");
+            return result.Stdout;
+        }
+        catch (FileNotFoundException) { return ""; } // Exit raced the command-line read.
+        catch (DirectoryNotFoundException) { return ""; }
+        catch (IOException exception) when (OperatingSystem.IsLinux() && exception.HResult is 2 or 3) { return ""; }
+    }
+
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct Entry
     {

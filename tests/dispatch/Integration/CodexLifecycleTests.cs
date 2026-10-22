@@ -10,6 +10,37 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexLifecycleTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task Linux_backend_persists_kernel_identity_for_root_and_descendants(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux kernel process identities only");
+        using var core = new CoreLab();
+        using var codex = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("inspect", cancellationToken);
+        run.Record.Spec.Route = "model-y#high";
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Settings.Route = new() { Value = "codex:model-y#high" };
+        run.Record.Settings.Access = new() { Value = "workspace" };
+        codex.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Replace(
+            "{\"expect\":\"turn/start\"", "{\"spawnChild\":true}\n{\"expect\":\"turn/start\"", StringComparison.Ordinal) + "{\"hang\":true}");
+        await using var backend = codex.Backend();
+        await new TaskStarter(backend, core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, core.Git).StartAsync(run, cancellationToken);
+        await backend.PollAsync([run.SavedWorker()], cancellationToken);
+        var state = JsonNode.Parse(run.Worker!.State.ToJsonString())!;
+        var records = new[] { state }.Concat(state["descendants"]!.AsArray().Select(node => node!)).ToArray();
+        await Assert.That(records.Length).IsEqualTo(2);
+        foreach (var record in records)
+        {
+            var observed = ObservedProcess.Capture(record["pid"]!.GetValue<int>());
+            await Assert.That(record["linuxBootId"]?.GetValue<string>()).IsEqualTo(File.ReadAllText("/proc/sys/kernel/random/boot_id").Trim());
+            await Assert.That(record["linuxStartTicks"]?.GetValue<long>()).IsEqualTo(observed.StartTime);
+        }
+        var recovered = await CodexProcess.StopRecordedAsync(state.AsObject(), cancellationToken);
+        await Assert.That(recovered.Stopped).IsTrue();
+        foreach (var record in records) await Assert.That(IsAlive(record["pid"]!.GetValue<int>())).IsFalse();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]

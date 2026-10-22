@@ -34,7 +34,9 @@ public sealed class RealBackendTests
         using var lab = await FunctionalLab.CreateAsync("codex", ct, requireSandbox: true);
         var outside = Path.Combine(lab.Tree.Root, "outside.txt");
         File.WriteAllText(outside, "unchanged");
-        lab.WriteTask(lab.CodeTask($"In two separate shell calls, create inside.txt with exactly inside-ok and no newline, then try to overwrite '{outside}' with outside-bad. Attempt each write once. If a write is denied, leave it denied and finish without retrying or requesting extra access.", "workspace"));
+        var insideCommand = WriteCommand("inside.txt", "inside-ok");
+        var outsideCommand = WriteCommand(outside, "outside-bad");
+        lab.WriteTask(lab.CodeTask(WritePrompt(insideCommand, outsideCommand), "workspace"));
         using var process = new HarnessProcess(lab.Tree);
         var result = await lab.CompleteAsync(lab.StartAsync(process, ct));
         await lab.AssertDoneAsync(result);
@@ -42,10 +44,7 @@ public sealed class RealBackendTests
         await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "inside.txt"))).IsEqualTo("inside-ok");
         await Assert.That(File.ReadAllText(outside)).IsEqualTo("unchanged");
         await Assert.That(lab.Patch).Contains("+inside-ok");
-        // Resources are redacted first-line summaries, not complete commands or target paths.
-        var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
-        await Assert.That(tools.Where(x => x["data"]!["outcome"]!.GetValue<string>() == "succeeded").ToArray()).IsNotEmpty();
-        await Assert.That(tools.Where(IsFailedTool).ToArray()).IsNotEmpty();
+        await AssertWriteEventsAsync(lab, insideCommand, outsideCommand, "succeeded");
     }
 
     [Test]
@@ -55,7 +54,9 @@ public sealed class RealBackendTests
         using var lab = await FunctionalLab.CreateAsync("codex", ct, requireSandbox: true);
         var outside = Path.Combine(lab.Tree.Root, "outside.txt");
         File.WriteAllText(outside, "unchanged");
-        lab.WriteTask(lab.CodeTask($"In two separate shell calls, try to create inside.txt containing forbidden and overwrite '{outside}' with forbidden. If either write is denied, leave it denied and finish without requesting extra access.", "read-only"));
+        var insideCommand = WriteCommand("inside.txt", "forbidden");
+        var outsideCommand = WriteCommand(outside, "forbidden");
+        lab.WriteTask(lab.CodeTask(WritePrompt(insideCommand, outsideCommand), "read-only"));
         using var process = new HarnessProcess(lab.Tree);
         var result = await lab.CompleteAsync(lab.StartAsync(process, ct));
         await lab.AssertDoneAsync(result);
@@ -64,8 +65,7 @@ public sealed class RealBackendTests
         await Assert.That(File.ReadAllText(outside)).IsEqualTo("unchanged");
         await Assert.That(lab.Result["filesChanged"]!.AsArray()).IsEmpty();
         await Assert.That(lab.Patch).IsEqualTo("");
-        // Both attempted shell writes must fail; the file checks above establish containment.
-        await Assert.That(lab.Events().Count(x => IsFailedTool(x) && x["data"]!["tool"]!.GetValue<string>() == "shell")).IsGreaterThanOrEqualTo(2);
+        await AssertWriteEventsAsync(lab, insideCommand, outsideCommand, "failed");
     }
 
     [Test]
@@ -177,8 +177,11 @@ public sealed class RealBackendTests
     public async Task FN9_Cancel_then_collect_recovers_result_and_leaves_no_worker_process(string backend, CancellationToken ct)
     {
         using var lab = await FunctionalLab.CreateAsync(backend, ct);
-        var sleep = OperatingSystem.IsWindows() ? "Start-Sleep -Seconds 120" : "sleep 120";
-        lab.WriteTask(lab.CodeTask($"Create started.txt with exactly cancel-ready and no newline, then run `{sleep}` in the shell and wait for it before doing anything else."));
+        var marker = "dispatch-cancel-" + Guid.NewGuid().ToString("N");
+        var command = OperatingSystem.IsWindows()
+            ? $"pwsh -NoLogo -NoProfile -NonInteractive -Command \"[System.IO.File]::WriteAllText('started.txt','cancel-ready'); Start-Sleep -Seconds 120 # {marker}\""
+            : $"/bin/sh -c 'printf cancel-ready > started.txt; sleep 120; : {marker}'";
+        lab.WriteTask(lab.CodeTask($"Run exactly `{command}` in one shell call and wait for it before doing anything else."));
         using var process = new HarnessProcess(lab.Tree);
         var running = lab.StartAsync(process, ct);
         var observed = new List<ObservedProcess>();
@@ -186,7 +189,21 @@ public sealed class RealBackendTests
         {
             await lab.WaitForEventAsync("prompt", running, ct, _ =>
                 File.Exists(Path.Combine(lab.Workspace, "started.txt")));
-            observed.AddRange(await FunctionalProcesses.DescendantsAsync(process.ProcessId, lab.Tree, ct));
+            ObservedProcess? shell = null;
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (shell is null && !running.IsCompleted && clock.Elapsed < TimeSpan.FromMinutes(2))
+            {
+                var descendants = await FunctionalProcesses.DescendantsAsync(process.ProcessId, lab.Tree, ct);
+                foreach (var identity in descendants)
+                {
+                    if (!observed.Contains(identity)) observed.Add(identity);
+                    var commandLine = await FunctionalProcesses.CommandLineAsync(identity, lab.Tree, ct);
+                    if (commandLine.Contains(marker, StringComparison.Ordinal) && identity.IsAlive()) shell = identity;
+                }
+                if (shell is null) await Task.Delay(100, ct); // Poll for the intended shell, not just a backend descendant.
+            }
+            await Assert.That(shell).IsNotNull();
+            await Assert.That(shell!.IsAlive()).IsTrue();
             await Assert.That(observed).IsNotEmpty();
             await Assert.That(running.IsCompleted).IsFalse();
             await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "started.txt")).TrimEnd('\r', '\n')).IsEqualTo("cancel-ready");
@@ -203,6 +220,7 @@ public sealed class RealBackendTests
             await Assert.That(final["data"]!["via"]!.GetValue<string>()).IsEqualTo("collect");
             await Assert.That(lab.Patch).Contains("+cancel-ready");
             await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "started.txt")).TrimEnd('\r', '\n')).IsEqualTo("cancel-ready");
+            await Assert.That(shell.IsAlive()).IsFalse();
             foreach (var identity in observed)
             {
                 TestContext.Current!.Output.WriteLine($"Observed worker pid {identity.Pid}, start {identity.StartTime}: alive={identity.IsAlive()}");
@@ -219,4 +237,34 @@ public sealed class RealBackendTests
 
     static bool IsFailedTool(JsonObject entry) => entry["type"]!.GetValue<string>() == "tool"
         && entry["data"]?["outcome"]?.GetValue<string>() == "failed";
+
+    internal static string WriteCommand(string target, string value) => OperatingSystem.IsWindows()
+        ? $"[System.IO.File]::WriteAllText('{target.Replace("'", "''", StringComparison.Ordinal)}','{value}')"
+        : $"printf '%s' '{value}' > '{target.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+
+    static string WritePrompt(string inside, string outside) =>
+        $"Run exactly these two commands, in order, in two separate shell calls using the default {(OperatingSystem.IsWindows() ? "PowerShell" : "POSIX")} shell: first `{inside}`, then `{outside}`. "
+        + "Do not change their syntax or combine them. Attempt each once even if the first fails. If a write is denied, leave it denied and finish without retrying or requesting extra access.";
+
+    static async Task AssertWriteEventsAsync(FunctionalLab lab, string inside, string outside, string insideOutcome)
+    {
+        var tools = lab.Events().Where(entry => entry["type"]!.GetValue<string>() == "tool" && entry["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
+        // The resource is capped at 200 characters and can include a shell wrapper. A short
+        // command prefix distinguishes the relative inside target from the absolute outside target.
+        var insideEvents = MatchingWriteEvents(tools, inside);
+        var outsideEvents = MatchingWriteEvents(tools, outside);
+        await Assert.That(insideEvents.Length).IsEqualTo(1);
+        await Assert.That(outsideEvents.Length).IsEqualTo(1);
+        await Assert.That(insideEvents[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo(insideOutcome);
+        await Assert.That(outsideEvents[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("failed");
+        await Assert.That(Array.IndexOf(tools, insideEvents[0])).IsLessThan(Array.IndexOf(tools, outsideEvents[0]));
+    }
+
+    internal static JsonObject[] MatchingWriteEvents(JsonObject[] tools, string command) => tools.Where(entry =>
+    {
+        var resource = entry["data"]!["resource"]!.GetValue<string>();
+        // Codex quotes Windows shell commands with escaped backslashes in the resource itself.
+        if (OperatingSystem.IsWindows()) resource = resource.Replace("\\\\", "\\", StringComparison.Ordinal);
+        return resource.Contains(command[..Math.Min(command.Length, 100)], StringComparison.Ordinal);
+    }).ToArray();
 }
