@@ -63,7 +63,7 @@ original_skills:
     # otherwise it goes to the research note's pilot log. The per-case coordinator rules from the
     # first pilot day were folded into one no-contradiction pass for that reason
   harness:
-    invocation: both # model-invocable so callers (a coordinator, cockpit-tf, a colleague's skill)
+    invocation: both # model-invocable so callers (a coordinator, a task-file tool, a colleague's skill)
     # can load it by name: a manual skill cannot be loaded through the skill tool. It runs only when
     # the user asks for it or starts the coordinator (ADR-0009)
     harnesses: [claude, codex] # OpenCode reaches many model families natively, so a coordinator there

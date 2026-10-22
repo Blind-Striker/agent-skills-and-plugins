@@ -27,7 +27,8 @@ and ASD-STE100 contributes one additional controlled-English skill. Exact item d
 [`curation/deniz-process.yaml`](curation/deniz-process.yaml).
 
 `deniz-coordination` holds coordination
-([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)): `delegating-to-worker-models`,
+([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)): `coordinator`, the mode you start
+to make the agent own a task and hand its work to other agents; `delegating-to-worker-models`,
 written from the field runs and controlled comparison in the
 [worker-model delegation research](docs/research/worker-model-delegation.md); `harness`, a dispatcher
 shipped as the source of a .NET file-based app, for Claude Code and Codex; and `verified-waves`,
