@@ -329,7 +329,7 @@ after all three artifact trees exist, independently for each address space. Fact
 rendered in Markdown; OpenCode path respelling also covers every other bundled text file of a skill
 folder and rewrites a file only when its bytes change. That includes the source of an application a
 skill bundles, such as the `harness` skill's .NET file-based app
-([ADR-0009](../adr/0009-the-dispatch-harness-ships-as-a-module.md)): its `#:include` targets stay
+([ADR-0009](../adr/0009-coordination-ships-in-its-own-module.md)): its `#:include` targets stay
 inside its own skill folder, and its source never spells a sibling-skill climb or an item-root
 `skills/<name>/` path, which respelling would rewrite.
 Module manifests are then written over final OpenCode bytes. A file copied into a skill folder takes

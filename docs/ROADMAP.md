@@ -15,7 +15,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Checkout Module versions are Process 0.14.0, General 0.14.1, Akka 0.4.1, Aspire 0.6.0, and
   Dispatch 0.1.0. Dispatch is unreleased: it holds `delegating-to-worker-models`, moved out of
   Process, and the `harness` skill, whose bundled .NET source is being ported
-  ([ADR-0009](adr/0009-the-dispatch-harness-ships-as-a-module.md)); no Release carries it yet. Their
+  ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); no Release carries it yet. Their
   item posture, source pins, transformations, exclusions, and reasons live in
   [`curation/*.yaml`](../curation/) and the generated [ledger](ledger.json), not in this roadmap.
 - OpenCode 2 is the only OpenCode target. Canon now states the decided OpenCode 2 rules: the runtime

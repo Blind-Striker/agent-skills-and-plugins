@@ -24,7 +24,7 @@ Treat repository areas according to the action they permit:
   `tests/dispatch/`, `docs/`, `experiments/`, and root public metadata such as `LICENSE` and
   `THIRD_PARTY_NOTICES.md` are authored inputs. `tests/dispatch/` holds the dispatch harness's .NET
   tests, kept outside its skill folder so they never ship
-  ([ADR-0009](../adr/0009-the-dispatch-harness-ships-as-a-module.md)).
+  ([ADR-0009](../adr/0009-coordination-ships-in-its-own-module.md)).
 - `plugins/`, `opencode/`, `codex/`, `dist/`, `.claude-plugin/marketplace.json`,
   `.agents/plugins/marketplace.json`, `docs/inventory.md`, and `docs/ledger.json` are generated
   review surfaces. Change their inputs and regenerate; never patch them directly.

@@ -33,7 +33,7 @@ Exact item decisions and reasons remain beside the items in
 and controlled comparison in the
 [worker-model delegation research](docs/research/worker-model-delegation.md), and `harness`, the
 dispatcher that skill's contract describes, shipped as the source of a .NET file-based app
-([ADR-0009](docs/adr/0009-the-dispatch-harness-ships-as-a-module.md)). Running the harness needs a
+([ADR-0009](docs/adr/0009-coordination-ships-in-its-own-module.md)). Running the harness needs a
 .NET 10 SDK; no other Module ships code that needs one.
 
 ## How it works
