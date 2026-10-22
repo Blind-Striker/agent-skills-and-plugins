@@ -50,12 +50,18 @@ if (args.SequenceEqual(new[] { "--hung-leaf" }))
 }
 
 // The same native apphost also supplies the injected git process boundary.
-if (Environment.GetEnvironmentVariable("FAKE_GIT_MODE") is { } gitMode)
+if (args.FirstOrDefault() == "-C" && Environment.GetEnvironmentVariable("FAKE_GIT_MODE") is { } gitMode)
 {
     var repo = args[1];
     var command = args[12];
     if (Environment.GetEnvironmentVariable("FAKE_GIT_CALLS") is { } calls)
         await File.AppendAllTextAsync(calls, JsonSerializer.Serialize(args) + "\n");
+    using var directoryHandle = gitMode == "worktree-lock" && command == "worktree" && args[13] == "remove"
+        && !File.Exists(Environment.GetEnvironmentVariable("FAKE_GIT_READY")!)
+        ? File.Open(Path.Combine(args[^1], "cleanup-handle"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read)
+        : null;
+    if (directoryHandle is not null)
+        await File.WriteAllTextAsync(Environment.GetEnvironmentVariable("FAKE_GIT_READY")!, "held");
     if (command == "commit")
     {
         var lockPath = Environment.GetEnvironmentVariable("FAKE_GIT_LOCK")!;
@@ -98,7 +104,7 @@ var record = Environment.GetEnvironmentVariable("FAKE_OPENCODE_RECORD")
 var password = Environment.GetEnvironmentVariable("OPENCODE_PASSWORD")
     ?? throw new InvalidOperationException("the SDK lease credential is required");
 var authorization = "Basic " + Convert.ToBase64String(Encoding.UTF8.GetBytes("opencode:" + password));
-var script = new Scenario(scenario, record);
+using var script = new Scenario(scenario, record);
 // Only the hung-process fixture needs this additional ownership; ordinary HTTP fakes spawn none.
 if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is not null) ChildJob.HoldForProcess();
 if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is { } childRecord)

@@ -11,6 +11,56 @@ public sealed class CatalogCommandTests
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]
+    public async Task Selfcheck_removes_worktree_after_OpenCode_releases_directory_handles(bool transientLock, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Open file handles prevent worktree deletion on Windows.");
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = Configure(lab, both: true);
+        environment["FAKE_OPENCODE_HOLD_DIRECTORY"] = "1";
+        var calls = Path.Combine(lab.Tree.Root, "git-calls.jsonl");
+        if (transientLock)
+        {
+            var shim = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "git-shim")).FullName;
+            foreach (var source in Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Executable)!))
+                File.Copy(source, Path.Combine(shim, Path.GetFileName(source)));
+            File.Copy(FakeOpenCode.Executable, Path.Combine(shim, "git.exe"));
+            environment["FAKE_GIT_EXECUTABLE"] = Executables.Resolve("git");
+            environment["FAKE_GIT_MODE"] = "worktree-lock";
+            environment["FAKE_GIT_READY"] = Path.Combine(lab.Tree.Root, "lock-held");
+            environment["FAKE_GIT_CALLS"] = calls;
+            environment["PATH"] = shim + Path.PathSeparator + environment["PATH"];
+        }
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--backend", "opencode", "--repo", repo.Root], ct, environment);
+
+        result.RequireSuccess("selfcheck with directory handles");
+        var held = Directory.GetFiles(lab.Tree.Root, "requests.jsonl.*.directory.json")
+            .Select(path => JsonNode.Parse(File.ReadAllText(path))!.GetValue<string>()).ToArray();
+        await Assert.That(held.Length).IsEqualTo(2);
+        foreach (var directory in held)
+        {
+            await Assert.That(Path.GetDirectoryName(directory)).IsEqualTo(lab.Tree.WorktreeRoot);
+            await Assert.That(Directory.Exists(directory)).IsFalse();
+        }
+        await Assert.That(result.Stdout).Contains("PASS  worktree removed:");
+        await Assert.That(result.Stdout).Contains("selfcheck passed");
+        await Assert.That(Directory.GetFileSystemEntries(lab.Tree.WorktreeRoot)).IsEmpty();
+        await Assert.That((await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).Split('\n')
+            .Count(line => line.StartsWith("worktree ", StringComparison.Ordinal))).IsEqualTo(1);
+        if (transientLock)
+        {
+            var gitCalls = File.ReadLines(calls).Select(line => JsonNode.Parse(line)!.AsArray()).ToArray();
+            await Assert.That(gitCalls.Count(args => args[12]!.GetValue<string>() == "worktree" && args[13]!.GetValue<string>() == "remove")).IsEqualTo(1);
+            await Assert.That(gitCalls.Any(args => args[12]!.GetValue<string>() == "worktree" && args[13]!.GetValue<string>() == "list")).IsTrue();
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
     public async Task Selfcheck_reports_each_configured_backend_and_cleans_up(bool both, CancellationToken ct)
     {
         using var lab = new CodexLab();

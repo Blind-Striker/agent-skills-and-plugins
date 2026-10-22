@@ -12,13 +12,20 @@ public sealed class PathGuardEnvironmentTests
         if (!OperatingSystem.IsWindows()) Skip.Test("The .NET tools PATH append affects the Windows user registry.");
         using var lab = new CoreLab();
         var previous = Environment.GetEnvironmentVariable("DOTNET_ADD_GLOBAL_TOOLS_TO_PATH");
+        var previousCertificate = Environment.GetEnvironmentVariable("DOTNET_GENERATE_ASPNET_CERTIFICATE");
         try
         {
             Environment.SetEnvironmentVariable("DOTNET_ADD_GLOBAL_TOOLS_TO_PATH", "true");
+            Environment.SetEnvironmentVariable("DOTNET_GENERATE_ASPNET_CERTIFICATE", "true");
             var variables = WorkerEnvironment.Environment("inspect").Variables;
             await Assert.That(variables["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"]).IsEqualTo("false");
+            await Assert.That(variables["DOTNET_GENERATE_ASPNET_CERTIFICATE"]).IsEqualTo("false");
         }
-        finally { Environment.SetEnvironmentVariable("DOTNET_ADD_GLOBAL_TOOLS_TO_PATH", previous); }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DOTNET_ADD_GLOBAL_TOOLS_TO_PATH", previous);
+            Environment.SetEnvironmentVariable("DOTNET_GENERATE_ASPNET_CERTIFICATE", previousCertificate);
+        }
     }
 
     [Test]

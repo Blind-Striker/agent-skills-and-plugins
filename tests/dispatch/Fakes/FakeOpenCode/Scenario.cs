@@ -7,7 +7,7 @@ using System.Threading.Channels;
 // body/query are subset expectations. reply/status define HTTP output; stream opens SSE, with
 // initial events. events on an ordinary response are broadcast after its body is flushed.
 // This keeps concurrency request-driven, with no sleeps or assumed model execution times.
-internal sealed class Scenario
+internal sealed class Scenario : IDisposable
 {
     readonly JsonObject[] steps;
     readonly HashSet<JsonObject> consumed = [];
@@ -16,6 +16,7 @@ internal sealed class Scenario
     readonly string record;
     readonly ConcurrentDictionary<Guid, Channel<JsonNode?>> streams = new();
     readonly ConcurrentDictionary<string, string> locations = new(StringComparer.Ordinal);
+    readonly Dictionary<string, FileStream> directoryHandles = new(StringComparer.Ordinal);
 
     public Scenario(string path, string record)
     {
@@ -45,6 +46,11 @@ internal sealed class Scenario
         JsonObject? selected = null;
         lock (gate)
         {
+            if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_HOLD_DIRECTORY") == "1" && !directoryHandles.ContainsKey(directory))
+            {
+                directoryHandles[directory] = File.Open(Path.Combine(directory, $"held-{Environment.ProcessId}"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+                File.WriteAllText($"{record}.{Environment.ProcessId}.directory.json", JsonSerializer.Serialize(directory));
+            }
             // A mismatched body is an unexpected request, not a fallback to a success response.
             var step = steps.FirstOrDefault(step => !consumed.Contains(step) && step["expect"]!.GetValue<string>() == $"{request.Method} {path}");
             if (step is not null)
@@ -106,6 +112,11 @@ internal sealed class Scenario
         await context.Response.Body.FlushAsync(ct);
         foreach (var frame in selected["events"]?.AsArray() ?? [])
             foreach (var channel in streams.Values) await channel.Writer.WriteAsync(frame!, ct);
+    }
+
+    public void Dispose()
+    {
+        foreach (var handle in directoryHandles.Values) handle.Dispose();
     }
 
     public async Task RecordAsync(HttpContext context, JsonNode? body, bool authenticated, bool unexpected)
