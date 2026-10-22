@@ -52,7 +52,6 @@ static class ConfigResolver
         var settings = new EffectiveSettings
         {
             Backend = Pick("", p => p.Backend),
-            Profile = Pick(structured ? "clean" : "full", p => p.Profile),
             Project = Pick(structured ? "off" : "on", p => p.Project),
             Access = Pick(task.Kind is "code" or "mechanical" ? "workspace" : "read-only", p => p.Access),
             ReadOnlyShell = Pick("decline", p => p.ReadOnlyShell),
@@ -75,7 +74,6 @@ static class ConfigResolver
                 throw new HarnessException($"{task.Id}: {setting.Value} from {setting.From} must be one of {string.Join(", ", choices)}");
         }
         Choice(settings.Backend, "opencode", "codex");
-        Choice(settings.Profile, "clean", "full");
         Choice(settings.Project, "on", "off");
         Choice(settings.Access, "read-only", "workspace", "full");
         if (settings.ReadOnlyShell.Value is not ("decline" or "escalate"))
@@ -104,6 +102,8 @@ static class ConfigResolver
             settings.Network.Value = "off";
             settings.Network.From = $"tool, clamped by {config.Restrictions.NetworkAllowed.From}";
         }
+        settings.Profile = Pick(structured || settings.Backend.Value == "codex" && settings.Access.Value == "read-only" ? "clean" : "full", p => p.Profile);
+        Choice(settings.Profile, "clean", "full");
         if (settings.Backend.Value == "codex" && (task.Agent is not null || task.Persona is not null))
             throw new HarnessException($"{task.Id}: codex refuses agent and persona");
         if (settings.Backend.Value == "codex" && settings.Access.Value == "full" && settings.Network.Value == "off")

@@ -8,6 +8,58 @@ namespace Dispatch.Tests.Integration;
 public sealed class ReadOnlyShellBackendTests
 {
     [Test]
+    [Arguments("read-only", false, false, "reject")]
+    [Arguments("workspace", false, false, "once")]
+    [Arguments("read-only", true, false, "once")]
+    [Arguments("read-only", true, true, "reject")]
+    [Timeout(180_000)]
+    public async Task Mcp_asks_follow_resolved_access_and_matching_rules(string access, bool matchingRule, bool denied, string decision, CancellationToken ct)
+    {
+        using var core = new CoreLab();
+        await using var lab = new OpenCodeLab(core.Tree);
+        lab.Create("worker");
+        lab.Prompt("worker");
+        lab.Add("GET /api/session/active", new JsonObject { ["data"] = new JsonObject() }, repeat: true);
+        lab.Add("GET /api/permission/request", new JsonObject
+        {
+            ["location"] = new JsonObject { ["directory"] = "$directory" },
+            ["data"] = new JsonArray(new JsonObject { ["sessionID"] = "worker", ["id"] = "call",
+                ["action"] = "catalog_lookup", ["resources"] = new JsonArray("item") }),
+        });
+        lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Add("POST /api/session/worker/permission/call/reply", status: 204);
+        lab.Write();
+        var settings = new EffectiveSettings { Access = new() { Value = access } };
+        var created = await lab.Backend.CreateAsync(new("run", "inspect", "research", new("fixture", "model", null), null, null,
+            TaskStarter.ModesFor(new() { Spec = new() { Kind = "research" }, Settings = settings }), core.Tree.Repository,
+            new([], []), new Dictionary<string, string>(), null, "full", null), ct);
+        var worker = await lab.Backend.PromptAsync(created.Worker, new("Inspect.", false), ct);
+        if (matchingRule) core.Policy.Escalate.Add(new() { Name = "lookup", Action = "catalog_*", Resources = ["*"] });
+        if (denied) core.Policy.Deny.Add(new() { Name = "deny-lookup", Action = "catalog_*", Resources = ["*"] });
+        var run = new TaskRun { Record = new() { Spec = new() { Id = "inspect", Kind = "research", Access = "workspace" },
+            Settings = settings }, State = TaskState.Running };
+        var escalation = new Escalation(new Dictionary<string, IWorkerBackend> { ["opencode"] = lab.Backend }, core.Ledger, core.Policy);
+        await lab.Backend.PollAsync([worker], ct);
+        var ask = (WorkerSignal.Ask)await lab.ReadAsync(x => x is WorkerSignal.Ask, ct);
+        await escalation.AnswerAsync(run, ask, ct);
+        var escalated = matchingRule && !denied;
+        await Assert.That(AskQueue.List(core.Ledger.RunId).Count).IsEqualTo(escalated ? 1 : 0);
+        await Assert.That(run.Escalated).IsEqualTo(escalated ? 1 : 0);
+        if (escalated)
+        {
+            await Assert.That(core.Ledger.Read().Any(x => x.Type == "permission")).IsFalse();
+            var pending = AskQueue.List(core.Ledger.RunId).Single();
+            await Assert.That(pending.Action).IsEqualTo("catalog_lookup");
+            AskQueue.WriteDecision(core.Ledger.RunId, new() { AskId = pending.AskId, Decision = "once", Time = Json.Timestamp() });
+            await escalation.CheckDecisionsAsync(ct);
+        }
+        await Assert.That(AskQueue.List(core.Ledger.RunId)).IsEmpty();
+        var reply = File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+            .Single(x => x["path"]!.GetValue<string>().EndsWith("/reply", StringComparison.Ordinal));
+        await Assert.That(reply["body"]!["decision"]!.GetValue<string>()).IsEqualTo(decision);
+    }
+
+    [Test]
     [Arguments("codex", "decline", true, "shell")]
     [Arguments("opencode", "decline", true, "shell")]
     [Arguments("opencode", "escalate", false, "shell")]

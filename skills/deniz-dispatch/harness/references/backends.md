@@ -11,7 +11,7 @@ composition and [configuration](config.md) for restrictions.
 
 | Setting | Type and default | opencode | Codex | Validation |
 |---|---|---|---|---|
-| `profile` | Enum; `clean` for structured, otherwise `full` | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
+| `profile` | Enum; `clean` for structured or read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
 | `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Read-only denies `edit`, recorded `policy`. Workspace/full add no access rule, recorded `none`. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows sandboxed tasks require ready setup. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
@@ -28,7 +28,7 @@ removes the sandbox boundary. Verify runs outside backend sandboxing as the user
 |---|---|---|---|
 | Deny rule | Tool/resource pattern; no rules by default | Applies at each matching tool call. | Applies only when approval is requested to leave the sandbox. |
 | Escalation rule | Tool/resource pattern; no rules by default | Matching ask waits for the operator. | Matching approval request waits for the operator. |
-| Unmatched ask | Backend-specific answer | `once`. | Decline with feedback. |
+| Unmatched ask, including MCP tools | Decline for read-only tasks on both backends | Read-only: reject; otherwise `once`. | Decline with feedback. |
 | Read-only write request | Immediate rejection | Core refuses any observed write ask; edit deny also applies. | Core refuses edit or write-permission approvals. |
 | Operator reply | `once` or `reject` | Backend receives a one-shot permission reply. | Backend receives accept or decline, never a session-wide approval. |
 | Reject feedback | Supplied message or default decline | Message travels with the rejection. | Decline first, then `turn/steer` with feedback; a failed steer does not undo the decline. |

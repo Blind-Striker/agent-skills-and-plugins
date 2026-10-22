@@ -12,8 +12,9 @@ public sealed class ReadOnlyShellPlanTests
     [Arguments("clean", "decline", "only system-level")]
     [Arguments("full", "escalate", "user and system-level")]
     [Arguments("clean", "escalate", "only system-level")]
+    [Arguments(null, "decline", "only system-level")]
     [Timeout(180_000)]
-    public async Task Run_records_shell_provenance_and_inherited_rules_capability_note(string profile, string shell, string ruleLayers, CancellationToken ct)
+    public async Task Run_records_shell_provenance_and_inherited_rules_capability_note(string? profile, string shell, string ruleLayers, CancellationToken ct)
     {
         using var lab = new CodexLab();
         var repo = await LabRepo.CreateAsync(lab.Tree, ct);
@@ -29,7 +30,8 @@ public sealed class ReadOnlyShellPlanTests
         result.RequireSuccess("read-only run");
         var task = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.RunFolder, "inspect", "task.json")))!;
         var config = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.RunFolder, "config.json")))!;
-        await Assert.That(task["settings"]!["profile"]!["actual"]!.GetValue<string>()).IsEqualTo(profile);
+        await Assert.That(task["settings"]!["profile"]!["actual"]!.GetValue<string>()).IsEqualTo(profile ?? "clean");
+        await Assert.That(task["settings"]!["profile"]!["from"]!.GetValue<string>()).IsEqualTo(profile is null ? "tool" : "task");
         await Assert.That(task["settings"]!["project"]!["value"]!.GetValue<string>()).IsEqualTo("off");
         await Assert.That(task["settings"]!["readOnlyShell"]!["value"]!.GetValue<string>()).IsEqualTo(shell);
         await Assert.That(task["settings"]!["readOnlyShell"]!["from"]!.GetValue<string>()).IsEqualTo("task");
@@ -46,8 +48,9 @@ public sealed class ReadOnlyShellPlanTests
     [Arguments("clean", "decline", "only system-level")]
     [Arguments("full", "escalate", "user and system-level")]
     [Arguments("clean", "escalate", "only system-level")]
+    [Arguments(null, "decline", "only system-level")]
     [Timeout(180_000)]
-    public async Task Plan_reports_shell_value_source_and_inherited_rules_gap(string profile, string shell, string ruleLayers, CancellationToken ct)
+    public async Task Plan_reports_shell_value_source_and_inherited_rules_gap(string? profile, string shell, string ruleLayers, CancellationToken ct)
     {
         using var lab = new CodexLab();
         var repo = await LabRepo.CreateAsync(lab.Tree, ct);

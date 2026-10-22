@@ -18,9 +18,16 @@ public sealed class OpenCodeGoldenTests
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
         await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"run":"golden","tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
         using var harness = new HarnessProcess(tree);
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
+        steps.Single(step => step["expect"]!.GetValue<string>() == "POST /api/session/ses_fixture/permission/per_fixture/reply")["body"]
+            = new JsonObject { ["decision"] = "reject", ["message"] = Policy.LeadDeclined };
+        var scenario = Path.Combine(tree.Root, "read-only.jsonl");
+        await File.WriteAllLinesAsync(scenario, steps.Select(step => step.ToJsonString()), cancellationToken);
+        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
 
         var result = await harness.RunAsync(["run", tasks, "--repo", repo.Root, "--max", "1"], cancellationToken,
-            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+            environment);
 
         if (result.ExitCode != 0 && File.Exists(Path.Combine(tree.Root, "requests.jsonl")))
             TestContext.Current!.Output.WriteLine(await File.ReadAllTextAsync(Path.Combine(tree.Root, "requests.jsonl"), cancellationToken));

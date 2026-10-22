@@ -196,6 +196,8 @@ public sealed class OpenCodeCleanupTests
         lab.Steps.AddRange(File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).Skip(4)
             .Select(x => JsonNode.Parse(x)!.AsObject())
             .Where(step => step["expect"]!.GetValue<string>() != "DELETE /api/session/ses_fixture"));
+        lab.Steps.Single(step => step["expect"]!.GetValue<string>() == "POST /api/session/ses_fixture/permission/per_fixture/reply")["body"]
+            = new JsonObject { ["decision"] = "reject", ["message"] = Policy.LeadDeclined };
         var releasing = Path.Combine(lab.Tree.Root, "releasing");
         var continueRelease = Path.Combine(lab.Tree.Root, "continue-release");
         var release = lab.Add("DELETE /api/session/ses_fixture", status: releaseFails ? 500 : 204);
@@ -270,6 +272,8 @@ public sealed class OpenCodeCleanupTests
             """);
         lab.Steps.AddRange(File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).Skip(4)
             .Select(x => JsonNode.Parse(x)!.AsObject()));
+        lab.Steps.Single(step => step["expect"]!.GetValue<string>() == "POST /api/session/ses_fixture/permission/per_fixture/reply")["body"]
+            = new JsonObject { ["decision"] = "reject", ["message"] = Policy.LeadDeclined };
         lab.Write();
         var environment = new Dictionary<string, string?>
         {

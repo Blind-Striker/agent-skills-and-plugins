@@ -40,7 +40,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
-| `--profile <value>` | enum | Kind default | Plan/run; `clean` or `full`. |
+| `--profile <value>` | enum | Kind/backend/access default | Plan/run; `clean` or `full`. |
 | `--project <value>` | enum | Kind default | Plan/run; `on` or `off`. |
 | `--access <value>` | enum | Kind default | Plan/run; `read-only`, `workspace`, `full`; cannot exceed policy ceiling. |
 | `--network <value>` | enum | `on`, subject to policy | Plan/run; `on` or `off`; Codex full access with off is refused. |

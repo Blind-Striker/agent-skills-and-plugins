@@ -27,6 +27,66 @@ public sealed class ConfigTests
     }
 
     [Test]
+    [Arguments("codex", "review", null, null, "clean")]
+    [Arguments("codex", "research", null, null, "clean")]
+    [Arguments("opencode", "review", null, null, "full")]
+    [Arguments("opencode", "research", null, null, "full")]
+    [Arguments("codex", "research", "workspace", null, "full")]
+    [Arguments("codex", "code", "read-only", null, "clean")]
+    [Arguments("codex", "code", null, "read-only", "clean")]
+    [Arguments("codex", "code", null, null, "full")]
+    [Arguments("codex", "mechanical", null, null, "full")]
+    [Arguments("codex", "structured", null, null, "clean")]
+    [Arguments("opencode", "structured", null, null, "clean")]
+    public async Task Profile_default_follows_resolved_backend_and_access(string backend, string kind, string? access, string? ceiling, string profile)
+    {
+        var file = Tasks();
+        file.Tasks![0].Kind = kind;
+        var config = ConfigResolver.Resolve(file, repo: new() { Restrictions = new() { MaxAccess = ceiling } },
+            cli: new() { Backend = backend, Access = access });
+        var settings = config.Tasks["inspect"].Settings;
+        await Assert.That(settings.Profile!.Value).IsEqualTo(profile);
+        await Assert.That(settings.Profile.From).IsEqualTo("tool");
+        await Assert.That(TaskStarter.ModesFor(new() { Spec = file.Tasks[0], Settings = settings }).Profile).IsEqualTo(profile);
+        if (backend == "codex" && settings.Access!.Value == "read-only")
+            await Assert.That(ConfigResolver.CapabilityNotes(settings).Single()).Contains("only system-level");
+    }
+
+    [Test]
+    [Arguments("user")]
+    [Arguments("repo")]
+    [Arguments("task-file-defaults")]
+    [Arguments("task")]
+    [Arguments("cli")]
+    public async Task Explicit_full_profile_overrides_read_only_codex_default(string layer)
+    {
+        var file = Tasks();
+        file.Defaults = new() { Backend = "codex", Profile = layer == "task-file-defaults" ? "full" : null };
+        file.Tasks![0].Profile = layer == "task" ? "full" : null;
+        var settings = ConfigResolver.Resolve(file,
+            user: new() { Preferences = new() { Profile = layer == "user" ? "full" : null } },
+            repo: new() { Preferences = new() { Profile = layer == "repo" ? "full" : null } },
+            cli: new() { Profile = layer == "cli" ? "full" : null }).Tasks["inspect"].Settings;
+        await Assert.That(settings.Profile!.Value).IsEqualTo("full");
+        await Assert.That(settings.Profile.From).IsEqualTo(layer);
+        await Assert.That(ConfigResolver.CapabilityNotes(settings).Single()).Contains("user and system-level");
+    }
+
+    [Test]
+    [Arguments("codex", "review", null, null, "clean")]
+    [Arguments("codex", "research", null, null, "clean")]
+    [Arguments("opencode", "review", null, null, "full")]
+    [Arguments("opencode", "research", null, null, "full")]
+    [Arguments("codex", "research", "workspace", null, "full")]
+    [Arguments("codex", "code", "read-only", null, "clean")]
+    [Arguments("codex", "research", null, "full", "full")]
+    public async Task Worker_modes_preserve_profile_defaults_without_resolved_settings(string backend, string kind, string? access, string? explicitProfile, string profile)
+    {
+        var record = new TaskRecord { Spec = new() { Backend = backend, Kind = kind, Access = access, Profile = explicitProfile } };
+        await Assert.That(TaskStarter.ModesFor(record).Profile).IsEqualTo(profile);
+    }
+
+    [Test]
     [Arguments("codex", "codex", "model-y#high")]
     [Arguments("opencode", "opencode", "fixture/model#high")]
     [Arguments("codex", "opencode", "fixture/model#high")]
