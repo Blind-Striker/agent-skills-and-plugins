@@ -20,6 +20,7 @@ import { everListedNames } from "./lib/ledger.ts";
 import {
   type ComponentType,
   type CurationManifest,
+  emitsTo,
   type Harness,
   HARNESSES,
   loadManifest,
@@ -589,6 +590,28 @@ export function validateRepo(root: string): Finding[] {
     }
   }
 
+  // 1g. harnesses (ADR-0010): a tree the item leaves out holds no artifact of it.
+  for (const m of manifests) {
+    for (const { outName, outType, intent } of pairedItems(m)) {
+      if (intent.harnesses === undefined) {
+        continue;
+      }
+      const artifacts: Record<Harness, string> = {
+        claude: `plugins/${m.plugin.name}/${outType}s/${outType === "skill" ? outName : `${outName}.md`}`,
+        opencode: `opencode/${m.plugin.name}/${openCodeBundlePath(outType, m.plugin.name, outName)}`,
+        codex: `codex/${m.plugin.name}/skills/${outName}`,
+      };
+      for (const harness of HARNESSES) {
+        if (!emitsTo(intent, harness) && existsSync(join(root, artifacts[harness]))) {
+          findings.push({
+            level: "error",
+            message: `${artifacts[harness]}: ${m.plugin.name}/${outName} names harnesses ${[...intent.harnesses].sort().join(", ")}, but the ${harness} tree ships it — rebuild`,
+          });
+        }
+      }
+    }
+  }
+
   // 1e. executable bit. A Windows checkout cannot see it, so a script curated there is committed
   // 100644 while a Linux rebuild produces 0755: CI's freshness gate fails on the mode diff, and the
   // shipped script is not executable for anyone who installs the plugin. git's index is the only
@@ -599,7 +622,7 @@ export function validateRepo(root: string): Finding[] {
   const subModes = new Map<string, Map<string, string>>();
   let originalModes: Map<string, string> | undefined;
   for (const m of manifests) {
-    for (const { item, outName, outType, source } of pairedItems(m)) {
+    for (const { item, outName, outType, source, intent } of pairedItems(m)) {
       /** The source of one built item-relative path, and its index mode. */
       let sourceOf: (rel: string) => { label: string; mode: string | undefined };
       if (item) {
@@ -618,8 +641,21 @@ export function validateRepo(root: string): Finding[] {
         const own = originalModes;
         sourceOf = (rel) => ({ label: `the original ${source}/${rel}`, mode: own.get(`${source}/${rel}`) });
       }
-      const builtDir = join(root, "codex", m.plugin.name, "skills", outName);
-      if (!existsSync(builtDir)) {
+      // Every resolved kind ships as a Codex skill folder, so that copy lists the files; an item the
+      // Codex tree leaves out (harnesses) is listed from its Claude or OpenCode skill folder instead.
+      const copies: [Harness, string][] = [
+        ["codex", `codex/${m.plugin.name}/skills/${outName}`],
+        ...(outType === "skill"
+          ? ([
+              ["claude", `plugins/${m.plugin.name}/skills/${outName}`],
+              ["opencode", `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}`],
+            ] as [Harness, string][])
+          : []),
+      ];
+      const shippedCopies = copies.filter(([harness]) => emitsTo(intent, harness)).map(([, copy]) => copy);
+      const listed = shippedCopies[0];
+      const builtDir = listed === undefined ? undefined : join(root, listed);
+      if (builtDir === undefined || !existsSync(builtDir)) {
         continue;
       }
       for (const file of walk(builtDir)) {
@@ -628,15 +664,7 @@ export function validateRepo(root: string): Finding[] {
         if (mode !== "100755") {
           continue;
         }
-        const outputs = [
-          `codex/${m.plugin.name}/skills/${outName}/${rel}`,
-          ...(outType === "skill"
-            ? [
-                `plugins/${m.plugin.name}/skills/${outName}/${rel}`,
-                `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}/${rel}`,
-              ]
-            : []),
-        ];
+        const outputs = shippedCopies.map((copy) => `${copy}/${rel}`);
         for (const out of outputs) {
           if (ourModes.has(out) && ourModes.get(out) !== "100755") {
             findings.push({
@@ -885,6 +913,8 @@ export function validateRepo(root: string): Finding[] {
     ocKind?: ComponentType;
     codexModel: boolean;
     codexUser: boolean;
+    /** The trees the target ships to, when `harnesses` narrows it (ADR-0010). */
+    harnesses?: readonly Harness[] | undefined;
   }
   const ocState = (plugin: string, name: string): Pick<TargetState, "ocModel" | "ocUser" | "ocKind"> => {
     const entry = ocIndex.get(openCodeId(plugin, name));
@@ -934,6 +964,25 @@ export function validateRepo(root: string): Finding[] {
           userReachClaude: true,
           ...ocState(plugin, name),
           ...codexState(plugin, name),
+        });
+      }
+    }
+  }
+  // The Claude tree states reach for every item it ships; an item it does not ship (harnesses) is a
+  // target through the other trees alone, and every narrowed target carries its tree list.
+  for (const manifest of manifests) {
+    for (const declared of declaredItems(root, manifest, components)) {
+      const state = targetState.get(declared.outName);
+      if (state?.plugin === manifest.plugin.name) {
+        state.harnesses = declared.intent.harnesses;
+      } else if (!state && !emitsTo(declared.intent, "claude")) {
+        targetState.set(declared.outName, {
+          plugin: manifest.plugin.name,
+          modelReachClaude: false,
+          userReachClaude: false,
+          ...ocState(manifest.plugin.name, declared.outName),
+          ...codexState(manifest.plugin.name, declared.outName),
+          harnesses: declared.intent.harnesses,
         });
       }
     }
@@ -1016,11 +1065,21 @@ export function validateRepo(root: string): Finding[] {
         });
         continue;
       }
+      if (ref.kind === "model" && !optional.has(ref.name)) {
+        derived.add(ref.name);
+      }
+      // A tree that does not ship the target (harnesses) has nothing to reach (ADR-0010): the fact
+      // belongs in a file only the target's trees ship.
+      const absent = harnesses.filter((harness) => t.harnesses !== undefined && !t.harnesses.includes(harness));
+      if (absent.length) {
+        findings.push({
+          level: "error",
+          message: `${rel}: ${ref.kind === "model" ? "model-edge" : "pointer"} to ${ref.name}: the ${absent.join(" and ")} ${absent.length > 1 ? "trees do" : "tree does"} not ship it (harnesses in curation/${t.plugin}.yaml) — name it only from files those trees do not ship`,
+        });
+      }
+      const present = harnesses.filter((harness) => !absent.includes(harness));
       if (ref.kind === "model") {
-        if (!optional.has(ref.name)) {
-          derived.add(ref.name);
-        }
-        const cause = harnesses.map((harness) => modelMiss(t, harness)).find((miss) => miss !== undefined);
+        const cause = present.map((harness) => modelMiss(t, harness)).find((miss) => miss !== undefined);
         if (cause) {
           findings.push({
             level: "error",
@@ -1028,7 +1087,7 @@ export function validateRepo(root: string): Finding[] {
           });
         }
       } else {
-        const cause = harnesses.map((harness) => userMiss(t, harness)).find((miss) => miss !== undefined);
+        const cause = present.map((harness) => userMiss(t, harness)).find((miss) => miss !== undefined);
         if (cause) {
           findings.push({
             level: "error",
@@ -1043,25 +1102,35 @@ export function validateRepo(root: string): Finding[] {
   // original skill's source is read from its directory, which assembly copies unchanged.
   const rewriteMap = buildRewriteMap(manifests, components, ownSkills);
   let staging: string | undefined;
-  const harnessSourceReader = (m: CurationManifest, declared: DeclaredItem, id: string) => {
+  /** The neutral item folder: an original skill's own directory, or a curated item assembled again. */
+  const neutralDirs = new Map<string, string | undefined>();
+  const neutralDir = (m: CurationManifest, declared: DeclaredItem, id: string): string | undefined => {
     const { item } = declared;
     if (!item) {
-      return (source: string) => readFileSync(join(root, declared.source, ...source.split("/")), "utf8");
+      return join(root, declared.source);
     }
+    if (neutralDirs.has(id)) {
+      return neutralDirs.get(id);
+    }
+    let dir: string | undefined;
     try {
       staging ??= mkdtempSync(join(tmpdir(), "validate-harness-files-"));
-      const assembled = assembleItem(root, staging, m, item, components);
-      return assembled
-        ? (source: string) => readFileSync(join(assembled.dir, ...source.split("/")), "utf8")
-        : undefined;
+      dir = assembleItem(root, staging, m, item, components)?.dir;
     } catch (error) {
       findings.push({
         level: "error",
         message: `${id}: cannot assemble the item to read its harness_files sources — ${error instanceof Error ? error.message : String(error)}`,
       });
-      return undefined;
     }
+    neutralDirs.set(id, dir);
+    return dir;
   };
+  const harnessSourceReader = (m: CurationManifest, declared: DeclaredItem, id: string) => {
+    const dir = neutralDir(m, declared, id);
+    return dir === undefined ? undefined : (source: string) => readFileSync(join(dir, ...source.split("/")), "utf8");
+  };
+  /** Folders outside the Claude tree whose Markdown the interpreter check reads (harnesses). */
+  const neutralSkillFolders: string[] = [];
   const LINKED_HARNESSES = ["claude", "opencode", "codex"] as const;
   /**
    * Each non-Claude harness's own harness_files sources, in the Claude spelling, for the text checks
@@ -1079,15 +1148,35 @@ export function validateRepo(root: string): Finding[] {
           m.plugin.name,
           outType === "skill" ? join("skills", outName) : join(`${outType}s`, `${outName}.md`),
         );
-        if (!existsSync(built)) {
+        // The Claude tree is the canonical spelling; an item it does not ship (harnesses) is read from
+        // its neutral folder in that spelling, and its first own tree labels the shared files.
+        const inClaude = emitsTo(intent, "claude");
+        const emitting = LINKED_HARNESSES.filter((harness) => emitsTo(intent, harness));
+        const primary: Harness = emitting[0] ?? "claude";
+        if (inClaude && !existsSync(built)) {
           continue;
         }
-        const shipped =
-          outType === "skill"
+        const files = intent.harness_files;
+        const neutral = inClaude ? undefined : neutralDir(m, declared, id);
+        if (!inClaude && neutral === undefined) {
+          continue;
+        }
+        const mapped = new Set(files ? mappedSources(files) : []);
+        const shipped = neutral
+          ? listFiles(neutral)
+              .filter((f) => f.endsWith(".md") && !mapped.has(f) && (outType === "skill" || f === "SKILL.md"))
+              .map((f) => ({
+                path: outType === "skill" ? f : "",
+                text: rewriteRefs(readFileSync(join(neutral, f), "utf8"), rewriteMap, "claude"),
+              }))
+          : outType === "skill"
             ? [...walk(built)]
                 .filter((f) => f.endsWith(".md"))
                 .map((f) => ({ path: relative(built, f).replaceAll("\\", "/"), text: readFileSync(f, "utf8") }))
             : [{ path: "", text: readFileSync(built, "utf8") }];
+        if (neutral && outType === "skill") {
+          neutralSkillFolders.push(neutral);
+        }
         const folder: Record<Harness, string> = {
           claude: relative(root, built).replaceAll("\\", "/"),
           opencode: `opencode/${m.plugin.name}/skills/${openCodeId(m.plugin.name, outName)}`,
@@ -1098,18 +1187,29 @@ export function validateRepo(root: string): Finding[] {
         const derived = new Set<string>();
         const optional = new Set(intent.optional_refs ?? []);
         const referenceFiles: ReferenceFile[] = [];
-        const files = intent.harness_files;
         const readSource = files || outType !== "skill" ? harnessSourceReader(m, declared, id) : undefined;
-        for (const file of treeMarkdown(shipped, files, "claude", () => "", rewriteMap)) {
-          referenceFiles.push({
-            path: relIn("claude", file.path),
-            text: file.text,
-            harnesses: file.own ? ["claude"] : LINKED_HARNESSES,
-          });
-          linkFacts(relIn("claude", file.path), file.text, file.own ? ["claude"] : LINKED_HARNESSES, derived, optional);
+        for (const file of treeMarkdown(
+          shipped,
+          files,
+          primary,
+          inClaude ? () => "" : (readSource ?? (() => "")),
+          rewriteMap,
+        )) {
+          const reach = file.own ? [primary] : emitting;
+          referenceFiles.push({ path: relIn(primary, file.path), text: file.text, harnesses: reach });
+          linkFacts(relIn(primary, file.path), file.text, reach, derived, optional);
+          if (neutral) {
+            // Read by the Claude-tree text checks below as if it sat in the Claude folder.
+            harnessOwnFiles.push({
+              rel: relIn(primary, file.path),
+              text: file.text,
+              claudeAbs: join(neutral, ...file.path.split("/")),
+              skillFolder: neutral,
+            });
+          }
         }
         for (const harness of ["opencode", "codex"] as const) {
-          if (!files || !readSource) {
+          if (!files || !readSource || harness === primary || !emitsTo(intent, harness)) {
             continue;
           }
           for (const file of treeMarkdown(shipped, files, harness, readSource, rewriteMap)) {
@@ -1263,7 +1363,7 @@ export function validateRepo(root: string): Finding[] {
     ? readdirSync(pluginsDir).map((plugin) => join(pluginsDir, plugin, "skills"))
     : [];
   const insideSkills = (abs: string): boolean =>
-    pluginsSkillDirs.some((dir) => {
+    [...pluginsSkillDirs, ...neutralSkillFolders].some((dir) => {
       const rel = relative(dir, abs);
       return rel !== "" && !rel.startsWith("..") && !isAbsolute(rel);
     });
@@ -1744,7 +1844,14 @@ export function validateRepo(root: string): Finding[] {
     }
 
     const expectedSkills = new Map<string, { invocation: SkillIntent["invocation"] }>();
-    for (const declared of pairedItems(m)) {
+    // An item the Codex tree leaves out (harnesses) is neither expected nor, as a stray, unexpected:
+    // 1g names that copy.
+    const narrowedOut = new Set(
+      pairedItems(m)
+        .filter((declared) => !emitsTo(declared.intent, "codex"))
+        .map((declared) => declared.outName.toLowerCase()),
+    );
+    for (const declared of pairedItems(m).filter((candidate) => emitsTo(candidate.intent, "codex"))) {
       const folded = declared.outName.toLowerCase();
       if (expectedSkills.has(folded)) {
         findings.push({
@@ -1777,7 +1884,7 @@ export function validateRepo(root: string): Finding[] {
       if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || name.length > 64) {
         findings.push({ level: "error", message: `codex/${m.plugin.name}/skills/${name}: invalid Codex skill name` });
       }
-      if (!expectedSkills.has(folded)) {
+      if (!expectedSkills.has(folded) && !narrowedOut.has(folded)) {
         findings.push({ level: "error", message: `unexpected Codex skill codex/${m.plugin.name}/skills/${name}` });
       }
     }

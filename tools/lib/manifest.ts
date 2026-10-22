@@ -28,6 +28,38 @@ export interface SkillIntent {
    * themselves ship in no tree.
    */
   harness_files?: HarnessFiles;
+  /**
+   * The trees this item ships to (curation/SCHEMA.md `harnesses`, ADR-0010). Absent means all
+   * three; an unlisted harness gets nothing from the item.
+   */
+  harnesses?: Harness[];
+}
+
+/** Whether a tree ships this item: every tree unless `harnesses` names fewer. */
+export function emitsTo(intent: SkillIntent, harness: Harness): boolean {
+  return intent.harnesses === undefined || intent.harnesses.includes(harness);
+}
+
+/**
+ * A Module that `harnesses` narrows to nothing in some tree (ADR-0010): an empty Plugin or Bundle is
+ * an error, not an output. A Module that declares no items at all is out of scope here.
+ */
+export function collectCoverageProblems(manifests: CurationManifest[]): string[] {
+  const problems: string[] = [];
+  for (const m of manifests) {
+    const intents: SkillIntent[] = [
+      ...m.items.filter((item) => !item.exclude),
+      ...Object.values(m.original_skills ?? {}),
+    ];
+    if (intents.length === 0) {
+      continue;
+    }
+    const empty = HARNESSES.filter((harness) => !intents.some((intent) => emitsTo(intent, harness)));
+    if (empty.length) {
+      problems.push(`${m.plugin.name} ships nothing to ${empty.join(" or ")} — narrow fewer items`);
+    }
+  }
+  return problems;
 }
 
 export interface CurationItem extends SkillIntent {
@@ -116,6 +148,42 @@ function checkOptionalRefs(path: string, source: string, intent: SkillIntent): v
   }
   if (refs.some((name) => intent.depends_on?.includes(name))) {
     throw new Error(`${where} must not overlap depends_on`);
+  }
+}
+
+/**
+ * The `harnesses` grammar. "Everywhere" has one spelling, the absent key, so a list of all three is
+ * an error; and a harness the list leaves out must map every `harness_files` path to null.
+ */
+function checkHarnesses(path: string, source: string, intent: SkillIntent): void {
+  const raw: unknown = intent.harnesses;
+  if (raw === undefined) {
+    return;
+  }
+  const where = `${path}: ${source}: harnesses`;
+  if (
+    !Array.isArray(raw) ||
+    raw.length === 0 ||
+    raw.some((harness) => !(HARNESSES as readonly unknown[]).includes(harness))
+  ) {
+    throw new Error(`${where} must be a nonempty list of ${HARNESSES.join("|")}`);
+  }
+  const listed = raw as Harness[];
+  const twice = listed.find((harness, index) => listed.indexOf(harness) !== index);
+  if (twice !== undefined) {
+    throw new Error(`${where} names ${twice} twice`);
+  }
+  if (listed.length === HARNESSES.length) {
+    throw new Error(`${where} names every harness — drop the key; an item ships everywhere unless it names fewer`);
+  }
+  for (const [output, mapping] of Object.entries(intent.harness_files ?? {})) {
+    for (const harness of HARNESSES) {
+      if (!listed.includes(harness) && mapping[harness] !== null) {
+        throw new Error(
+          `${path}: ${source}: harness_files ${output}: ${harness} is not in harnesses, so its source must be null`,
+        );
+      }
+    }
   }
 }
 
@@ -223,6 +291,7 @@ export function loadManifest(path: string): CurationManifest {
     if (item.harness_files !== undefined) {
       item.harness_files = checkHarnessFiles(path, item.source, item.harness_files);
     }
+    checkHarnesses(path, item.source, item);
   }
   if (raw.original_skills !== undefined) {
     raw.original_skills = loadOriginalSkills(path, raw.original_skills);
@@ -231,7 +300,7 @@ export function loadManifest(path: string): CurationManifest {
 }
 
 /** The keys an original-skill declaration may hold; the SKILL.md owns everything else. */
-const ORIGINAL_SKILL_KEYS = ["invocation", "depends_on", "optional_refs", "harness_files"];
+const ORIGINAL_SKILL_KEYS = ["invocation", "depends_on", "optional_refs", "harness_files", "harnesses"];
 
 function isMapping(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -265,6 +334,7 @@ function loadOriginalSkills(path: string, raw: unknown): Record<string, Original
     if (declaration.harness_files !== undefined) {
       declaration.harness_files = checkHarnessFiles(path, label, declaration.harness_files);
     }
+    checkHarnesses(path, label, declaration);
   }
   return raw as Record<string, OriginalSkill>;
 }

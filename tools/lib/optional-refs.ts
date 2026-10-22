@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { mappedSources, treeMarkdown } from "./harness-files.ts";
-import { HARNESSES, type Harness, type SkillIntent } from "./manifest.ts";
+import { emitsTo, HARNESSES, type Harness, type SkillIntent } from "./manifest.ts";
 import { listFiles } from "./overlay.ts";
 import { scanRefs } from "./refs.ts";
 import { markdownCodeBlocks, rewriteRefs, type RewriteTarget } from "./rewrite.ts";
@@ -33,7 +33,7 @@ export function assembledReferenceFiles(
         : [],
     ),
   ];
-  return HARNESSES.flatMap((harness) =>
+  return HARNESSES.filter((harness) => emitsTo(item.intent, harness)).flatMap((harness) =>
     treeMarkdown(claude, files, harness, readSource, map)
       .filter((file) => item.outType === "skill" || harness === "codex" || file.path === "SKILL.md")
       .map((file) => ({

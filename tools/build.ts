@@ -34,7 +34,14 @@ import { parseDoc, type ParsedDoc, serializeDoc } from "./lib/frontmatter.ts";
 import { indexModes } from "./lib/git.ts";
 import { collectHarnessFileProblems, placeHarnessFiles } from "./lib/harness-files.ts";
 import { writeLedger } from "./lib/ledger.ts";
-import { type CurationItem, type CurationManifest, loadManifest, UNKNOWN_SOURCE_RULE } from "./lib/manifest.ts";
+import {
+  type CurationItem,
+  type CurationManifest,
+  collectCoverageProblems,
+  emitsTo,
+  loadManifest,
+  UNKNOWN_SOURCE_RULE,
+} from "./lib/manifest.ts";
 import { createModuleManifest } from "./lib/opencode-bundle.ts";
 import {
   adaptOpenCodeAgentDocument,
@@ -193,6 +200,12 @@ export function buildAll(root: string): string[] {
               ? adaptOpenCodeSkillDocument(openCodeId(target.plugin, target.outName), neutral, target.intent.invocation)
               : undefined;
           for (const harness of file.harnesses) {
+            if (!emitsTo(target.intent, harness)) {
+              issues.push(
+                `${file.path}: ${ref.kind === "model" ? "model-edge" : "pointer"} to ${ref.address}: the ${harness} tree does not ship the target (harnesses)`,
+              );
+              continue;
+            }
             const reachable =
               ref.kind === "model"
                 ? harness === "claude"
@@ -224,7 +237,9 @@ export function buildAll(root: string): string[] {
     rmSync(join(root, ".agents", "plugins", "marketplace.json"), { force: true });
 
     for (const manifest of manifests) {
-      for (const item of assembled.filter((candidate) => candidate.plugin === manifest.plugin.name)) {
+      for (const item of assembled.filter(
+        (candidate) => candidate.plugin === manifest.plugin.name && emitsTo(candidate.intent, "claude"),
+      )) {
         emitClaudeItem(root, item, report);
       }
       const pluginDir = join(root, "plugins", manifest.plugin.name);
@@ -271,7 +286,7 @@ function emitCodex(
   for (const manifest of manifests) {
     const pluginRoot = join(root, "codex", manifest.plugin.name);
     for (const item of assembled
-      .filter((candidate) => candidate.plugin === manifest.plugin.name)
+      .filter((candidate) => candidate.plugin === manifest.plugin.name && emitsTo(candidate.intent, "codex"))
       .sort((left, right) => left.outName.localeCompare(right.outName))) {
       const destination = join(pluginRoot, "skills", item.outName);
       cpSync(item.dir, destination, { recursive: true });
@@ -322,7 +337,7 @@ function emitCodex(
  * output was deleted (collectDescriptionProblems); nothing here shortens it.
  */
 function finalizeCodexSkillMetadata(root: string, assembled: AssembledItem[]): void {
-  for (const item of assembled) {
+  for (const item of assembled.filter((candidate) => emitsTo(candidate.intent, "codex"))) {
     const skillRoot = join(root, "codex", item.plugin, "skills", item.outName);
     const skillPath = join(skillRoot, "SKILL.md");
     const adapted = adaptCodexSkillDocument(item.outName, parseDoc(readFileSync(skillPath, "utf8")));
@@ -355,16 +370,18 @@ function collectDescriptionProblems(assembled: AssembledItem[], rewriteMap: Map<
     const doc = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
     const neutral = serializeDoc({ frontmatter: { description: String(doc.frontmatter.description ?? "") }, body: "" });
     const emitted: Array<[string, string]> = [];
-    if (item.outType === "skill") {
-      emitted.push(
-        [`plugins/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "claude")],
-        [
-          `opencode/${item.plugin}/skills/${openCodeId(item.plugin, item.outName)}/SKILL.md`,
-          rewriteOpenCodePaths(localize(neutral, rewriteMap, "opencode"), 0, skillIds),
-        ],
-      );
+    if (item.outType === "skill" && emitsTo(item.intent, "claude")) {
+      emitted.push([`plugins/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "claude")]);
     }
-    emitted.push([`codex/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "codex")]);
+    if (item.outType === "skill" && emitsTo(item.intent, "opencode")) {
+      emitted.push([
+        `opencode/${item.plugin}/skills/${openCodeId(item.plugin, item.outName)}/SKILL.md`,
+        rewriteOpenCodePaths(localize(neutral, rewriteMap, "opencode"), 0, skillIds),
+      ]);
+    }
+    if (emitsTo(item.intent, "codex")) {
+      emitted.push([`codex/${item.plugin}/skills/${item.outName}/SKILL.md`, localize(neutral, rewriteMap, "codex")]);
+    }
     for (const [path, text] of emitted) {
       const problem = descriptionLengthProblem(path, String(parseDoc(text).frontmatter.description ?? ""));
       if (problem) {
@@ -571,6 +588,7 @@ function collectProblems(root: string, manifests: CurationManifest[], components
   const problems = [
     ...collectIdentityProblems(root, manifests, components),
     ...collectOriginalSkillProblems(root, manifests),
+    ...collectCoverageProblems(manifests),
   ];
   const lock = loadLock(root);
   for (const m of manifests) {
@@ -775,7 +793,7 @@ function emitOpenCode(root: string, manifests: CurationManifest[], assembled: As
     const module = manifest.plugin.name;
     const moduleRoot = join(root, "opencode", module);
     for (const item of assembled
-      .filter((candidate) => candidate.plugin === module)
+      .filter((candidate) => candidate.plugin === module && emitsTo(candidate.intent, "opencode"))
       .sort((left, right) => left.outName.localeCompare(right.outName))) {
       const id = openCodeId(module, item.outName);
       const neutral = parseDoc(readFileSync(join(item.dir, "SKILL.md"), "utf8"));
@@ -826,7 +844,11 @@ function writeOpenCodeManifests(
   for (const m of manifests) {
     const moduleRoot = join(root, "opencode", m.plugin.name);
     mkdirSync(moduleRoot, { recursive: true });
-    const pluginModes = indexModes(root, [`plugins/${m.plugin.name}/`]);
+    const pluginModes = indexModes(root, [
+      `plugins/${m.plugin.name}/`,
+      `codex/${m.plugin.name}/`,
+      `skills/${m.plugin.name}/`,
+    ]);
     const requiredModules = moduleRequirements.get(m.plugin.name);
     if (requiredModules === undefined) {
       throw new Error(`internal error: missing requiredModules for ${m.plugin.name}`);
@@ -837,7 +859,18 @@ function writeOpenCodeManifests(
       m.plugin.version,
       (path) => {
         const counterpart = claudeCounterpartPath(m.plugin.name, path);
-        return counterpart === undefined ? "100644" : (pluginModes.get(counterpart) ?? "100644");
+        if (counterpart === undefined) {
+          return "100644";
+        }
+        // An item the Claude tree does not ship (harnesses) takes the mode from the Codex copy, then
+        // from an original skill's own directory.
+        const rest = counterpart.slice(`plugins/${m.plugin.name}/skills/`.length);
+        return (
+          pluginModes.get(counterpart) ??
+          pluginModes.get(`codex/${m.plugin.name}/skills/${rest}`) ??
+          pluginModes.get(`skills/${m.plugin.name}/${rest}`) ??
+          "100644"
+        );
       },
       requiredModules,
     );

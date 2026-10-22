@@ -257,3 +257,49 @@ test("loadManifest rejects malformed optional_refs and dependency overlap for ei
     /optional_refs.*overlap/,
   );
 });
+
+test("harnesses narrows a curated item or an original skill to the trees it names", () => {
+  const curated = loadManifest(
+    write(
+      "plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    harnesses: [opencode, codex]\n",
+    ),
+  );
+  assert.deepEqual(curated.items[0]?.harnesses, ["opencode", "codex"]);
+  const original = loadManifest(withOriginals("  my-own:\n    invocation: manual\n    harnesses: [claude]\n"));
+  assert.deepEqual(original.original_skills?.["my-own"]?.harnesses, ["claude"]);
+});
+
+test("harnesses rejects an empty, duplicate, unknown, or all-three list for either declaration kind", () => {
+  const cases: [string, RegExp][] = [
+    ["[]", /harnesses must be a nonempty list of claude\|codex\|opencode/],
+    ["claude", /harnesses must be a nonempty list of claude\|codex\|opencode/],
+    ["[cursor]", /harnesses must be a nonempty list of claude\|codex\|opencode/],
+    ["[codex, codex]", /harnesses names codex twice/],
+    [
+      "[claude, codex, opencode]",
+      /harnesses names every harness — drop the key; an item ships everywhere unless it names fewer/,
+    ],
+  ];
+  for (const [value, message] of cases) {
+    for (const original of [false, true]) {
+      const path = original
+        ? withOriginals(`  my-own:\n    invocation: auto\n    harnesses: ${value}\n`)
+        : write(
+            `plugin:\n  name: p\n  description: d\n  version: 0.1.0\nitems:\n  - source: sp/skills/a\n    harnesses: ${value}\n`,
+          );
+      assert.throws(() => loadManifest(path), message, `${original}: ${value}`);
+    }
+  }
+});
+
+test("harnesses requires null harness_files sources for every harness it leaves out", () => {
+  const block = (opencode: string): string =>
+    `  my-own:\n    invocation: manual\n    harnesses: [claude, codex]\n    harness_files:\n      references/tools.md:\n        claude: references/claude.md\n        codex: references/codex.md\n        opencode: ${opencode}\n`;
+  assert.deepEqual(loadManifest(withOriginals(block("null"))).original_skills?.["my-own"]?.harness_files, {
+    "references/tools.md": { claude: "references/claude.md", codex: "references/codex.md", opencode: null },
+  });
+  assert.throws(
+    () => loadManifest(withOriginals(block("references/opencode.md"))),
+    /harness_files references\/tools\.md: opencode is not in harnesses, so its source must be null/,
+  );
+});

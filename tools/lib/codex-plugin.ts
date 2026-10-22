@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { isAbsolute, resolve, sep } from "node:path";
 import type { AssembledItem } from "./assemble.ts";
 import { parseDoc, type ParsedDoc } from "./frontmatter.ts";
-import type { CurationManifest, SkillIntent } from "./manifest.ts";
+import { type CurationManifest, emitsTo, type SkillIntent } from "./manifest.ts";
 import { PORTABLE_NAME } from "./resolve.ts";
 import { inlineCodeSpans } from "./rewrite.ts";
 
@@ -459,7 +459,7 @@ export function collectCodexEmissionProblems(
 
   for (const manifest of manifests) {
     const items = assembled
-      .filter((item) => item.plugin === manifest.plugin.name)
+      .filter((item) => item.plugin === manifest.plugin.name && emitsTo(item.intent, "codex"))
       .sort((left, right) => left.outName.localeCompare(right.outName) || left.source.localeCompare(right.source));
     const names = new Map<string, AssembledItem>();
     for (const item of items) {

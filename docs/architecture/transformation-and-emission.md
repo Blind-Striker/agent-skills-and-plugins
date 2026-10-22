@@ -146,6 +146,13 @@ deletion when a mapped source is missing from the assembly or the output path is
 another target. See [`buildAll`](../../tools/build.ts) and
 [`assembleItems`](../../tools/lib/assemble.ts).
 
+An item or original skill whose [`harnesses`](../../curation/SCHEMA.md#harnesses) leaves a harness
+out is assembled once like any other, and that harness's emitter skips it
+([ADR-0010](../adr/0010-per-harness-item-emission.md)). Its tree gets no artifact, marketplace or
+Bundle entry, or ledger row for the item, and each emitter's preflight reads only the items its tree
+ships (`emitsTo` in [`tools/lib/manifest.ts`](../../tools/lib/manifest.ts)). A Module that would ship
+nothing to some harness stops the build before any deletion (`collectCoverageProblems`).
+
 ### Claude Code
 
 A resolved skill remains one Plugin skill. If invocation is absent, upstream Claude invocation
@@ -333,7 +340,8 @@ skill bundles, such as the `harness` skill's .NET file-based app
 inside its own skill folder, and its source never spells a sibling-skill climb or an item-root
 `skills/<name>/` path, which respelling would rewrite.
 Module manifests are then written over final OpenCode bytes. A file copied into a skill folder takes
-the Git index mode of its committed Claude Plugin counterpart, so an executable script keeps
+the Git index mode of its committed Claude Plugin counterpart, or, for an item the Claude tree does
+not ship, of its Codex copy and then of an original skill's own file, so an executable script keeps
 `100755` after path respelling, and every other Bundle file is `100644`
 ([`claudeCounterpartPath`](../../tools/lib/opencode-target.ts)). A Windows checkout cannot see the
 bit, so `validate` reads both sides from Git's index: a curated item's source from its submodule's
@@ -341,7 +349,8 @@ index, an original skill's from this repository's. A committed copy in any of th
 executable source that is recorded `100644` is an error naming the `git update-index --chmod=+x`
 command that fixes it (check 1e in [`validateRepo`](../../tools/validate.ts)).
 Compile-time `requiredModules` are derived only from the declared `depends_on` edges of items and
-original skills ([`deriveModuleRequirements`](../../tools/lib/resolve.ts)) and recorded by
+original skills that the OpenCode tree ships, to targets it ships
+([`deriveModuleRequirements`](../../tools/lib/resolve.ts)), and recorded by
 [`writeOpenCodeManifests`](../../tools/build.ts). The ledger is written last from the
 resolved output. Guarded `optional_refs` add no mandatory Module; their prospective reference and
 guard preflight runs before output deletion, as described in

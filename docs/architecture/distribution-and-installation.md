@@ -90,7 +90,8 @@ implemented in
 [`digestModulePayload`](../../tools/lib/opencode-bundle.ts), and manifest creation is implemented in
 [`createModuleManifest`](../../tools/lib/opencode-bundle.ts).
 
-`requiredModules` remains derived only from `depends_on`. Guarded `optional_refs` are compile-time
+`requiredModules` remains derived only from `depends_on`, over the items the OpenCode tree ships.
+Guarded `optional_refs` are compile-time
 reference intent, not a Bundle schema field or installer dependency; the installer does not inspect
 or rewrite them ([References and linking](references-and-linking.md#conditional-cross-module-facts)).
 
