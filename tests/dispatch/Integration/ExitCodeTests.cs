@@ -1,5 +1,6 @@
 using Dispatch.Tests.Support;
 using System.Text.Json.Nodes;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -7,6 +8,31 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel("processes")]
 public sealed class ExitCodeTests
 {
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_launch_create_failure_exits_1_and_checks_other_backend(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = CatalogCommandTests.Configure(lab, both: true);
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var scenario = Path.Combine(lab.Scenarios, "task.jsonl");
+        var steps = File.ReadLines(scenario).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => JsonNode.Parse(x)!).ToArray();
+        var create = steps.Single(x => x["expect"]?.GetValue<string>() == "thread/start");
+        create.AsObject().Remove("reply");
+        create["error"] = new JsonObject { ["code"] = -32603, ["message"] = "synthetic launch rejected" };
+        File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
+        using var harness = new HarnessProcess(lab.Tree);
+        var result = await harness.RunAsync(["selfcheck", "--repo", repo.Root], ct, environment);
+        TestContext.Current!.Output.WriteLine(result.ToString());
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.StartsWith("FAIL  ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "FAIL  launch: synthetic launch rejected" }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "FAIL  launch: synthetic launch rejected", "PASS  launch: ses_launch" }, CollectionOrdering.Matching);
+        await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
+        await Assert.That(Directory.GetFileSystemEntries(lab.Tree.WorktreeRoot)).IsEmpty();
+    }
+
     [Test]
     [Arguments("plan", false, 0)]
     [Arguments("plan", true, 2)]
@@ -46,6 +72,9 @@ public sealed class ExitCodeTests
             steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_fixture", ["status"] = 204 });
             steps.Add(new JsonObject { ["expect"] = "GET /api/session/ses_fixture", ["status"] = 404,
                 ["reply"] = new JsonObject { ["_tag"] = "SessionNotFoundError", ["sessionID"] = "ses_fixture", ["message"] = "removed" } });
+            steps.Add(new JsonObject { ["expect"] = "POST /api/session", ["reply"] = OpenCodeLab.Session("ses_launch") });
+            steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_launch/environment", ["status"] = 204 });
+            steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_launch", ["status"] = 204 });
             var scenario = Path.Combine(tree.Root, "selfcheck.jsonl");
             File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
             env["FAKE_OPENCODE_SCENARIO"] = scenario;

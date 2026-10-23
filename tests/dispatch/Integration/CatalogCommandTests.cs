@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -89,7 +90,8 @@ public sealed class CatalogCommandTests
             await Assert.That(result.Stdout).Contains("locations.worktreeRoot");
         }
         await Assert.That(result.Stdout.Contains("backend opencode", StringComparison.Ordinal)).IsEqualTo(both);
-        await Assert.That(lab.Input().Any(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")).IsFalse();
+        await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "thread/start")).IsEqualTo(1);
+        await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "turn/start")).IsEqualTo(0);
         var starts = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!).ToArray();
         await Assert.That(starts.Any(x => x["scenario"]!.GetValue<string>() == "probe.jsonl")).IsTrue();
         if (both)
@@ -105,6 +107,102 @@ public sealed class CatalogCommandTests
         await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
         await Assert.That((await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).Split('\n').Count(x => x.StartsWith("worktree ", StringComparison.Ordinal))).IsEqualTo(1);
         await Assert.That(Directory.GetFileSystemEntries(lab.Tree.WorktreeRoot)).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_launches_and_releases_each_backend(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: true);
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        using var harness = new HarnessProcess(lab.Tree);
+        var result = await harness.RunAsync(["selfcheck", "--repo", repo.Root, "--profile", "clean"], ct, environment);
+        result.RequireSuccess("worker selfcheck");
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "PASS  launch: thread-main", "PASS  launch: ses_fixture" }, CollectionOrdering.Matching);
+        var wire = lab.Wire();
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
+            .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(new[] { "thread/start" }, CollectionOrdering.Matching);
+        await Assert.That(wire.Single(x => x["message"]?["result"]?["thread"] is not null)["message"]!["result"]!["thread"]!["id"]!.GetValue<string>()).IsEqualTo("thread-main");
+        var requests = File.ReadLines(environment["FAKE_OPENCODE_RECORD"]!).Select(x => JsonNode.Parse(x)!).ToArray();
+        var launchPid = requests.Single(x => x["method"]!.GetValue<string>() == "PUT")["pid"]!.GetValue<int>();
+        await Assert.That(requests.Where(x => x["pid"]!.GetValue<int>() == launchPid && x["method"]!.GetValue<string>() != "GET")
+            .Select(x => $"{x["method"]} {x["path"]}").ToArray())
+            .IsEquivalentTo(new[] { "POST /api/session", "PUT /api/session/ses_fixture/environment", "DELETE /api/session/ses_fixture" }, CollectionOrdering.Matching);
+        await Assert.That(requests.Where(x => x["unexpected"]!.GetValue<bool>()).ToArray()).IsEmpty();
+        var variables = requests.Single(x => x["method"]!.GetValue<string>() == "PUT")["body"]!["variables"]!;
+        await Assert.That(Directory.Exists(variables["TEMP"]!.GetValue<string>())).IsFalse();
+        var starts = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!).ToArray();
+        var worker = starts.Single(x => x["scenario"]!.GetValue<string>() == "task.jsonl");
+        await Assert.That(Directory.Exists(worker["codexHome"]!.GetValue<string>())).IsFalse();
+        var hosts = Directory.GetFiles(lab.Tree.Root, "requests.jsonl.*.host.json").Select(x => JsonNode.Parse(File.ReadAllText(x))!);
+        foreach (var start in starts.Concat(hosts))
+        {
+            var stopped = true;
+            try { using var process = System.Diagnostics.Process.GetProcessById(start["pid"]!.GetValue<int>()); stopped = process.HasExited; }
+            catch (ArgumentException) { }
+            await Assert.That(stopped).IsTrue();
+        }
+        await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
+        await Assert.That(Directory.GetFileSystemEntries(lab.Tree.WorktreeRoot)).IsEmpty();
+
+        // Hold a successful release: PASS must not appear while the worker still exists.
+        await using var gated = new OpenCodeLab(lab.Tree);
+        gated.Steps.Clear();
+        gated.Steps.AddRange(File.ReadLines(environment["FAKE_OPENCODE_SCENARIO"]!).Select(x => JsonNode.Parse(x)!.AsObject()));
+        var arrived = Path.Combine(lab.Tree.Root, "release-arrived");
+        var release = Path.Combine(lab.Tree.Root, "release-allowed");
+        var deletion = gated.Steps.Single(x => x["expect"]!.GetValue<string>() == "DELETE /api/session/ses_fixture");
+        deletion["arrived"] = arrived;
+        deletion["waitFor"] = release;
+        gated.Write();
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var watcher = new FileSystemWatcher(lab.Tree.Root, Path.GetFileName(arrived));
+        watcher.Created += (_, _) => reached.TrySetResult();
+        watcher.Error += (_, error) => reached.TrySetException(error.GetException());
+        watcher.EnableRaisingEvents = true;
+        var output = TestContext.Current!.Output;
+        var running = Commands.SelfCheckAsync(Args.Parse(["selfcheck", "--backend", "opencode"]), ct);
+        try
+        {
+            await Assert.That(await Task.WhenAny(reached.Task, running)).IsEqualTo(reached.Task);
+            await reached.Task;
+            await Assert.That(output.GetStandardOutput()).DoesNotContain("  launch:");
+        }
+        finally
+        {
+            File.WriteAllText(release, "go");
+            await running;
+        }
+        await Assert.That(await running).IsEqualTo(0);
+        await Assert.That(output.GetStandardOutput().Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "PASS  launch: ses_fixture" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_launch_finds_Codex_on_Windows_Path(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows environment names are case-insensitive.");
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: false);
+        var configPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
+        var config = JsonNode.Parse(File.ReadAllText(configPath))!;
+        config["backends"]!["codex"]!.AsObject().Remove("executable");
+        File.WriteAllText(configPath, config.ToJsonString());
+        var path = environment.Single(x => x.Key.Equals("PATH", StringComparison.OrdinalIgnoreCase));
+        environment.Remove(path.Key);
+        environment["Path"] = Path.GetDirectoryName(CodexLab.Executable) + Path.PathSeparator + path.Value;
+        await Assert.That(environment.Keys.Where(x => x.Equals("PATH", StringComparison.OrdinalIgnoreCase)).ToArray())
+            .IsEquivalentTo(new[] { "Path" }, CollectionOrdering.Matching);
+        using var harness = new CapturedProcess();
+        var result = await harness.RunAsync("dotnet", [Gates.HarnessDll, "selfcheck", "--backend", "codex"], TestPaths.Harness, environment, ct);
+        result.RequireSuccess("Codex on Path");
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "PASS  launch: thread-main" }, CollectionOrdering.Matching);
+        await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "thread/start")).IsEqualTo(1);
+        await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "turn/start")).IsEqualTo(0);
     }
 
     [Test]
@@ -155,6 +253,8 @@ public sealed class CatalogCommandTests
         File.WriteAllText(lab.Tasks, """
             {"schemaVersion":2,"repo":"repo","tasks":[{"id":"inspect","kind":"research","backend":"codex","route":"codex:model-y#high","prompt":"Inspect."}]}
             """);
+        var scenario = Path.Combine(lab.Scenarios, "task.jsonl");
+        File.WriteAllText(scenario, File.ReadAllText(scenario).Replace("workspaceWrite", "readOnly", StringComparison.Ordinal));
         using var harness = new HarnessProcess(lab.Tree);
 
         var result = await harness.RunAsync(["selfcheck", lab.Tasks], ct, environment);
@@ -207,8 +307,9 @@ public sealed class CatalogCommandTests
         await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
     }
 
-    static Dictionary<string, string?> Configure(CodexLab lab, bool both)
+    internal static Dictionary<string, string?> Configure(CodexLab lab, bool both)
     {
+        lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Split('\n')[0] + "\n");
         var configPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
         var config = JsonNode.Parse(File.ReadAllText(configPath))!;
         config["backends"]!["opencode"]!["executable"] = FakeOpenCode.Executable;
@@ -235,6 +336,10 @@ public sealed class CatalogCommandTests
         steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_fixture", ["status"] = 204 });
         steps.Add(new JsonObject { ["expect"] = "GET /api/session/ses_fixture", ["status"] = 404,
             ["reply"] = new JsonObject { ["_tag"] = "SessionNotFoundError", ["sessionID"] = "ses_fixture", ["message"] = "removed" } });
+        steps.Add(new JsonObject { ["expect"] = "POST /api/session", ["reply"] = OpenCodeLab.Session("ses_launch") });
+        steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_fixture/environment", ["status"] = 204 });
+        steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_launch/environment", ["status"] = 204 });
+        steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_launch", ["status"] = 204 });
         File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
         environment["FAKE_OPENCODE_SCENARIO"] = scenario;
         return environment;

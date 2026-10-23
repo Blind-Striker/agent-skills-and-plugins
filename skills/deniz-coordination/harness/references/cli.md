@@ -72,7 +72,12 @@ configured backends); with none it refuses: "no backend configured; set preferen
 defaultRoutes or --backend". Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
-request. With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
+request. Both backends also perform a `launch` check: build a synthetic code task through the same
+launch builder as real tasks, create its worker, then release it without a prompt or model call
+(no Codex `turn/start` or opencode prompt request). `PASS  launch: <worker id>` is printed only after
+release succeeds; otherwise `FAIL  launch: <exception message>` makes the exit code 1, and checks
+continue for other backends. Synthetic task temporary folders and backend-owned homes are cleaned up.
+With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
 removes it afterwards; without one it prints `repository checks skipped`. Its temporary folder is
 removed on exit. Prints `PASS` or `FAIL` per check, then `selfcheck passed` or a failed-check count.
 
