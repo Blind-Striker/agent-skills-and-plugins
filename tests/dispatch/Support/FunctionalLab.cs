@@ -229,6 +229,8 @@ internal sealed class FunctionalLab : IDisposable
         await Assert.That(Result["state"]!.GetValue<string>()).IsEqualTo("done");
         await Assert.That(Result["backend"]!.GetValue<string>()).IsEqualTo(Backend);
         await Assert.That(Result["routeRequested"]!.GetValue<string>()).IsEqualTo($"{Backend}:{Route}");
+        // A live backend reports the route it ran; an unreported or substituted route is not done.
+        await Assert.That(Result["routeVerified"]!.GetValue<bool>()).IsTrue();
         await Assert.That(Events().Last(x => x["type"]!.GetValue<string>() == "final")["data"]!["state"]!.GetValue<string>()).IsEqualTo("done");
         await Assert.That(File.Exists(Path.Combine(TaskFolder, "diff.patch"))).IsEqualTo(!structured);
     }
