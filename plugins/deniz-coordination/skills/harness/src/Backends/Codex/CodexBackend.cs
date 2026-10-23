@@ -15,6 +15,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public string Name => "codex";
     public BackendCapabilities Capabilities { get; } = new("sandbox", "approval-gate", "native", false);
     public ChannelReader<WorkerSignal> Signals => signals.Reader;
+    public string? WindowsSandboxReadiness => probe?.Readiness;
     internal IEnumerable<(WorkerRef Worker, CodexProcess Process)> WorkerProcesses => connections.Keys
         .Where(connection => connection.Worker is not null).Select(connection => (connection.Worker!, connection.Process));
 
@@ -111,8 +112,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (task.Agent is not null || task.Persona is not null) errors.Add("Codex does not support agents or personas");
             if (OperatingSystem.IsWindows() && task.Modes.Access != "full" && connection.Readiness != "ready")
                 errors.Add($"Windows sandbox is {connection.Readiness}; setup is the operator's responsibility");
+            // Codex's model catalog lists no context window; its token usage reports one during the run.
             return new LiveCheck(task.TaskId, errors, [], task.Route.Model, task.Modes.Profile == "clean" ? clean.Actual : "full",
-                task.Modes.Profile == "clean" ? clean.Reason : null);
+                task.Modes.Profile == "clean" ? clean.Reason : null, [$"context window of codex:{task.Route.Model} is known after the run (result.json contextWindow)"]);
         }).ToList();
     }
 
@@ -282,10 +284,16 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                             break;
                         case "thread/tokenUsage/updated":
                             var usage = data.Deserialize(CodexJson.Wire.CodexThreadTokenUsageUpdatedNotification)!;
-                            connection.Usage[usage.ThreadId] = usage.TokenUsage.Total;
-                            connection.UsageComplete |= taskTurn;
-                            if (taskThread && usage.TokenUsage.ModelContextWindow is { } contextWindow)
-                                connection.ContextWindow = contextWindow;
+                            lock (connection.StateGate)
+                            {
+                                connection.Usage[usage.ThreadId] = usage.TokenUsage.Total;
+                                connection.UsageComplete |= taskTurn;
+                                if (taskThread && usage.TokenUsage.ModelContextWindow is { } contextWindow)
+                                    connection.ContextWindow = contextWindow;
+                                if (taskTurn && usage.TokenUsage.Last is { } last)
+                                    connection.Calls.Add(new() { Input = last.InputTokens, CacheRead = last.CachedInputTokens,
+                                        Output = last.OutputTokens, Reasoning = last.ReasoningOutputTokens });
+                            }
                             break;
                         case "model/rerouted":
                             var model = data.GetProperty("toModel").GetString();
@@ -517,14 +525,17 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         // Prefer the pump's end, which records the stop. A process that survives the stop can keep the
         // pump open after the turn ended: then the turn's report is complete without it.
         await Task.WhenAny(connection.Pump, Task.WhenAll(connection.TurnEnded.Task, Task.Delay(TimeSpan.FromSeconds(10), ct))).WaitAsync(ct);
-        var usage = connection.Usage.Values;
-        var totals = usage.Count == 0 ? new TokenTotals() : new TokenTotals
+        lock (connection.StateGate)
         {
-            Input = usage.Sum(x => x.InputTokens), Output = usage.Sum(x => x.OutputTokens), Reasoning = usage.Sum(x => x.ReasoningOutputTokens),
-            CacheRead = usage.Sum(x => x.CachedInputTokens), CacheWrite = usage.Sum(x => x.CacheWriteInputTokens),
-        };
-        return new(connection.Outcome ?? "lost", connection.FinalText ?? connection.LastText, totals, null, connection.UsageComplete,
-            connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped, ContextWindow: connection.ContextWindow);
+            var usage = connection.Usage.Values;
+            var totals = usage.Count == 0 ? new TokenTotals() : new TokenTotals
+            {
+                Input = usage.Sum(x => x.InputTokens), Output = usage.Sum(x => x.OutputTokens), Reasoning = usage.Sum(x => x.ReasoningOutputTokens),
+                CacheRead = usage.Sum(x => x.CachedInputTokens), CacheWrite = usage.Sum(x => x.CacheWriteInputTokens),
+            };
+            return new(connection.Outcome ?? "lost", connection.FinalText ?? connection.LastText, totals, null, connection.UsageComplete,
+                connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped, ContextWindow: connection.ContextWindow, Calls: connection.Calls.ToArray());
+        }
     }
     public async Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct)
     {
@@ -611,6 +622,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public WorkerSignal.Ended? Ended { get; set; }
         public int Retries { get; set; }
         public Dictionary<string, CodexTokenUsageBreakdown> Usage { get; } = new(StringComparer.Ordinal);
+        public List<TokenTotals> Calls { get; } = [];
         public bool UsageComplete { get; set; }
         public long? ContextWindow { get; set; }
         public string Effort { get; set; } = "";

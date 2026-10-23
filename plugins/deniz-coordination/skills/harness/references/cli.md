@@ -15,7 +15,9 @@ Build before every command. A nonzero build exit means no harness command ran. C
 can contend on the file-based app cache; retry a failed build before invoking the command. The
 `--` separates application arguments from `dotnet` arguments, including flags such as `--force`.
 
-Command-line file and directory paths must be absolute. In PowerShell, form paths from
+Command-line file and directory paths must be absolute, except bundled `--contract` aliases
+(`@worker-contract`, `@<model>-worker`). Resolution, worker-block extraction, errors, hashing and
+ordering follow [Contracts](task-file.md#contracts). In PowerShell, form paths from
 `$PWD.ProviderPath`. Paths inside a task file follow [task-file rules](task-file.md).
 `DISPATCH_HOME` relocates configuration and state; [configuration](config.md) describes its layout
 and the platform defaults. Backend executable overrides are user config fields, not environment
@@ -33,10 +35,10 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
-| `--contract <path>` | repeatable absolute file | None | Plan/run, prepended to every task after file contracts. Relative: `--contract must be an absolute path`. |
+| `--contract <path or alias>` | repeatable absolute file or bundled alias | None | Plan/run, prepended to every task after file contracts. Ordinary relative paths: `--contract must be an absolute path`. Alias semantics: [Contracts](task-file.md#contracts). |
 | `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
-| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. `opencode` or `codex`. |
+| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` discovers installed backends when those layers name none. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
@@ -68,8 +70,20 @@ Sends no prompt. Prints the allow-list and policy, the state, worktree and contr
 Windows a warning when git's `core.longpaths` is not true and when the user PATH in the registry
 exceeds 8,000 characters. The backends checked are `--backend`, else every backend the task file and
 the configuration layers name (preferred backend, default routes, allow-list, task backends, then
-configured backends); with none it refuses: "no backend configured; set preferences.backend,
-defaultRoutes or --backend". Each backend gets its own `backend <name>` section. opencode
+configured backends). If none is named and no task file was supplied, it discovers installed
+backends in order: `opencode`, then `codex`, before preparing a worktree or creating backend
+instances. Installed means the executable resolves through that backend's launch lookup, not
+that its version, sign-in or server readiness has passed. OpenCode retains native npm-shim
+selection and the pinned SDK's PATH/PATHEXT lookup, including relative PATH entries; Codex uses
+the shared resolution described below. Each unresolved candidate prints exactly
+`SKIP  backend <name>: not installed (<name> on PATH)`; skips are not failed checks. If neither
+resolves, stderr prints `dispatch: no backend installed; install opencode or Codex, or set backends.<name>.executable`
+and the command exits 2. A supplied task file retains the empty-selection refusal:
+`dispatch: no backend configured; set preferences.backend, defaultRoutes or --backend`.
+Named backends are never skipped: a missing executable remains a failed check (exit 1).
+Resolved executables undergo every existing probe and launch check; version, login and launch
+failures remain failures and do not prevent checking the next backend.
+Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
 request. Both backends also perform a `launch` check: build a synthetic code task through the same
@@ -79,19 +93,44 @@ release succeeds; otherwise `FAIL  launch: <exception message>` makes the exit c
 continue for other backends. Synthetic task temporary folders and backend-owned homes are cleaned up.
 With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
 removes it afterwards; without one it prints `repository checks skipped`. Its temporary folder is
-removed on exit. Prints `PASS` or `FAIL` per check, then `selfcheck passed` or a failed-check count.
+removed on exit. Prints `PASS`, `WARN` or `FAIL` per check. A successful clean-profile validation
+that falls back to `clean-partial` is `WARN`, including the profile reason; validation errors remain
+`FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
+`WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
+
+With a repository on Windows, `worktree path depth` checks the resolved worktree root with synthetic
+task id `selfcheck` plus the longest tracked path at HEAD: `PASS` below 248 characters, `WARN` at 248
+or more, never `FAIL`. See [worktree root configuration](config.md#files-and-locations) for the trade-off.
+
+On Windows only, a successful Codex probe also prints exactly one
+`PASS  windows sandbox: mode <mode>; readiness <status>` check. Mode comes from the user's Codex
+home configuration: `elevated`, `unelevated`, `mxc`, or `not set` when unset. Readiness is the raw
+`windowsSandbox/readiness` status (`ready`, `notConfigured`, or `updateRequired`), not the requested
+task sandbox. Any status other than `ready` makes this line `WARN`, never `FAIL`; it contributes
+only to the warning count, not a failure exit. Existing sandboxed-access readiness validation can
+still fail. This line is absent on Linux/macOS and from OpenCode sections.
 
 | Exit | Type | Meaning |
 |---|---|---|
-| `0` | integer | All performed checks passed. |
+| `0` | integer | No performed check failed; warnings and automatic-discovery skips are allowed. |
 | `1` | integer | A reported check failed, including worktree preparation or a caught live backend failure. |
-| `2` | integer | Checks could not start or an uncaught setup/configuration error occurred. |
+| `2` | integer | No installed backend was discovered, checks could not start, or an uncaught setup/configuration error occurred. |
 
 ### Configured backend coverage
 
-`selfcheck` and `routes` cover every configured backend, each in its own labelled section. A task
+`selfcheck` and `routes` cover every configured backend, each in its own labelled section, unless
+`--backend` limits selection. Only task-file-free `selfcheck` falls back to installed-backend
+discovery when none is named; `routes` retains the empty-selection refusal above. A task
 route may carry its backend prefix, such as `codex:<model>#<effort>`, when it matches the task's
 resolved `backend`; a prefix naming another backend is a plan error that names both.
+
+Codex executable resolution is shared by version/login commands, clean-home probes and worker
+launches. A configured absolute `backends.codex.executable` takes precedence over PATH. On Windows,
+PATH discovery skips relative directories and prefers supported `.exe`, `.cmd`, `.bat` and `.com`
+shims over `.ps1`, preserving PATH and PATHEXT order among supported candidates. It remembers the
+first `.ps1` only to diagnose a lookup with no supported candidate. A configured `.ps1` is also
+rejected, without falling back to PATH. Both cases report:
+`codex resolves only to a PowerShell script (<path>); set backends.codex.executable to its .cmd or .exe`.
 
 ### Windows user PATH guard
 
@@ -128,6 +167,10 @@ For every non-structured task, in task-file order, `plan` also prints
 `INFO <task>: temp <resolved folder> (default)` when unset. It creates no temporary folder.
 `tempRoot` is a layered preference, not a CLI option; see
 [configuration](config.md#temporary-folders) and [layouts](task-file.md#scope-and-workspaces).
+
+The live check adds, per task, the model's context window when the backend's catalog lists it:
+`INFO <task>: context window <n> tokens (opencode:<route>)`. Codex's catalog lists none, so a Codex
+task prints `INFO <task>: context window of codex:<model> is known after the run (result.json contextWindow)`.
 
 Remote-tracking bases are fetched before resolution with `git fetch --quiet <remote> <branch>`,
 once per distinct remote and branch per planning call. A failed fetch refuses the plan without retry:

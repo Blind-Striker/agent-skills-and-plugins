@@ -82,6 +82,15 @@ static class Settlement
             result.State = result.Failures.Count == 0 ? "done" : "failed";
         }
         ledger.SaveResult(result);
+        foreach (var call in report.Calls ?? [])
+        {
+            var data = new JsonObject();
+            if (call.Input is { } input) data["input"] = input;
+            if (call.CacheRead is { } cacheRead) data["cacheRead"] = cacheRead;
+            if (call.Output is { } output) data["output"] = output;
+            if (call.Reasoning is { } reasoning) data["reasoning"] = reasoning;
+            ledger.Write(run.Id, "usage", data);
+        }
         ledger.Write(run.Id, "outcome", new JsonObject
         {
             ["outcome"] = outcome, ["cost"] = result.Cost, ["tokensIn"] = result.Tokens?.Input,

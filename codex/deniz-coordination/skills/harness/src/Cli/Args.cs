@@ -50,7 +50,7 @@ sealed class Args
     public void ValidatePaths()
     {
         foreach (var path in Contracts)
-            if (!Path.IsPathFullyQualified(path)) throw new HarnessException("--contract must be an absolute path");
+            if (!path.StartsWith('@') && !Path.IsPathFullyQualified(path)) throw new HarnessException("--contract must be an absolute path");
         foreach (var name in new[] { "repo", "dir", "policy", "ledger" })
         {
             if (Get(name) is { } path && !Path.IsPathFullyQualified(path))

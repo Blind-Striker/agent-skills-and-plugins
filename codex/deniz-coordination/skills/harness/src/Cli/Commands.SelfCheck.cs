@@ -5,10 +5,12 @@ static partial class Commands
         var userPath = new UserPathGuard(userPathReader);
         if (userPath.SelfCheckWarning is { } warning) Console.Error.WriteLine(warning);
         var checks = new List<ProbeCheck>();
-        void Check(string name, bool ok, string detail)
+        var warnings = 0;
+        void Check(string name, bool ok, string detail, bool warn = false)
         {
             checks.Add(new(name, ok, detail));
-            Console.WriteLine($"{(ok ? "PASS" : "FAIL")}  {name}: {detail}");
+            if (ok && warn) warnings++;
+            Console.WriteLine($"{(!ok ? "FAIL" : warn ? "WARN" : "PASS")}  {name}: {detail}");
         }
 
         var tasksPath = a.Positional.FirstOrDefault();
@@ -26,6 +28,7 @@ static partial class Commands
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
         layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
+        if (selectedBackends.Count == 0) selectedBackends = InstalledBackends();
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");
         Check("policy", true, layers.Policy.Describe());
@@ -44,6 +47,11 @@ static partial class Commands
         string? worktree = null;
         if (repo is not null)
         {
+            if (OperatingSystem.IsWindows())
+            {
+                var depth = await Worktree.PathDepthAsync(git, repo, Locations.Worktree("selfcheck"), ct);
+                Check("worktree path depth", true, depth.Detail, warn: depth.Length >= 248);
+            }
             worktree = Path.Combine(Locations.WorktreeRoot, $"selfcheck-{Guid.NewGuid():N}");
             var add = await git.RunAsync(repo, ct, "worktree", "add", "--detach", worktree, "HEAD");
             Check("worktree", add.ExitCode == 0, add.ExitCode == 0 ? worktree : add.Stderr.Trim());
@@ -70,6 +78,14 @@ static partial class Commands
                     }
                     var probe = await backend.ProbeAsync(new(directory, repo is null ? null : TaskStarter.RulesFor(layers.Policy)), ct);
                     foreach (var check in probe.Checks ?? []) Check(check.Name, check.Ok, check.Detail);
+                    if (OperatingSystem.IsWindows() && backend is CodexBackend codex && probe.Ready)
+                    {
+                        var home = Environment.GetEnvironmentVariable("CODEX_HOME")
+                            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+                        var mode = CodexHome.ReadWindowsSandbox(home) ?? "not set";
+                        Check("windows sandbox", true, $"mode {mode}; readiness {codex.WindowsSandboxReadiness}",
+                            warn: codex.WindowsSandboxReadiness != "ready");
+                    }
                     var pin = selected == "codex" ? CodexBackend.PinnedVersion : Constants.PinnedUpstream;
                     Check("pin", probe.Version == pin, $"installed {probe.Version ?? "unknown"}, pin {pin}");
                     Check("ready", probe.Ready, probe.Ready ? "backend probe passed" : "backend probe failed");
@@ -118,7 +134,8 @@ static partial class Commands
                         new("clean", settings.Project!.Value!, settings.Access!.Value!, settings.Network!.Value!, "worktree"), directory)], ct);
                     foreach (var result in clean)
                     {
-                        Check("clean profile", result.Errors.Count == 0, result.Profile + (result.ProfileReason is null ? "" : $"; {result.ProfileReason}"));
+                        Check("clean profile", result.Errors.Count == 0, result.Profile + (result.ProfileReason is null ? "" : $"; {result.ProfileReason}"),
+                            warn: result.Profile == "clean-partial");
                         foreach (var error in result.Errors) Check("clean profile validation", false, error);
                         foreach (var detail in result.Warnings) Console.WriteLine($"warning: {detail}");
                     }
@@ -201,8 +218,53 @@ static partial class Commands
             }
         }
         var failed = checks.Count(x => !x.Ok);
-        Console.WriteLine(failed == 0 ? "selfcheck passed" : $"selfcheck: {failed} check(s) failed");
+        Console.WriteLine(failed == 0 ? $"selfcheck passed ({warnings} warning(s))" : $"selfcheck: {failed} check(s) failed");
         return failed == 0 ? 0 : 1;
+    }
+
+    static IReadOnlyList<string> InstalledBackends()
+    {
+        var installed = new List<string>();
+        foreach (var name in new[] { "opencode", "codex" })
+        {
+            var found = false;
+            if (name == "opencode") found = OpenCodeInstalled(HarnessServer.Command(null)[0]);
+            else
+            {
+                try
+                {
+                    _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
+                    found = true;
+                }
+                catch (HarnessException) { /* Unresolved candidates are skipped only during discovery. */ }
+            }
+            if (found) installed.Add(name);
+            else Console.WriteLine($"SKIP  backend {name}: not installed ({name} on PATH)");
+        }
+        if (installed.Count == 0)
+            throw new HarnessException("no backend installed; install opencode or Codex, or set backends.<name>.executable");
+        return installed;
+    }
+
+    static bool OpenCodeInstalled(string command)
+    {
+        if (command != Path.GetFileName(command)) return File.Exists(command);
+        // OpenCodeDotNet.Sdk 0.9.0-preview.13 resolves bare commands in the parent environment,
+        // retaining relative PATH entries and probing PATHEXT in order (not just .exe).
+        var extensions = new[] { "" };
+        if (OperatingSystem.IsWindows() && !command.AsSpan(1).Contains('.'))
+        {
+            var configured = Environment.GetEnvironmentVariable("PATHEXT");
+            extensions = (string.IsNullOrWhiteSpace(configured) ? ".COM;.EXE;.BAT;.CMD" : configured)
+                .Split(';', StringSplitOptions.RemoveEmptyEntries);
+        }
+        foreach (var entry in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var directory = Path.IsPathRooted(entry) ? entry : Path.Combine(Environment.CurrentDirectory, entry);
+            foreach (var extension in extensions)
+                if (File.Exists(Path.Combine(directory, command + extension))) return true;
+        }
+        return false;
     }
 
     static EffectiveSettings SelfCheckSettings(Args args, ConfigLayers layers, string backend, RouteRef route)

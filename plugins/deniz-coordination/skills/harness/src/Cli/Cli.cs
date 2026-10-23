@@ -91,7 +91,7 @@ static class Cli
             Repository config: committed .dispatch/config.jsonc at HEAD.
             Preferences override user, repository, task file, then CLI; restrictions accumulate.
             --ledger <absolute path> overrides the ledger root for every command.
-            --contract <absolute path> prepends a contract to every task; repeatable.
+            --contract <absolute path|@worker-contract|@<model>-worker> prepends a contract to every task; repeatable.
             --read-only-shell decline|escalate selects the read-only shell approval policy (default decline).
 
             Windows user PATH ({UserPathGuard.ValueName}):

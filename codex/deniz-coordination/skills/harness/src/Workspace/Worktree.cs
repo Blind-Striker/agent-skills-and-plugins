@@ -3,6 +3,26 @@ static class Worktree
     public static bool InPlace(TaskRecord record) => (record.Settings.Workspace?.Value ?? record.Spec.Workspace) == "in-place";
     public static string CommitMode(TaskRecord record) => InPlace(record) ? record.Settings.Commit?.Value ?? record.Spec.Commit ?? "none" : "harness";
 
+    public static async Task<(int Length, string Detail)> PathDepthAsync(Git git, string repo, string folder, CancellationToken ct)
+    {
+        var (length, file) = await LongestPathAsync(git, repo, folder, ct);
+        return (length, $"worktree paths reach {length} characters ({file}); builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config");
+    }
+
+    static async Task<(int Length, string File)> LongestPathAsync(Git git, string repo, string folder, CancellationToken ct)
+    {
+        var index = Path.Combine(Path.GetTempPath(), $"path-depth-{Guid.NewGuid():N}.index");
+        var isolated = git.WithIndex(index);
+        try
+        {
+            await isolated.CheckAsync(repo, ct, "read-tree", "HEAD");
+            var paths = await isolated.CheckAsync(repo, ct, "ls-files", "-z");
+            var file = paths.Split('\0', StringSplitOptions.RemoveEmptyEntries).MaxBy(path => path.Length)?.Replace('/', '\\') ?? "";
+            return (Path.TrimEndingDirectorySeparator(folder).Length + 1 + file.Length, file);
+        }
+        finally { File.Delete(index); }
+    }
+
     public static bool IsInside(string path, string parent)
     {
         var relative = Path.GetRelativePath(Path.GetFullPath(parent), Path.GetFullPath(path));

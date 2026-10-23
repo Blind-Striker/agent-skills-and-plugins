@@ -107,7 +107,7 @@ sealed class HarnessServer : IAsyncDisposable
 
     // On Windows the npm shim runs through cmd.exe and leaves the real server outside the job
     // that ends it with its owner; start opencode.exe directly when the shim's layout is found.
-    static IReadOnlyList<string> Command(string? executable)
+    internal static IReadOnlyList<string> Command(string? executable)
     {
         if (executable is { } explicitPath)
         {

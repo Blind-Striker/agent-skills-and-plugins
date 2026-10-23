@@ -48,7 +48,8 @@ sealed class BackendScope : IAsyncDisposable
                 if (task.Settings.Backend?.Value is { } backend) names.Add(backend);
             if (names.Count == 0) names.UnionWith(configured);
         }
-        if (names.Count == 0) throw new HarnessException("no backend configured; set preferences.backend, defaultRoutes or --backend");
+        if (names.Count == 0 && !(args.Command == "selfcheck" && args.Positional.Count == 0))
+            throw new HarnessException("no backend configured; set preferences.backend, defaultRoutes or --backend");
         foreach (var name in names)
             if (name is not ("opencode" or "codex")) throw new HarnessException($"unknown backend: {name}");
         return names.Order(StringComparer.Ordinal).ToArray();

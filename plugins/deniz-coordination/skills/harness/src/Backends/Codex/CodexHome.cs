@@ -40,9 +40,9 @@ sealed class CodexHome : IDisposable
         if (!OperatingSystem.IsWindows() || !File.Exists(Path.Combine(userHome, "config.toml"))) return null;
         var text = File.ReadAllText(Path.Combine(userHome, "config.toml"));
         var table = Regex.Match(text, @"(?ms)^\s*\[windows\]\s*(?<body>.*?)(?=^\s*\[|\z)");
-        var value = Regex.Match(table.Groups["body"].Value, "(?m)^\\s*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated)[\"']");
+        var value = Regex.Match(table.Groups["body"].Value, "(?m)^\\s*sandbox\\s*=\\s*[\"'](?<value>elevated|unelevated|mxc)[\"']");
         if (!value.Success) value = Regex.Match(text,
-            """(?m)^\s*(?:windows|"windows"|'windows')\s*=\s*\{[^}]*(?:sandbox|"sandbox"|'sandbox')\s*=\s*["'](?<value>elevated|unelevated)["']""");
+            """(?m)^\s*(?:windows|"windows"|'windows')\s*=\s*\{[^}]*(?:sandbox|"sandbox"|'sandbox')\s*=\s*["'](?<value>elevated|unelevated|mxc)["']""");
         return value.Success ? value.Groups["value"].Value : null;
     }
 
