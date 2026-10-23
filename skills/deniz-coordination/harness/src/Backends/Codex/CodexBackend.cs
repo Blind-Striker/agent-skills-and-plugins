@@ -284,6 +284,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                             var usage = data.Deserialize(CodexJson.Wire.CodexThreadTokenUsageUpdatedNotification)!;
                             connection.Usage[usage.ThreadId] = usage.TokenUsage.Total;
                             connection.UsageComplete |= taskTurn;
+                            if (taskThread && usage.TokenUsage.ModelContextWindow is { } contextWindow)
+                                connection.ContextWindow = contextWindow;
                             break;
                         case "model/rerouted":
                             var model = data.GetProperty("toModel").GetString();
@@ -522,7 +524,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             CacheRead = usage.Sum(x => x.CachedInputTokens), CacheWrite = usage.Sum(x => x.CacheWriteInputTokens),
         };
         return new(connection.Outcome ?? "lost", connection.FinalText ?? connection.LastText, totals, null, connection.UsageComplete,
-            connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped);
+            connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped, ContextWindow: connection.ContextWindow);
     }
     public async Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct)
     {
@@ -610,6 +612,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public int Retries { get; set; }
         public Dictionary<string, CodexTokenUsageBreakdown> Usage { get; } = new(StringComparer.Ordinal);
         public bool UsageComplete { get; set; }
+        public long? ContextWindow { get; set; }
         public string Effort { get; set; } = "";
         public HashSet<string> Routes { get; } = new(StringComparer.Ordinal);
         public Task Pump { get; set; } = Task.CompletedTask;

@@ -22,6 +22,7 @@ static class Settlement
             RoutesUsed = report.RoutesUsed.ToList(),
             Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,
             TokensComplete = report.UsageComplete,
+            ContextWindow = report.ContextWindow,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
             TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped, ExecutionError = report.ExecutionError,
             BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,

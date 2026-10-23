@@ -230,6 +230,7 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `tokens.cacheRead` | number | Absent if unavailable | Cache-read count. |
 | `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count. |
 | `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
+| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode's comes from its model catalog. |
 | `asks` | integer | `0` | Observed permission asks. |
 | `asksEscalated` | integer | `0` | Asks sent to the operator. |
 | `formsCancelled` | integer | `0` | Cancelled form questions. |

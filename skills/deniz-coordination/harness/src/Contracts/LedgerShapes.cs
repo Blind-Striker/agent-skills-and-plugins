@@ -231,6 +231,7 @@ sealed class TaskResult : VersionedContract
     public double? Cost { get; set; }
     public TokenTotals? Tokens { get; set; }
     public bool? TokensComplete { get; set; }
+    public long? ContextWindow { get; set; }
     public int Asks { get; set; }
     public int AsksEscalated { get; set; }
     public int FormsCancelled { get; set; }
