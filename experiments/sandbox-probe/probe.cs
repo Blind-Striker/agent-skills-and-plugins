@@ -491,7 +491,7 @@ static class Probe
         await Task.Delay(TimeSpan.FromSeconds(3));
         var survivors = Survivors(tree);
         stop["survivorsAfter3s"] = ProcsJson(survivors);
-        stop["cleanup"] = Cleanup(survivors);
+        stop["cleanup"] = Cleanup(survivors, tree);
         return stop;
     }
 
@@ -583,7 +583,9 @@ static class Probe
         {
             entry["ready"] = false;
             entry["holdStderr"] = stderr.ToString();
-            try { child.Kill(entireProcessTree: true); } catch { }
+            var started = Descendants(Snapshot(), child.Id).Where(p => p.Pid != child.Id).ToList();
+            try { child.Kill(entireProcessTree: false); } catch { }
+            entry["cleanup"] = Cleanup(started, started);
             return entry;
         }
 
@@ -603,7 +605,7 @@ static class Probe
         await Task.Delay(TimeSpan.FromSeconds(12));
         var survivors15 = Survivors(tree);
         entry["survivorsAfter15s"] = ProcsJson(survivors15);
-        entry["cleanup"] = Cleanup(survivors15);
+        entry["cleanup"] = Cleanup(survivors15, tree);
         lock (stderr) entry["holdStderr"] = stderr.ToString();
         return entry;
     }
@@ -678,21 +680,16 @@ static class Probe
         return procs;
     }
 
-    // The root and its descendants by parent chain; on POSIX also every member of the root's process
-    // group, which is what the SDK signals on disposal.
+    // The watched set: the root the probe started and its descendants, found only by walking ppid links
+    // down from the root. Never by process group: a child started with Process.Start shares the probe's
+    // group, which holds the probe's callers (the shell, `dotnet run`, the CI step). The probe itself
+    // and its ancestors are never in the set.
     static List<Proc> Descendants(List<Proc> all, int root)
     {
         var found = new Dictionary<int, Proc>();
         if (all.FirstOrDefault(p => p.Pid == root) is { } rootProc)
         {
             found[root] = rootProc;
-            if (rootProc.Pgid > 0)
-            {
-                foreach (var p in all.Where(p => p.Pgid == rootProc.Pgid))
-                {
-                    found[p.Pid] = p;
-                }
-            }
         }
 
         var queue = new Queue<int>([root]);
@@ -712,7 +709,22 @@ static class Probe
             }
         }
 
-        return found.Values.Where(p => p.Pid != Environment.ProcessId).OrderBy(p => p.Pid).ToList();
+        var protectedPids = SelfAndAncestors(all);
+        return found.Values.Where(p => !protectedPids.Contains(p.Pid)).OrderBy(p => p.Pid).ToList();
+    }
+
+    // The probe's own pid and every ancestor up the ppid chain.
+    static HashSet<int> SelfAndAncestors(List<Proc> all)
+    {
+        var byPid = all.GroupBy(p => p.Pid).ToDictionary(g => g.Key, g => g.First());
+        var result = new HashSet<int>();
+        var pid = Environment.ProcessId;
+        while (pid > 0 && result.Add(pid) && byPid.TryGetValue(pid, out var p))
+        {
+            pid = p.Ppid;
+        }
+
+        return result;
     }
 
     // A process survives when its pid is alive with the same command line, which guards pid reuse.
@@ -722,15 +734,25 @@ static class Probe
         return earlier.Where(p => now.TryGetValue(p.Pid, out var q) && q.Cmd == p.Cmd).ToList();
     }
 
-    static JsonArray Cleanup(List<Proc> survivors)
+    // Kills only survivors that are in the watched set and are neither the probe nor its ancestor; each
+    // kill ends that one process, not a tree. Anything else is recorded as skipped.
+    static JsonArray Cleanup(List<Proc> survivors, List<Proc> watched)
     {
         var done = new JsonArray();
+        var watchedPids = watched.Select(p => p.Pid).ToHashSet();
+        var protectedPids = SelfAndAncestors(Snapshot());
         foreach (var p in survivors)
         {
+            if (!watchedPids.Contains(p.Pid) || protectedPids.Contains(p.Pid))
+            {
+                done.Add((JsonNode?)JsonValue.Create($"skipped {p.Pid}: not in the watched set or the probe or its ancestor"));
+                continue;
+            }
+
             try
             {
                 using var proc = Process.GetProcessById(p.Pid);
-                proc.Kill(entireProcessTree: true);
+                proc.Kill(entireProcessTree: false);
                 done.Add((JsonNode?)JsonValue.Create($"killed {p.Pid}"));
             }
             catch (Exception ex)
