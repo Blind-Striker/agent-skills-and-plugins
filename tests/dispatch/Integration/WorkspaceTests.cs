@@ -43,6 +43,45 @@ public sealed class WorkspaceTests
 
     [Test]
     [Timeout(60_000)]
+    public async Task RealPath_resolves_a_link_before_a_later_parent_step(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = Directory.CreateDirectory(Path.Combine(tree.Root, "repo", "child")).Parent!.FullName;
+        Directory.CreateDirectory(Path.Combine(tree.Root, "safe"));
+        var hop = Path.Combine(tree.Root, "safe", "hop");
+        var alias = Path.Combine(tree.Root, "alias");
+        string expected;
+        if (OperatingSystem.IsWindows())
+        {
+            // A junction stores a normalized absolute target, so Windows checks a chain of links.
+            foreach (var (link, target) in new[] { (hop, Path.Combine(repo, "child")), (alias, hop) })
+            {
+                using var command = new CapturedProcess();
+                (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, target], tree.Root, tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+            }
+            expected = Path.Combine(repo, "child", "scratch");
+        }
+        else
+        {
+            Directory.CreateSymbolicLink(hop, Path.Combine(repo, "child"));
+            Directory.CreateSymbolicLink(alias, Path.Combine(hop, ".."));
+            expected = Path.Combine(repo, "scratch");
+        }
+        try
+        {
+            await Assert.That(Locations.Same(Worktree.RealPath(Path.Combine(alias, "scratch")), Worktree.RealPath(expected))).IsTrue();
+            await Assert.That(Worktree.IsInside(Worktree.RealPath(Path.Combine(alias, "scratch")), Worktree.RealPath(repo))).IsTrue();
+        }
+        finally
+        {
+            // The links must go before TempTree deletes the tree, or deletion follows them.
+            if (Path.Exists(alias)) Directory.Delete(alias);
+            if (Path.Exists(hop)) Directory.Delete(hop);
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
     public async Task Clean_never_removes_another_branchs_worktree_in_the_task_folder(CancellationToken ct)
     {
         using var lab = new CoreLab("replaced");
