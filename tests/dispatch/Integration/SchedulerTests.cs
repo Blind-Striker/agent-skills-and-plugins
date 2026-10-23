@@ -8,6 +8,26 @@ namespace Dispatch.Tests.Integration;
 public sealed class SchedulerTests
 {
     [Test]
+    [Timeout(30_000)]
+    public async Task Workers_receive_configured_temp(CancellationToken ct)
+    {
+        using var lab = new CoreLab("worker-temp");
+        var run = await lab.TaskAsync("inspect", ct);
+        var root = Path.Combine(lab.Tree.Root, "private-temp");
+        run.Record.Settings.TempRoot = new() { Value = root, From = "task" };
+        WorkerLaunch? launch = null;
+        var create = lab.Backend.OnCreate!;
+        lab.Backend.OnCreate = (input, token) => { launch = input; return create(input, token); };
+        lab.Backend.OnPoll = (_, _) => { lab.End(run); return Task.FromResult(new PollResult([])); };
+        await Assert.That(await lab.Scheduler(ct).RunAsync([run])).IsEqualTo(0);
+        await Assert.That(launch).IsNotNull();
+        var expected = Path.Combine(root, "worker-temp", "inspect");
+        foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+            await Assert.That(launch!.Environment[name]).IsEqualTo(expected);
+        await Assert.That(Directory.Exists(expected)).IsTrue();
+    }
+
+    [Test]
     [Arguments("codex", "codex app-server")]
     [Arguments("opencode", "opencode server")]
     [Timeout(30_000)]

@@ -133,7 +133,7 @@ static partial class Commands
                     {
                         try
                         {
-                            var (launch, _) = TaskStarter.BuildLaunch(record, runId, selected, layers.Policy);
+                            var (launch, _) = TaskStarter.BuildLaunch(record, runId, selected, layers.Policy, tempRoot: null);
                             worker = (await backend.CreateAsync(launch, ct)).Worker;
                         }
                         catch (WorkerCreationException ex) { worker = ex.Worker; throw; }

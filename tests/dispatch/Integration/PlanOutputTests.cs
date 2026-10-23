@@ -1,4 +1,5 @@
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -6,6 +7,36 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel("processes")]
 public sealed class PlanOutputTests
 {
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Plan_prints_resolved_temp_paths(bool configured, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var root = Path.Combine(tree.Root, "private-temp");
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        var document = System.Text.Json.Nodes.JsonNode.Parse("""{"schemaVersion":2,"run":"ignored","defaults":{"backend":"opencode"},"tasks":[{"id":"zulu","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."},{"id":"alpha","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."},{"id":"structured","kind":"structured","route":"fixture/model","project":"on","prompt":"Transform.","input":{"items":[{"id":"a"}]},"result":{"schema":"schema.json","itemsAt":""}}]}""")!;
+        if (configured) document["tasks"]![0]!["tempRoot"] = root;
+        File.WriteAllText(Path.Combine(tree.Root, "schema.json"), """{"type":"array"}""");
+        File.WriteAllText(tasks, document.ToJsonString());
+        using var process = new HarnessProcess(tree);
+        var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root, "--run", "preview"], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("plan");
+        var run = $"{DateTime.UtcNow:yyyy-MM-dd}-preview";
+        var defaultRoot = Path.Combine(tree.DispatchHome, "state", "worktrees");
+        var zulu = configured ? Path.Combine(root, run, "zulu") : Path.Combine(defaultRoot, run, ".tmp", "zulu");
+        await Assert.That(Lines(result).Where(line => line.Contains(": temp ", StringComparison.Ordinal)).ToArray()).IsEquivalentTo(new[]
+        {
+            $"INFO zulu: temp {zulu} {(configured ? "(tempRoot from task)" : "(default)")}",
+            $"INFO alpha: temp {Path.Combine(defaultRoot, run, ".tmp", "alpha")} (default)",
+        }, CollectionOrdering.Matching);
+        await Assert.That(Directory.Exists(root)).IsFalse();
+        await Assert.That(Directory.Exists(Path.Combine(defaultRoot, run))).IsFalse();
+    }
+
     [Test]
     [Arguments("plan")]
     [Arguments("run")]

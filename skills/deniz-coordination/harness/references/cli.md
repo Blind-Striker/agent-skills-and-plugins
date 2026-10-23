@@ -123,6 +123,12 @@ starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. 
 `plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
 creates no recorded run.
 
+For every non-structured task, in task-file order, `plan` also prints
+`INFO <task>: temp <resolved folder> (tempRoot from <layer>)`, or
+`INFO <task>: temp <resolved folder> (default)` when unset. It creates no temporary folder.
+`tempRoot` is a layered preference, not a CLI option; see
+[configuration](config.md#temporary-folders) and [layouts](task-file.md#scope-and-workspaces).
+
 Remote-tracking bases are fetched before resolution with `git fetch --quiet <remote> <branch>`,
 once per distinct remote and branch per planning call. A failed fetch refuses the plan without retry:
 `base <base>: fetch from <remote> failed: <first line of git's stderr>`.

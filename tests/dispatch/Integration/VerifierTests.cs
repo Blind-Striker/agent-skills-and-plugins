@@ -1,11 +1,50 @@
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
 [Category("Integration")]
 public sealed class VerifierTests
 {
+    [Test]
+    [Timeout(180_000)]
+    public async Task Verify_uses_configured_temp(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var root = Path.Combine(tree.Root, "private-temp");
+        Directory.CreateDirectory(Path.Combine(repo.Root, ".dispatch"));
+        File.WriteAllText(Path.Combine(repo.Root, ".dispatch", "config.jsonc"), new JsonObject
+        {
+            ["schemaVersion"] = 2, ["preferences"] = new JsonObject { ["tempRoot"] = root },
+        }.ToJsonString());
+        await repo.GitAsync(["add", ".dispatch/config.jsonc"], ct);
+        await repo.GitAsync(["commit", "-m", "configure temp"], ct);
+        var command = OperatingSystem.IsWindows()
+            ? "$env:TEMP; $env:TMP; $env:TMPDIR; Set-Content -LiteralPath (Join-Path $env:TEMP 'verify-marker') -Value 'created'"
+            : "printf '%s\\n' \"$TEMP\" \"$TMP\" \"$TMPDIR\"; printf 'created\\n' > \"$TEMP/verify-marker\"";
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        File.WriteAllText(tasks, new JsonObject
+        {
+            ["schemaVersion"] = 2, ["defaults"] = new JsonObject { ["backend"] = "opencode" },
+            ["tasks"] = new JsonArray(new JsonObject { ["id"] = "inspect", ["kind"] = "research", ["base"] = "main",
+                ["route"] = "fixture/model", ["prompt"] = "Inspect.", ["verify"] = new JsonArray(command), ["advisoryVerify"] = new JsonArray(command) }),
+        }.ToJsonString());
+        using var process = new HarnessProcess(tree);
+        (await process.RunAsync(["run", tasks, "--repo", repo.Root], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value))).RequireSuccess("verify run");
+        var ledger = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var temp = Path.Combine(root, Path.GetFileName(ledger), "inspect");
+        var log = File.ReadAllText(Path.Combine(ledger, "inspect", "verify.log")).Replace("\r\n", "\n");
+        var outputs = log.Split("[stdout]\n").Skip(1).Select(part => part.Split("[stderr]")[0].TrimEnd()).ToArray();
+        await Assert.That(outputs).IsEquivalentTo(new[] { $"{temp}\n{temp}\n{temp}", $"{temp}\n{temp}\n{temp}" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(temp, "verify-marker")).Trim()).IsEqualTo("created");
+        var record = JsonNode.Parse(File.ReadAllText(Path.Combine(ledger, "inspect", "task.json")))!;
+        await Assert.That(record["settings"]!["tempRoot"]!["value"]!.GetValue<string>()).IsEqualTo(root);
+        await Assert.That(record["settings"]!["tempRoot"]!["from"]!.GetValue<string>()).IsEqualTo("repo");
+    }
+
     [Test]
     [Timeout(180_000)]
     public async Task Verify_UsesSelectedShell(CancellationToken ct)

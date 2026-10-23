@@ -32,6 +32,7 @@ class TaskPreferences : AnnotatedObject
     public string? ReadOnlyShell { get; set; }
     public string? Network { get; set; }
     public string? Workspace { get; set; }
+    public string? TempRoot { get; set; }
     public string? Commit { get; set; }
     public bool? RawPrompt { get; set; }
 }

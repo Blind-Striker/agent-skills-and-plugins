@@ -17,12 +17,12 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
 
     static EffectiveRule Convert(PolicyRule rule) => new() { Name = rule.Name!, Action = rule.Action!, Resources = rule.Resources! };
 
-    public static (WorkerLaunch Launch, List<string> Removed) BuildLaunch(TaskRecord record, string runId, string backendName, Policy policy)
+    public static (WorkerLaunch Launch, List<string> Removed) BuildLaunch(TaskRecord record, string runId, string backendName, Policy policy, string? tempRoot)
     {
         RouteRef? route;
         if (backendName == "codex") route = CodexBackend.ParseRoute(record.Spec.Route!);
         else RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out route, out _);
-        var (variables, removed) = WorkerEnvironment.Environment(record.Spec.Id!, runId);
+        var (variables, removed) = WorkerEnvironment.Environment(record.Spec.Id!, runId, tempRoot);
         return (new(runId, record.Spec.Id!, record.Spec.Kind!, route!, record.Spec.Agent,
             record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
             record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
@@ -57,7 +57,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         else await Worktree.PrepareAsync(run, ledger, repo, ct, git);
         CheckAllowed(run);
         var record = run.Record;
-        var (launch, removed) = BuildLaunch(record, ledger.RunId, backend.Name, policy);
+        var (launch, removed) = BuildLaunch(record, ledger.RunId, backend.Name, policy, record.Settings.TempRoot?.Value);
         var created = await backend.CreateAsync(launch, ct);
         // Persist the reference before calling PromptAsync, even if that call fails or never returns.
         run.SaveWorker(created.Worker, ledger);

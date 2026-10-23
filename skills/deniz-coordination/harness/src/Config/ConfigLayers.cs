@@ -142,6 +142,7 @@ sealed class ConfigLayers
         task.ReadOnlyShell = settings.ReadOnlyShell?.Value;
         task.Network = settings.Network?.Value;
         task.Workspace = settings.Workspace?.Value;
+        task.TempRoot = settings.TempRoot?.Value;
         task.RawPrompt = settings.RawPrompt?.Value;
     }
 }

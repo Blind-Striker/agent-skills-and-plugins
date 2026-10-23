@@ -53,7 +53,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 ## Preferences
 
 These fields may appear in user or repository `preferences`, task-file `defaults`, or a task.
-Corresponding command-line flags win last. A backend has no tool default for a task.
+Corresponding command-line flags, where available, win last. A backend has no tool default for a task.
 
 | Field | Type | Tool default | Validation and meaning |
 |---|---|---|---|
@@ -65,6 +65,7 @@ Corresponding command-line flags win last. A backend has no tool default for a t
 | `access` | string enum | `workspace` for code and mechanical, otherwise `read-only` | `read-only`, `workspace`, `full`. An explicit value above `maxAccess` fails and names both layers; the tool default is clamped. |
 | `network` | string enum | `on` | `on` or `off`. An explicit `on` forbidden by policy fails; the tool default is clamped. Codex refuses `full` access with network `off`. |
 | `workspace` | string enum | `worktree` | `worktree` or `in-place`. Structured tasks use scratch or a named project folder instead of Git workspace preparation. |
+| `tempRoot` | string, absolute path | Unset | Private temp root; relative or empty values fail with `tempRoot must be an absolute path`. No CLI option; [configuration](config.md#temporary-folders) owns layering and provenance. |
 | `commit` | string enum | `none` in-place; forced `harness` for worktrees | `none` or `harness`. A worktree task entry naming it fails: `task commit is only valid in-place`. Structured tasks never commit. |
 | `rawPrompt` | boolean | `false` | Sends only task text with a normalized final newline. Contracts, standing instructions or structured input conflict: `rawPrompt conflicts with contracts, instructions or structured input`. Rules and scope checks still apply. |
 | `defaultRoutes` | map of backend to string, defaults only | No route | In task-file `defaults`, user or repository preferences. Backend-specific routes provide defaults, not a backend's implicit model selection. |
@@ -116,6 +117,12 @@ the files again. An unprompted task with contracts cannot be reconstructed from 
 it fails with `original contract text is unavailable; cannot start an unprompted task from the ledger`.
 
 ## Scope and workspaces
+
+With `tempRoot`, the private temporary directory is `<tempRoot>/<run>/<task>`, for worktree,
+in-place and structured workers. `<run>` is the dated recorded run id. Workers and ordinary and
+advisory verify commands receive that same directory in `TEMP`, `TMP` and `TMPDIR`; verify still
+runs in the task's working folder. Unset, the layout stays `<worktree root>/<run>/.tmp/<task>`
+(or `<worktree root>/.dispatch-tmp/<task>` without a run). `plan` prints paths without creating them.
 
 Scopes use repository-relative paths and globs. A plain path covers itself and descendants; `*`
 and `?` stay within a segment, `**` crosses directories, and `**/` also matches no directory.

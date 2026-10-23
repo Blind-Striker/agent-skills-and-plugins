@@ -62,7 +62,9 @@ static class Locations
 
     public static string Worktree(string task, string? run = null) => run is null ? Path.Combine(WorktreeRoot, task) : Path.Combine(WorktreeRoot, run, task);
 
-    public static string TaskTemp(string task, string? run = null) => run is null ? Path.Combine(WorktreeRoot, ".dispatch-tmp", task) : Path.Combine(WorktreeRoot, run, ".tmp", task);
+    public static string TaskTemp(string task, string? run = null, string? tempRoot = null) => tempRoot is not null
+        ? Path.Combine(tempRoot, run ?? "", task)
+        : run is null ? Path.Combine(WorktreeRoot, ".dispatch-tmp", task) : Path.Combine(WorktreeRoot, run, ".tmp", task);
 
     public static string ControlRoot => Path.Combine(StateRoot, "control");
 

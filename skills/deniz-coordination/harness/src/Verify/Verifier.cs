@@ -16,7 +16,7 @@ static class Verifier
         {
             var shell = ResolveShell(run.Record.Spec);
             result.VerifyShell = shell;
-            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId).Variables;
+            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId, run.Record.Settings.TempRoot?.Value).Variables;
             environment["MSBUILDDISABLENODEREUSE"] = "1";
             environment["UseSharedCompilation"] = "false";
             foreach (var (command, advisory) in commands)

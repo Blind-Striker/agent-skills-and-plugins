@@ -84,6 +84,15 @@ static partial class Commands
     public static async Task<int> PlanAsync(Args a, CancellationToken ct)
     {
         var plan = await Planner.LoadAsync(a.Require(0, "task file"), a.Get("repo"), AllowList.From(null), ct, args: a);
+        var runId = CreateRunId(RunName(a, plan.File, plan.TasksPath));
+        foreach (var spec in plan.File.Tasks ?? [])
+        {
+            if (spec.Kind == "structured" || plan.Config is null) continue;
+            var root = plan.Config.Effective.Tasks[spec.Id!].Settings.TempRoot;
+            var temp = Locations.TaskTemp(spec.Id!, runId, root?.Value);
+            var source = root?.Value is null ? "(default)" : $"(tempRoot from {root.From})";
+            Console.WriteLine($"INFO {spec.Id}: temp {temp} {source}");
+        }
         foreach (var (id, task) in plan.Config?.Effective.Tasks ?? [])
             if (task.Settings.Access?.Value == "read-only" && task.Settings.ReadOnlyShell is { } shell)
                 Console.WriteLine($"INFO {id}: {ReadOnlyShellNote(task.Settings.Backend?.Value, shell.Value)} (readOnlyShell {shell.Value}, from {shell.From})");

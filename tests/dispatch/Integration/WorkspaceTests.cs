@@ -8,6 +8,33 @@ public sealed class WorkspaceTests
 {
     [Test]
     [Timeout(60_000)]
+    public async Task TempRoot_preparation_and_cleanup_are_task_scoped(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var root = Directory.CreateDirectory(Path.Combine(tree.Root, "private-temp")).FullName;
+        var sibling = Path.Combine(Directory.CreateDirectory(Path.Combine(root, "sibling")).FullName, "keep");
+        File.WriteAllText(sibling, "keep");
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        var document = System.Text.Json.Nodes.JsonNode.Parse("""{"schemaVersion":2,"run":"cleanup-temp","defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""")!;
+        document["defaults"]!["tempRoot"] = root;
+        File.WriteAllText(tasks, document.ToJsonString());
+        using var process = new HarnessProcess(tree);
+        (await process.RunAsync(["run", tasks, "--repo", repo.Root], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value))).RequireSuccess("run");
+        var ledger = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var run = Path.GetFileName(ledger);
+        var temp = Path.Combine(root, run, "inspect");
+        await Assert.That(Directory.Exists(temp)).IsTrue();
+        using var clean = new HarnessProcess(tree);
+        (await clean.RunAsync(["clean", run], ct,
+            FakeOpenCode.Environment(tree, "cleanup.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value))).RequireSuccess("clean");
+        await Assert.That(Directory.Exists(temp)).IsFalse();
+        await Assert.That(File.ReadAllText(sibling)).IsEqualTo("keep");
+    }
+
+    [Test]
+    [Timeout(60_000)]
     public async Task InPlace_CommitNone_SnapshotsAnUnbornBranch(CancellationToken ct)
     {
         using var lab = new CoreLab("unborn");

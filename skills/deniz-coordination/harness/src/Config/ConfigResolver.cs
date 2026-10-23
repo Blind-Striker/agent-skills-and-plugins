@@ -41,7 +41,7 @@ static class ConfigResolver
     {
         var layers = new (string Name, TaskPreferences? Preferences)[] { ("user", user), ("repo", repo),
             ("task-file-defaults", defaults), ("task", task), ("cli", cli) };
-        Setting<T> Pick<T>(T fallback, Func<TaskPreferences, T?> select) where T : class
+        Setting<T> Pick<T>(T? fallback, Func<TaskPreferences, T?> select) where T : class
         {
             var setting = new Setting<T> { Value = fallback, From = "tool" };
             foreach (var (name, prefs) in layers)
@@ -57,6 +57,7 @@ static class ConfigResolver
             ReadOnlyShell = Pick("decline", p => p.ReadOnlyShell),
             Network = Pick("on", p => p.Network),
             Workspace = Pick("worktree", p => p.Workspace),
+            TempRoot = Pick<string>(null, p => p.TempRoot),
             Commit = Pick("none", p => p.Commit),
             Dir = new() { Value = task.Dir ?? defaults?.Dir ?? ".", From = task.Dir is not null ? "task" : defaults?.Dir is not null ? "task-file-defaults" : "tool" },
             RawPrompt = new() { Value = false, From = "tool" },
@@ -82,6 +83,8 @@ static class ConfigResolver
             throw new HarnessException($"{task.Id}: structured tasks require readOnlyShell decline; escalate came from {settings.ReadOnlyShell.From}");
         Choice(settings.Network, "on", "off");
         Choice(settings.Workspace, "worktree", "in-place");
+        if (settings.TempRoot.Value is { } tempRoot && !Path.IsPathFullyQualified(tempRoot))
+            throw new HarnessException("tempRoot must be an absolute path");
         Choice(settings.Commit, "none", "harness");
         if (settings.TimeoutMinutes.Value is < 1 or > 720) throw new HarnessException($"{task.Id}: timeoutMinutes from {settings.TimeoutMinutes.From} must be between 1 and 720");
         if (settings.Workspace.Value == "worktree")

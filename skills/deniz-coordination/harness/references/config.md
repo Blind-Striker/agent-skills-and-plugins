@@ -50,6 +50,7 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `backends` | object | Built-in executable discovery | User only: `<layer>: backends is user-layer-only`. Only `opencode` and `codex` members exist. |
 | `preferences.maxParallel` | integer | `3` | Last configured value, task-file top level, then `--max`; must be 1 through 8. Set it by the host's memory, not by the task count: each task whose verify runs a test suite starts many processes. |
 | `preferences.defaultRoutes` | map of backend to string | No default routes | Keys must be `opencode` or `codex`: `<layer>: defaultRoutes keys must be opencode or codex`. Values use backend notation without a qualification prefix. |
+| `preferences.tempRoot` | string, absolute path | Unset | Root for private worker and verify temporary folders; see [temporary folders](#temporary-folders). |
 | `locations.ledgerRoot` | string path | `<state root>/ledgers` | Absolute or starts with `~`; otherwise `locations.ledgerRoot must be an absolute path (or ~ in user locations)`. |
 | `locations.worktreeRoot` | string path | `<state root>/worktrees` | Same expansion and validation as ledger root. |
 | `backends.opencode.executable` | string path | Discover `opencode` | Absolute: `<layer>: backends executable must be an absolute path`. |
@@ -76,6 +77,21 @@ On the command line the flag is `--read-only-shell <value>`. A `structured` task
 `decline`; setting `escalate` on one is a plan error. The resolved value and its layer appear in
 `task.json` and, for a read-only task, in an `INFO` line of `plan` output
 ([plan](cli.md#read-only-shell-lines-in-plan)).
+
+### Temporary folders
+
+`tempRoot` resolves from user preferences, committed repository `.dispatch/config.jsonc`
+preferences, task-file `defaults`, then the task entry; the last non-null value wins. There is no
+command-line option. Repository working-copy edits do not apply until committed. A machine-specific
+root belongs in user configuration or the private task file, not a public repository's config.
+
+The effective non-null value must be an absolute path: relative, empty, tilde and platform-relative
+paths fail with `tempRoot must be an absolute path`; neither tilde nor variables are expanded.
+The value and source (`user`, `repo`, `task-file-defaults` or `task`) are frozen in `config.json`
+and recorded in `task.json`. Recovery, verification and cleanup use the recorded root, not current
+preferences. `clean` deletes only `<tempRoot>/<run>/<task>`, leaving sibling folders and the root.
+See [task files](task-file.md#scope-and-workspaces) for layouts and environment semantics, and
+[plan output](cli.md) for the resolved path.
 
 ## Layering
 

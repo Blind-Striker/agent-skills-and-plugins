@@ -107,6 +107,7 @@ sealed class EffectiveSettings
     public Setting<string>? ReadOnlyShell { get; set; }
     public Setting<string>? Network { get; set; }
     public Setting<string>? Workspace { get; set; }
+    public Setting<string>? TempRoot { get; set; }
     public Setting<string>? Dir { get; set; }
     public Setting<string>? Commit { get; set; }
     public Setting<bool>? RawPrompt { get; set; }

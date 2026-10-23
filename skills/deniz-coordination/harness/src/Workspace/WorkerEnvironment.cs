@@ -43,12 +43,12 @@ static class WorkerEnvironment
     }
 
     // The session's shell environment without credentials, with a per-task TEMP.
-    public static (Dictionary<string, string> Variables, List<string> Removed) Environment(string task, string? run = null)
+    public static (Dictionary<string, string> Variables, List<string> Removed) Environment(string task, string? run = null, string? tempRoot = null)
     {
         var scrubbed = Scrub(Snapshot());
         var variables = scrubbed.Variables;
         var removed = scrubbed.Removed;
-        var temp = Locations.TaskTemp(task, run);
+        var temp = Locations.TaskTemp(task, run, tempRoot);
         Directory.CreateDirectory(temp);
         variables["TEMP"] = temp;
         variables["TMP"] = temp;

@@ -9,6 +9,43 @@ public sealed class ConfigTests
     static TaskFile Tasks() => new() { Tasks = [new TaskSpec { Id = "inspect", Kind = "research", Route = "fixture/model" }] };
 
     [Test]
+    public async Task TempRoot_layers_preserve_value_and_source()
+    {
+        var root = Path.GetTempPath();
+        for (var mask = 0; mask < 16; mask++)
+        {
+            var file = Tasks();
+            file.Defaults = new() { Backend = "opencode", TempRoot = (mask & 4) != 0 ? Path.Combine(root, "defaults") : null };
+            file.Tasks![0].TempRoot = (mask & 8) != 0 ? Path.Combine(root, "task") : null;
+            var settings = ConfigResolver.Resolve(file,
+                user: new() { Preferences = new() { TempRoot = (mask & 1) != 0 ? Path.Combine(root, "user") : null } },
+                repo: new() { Preferences = new() { TempRoot = (mask & 2) != 0 ? Path.Combine(root, "repo") : null } }).Tasks["inspect"].Settings;
+            var expected = (mask & 8) != 0 ? (Path.Combine(root, "task"), "task")
+                : (mask & 4) != 0 ? (Path.Combine(root, "defaults"), "task-file-defaults")
+                : (mask & 2) != 0 ? (Path.Combine(root, "repo"), "repo")
+                : (mask & 1) != 0 ? (Path.Combine(root, "user"), "user") : ((string?)null, "tool");
+            await Assert.That(settings.TempRoot?.Value).IsEqualTo(expected.Item1);
+            await Assert.That(settings.TempRoot?.From).IsEqualTo(expected.Item2);
+            ConfigLayers.Apply(file.Tasks[0], settings);
+            await Assert.That(file.Tasks[0].TempRoot).IsEqualTo(expected.Item1);
+        }
+    }
+
+    [Test]
+    public async Task TempRoot_requires_absolute_path()
+    {
+        var paths = new[] { "relative", "", "~/temp", OperatingSystem.IsWindows() ? @"C:temp" : "./temp",
+            OperatingSystem.IsWindows() ? @"\temp" : "../temp" };
+        foreach (var path in paths)
+        {
+            var file = Tasks();
+            file.Defaults = new() { Backend = "opencode", TempRoot = path };
+            var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+            await Assert.That(error!.Message).IsEqualTo("tempRoot must be an absolute path");
+        }
+    }
+
+    [Test]
     public async Task OpenCode_model_tags_preserve_colons_and_only_backend_names_are_prefixes()
     {
         var file = Tasks();

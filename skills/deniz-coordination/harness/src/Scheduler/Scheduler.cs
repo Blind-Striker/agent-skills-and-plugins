@@ -64,7 +64,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             {
                 Starter(run).CheckAllowed(run);
                 if (run.Record.Spec.Kind == "structured") StructuredOutput.Load(ledger, run);
-                var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
+                var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId, run.Record.Settings.TempRoot?.Value);
                 ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
                 var prompt = new WorkerPrompt(run.Record.Spec.RawPrompt == true ? "Continue the task from where you stopped."
                     : "Continue the task from where you stopped. The standing instructions and the task above still apply.", true);
