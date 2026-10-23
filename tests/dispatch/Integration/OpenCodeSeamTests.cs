@@ -260,9 +260,10 @@ public sealed class OpenCodeSeamTests
         await lab.Backend.ReattachAsync(worker, ct);
         worker = await lab.Backend.PromptAsync(worker, new("Continue.", true), ct);
         var report = await lab.Backend.CollectAsync(worker, ct);
+        // input counts every prompt token: uncached, cache read and cache write (each fixture call writes 8).
         await Assert.That(report.Calls).IsNotNull();
         await Assert.That(report.Calls!.Select(x => (x.Input, x.CacheRead, x.Output, x.Reasoning)).ToArray())
-            .IsEquivalentTo(new (double?, double?, double?, double?)[] { (17, 3, 7, 2), (0, 0, 0, 0), (2, 0, 3, 0) }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new (double?, double?, double?, double?)[] { (28, 3, 7, 2), (8, 0, 0, 0), (10, 0, 3, 0) }, CollectionOrdering.Matching);
         await Assert.That(report.FinalText).IsEqualTo("Current final");
         await Assert.That(report.ExecutionError).IsNull();
         await Assert.That(report.Complete).IsTrue();
