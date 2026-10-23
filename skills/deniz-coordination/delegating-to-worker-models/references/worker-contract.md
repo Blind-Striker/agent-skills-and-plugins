@@ -91,6 +91,8 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 - Your green run must be the run the verify step repeats. Do not redirect build outputs, do not change
   test helpers to fit your own layout, and do not repoint HOME, USERPROFILE, or a tool's home folder.
   Put caches and temporary files under the system temp folder, never inside or above the workspace.
+  These rules cover what you add and run. A repository's existing test fixtures, which may isolate
+  HOME or place temporary trees for their own tests, are part of its gate: leave them as they are.
 
 ## Verification
 

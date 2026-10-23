@@ -16,16 +16,17 @@ The worker block below goes to the worker verbatim.
 
 ---
 
-worker-model sol v2
+worker-model sol v3
 
 Countermeasures for this model's observed habits. The coordinator sends this block after the worker
 contract.
 
 ## Budget and checkpoint
 
-The task text gives a split budget (production lines, test lines). Before you edit, write a plan of at
-most 15 lines: the functions you add, change, or delete, and the projected figures. If the projection
-exceeds either budget, stop and report the figures. Do not trim to fit, and do not continue.
+When the task text gives a split budget (production lines, test lines), write a plan of at most 15
+lines before you edit: the functions you add, change, or delete, and the projected figures. If the
+projection exceeds either budget, stop and report the figures. Do not trim to fit, and do not
+continue. A task without a budget (a plan-only task, a review) has no checkpoint.
 
 ## Build the smallest thing
 

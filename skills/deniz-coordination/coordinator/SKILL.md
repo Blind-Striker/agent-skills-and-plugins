@@ -50,8 +50,18 @@ First load `deniz-coordination:delegating-to-worker-models`; it holds the craft 
   step, and report it at the end.
 - A decision you did not foresee joins one list that you give the user at the end, with the rest
   finished. Stop mid-run only before an action the repository reserves.
+- In a run that spans hours or several lanes, send the user plain-language progress as it happens, one
+  or two sentences per item and without waiting for an answer, and put the open questions into the next
+  progress message, each with its options and your recommendation. In a single run they wait for the
+  end.
+- Every finding gets a record before the work moves on: an issue, a line in your run notes, or a
+  decline with its reason. A message is not a record.
 - When the user asks for a goal-driven run, run until the request's acceptance is met or only
   reserved actions remain, with no check-ins at phase ends.
+- A user's question asks for an answer: answer it, show the options, and change nothing it asks
+  about until the user chooses. An approval covers what the user saw: a public bulk action runs on the
+  exact list you showed, and a short word ("ok", "continue", or its equivalent in the user's language)
+  approves a reserved action only when your previous message asked about that one action alone.
 - The repository's approval rules bind you, the session that talks to the user; workers run the
   tasks you give them, and outward actions stay with you. A repository whose rules would bind workers
   too gets a finding with the line you propose; you do not edit another repository's rules.

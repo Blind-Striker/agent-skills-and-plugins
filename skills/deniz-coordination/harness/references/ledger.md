@@ -222,12 +222,12 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `routesUsed` | string array | `[]` | Routes actually reported by backend. |
 | `routeVerified` | boolean | `false` | True only when the backend reported at least one route and every reported route is the requested one (`routeResolved` for an `agent` task). A request without a variant accepts any variant of its model. False when nothing was reported or a route cannot be read; only a true value supports a claim about which model did the work. |
 | `routeDrift` | string array | Absent without drift | Reported routes of another model, or of another variant when the request named one. Adds the `route-drift` failure. |
-| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. |
+| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. Codex reports no cost, so a Codex task is measured by `tokens` alone. |
 | `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
-| `tokens.input` | number | Absent if unavailable | Input count. |
+| `tokens.input` | number | Absent if unavailable | Input count, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. |
 | `tokens.output` | number | Absent if unavailable | Output count. |
 | `tokens.reasoning` | number | Absent if unavailable | Reasoning count. |
-| `tokens.cacheRead` | number | Absent if unavailable | Cache-read count. |
+| `tokens.cacheRead` | number | Absent if unavailable | The cached part of `tokens.input`; `input` minus `cacheRead` is what the task sent uncached. |
 | `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count. |
 | `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
 | `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode's comes from its model catalog. |
