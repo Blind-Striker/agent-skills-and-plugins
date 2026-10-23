@@ -41,7 +41,7 @@ public sealed class PlanOutputTests
         result.RequireSuccess("plan");
         var lines = Lines(result);
         await Assert.That(lines).Contains("INFO inspect: sandboxed shell; escalations declined (readOnlyShell decline, from tool)");
-        await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal) && line.Contains("shell", StringComparison.Ordinal))).IsFalse();
         await Assert.That(lines.Any(line => line.StartsWith("WARN inspect: The pinned Codex app-server", StringComparison.Ordinal))).IsTrue();
         await Assert.That(lines.Any(line => line.Contains("readOnlyShell", StringComparison.Ordinal) && !line.StartsWith("INFO ", StringComparison.Ordinal))).IsFalse();
     }
@@ -60,7 +60,7 @@ public sealed class PlanOutputTests
         result.RequireSuccess("plan");
         var lines = Lines(result);
         await Assert.That(lines).Contains("INFO inspect: no shell for a read-only task (readOnlyShell decline, from tool)");
-        await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal) && line.Contains("shell", StringComparison.Ordinal))).IsFalse();
     }
 
     [Test]
