@@ -255,6 +255,7 @@ sealed class TaskResult : VersionedContract
     public string? Deliverable { get; set; }
     public ValidationResult? Validation { get; set; }
     public string? ExecutionError { get; set; }
+    public List<string>? RecoveredErrors { get; set; }
     public string? Error { get; set; }
 }
 

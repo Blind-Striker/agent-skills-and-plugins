@@ -53,13 +53,18 @@ sealed partial class OpenCodeBackend
                 .FindModel(OpenCodeModels.From(ran))?.Limit.Context;
         }
         catch (Exception ex) when (ex is not OperationCanceledException) { }
+        // A session that succeeded recovered from errors on earlier model calls (a dropped provider stream);
+        // only the idle marker's error or the last call's error is the turn's error.
+        var succeeded = info.Outcome == SessionInfoOutcome.Succeeded;
+        var error = idle?.Error?.Message ?? (succeeded ? assistants.FirstOrDefault()?.Error?.Message
+            : assistants.FirstOrDefault(x => x.Error is not null)?.Error?.Message);
+        var recovered = succeeded ? assistants.Skip(1).Where(x => x.Error is not null).Select(x => x.Error!.Message).Reverse().ToList() : [];
         return new(info.Outcome?.ToString().ToLowerInvariant() ?? "lost", text, new TokenTotals
         {
             Input = info.Tokens.Input + info.Tokens.Cache.Read + info.Tokens.Cache.Write, Output = info.Tokens.Output, Reasoning = info.Tokens.Reasoning,
             CacheRead = info.Tokens.Cache.Read, CacheWrite = info.Tokens.Cache.Write,
         }, info.Cost, assistants.All(x => x.Tokens is not null),
             assistants.Select(x => OpenCodeModels.From(x.Model).ToString()).Distinct().ToList(),
-            idle?.Error?.Message ?? assistants.FirstOrDefault(x => x.Error is not null)?.Error?.Message, complete,
-            ContextWindow: contextWindow, Calls: calls);
+            error, complete, ContextWindow: contextWindow, Calls: calls, RecoveredErrors: recovered.Count > 0 ? recovered : null);
     }
 }

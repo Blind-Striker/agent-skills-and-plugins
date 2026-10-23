@@ -62,6 +62,11 @@ static class Settlement
             if (result.Error is not null)
                 result.Failures.Add(result.Error.StartsWith("harness commit failed:", StringComparison.Ordinal) ? "commit-failed" : "settle-error");
             if (result.ExecutionError is not null) result.Failures.Add("settle-error");
+            if (report.RecoveredErrors is { Count: > 0 } recovered)
+            {
+                result.RecoveredErrors = [.. recovered];
+                (result.Warnings ??= []).Add("recovered-model-error");
+            }
             if (string.IsNullOrWhiteSpace(report.FinalText))
             {
                 result.Failures.Add("no-final-text");
