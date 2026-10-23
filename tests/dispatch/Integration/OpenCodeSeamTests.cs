@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -219,6 +220,65 @@ public sealed class OpenCodeSeamTests
         await Assert.That(core.Ledger.LoadRecord(run.Id).Session.Id).IsEqualTo("worker");
         await Assert.That(run.State).IsEqualTo(TaskState.Dispatching);
         await Assert.That(core.Ledger.Read().Any(x => x.Type == "final")).IsFalse();
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Calls_include_token_assistants_across_pages_and_continuations(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "interrupted"));
+        lab.Add("PUT /api/session/worker/environment", status: 204);
+        lab.Prompt("worker", "new-turn", 10);
+        var session = OpenCodeLab.Session("worker", "succeeded", 12);
+        session["data"]!["tokens"]!["input"] = 900;
+        session["data"]!["cost"] = 1.25;
+        lab.Add("GET /api/session/worker", session, repeat: true);
+        var newest = Assistant("answer", "Current final", 2, 0, 3, 0);
+        var tokenless = Assistant("pending", "", 1, 1, 1, 1);
+        tokenless.Remove("tokens");
+        tokenless["model"]!["id"] = "old-model";
+        var prompt = JsonNode.Parse("""{"id":"new-turn","type":"user","time":{"created":10},"text":"Continue."}""")!;
+        var first = lab.Add("GET /api/session/worker/message", new JsonObject
+        {
+            ["data"] = new JsonArray(newest, prompt, tokenless), ["cursor"] = new JsonObject { ["next"] = "older" },
+        });
+        first["query"] = new JsonObject { ["order"] = "desc" };
+        var oldIdle = JsonNode.Parse("""{"id":"old-idle","type":"idle","time":{"created":3},"outcome":"failed","error":{"type":"fixture","message":"old error"}}""")!;
+        var second = lab.Add("GET /api/session/worker/message", new JsonObject
+        {
+            ["data"] = new JsonArray(oldIdle, Assistant("zero", "Zero call", 0, 0, 0, 0), Assistant("old", "Old final", 17, 3, 7, 2)),
+            ["cursor"] = new JsonObject(),
+        });
+        second["query"] = new JsonObject { ["cursor"] = "older" };
+        lab.Steps.Add(first.DeepClone().AsObject());
+        lab.Steps.Add(second.DeepClone().AsObject());
+        // The existing settlement reread must rebuild calls, not append them again.
+        newest["content"]![0]!["text"] = "";
+        lab.Write();
+        var worker = new WorkerRef("opencode", "task", "worker", "old-turn", new() { ["promptCreated"] = 2d });
+        await lab.Backend.ReattachAsync(worker, ct);
+        worker = await lab.Backend.PromptAsync(worker, new("Continue.", true), ct);
+        var report = await lab.Backend.CollectAsync(worker, ct);
+        await Assert.That(report.Calls).IsNotNull();
+        await Assert.That(report.Calls!.Select(x => (x.Input, x.CacheRead, x.Output, x.Reasoning)).ToArray())
+            .IsEquivalentTo(new (double?, double?, double?, double?)[] { (17, 3, 7, 2), (0, 0, 0, 0), (2, 0, 3, 0) }, CollectionOrdering.Matching);
+        await Assert.That(report.FinalText).IsEqualTo("Current final");
+        await Assert.That(report.ExecutionError).IsNull();
+        await Assert.That(report.Complete).IsTrue();
+        await Assert.That(report.UsageComplete).IsTrue();
+        await Assert.That(report.RoutesUsed).IsEquivalentTo(new[] { "fixture/model#default" }, CollectionOrdering.Matching);
+        await Assert.That(report.Usage.Input).IsEqualTo(900);
+        await Assert.That(report.Cost).IsEqualTo(1.25);
+
+        static JsonObject Assistant(string id, string text, int input, int cached, int output, int reasoning) => new()
+        {
+            ["id"] = id, ["type"] = "assistant", ["time"] = new JsonObject { ["created"] = 2, ["completed"] = 3 },
+            ["agent"] = "build", ["model"] = new JsonObject { ["id"] = "model", ["providerID"] = "fixture" },
+            ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
+            ["tokens"] = new JsonObject { ["input"] = input, ["output"] = output, ["reasoning"] = reasoning,
+                ["cache"] = new JsonObject { ["read"] = cached, ["write"] = 8 } },
+        };
     }
 
     [Test]

@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -298,6 +299,33 @@ public sealed class CodexBackendTests
             await Assert.That(Path.GetFileName(workerHome)).IsEqualTo("codex-edit");
             await Assert.That(Directory.Exists(workerHome)).IsFalse();
         }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Calls_preserve_last_breakdowns_in_notification_order(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + """
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"totalTokens":120,"inputTokens":100,"cachedInputTokens":30,"outputTokens":20,"reasoningOutputTokens":5,"cacheWriteInputTokens":8},"last":{"totalTokens":24,"inputTokens":17,"cachedInputTokens":3,"outputTokens":7,"reasoningOutputTokens":2,"cacheWriteInputTokens":8}}}}
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$otherThreadId","turnId":"child-turn","tokenUsage":{"total":{"totalTokens":80,"inputTokens":50,"cachedInputTokens":20,"outputTokens":30,"reasoningOutputTokens":10,"cacheWriteInputTokens":8},"last":{"totalTokens":16,"inputTokens":8,"cachedInputTokens":4,"outputTokens":8,"reasoningOutputTokens":1,"cacheWriteInputTokens":8}}}}
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"old-turn","tokenUsage":{"total":{"totalTokens":1800,"inputTokens":900,"cachedInputTokens":90,"outputTokens":900,"reasoningOutputTokens":90,"cacheWriteInputTokens":8},"last":{"totalTokens":18,"inputTokens":9,"cachedInputTokens":5,"outputTokens":9,"reasoningOutputTokens":3,"cacheWriteInputTokens":8}}}}
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"totalTokens":240,"inputTokens":200,"cachedInputTokens":60,"outputTokens":40,"reasoningOutputTokens":10,"cacheWriteInputTokens":8},"last":{"totalTokens":5,"inputTokens":2,"cachedInputTokens":0,"outputTokens":3,"reasoningOutputTokens":0,"cacheWriteInputTokens":8}}}}
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$otherThreadId","turnId":"child-turn","tokenUsage":{"total":{"totalTokens":95,"inputTokens":60,"cachedInputTokens":25,"outputTokens":35,"reasoningOutputTokens":12,"cacheWriteInputTokens":8},"last":{"totalTokens":11,"inputTokens":6,"cachedInputTokens":1,"outputTokens":5,"reasoningOutputTokens":0,"cacheWriteInputTokens":8}}}}
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"totalTokens":360,"inputTokens":300,"cachedInputTokens":90,"outputTokens":60,"reasoningOutputTokens":15,"cacheWriteInputTokens":8},"last":{"totalTokens":20,"inputTokens":11,"cachedInputTokens":6,"outputTokens":9,"reasoningOutputTokens":4,"cacheWriteInputTokens":8}}}}
+
+            """ + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), cancellationToken);
+        var report = await backend.CollectAsync(worker, cancellationToken);
+        await Assert.That(report.Calls).IsNotNull();
+        await Assert.That(report.Calls!.Select(x => (x.Input, x.CacheRead, x.Output, x.Reasoning)).ToArray())
+            .IsEquivalentTo(new (double?, double?, double?, double?)[] { (17, 3, 7, 2), (2, 0, 3, 0), (11, 6, 9, 4) }, CollectionOrdering.Matching);
+        await Assert.That(report.Usage.Input).IsEqualTo(360);
+        await Assert.That(report.Usage.Output).IsEqualTo(95);
+        await Assert.That(report.FinalText).IsEqualTo("Completed.");
     }
 
     [Test]

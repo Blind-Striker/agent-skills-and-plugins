@@ -1,4 +1,5 @@
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -6,6 +7,54 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel]
 public sealed class SettlementStateTests
 {
+    [Test]
+    [Arguments(false, "succeeded")]
+    [Arguments(true, "succeeded")]
+    [Arguments(false, "failed")]
+    [Arguments(true, "failed")]
+    [Timeout(30_000)]
+    public async Task Settlement_records_ordered_usage_without_changing_totals(bool structured, string outcome, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        if (structured) lab.Structured(run);
+        run.SaveWorker(new("opencode", run.Id, "worker", "turn", new()), lab.Ledger);
+        lab.Backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport(outcome,
+            structured ? StructuredLab.Valid : "Report\n\nStatus: done",
+            new() { Input = 901, CacheRead = 21, Output = 73, Reasoning = 11, CacheWrite = 8 }, 1.25, true,
+            ["fixture/model#default"], null, true, Calls:
+            [new() { Input = 17, CacheRead = 3, Output = 7, Reasoning = 2, CacheWrite = 8 }, new() { Input = 0, Reasoning = 0 }]));
+
+        var before = DateTimeOffset.UtcNow;
+        await Settlement.SettleAsync(lab.Backend, lab.Ledger, run, null, ct, lab.Git);
+        var after = DateTimeOffset.UtcNow;
+        var events = lab.Ledger.Read();
+        var usage = events.Where(x => x.Type == "usage").ToArray();
+        await Assert.That(usage.Select(x => x.Data!.ToJsonString()).ToArray()).IsEquivalentTo(new[]
+        {
+            """{"input":17,"cacheRead":3,"output":7,"reasoning":2}""", """{"input":0,"reasoning":0}""",
+        }, CollectionOrdering.Matching);
+        await Assert.That(usage.Select(x => x.Task).ToArray()).IsEquivalentTo(new string?[] { "inspect", "inspect" }, CollectionOrdering.Matching);
+        await Assert.That(usage.Select(x => x.Run).ToArray()).IsEquivalentTo(new[] { lab.Ledger.RunId, lab.Ledger.RunId }, CollectionOrdering.Matching);
+        await Assert.That(events.TakeLast(3).Select(x => x.Type).ToArray())
+            .IsEquivalentTo(new[] { "usage", "usage", "outcome" }, CollectionOrdering.Matching);
+        foreach (var entry in usage)
+        {
+            await Assert.That(DateTimeOffset.Parse(entry.Ts)).IsGreaterThanOrEqualTo(before.AddSeconds(-1));
+            await Assert.That(DateTimeOffset.Parse(entry.Ts)).IsLessThanOrEqualTo(after);
+        }
+        var saved = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(saved.Tokens!.Input).IsEqualTo(901);
+        await Assert.That(saved.Tokens.CacheRead).IsEqualTo(21);
+        await Assert.That(saved.Tokens.Output).IsEqualTo(73);
+        await Assert.That(saved.Tokens.Reasoning).IsEqualTo(11);
+        await Assert.That(saved.Tokens.CacheWrite).IsEqualTo(8);
+        await Assert.That(saved.Cost).IsEqualTo(1.25);
+        await Assert.That(saved.TokensComplete).IsTrue();
+        await Assert.That(saved.State).IsEqualTo(outcome == "succeeded" ? "done" : "failed");
+        await Assert.That(saved.Failures).IsEquivalentTo(outcome == "succeeded" ? Array.Empty<string>() : ["outcome:failed"], CollectionOrdering.Matching);
+    }
+
     [Test]
     [Arguments("verify", "failed", "verify-failed")]
     [Arguments("scope", "failed", "out-of-scope")]

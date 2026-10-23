@@ -11,6 +11,7 @@ sealed partial class OpenCodeBackend
         var session = (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id);
         SessionInfo info;
         List<SessionMessageAssistant> assistants;
+        List<TokenTotals> calls;
         SessionMessageIdle? idle;
         string? text;
         var reads = 0;
@@ -22,10 +23,16 @@ sealed partial class OpenCodeBackend
             if (response.IsError) throw new HarnessException($"session {worker.Id} collection failed: HTTP {response.Status} {response.Error?.Tag}");
             info = response.Session;
             assistants = [];
+            calls = [];
             idle = null;
+            var current = true;
             await foreach (var message in session.EnumerateMessagesAsync(new SessionMessageListRequest { Order = ListOrder.Descending }, cancellationToken: ct))
             {
-                if (message.Id is not null && message.Id == worker.Turn) break;
+                if (message is SessionMessageAssistant { Tokens: { } tokens })
+                    calls.Add(new() { Input = tokens.Input, CacheRead = tokens.Cache.Read,
+                        Output = tokens.Output, Reasoning = tokens.Reasoning });
+                if (message.Id is not null && message.Id == worker.Turn) current = false;
+                if (!current) continue;
                 if (message is SessionMessageAssistant assistant) assistants.Add(assistant);
                 if (message is SessionMessageIdle marker && idle is null) idle = marker;
             }
@@ -35,6 +42,7 @@ sealed partial class OpenCodeBackend
             if (complete || ++reads >= Constants.SettleReads) break;
             await Task.Delay(Constants.SettleReadDelay, ct);
         }
+        calls.Reverse();
         return new(info.Outcome?.ToString().ToLowerInvariant() ?? "lost", text, new TokenTotals
         {
             Input = info.Tokens.Input, Output = info.Tokens.Output, Reasoning = info.Tokens.Reasoning,
@@ -42,6 +50,6 @@ sealed partial class OpenCodeBackend
         }, info.Cost, assistants.All(x => x.Tokens is not null),
             assistants.Select(x => OpenCodeModels.From(x.Model).ToString()).Distinct().ToList(),
             idle?.Error?.Message ?? assistants.FirstOrDefault(x => x.Error is not null)?.Error?.Message, complete,
-            ContextWindow: worker.State["contextWindow"]?.GetValue<long>());
+            ContextWindow: worker.State["contextWindow"]?.GetValue<long>(), Calls: calls);
     }
 }
