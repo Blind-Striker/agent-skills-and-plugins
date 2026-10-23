@@ -285,16 +285,10 @@ static class Probe
                     argv.AddRange(ResolveInit() ?? throw new InvalidOperationException("init missing"));
                 }
 
-                if (mode == "bwrap-nodie")
-                {
-                    // sh records opencode's own exit status. The SDK appends its arguments after the
-                    // argv, so they arrive as "$@"; "$0" is opencode. A trap with a command keeps sh
-                    // alive through the group's SIGTERM, and exec resets it to default for opencode.
-                    argv.AddRange(["/bin/sh", "-c", $"trap 'true' TERM; \"$0\" serve \"$@\"; echo $? > '{ExitFile(l)}'", opencode]);
-                    return [.. argv];
-                }
-
-                argv.AddRange([opencode, "serve"]);
+                // In every bwrap mode sh records opencode's own exit status in <state>/opencode.exit; a
+                // missing file means sh and opencode were killed before opencode finished. The SDK
+                // appends its arguments after the argv, so they arrive as "$@"; "$0" is opencode.
+                argv.AddRange(["/bin/sh", "-c", ExitScript(mode, l), opencode]);
                 return [.. argv];
             case "seatbelt":
                 return ["sandbox-exec", "-p", SeatbeltProfile(l), opencode, "serve"];
@@ -304,6 +298,20 @@ static class Probe
     }
 
     static string ExitFile(Layout l) => Path.Combine(l.State, "opencode.exit");
+
+    static bool UsesExitFile(string mode) => mode.StartsWith("bwrap", StringComparison.Ordinal);
+
+    // Without tini, sh shares opencode's process group, so the SDK's group SIGTERM reaches opencode
+    // directly; a trap with a command keeps sh alive through it, and exec resets it to default for
+    // opencode. Under tini, sh leads a group of its own and is the only process tini signals, so sh
+    // runs opencode in the background (stdin passed through fd 3, since an asynchronous command
+    // otherwise reads /dev/null) and forwards TERM, INT and HUP to it.
+    static string ExitScript(string mode, Layout l) => mode == "bwrap-tini"
+        ? "exec 3<&0; \"$0\" serve \"$@\" <&3 3<&- & pid=$!; exec 3<&-; "
+          + "trap 'kill -TERM \"$pid\" 2>/dev/null' TERM; trap 'kill -INT \"$pid\" 2>/dev/null' INT; trap 'kill -HUP \"$pid\" 2>/dev/null' HUP; "
+          + "while :; do wait \"$pid\"; s=$?; kill -0 \"$pid\" 2>/dev/null || break; done; "
+          + $"echo \"$s\" > '{ExitFile(l)}'"
+        : $"trap 'true' TERM; \"$0\" serve \"$@\"; echo $? > '{ExitFile(l)}'";
 
     static string SeatbeltProfile(Layout l) => $"""
         (version 1)
@@ -568,6 +576,7 @@ static class Probe
         }
 
         stop["disposeMs"] = sw.ElapsedMilliseconds;
+        var sinceDispose = Stopwatch.StartNew();
         stop["exitedCompletedAtDisposeReturn"] = server.Exited.IsCompleted;
         try
         {
@@ -610,8 +619,21 @@ static class Probe
         if (mode == "bwrap-nodie")
         {
             stop["survivorsAfter10s"] = ProcsJson(survivors);
+        }
+
+        if (UsesExitFile(mode))
+        {
+            var untilFive = TimeSpan.FromSeconds(5) - sinceDispose.Elapsed;
+            if (untilFive > TimeSpan.Zero)
+            {
+                await Task.Delay(untilFive);
+            }
+
+            stop["exitFileCheckedMsAfterDispose"] = sinceDispose.ElapsedMilliseconds;
+            stop["opencodeExitFileExists"] = File.Exists(ExitFile(l));
             stop["opencodeExitFile"] = ReadOrNull(ExitFile(l));
             try { File.Delete(ExitFile(l)); } catch { }
+            survivors = Survivors(tree);
         }
 
         stop["cleanup"] = Cleanup(survivors, tree);
@@ -729,10 +751,13 @@ static class Probe
         var survivors15 = Survivors(tree);
         entry["survivorsAfter15s"] = ProcsJson(survivors15);
         entry["cleanup"] = Cleanup(survivors15, tree);
-        if (mode == "bwrap-nodie")
+        if (UsesExitFile(mode))
         {
+            entry["opencodeExitFileExists"] = File.Exists(ExitFile(l));
             entry["opencodeExitFile"] = ReadOrNull(ExitFile(l));
+            try { File.Delete(ExitFile(l)); } catch { }
         }
+
         lock (stderr) entry["holdStderr"] = stderr.ToString();
         return entry;
     }
@@ -1023,7 +1048,11 @@ static class Probe
         if (r["gracefulStop"]?["survivorsAfter10s"] is { } after10)
         {
             rows.Add(("nodie: survivors after 10 s", Count(after10).ToString()));
-            rows.Add(("nodie: opencode.exit", S(r["gracefulStop"]?["opencodeExitFile"])));
+        }
+
+        if (r["gracefulStop"]?["opencodeExitFileExists"] is { } exitExists)
+        {
+            rows.Add(("opencode.exit 5 s after dispose: exists / content", $"{S(exitExists)} / {S(r["gracefulStop"]?["opencodeExitFile"])}"));
         }
 
         if (r["unshareNet"] is { } un)
