@@ -72,6 +72,14 @@ static partial class Commands
                     }
                     var probe = await backend.ProbeAsync(new(directory, repo is null ? null : TaskStarter.RulesFor(layers.Policy)), ct);
                     foreach (var check in probe.Checks ?? []) Check(check.Name, check.Ok, check.Detail);
+                    if (OperatingSystem.IsWindows() && backend is CodexBackend codex && probe.Ready)
+                    {
+                        var home = Environment.GetEnvironmentVariable("CODEX_HOME")
+                            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+                        var mode = CodexHome.ReadWindowsSandbox(home) ?? "not set";
+                        Check("windows sandbox", true, $"mode {mode}; readiness {codex.WindowsSandboxReadiness}",
+                            warn: codex.WindowsSandboxReadiness != "ready");
+                    }
                     var pin = selected == "codex" ? CodexBackend.PinnedVersion : Constants.PinnedUpstream;
                     Check("pin", probe.Version == pin, $"installed {probe.Version ?? "unknown"}, pin {pin}");
                     Check("ready", probe.Ready, probe.Ready ? "backend probe passed" : "backend probe failed");

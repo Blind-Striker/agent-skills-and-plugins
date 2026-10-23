@@ -15,6 +15,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public string Name => "codex";
     public BackendCapabilities Capabilities { get; } = new("sandbox", "approval-gate", "native", false);
     public ChannelReader<WorkerSignal> Signals => signals.Reader;
+    public string? WindowsSandboxReadiness => probe?.Readiness;
     internal IEnumerable<(WorkerRef Worker, CodexProcess Process)> WorkerProcesses => connections.Keys
         .Where(connection => connection.Worker is not null).Select(connection => (connection.Worker!, connection.Process));
 

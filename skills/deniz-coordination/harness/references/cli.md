@@ -86,6 +86,14 @@ that falls back to `clean-partial` is `WARN`, including the profile reason; vali
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
+On Windows only, a successful Codex probe also prints exactly one
+`PASS  windows sandbox: mode <mode>; readiness <status>` check. Mode comes from the user's Codex
+home configuration: `elevated`, `unelevated`, `mxc`, or `not set` when unset. Readiness is the raw
+`windowsSandbox/readiness` status (`ready`, `notConfigured`, or `updateRequired`), not the requested
+task sandbox. Any status other than `ready` makes this line `WARN`, never `FAIL`; it contributes
+only to the warning count, not a failure exit. Existing sandboxed-access readiness validation can
+still fail. This line is absent on Linux/macOS and from OpenCode sections.
+
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | No performed check failed; warnings are allowed. |

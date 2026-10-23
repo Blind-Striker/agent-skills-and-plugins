@@ -266,6 +266,54 @@ public sealed class CatalogCommandTests
     }
 
     [Test]
+    [Arguments("elevated", "ready", "PASS")]
+    [Arguments(null, "ready", "PASS")]
+    [Arguments("elevated", "notConfigured", "WARN")]
+    [Arguments(null, "notConfigured", "WARN")]
+    [Timeout(180_000)]
+    public async Task Selfcheck_WindowsSandbox_reports_mode_and_readiness(string? mode, string readiness, string level, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox readiness is Windows-only.");
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: false);
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "config.toml"), mode is null ? "" : $"[windows]\nsandbox = '{mode}'\n");
+        var probe = Path.Combine(lab.Scenarios, "preflight.jsonl");
+        File.WriteAllText(probe, File.ReadAllText(probe).Replace("\"ready\"", $"\"{readiness}\"", StringComparison.Ordinal));
+        var task = Path.Combine(lab.Scenarios, "task.jsonl");
+        File.WriteAllText(task, File.ReadAllText(task).Replace("workspaceWrite", "dangerFullAccess", StringComparison.Ordinal));
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--backend", "codex", "--access", "full"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.Contains("  windows sandbox:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { $"{level}  windows sandbox: mode {mode ?? "not set"}; readiness {readiness}" }, CollectionOrdering.Matching);
+        result.RequireSuccess("Windows sandbox selfcheck");
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r'))
+            .IsEqualTo($"selfcheck passed ({(level == "WARN" ? 1 : 0)} warning(s))");
+        await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "windowsSandbox/readiness")).IsEqualTo(2);
+    }
+
+    [Test]
+    [Arguments("codex")]
+    [Arguments("opencode")]
+    [Timeout(180_000)]
+    public async Task Selfcheck_WindowsSandbox_is_absent_elsewhere(string backend, CancellationToken ct)
+    {
+        if (backend == "codex" && OperatingSystem.IsWindows()) Skip.Test("Codex reports Windows sandbox readiness on Windows.");
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: true);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--backend", backend], ct, environment);
+
+        result.RequireSuccess("non-Windows-sandbox selfcheck");
+        await Assert.That(result.Stdout).Contains($"backend {backend}");
+        await Assert.That(result.Stdout).Contains("PASS  launch:");
+        await Assert.That(result.Stdout).DoesNotContain("windows sandbox:");
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Selfcheck_reports_degraded_clean_profile_as_warning(CancellationToken ct)
     {

@@ -95,6 +95,19 @@ public sealed class CodexHomeTests
     }
 
     [Test]
+    [Arguments("[windows]\nsandbox = 'mxc'\n")]
+    [Arguments("windows = { sandbox = 'mxc' }\n")]
+    public async Task ReadWindowsSandbox_reads_mxc(string config)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows sandbox selection is Windows-only.");
+        using var tree = new TempTree();
+        var userHome = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(userHome, "config.toml"), config);
+
+        await Assert.That(CodexHome.ReadWindowsSandbox(userHome)).IsEqualTo("mxc");
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     public async Task Clean_home_links_only_sandbox_readiness_files_and_cleanup_preserves_sources(bool probe)
