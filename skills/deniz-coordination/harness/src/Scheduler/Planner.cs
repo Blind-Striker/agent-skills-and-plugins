@@ -56,6 +56,7 @@ static class Planner
         if (specs.Count == 0) plan.Errors.Add("no tasks");
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var contractCache = new Dictionary<string, Prompt.Contract>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var fetches = new Dictionary<(string Remote, string Branch), ProcessResult>();
         foreach (var spec in specs)
         {
             var e = new List<string>();
@@ -124,7 +125,33 @@ static class Planner
             else if (spec.ReviewOf is null)
             {
                 if (spec.Base is null) e.Add("base is required (a branch, tag or commit of the repo)");
-                else if ((await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}")).ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
+                else
+                {
+                    var symbolic = await git.RunAsync(repo, ct, "rev-parse", "--symbolic-full-name", spec.Base);
+                    var reference = symbolic.Output.Trim();
+                    string? remote = null;
+                    ProcessResult? fetch = null;
+                    if (symbolic.ExitCode == 0 && reference.StartsWith("refs/remotes/", StringComparison.Ordinal)
+                        && reference["refs/remotes/".Length..].Split('/', 2) is [var remoteName, var branch])
+                    {
+                        remote = remoteName;
+                        var key = (remote, branch);
+                        if (!fetches.TryGetValue(key, out fetch))
+                        {
+                            fetch = await git.RunAsync(repo, ct, "fetch", "--quiet", remote, branch);
+                            fetches.Add(key, fetch);
+                        }
+                    }
+                    if (fetch is { ExitCode: not 0 })
+                        e.Add($"base {spec.Base}: fetch from {remote} failed: {fetch.Stderr.Split('\n')[0].TrimEnd('\r')}");
+                    else
+                    {
+                        var resolved = await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}");
+                        if (resolved.ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
+                        else plan.Info.Add($"{spec.Id}: base {spec.Base} resolves to {resolved.Output.Trim()[..12]}"
+                            + (remote is null ? "" : $" (fetched from {remote})"));
+                    }
+                }
             }
             else if (spec.Base is not null)
             {

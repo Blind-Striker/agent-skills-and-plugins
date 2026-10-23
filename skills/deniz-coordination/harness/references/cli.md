@@ -118,6 +118,13 @@ starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. 
 `plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
 creates no recorded run.
 
+Remote-tracking bases are fetched before resolution with `git fetch --quiet <remote> <branch>`,
+once per distinct remote and branch per planning call. A failed fetch refuses the plan without retry:
+`base <base>: fetch from <remote> failed: <first line of git's stderr>`.
+Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 hex digits>` for each
+base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
+are not fetched.
+
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | All checks passed; warnings are allowed. |

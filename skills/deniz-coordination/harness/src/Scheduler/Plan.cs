@@ -27,8 +27,11 @@ sealed class Plan
 
     public List<string> Warnings { get; } = [];
 
+    public List<string> Info { get; } = [];
+
     public void PrintWarnings()
     {
+        foreach (var info in Info) Console.WriteLine($"INFO {info}");
         foreach (var warning in Warnings) Console.WriteLine($"WARN {warning}");
     }
 
