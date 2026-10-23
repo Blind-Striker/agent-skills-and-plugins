@@ -57,6 +57,11 @@ arguments produce `missing <argument>`. Invalid preference choices name the valu
 
 ## Commands
 
+Every command that takes `<run>` (`status`, `asks`, `reply`, `cancel`, `collect`, `resume`,
+`clean`) accepts the full run id or the bare run name. A ledger folder named exactly as given wins;
+otherwise a bare name resolves when exactly one ledger is named `<yyyy-MM-dd>-<name>`. With several
+matches the command refuses with exit 2 and lists their run ids.
+
 ### `selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]`
 
 Sends no prompt. Prints the allow-list and policy, the state, worktree and control folders, and on
@@ -128,9 +133,10 @@ that fell back to `clean-partial` counts as `full`.
 ### `run <tasks.jsonc> [--repo <path>] [--run <name>] [--max <n>] [--contract <path>]... [--policy <file>]`
 
 Performs plan and live checks, locks and claims a new run, freezes inputs, queues tasks, supervises
-workers, settles results and runs verification. It blocks until the scheduler ends and prints a
-status summary. Ledger writes also print event lines. The `run` process is the supervisor and owns
-the backend processes: never kill it (use `cancel`). To keep working while it runs, start it from a
+workers, settles results and runs verification. Once it claims the run it prints
+`run <run id>: ledger <folder>`. It blocks until the scheduler ends and prints a status summary.
+Ledger writes also print event lines. The `run` process is the supervisor and owns the backend
+processes: never kill it (use `cancel`). To keep working while it runs, start it from a
 background shell and watch with `status <run>` from another shell; when a run's own process ends
 without settling every task, `resume <run>` settles what it left. Watch a run through its ledger
 (`status`, `events.jsonl`), not through the shell that started it: a host under memory pressure

@@ -7,6 +7,8 @@ static partial class Commands
     public static string RunName(Args? a, TaskFile file, string tasksPath) =>
         a?.Get("run") ?? file.Run ?? Regex.Replace(Path.GetFileNameWithoutExtension(tasksPath), @"\.tasks\z", "");
 
+    static string RunId(Args a) => Ledger.Resolve(a.Require(0, "run"));
+
     public static async Task<int> RoutesAsync(Args a, CancellationToken ct)
     {
         var dir = Path.GetFullPath(a.Get("repo") ?? throw new HarnessException("routes needs --repo"));
@@ -189,6 +191,7 @@ static partial class Commands
                 claim.Flush(flushToDisk: true);
             }
             catch (IOException) when (!claimed && File.Exists(Path.Combine(ledger.Dir, "run.json"))) { throw RecordedRun(runId); }
+            Console.WriteLine($"run {runId}: ledger {ledger.Dir}");
             if (setupCheckpoint is not null) await setupCheckpoint(info, "claimed");
             File.Copy(plan.TasksPath, Path.Combine(ledger.Dir, "tasks.jsonc"));
             layers.Freeze(ledger.Dir);
@@ -303,7 +306,7 @@ static partial class Commands
             return 0;
         }
 
-        var run = new Ledger(a.Require(0, "run"));
+        var run = new Ledger(RunId(a));
         if (File.Exists(Path.Combine(run.Dir, "run.json"))) Locations.ControlDir(run.RunId);
         else run.EnsureExists();
         Console.WriteLine($"run {run.RunId}{(SupervisorLock.IsHeld(run.RunId) ? " (supervised now)" : "")}");
@@ -337,7 +340,7 @@ static partial class Commands
 
     public static async Task<int> ResumeAsync(Args a, CancellationToken ct)
     {
-        var ledger = new Ledger(a.Require(0, "run"));
+        var ledger = new Ledger(RunId(a));
         var control = Locations.RequireControlFolder(ledger.RunId);
         using var supervisorLock = SupervisorLock.AcquireFolder(control);
         Locations.RequireControlFolder(ledger.RunId, setup: true);
