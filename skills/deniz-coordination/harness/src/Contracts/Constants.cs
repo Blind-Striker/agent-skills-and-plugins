@@ -3,7 +3,7 @@ static class Constants
     public const int SchemaVersion = 2;
     public const string HarnessVersion = "1.0.0";
     // The upstream release the SDK package is generated from.
-    public const string PinnedUpstream = "2.0.32";
+    public const string PinnedUpstream = "2.1.4";
     public const string DefaultPersona = "build";
     public const int DefaultMaxParallel = 3;
     public const int DefaultTimeoutMinutes = 60;

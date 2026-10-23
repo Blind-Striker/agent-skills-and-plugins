@@ -1,4 +1,4 @@
-{"expect":"GET /api/info","repeat":true,"reply":{"version":"2.0.32","pid":"$pid","urls":["$url"],"paths":{"tmp":"$cwd"}}}
+{"expect":"GET /api/info","repeat":true,"reply":{"version":"2.1.4","pid":"$pid","urls":["$url"],"paths":{"tmp":"$cwd"}}}
 {"expect":"GET /api/event","stream":true,"events":[{"id":"evt_connected","type":"server.connected","data":{}}]}
 {"expect":"GET /api/agent","repeat":true,"reply":{"location":{"directory":"$directory"},"data":[{"id":"build","name":"Build","request":{"settings":{},"headers":{},"body":{}},"mode":"primary","hidden":false,"permissions":[]}]}}
 {"expect":"GET /api/model","repeat":true,"reply":{"location":{"directory":"$directory"},"data":[{"id":"model","modelID":"model","providerID":"fixture","name":"Fixture model","capabilities":{"tools":true,"input":["text"],"output":["text"]},"variants":[],"time":{"released":1},"cost":[],"status":"active","enabled":true,"limit":{"context":8192,"output":1024}}]}}

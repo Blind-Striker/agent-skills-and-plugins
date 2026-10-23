@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "module": "deniz-coordination",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "digest": "sha256:afa615f9344a24034179b20df90aab1e3aa62ba3e55a5a8cee91c4fb01da54e8",
   "requiredModules": [
     "deniz-process"
