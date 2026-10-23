@@ -303,6 +303,55 @@ public sealed class CodexBackendTests
 
     [Test]
     [Timeout(180_000)]
+    public async Task Repeated_cumulative_usage_records_only_one_call(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        const string update = """
+            {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"totalTokens":24,"inputTokens":17,"cachedInputTokens":3,"outputTokens":7,"reasoningOutputTokens":2},"last":{"totalTokens":24,"inputTokens":17,"cachedInputTokens":3,"outputTokens":7,"reasoningOutputTokens":2}}}}
+            """;
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + update + "\n" + update + "\n" + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), cancellationToken);
+        var report = await backend.CollectAsync(worker, cancellationToken);
+        await Assert.That(report.Calls!.Select(x => (x.Input, x.CacheRead, x.Output, x.Reasoning)).ToArray())
+            .IsEquivalentTo(new (double?, double?, double?, double?)[] { (17, 3, 7, 2) }, CollectionOrdering.Matching);
+        await Assert.That(report.Usage.Input).IsEqualTo(17);
+        await Assert.That(report.Usage.Output).IsEqualTo(7);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Collect_reports_a_faulted_pumps_exception_without_throwing(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), cancellationToken);
+        await backend.CollectAsync(worker, cancellationToken);
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        var workers = (System.Collections.IEnumerable)typeof(CodexBackend).GetField("workers", flags)!.GetValue(backend)!;
+        var entry = workers.Cast<object>().Single();
+        var connection = entry.GetType().GetProperty("Value")!.GetValue(entry)!;
+        var property = connection.GetType().GetProperty("Pump")!;
+        var pump = (Task)property.GetValue(connection)!;
+        await pump;
+        property.SetValue(connection, Task.FromException(new InvalidOperationException("synthetic pump failure")));
+        try
+        {
+            var report = await backend.CollectAsync(worker, cancellationToken);
+            await Assert.That(report.ExecutionError).Contains("synthetic pump failure");
+            await Assert.That(report.FinalText).IsEqualTo("Completed.");
+            await Assert.That(report.Complete).IsTrue();
+        }
+        finally { property.SetValue(connection, pump); }
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Calls_preserve_last_breakdowns_in_notification_order(CancellationToken cancellationToken)
     {
         using var lab = new CodexLab();

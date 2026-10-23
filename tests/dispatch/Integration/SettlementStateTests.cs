@@ -8,6 +8,36 @@ namespace Dispatch.Tests.Integration;
 public sealed class SettlementStateTests
 {
     [Test]
+    [Timeout(30_000)]
+    public async Task Continued_and_recollected_tasks_write_only_unwritten_calls(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        run.SaveWorker(new("opencode", run.Id, "worker", "turn", new()), lab.Ledger);
+        lab.Ledger.Write("another-task", "usage", new() { ["input"] = 99 });
+        var calls = new List<TokenTotals> { new() { Input = 17, CacheRead = 3, Output = 7, Reasoning = 2 } };
+        lab.Backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Report\n\nStatus: done",
+            new() { Input = calls.Sum(x => x.Input), Output = calls.Sum(x => x.Output) }, null, true,
+            ["fixture/model#default"], null, true, Calls: calls));
+        await Settlement.SettleAsync(lab.Backend, lab.Ledger, run, null, ct, lab.Git);
+        calls.Add(new() { Input = 23, CacheRead = 5, Output = 11, Reasoning = 4 });
+        var continued = new TaskRun { Record = lab.Ledger.LoadRecord(run.Id) };
+        var reopened = new Ledger(lab.Ledger.RunId);
+        continued.SaveWorker(new("opencode", run.Id, "worker", "continued-turn", new()), reopened);
+        await Settlement.SettleAsync(lab.Backend, reopened, continued, null, ct, lab.Git);
+        await Settlement.SettleAsync(lab.Backend, new Ledger(lab.Ledger.RunId), continued, null, ct, lab.Git);
+
+        await Assert.That(reopened.Read().Where(x => x.Type == "usage" && x.Task == run.Id)
+            .Select(x => x.Data!.ToJsonString()).ToArray()).IsEquivalentTo(new[]
+        {
+            """{"input":17,"cacheRead":3,"output":7,"reasoning":2}""",
+            """{"input":23,"cacheRead":5,"output":11,"reasoning":4}""",
+        }, CollectionOrdering.Matching);
+        await Assert.That(reopened.LoadResult(run.Id)!.Tokens!.Input).IsEqualTo(17 + 23);
+        await Assert.That(reopened.LoadResult(run.Id)!.Tokens!.Output).IsEqualTo(7 + 11);
+    }
+
+    [Test]
     [Arguments(false, "succeeded")]
     [Arguments(true, "succeeded")]
     [Arguments(false, "failed")]

@@ -225,13 +225,13 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `routeDrift` | string array | Absent without drift | Reported routes of another model, or of another variant when the request named one. Adds the `route-drift` failure. |
 | `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. Codex reports no cost, so a Codex task is measured by `tokens` alone. |
 | `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
-| `tokens.input` | number | Absent if unavailable | Input count, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. |
+| `tokens.input` | number | Absent if unavailable | Every prompt token, including cache reads and writes, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. opencode's uncached input, cache reads and cache writes are added to match Codex's inclusive input count. |
 | `tokens.output` | number | Absent if unavailable | Output count. |
 | `tokens.reasoning` | number | Absent if unavailable | Reasoning count. |
 | `tokens.cacheRead` | number | Absent if unavailable | The cached part of `tokens.input`; `input` minus `cacheRead` is what the task sent uncached. |
-| `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count. |
+| `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count, retained separately for opencode as well as included in `tokens.input`. |
 | `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
-| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode's comes from its model catalog. |
+| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode looks up the latest reported assistant route in its model catalog at settlement, including under route drift, and omits the window when that model is not listed. |
 | `asks` | integer | `0` | Observed permission asks. |
 | `asksEscalated` | integer | `0` | Asks sent to the operator. |
 | `formsCancelled` | integer | `0` | Cancelled form questions. |
@@ -327,7 +327,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands ran | Verify summary; `failed` counts `verify` commands only. Zero commands can mean skipped or absent. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
-| `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept; cache-write is not included. Codex uses each current-turn own-thread token notification's `last` breakdown (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist; repeated settlement writes another batch. |
+| `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
 | `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |

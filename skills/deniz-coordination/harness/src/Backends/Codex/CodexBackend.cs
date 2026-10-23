@@ -264,8 +264,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                                 : data.Deserialize(CodexJson.Wire.CodexItemCompletedNotification)!.Item;
                             if (notification.Method == "item/completed" && taskTurn && item.Type == "agentMessage")
                             {
-                                connection.LastText = item.Text;
-                                if (item.Phase == "final_answer") connection.FinalText = item.Text;
+                                lock (connection.StateGate)
+                                {
+                                    connection.LastText = item.Text;
+                                    if (item.Phase == "final_answer") connection.FinalText = item.Text;
+                                }
                             }
                             if (item.Type is "commandExecution" or "fileChange" && (!taskThread || taskTurn))
                             {
@@ -286,18 +289,19 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                             var usage = data.Deserialize(CodexJson.Wire.CodexThreadTokenUsageUpdatedNotification)!;
                             lock (connection.StateGate)
                             {
+                                var changed = !connection.Usage.TryGetValue(usage.ThreadId, out var previous) || previous != usage.TokenUsage.Total;
                                 connection.Usage[usage.ThreadId] = usage.TokenUsage.Total;
                                 connection.UsageComplete |= taskTurn;
                                 if (taskThread && usage.TokenUsage.ModelContextWindow is { } contextWindow)
                                     connection.ContextWindow = contextWindow;
-                                if (taskTurn && usage.TokenUsage.Last is { } last)
+                                if (taskTurn && changed && usage.TokenUsage.Last is { } last)
                                     connection.Calls.Add(new() { Input = last.InputTokens, CacheRead = last.CachedInputTokens,
                                         Output = last.OutputTokens, Reasoning = last.ReasoningOutputTokens });
                             }
                             break;
                         case "model/rerouted":
                             var model = data.GetProperty("toModel").GetString();
-                            connection.Routes.Add($"codex:{model}#{connection.Effort}");
+                            lock (connection.StateGate) connection.Routes.Add($"codex:{model}#{connection.Effort}");
                             break;
                         case "error":
                             var error = data.Deserialize(CodexJson.Wire.CodexErrorNotification)!;
@@ -527,6 +531,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         await Task.WhenAny(connection.Pump, Task.WhenAll(connection.TurnEnded.Task, Task.Delay(TimeSpan.FromSeconds(10), ct))).WaitAsync(ct);
         lock (connection.StateGate)
         {
+            var error = connection.ExecutionError;
+            if (connection.Pump.Exception is { } pumpError)
+                error = error is null ? pumpError.ToString() : $"{error}\n{pumpError}";
             var usage = connection.Usage.Values;
             var totals = usage.Count == 0 ? new TokenTotals() : new TokenTotals
             {
@@ -534,7 +541,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 CacheRead = usage.Sum(x => x.CachedInputTokens), CacheWrite = usage.Sum(x => x.CacheWriteInputTokens),
             };
             return new(connection.Outcome ?? "lost", connection.FinalText ?? connection.LastText, totals, null, connection.UsageComplete,
-                connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped, ContextWindow: connection.ContextWindow, Calls: connection.Calls.ToArray());
+                connection.Routes.ToArray(), error, connection.Stopped, ContextWindow: connection.ContextWindow, Calls: connection.Calls.ToArray());
         }
     }
     public async Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct)

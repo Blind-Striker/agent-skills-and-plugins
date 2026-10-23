@@ -82,7 +82,8 @@ static class Settlement
             result.State = result.Failures.Count == 0 ? "done" : "failed";
         }
         ledger.SaveResult(result);
-        foreach (var call in report.Calls ?? [])
+        var writtenCalls = ledger.Read().Count(line => line.Task == run.Id && line.Type == "usage");
+        foreach (var call in (report.Calls ?? []).Skip(writtenCalls))
         {
             var data = new JsonObject();
             if (call.Input is { } input) data["input"] = input;

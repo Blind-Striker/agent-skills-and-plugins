@@ -176,7 +176,6 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             ["projectId"] = created.Session.ProjectId,
             ["host"] = HostKey(launch.Modes),
         });
-        if (catalog.FindModel(route)?.Limit.Context is { } contextWindow) worker.State["contextWindow"] = contextWindow;
         lock (eventGate)
         {
             admissions[worker.Id] = [];
