@@ -285,6 +285,17 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 ## Known Gaps
 
+- **A sandbox-denied Codex command leaves no ledger tool event on macOS and Linux:** the dispatch
+  harness's pinned Codex 0.163.0 sends no command item for a code-mode exec whose sandboxed session
+  fails to open. So a sandbox-denied attempt is missing from the ledger, although the sandbox refused
+  it. A request to rerun the command outside the sandbox still arrives as an approval request and is
+  recorded. Windows records the denied attempt. The fault is upstream
+  ([openai/codex#56396](https://github.com/openai/codex/issues/56396)), and the harness states it as a
+  [known limit](../skills/deniz-coordination/harness/references/backends.md). Trigger: every move
+  of the harness's Codex pin rechecks the issue. `CodexPinTests.S6` in `tests/dispatch/` fails as soon as
+  `CodexBackend.PinnedVersion` changes. When a Codex release fixes the issue, do three things: restore the
+  one-event FN3/FN4 assertions on every OS in `tests/dispatch/Functional/RealBackendTests.cs`, drop
+  the known limit here and in the harness reference, and update the test's expected version.
 - **Windows bulk Apply can crash a running OpenCode 2 server:** on v2.0.23 an isolated server died
   with a Bun segmentation fault in its file watcher during a full-estate install or remove in 4 of
   33 sessions, all with the lab on the system volume
