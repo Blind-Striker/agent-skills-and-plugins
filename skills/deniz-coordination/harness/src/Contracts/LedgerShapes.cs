@@ -210,6 +210,7 @@ sealed class VerifyResult
     public double Seconds { get; set; }
     public bool TimedOut { get; set; }
     public bool? Advisory { get; set; }
+    public string? NotRun { get; set; }
 }
 
 sealed class TaskResult : VersionedContract
@@ -245,6 +246,8 @@ sealed class TaskResult : VersionedContract
     public string? CommitMode { get; set; }
     public string? Commit { get; set; }
     public string? DiffStat { get; set; }
+    public string? WipPatch { get; set; }
+    public int? WipFileCount { get; set; }
     public List<string> FilesChanged { get; set; } = [];
     public List<string> OutOfScope { get; set; } = [];
     public List<VerifyResult> Verify { get; set; } = [];
