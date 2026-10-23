@@ -485,6 +485,10 @@ sealed class CodexProcess : IAsyncDisposable
 
     static string ResolveExecutable(string? configured, IReadOnlyDictionary<string, string> environment)
     {
+        if (configured is not null && Path.IsPathFullyQualified(configured)
+            && Path.GetExtension(configured).Equals(".ps1", StringComparison.OrdinalIgnoreCase))
+            throw PowerShellOnly(configured);
+        string? powershell = null;
         try
         {
             if (configured is not null)
@@ -501,18 +505,24 @@ sealed class CodexProcess : IAsyncDisposable
             {
                 var directory = entry.Trim('"');
                 if (!Path.IsPathFullyQualified(directory)) continue;
+                var script = Path.Combine(directory, "codex.ps1");
+                if (powershell is null && File.Exists(script)) powershell = script;
                 foreach (var extension in extensions)
                 {
                     var candidate = Path.Combine(directory, "codex" + extension);
                     if (File.Exists(candidate)) return Executables.Resolve(candidate);
                 }
             }
-            throw new HarnessException("required executable is not on PATH: codex");
+            if (powershell is null) throw new HarnessException("required executable is not on PATH: codex");
         }
         catch (HarnessException exception)
         {
             throw new HarnessException($"cannot start codex: {exception.Message}. Install with npm install -g @openai/codex@{CodexBackend.PinnedVersion} or set backends.codex.executable in user config");
         }
+        throw PowerShellOnly(powershell);
+
+        static HarnessException PowerShellOnly(string path) => new(
+            $"codex resolves only to a PowerShell script ({path}); set backends.codex.executable to its .cmd or .exe");
     }
 
     public static async Task<ProcessResult> CommandAsync(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment,

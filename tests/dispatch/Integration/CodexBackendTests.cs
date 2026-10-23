@@ -122,6 +122,37 @@ public sealed class CodexBackendTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Codex_rejects_PowerShell_only_resolution(bool configured, CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows PowerShell shims only");
+        using var lab = new CodexLab();
+        var first = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "first shim")).FullName;
+        var second = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "second shim")).FullName;
+        var script = Path.Combine(first, "codex.ps1");
+        File.WriteAllText(script, "exit 97\n");
+        File.WriteAllText(Path.Combine(second, "codex.ps1"), "exit 98\n");
+        lab.Environment["PATH"] = first + Path.PathSeparator + second;
+        lab.Environment["PATHEXT"] = ".PS1;.CMD;.EXE;.BAT;.COM";
+        var context = new BackendContext(Path.Combine(lab.Tree.Root, "profiles"), configured ? script : null, new Dictionary<string, string>());
+        var expected = $"codex resolves only to a PowerShell script ({script}); set backends.codex.executable to its .cmd or .exe";
+
+        foreach (var version in new[] { true, false })
+        {
+            var commandError = await Assert.ThrowsAsync<HarnessException>(() => CodexProcess.CommandAsync(
+                context, lab.Tree.Repository, lab.Environment, version, cancellationToken));
+            await Assert.That(commandError!.Message).IsEqualTo(expected);
+        }
+        var startError = await Assert.ThrowsAsync<HarnessException>(async () =>
+        {
+            await using var process = CodexProcess.Start(context, lab.Tree.Repository, lab.Environment);
+        });
+        await Assert.That(startError!.Message).IsEqualTo(expected);
+    }
+
+    [Test]
     [Arguments("crash", "outcome:lost")]
     [Arguments("no-final", "no-final-text")]
     [Timeout(180_000)]

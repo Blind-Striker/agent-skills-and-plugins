@@ -5,10 +5,12 @@ static partial class Commands
         var userPath = new UserPathGuard(userPathReader);
         if (userPath.SelfCheckWarning is { } warning) Console.Error.WriteLine(warning);
         var checks = new List<ProbeCheck>();
-        void Check(string name, bool ok, string detail)
+        var warnings = 0;
+        void Check(string name, bool ok, string detail, bool warn = false)
         {
             checks.Add(new(name, ok, detail));
-            Console.WriteLine($"{(ok ? "PASS" : "FAIL")}  {name}: {detail}");
+            if (ok && warn) warnings++;
+            Console.WriteLine($"{(!ok ? "FAIL" : warn ? "WARN" : "PASS")}  {name}: {detail}");
         }
 
         var tasksPath = a.Positional.FirstOrDefault();
@@ -118,7 +120,8 @@ static partial class Commands
                         new("clean", settings.Project!.Value!, settings.Access!.Value!, settings.Network!.Value!, "worktree"), directory)], ct);
                     foreach (var result in clean)
                     {
-                        Check("clean profile", result.Errors.Count == 0, result.Profile + (result.ProfileReason is null ? "" : $"; {result.ProfileReason}"));
+                        Check("clean profile", result.Errors.Count == 0, result.Profile + (result.ProfileReason is null ? "" : $"; {result.ProfileReason}"),
+                            warn: result.Profile == "clean-partial");
                         foreach (var error in result.Errors) Check("clean profile validation", false, error);
                         foreach (var detail in result.Warnings) Console.WriteLine($"warning: {detail}");
                     }
@@ -201,7 +204,7 @@ static partial class Commands
             }
         }
         var failed = checks.Count(x => !x.Ok);
-        Console.WriteLine(failed == 0 ? "selfcheck passed" : $"selfcheck: {failed} check(s) failed");
+        Console.WriteLine(failed == 0 ? $"selfcheck passed ({warnings} warning(s))" : $"selfcheck: {failed} check(s) failed");
         return failed == 0 ? 0 : 1;
     }
 

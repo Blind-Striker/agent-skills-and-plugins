@@ -266,6 +266,67 @@ public sealed class CatalogCommandTests
     }
 
     [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_reports_degraded_clean_profile_as_warning(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: false);
+        File.Delete(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"));
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--backend", "codex"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.Contains("  clean profile:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "WARN  clean profile: clean-partial; user home has no auth.json" }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.StartsWith("WARN  ", StringComparison.Ordinal) || x.StartsWith("FAIL  ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "WARN  clean profile: clean-partial; user home has no auth.json" }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r')).IsEqualTo("selfcheck passed (1 warning(s))");
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_counts_zero_warnings(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: false);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--backend", "codex"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.Contains("  clean profile:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "PASS  clean profile: clean" }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r')).IsEqualTo("selfcheck passed (0 warning(s))");
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_warning_does_not_hide_launch_failure(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: false);
+        File.Delete(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"));
+        var task = Path.Combine(lab.Scenarios, "task.jsonl");
+        File.WriteAllText(task, File.ReadAllText(task).Replace("workspaceWrite", "readOnly", StringComparison.Ordinal));
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--backend", "codex"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.StartsWith("WARN  ", StringComparison.Ordinal) || x.StartsWith("FAIL  ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] {
+                "WARN  clean profile: clean-partial; user home has no auth.json",
+                "FAIL  launch: Codex sandbox mismatch: requested workspaceWrite, applied readOnly",
+            }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r')).IsEqualTo("selfcheck: 1 check(s) failed");
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+    }
+
+    [Test]
     [Arguments("pin")]
     [Arguments("login")]
     [Timeout(180_000)]

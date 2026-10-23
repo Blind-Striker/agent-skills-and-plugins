@@ -79,11 +79,14 @@ release succeeds; otherwise `FAIL  launch: <exception message>` makes the exit c
 continue for other backends. Synthetic task temporary folders and backend-owned homes are cleaned up.
 With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
 removes it afterwards; without one it prints `repository checks skipped`. Its temporary folder is
-removed on exit. Prints `PASS` or `FAIL` per check, then `selfcheck passed` or a failed-check count.
+removed on exit. Prints `PASS`, `WARN` or `FAIL` per check. A successful clean-profile validation
+that falls back to `clean-partial` is `WARN`, including the profile reason; validation errors remain
+`FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
+`WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
 | Exit | Type | Meaning |
 |---|---|---|
-| `0` | integer | All performed checks passed. |
+| `0` | integer | No performed check failed; warnings are allowed. |
 | `1` | integer | A reported check failed, including worktree preparation or a caught live backend failure. |
 | `2` | integer | Checks could not start or an uncaught setup/configuration error occurred. |
 
@@ -92,6 +95,14 @@ removed on exit. Prints `PASS` or `FAIL` per check, then `selfcheck passed` or a
 `selfcheck` and `routes` cover every configured backend, each in its own labelled section. A task
 route may carry its backend prefix, such as `codex:<model>#<effort>`, when it matches the task's
 resolved `backend`; a prefix naming another backend is a plan error that names both.
+
+Codex executable resolution is shared by version/login commands, clean-home probes and worker
+launches. A configured absolute `backends.codex.executable` takes precedence over PATH. On Windows,
+PATH discovery skips relative directories and prefers supported `.exe`, `.cmd`, `.bat` and `.com`
+shims over `.ps1`, preserving PATH and PATHEXT order among supported candidates. It remembers the
+first `.ps1` only to diagnose a lookup with no supported candidate. A configured `.ps1` is also
+rejected, without falling back to PATH. Both cases report:
+`codex resolves only to a PowerShell script (<path>); set backends.codex.executable to its .cmd or .exe`.
 
 ### Windows user PATH guard
 
