@@ -85,6 +85,10 @@ static class ConfigResolver
         Choice(settings.Workspace, "worktree", "in-place");
         if (settings.TempRoot.Value is { } tempRoot && !Path.IsPathFullyQualified(tempRoot))
             throw new HarnessException("tempRoot must be an absolute path");
+        if (settings.TempRoot.Value is { } absoluteTempRoot)
+            foreach (var (root, name) in new[] { (Locations.WorktreeRoot, "worktree root"), (Locations.LedgerRoot, "ledger root") })
+                if (Worktree.IsInside(absoluteTempRoot, root))
+                    throw new HarnessException($"{task.Id}: tempRoot from {settings.TempRoot.From} must be outside the {name}");
         Choice(settings.Commit, "none", "harness");
         if (settings.TimeoutMinutes.Value is < 1 or > 720) throw new HarnessException($"{task.Id}: timeoutMinutes from {settings.TimeoutMinutes.From} must be between 1 and 720");
         if (settings.Workspace.Value == "worktree")

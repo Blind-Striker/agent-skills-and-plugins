@@ -26,7 +26,15 @@ sealed class Git
     }
 
     public static Git ForTask(string task, string? run = null, string? control = null) => new(executable.Value,
-        control ?? commandControl.Value.Path, WorkerEnvironment.Environment(task, run).Variables);
+        control ?? commandControl.Value.Path, WorkerEnvironment.Environment(task, run, RecordedTempRoot(task, run)).Variables);
+
+    // A recorded task keeps the temp root it was planned with, also after a restart.
+    public static string? RecordedTempRoot(string task, string? run)
+    {
+        var ledger = run is null ? null : new Ledger(run);
+        return ledger is not null && File.Exists(Path.Combine(ledger.Dir, task, "task.json"))
+            ? ledger.LoadRecord(task).Settings.TempRoot?.Value : null;
+    }
 
     public string ControlFolder => controlFolder;
 

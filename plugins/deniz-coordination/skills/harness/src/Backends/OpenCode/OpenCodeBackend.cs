@@ -176,7 +176,6 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             ["projectId"] = created.Session.ProjectId,
             ["host"] = HostKey(launch.Modes),
         });
-        if (catalog.FindModel(route)?.Limit.Context is { } contextWindow) worker.State["contextWindow"] = contextWindow;
         lock (eventGate)
         {
             admissions[worker.Id] = [];
@@ -209,7 +208,8 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         {
             lock (eventGate) admissions[worker.Id] = [];
             var variables = launches.TryGetValue(worker.Id, out var launch) ? launch.Environment
-                : WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id")).Variables;
+                : WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id"),
+                    Git.RecordedTempRoot(worker.TaskId, runId)).Variables;
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
         }

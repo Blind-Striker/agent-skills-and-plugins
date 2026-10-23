@@ -94,28 +94,73 @@ static class Worktree
     public static async Task<bool> CleanAsync(Ledger ledger, TaskRecord record, string repo, bool force, CancellationToken ct, Git? runner = null)
     {
         var task = record.Spec.Id!;
-        Scratch.Delete(record, ledger);
-        var git = runner ?? Runner(ledger, task);
-        if (!InPlace(record) && record.Workspace is { Path: { } path, Branch: { } branch })
+        var step = "workspace";
+        try
         {
-            var exists = Directory.Exists(path);
-            var branchExists = (await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0;
-            var dirty = exists && await DirtyAsync(git, path, ct);
-            var merged = !branchExists || (record.Workspace.BaseRef is { } baseRef &&
-                (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", branch, baseRef)).ExitCode == 0);
-            if (!force && (dirty || !merged))
+            Scratch.Delete(record, ledger);
+            var git = runner ?? Runner(ledger, task);
+            if (!InPlace(record) && record.Workspace is { Path: { } path, Branch: { } branch })
             {
-                Console.WriteLine($"{task}: refused (dirty or unmerged worktree); --force removes it anyway");
-                return false;
+                async Task<string?> Registration()
+                {
+                    // Listing is read-only; a repeat clean can have already removed the baseline.
+                    var reader = Git.ForTask(task, ledger.RunId, git.ControlFolder);
+                    var entries = (await reader.CheckAsync(repo, ct, "worktree", "list", "--porcelain", "-z")).Split("\0\0", StringSplitOptions.RemoveEmptyEntries);
+                    if (entries.Select(x => x.Split('\0')).Any(x => x.Contains("branch refs/heads/" + branch)
+                        && !x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal) && Locations.Same(v[9..], path))))
+                        throw new HarnessException($"branch registration ownership does not match: {branch}");
+                    var entry = entries.Select(x => x.Split('\0')).FirstOrDefault(x => x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal) && Locations.Same(v[9..], path)));
+                    if (entry is not null && !entry.Contains("branch refs/heads/" + branch))
+                        throw new HarnessException($"worktree registration ownership does not match: {path}");
+                    return entry is null ? null : string.Join('\0', entry);
+                }
+                var registration = await Registration();
+                var exists = Directory.Exists(path);
+                var link = Path.Combine(path, ".git");
+                var intact = exists && File.Exists(link) && File.ReadAllText(link) is { } text && text.StartsWith("gitdir: ", StringComparison.Ordinal)
+                    && Directory.Exists(Path.GetFullPath(text[8..].Trim(), path));
+                if (Directory.Exists(link)) throw new HarnessException($"refused an unrecognized worktree: {path}");
+                if (exists && !force && !intact)
+                {
+                    Console.WriteLine($"{task}: worktree partially removed ({path}); clean --force finishes the removal");
+                    return false;
+                }
+                if (exists && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || intact && registration is null)
+                    throw new HarnessException($"refused an unrecognized worktree: {path}");
+                var branchExists = (await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0;
+                if ((exists || registration is not null || branchExists) && Directory.Exists(Locations.ControlDir(ledger.RunId)))
+                    await new GitConfigGate(git).CheckAsync(repo, ct);
+                var dirty = !force && intact && await DirtyAsync(git, path, ct);
+                var merged = force || !branchExists || (record.Workspace.BaseRef is { } baseRef &&
+                    (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", branch, baseRef)).ExitCode == 0);
+                if (!force && (dirty || !merged))
+                {
+                    Console.WriteLine($"{task}: refused (dirty or unmerged worktree); --force removes it anyway");
+                    return false;
+                }
+                if (registration?.Split('\0').Any(x => x == "locked" || x.StartsWith("locked ", StringComparison.Ordinal)) == true)
+                    throw new HarnessException($"worktree is locked: {path}");
+                if (force && !intact) DeleteTemp(path);
+                if (registration is not null)
+                    await git.CheckAsync(repo, ct, force || !exists ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]);
+                if (Path.Exists(path) || await Registration() is not null) throw new HarnessException($"worktree removal did not remove {path}");
+                step = "branch";
+                if (branchExists) await git.CheckAsync(repo, ct, "branch", force ? "-D" : "-d", branch);
+                if ((await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0)
+                    throw new HarnessException($"branch removal did not remove {branch}");
             }
-            if (exists && (await git.RunAsync(repo, ct, force
-                ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path])).ExitCode != 0) return false;
-            if (branchExists && (await git.RunAsync(repo, ct, "branch", force ? "-D" : "-d", branch)).ExitCode != 0) return false;
+            step = "temp";
+            foreach (var temp in Locations.CleanupTemps(ledger, record)) DeleteTemp(temp);
+            step = "index";
+            Snapshot.Delete(git, task);
+            if (Path.Exists(Snapshot.Index(git, task))) throw new HarnessException("temporary index remains");
+            return true;
         }
-        DeleteTemp(Locations.TaskTemp(task, ledger.RunId, record.Settings.TempRoot?.Value));
-        Snapshot.Delete(git, task);
-        ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
-        return true;
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
+        {
+            ex.Data["step"] = step;
+            throw;
+        }
     }
 
     static void DeleteTemp(string path)
@@ -124,6 +169,7 @@ static class Worktree
         foreach (var file in Directory.EnumerateFiles(path, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint }))
             File.SetAttributes(file, File.GetAttributes(file) & ~FileAttributes.ReadOnly);
         Directory.Delete(path, recursive: true);
+        if (Path.Exists(path)) throw new HarnessException($"removal did not remove {path}");
     }
 }
 

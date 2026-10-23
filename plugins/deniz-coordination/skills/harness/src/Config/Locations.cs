@@ -66,6 +66,44 @@ static class Locations
         ? Path.Combine(tempRoot, run ?? "", task)
         : run is null ? Path.Combine(WorktreeRoot, ".dispatch-tmp", task) : Path.Combine(WorktreeRoot, run, ".tmp", task);
 
+    static string CleanupRoot(Ledger ledger) => File.Exists(Path.Combine(ledger.Dir, "config.json"))
+        ? ConfigLayers.Frozen(ledger.Dir).Locations?.WorktreeRoot ?? WorktreeRoot : WorktreeRoot;
+
+    public static IEnumerable<string> CleanupTemps(Ledger ledger, TaskRecord record)
+    {
+        if (record.Settings.TempRoot?.Value is { } root) yield return TaskTemp(record.Spec.Id!, ledger.RunId, root);
+        yield return Path.Combine(CleanupRoot(ledger), ledger.RunId, ".tmp", record.Spec.Id!);
+        if (!global::Worktree.InPlace(record) && record.Workspace.Branch is not null && record.Workspace.Path is { } path
+            && Path.GetFileName(Path.GetDirectoryName(path)) == ledger.RunId)
+            yield return Path.Combine(Path.GetDirectoryName(path)!, ".tmp", record.Spec.Id!);
+    }
+
+    public static IEnumerable<string> CleanupCandidates(Ledger ledger, IReadOnlyList<TaskRecord> records)
+    {
+        var root = CleanupRoot(ledger);
+        var temps = records.SelectMany(record => CleanupTemps(ledger, record)).Select(Path.GetDirectoryName).OfType<string>()
+            .Append(Path.Combine(root, ledger.RunId, ".tmp")).Distinct().ToList();
+        foreach (var temp in temps)
+        {
+            if (Path.GetFileName(temp) == ".tmp")
+                foreach (var child in EmptyDescendants(temp)) yield return child;
+            yield return temp;
+            if (Path.GetFileName(temp) == ".tmp") yield return Path.GetDirectoryName(temp)!;
+        }
+        yield return Path.Combine(root, ".dispatch-tmp", "git");
+        yield return Path.Combine(root, ".dispatch-tmp");
+    }
+
+    static IEnumerable<string> EmptyDescendants(string path)
+    {
+        if (!Directory.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) yield break;
+        foreach (var child in Directory.GetDirectories(path))
+        {
+            foreach (var nested in EmptyDescendants(child)) yield return nested;
+            yield return child;
+        }
+    }
+
     public static string ControlRoot => Path.Combine(StateRoot, "control");
 
     public static string ControlDir(string run)

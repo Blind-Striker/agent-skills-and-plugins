@@ -4,6 +4,9 @@ static class Commit
     {
         var record = run.Record;
         var wt = record.Workspace.Path!;
+        File.Delete(Path.Combine(ledger.TaskDir(run.Id), "wip.patch"));
+        result.WipPatch = null;
+        result.WipFileCount = null;
         var git = (runner ?? Worktree.Runner(ledger, run.Id)).ForWorkspace(ledger, run.Id, (type, data) =>
         {
             if (type == "git-config-changed" && data["blocking"]?.GetValue<bool>() == false)
@@ -14,12 +17,20 @@ static class Commit
         });
         if (Worktree.InPlace(record)) wt = (await git.CheckAsync(wt, ct, "rev-parse", "--show-toplevel")).Trim();
         result.CommitMode = Worktree.CommitMode(record);
-        if (result.CommitMode == "none")
+        var stopped = result.WorkerStatus is "stopped" or "blocked";
+        if (result.CommitMode == "none" || stopped)
         {
-            var start = ledger.Read().Last(x => x.Task == run.Id && x.Type == "worktree").Data!["startTree"]!.GetValue<string>();
+            var start = Worktree.InPlace(record)
+                ? ledger.Read().Last(x => x.Task == run.Id && x.Type == "worktree").Data!["startTree"]!.GetValue<string>()
+                : record.Workspace.BaseSha!;
             var end = await Snapshot.CaptureAsync(git, wt, run.Id, start: false, ct);
             Snapshot.Delete(git, run.Id);
-            await CollectDiffAsync(ledger, run, result, git, wt, start, end, ct);
+            if (result.CommitMode != "none")
+            {
+                var stoppedHead = await git.IdAsync(wt, ct, "rev-parse", "HEAD");
+                result.Commit = stoppedHead == record.Workspace.BaseSha ? null : stoppedHead;
+            }
+            await CollectDiffAsync(ledger, run, result, git, wt, start, end, ct, stopped);
             return;
         }
         if (await Worktree.DirtyAsync(git, wt, ct))
@@ -40,7 +51,7 @@ static class Commit
         if (Worktree.InPlace(record)) Snapshot.Delete(git, run.Id);
     }
 
-    static async Task CollectDiffAsync(Ledger ledger, TaskRun run, TaskResult result, Git git, string wt, string start, string end, CancellationToken ct)
+    static async Task CollectDiffAsync(Ledger ledger, TaskRun run, TaskResult result, Git git, string wt, string start, string end, CancellationToken ct, bool stopped = false)
     {
         var record = run.Record;
         result.DiffStat = (await git.CheckAsync(wt, ct, "diff", "--ignore-submodules=none", "--no-ext-diff", "--no-textconv", "--shortstat", start, end)).Trim();
@@ -49,13 +60,21 @@ static class Commit
         var ignoreCase = await Scope.IgnoreCaseAsync(git, wt, ct);
         result.OutOfScope = record.Spec.Kind is "review" or "research" ? [.. result.FilesChanged]
             : result.FilesChanged.Where(x => IsDispatch(x) || (record.Settings.Scope is { } scope ? !Scope.InScope(x, scope, ignoreCase) : !Scope.InScope(x, record.Spec.Scope, ignoreCase))).ToList();
-        if (result.CommitMode != "none")
+        if (result.CommitMode != "none" && !stopped)
         {
             var leftover = await git.CheckAsync(wt, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--no-renames");
             result.OutOfScope = result.OutOfScope.Concat(leftover.Split('\0', StringSplitOptions.RemoveEmptyEntries).Select(x => x[3..])).Distinct(StringComparer.Ordinal).ToList();
         }
-        var patch = await git.CheckBytesAsync(wt, ct, "diff", "--ignore-submodules=none", "--submodule=short", "--binary", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", start, end);
-        await ledger.WriteArtifactAsync(run.Id, "diff.patch", patch, ct);
+        var patch = await PatchAsync(git, wt, start, end, ct);
+        if (stopped && patch.Length > 0)
+        {
+            await ledger.WriteArtifactAsync(run.Id, "wip.patch", patch, ct);
+            result.WipPatch = "wip.patch";
+            result.WipFileCount = result.FilesChanged.Count;
+        }
+        var diff = stopped && result.CommitMode != "none"
+            ? await PatchAsync(git, wt, record.Workspace.BaseSha!, "HEAD", ct) : patch;
+        await ledger.WriteArtifactAsync(run.Id, "diff.patch", diff, ct);
         var collected = new JsonObject
         {
             ["outcome"] = result.Outcome, ["commit"] = result.Commit, ["diffstat"] = result.DiffStat,
@@ -64,6 +83,9 @@ static class Commit
         if (result.CommitMode == "none") collected["endTree"] = end;
         ledger.Write(run.Id, "collected", collected);
     }
+
+    static Task<byte[]> PatchAsync(Git git, string wt, string start, string end, CancellationToken ct) =>
+        git.CheckBytesAsync(wt, ct, "diff", "--ignore-submodules=none", "--submodule=short", "--binary", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", start, end);
 
     static bool IsDispatch(string path) => path == ".dispatch" || path.StartsWith(".dispatch/", StringComparison.Ordinal);
 }

@@ -83,6 +83,8 @@ and the command exits 2. A supplied task file retains the empty-selection refusa
 Named backends are never skipped: a missing executable remains a failed check (exit 1).
 Resolved executables undergo every existing probe and launch check; version, login and launch
 failures remain failures and do not prevent checking the next backend.
+An executable that resolves but is unusable, including PowerShell-only Codex, is installed for
+discovery purposes and fails its backend check with the resolver's diagnostic, rather than being skipped.
 Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
@@ -98,9 +100,11 @@ that falls back to `clean-partial` is `WARN`, including the profile reason; vali
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
-With a repository on Windows, `worktree path depth` checks the resolved worktree root with synthetic
-task id `selfcheck` plus the longest tracked path at HEAD: `PASS` below 248 characters, `WARN` at 248
-or more, never `FAIL`. See [worktree root configuration](config.md#files-and-locations) for the trade-off.
+With a repository on Windows, `worktree path depth` measures
+`<resolved worktree root>\<yyyy-MM-dd>-selfcheck\selfcheck` (today's UTC date) plus the longest tracked
+path at HEAD: `PASS` below 248 characters, `WARN` at 248 or more, never `FAIL`. A measurement error
+prints `WARN` with its reason and checks continue; cancellation still propagates.
+See [worktree root configuration](config.md#files-and-locations) for the trade-off.
 
 On Windows only, a successful Codex probe also prints exactly one
 `PASS  windows sandbox: mode <mode>; readiness <status>` check. Mode comes from the user's Codex
@@ -172,12 +176,20 @@ The live check adds, per task, the model's context window when the backend's cat
 `INFO <task>: context window <n> tokens (opencode:<route>)`. Codex's catalog lists none, so a Codex
 task prints `INFO <task>: context window of codex:<model> is known after the run (result.json contextWindow)`.
 
-Remote-tracking bases are fetched before resolution with `git fetch --quiet <remote> <branch>`,
-once per distinct remote and branch per planning call. A failed fetch refuses the plan without retry:
+Remote-tracking bases are recognised by the repository's configured remote names, even without a local
+tracking ref. They are fetched before resolution with `git fetch --quiet <remote> <branch>`, once per
+distinct remote and branch per planning call. Trailing revision suffixes (`~n`, `^n`, `^{...}`) are
+removed for the fetch; the full base is then resolved as written. Fetch uses the operator's process
+environment, with the harness's per-call git overrides and `GIT_TERMINAL_PROMPT=0`; worker and verify
+git calls remain scrubbed. A failed fetch refuses the plan without retry:
 `base <base>: fetch from <remote> failed: <first line of git's stderr>`.
 Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 hex digits>` for each
 base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
 are not fetched.
+
+On Windows, plan measures worktree path depth once per distinct repository and HEAD and reports each
+task's resulting depth when it reaches 248 characters. A measurement failure is advisory:
+`WARN <task>: worktree path depth not measured (<reason>)`; it does not refuse the plan.
 
 | Exit | Type | Meaning |
 |---|---|---|
@@ -313,6 +325,19 @@ Refuses while supervised. Releases opencode sessions, removes recognized worktre
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
+
+Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
+its registration, branch, task temp and temporary index independently. A folder with a missing or
+dangling `.git` link is partially removed: without force, clean refuses with
+`<task>: worktree partially removed (<path>); clean --force finishes the removal`.
+Force finishes that removal and skips dirtiness assessment, but never bypasses ownership checks,
+Git configuration/filter checks, worktree locks, structured-scratch ownership or in-place safety.
+Only that path's registration is removed, never repository-wide pruning.
+
+After all tasks succeed, clean removes empty run/temp containers bottom-up, including an empty
+`.dispatch-tmp/git` and its empty parent. Nonempty containers and links remain and are printed as
+`retained: <path>`; the worktree root remains. A task failure prints task, cleanup step and error,
+records `clean-failed` rather than `cleaned`, continues other tasks, and returns exit 1.
 
 | Exit | Type | Meaning |
 |---|---|---|

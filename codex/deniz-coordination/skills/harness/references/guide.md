@@ -45,7 +45,9 @@ Each section says when to use a setting, why, and what it costs. Field details l
 - A worktree task's result is always committed by the harness on the task's branch. An in-place task
   takes `commit: none` (the default: the diff is recorded, nothing is committed) or `commit: harness`
   (a clean tree is required, and the commit lands on the current branch).
-- `base` takes a branch, a tag or a SHA. A SHA is exact; a branch is whatever the last fetch left.
+- `base` takes a branch, a tag or a SHA. A SHA is exact; planning fetches remote-tracking bases before
+  resolving them, including revision suffixes and branches without a local tracking ref. Local
+  branches and tags use the repository's current refs without fetching. See [plan](cli.md#plan-tasksjsonc---repo-path---contract-path---policy-file).
 
 ## Verify, advisory verify and review
 

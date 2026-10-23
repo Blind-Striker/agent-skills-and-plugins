@@ -12,7 +12,15 @@ static class Verifier
         var log = new StringBuilder();
         var commands = (run.Record.Spec.Verify ?? []).Select(command => (Command: command, Advisory: false))
             .Concat((run.Record.Spec.AdvisoryVerify ?? []).Select(command => (Command: command, Advisory: true))).ToList();
-        if (result.Outcome == "succeeded" && commands.Count > 0)
+        if (result.WorkerStatus is "stopped" or "blocked")
+        {
+            foreach (var (command, advisory) in commands)
+            {
+                result.Verify.Add(new VerifyResult { Command = command, Advisory = advisory ? true : null, NotRun = "worker stopped" });
+                log.AppendLine($"$ {(advisory ? "(advisory) " : "")}{command}").AppendLine("[not run: worker stopped]");
+            }
+        }
+        else if (result.Outcome == "succeeded" && commands.Count > 0)
         {
             var shell = ResolveShell(run.Record.Spec);
             result.VerifyShell = shell;
@@ -44,5 +52,5 @@ static class Verifier
         ledger.Write(run.Id, "verified", data);
     }
 
-    public static bool Failed(VerifyResult result) => result.ExitCode != 0 || result.TimedOut;
+    public static bool Failed(VerifyResult result) => result.NotRun is null && (result.ExitCode != 0 || result.TimedOut);
 }

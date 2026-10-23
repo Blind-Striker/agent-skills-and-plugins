@@ -84,20 +84,44 @@ static partial class Commands
         var states = ledger.TaskStates();
         var records = states.Keys.Where(task => File.Exists(Path.Combine(ledger.Dir, task, "task.json")))
             .Select(ledger.LoadRecord).ToList();
-        var refused = await CleanSessionsAsync(ledger, records, states, control, ct);
+        var sessionFailures = await CleanSessionsAsync(ledger, records, states, control, ct);
+        var refused = sessionFailures.Count;
         foreach (var record in records)
         {
             var task = record.Spec.Id!;
+            var step = "session";
             try
             {
+                if (sessionFailures.TryGetValue(task, out var error)) throw new HarnessException(error);
+                step = "workspace";
                 var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
-                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git)) refused++;
+                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git)) throw new HarnessException("workspace cleanup refused");
+                ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
             {
                 refused++;
-                ledger.Write(task, "cleaned", new JsonObject { ["error"] = ex.Message, ["force"] = force });
+                step = ex.Data["step"] as string ?? step;
+                ledger.Write(task, "clean-failed", new JsonObject { ["step"] = step, ["error"] = ex.Message, ["force"] = force });
+                Console.Error.WriteLine($"{task}: {step}: {ex.Message}");
             }
+        }
+
+        try
+        {
+            if (refused == 0)
+                foreach (var path in Locations.CleanupCandidates(ledger, records))
+                {
+                    if (!Path.Exists(path)) continue;
+                    if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || Directory.EnumerateFileSystemEntries(path).Any())
+                        Console.WriteLine($"retained: {path}");
+                    else Directory.Delete(path);
+                }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Console.Error.WriteLine($"container cleanup failed: {ex.Message}");
+            refused++;
         }
 
         if (refused == 0 && Directory.Exists(control))
@@ -120,43 +144,50 @@ static partial class Commands
         return refused == 0 ? 0 : 1;
     }
 
-    static async Task<int> CleanSessionsAsync(Ledger ledger, IReadOnlyList<TaskRecord> records,
+    static async Task<Dictionary<string, string>> CleanSessionsAsync(Ledger ledger, IReadOnlyList<TaskRecord> records,
         IReadOnlyDictionary<string, string> states, string control, CancellationToken ct)
     {
         var tasks = records.Where(x => (x.Settings.Backend?.Value ?? "opencode") == "opencode"
             // Code tasks record worktree progress before creating a session; structured tasks do not.
             && (x.Session.Id is not null || x.Workspace.Path is not null
                 && (states[x.Spec.Id!] != "queued" || x.Spec.Kind == "structured"))).ToList();
-        if (tasks.Count == 0) return 0;
-        var refused = 0;
-        await using var scope = new BackendScope(["opencode"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
-        var backend = scope.Backends["opencode"];
-        var recorded = tasks.Where(x => x.Session.Id is not null).Select(x => TaskRun.FromLedger(x, ledger).SavedWorker()).ToList();
-        var releases = recorded.ToDictionary(x => x.Id, StringComparer.Ordinal);
+        var failures = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (tasks.Count == 0) return failures;
         try
         {
-            var known = recorded.Where(x => states[x.TaskId] is not ("done" or "failed" or "cancelled")).ToList();
-            var directories = tasks.Select(x => x.Workspace.Path).OfType<string>().ToList();
-            foreach (var orphan in await backend.FindOrphansAsync(new(ledger.RunId, known, directories), ct))
-                releases.TryAdd(orphan.Id, orphan);
+            await using var scope = new BackendScope(["opencode"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
+            var backend = scope.Backends["opencode"];
+            var recorded = tasks.Where(x => x.Session.Id is not null).Select(x => TaskRun.FromLedger(x, ledger).SavedWorker()).ToList();
+            var releases = recorded.ToDictionary(x => x.Id, StringComparer.Ordinal);
+            try
+            {
+                var known = recorded.Where(x => states[x.TaskId] is not ("done" or "failed" or "cancelled")).ToList();
+                var directories = tasks.Select(x => x.Workspace.Path).OfType<string>().ToList();
+                foreach (var orphan in await backend.FindOrphansAsync(new(ledger.RunId, known, directories), ct))
+                    releases.TryAdd(orphan.Id, orphan);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
+            {
+                foreach (var task in tasks) failures[task.Spec.Id!] = ex.Message;
+                ledger.Write(null, "error", new JsonObject { ["while"] = "find orphan sessions", ["message"] = ex.Message });
+                Console.Error.WriteLine($"orphan session cleanup failed: {ex.Message}");
+            }
+            foreach (var worker in releases.Values)
+            {
+                try { await backend.ReleaseAsync(worker, ct); }
+                catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
+                {
+                    failures[worker.TaskId] = ex.Message;
+                    ledger.Write(worker.TaskId, "error", new JsonObject { ["while"] = "release session", ["message"] = ex.Message });
+                    Console.Error.WriteLine($"{worker.TaskId}: session cleanup failed: {ex.Message}");
+                }
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
         {
-            refused++;
-            ledger.Write(null, "error", new JsonObject { ["while"] = "find orphan sessions", ["message"] = ex.Message });
-            Console.Error.WriteLine($"orphan session cleanup failed: {ex.Message}");
+            foreach (var task in tasks) failures[task.Spec.Id!] = ex.Message;
         }
-        foreach (var worker in releases.Values)
-        {
-            try { await backend.ReleaseAsync(worker, ct); }
-            catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
-            {
-                refused++;
-                ledger.Write(worker.TaskId, "error", new JsonObject { ["while"] = "release session", ["message"] = ex.Message });
-                Console.Error.WriteLine($"{worker.TaskId}: session cleanup failed: {ex.Message}");
-            }
-        }
-        return refused;
+        return failures;
     }
 
     static void RemoveControlEntry(string path)

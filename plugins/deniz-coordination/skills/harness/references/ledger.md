@@ -25,7 +25,8 @@ in [configuration](config.md). Run ids contain a UTC calendar-day prefix and the
 | `<task>/task.json` | Versioned JSON object | Queued, then updated during dispatch | Resolved spec, prompt text, settings, workspace, session and backend recovery state. |
 | `<task>/final.md` | Markdown text | Settlement | Run/task heading, outcome and final assistant text, or a missing-text marker. |
 | `<task>/diff.patch` | Binary-capable Git patch | Non-structured collection | Full-index patch; includes both sides of renamed paths through non-rename evidence collection. |
-| `<task>/verify.log` | Text | Non-structured verification step | Command, stdout, stderr, exit and elapsed seconds; records a skip for non-succeeded outcomes. |
+| `<task>/wip.patch` | Binary-capable Git patch | Nonempty snapshot diff for parsed `stopped` or `blocked` status, with worker termination confirmed | Full-index work-in-progress evidence; never a harness commit. |
+| `<task>/verify.log` | Text | Non-structured verification step | Command, stdout, stderr, exit and elapsed seconds; records each command as not run for parsed `stopped`/`blocked`, or a skip for other non-succeeded outcomes. |
 | `<task>/result.json` | Versioned JSON object | Successful settlement write, or some start failures | Final result fields below. Not every final event guarantees this file exists. |
 | `<task>/input.json` | JSON array | Structured freeze | Resolved items, normalized and hashed. |
 | `<task>/result.schema.json` | JSON object | Structured freeze | Normalized schema, hashed; common validation uses this copy. |
@@ -45,7 +46,7 @@ resume/collect refuse without it. Structured input files and their hashes are wr
 | `decisions/<askId>.json` | Versioned JSON object | Until supervisor reads a reply | Written by `reply`, never by callers directly. |
 | `cancel/<task>.json` | Versioned JSON object | Until supervisor reads a cancel | Written by `cancel`, never by callers directly. |
 | `profiles/` | Directory | Backend use | Temporary backend profiles, clean homes and associated process state. |
-| `index-<task>` | Temporary Git index | In-place snapshot work | Leaves the operator's real index untouched. |
+| `index-<task>` | Temporary Git index | In-place or stopped-workspace snapshot work | Leaves the operator's real index untouched. |
 | `git-baseline.json` | JSON object | Workspace Git use | Configuration and hook fingerprints for the Git guard. |
 
 `clean` retains the ledger and, after successful cleanup, retains `supervisor.lock` and `run.ref`.
@@ -205,6 +206,17 @@ reported route drifts from the requested one, the worker did not report itself s
 and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
 `zombie` failure. Some pre-dispatch errors produce only a final event; inspect events as well.
 
+For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked
+files without staging in the real index or committing. WIP compares against `workspace.baseSha` in a
+worktree and the recorded `startTree` in-place, excluding pre-existing dirt and supporting unborn
+branches. Scope and protected-path checks still apply to the snapshot. `diff.patch` remains committed
+base-to-HEAD evidence in `harness` mode and start-to-end snapshot evidence in `none` mode; in the latter
+it has the same bytes as WIP. `wip.patch` and its metadata are absent for an empty snapshot diff or
+other statuses, and stale WIP is removed on recollection. An unconfirmed stop collects neither patch.
+Neither `verify` nor `advisoryVerify` executes after a parsed stop: every command records
+`notRun: "worker stopped"`; this adds no verify failure or advisory warning. A `done` task still
+verifies even when its diff is empty. Missing status remains `worker-status-missing`, not a stop.
+
 | Field | Type | Default or absence | Meaning |
 |---|---|---|---|
 | `schemaVersion` | integer | `2` | Version. |
@@ -225,13 +237,13 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `routeDrift` | string array | Absent without drift | Reported routes of another model, or of another variant when the request named one. Adds the `route-drift` failure. |
 | `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. Codex reports no cost, so a Codex task is measured by `tokens` alone. |
 | `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
-| `tokens.input` | number | Absent if unavailable | Input count, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. |
+| `tokens.input` | number | Absent if unavailable | Every prompt token, including cache reads and writes, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. opencode's uncached input, cache reads and cache writes are added to match Codex's inclusive input count. |
 | `tokens.output` | number | Absent if unavailable | Output count. |
 | `tokens.reasoning` | number | Absent if unavailable | Reasoning count. |
 | `tokens.cacheRead` | number | Absent if unavailable | The cached part of `tokens.input`; `input` minus `cacheRead` is what the task sent uncached. |
-| `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count. |
+| `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count, retained separately for opencode as well as included in `tokens.input`. |
 | `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
-| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode's comes from its model catalog. |
+| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode looks up the latest reported assistant route in its model catalog at settlement, including under route drift, and omits the window when that model is not listed. |
 | `asks` | integer | `0` | Observed permission asks. |
 | `asksEscalated` | integer | `0` | Asks sent to the operator. |
 | `formsCancelled` | integer | `0` | Cancelled form questions. |
@@ -242,13 +254,16 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `baseSha` | string | Absent for structured/no starting HEAD | Starting Git commit. |
 | `commitMode` | string | Absent for structured | `harness` or `none`. |
 | `commit` | string | Absent for none or unchanged HEAD | Resulting commit id. |
-| `diffStat` | string | Absent before collection | Git shortstat. |
+| `diffStat` | string | Absent before collection | Git shortstat of collected changes (the snapshot for a parsed stop). |
+| `wipPatch` | string relative filename | Absent without a written, nonempty WIP patch | `wip.patch`, relative to the task folder. |
+| `wipFileCount` | integer | Absent without `wipPatch` | Changed-path count against the WIP baseline, with renames counted as deletion plus addition (both paths). |
 | `filesChanged` | string array | `[]` | All collected changed paths. |
 | `outOfScope` | string array | `[]` | Paths failing scope, including protected `.dispatch/` changes. |
 | `verify` | object array | `[]` | Per-command verification records. |
-| `verify[].command` | string | Authored command | Shell text executed. |
-| `verify[].exitCode` | integer | Process exit | Nonzero fails verification. |
-| `verify[].seconds` | number | Measured duration | Rounded to one decimal. |
+| `verify[].command` | string | Authored command | Shell text executed or recorded as not run. |
+| `verify[].notRun` | string | Absent when executed | `worker stopped` means the command was not run; `exitCode: 0`, `seconds: 0` and `timedOut: false` are placeholders, not process evidence. |
+| `verify[].exitCode` | integer | Process exit, or `0` when not run | Nonzero fails executed verification. |
+| `verify[].seconds` | number | Measured duration, or `0` when not run | Rounded to one decimal. |
 | `verify[].timedOut` | boolean | `false` | Timeout fails verification even if exit is zero. |
 | `verify[].advisory` | boolean | Absent for `verify` commands | `true` for an `advisoryVerify` command: its failure is the `advisory-verify-failed` warning, not `verify-failed`. |
 | `verifyShell` | string path | Absent if no verify ran | Absolute resolved shell executable. |
@@ -325,13 +340,14 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
 | `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
-| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands ran | Verify summary; `failed` counts `verify` commands only. Zero commands can mean skipped or absent. |
+| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded | Verify summary; `commands` includes not-run records; `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
-| `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept; cache-write is not included. Codex uses each current-turn own-thread token notification's `last` breakdown (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist; repeated settlement writes another batch. |
+| `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
 | `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |
-| `cleaned` | Optional `worktree`/`branch`/`error` strings, `force` boolean | Cleanup result. |
+| `cleaned` | Optional `worktree`/`branch` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. |
+| `clean-failed` | `step`/`error` strings, `force` boolean; task identity in envelope | Task cleanup refused or failed at `session`, `workspace`, `branch`, `temp` or `index`; other tasks continue. Retry reconciles remaining artifacts. |
 | `bus` | `state` string, optional `reason` string | Disconnected or reconnected event stream. |
 | `error` | Optional `while`/`message`/`id`/`file`/`backend` strings | Operation error. Owner-chain cuts appear here with `while: owner-chain-cut`; they are not a separate event type. |
 | `aborted` | `message` string, or `reason` string and `running` string array | Run/recovery aborted. |
@@ -341,6 +357,12 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 
 The pending `warning` event for Windows user PATH changes is described under the
 [Windows user PATH guard](cli.md#windows-user-path-guard).
+
+The Git guard excludes only exact `branch.<name>.remote`, `.merge` and `.rebase` keys for branches
+outside this run's recorded ownership. Ownership includes every recorded task, even after its
+cleanup or branch deletion, not a branch-name prefix. The exclusion applies to both baseline and
+current keys; owned-branch keys, all other config and hook changes retain their existing ordering,
+hashing and blocking behavior. Cleanup never refreshes the baseline.
 
 ## Derived states
 

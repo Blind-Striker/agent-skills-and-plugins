@@ -45,6 +45,9 @@ copies.
 - your HEAD is not the base commit the task states.
 
 A stop is a correct outcome. Report the exact conflict, with file and line, and the options you see.
+Leave your work as it stands when you stop or are blocked: the coordinator judges the partial state, so
+revert, delete, or stash nothing, do not commit it unless your task says to, and list in your report
+what is unfinished.
 
 ## Evaluation tasks
 
