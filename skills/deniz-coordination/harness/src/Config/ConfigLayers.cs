@@ -82,8 +82,13 @@ sealed class ConfigLayers
         if (policyBytes is not null) layers.AddSource("cli", policyPath!, policyBytes, "policy");
         if (tasksPath is not null) effective.Sources.Add(new() { Layer = "task-file", Path = tasksPath, Copy = "tasks.jsonc" });
         effective.Sources.Add(new() { Layer = "cli", Args = args.Original.ToList() });
-        foreach (var warning in effective.Warnings) Console.WriteLine($"warning: {warning}");
         return layers;
+    }
+
+    // Loading prints nothing: the command prints these once, and plan and run print them with the plan's own.
+    public void PrintWarnings()
+    {
+        foreach (var warning in Effective.Warnings) Console.WriteLine($"warning: {warning}");
     }
 
     void AddSource(string layer, string path, byte[] bytes, string? copyName = null)

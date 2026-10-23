@@ -13,6 +13,7 @@ static partial class Commands
     {
         var dir = Path.GetFullPath(a.Get("repo") ?? throw new HarnessException("routes needs --repo"));
         var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
+        layers.PrintWarnings();
         var allow = layers.Allow;
         var selectedBackends = BackendScope.Selected(a, layers);
         await using var scope = new BackendScope(selectedBackends, subscribe: false);
@@ -166,6 +167,7 @@ static partial class Commands
             {
                 return plan.Report();
             }
+            plan.PrintWarnings();
 
             var info = new RunInfo
             {
@@ -351,8 +353,9 @@ static partial class Commands
             if (config.InputSha256 is not null || config.ResultSchemaSha256 is not null)
                 StructuredOutput.Load(ledger, task);
         Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
-        var allow = proceed ? (await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct)).Allow
-            : AllowList.From(frozen.Restrictions?.Routes);
+        var current = proceed ? await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct) : null;
+        current?.PrintWarnings();
+        var allow = current?.Allow ?? AllowList.From(frozen.Restrictions?.Routes);
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
         AskQueue.Reset(ledger.RunId);

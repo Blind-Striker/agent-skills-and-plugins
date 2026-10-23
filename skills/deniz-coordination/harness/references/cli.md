@@ -132,9 +132,9 @@ that fell back to `clean-partial` counts as `full`.
 
 ### `run <tasks.jsonc> [--repo <path>] [--run <name>] [--max <n>] [--contract <path>]... [--policy <file>]`
 
-Performs plan and live checks, locks and claims a new run, freezes inputs, queues tasks, supervises
-workers, settles results and runs verification. Once it claims the run it prints
-`run <run id>: ledger <folder>`. It blocks until the scheduler ends and prints a status summary.
+Performs plan and live checks, prints each plan warning once, locks and claims a new run, freezes
+inputs, queues tasks, supervises workers, settles results and runs verification. Once it claims the
+run it prints `run <run id>: ledger <folder>`. It blocks until the scheduler ends and prints a status summary.
 Ledger writes also print event lines. The `run` process is the supervisor and owns the backend
 processes: never kill it (use `cancel`). To keep working while it runs, start it from a
 background shell and watch with `status <run>` from another shell; when a run's own process ends

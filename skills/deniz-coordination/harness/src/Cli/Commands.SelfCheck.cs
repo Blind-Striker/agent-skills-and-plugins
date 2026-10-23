@@ -24,6 +24,7 @@ static partial class Commands
         foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" }) environment[name] = temp;
         var git = new Git(Executables.Resolve("git"), commandFolder, environment);
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
+        layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");

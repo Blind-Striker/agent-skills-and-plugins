@@ -27,9 +27,14 @@ sealed class Plan
 
     public List<string> Warnings { get; } = [];
 
-    public int Report()
+    public void PrintWarnings()
     {
         foreach (var warning in Warnings) Console.WriteLine($"warning: {warning}");
+    }
+
+    public int Report()
+    {
+        PrintWarnings();
         foreach (var error in Errors) Console.WriteLine($"error: {error}");
         Console.WriteLine(Errors.Count == 0
             ? $"plan ok: {Tasks.Count} task(s) against {Repo}"
