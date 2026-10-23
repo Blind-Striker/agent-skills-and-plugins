@@ -18,7 +18,8 @@ static class Settlement
         var result = new TaskResult
         {
             Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name, Outcome = outcome,
-            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RoutesUsed = report.RoutesUsed.ToList(),
+            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = record.RouteResolved,
+            RoutesUsed = report.RoutesUsed.ToList(),
             Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,
             TokensComplete = report.UsageComplete,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
@@ -27,6 +28,8 @@ static class Settlement
             CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = run.StartFailure,
             CapabilityNotes = ConfigResolver.CapabilityNotes(record.Settings) is { Count: > 0 } notes ? notes : null,
         };
+        (result.RouteVerified, var drift) = CheckRoutes(record.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
+        result.RouteDrift = drift.Count > 0 ? drift : null;
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
         if (record.Spec.Kind == "structured")
         {
@@ -65,6 +68,7 @@ static class Settlement
             }
             if (result.Verify.Any(x => x.ExitCode != 0 || x.TimedOut)) result.Failures.Add("verify-failed");
             if (result.OutOfScope.Count > 0) result.Failures.Add("out-of-scope");
+            if (result.RouteDrift is not null) result.Failures.Add("route-drift");
             if (record.Spec.Kind == "structured" && result.Validation?.Ok != true) result.Failures.Add("invalid-output");
             result.Failures = result.Failures.Distinct().ToList();
             result.State = result.Failures.Count == 0 ? "done" : "failed";
@@ -76,5 +80,33 @@ static class Settlement
             ["tokensOut"] = result.Tokens?.Output, ["tokensComplete"] = result.TokensComplete, ["error"] = result.ExecutionError ?? result.Error,
         });
         return result;
+    }
+
+    // Verified only when the backend reported at least one route and every route it reported is the
+    // requested one. A requested route without a variant accepts any variant of that model. Drift is a
+    // reported route of another model or variant; an unreadable route is unverified, not drift.
+    public static (bool Verified, List<string> Drift) CheckRoutes(string? requested, IReadOnlyList<string> used)
+    {
+        var want = requested is null ? null : ParseRoute(requested);
+        var parsed = used.Select(text => (Text: text, Route: ParseRoute(text))).ToList();
+        var drift = want is null ? [] : parsed.Where(x => x.Route is { } route && !Satisfies(route, want)).Select(x => x.Text).ToList();
+        var verified = want is not null && parsed.Count > 0 && parsed.All(x => x.Route is { } route && Satisfies(route, want));
+        return (verified, drift);
+    }
+
+    static bool Satisfies(RouteRef used, RouteRef requested) =>
+        used.Provider == requested.Provider && used.Model == requested.Model
+        && (requested.Variant is null || used.VariantOrDefault == requested.VariantOrDefault);
+
+    // Qualified or bare route text; null for an agent route or text that names no model.
+    static RouteRef? ParseRoute(string text)
+    {
+        if (text.StartsWith("codex:", StringComparison.Ordinal))
+        {
+            try { return CodexBackend.ParseRoute(text); }
+            catch (HarnessException) { return null; }
+        }
+        if (text.StartsWith("opencode:", StringComparison.Ordinal)) text = text["opencode:".Length..];
+        return RouteRef.TryParse(text, out var route, out _) ? route : null;
     }
 }

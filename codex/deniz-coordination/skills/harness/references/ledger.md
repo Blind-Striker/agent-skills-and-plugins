@@ -174,6 +174,7 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `contracts[].version` | string | First line | Trimmed and limited to 120 characters. |
 | `agent` | string | Absent until backend details | Actual persona or agent detail. |
 | `lineage` | string | Absent until backend details | Catalog lineage. |
+| `routeResolved` | string | opencode `agent` tasks only, after backend details | Qualified route of the model the roster agent pinned at start; settlement compares reported routes with it. |
 | `session` | object | Initially empty | Worker session identity. |
 | `session.id` | string | Absent before creation | Backend session or thread id. |
 | `session.turn` | string | Absent before prompting | Last recorded prompt or turn id. |
@@ -198,8 +199,8 @@ stop or attach processes independently.
 ## `result.json`
 
 Ordinary settlement is done only when outcome is succeeded, final text is non-blank, no execution
-or settlement error exists, every verify command passed without timeout, scope is valid, and a
-structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
+or settlement error exists, every verify command passed without timeout, scope is valid, no
+reported route drifts from the requested one, and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
 `zombie` failure. Some pre-dispatch errors produce only a final event; inspect events as well.
 
 | Field | Type | Default or absence | Meaning |
@@ -214,8 +215,11 @@ structured deliverable validates. Cancelled outcome produces cancelled state and
 | `warnings` | string array | Absent without findings | Non-failing findings, currently non-blocking `git-config-changed`. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
-| `routeRequested` | string | Absent if unavailable | Qualified requested route. |
+| `routeRequested` | string | Absent if unavailable | Qualified requested route; for an `agent` task, the agent route. |
+| `routeResolved` | string | opencode `agent` tasks only | Route the agent pinned at start, copied from the task record. |
 | `routesUsed` | string array | `[]` | Routes actually reported by backend. |
+| `routeVerified` | boolean | `false` | True only when the backend reported at least one route and every reported route is the requested one (`routeResolved` for an `agent` task). A request without a variant accepts any variant of its model. False when nothing was reported or a route cannot be read; only a true value supports a claim about which model did the work. |
+| `routeDrift` | string array | Absent without drift | Reported routes of another model, or of another variant when the request named one. Adds the `route-drift` failure. |
 | `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. |
 | `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
 | `tokens.input` | number | Absent if unavailable | Input count. |
@@ -269,6 +273,7 @@ structured deliverable validates. Cancelled outcome produces cancelled state and
 | `commit-failed` | string | Harness commit command failed. |
 | `verify-failed` | string | Verify command failed or timed out. |
 | `out-of-scope` | string | Collected changes exceed scope. |
+| `route-drift` | string | The backend reported a route other than the requested one; see `routeDrift`. |
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |

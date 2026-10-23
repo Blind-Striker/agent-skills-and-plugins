@@ -14,6 +14,7 @@ public sealed class SettlementStateTests
     [Arguments("outcome", "failed", "outcome:failed")]
     [Arguments("execution-error", "failed", "settle-error")]
     [Arguments("structured", "failed", "invalid-output")]
+    [Arguments("drift", "failed", "route-drift")]
     [Arguments("cancelled", "cancelled", "")]
     [Arguments("success", "done", "")]
     [Timeout(30_000)]
@@ -29,7 +30,8 @@ public sealed class SettlementStateTests
         {
             if (condition is "scope" or "both") File.WriteAllText(Path.Combine(lab.Tree.Repository, "outside.txt"), "outside scope");
             return Task.FromResult(new WorkerReport(condition == "outcome" ? "failed" : "succeeded",
-                condition == "no-final" ? " \n" : "Report", new(), null, true, [],
+                condition == "no-final" ? " \n" : "Report", new(), null, true,
+                condition == "drift" ? ["fixture/model#default", "opencode/flint-40b-free#default"] : ["fixture/model#default"],
                 condition == "execution-error" ? "backend execution failed" : null, true));
         };
 
@@ -40,6 +42,9 @@ public sealed class SettlementStateTests
         var saved = lab.Ledger.LoadResult(run.Id)!;
         await Assert.That(saved.State).IsEqualTo(state);
         await Assert.That(saved.Failures).IsEquivalentTo(result.Failures);
+        await Assert.That(saved.RouteVerified).IsEqualTo(condition != "drift");
+        if (condition == "drift") await Assert.That(saved.RouteDrift!).IsEquivalentTo(new[] { "opencode/flint-40b-free#default" });
+        else await Assert.That(saved.RouteDrift).IsNull();
         if (condition is "verify" or "both")
             await Assert.That(result.Verify.Select(x => x.ExitCode).ToArray()).IsEquivalentTo(new[] { 0, 3 });
     }

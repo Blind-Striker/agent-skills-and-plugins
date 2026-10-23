@@ -120,6 +120,9 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         {
             var server = await HostAsync(ct, task.Modes, task.Route,
                 routes: tasks.Where(x => x.Modes.Profile == "clean").Select(x => x.Route));
+            // The SDK decodes only its pinned wire contract; another server version can lose events.
+            if (server.Version != Constants.PinnedUpstream)
+                throw new HarnessException($"opencode server version '{server.Version}' differs from pin {Constants.PinnedUpstream}; install with npm install -g @opencode/cli@{Constants.PinnedUpstream}");
             var catalog = await Catalog.LoadAsync(server.Client, task.Directory, TimeSpan.FromSeconds(60), ct);
             var errors = new List<string>();
             RouteRef? route = task.Route;

@@ -1,6 +1,6 @@
 {
   "name": "deniz-coordination",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)",
   "author": {
     "name": "Deniz İrgin",

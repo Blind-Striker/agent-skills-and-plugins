@@ -151,6 +151,8 @@ sealed class TaskRecord : VersionedContract
     public List<ContractRecord>? Contracts { get; set; }
     public string? Agent { get; set; }
     public string? Lineage { get; set; }
+    // The model an opencode roster agent pinned when the task started; its settings route names the agent.
+    public string? RouteResolved { get; set; }
     public SessionRecord Session { get; set; } = new();
     public BackendState BackendState { get; set; } = new();
 }
@@ -220,7 +222,10 @@ sealed class TaskResult : VersionedContract
     public string? Outcome { get; set; }
     public SessionRecord? Session { get; set; }
     public string? RouteRequested { get; set; }
+    public string? RouteResolved { get; set; }
     public List<string> RoutesUsed { get; set; } = [];
+    public bool RouteVerified { get; set; }
+    public List<string>? RouteDrift { get; set; }
     public double? Cost { get; set; }
     public TokenTotals? Tokens { get; set; }
     public bool? TokensComplete { get; set; }

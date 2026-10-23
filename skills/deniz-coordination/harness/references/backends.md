@@ -51,8 +51,11 @@ For the read-only shell behaviour, read
 The harness starts private `opencode serve` processes for the run, keyed by profile/project modes,
 and subscribes to their event streams. It disables file watchers. On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
-path. Selfcheck compares the reported server version with pin `2.0.32` and checks stored session
-rules without sending a prompt. Normal planning validates the catalog at each task's location.
+path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
+version differs from pin `2.0.32`, as the Codex backend refuses a CLI off its pin; there is no
+override, because the SDK decodes only the pinned wire contract and another version can lose events.
+Selfcheck also reports the pin as its own check and checks stored session rules without sending a
+prompt. Normal planning validates the catalog at each task's location.
 
 Clean mode creates a minimal config under the control folder, retaining required provider/model
 definitions and the configured shell. It redirects `OPENCODE_CONFIG_DIR`, clears direct config

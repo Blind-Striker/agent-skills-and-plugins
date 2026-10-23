@@ -70,6 +70,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
             record.Settings.Route ??= new Setting<string> { Value = details.Route, From = "task" };
             record.Agent = details.Agent;
             record.Lineage = details.Lineage;
+            if (record.Spec.Agent is not null && backend.Name == "opencode") record.RouteResolved = details.Route;
             ledger.SaveRecord(record);
             ledger.Write(run.Id, "route", new JsonObject { ["route"] = record.Settings.Route.Value, ["agent"] = record.Agent, ["lineage"] = record.Lineage });
             ledger.Write(run.Id, "session", new JsonObject { ["sessionId"] = created.Worker.Id, ["projectId"] = details.ProjectId, ["rules"] = Json.Array(details.Rules) });
