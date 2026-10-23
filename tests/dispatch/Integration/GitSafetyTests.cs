@@ -9,6 +9,48 @@ public sealed class GitSafetyTests
 {
     [Test]
     [Timeout(60_000)]
+    public async Task ConfigGate_FiltersOnlyForeignAutoSetup(CancellationToken ct)
+    {
+        using var lab = new CoreLab("config-test");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        await repo.GitAsync(["remote", "add", "fixture", repo.Root], ct);
+        await repo.GitAsync(["update-ref", "refs/remotes/fixture/main", "HEAD"], ct);
+        await repo.GitAsync(["config", "branch.autoSetupRebase", "always"], ct);
+        await repo.GitAsync(["worktree", "add", "--track", "-b", "old.foreign", Path.Combine(lab.Tree.Root, "old"), "fixture/main"], ct);
+        var run = await lab.TaskAsync("inspect", ct);
+        var sibling = await lab.TaskAsync("sibling", ct);
+        run.Record.Workspace.Branch = "owned.with.dots";
+        sibling.Record.Workspace.Branch = "sibling-owned";
+        lab.Ledger.SaveRecord(run.Record);
+        lab.Ledger.SaveRecord(sibling.Record);
+        lab.Ledger.Write(sibling.Id, "cleaned"); // Ownership survives cleanup and branch absence.
+        Json.WriteFile(Path.Combine(lab.Git.ControlFolder, "run.ref"), new RunReference
+            { Run = lab.Ledger.RunId, LedgerRoot = Path.GetDirectoryName(lab.Ledger.Dir)! }, ControlJson.Files.RunReference);
+        var baselinePath = Path.Combine(lab.Git.ControlFolder, "git-baseline.json");
+        var baseline = File.ReadAllText(baselinePath);
+        await repo.GitAsync(["config", "--remove-section", "branch.old.foreign"], ct);
+        const string foreign = "dispatch/config-test/foreign.with.dots";
+        await repo.GitAsync(["worktree", "add", "--track", "-b", foreign, Path.Combine(lab.Tree.Root, "new"), "fixture/main"], ct);
+        await Assert.That(await repo.GitAsync(["config", $"branch.{foreign}.rebase"], ct)).IsEqualTo("true");
+        foreach (var branch in new[] { "owned.with.dots", "sibling-owned" })
+            foreach (var key in new[] { "remote", "merge", "rebase" })
+                await repo.GitAsync(["config", $"branch.{branch}.{key}", "changed"], ct);
+        await repo.GitAsync(["config", $"branch.{foreign}.description", "visible"], ct);
+        await repo.GitAsync(["config", $"branch.{foreign}.remote.extra", "visible"], ct);
+        await repo.GitAsync(["config", "core.editor", "visible"], ct);
+        await repo.GitAsync(["config", "filter.x.clean", "cat"], ct);
+        File.WriteAllText(Path.Combine(repo.Root, ".git", "hooks", "post-checkout"), "changed hook");
+        var gate = new GitConfigGate(lab.Git.ForWorkspace(lab.Ledger, run.Id));
+        await Assert.That(async () => await gate.CheckAsync(repo.Root, ct)).Throws<GitConfigChangedException>();
+        var change = lab.Ledger.Read().Last(x => x.Type == "git-config-changed");
+        await Assert.That(string.Join(",", change.Data!["keys"]!.AsArray().Select(x => x!.GetValue<string>())))
+            .IsEqualTo($"branch.{foreign}.description,branch.{foreign}.remote.extra,branch.owned.with.dots.merge,branch.owned.with.dots.rebase,branch.owned.with.dots.remote,branch.sibling-owned.merge,branch.sibling-owned.rebase,branch.sibling-owned.remote,core.editor,filter.x.clean,hooks/post-checkout");
+        await Assert.That(change.Data["blocking"]!.GetValue<bool>()).IsTrue();
+        await Assert.That(File.ReadAllText(baselinePath)).IsEqualTo(baseline);
+    }
+
+    [Test]
+    [Timeout(60_000)]
     public async Task ConfigEvent_NeverContainsValues(CancellationToken ct)
     {
         using var lab = new CoreLab();

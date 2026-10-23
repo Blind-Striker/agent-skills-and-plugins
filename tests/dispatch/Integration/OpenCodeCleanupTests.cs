@@ -43,7 +43,10 @@ public sealed class OpenCodeCleanupTests
         await Assert.That(File.ReadAllText(evidence)).IsEqualTo("another allocation");
         await Assert.That(File.Exists(readOnly)).IsTrue();
         await Assert.That(File.Exists(Path.Combine(control, "setup.done"))).IsTrue();
-        await Assert.That(ledger.Read().Last(x => x.Type == "cleaned").Data!["error"]!.GetValue<string>())
+        await Assert.That(string.Join(",", ledger.Read().Where(x => x.Type is "cleaned" or "clean-failed").Select(x => x.Type)))
+            .IsEqualTo("clean-failed");
+        await Assert.That(ledger.Read().Last(x => x.Type == "clean-failed").Data!["step"]!.GetValue<string>()).IsEqualTo("workspace");
+        await Assert.That(ledger.Read().Last(x => x.Type == "clean-failed").Data!["error"]!.GetValue<string>())
             .Contains("ownership does not match");
 
         run.Record.Workspace.Path = owned;

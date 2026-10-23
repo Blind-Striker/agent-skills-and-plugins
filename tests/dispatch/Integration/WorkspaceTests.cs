@@ -7,6 +7,75 @@ namespace Dispatch.Tests.Integration;
 public sealed class WorkspaceTests
 {
     [Test]
+    [Arguments(false, false)]
+    [Arguments(false, true)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
+    [Timeout(60_000)]
+    public async Task Clean_RecoversBrokenLink(bool dangling, bool metadata, CancellationToken ct)
+    {
+        using var lab = new CoreLab("partial");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var link = Path.Combine(path, ".git");
+        var admin = File.ReadAllText(link)[8..].Trim();
+        File.Delete(link);
+        Directory.CreateDirectory(link);
+        await Assert.That(async () => await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, true, ct, lab.Git)).Throws<HarnessException>().WithMessage($"refused an unrecognized worktree: {path}");
+        Directory.Delete(link);
+        if (!metadata) Directory.Delete(admin, true);
+        if (dangling) File.WriteAllText(link, "gitdir: missing-metadata\n");
+        var removed = true;
+        await Assert.That(async () => { removed = await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, false, ct, lab.Git); }).ThrowsNothing();
+        await Assert.That(removed).IsFalse();
+        await Assert.That(string.Join(",", Directory.GetFileSystemEntries(path).Select(Path.GetFileName).Order()))
+            .IsEqualTo(dangling ? ".git,README.md" : "README.md");
+        var repo = new LabRepo(lab.Tree);
+        await Assert.That(await repo.GitAsync(["branch", "--list", run.Record.Workspace.Branch!], ct)).Contains(run.Record.Workspace.Branch!);
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, repo.Root, true, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(path)).IsFalse();
+        await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).IsEqualTo($"worktree {repo.Root.Replace('\\', '/')}\nHEAD {run.Record.Workspace.BaseSha}\nbranch refs/heads/main");
+        await Assert.That(await repo.GitAsync(["branch", "--list", run.Record.Workspace.Branch!], ct)).IsEqualTo("");
+    }
+
+    [Test]
+    [Arguments("dirty", false)]
+    [Arguments("untracked", false)]
+    [Arguments("unmerged", false)]
+    [Arguments("dirty", true)] // Intact cases are guards.
+    [Arguments("untracked", true)]
+    [Arguments("unmerged", true)]
+    [Timeout(60_000)]
+    public async Task Clean_PreservesUnsafeResidualWork(string state, bool intact, CancellationToken ct)
+    {
+        using var lab = new CoreLab("unsafe");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var file = Path.Combine(path, state == "untracked" ? "new.txt" : "README.md");
+        File.WriteAllText(file, "retained work\n");
+        if (state == "unmerged")
+        {
+            await lab.Git.CheckAsync(path, ct, "add", "README.md");
+            await lab.Git.CheckAsync(path, ct, "commit", "-m", "Unmerged work");
+        }
+        if (!intact) File.Delete(Path.Combine(path, ".git"));
+        if (!intact) File.SetAttributes(file, FileAttributes.ReadOnly);
+        var removed = true;
+        await Assert.That(async () => { removed = await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, false, ct, lab.Git); }).ThrowsNothing();
+        await Assert.That(removed).IsFalse();
+        await Assert.That(File.ReadAllText(file)).IsEqualTo("retained work\n");
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, true, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(path)).IsFalse();
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["branch", "--list", run.Record.Workspace.Branch!], ct)).IsEqualTo("");
+    }
+
+    [Test]
     [Timeout(60_000)]
     public async Task TempRoot_preparation_and_cleanup_are_task_scoped(CancellationToken ct)
     {

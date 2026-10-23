@@ -10,6 +10,159 @@ public sealed class ControlCommandTests
     const string Run = "recorded";
     const string ControlId = "abcdefghijklmnopqrstuvwxyz";
 
+    static TaskRecord CleanRecord(TempTree tree, string task = "inspect")
+    {
+        var record = new TaskRecord { Spec = new() { Id = task, Kind = "research" }, Settings = new() { Backend = new() { Value = "codex" } },
+            Workspace = new() { Path = Path.Combine(tree.WorktreeRoot, Run, task), Branch = $"dispatch/{Run}/{task}", BaseRef = "main" } };
+        var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", Run);
+        Json.WriteFile(Path.Combine(ledger, task, "task.json"), record, LedgerJson.Files.TaskRecord);
+        if (task != "inspect") File.AppendAllText(Path.Combine(ledger, "events.jsonl"), $"{{\"run\":\"{Run}\",\"task\":\"{task}\",\"type\":\"queued\"}}\n");
+        return record;
+    }
+
+    [Test]
+    [Arguments("registration")]
+    [Arguments("branch")] // Branch-only and temp-only are guards.
+    [Arguments("temp")]
+    [Timeout(60_000)]
+    public async Task Clean_ReconcilesMissingArtifacts(string artifact, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var control = Seed(tree);
+        await repo.BaselineAsync(control, ct);
+        var record = CleanRecord(tree);
+        var path = record.Workspace.Path!;
+        var branch = record.Workspace.Branch!;
+        var foreign = Path.Combine(tree.WorktreeRoot, "foreign");
+        await repo.GitAsync(["worktree", "add", "-b", "foreign", foreign, "main"], ct);
+        if (artifact == "registration")
+        {
+            await repo.GitAsync(["worktree", "add", "-b", branch, path, "main"], ct);
+            Directory.Delete(path, true);
+        }
+        if (artifact == "branch") await repo.GitAsync(["branch", branch], ct);
+        var temp = Path.Combine(tree.WorktreeRoot, Run, ".tmp", "inspect");
+        Directory.CreateDirectory(temp);
+        for (var attempt = 0; attempt < 2; attempt++)
+        {
+            using var child = new HarnessProcess(tree);
+            (await child.RunAsync(["clean", Run], ct)).RequireSuccess("reconcile artifacts");
+            await Assert.That(Directory.Exists(path)).IsFalse();
+            await Assert.That(Directory.Exists(temp)).IsFalse();
+            await Assert.That(await repo.GitAsync(["branch", "--list", branch], ct)).IsEqualTo("");
+            await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).DoesNotContain(path.Replace('\\', '/'));
+            await Assert.That(File.ReadAllText(Path.Combine(foreign, "README.md"))).IsEqualTo("# Lab repository\n");
+            await Assert.That(await repo.GitAsync(["branch", "--list", "foreign"], ct)).Contains("foreign");
+        }
+    }
+
+    [Test]
+    [Arguments("workspace")]
+    [Arguments("index")]
+    [Arguments("locked-file")]
+    [Timeout(60_000)]
+    public async Task Clean_FailureNamesTaskAndStep(string obstacle, CancellationToken ct)
+    {
+        if (obstacle != "workspace" && !OperatingSystem.IsWindows()) Skip.Test("Locked-file deletion refusal is Windows-only");
+        var step = obstacle == "index" ? "index" : "workspace";
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var control = Seed(tree);
+        await repo.BaselineAsync(control, ct);
+        var record = CleanRecord(tree);
+        CleanRecord(tree, "later");
+        await repo.GitAsync(["worktree", "add", "-b", record.Workspace.Branch!, record.Workspace.Path!, "main"], ct);
+        var index = Path.Combine(control, "index-inspect");
+        using var held = obstacle == "workspace" ? null : new FileStream(obstacle == "index" ? index : Path.Combine(record.Workspace.Path!, "README.md"), FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+        if (obstacle == "workspace") await repo.GitAsync(["worktree", "lock", record.Workspace.Path!], ct);
+        using (var child = new HarnessProcess(tree))
+        {
+            var result = await child.RunAsync(["clean", Run, "--force"], ct);
+            await Assert.That(result.ExitCode).IsEqualTo(1);
+            await Assert.That(result.Stderr).Contains($"inspect: {step}:");
+        }
+        var eventsPath = Path.Combine(tree.DispatchHome, "state", "ledgers", Run, "events.jsonl");
+        var events = File.ReadAllLines(eventsPath).Select(x => JsonNode.Parse(x)!).Where(x => x["type"]!.GetValue<string>().StartsWith("clean", StringComparison.Ordinal)).ToArray();
+        await Assert.That(string.Join(",", events.Select(x => x["task"] + ":" + x["type"]))).IsEqualTo("inspect:clean-failed,later:cleaned");
+        await Assert.That(events[0]["data"]!["step"]!.GetValue<string>()).IsEqualTo(step);
+        await Assert.That(events[0]["data"]!["force"]!.GetValue<bool>()).IsTrue();
+        await Assert.That(events[0]["data"]!["error"]!.GetValue<string>()).Contains(obstacle == "workspace" ? "locked" : obstacle == "index" ? "index-inspect" : "worktree remove");
+        held?.Dispose();
+        if (obstacle == "workspace") await repo.GitAsync(["worktree", "unlock", record.Workspace.Path!], ct);
+        using var retry = new HarnessProcess(tree);
+        (await retry.RunAsync(["clean", Run, "--force"], ct)).RequireSuccess("retry failed cleanup");
+        await Assert.That(Directory.Exists(record.Workspace.Path)).IsFalse();
+        await Assert.That(File.Exists(index)).IsFalse();
+        await Assert.That(await repo.GitAsync(["branch", "--list", record.Workspace.Branch!], ct)).IsEqualTo("");
+        await Assert.That(string.Join(",", File.ReadAllLines(eventsPath).Select(x => JsonNode.Parse(x)!)
+            .Where(x => x["type"]!.GetValue<string>().StartsWith("clean", StringComparison.Ordinal)).Select(x => x["task"] + ":" + x["type"])))
+            .IsEqualTo("inspect:clean-failed,later:cleaned,inspect:cleaned,later:cleaned");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Clean_PrunesOnlyEmptyContainers(bool remnants, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        await LabRepo.CreateAsync(tree, ct);
+        Seed(tree);
+        var record = CleanRecord(tree);
+        var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", Run);
+        var frozen = Path.Combine(tree.Root, "frozen-worktrees");
+        var config = JsonNode.Parse(File.ReadAllText(Path.Combine(ledger, "config.json")))!;
+        config["locations"] = new JsonObject { ["worktreeRoot"] = frozen };
+        File.WriteAllText(Path.Combine(ledger, "config.json"), config.ToJsonString());
+        var run = Path.Combine(frozen, Run);
+        Directory.CreateDirectory(Path.Combine(run, ".tmp", "inspect"));
+        Directory.CreateDirectory(Path.Combine(run, ".tmp", "empty", "nested"));
+        var gitTemp = Path.Combine(frozen, ".dispatch-tmp", "git");
+        Directory.CreateDirectory(gitTemp);
+        var sibling = Path.Combine(frozen, "sibling", "keep");
+        Directory.CreateDirectory(Path.GetDirectoryName(sibling)!);
+        File.WriteAllText(sibling, "foreign");
+        string? link = null;
+        if (remnants)
+        {
+            File.WriteAllText(Path.Combine(run, "keep"), "retained");
+            File.WriteAllText(Path.Combine(gitTemp, "keep"), "retained");
+            link = Path.Combine(run, ".tmp", "linked");
+            if (OperatingSystem.IsWindows())
+            {
+                using var command = new CapturedProcess();
+                (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, Path.GetDirectoryName(sibling)!], tree.Root, tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+            }
+            else Directory.CreateSymbolicLink(link, Path.GetDirectoryName(sibling)!);
+        }
+        // The link must go before TempTree deletes the tree, or deletion follows it.
+        try
+        {
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                using var child = new HarnessProcess(tree);
+                var result = await child.RunAsync(["clean", Run], ct);
+                result.RequireSuccess("prune empty containers");
+                await Assert.That(Directory.Exists(Path.Combine(run, ".tmp"))).IsEqualTo(remnants);
+                await Assert.That(Directory.Exists(run)).IsEqualTo(remnants);
+                await Assert.That(Directory.Exists(gitTemp)).IsEqualTo(remnants);
+                await Assert.That(Directory.Exists(frozen)).IsTrue();
+                await Assert.That(File.ReadAllText(sibling)).IsEqualTo("foreign");
+                if (remnants)
+                {
+                    await Assert.That(result.Stdout).Contains($"retained: {run}");
+                    await Assert.That(result.Stdout).Contains($"retained: {gitTemp}");
+                    await Assert.That(result.Stdout).Contains($"retained: {Path.Combine(run, ".tmp", "linked")}");
+                }
+            }
+        }
+        finally
+        {
+            if (link is not null && Path.Exists(link)) Directory.Delete(link);
+        }
+    }
+
     static string Seed(TempTree tree, bool complete = true, string? ledgerRoot = null, string controlId = ControlId)
     {
         var ledger = Directory.CreateDirectory(Path.Combine(ledgerRoot ?? Path.Combine(tree.DispatchHome, "state", "ledgers"), Run)).FullName;

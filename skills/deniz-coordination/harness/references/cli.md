@@ -326,6 +326,19 @@ branches, temp directories and temporary indexes. Without force, keeps dirty wor
 not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
 
+Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
+its registration, branch, task temp and temporary index independently. A folder with a missing or
+dangling `.git` link is partially removed: without force, clean refuses with
+`<task>: worktree partially removed (<path>); clean --force finishes the removal`.
+Force finishes that removal and skips dirtiness assessment, but never bypasses ownership checks,
+Git configuration/filter checks, worktree locks, structured-scratch ownership or in-place safety.
+Only that path's registration is removed, never repository-wide pruning.
+
+After all tasks succeed, clean removes empty run/temp containers bottom-up, including an empty
+`.dispatch-tmp/git` and its empty parent. Nonempty containers and links remain and are printed as
+`retained: <path>`; the worktree root remains. A task failure prints task, cleanup step and error,
+records `clean-failed` rather than `cleaned`, continues other tasks, and returns exit 1.
+
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | Cleanup succeeded or nothing needed removal. |

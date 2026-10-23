@@ -331,7 +331,8 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
 | `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |
-| `cleaned` | Optional `worktree`/`branch`/`error` strings, `force` boolean | Cleanup result. |
+| `cleaned` | Optional `worktree`/`branch` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. |
+| `clean-failed` | `step`/`error` strings, `force` boolean; task identity in envelope | Task cleanup refused or failed at `session`, `workspace`, `branch`, `temp` or `index`; other tasks continue. Retry reconciles remaining artifacts. |
 | `bus` | `state` string, optional `reason` string | Disconnected or reconnected event stream. |
 | `error` | Optional `while`/`message`/`id`/`file`/`backend` strings | Operation error. Owner-chain cuts appear here with `while: owner-chain-cut`; they are not a separate event type. |
 | `aborted` | `message` string, or `reason` string and `running` string array | Run/recovery aborted. |
@@ -341,6 +342,12 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 
 The pending `warning` event for Windows user PATH changes is described under the
 [Windows user PATH guard](cli.md#windows-user-path-guard).
+
+The Git guard excludes only exact `branch.<name>.remote`, `.merge` and `.rebase` keys for branches
+outside this run's recorded ownership. Ownership includes every recorded task, even after its
+cleanup or branch deletion, not a branch-name prefix. The exclusion applies to both baseline and
+current keys; owned-branch keys, all other config and hook changes retain their existing ordering,
+hashing and blocking behavior. Cleanup never refreshes the baseline.
 
 ## Derived states
 
