@@ -226,7 +226,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `backend` | string | Recorded when known | Backend name. |
 | `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
 | `failures` | string array | `[]` | Machine-readable causes below. |
-| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, and `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone, and `recovered-model-error` when an opencode session succeeded after an earlier model call ended with an error. |
 | `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
@@ -274,6 +274,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `validation.errors[].at` | string | Empty for root | JSON Pointer location. |
 | `validation.errors[].message` | string | Diagnostic | Cause and relevant keyword. |
 | `executionError` | string | Absent without backend error | Backend execution failure detail. |
+| `recoveredErrors` | string array | Absent without recovered errors | opencode: the errors of earlier model calls in a session that then succeeded (for example a dropped provider stream), oldest first. The turn's error is only the idle marker's error or the last call's error. |
 | `error` | string | Absent without harness error | Collection, commit, validation or cleanup failure detail. |
 
 | Outcome | Type | Meaning |

@@ -283,6 +283,49 @@ public sealed class OpenCodeSeamTests
     }
 
     [Test]
+    [Arguments("succeeded")]
+    [Arguments("failed")]
+    [Timeout(30_000)]
+    public async Task An_earlier_model_call_error_is_recovered_only_when_the_session_succeeded(string outcome, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", outcome, 12), repeat: true);
+        var dropped = Assistant("dropped", "", 5, 0, 1, 0);
+        dropped.Remove("tokens");
+        dropped["error"] = JsonNode.Parse("""{"type":"fixture","message":"WebSocket closed with code 1012"}""");
+        var prompt = JsonNode.Parse("""{"id":"turn","type":"user","time":{"created":1},"text":"Do it."}""")!;
+        var page = lab.Add("GET /api/session/worker/message", new JsonObject
+        {
+            ["data"] = new JsonArray(Assistant("answer", "Committed.", 2, 0, 3, 0), dropped, prompt), ["cursor"] = new JsonObject(),
+        }, repeat: true);
+        page["query"] = new JsonObject { ["order"] = "desc" };
+        lab.Write();
+        var worker = new WorkerRef("opencode", "task", "worker", "turn", new() { ["promptCreated"] = 1d });
+        await lab.Backend.ReattachAsync(worker, ct);
+        var report = await lab.Backend.CollectAsync(worker, ct);
+        await Assert.That(report.FinalText).IsEqualTo("Committed.");
+        if (outcome == "succeeded")
+        {
+            await Assert.That(report.ExecutionError).IsNull();
+            await Assert.That(report.RecoveredErrors!).IsEquivalentTo(["WebSocket closed with code 1012"]);
+        }
+        else
+        {
+            await Assert.That(report.ExecutionError).IsEqualTo("WebSocket closed with code 1012");
+            await Assert.That(report.RecoveredErrors).IsNull();
+        }
+
+        static JsonObject Assistant(string id, string text, int input, int cached, int output, int reasoning) => new()
+        {
+            ["id"] = id, ["type"] = "assistant", ["time"] = new JsonObject { ["created"] = 2, ["completed"] = 3 },
+            ["agent"] = "build", ["model"] = new JsonObject { ["id"] = "model", ["providerID"] = "fixture" },
+            ["content"] = new JsonArray(new JsonObject { ["type"] = "text", ["text"] = text }),
+            ["tokens"] = new JsonObject { ["input"] = input, ["output"] = output, ["reasoning"] = reasoning,
+                ["cache"] = new JsonObject { ["read"] = cached, ["write"] = 0 } },
+        };
+    }
+
+    [Test]
     [Timeout(30_000)]
     public async Task Missing_session_is_already_released(CancellationToken ct)
     {
