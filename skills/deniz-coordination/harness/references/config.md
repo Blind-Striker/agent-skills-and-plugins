@@ -72,7 +72,8 @@ A deny still wins, and read-only write requests stay declined. With `escalate`, 
 that matches no escalation rule is still declined, and every further request raises a new ask.
 On the command line the flag is `--read-only-shell <value>`. A `structured` task resolves to
 `decline`; setting `escalate` on one is a plan error. The resolved value and its layer appear in
-`plan` output and in `task.json`.
+`task.json` and, for a read-only task, in an `INFO` line of `plan` output
+([plan](cli.md#read-only-shell-lines-in-plan)).
 
 ## Layering
 

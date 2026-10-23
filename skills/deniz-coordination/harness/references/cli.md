@@ -113,22 +113,33 @@ each in its own labelled section. No prompt is sent.
 ### `plan <tasks.jsonc> [--repo <path>] [--contract <path>]... [--policy <file>]`
 
 Applies preference flags, checks task fields, contracts, structured schemas, repository refs,
-workspace collisions, writer scopes, route allow-list and live catalogs. Prints `warning:` and
-`error:` lines, followed by `plan ok: <count> task(s) against <repo>` or
-`plan refused: <count> error(s)`. Sends no prompt and creates no recorded run.
+workspace collisions, writer scopes, route allow-list and live catalogs. Every advisory line
+starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. Then it prints
+`plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
+creates no recorded run.
 
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | All checks passed; warnings are allowed. |
 | `2` | integer | Any planning or setup error. |
 
+### Read-only shell lines in plan
+
+For each read-only task, an `INFO` line states its shell, per backend, with the resolved
+`readOnlyShell` value and its layer. A `workspace` or `full` task gets no such line.
+
+| Backend | `decline` | `escalate` |
+|---|---|---|
+| Codex | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+
 ### Inherited Codex rules on read-only tasks
 
 The pinned Codex app-server cannot be told to ignore exec-policy rules, and an explicit allow rule
 can run a matching command outside the sandbox without asking. For every read-only Codex task, plan
-prints a warning and `result.json` records it in `capabilityNotes`, worded by profile: with `full`,
-the user's and the system's rules apply; with `clean`, only system-level rules do. A clean profile
-that fell back to `clean-partial` counts as `full`.
+prints a `WARN` line and `result.json` records it in `capabilityNotes`, worded by profile: with
+`full`, the user's and the system's rules apply; with `clean`, only system-level rules do. A clean
+profile that fell back to `clean-partial` counts as `full`.
 
 ### `run <tasks.jsonc> [--repo <path>] [--run <name>] [--max <n>] [--contract <path>]... [--policy <file>]`
 

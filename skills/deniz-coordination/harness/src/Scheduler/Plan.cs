@@ -29,13 +29,13 @@ sealed class Plan
 
     public void PrintWarnings()
     {
-        foreach (var warning in Warnings) Console.WriteLine($"warning: {warning}");
+        foreach (var warning in Warnings) Console.WriteLine($"WARN {warning}");
     }
 
     public int Report()
     {
         PrintWarnings();
-        foreach (var error in Errors) Console.WriteLine($"error: {error}");
+        foreach (var error in Errors) Console.WriteLine($"ERROR {error}");
         Console.WriteLine(Errors.Count == 0
             ? $"plan ok: {Tasks.Count} task(s) against {Repo}"
             : $"plan refused: {Errors.Count} error(s)");

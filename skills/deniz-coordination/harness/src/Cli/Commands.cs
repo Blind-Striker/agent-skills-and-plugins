@@ -85,7 +85,8 @@ static partial class Commands
     {
         var plan = await Planner.LoadAsync(a.Require(0, "task file"), a.Get("repo"), AllowList.From(null), ct, args: a);
         foreach (var (id, task) in plan.Config?.Effective.Tasks ?? [])
-            if (task.Settings.ReadOnlyShell is { } shell) Console.WriteLine($"{id}: readOnlyShell {shell.Value} ({shell.From})");
+            if (task.Settings.Access?.Value == "read-only" && task.Settings.ReadOnlyShell is { } shell)
+                Console.WriteLine($"INFO {id}: {ReadOnlyShellNote(task.Settings.Backend?.Value, shell.Value)} (readOnlyShell {shell.Value}, from {shell.From})");
         var allow = plan.Config?.Allow ?? AllowList.From(null);
         if (plan.Errors.Count == 0)
         {
@@ -95,6 +96,14 @@ static partial class Commands
 
         return plan.Report();
     }
+
+    static string ReadOnlyShellNote(string? backend, string? shell) => (backend, shell) switch
+    {
+        ("codex", "decline") => "sandboxed shell; escalations declined",
+        ("codex", _) => "sandboxed shell; escalations reach the operator through a matching rule",
+        (_, "decline") => "no shell for a read-only task",
+        _ => "shell asks reach the operator through a matching rule",
+    };
 
     public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null,
         Func<IWorkerBackend>? backendFactory = null, Func<string?>? userPathReader = null,

@@ -62,8 +62,9 @@ public sealed class ReadOnlyShellPlanTests
         var result = await process.RunAsync(["plan", lab.Tasks, "--repo", repo.Root, "--read-only-shell", shell], ct,
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("read-only plan");
-        await Assert.That(result.Stdout).Contains($"readOnlyShell {shell} (cli)");
-        await Assert.That(result.Stdout).Contains("inherited exec-policy rules");
+        var escalations = shell == "decline" ? "escalations declined" : "escalations reach the operator through a matching rule";
+        await Assert.That(result.Stdout).Contains($"INFO inspect: sandboxed shell; {escalations} (readOnlyShell {shell}, from cli)");
+        await Assert.That(result.Stdout).Contains("WARN inspect: The pinned Codex app-server cannot disable inherited exec-policy rules");
         await Assert.That(result.Stdout).Contains(ruleLayers);
         await Assert.That(result.Stdout).Contains("bypass the read-only sandbox without approval");
     }
