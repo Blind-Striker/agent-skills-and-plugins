@@ -76,6 +76,9 @@ jobs:
       - name: Probe bwrap-nopid
         if: always() && matrix.mode == 'bwrap'
         run: dotnet run experiments/sandbox-probe/probe.cs -- bwrap-nopid "$RUNNER_TEMP/probe-out"
+      - name: Probe bwrap-nodie
+        if: always() && matrix.mode == 'bwrap'
+        run: dotnet run experiments/sandbox-probe/probe.cs -- bwrap-nodie "$RUNNER_TEMP/probe-out"
       - name: Probe bwrap-tini
         if: always() && matrix.mode == 'bwrap'
         run: dotnet run experiments/sandbox-probe/probe.cs -- bwrap-tini "$RUNNER_TEMP/probe-out"

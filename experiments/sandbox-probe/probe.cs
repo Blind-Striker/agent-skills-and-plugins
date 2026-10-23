@@ -8,7 +8,7 @@
 //   dotnet run probe.cs -- <none|bwrap|seatbelt> <outDir>
 //
 // Mode `none` is the unsandboxed baseline and runs anywhere. `bwrap`, `bwrap-nopid` (no
-// --unshare-pid) and `bwrap-tini` (tini or dumb-init between bwrap and opencode, to forward signals)
+// --unshare-pid), `bwrap-nodie` (neither --unshare-pid nor --die-with-parent) and `bwrap-tini` (tini or dumb-init between bwrap and opencode, to forward signals)
 // run only on Linux, and `seatbelt` only on macOS. The result goes to <outDir>/<mode>.json, and a summary table goes to stdout and to
 // $GITHUB_STEP_SUMMARY when set. `--hold <mode> <root>` is the internal child mode for the hard kill.
 
@@ -35,7 +35,8 @@ return await Probe.RunAsync(args[0], Path.GetFullPath(args[1]));
 
 sealed record Layout(string Root, string Work, string Outside, string State);
 
-sealed record Proc(int Pid, int Ppid, int Pgid, string Cmd);
+// Sid is the session id on Linux (ps sid) and the session pointer on macOS (ps sess, which has no sid).
+sealed record Proc(int Pid, int Ppid, int Pgid, string Sid, string Cmd);
 
 static class Probe
 {
@@ -55,7 +56,7 @@ static class Probe
         var code = 0;
         try
         {
-            code = await RunCoreAsync(mode, result);
+            code = await RunCoreAsync(mode, outDir, result);
         }
         catch (Exception ex)
         {
@@ -79,7 +80,7 @@ static class Probe
         return code;
     }
 
-    static async Task<int> RunCoreAsync(string mode, JsonObject result)
+    static async Task<int> RunCoreAsync(string mode, string outDir, JsonObject result)
     {
         var refusal = Refusal(mode);
         if (refusal is not null)
@@ -148,25 +149,28 @@ static class Probe
         // 4. Graceful stop. Survivors are judged against every process seen in the tree.
         var treeBeforeStop = Descendants(Snapshot(), server.ProcessId);
         result["processTreeBeforeStop"] = ProcsJson(treeBeforeStop);
-        result["gracefulStop"] = await StopAsync(server, client, treeAtStart.Concat(treeBeforeStop).DistinctBy(p => p.Pid).ToList(), output);
+        result["gracefulStop"] = await StopAsync(server, client, treeAtStart.Concat(treeBeforeStop).DistinctBy(p => p.Pid).ToList(), output, mode, layout);
+        result["logsAfterStop"] = CaptureLogs(layout, Path.Combine(outDir, mode + "-logs", "after-stop"));
 
         // 4b. bwrap only: does --unshare-net break readiness or the loopback client?
         if (mode == "bwrap")
         {
             result["unshareNet"] = await UnshareNetAsync(layout);
+            result["logsAfterUnshareNet"] = CaptureLogs(layout, Path.Combine(outDir, mode + "-logs", "after-unshare-net"));
         }
 
         // 5. Hard kill of the owner.
         result["hardKill"] = await HardKillAsync(mode, layout);
+        result["logsAfterHardKill"] = CaptureLogs(layout, Path.Combine(outDir, mode + "-logs", "after-hard-kill"));
         return 0;
     }
 
     static string? Refusal(string mode) => mode switch
     {
         "none" => null,
-        "bwrap" or "bwrap-nopid" or "bwrap-tini" => OperatingSystem.IsLinux() ? null : $"mode {mode} runs only on Linux",
+        "bwrap" or "bwrap-nopid" or "bwrap-nodie" or "bwrap-tini" => OperatingSystem.IsLinux() ? null : $"mode {mode} runs only on Linux",
         "seatbelt" => OperatingSystem.IsMacOS() ? null : "mode seatbelt runs only on macOS",
-        _ => $"unknown mode '{mode}'; use none, bwrap, bwrap-nopid, bwrap-tini or seatbelt",
+        _ => $"unknown mode '{mode}'; use none, bwrap, bwrap-nopid, bwrap-nodie, bwrap-tini or seatbelt",
     };
 
     // tini -s (subreaper, since bwrap's own init is pid 1) or dumb-init, by absolute path.
@@ -254,8 +258,8 @@ static class Probe
         var opencode = ResolveOpenCode();
         switch (mode)
         {
-            case "bwrap" or "bwrap-nopid" or "bwrap-tini":
-                var pidNamespace = mode != "bwrap-nopid";
+            case "bwrap" or "bwrap-nopid" or "bwrap-nodie" or "bwrap-tini":
+                var pidNamespace = mode is "bwrap" or "bwrap-tini";
                 var argv = new List<string> { "bwrap", "--ro-bind", "/", "/", "--dev", "/dev" };
                 // A fresh procfs needs a pid namespace the sandbox owns; without one, bind the host's.
                 argv.AddRange(pidNamespace ? ["--proc", "/proc"] : ["--ro-bind", "/proc", "/proc"]);
@@ -265,7 +269,11 @@ static class Probe
                     argv.Add("--unshare-pid");
                 }
 
-                argv.Add("--die-with-parent");
+                if (mode != "bwrap-nodie")
+                {
+                    argv.Add("--die-with-parent");
+                }
+
                 if (unshareNet)
                 {
                     argv.Add("--unshare-net");
@@ -277,6 +285,15 @@ static class Probe
                     argv.AddRange(ResolveInit() ?? throw new InvalidOperationException("init missing"));
                 }
 
+                if (mode == "bwrap-nodie")
+                {
+                    // sh records opencode's own exit status. The SDK appends its arguments after the
+                    // argv, so they arrive as "$@"; "$0" is opencode. A trap with a command keeps sh
+                    // alive through the group's SIGTERM, and exec resets it to default for opencode.
+                    argv.AddRange(["/bin/sh", "-c", $"trap 'true' TERM; \"$0\" serve \"$@\"; echo $? > '{ExitFile(l)}'", opencode]);
+                    return [.. argv];
+                }
+
                 argv.AddRange([opencode, "serve"]);
                 return [.. argv];
             case "seatbelt":
@@ -285,6 +302,8 @@ static class Probe
                 return [opencode, "serve"];
         }
     }
+
+    static string ExitFile(Layout l) => Path.Combine(l.State, "opencode.exit");
 
     static string SeatbeltProfile(Layout l) => $"""
         (version 1)
@@ -474,6 +493,45 @@ static class Probe
         return fence;
     }
 
+    // opencode 2.0.32 logs to $XDG_DATA_HOME/opencode/log/opencode.log, one file that every start
+    // appends to (each start has its own run= id). Copy every .log under the state folder and keep the
+    // newest file's last 15 lines.
+    static JsonObject CaptureLogs(Layout l, string destination)
+    {
+        var entry = new JsonObject { ["copiedTo"] = destination };
+        try
+        {
+            var logs = Directory.EnumerateFiles(l.State, "*.log", SearchOption.AllDirectories)
+                .Select(f => new FileInfo(f)).OrderByDescending(f => f.LastWriteTimeUtc).ToList();
+            Directory.CreateDirectory(destination);
+            var copied = new JsonArray();
+            foreach (var log in logs)
+            {
+                var relative = Path.GetRelativePath(l.State, log.FullName);
+                var target = Path.Combine(destination, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(log.FullName, target, overwrite: true);
+                copied.Add((JsonNode?)JsonValue.Create(relative));
+            }
+
+            entry["files"] = copied;
+            if (logs.FirstOrDefault() is { } newest)
+            {
+                using var stream = new FileStream(newest.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                using var reader = new StreamReader(stream);
+                var lines = reader.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(x => x.TrimEnd('\r'));
+                entry["newest"] = Path.GetRelativePath(l.State, newest.FullName);
+                entry["tail"] = ToArray(lines.TakeLast(15));
+            }
+        }
+        catch (Exception ex)
+        {
+            entry["error"] = $"{ex.GetType().Name}: {ex.Message}";
+        }
+
+        return entry;
+    }
+
     static string? ReadOrNull(string path)
     {
         try
@@ -494,7 +552,7 @@ static class Probe
 
     // ---------- stop ----------
 
-    static async Task<JsonObject> StopAsync(OpenCodeServer server, OpenCodeClient client, List<Proc> tree, OpenCodeServerOutput output)
+    static async Task<JsonObject> StopAsync(OpenCodeServer server, OpenCodeClient client, List<Proc> tree, OpenCodeServerOutput output, string mode, Layout l)
     {
         var stop = new JsonObject();
         client.Dispose();
@@ -526,9 +584,36 @@ static class Probe
         }
 
         stop["stderrTail"] = StderrTail(output);
-        await Task.Delay(TimeSpan.FromSeconds(3));
+
+        // Watch the set until it is gone: 3 s, or 10 s for bwrap-nodie, where opencode may outlive bwrap.
+        var watch = TimeSpan.FromSeconds(mode == "bwrap-nodie" ? 10 : 3);
+        var watchClock = Stopwatch.StartNew();
+        List<Proc>? at3s = null;
         var survivors = Survivors(tree);
-        stop["survivorsAfter3s"] = ProcsJson(survivors);
+        while (watchClock.Elapsed < watch)
+        {
+            if (survivors.Count == 0 && stop["watchedGoneMs"] is null)
+            {
+                stop["watchedGoneMs"] = watchClock.ElapsedMilliseconds;
+            }
+
+            if (at3s is null && watchClock.Elapsed >= TimeSpan.FromSeconds(3))
+            {
+                at3s = survivors;
+            }
+
+            await Task.Delay(250);
+            survivors = Survivors(tree);
+        }
+
+        stop["survivorsAfter3s"] = ProcsJson(at3s ?? survivors);
+        if (mode == "bwrap-nodie")
+        {
+            stop["survivorsAfter10s"] = ProcsJson(survivors);
+            stop["opencodeExitFile"] = ReadOrNull(ExitFile(l));
+            try { File.Delete(ExitFile(l)); } catch { }
+        }
+
         stop["cleanup"] = Cleanup(survivors, tree);
         return stop;
     }
@@ -559,7 +644,7 @@ static class Probe
         var client = server.CreateClient();
         entry["info"] = await PollInfoAsync(client, TimeSpan.FromSeconds(15));
         var tree = Descendants(Snapshot(), server.ProcessId);
-        entry["stop"] = await StopAsync(server, client, tree, output);
+        entry["stop"] = await StopAsync(server, client, tree, output, "bwrap", l);
         return entry;
     }
 
@@ -644,6 +729,10 @@ static class Probe
         var survivors15 = Survivors(tree);
         entry["survivorsAfter15s"] = ProcsJson(survivors15);
         entry["cleanup"] = Cleanup(survivors15, tree);
+        if (mode == "bwrap-nodie")
+        {
+            entry["opencodeExitFile"] = ReadOrNull(ExitFile(l));
+        }
         lock (stderr) entry["holdStderr"] = stderr.ToString();
         return entry;
     }
@@ -681,7 +770,8 @@ static class Probe
         else
         {
             psi = new ProcessStartInfo("ps");
-            foreach (var a in new[] { "-A", "-ww", "-o", "pid=,ppid=,pgid=,command=" })
+            var session = OperatingSystem.IsMacOS() ? "sess" : "sid";
+            foreach (var a in new[] { "-A", "-ww", "-o", $"pid=,ppid=,pgid=,{session}=,command=" })
             {
                 psi.ArgumentList.Add(a);
             }
@@ -702,15 +792,15 @@ static class Probe
                 var parts = lineText.Split('\t', 3);
                 if (parts.Length == 3 && int.TryParse(parts[0], out var pid) && int.TryParse(parts[1], out var ppid))
                 {
-                    procs.Add(new Proc(pid, ppid, -1, parts[2]));
+                    procs.Add(new Proc(pid, ppid, -1, "-", parts[2]));
                 }
             }
             else
             {
-                var parts = lineText.Trim().Split((char[]?)null, 4, StringSplitOptions.RemoveEmptyEntries);
-                if (parts.Length >= 3 && int.TryParse(parts[0], out var pid) && int.TryParse(parts[1], out var ppid) && int.TryParse(parts[2], out var pgid))
+                var parts = lineText.Trim().Split((char[]?)null, 5, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 4 && int.TryParse(parts[0], out var pid) && int.TryParse(parts[1], out var ppid) && int.TryParse(parts[2], out var pgid))
                 {
-                    procs.Add(new Proc(pid, ppid, pgid, parts.Length == 4 ? parts[3] : ""));
+                    procs.Add(new Proc(pid, ppid, pgid, parts[3], parts.Length == 5 ? parts[4] : ""));
                 }
             }
         }
@@ -838,7 +928,7 @@ static class Probe
         var array = new JsonArray();
         foreach (var p in procs)
         {
-            array.Add((JsonNode?)new JsonObject { ["pid"] = p.Pid, ["ppid"] = p.Ppid, ["pgid"] = p.Pgid, ["command"] = Shorten(p.Cmd) });
+            array.Add((JsonNode?)new JsonObject { ["pid"] = p.Pid, ["ppid"] = p.Ppid, ["pgid"] = p.Pgid, ["sid"] = p.Sid, ["command"] = Shorten(p.Cmd) });
         }
 
         return array;
@@ -925,9 +1015,17 @@ static class Probe
             ("stop ms / exception", $"{S(r["gracefulStop"]?["disposeMs"])} / {S(r["gracefulStop"]?["exception"])}"),
             ("stop exit", $"{S(r["gracefulStop"]?["exit"])} (Exited completed: {S(r["gracefulStop"]?["exitedCompleted"])})"),
             ("stop survivors after 3 s", Count(r["gracefulStop"]?["survivorsAfter3s"]).ToString()),
+            ("stop: watched set gone after ms", S(r["gracefulStop"]?["watchedGoneMs"])),
+            ("log last line after stop", S(r["logsAfterStop"]?["tail"] is JsonArray { Count: > 0 } tail ? tail[^1] : null)),
             ("hard kill ready", S(r["hardKill"]?["ready"])),
             ("hard kill survivors 3 s / 15 s", $"{Count(r["hardKill"]?["survivorsAfter3s"])} / {Count(r["hardKill"]?["survivorsAfter15s"])}"),
         };
+        if (r["gracefulStop"]?["survivorsAfter10s"] is { } after10)
+        {
+            rows.Add(("nodie: survivors after 10 s", Count(after10).ToString()));
+            rows.Add(("nodie: opencode.exit", S(r["gracefulStop"]?["opencodeExitFile"])));
+        }
+
         if (r["unshareNet"] is { } un)
         {
             rows.Add(("--unshare-net started / info ok", $"{S(un["started"])} / {S(un["info"]?["ok"])}"));
