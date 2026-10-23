@@ -34,7 +34,8 @@ static class Worktree
     // later ".." applies, so "link/.." means the target's parent. Missing components are kept as written.
     public static string RealPath(string path)
     {
-        var separators = new[] { '\\', '/' };
+        // On Unix a backslash is a filename character, not a separator.
+        var separators = new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar };
         var full = Path.IsPathRooted(path) ? path : Path.Combine(Environment.CurrentDirectory, path);
         var current = Path.GetPathRoot(full)!;
         var pending = new LinkedList<string>(full[current.Length..].Split(separators, StringSplitOptions.RemoveEmptyEntries));
