@@ -174,7 +174,7 @@ static partial class Commands
                         }
                         Check("launch", true, worker.Id);
                     }
-                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    catch (Exception ex) when (!ct.IsCancellationRequested)
                     { Check("launch", false, ex.Message); }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)

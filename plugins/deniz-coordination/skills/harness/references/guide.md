@@ -34,7 +34,7 @@ Each section says when to use a setting, why, and what it costs. Field details l
 | `access: workspace` | Code that changes only its worktree | The default for `code` and `mechanical`; on Codex the sandbox fences writes to the worktree |
 | `access: full` | Only when a task must write outside its worktree (build caches, temp) and no sandbox can host it | It removes the fence; the ledger records the choice, so choose it explicitly |
 | `network: off` | A task that must not fetch anything | Codex enforces it; opencode denies its web tools only |
-| `profile: clean` | Reviews, research, mechanical and structured work: their default | A minimal profile: no user MCP servers, plugins or instructions; measured at 13% fewer input tokens and 33% less uncached input per task |
+| `profile: clean` | Reviews, research, mechanical and structured work: their default | A minimal profile: no user MCP servers, plugins or instructions; measured at 13% fewer prompt tokens and 33% fewer uncached prompt tokens per task |
 | `profile: full` | Code tasks (their default), and any task that needs the installed profile's tools or skills (an MCP server, a plugin) | It loads everything installed, about 7–10k tokens on every model call |
 | `project: off` | The task must not read the repository's own agent rules | Rarely right for code; the default for structured tasks |
 

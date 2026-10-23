@@ -243,7 +243,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `tokens.cacheRead` | number | Absent if unavailable | The cached part of `tokens.input`; `input` minus `cacheRead` is what the task sent uncached. |
 | `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count, retained separately for opencode as well as included in `tokens.input`. |
 | `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
-| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode looks up the latest reported assistant route in its model catalog at settlement, including under route drift, and omits the window when that model is not listed. |
+| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode looks up the latest reported assistant route in its model catalog at settlement, including under route drift, and omits the window when that model is not listed or the catalog cannot be read. |
 | `asks` | integer | `0` | Observed permission asks. |
 | `asksEscalated` | integer | `0` | Asks sent to the operator. |
 | `formsCancelled` | integer | `0` | Cancelled form questions. |

@@ -105,13 +105,12 @@ static class Worktree
                 {
                     // Listing is read-only; a repeat clean can have already removed the baseline.
                     var reader = Git.ForTask(task, ledger.RunId, git.ControlFolder);
-                    var entries = (await reader.CheckAsync(repo, ct, "worktree", "list", "--porcelain", "-z")).Split("\0\0", StringSplitOptions.RemoveEmptyEntries);
-                    if (entries.Select(x => x.Split('\0')).Any(x => x.Contains("branch refs/heads/" + branch)
-                        && !x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal) && Locations.Same(v[9..], path))))
-                        throw new HarnessException($"branch registration ownership does not match: {branch}");
-                    var entry = entries.Select(x => x.Split('\0')).FirstOrDefault(x => x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal) && Locations.Same(v[9..], path)));
-                    if (entry is not null && !entry.Contains("branch refs/heads/" + branch))
-                        throw new HarnessException($"worktree registration ownership does not match: {path}");
+                    var entries = (await reader.CheckAsync(repo, ct, "worktree", "list", "--porcelain", "-z")).Split("\0\0", StringSplitOptions.RemoveEmptyEntries)
+                        .Select(x => x.Split('\0')).ToList();
+                    // Git records real paths, so a root reached through a link matches by branch instead;
+                    // a detached or rebasing worktree has no branch line and matches by path.
+                    var entry = entries.FirstOrDefault(x => x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal) && Locations.Same(v[9..], path)))
+                        ?? entries.FirstOrDefault(x => x.Contains("branch refs/heads/" + branch));
                     return entry is null ? null : string.Join('\0', entry);
                 }
                 var registration = await Registration();
@@ -125,7 +124,7 @@ static class Worktree
                     Console.WriteLine($"{task}: worktree partially removed ({path}); clean --force finishes the removal");
                     return false;
                 }
-                if (exists && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || intact && registration is null)
+                if (exists && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
                     throw new HarnessException($"refused an unrecognized worktree: {path}");
                 var branchExists = (await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0;
                 if ((exists || registration is not null || branchExists) && Directory.Exists(Locations.ControlDir(ledger.RunId)))
@@ -141,7 +140,7 @@ static class Worktree
                 if (registration?.Split('\0').Any(x => x == "locked" || x.StartsWith("locked ", StringComparison.Ordinal)) == true)
                     throw new HarnessException($"worktree is locked: {path}");
                 if (force && !intact) DeleteTemp(path);
-                if (registration is not null)
+                if (registration is not null || intact)
                     await git.CheckAsync(repo, ct, force || !exists ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]);
                 if (Path.Exists(path) || await Registration() is not null) throw new HarnessException($"worktree removal did not remove {path}");
                 step = "branch";

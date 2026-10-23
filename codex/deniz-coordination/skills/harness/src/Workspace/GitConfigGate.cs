@@ -21,22 +21,12 @@ sealed class GitConfigGate(Git git)
         if (!File.Exists(BaselinePath)) throw new HarnessException("git config baseline is missing; refusing workspace git writes");
         var baseline = JsonNode.Parse(await File.ReadAllTextAsync(BaselinePath, ct))!.AsObject();
         var current = await CaptureAsync(repo, ct);
-        var owned = new HashSet<string>(StringComparer.Ordinal);
-        var hasOwnership = false;
-        foreach (var directory in Directory.Exists(Locations.LedgerRoot) ? Directory.GetDirectories(Locations.LedgerRoot) : [])
-        {
-            if (!File.Exists(Path.Combine(directory, "run.json"))) continue;
-            var ledger = new Ledger(directory);
-            var info = ledger.LoadRunInfo();
-            if (info.ControlId is null || !Locations.Same(Path.Combine(Locations.ControlRoot, info.ControlId), git.ControlFolder)) continue;
-            hasOwnership = true;
-            foreach (var folder in Directory.GetDirectories(ledger.Dir))
-                if (File.Exists(Path.Combine(folder, "task.json")) && ledger.LoadRecord(Path.GetFileName(folder)).Workspace.Branch is { } branch) owned.Add(branch);
-        }
-        bool ForeignTracking(string key)
+        // The harness creates only dispatch/<run>/<task> branches; tracking setup of any other branch
+        // (git's auto-setup when a lane adds its own worktree) is not a worker change.
+        static bool ForeignTracking(string key)
         {
             var match = Regex.Match(key, "^branch\\.(.+)\\.(remote|merge|rebase)$", RegexOptions.CultureInvariant);
-            return hasOwnership && match.Success && !owned.Contains(match.Groups[1].Value);
+            return match.Success && !match.Groups[1].Value.StartsWith("dispatch/", StringComparison.Ordinal);
         }
         var keys = baseline.Select(x => x.Key).Union(current.Select(x => x.Key), StringComparer.Ordinal)
             .Where(key => !ForeignTracking(key))

@@ -85,18 +85,26 @@ static partial class Commands
         var records = states.Keys.Where(task => File.Exists(Path.Combine(ledger.Dir, task, "task.json")))
             .Select(ledger.LoadRecord).ToList();
         var sessionFailures = await CleanSessionsAsync(ledger, records, states, control, ct);
-        var refused = sessionFailures.Count;
+        var refused = 0;
         foreach (var record in records)
         {
             var task = record.Spec.Id!;
             var step = "session";
             try
             {
-                if (sessionFailures.TryGetValue(task, out var error)) throw new HarnessException(error);
+                // A session that could not be released keeps the task from counting as cleaned,
+                // but its worktree, branch and temp folders are still removed.
+                if (sessionFailures.TryGetValue(task, out var error))
+                {
+                    refused++;
+                    ledger.Write(task, "clean-failed", new JsonObject { ["step"] = step, ["error"] = error, ["force"] = force });
+                    Console.Error.WriteLine($"{task}: {step}: {error}");
+                }
                 step = "workspace";
                 var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
                 if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git)) throw new HarnessException("workspace cleanup refused");
-                ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
+                if (error is null)
+                    ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
             {
