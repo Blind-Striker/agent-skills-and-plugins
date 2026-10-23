@@ -29,13 +29,13 @@ public sealed class ConfigTests
     [Test]
     [Arguments("codex", "review", null, null, "clean")]
     [Arguments("codex", "research", null, null, "clean")]
-    [Arguments("opencode", "review", null, null, "full")]
-    [Arguments("opencode", "research", null, null, "full")]
-    [Arguments("codex", "research", "workspace", null, "full")]
+    [Arguments("opencode", "review", null, null, "clean")]
+    [Arguments("opencode", "research", null, null, "clean")]
+    [Arguments("codex", "research", "workspace", null, "clean")]
     [Arguments("codex", "code", "read-only", null, "clean")]
     [Arguments("codex", "code", null, "read-only", "clean")]
     [Arguments("codex", "code", null, null, "full")]
-    [Arguments("codex", "mechanical", null, null, "full")]
+    [Arguments("codex", "mechanical", null, null, "clean")]
     [Arguments("codex", "structured", null, null, "clean")]
     [Arguments("opencode", "structured", null, null, "clean")]
     public async Task Profile_default_follows_resolved_backend_and_access(string backend, string kind, string? access, string? ceiling, string profile)
@@ -153,7 +153,7 @@ public sealed class ConfigTests
             await Assert.That(settings.TimeoutMinutes.From).IsEqualTo(from);
             await Assert.That(settings.Backend!.Value).IsEqualTo("opencode");
             await Assert.That(settings.Backend.From).IsEqualTo(last < 0 ? "user" : from);
-            await Assert.That(settings.Profile!.Value).IsEqualTo(last < 0 || last % 2 != 0 ? "full" : "clean");
+            await Assert.That(settings.Profile!.Value).IsEqualTo(last >= 0 && last % 2 != 0 ? "full" : "clean");
             await Assert.That(settings.Profile.From).IsEqualTo(from);
             await Assert.That(settings.Effort?.Value).IsEqualTo(last < 0 ? null : $"effort{last}");
             if (last >= 0) await Assert.That(settings.Effort!.From).IsEqualTo(from);

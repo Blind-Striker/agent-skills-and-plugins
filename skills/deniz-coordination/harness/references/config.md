@@ -6,7 +6,9 @@ Config files use JSONC with required integer `schemaVersion: 2`. Comments and tr
 allowed. Unknown typed members fail; `$schema` and `$comment` are ignored. Old versions fail and
 newer versions require a harness update. User config is optional. Repository maintainers own
 `.dispatch/config.jsonc`, which the harness reads from committed `HEAD`, not the working copy.
-A differing working copy produces a warning and is not applied.
+A differing working copy produces a warning and is not applied. A public repository publishes its
+`.dispatch/` with it: keep there the rules that are fine to publish, and put operator-only rules
+(machine paths, service or credential denies) in a private policy file passed with `--policy`.
 
 ## Files and locations
 
@@ -24,7 +26,7 @@ is the package directory name.
 | `DISPATCH_HOME` | environment variable, absolute directory | Unset | Replaces both roots with `<value>/config` and `<value>/state`; relative value: `DISPATCH_HOME must be an absolute path`. |
 | User config | JSONC file | `<config root>/config.jsonc` | Missing is allowed; unreadable or invalid is an error naming the source and layer. |
 | Repository config | JSONC file | `<repo>/.dispatch/config.jsonc` at `HEAD` | Missing is allowed. Changes take effect after commit. |
-| Ledger root | directory | `<state root>/ledgers` | User `locations.ledgerRoot`, then absolute CLI `--ledger`, override it. |
+| Ledger root | directory | `<state root>/ledgers` | User `locations.ledgerRoot`, then absolute CLI `--ledger`, override it. A repository that commits its ledgers sets `locations.ledgerRoot` in the user config of every machine that runs it: one forgotten `--ledger` flag would write that run elsewhere. |
 | Worktree root | directory | `<state root>/worktrees` | User `locations.worktreeRoot` overrides it. |
 | Control root | directory | `<state root>/control` | Must be outside, and must not contain, the repository, worktree root or ledger root. Overlap refuses `run`. |
 
@@ -81,8 +83,9 @@ Preferences replace earlier values in this order: tool defaults, user config, co
 config, task-file defaults, task entry, CLI. Parallelism uses the task file's top-level
 `maxParallel`, not `defaults.maxParallel`. Route model and effort have separate provenance.
 
-The layer-0 `profile` default is `clean` for structured tasks and for Codex tasks whose resolved
-`access` is `read-only`, including access clamped by restrictions; otherwise it is `full`. Its
+The layer-0 `profile` default is `clean` for `structured`, `review`, `research` and `mechanical` tasks,
+and for Codex tasks whose resolved `access` is `read-only`, including access clamped by restrictions;
+otherwise (a `code` task) it is `full`. Its
 provenance is `tool`. Any explicit profile in the preference layers overrides that default.
 
 Restrictions accumulate from user, repository, task-file `policy`, then CLI `--policy`. Deny and

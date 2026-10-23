@@ -59,9 +59,9 @@ public sealed class ConfigRestrictionsTests
 
     [Test]
     [Arguments("code", "full", "on", "workspace")]
-    [Arguments("mechanical", "full", "on", "workspace")]
-    [Arguments("review", "full", "on", "read-only")]
-    [Arguments("research", "full", "on", "read-only")]
+    [Arguments("mechanical", "clean", "on", "workspace")]
+    [Arguments("review", "clean", "on", "read-only")]
+    [Arguments("research", "clean", "on", "read-only")]
     [Arguments("structured", "clean", "off", "read-only")]
     public async Task Defaults_are_per_kind_and_only_tool_defaults_are_clamped(string kind, string profile, string project, string access)
     {
