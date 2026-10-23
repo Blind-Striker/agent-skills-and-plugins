@@ -108,6 +108,59 @@ public sealed class CodexLifecycleTests
         }
     }
 
+    // The localstack hang: a Codex turn completed, but a descendant the harness could not confirm dead
+    // kept the stop unconfirmed, no Ended signal came, and the task stayed running until its timeout.
+    [Test]
+    [Timeout(180_000)]
+    public async Task A_completed_turn_whose_stop_stays_unconfirmed_settles_as_a_zombie_without_waiting_for_the_timeout(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("The descendant identity seams model the Windows start-time check.");
+        using var core = new CoreLab();
+        using var codex = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("inspect", cancellationToken);
+        run.Record.Spec.Route = "model-y#high";
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Settings.Route = new() { Value = "codex:model-y#high" };
+        run.Record.Settings.Access = new() { Value = "read-only" };
+        codex.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Replace("workspaceWrite", "readOnly").Replace(
+            "{\"expect\":\"turn/start\"", "{\"spawnChild\":true}\n{\"expect\":\"turn/start\"") + """
+            {"request":"item/commandExecution/requestApproval","params":{"threadId":"$threadId","turnId":"$turnId","itemId":"held","command":"inspect"},"result":{"decision":"decline"}}
+            {"expect":"turn/steer","reply":{}}
+
+            """ + CodexLab.Final);
+        await using var backend = codex.Backend();
+        await new TaskStarter(backend, core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, core.Git).StartAsync(run, cancellationToken);
+        var process = backend.WorkerProcesses.Single().Process;
+        var child = Directory.GetFiles(codex.Records, "start.json", SearchOption.AllDirectories)
+            .Select(path => JsonNode.Parse(File.ReadAllText(path))!["pid"]!.GetValue<int>()).Single(pid => pid != process.Id);
+        // As in the localstack run: opening the child is denied, while its limited start-time query still
+        // matches the recorded identity, so the harness can neither confirm it dead nor safely kill it.
+        process.RefreshDescendants();
+        var recorded = process.Descendants.Single(identity => identity.Pid == child).StartTime;
+        var readStart = process.QueryLimitedStartTime;
+        process.QueryLimitedStartTime = pid => pid == child ? recorded ?? DateTime.UnixEpoch : readStart(pid);
+        process.OpenProcess = pid => pid == child ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        try
+        {
+            var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["codex"] = backend }, core.Ledger,
+                core.Tree.Repository, AllowList.From(null), core.Policy, 1, cancellationToken, core.Git);
+            var clock = Stopwatch.StartNew();
+            await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+            await Assert.That(clock.Elapsed).IsLessThan(TimeSpan.FromSeconds(90));
+            var result = core.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.State).IsEqualTo("failed");
+            await Assert.That(result.Failures).Contains("zombie");
+            await Assert.That(result.Outcome).IsEqualTo("succeeded");
+            await Assert.That(core.Ledger.Read().Count(item => item.Type == "stop-unconfirmed")).IsEqualTo(1);
+            await Assert.That(File.ReadAllText(Path.Combine(core.Ledger.TaskDir(run.Id), "final.md"))).Contains("Completed.");
+        }
+        finally
+        {
+            process.OpenProcess = Process.GetProcessById;
+            process.QueryLimitedStartTime = readStart;
+        }
+    }
+
     [Test]
     [Timeout(180_000)]
     public async Task Task_start_forwards_the_structured_schema_to_the_native_backend(CancellationToken cancellationToken)
