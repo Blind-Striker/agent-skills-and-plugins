@@ -7,8 +7,9 @@
 //
 //   dotnet run probe.cs -- <none|bwrap|seatbelt> <outDir>
 //
-// Mode `none` is the unsandboxed baseline and runs anywhere. `bwrap` runs only on Linux and `seatbelt`
-// only on macOS. The result goes to <outDir>/<mode>.json, and a summary table goes to stdout and to
+// Mode `none` is the unsandboxed baseline and runs anywhere. `bwrap`, `bwrap-nopid` (no
+// --unshare-pid) and `bwrap-tini` (tini or dumb-init between bwrap and opencode, to forward signals)
+// run only on Linux, and `seatbelt` only on macOS. The result goes to <outDir>/<mode>.json, and a summary table goes to stdout and to
 // $GITHUB_STEP_SUMMARY when set. `--hold <mode> <root>` is the internal child mode for the hard kill.
 
 using System.Diagnostics;
@@ -87,6 +88,17 @@ static class Probe
             return 2;
         }
 
+        if (mode == "bwrap-tini")
+        {
+            if (ResolveInit() is not { } init)
+            {
+                result["skipped"] = "init missing: neither tini nor dumb-init was found";
+                return 0;
+            }
+
+            result["init"] = ToArray(init);
+        }
+
         var layout = CreateLayout(mode);
         result["layout"] = new JsonObject
         {
@@ -152,10 +164,24 @@ static class Probe
     static string? Refusal(string mode) => mode switch
     {
         "none" => null,
-        "bwrap" => OperatingSystem.IsLinux() ? null : "mode bwrap runs only on Linux",
+        "bwrap" or "bwrap-nopid" or "bwrap-tini" => OperatingSystem.IsLinux() ? null : $"mode {mode} runs only on Linux",
         "seatbelt" => OperatingSystem.IsMacOS() ? null : "mode seatbelt runs only on macOS",
-        _ => $"unknown mode '{mode}'; use none, bwrap or seatbelt",
+        _ => $"unknown mode '{mode}'; use none, bwrap, bwrap-nopid, bwrap-tini or seatbelt",
     };
+
+    // tini -s (subreaper, since bwrap's own init is pid 1) or dumb-init, by absolute path.
+    static string[]? ResolveInit()
+    {
+        var dirs = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries)
+            .Concat(["/usr/bin", "/usr/sbin", "/bin", "/sbin", "/usr/local/bin"]).Distinct().ToList();
+        string? Find(string name) => dirs.Select(d => Path.Combine(d, name)).FirstOrDefault(File.Exists);
+        if (Find("tini") is { } tini)
+        {
+            return [tini, "-s", "--"];
+        }
+
+        return Find("dumb-init") is { } dumbInit ? [dumbInit, "--"] : null;
+    }
 
     // ---------- layout and command ----------
 
@@ -228,18 +254,30 @@ static class Probe
         var opencode = ResolveOpenCode();
         switch (mode)
         {
-            case "bwrap":
-                var argv = new List<string>
+            case "bwrap" or "bwrap-nopid" or "bwrap-tini":
+                var pidNamespace = mode != "bwrap-nopid";
+                var argv = new List<string> { "bwrap", "--ro-bind", "/", "/", "--dev", "/dev" };
+                // A fresh procfs needs a pid namespace the sandbox owns; without one, bind the host's.
+                argv.AddRange(pidNamespace ? ["--proc", "/proc"] : ["--ro-bind", "/proc", "/proc"]);
+                argv.AddRange(["--tmpfs", "/tmp", "--bind", l.Work, l.Work, "--bind", l.State, l.State]);
+                if (pidNamespace)
                 {
-                    "bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--proc", "/proc", "--tmpfs", "/tmp",
-                    "--bind", l.Work, l.Work, "--bind", l.State, l.State, "--unshare-pid", "--die-with-parent",
-                };
+                    argv.Add("--unshare-pid");
+                }
+
+                argv.Add("--die-with-parent");
                 if (unshareNet)
                 {
                     argv.Add("--unshare-net");
                 }
 
-                argv.AddRange(["--", opencode, "serve"]);
+                argv.Add("--");
+                if (mode == "bwrap-tini")
+                {
+                    argv.AddRange(ResolveInit() ?? throw new InvalidOperationException("init missing"));
+                }
+
+                argv.AddRange([opencode, "serve"]);
                 return [.. argv];
             case "seatbelt":
                 return ["sandbox-exec", "-p", SeatbeltProfile(l), opencode, "serve"];
@@ -786,7 +824,7 @@ static class Probe
     {
         var first = cmd.TrimStart('"').Split(' ', 2)[0];
         var name = Path.GetFileName(first.TrimEnd('"'));
-        return name is "bwrap" or "sandbox-exec";
+        return name is "bwrap" or "sandbox-exec" or "tini" or "dumb-init";
     }
 
     static string? AfterServe(string cmd)
@@ -857,6 +895,12 @@ static class Probe
         if (r["refused"] is { } refused)
         {
             sb.AppendLine($"Refused: {refused}");
+            return sb.ToString();
+        }
+
+        if (r["skipped"] is { } skipped)
+        {
+            sb.AppendLine($"Skipped: {skipped}");
             return sb.ToString();
         }
 

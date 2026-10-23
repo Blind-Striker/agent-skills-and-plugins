@@ -36,12 +36,13 @@ jobs:
         run: |
           npm install -g @opencode/cli@2.0.32
           opencode --version
-      - name: Install bubblewrap
+      - name: Install bubblewrap and tini
         if: matrix.mode == 'bwrap'
         run: |
           sudo apt-get update
-          sudo apt-get install -y bubblewrap
+          sudo apt-get install -y bubblewrap tini
           bwrap --version
+          command -v tini && tini --version
       - name: bwrap user-namespace precheck
         if: matrix.mode == 'bwrap'
         run: |
@@ -71,6 +72,13 @@ jobs:
       - name: Probe ${{ matrix.mode }}
         if: always()
         run: dotnet run experiments/sandbox-probe/probe.cs -- ${{ matrix.mode }} "$RUNNER_TEMP/probe-out"
+      # Can a graceful stop reach opencode through bwrap, which does not forward signals?
+      - name: Probe bwrap-nopid
+        if: always() && matrix.mode == 'bwrap'
+        run: dotnet run experiments/sandbox-probe/probe.cs -- bwrap-nopid "$RUNNER_TEMP/probe-out"
+      - name: Probe bwrap-tini
+        if: always() && matrix.mode == 'bwrap'
+        run: dotnet run experiments/sandbox-probe/probe.cs -- bwrap-tini "$RUNNER_TEMP/probe-out"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
