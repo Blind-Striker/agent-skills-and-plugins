@@ -96,6 +96,9 @@ is any subagent tool you have; the rules below hold for all of them.
    defects first, then gaps against the request, then anything not asked for, then tests that pass for a
    reason production lacks. For a refactor, both reads compare the base and the new code behaviour by
    behaviour. For new lock, race, or cancellation-lifetime code, add a third family if one is available.
+   A change to infrastructure another lane or team owns adds that owner's read: it knows how the
+   infrastructure is used. A reviewer gets every source its claims depend on in a readable place (an
+   initialized submodule, a fetched tag, a named path), and its report states what it could not read.
    The merge queue and CI stay the last net for cross-change effects.
 5. **Fix-up loop.** Turn findings into a per-file cut list with line ranges and the replacement. A worker
    fix pass reports each item done or rejected with figures. Spot-check the blockers yourself. A fix pass
