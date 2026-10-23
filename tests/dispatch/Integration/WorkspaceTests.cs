@@ -42,6 +42,21 @@ public sealed class WorkspaceTests
     }
 
     [Test]
+    public async Task RealPath_keeps_a_backslash_in_a_Unix_name()
+    {
+        if (OperatingSystem.IsWindows()) Skip.Test("A backslash is a separator on Windows.");
+        using var tree = new TempTree();
+        var repo = Directory.CreateDirectory(Path.Combine(tree.Root, "repo")).FullName;
+        var link = Path.Combine(tree.Root, "alias\\name");
+        Directory.CreateSymbolicLink(link, repo);
+        try
+        {
+            await Assert.That(Worktree.IsInside(Worktree.RealPath(Path.Combine(link, "scratch")), Worktree.RealPath(repo))).IsTrue();
+        }
+        finally { Directory.Delete(link); }
+    }
+
+    [Test]
     [Timeout(60_000)]
     public async Task RealPath_resolves_a_link_before_a_later_parent_step(CancellationToken ct)
     {
