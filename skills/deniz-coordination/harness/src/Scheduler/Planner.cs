@@ -162,6 +162,11 @@ static class Planner
             if (spec.Kind != "structured" && spec.Workspace != "in-place")
             {
                 var path = Locations.Worktree(spec.Id ?? "", runId);
+                if (OperatingSystem.IsWindows() && repoPath is not null)
+                {
+                    var depth = await Worktree.PathDepthAsync(git, repo, path, ct);
+                    if (depth.Length >= 248) plan.Warnings.Add($"{spec.Id}: {depth.Detail}");
+                }
                 if (Path.Exists(path)) e.Add($"worktree {path} already exists; clean it first");
                 if ((await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", $"refs/heads/dispatch/{runId}/{spec.Id}")).ExitCode == 0)
                     e.Add($"branch dispatch/{runId}/{spec.Id} already exists; clean it first");

@@ -8,6 +8,44 @@ namespace Dispatch.Tests.Integration;
 public sealed class PlanOutputTests
 {
     [Test]
+    [Arguments("plan", 0)]
+    [Arguments("plan", 247)]
+    [Arguments("plan", 248)]
+    [Arguments("run", 248)]
+    [Timeout(180_000)]
+    public async Task Worktree_path_depth_warns_only_at_the_Windows_threshold(string command, int depth, CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        await repo.GitAsync(["config", "core.longpaths", "true"], ct);
+        var folder = Path.Combine(lab.Tree.WorktreeRoot, $"{DateTime.UtcNow:yyyy-MM-dd}-path-depth", "inspect");
+        var file = depth == 0 ? "README.md" : new string('d', depth - folder.Length - 10) + "/leaf.txt";
+        if (depth != 0)
+        {
+            await repo.GitAsync(["rm", "README.md"], ct);
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, file))!);
+            File.WriteAllText(Path.Combine(repo.Root, file), "tracked");
+            await repo.GitAsync(["add", "--", file], ct);
+            await repo.GitAsync(["commit", "-m", "Track path depth fixture"], ct);
+        }
+        var staged = file + ".staged-only";
+        File.WriteAllText(Path.Combine(repo.Root, staged), "not at HEAD");
+        await repo.GitAsync(["add", "--", staged], ct);
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "synthetic-auth");
+        File.WriteAllText(lab.Tasks, """{"schemaVersion":2,"run":"path-depth","tasks":[{"id":"inspect","kind":"research","base":"main","project":"off","prompt":"Inspect."}]}""");
+        lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Replace("workspaceWrite", "readOnly") + CodexLab.Final);
+        using var process = new HarnessProcess(lab.Tree);
+        var result = await process.RunAsync([command, lab.Tasks, "--repo", repo.Root], ct,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess(command);
+        var length = folder.Length + 1 + file.Length;
+        var expected = $"WARN inspect: worktree paths reach {length} characters ({file.Replace('/', '\\')}); builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config";
+        await Assert.That(Lines(result).Where(line => line.Contains(": worktree paths reach ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(OperatingSystem.IsWindows() && length >= 248 ? new[] { expected } : [], CollectionOrdering.Matching);
+        await Assert.That(await repo.GitAsync(["diff", "--cached", "--name-only"], ct)).IsEqualTo(staged);
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]

@@ -47,6 +47,11 @@ static partial class Commands
         string? worktree = null;
         if (repo is not null)
         {
+            if (OperatingSystem.IsWindows())
+            {
+                var depth = await Worktree.PathDepthAsync(git, repo, Locations.Worktree("selfcheck"), ct);
+                Check("worktree path depth", true, depth.Detail, warn: depth.Length >= 248);
+            }
             worktree = Path.Combine(Locations.WorktreeRoot, $"selfcheck-{Guid.NewGuid():N}");
             var add = await git.RunAsync(repo, ct, "worktree", "add", "--detach", worktree, "HEAD");
             Check("worktree", add.ExitCode == 0, add.ExitCode == 0 ? worktree : add.Stderr.Trim());

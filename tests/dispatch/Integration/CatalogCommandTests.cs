@@ -9,6 +9,44 @@ namespace Dispatch.Tests.Integration;
 public sealed class CatalogCommandTests
 {
     [Test]
+    [Arguments(0)]
+    [Arguments(247)]
+    [Arguments(248)]
+    [Timeout(180_000)]
+    public async Task Selfcheck_worktree_path_depth_is_advisory(int depth, CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = Configure(lab, both: false);
+        await repo.GitAsync(["config", "core.longpaths", "true"], ct);
+        var folder = Path.Combine(lab.Tree.WorktreeRoot, "selfcheck");
+        var file = depth == 0 ? "README.md" : new string('d', depth - folder.Length - 10) + "/leaf.txt";
+        if (depth != 0)
+        {
+            await repo.GitAsync(["rm", "README.md"], ct);
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, file))!);
+            File.WriteAllText(Path.Combine(repo.Root, file), "tracked");
+            await repo.GitAsync(["add", "--", file], ct);
+            await repo.GitAsync(["commit", "-m", "Track path depth fixture"], ct);
+        }
+        var staged = file + ".staged-only";
+        File.WriteAllText(Path.Combine(repo.Root, staged), "not at HEAD");
+        await repo.GitAsync(["add", "--", staged], ct);
+        using var harness = new HarnessProcess(lab.Tree);
+        var result = await harness.RunAsync(["selfcheck", "--repo", repo.Root], ct, environment);
+        result.RequireSuccess("path depth selfcheck");
+        var length = folder.Length + 1 + file.Length;
+        var level = length >= 248 ? "WARN" : "PASS";
+        var expected = $"{level}  worktree path depth: worktree paths reach {length} characters ({file.Replace('/', '\\')}); builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config";
+        await Assert.That(result.Stdout.Split('\n').Select(line => line.TrimEnd('\r'))
+            .Where(line => line.Contains("  worktree path depth:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(OperatingSystem.IsWindows() ? new[] { expected } : [], CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r'))
+            .IsEqualTo($"selfcheck passed ({(OperatingSystem.IsWindows() && length >= 248 ? 1 : 0)} warning(s))");
+        await Assert.That(await repo.GitAsync(["diff", "--cached", "--name-only"], ct)).IsEqualTo(staged);
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]

@@ -98,6 +98,10 @@ that falls back to `clean-partial` is `WARN`, including the profile reason; vali
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
+With a repository on Windows, `worktree path depth` checks the resolved worktree root with synthetic
+task id `selfcheck` plus the longest tracked path at HEAD: `PASS` below 248 characters, `WARN` at 248
+or more, never `FAIL`. See [worktree root configuration](config.md#files-and-locations) for the trade-off.
+
 On Windows only, a successful Codex probe also prints exactly one
 `PASS  windows sandbox: mode <mode>; readiness <status>` check. Mode comes from the user's Codex
 home configuration: `elevated`, `unelevated`, `mxc`, or `not set` when unset. Readiness is the raw

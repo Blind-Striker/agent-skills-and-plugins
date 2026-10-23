@@ -27,12 +27,15 @@ is the package directory name.
 | User config | JSONC file | `<config root>/config.jsonc` | Missing is allowed; unreadable or invalid is an error naming the source and layer. |
 | Repository config | JSONC file | `<repo>/.dispatch/config.jsonc` at `HEAD` | Missing is allowed. Changes take effect after commit. |
 | Ledger root | directory | `<state root>/ledgers` | User `locations.ledgerRoot`, then absolute CLI `--ledger`, override it. A repository that commits its ledgers sets `locations.ledgerRoot` in the user config of every machine that runs it: one forgotten `--ledger` flag would write that run elsewhere. |
-| Worktree root | directory | `<state root>/worktrees` | User `locations.worktreeRoot` overrides it. |
+| Worktree root | directory | `<state root>/worktrees` (Windows: local app data; Linux: `~/.local/state/deniz-dispatch/worktrees` unless XDG overrides it) | User `locations.worktreeRoot` overrides it; deep Windows repositories need a short root. |
 | Control root | directory | `<state root>/control` | Must be outside, and must not contain, the repository, worktree root or ledger root. Overlap refuses `run`. |
 
 Packaged Windows hosts may see a private application-data location. Set `DISPATCH_HOME` to an
-external location when the host needs stable shared state. Deep default worktree paths can exceed
-Windows path limits; choose a short `locations.worktreeRoot` or enable Git `core.longpaths`.
+external location when the host needs stable shared state. The default worktree root keeps state under
+the user's local app data on Windows and `~/.local/state/deniz-dispatch/worktrees` on Linux (unless
+XDG overrides it), but deep repositories on Windows need a short `locations.worktreeRoot`, such as
+`C:\wt`. On Windows, `plan` and `selfcheck` warn at 248 characters for the worktree folder plus the
+longest tracked path at HEAD; builds can fail past 260 even with Git `core.longpaths` enabled.
 `selfcheck` prints the resolved state, worktree and control roots and warns when `core.longpaths`
 is not true. `DISPATCH_HOME` moves only the harness's own folders: keep the backends' own homes
 (`CODEX_HOME`, opencode's data root under `XDG_DATA_HOME`) where they are, because their sign-in
