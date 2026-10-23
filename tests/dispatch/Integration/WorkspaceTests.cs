@@ -42,6 +42,25 @@ public sealed class WorkspaceTests
     }
 
     [Test]
+    [Timeout(60_000)]
+    public async Task Clean_force_removes_a_detached_worktree(CancellationToken ct)
+    {
+        // A worker that stops mid-rebase or detaches HEAD leaves no branch line in git's registration.
+        using var lab = new CoreLab("detached");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["-C", path, "checkout", "--detach"], ct);
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, repo.Root, true, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(path)).IsFalse();
+        await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).DoesNotContain(path.Replace('\\', '/'));
+        await Assert.That(await repo.GitAsync(["branch", "--list", run.Record.Workspace.Branch!], ct)).IsEqualTo("");
+    }
+
+    [Test]
     [Arguments("dirty", false)]
     [Arguments("untracked", false)]
     [Arguments("unmerged", false)]

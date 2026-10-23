@@ -18,21 +18,14 @@ public sealed class GitSafetyTests
         await repo.GitAsync(["config", "branch.autoSetupRebase", "always"], ct);
         await repo.GitAsync(["worktree", "add", "--track", "-b", "old.foreign", Path.Combine(lab.Tree.Root, "old"), "fixture/main"], ct);
         var run = await lab.TaskAsync("inspect", ct);
-        var sibling = await lab.TaskAsync("sibling", ct);
-        run.Record.Workspace.Branch = "owned.with.dots";
-        sibling.Record.Workspace.Branch = "sibling-owned";
-        lab.Ledger.SaveRecord(run.Record);
-        lab.Ledger.SaveRecord(sibling.Record);
-        lab.Ledger.Write(sibling.Id, "cleaned"); // Ownership survives cleanup and branch absence.
-        Json.WriteFile(Path.Combine(lab.Git.ControlFolder, "run.ref"), new RunReference
-            { Run = lab.Ledger.RunId, LedgerRoot = Path.GetDirectoryName(lab.Ledger.Dir)! }, ControlJson.Files.RunReference);
         var baselinePath = Path.Combine(lab.Git.ControlFolder, "git-baseline.json");
         var baseline = File.ReadAllText(baselinePath);
         await repo.GitAsync(["config", "--remove-section", "branch.old.foreign"], ct);
-        const string foreign = "dispatch/config-test/foreign.with.dots";
+        // The harness names its branches dispatch/<run>/<task>; any other branch is foreign.
+        const string foreign = "lane/foreign.with.dots";
         await repo.GitAsync(["worktree", "add", "--track", "-b", foreign, Path.Combine(lab.Tree.Root, "new"), "fixture/main"], ct);
         await Assert.That(await repo.GitAsync(["config", $"branch.{foreign}.rebase"], ct)).IsEqualTo("true");
-        foreach (var branch in new[] { "owned.with.dots", "sibling-owned" })
+        foreach (var branch in new[] { "dispatch/config-test/owned.with.dots", "dispatch/other-run/sibling-owned" })
             foreach (var key in new[] { "remote", "merge", "rebase" })
                 await repo.GitAsync(["config", $"branch.{branch}.{key}", "changed"], ct);
         await repo.GitAsync(["config", $"branch.{foreign}.description", "visible"], ct);
@@ -44,7 +37,7 @@ public sealed class GitSafetyTests
         await Assert.That(async () => await gate.CheckAsync(repo.Root, ct)).Throws<GitConfigChangedException>();
         var change = lab.Ledger.Read().Last(x => x.Type == "git-config-changed");
         await Assert.That(string.Join(",", change.Data!["keys"]!.AsArray().Select(x => x!.GetValue<string>())))
-            .IsEqualTo($"branch.{foreign}.description,branch.{foreign}.remote.extra,branch.owned.with.dots.merge,branch.owned.with.dots.rebase,branch.owned.with.dots.remote,branch.sibling-owned.merge,branch.sibling-owned.rebase,branch.sibling-owned.remote,core.editor,filter.x.clean,hooks/post-checkout");
+            .IsEqualTo($"branch.dispatch/config-test/owned.with.dots.merge,branch.dispatch/config-test/owned.with.dots.rebase,branch.dispatch/config-test/owned.with.dots.remote,branch.dispatch/other-run/sibling-owned.merge,branch.dispatch/other-run/sibling-owned.rebase,branch.dispatch/other-run/sibling-owned.remote,branch.{foreign}.description,branch.{foreign}.remote.extra,core.editor,filter.x.clean,hooks/post-checkout");
         await Assert.That(change.Data["blocking"]!.GetValue<bool>()).IsTrue();
         await Assert.That(File.ReadAllText(baselinePath)).IsEqualTo(baseline);
     }

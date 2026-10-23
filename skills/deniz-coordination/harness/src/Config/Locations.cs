@@ -73,6 +73,7 @@ static class Locations
     {
         if (record.Settings.TempRoot?.Value is { } root) yield return TaskTemp(record.Spec.Id!, ledger.RunId, root);
         yield return Path.Combine(CleanupRoot(ledger), ledger.RunId, ".tmp", record.Spec.Id!);
+        yield return Path.Combine(WorktreeRoot, ledger.RunId, ".tmp", record.Spec.Id!);
         if (!global::Worktree.InPlace(record) && record.Workspace.Branch is not null && record.Workspace.Path is { } path
             && Path.GetFileName(Path.GetDirectoryName(path)) == ledger.RunId)
             yield return Path.Combine(Path.GetDirectoryName(path)!, ".tmp", record.Spec.Id!);

@@ -52,7 +52,7 @@ sealed partial class OpenCodeBackend
             if (ran is not null) contextWindow = (await Catalog.LoadAsync(server.Client, info.Location.Directory, TimeSpan.Zero, ct))
                 .FindModel(OpenCodeModels.From(ran))?.Limit.Context;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException) { }
+        catch (Exception) when (!ct.IsCancellationRequested) { }
         // A session that succeeded recovered from errors on earlier model calls (a dropped provider stream);
         // only the idle marker's error or the last call's error is the turn's error.
         var succeeded = info.Outcome == SessionInfoOutcome.Succeeded;
