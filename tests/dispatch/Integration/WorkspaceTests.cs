@@ -43,6 +43,44 @@ public sealed class WorkspaceTests
 
     [Test]
     [Timeout(60_000)]
+    public async Task Clean_never_removes_another_branchs_worktree_in_the_task_folder(CancellationToken ct)
+    {
+        using var lab = new CoreLab("replaced");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["worktree", "remove", "--force", path], ct);
+        await repo.GitAsync(["worktree", "add", "-b", "lane/other", path, "main"], ct);
+        File.WriteAllText(Path.Combine(path, "theirs.txt"), "foreign work");
+        await Assert.That(async () => await Worktree.CleanAsync(lab.Ledger, run.Record, repo.Root, true, ct, lab.Git))
+            .Throws<HarnessException>().WithMessage($"refused a worktree on another branch: {path}");
+        await Assert.That(File.ReadAllText(Path.Combine(path, "theirs.txt"))).IsEqualTo("foreign work");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_a_detached_worktree_whose_HEAD_holds_unmerged_commits(CancellationToken ct)
+    {
+        using var lab = new CoreLab("detached-work");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["-C", path, "checkout", "--detach"], ct);
+        File.WriteAllText(Path.Combine(path, "detached.txt"), "work");
+        await repo.GitAsync(["-C", path, "add", "detached.txt"], ct);
+        await repo.GitAsync(["-C", path, "commit", "-m", "Detached work"], ct);
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, repo.Root, false, ct, lab.Git)).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(path, "detached.txt"))).IsEqualTo("work");
+    }
+
+    [Test]
+    [Timeout(60_000)]
     public async Task Clean_force_removes_a_detached_worktree(CancellationToken ct)
     {
         // A worker that stops mid-rebase or detaches HEAD leaves no branch line in git's registration.

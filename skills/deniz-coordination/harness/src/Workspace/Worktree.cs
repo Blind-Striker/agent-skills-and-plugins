@@ -29,6 +29,21 @@ static class Worktree
         return relative != ".." && !relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) && !Path.IsPathRooted(relative);
     }
 
+    // Resolves every existing link component of a path; missing components are kept as written.
+    public static string RealPath(string path)
+    {
+        var full = Path.GetFullPath(path);
+        var root = Path.GetPathRoot(full)!;
+        var current = root;
+        foreach (var part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, part);
+            if (Directory.Exists(current) && new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true) is { } target)
+                current = Path.GetFullPath(target.FullName);
+        }
+        return current;
+    }
+
     public static Git Runner(Ledger ledger, string task)
     {
         var info = File.Exists(Path.Combine(ledger.Dir, "run.json")) ? ledger.LoadRunInfo() : null;
@@ -111,6 +126,9 @@ static class Worktree
                     // a detached or rebasing worktree has no branch line and matches by path.
                     var entry = entries.FirstOrDefault(x => x.Any(v => v.StartsWith("worktree ", StringComparison.Ordinal) && Locations.Same(v[9..], path)))
                         ?? entries.FirstOrDefault(x => x.Contains("branch refs/heads/" + branch));
+                    // Someone else's worktree in the task's folder is on another branch: never remove it.
+                    if (entry is not null && entry.Any(v => v.StartsWith("branch ", StringComparison.Ordinal)) && !entry.Contains("branch refs/heads/" + branch))
+                        throw new HarnessException($"refused a worktree on another branch: {path}");
                     return entry is null ? null : string.Join('\0', entry);
                 }
                 var registration = await Registration();
@@ -132,6 +150,12 @@ static class Worktree
                 var dirty = !force && intact && await DirtyAsync(git, path, ct);
                 var merged = force || !branchExists || (record.Workspace.BaseRef is { } baseRef &&
                     (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", branch, baseRef)).ExitCode == 0);
+                if (!force && merged && intact)
+                {
+                    var head = (await git.RunAsync(path, ct, "rev-parse", "--verify", "HEAD")).Output.Trim();
+                    merged = head.Length > 0 && record.Workspace.BaseRef is { } headBase
+                        && (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", head, headBase)).ExitCode == 0;
+                }
                 if (!force && (dirty || !merged))
                 {
                     Console.WriteLine($"{task}: refused (dirty or unmerged worktree); --force removes it anyway");

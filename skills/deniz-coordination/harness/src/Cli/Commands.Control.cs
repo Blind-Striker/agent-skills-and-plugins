@@ -85,7 +85,7 @@ static partial class Commands
         var records = states.Keys.Where(task => File.Exists(Path.Combine(ledger.Dir, task, "task.json")))
             .Select(ledger.LoadRecord).ToList();
         var sessionFailures = await CleanSessionsAsync(ledger, records, states, control, ct);
-        var refused = 0;
+        var refused = sessionFailures.Keys.Count(task => records.All(record => record.Spec.Id != task));
         foreach (var record in records)
         {
             var task = record.Spec.Id!;

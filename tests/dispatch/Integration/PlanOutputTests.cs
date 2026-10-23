@@ -92,6 +92,36 @@ public sealed class PlanOutputTests
     }
 
     [Test]
+    [Timeout(180_000)]
+    public async Task Plan_refuses_a_tempRoot_that_reaches_the_repository_through_a_link(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var link = Path.Combine(tree.Root, "temp-link");
+        if (OperatingSystem.IsWindows())
+        {
+            using var command = new CapturedProcess();
+            (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, repo.Root], tree.Root, tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+        }
+        else Directory.CreateSymbolicLink(link, repo.Root);
+        try
+        {
+            var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+            var inside = Path.Combine(link, "scratch-temp").Replace("\\", "\\\\");
+            File.WriteAllText(tasks, $$"""{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect.","tempRoot":"{{inside}}"}]}""");
+            using var process = new HarnessProcess(tree);
+            var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root], ct,
+                FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+            await Assert.That(Lines(result)).Contains("ERROR inspect: tempRoot from task must be outside the repository");
+        }
+        finally
+        {
+            // The link must go before TempTree deletes the tree, or deletion follows it.
+            if (Path.Exists(link)) Directory.Delete(link);
+        }
+    }
+
+    [Test]
     [Arguments("plan")]
     [Arguments("run")]
     [Timeout(180_000)]
