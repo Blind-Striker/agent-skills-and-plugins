@@ -330,14 +330,18 @@ Cleanup is resumable: missing artifacts are already removed; retry reconciles th
 its registration, branch, task temp and temporary index independently. A folder with a missing or
 dangling `.git` link is partially removed: without force, clean refuses with
 `<task>: worktree partially removed (<path>); clean --force finishes the removal`.
-Force finishes that removal and skips dirtiness assessment, but never bypasses ownership checks,
-Git configuration/filter checks, worktree locks, structured-scratch ownership or in-place safety.
-Only that path's registration is removed, never repository-wide pruning.
+Force finishes that removal and skips dirtiness assessment, but never bypasses Git
+configuration/filter checks, worktree locks, structured-scratch ownership or in-place safety. Clean
+finds the task's registration by its recorded path, or by its branch when Git records the path
+differently (a root reached through a link); a detached worktree is found by path. Only that
+registration is removed, never repository-wide pruning.
 
 After all tasks succeed, clean removes empty run/temp containers bottom-up, including an empty
 `.dispatch-tmp/git` and its empty parent. Nonempty containers and links remain and are printed as
 `retained: <path>`; the worktree root remains. A task failure prints task, cleanup step and error,
-records `clean-failed` rather than `cleaned`, continues other tasks, and returns exit 1.
+records `clean-failed` rather than `cleaned`, continues other tasks, and returns exit 1. A session
+that cannot be released records `clean-failed` at `session`, and clean still removes that task's
+worktree, branch and temporary folders.
 
 | Exit | Type | Meaning |
 |---|---|---|

@@ -360,9 +360,8 @@ The pending `warning` event for Windows user PATH changes is described under the
 [Windows user PATH guard](cli.md#windows-user-path-guard).
 
 The Git guard excludes only exact `branch.<name>.remote`, `.merge` and `.rebase` keys for branches
-outside this run's recorded ownership. Ownership includes every recorded task, even after its
-cleanup or branch deletion, not a branch-name prefix. The exclusion applies to both baseline and
-current keys; owned-branch keys, all other config and hook changes retain their existing ordering,
+the harness does not own: every branch outside `dispatch/`, the prefix of the `dispatch/<run>/<task>`
+branches the harness creates. The exclusion applies to both baseline and current keys; owned-branch keys, all other config and hook changes retain their existing ordering,
 hashing and blocking behavior. Cleanup never refreshes the baseline.
 
 ## Derived states
