@@ -1,0 +1,78 @@
+name: sandbox-probe
+# A one-off measurement on disposable runners: can the dispatch harness start `opencode serve` inside
+# an OS sandbox (bubblewrap on Linux, sandbox-exec on macOS) by giving the OpenCode .NET SDK a wrapper
+# argv, and do the SDK launcher's guarantees still hold through the wrapper? Each runner also runs the
+# unsandboxed baseline. It lives only on its probe branch; master never runs it.
+on:
+  push:
+    branches: [probe/windows-sandbox]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            mode: bwrap
+          - os: macos-latest
+            mode: seatbelt
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    env:
+      DOTNET_NOLOGO: "1"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 10.0.x
+      - name: Install the harness's OpenCode pin
+        run: |
+          npm install -g @opencode/cli@2.0.32
+          opencode --version
+      - name: Install bubblewrap
+        if: matrix.mode == 'bwrap'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          bwrap --version
+      - name: bwrap user-namespace precheck
+        if: matrix.mode == 'bwrap'
+        run: |
+          out_dir="$RUNNER_TEMP/probe-out"
+          mkdir -p "$out_dir"
+          smoke() { bwrap --ro-bind / / --dev /dev --proc /proc --unshare-pid --die-with-parent -- true 2>&1; }
+          {
+            echo "kernel.apparmor_restrict_unprivileged_userns before: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>&1)"
+            if smoke_out=$(smoke); then
+              echo "bwrap smoke: ok"
+              echo "sysctl changed: no"
+            else
+              echo "bwrap smoke failed: $smoke_out"
+              if echo "$smoke_out" | grep -qiE 'namespace|uid map|uid_map|permission denied|operation not permitted'; then
+                sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+                echo "sysctl changed: yes, set to 0 because bwrap failed with the user-namespace error above"
+                if smoke_out=$(smoke); then echo "bwrap smoke after change: ok"; else echo "bwrap smoke after change failed: $smoke_out"; fi
+              else
+                echo "sysctl changed: no, the failure is not a user-namespace error"
+              fi
+            fi
+            echo "kernel.apparmor_restrict_unprivileged_userns after: $(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>&1)"
+          } | tee "$out_dir/bwrap-precheck.txt"
+          { echo '### bwrap precheck'; echo; echo '```'; cat "$out_dir/bwrap-precheck.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Probe baseline (none)
+        run: dotnet run experiments/sandbox-probe/probe.cs -- none "$RUNNER_TEMP/probe-out"
+      - name: Probe ${{ matrix.mode }}
+        if: always()
+        run: dotnet run experiments/sandbox-probe/probe.cs -- ${{ matrix.mode }} "$RUNNER_TEMP/probe-out"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: sandbox-probe-${{ matrix.os }}
+          path: ${{ runner.temp }}/probe-out
