@@ -57,6 +57,8 @@ static class Planner
         var ids = new HashSet<string>(StringComparer.Ordinal);
         var contractCache = new Dictionary<string, Prompt.Contract>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         var fetches = new Dictionary<(string Remote, string Branch), ProcessResult>();
+        string[]? remotes = null;
+        var depths = new Dictionary<(string Repo, string Head), Task<(int Length, string Detail)>>();
         foreach (var spec in specs)
         {
             var e = new List<string>();
@@ -127,18 +129,26 @@ static class Planner
                 if (spec.Base is null) e.Add("base is required (a branch, tag or commit of the repo)");
                 else
                 {
-                    var symbolic = await git.RunAsync(repo, ct, "rev-parse", "--symbolic-full-name", spec.Base);
-                    var reference = symbolic.Output.Trim();
-                    string? remote = null;
+                    var reference = Regex.Replace(spec.Base, @"(?:~[0-9]*|\^(?:[0-9]*|\{[^}]*\}))+$", "");
+                    var symbolic = await git.RunAsync(repo, ct, "rev-parse", "--symbolic-full-name", reference);
+                    if (symbolic.ExitCode == 0) reference = symbolic.Output.Trim();
+                    if (reference.StartsWith("refs/remotes/", StringComparison.Ordinal)) reference = reference["refs/remotes/".Length..];
+                    remotes ??= (await git.CheckAsync(repo, ct, "remote")).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    var remote = remotes.OrderByDescending(name => name.Length)
+                        .FirstOrDefault(name => reference.StartsWith(name + "/", StringComparison.Ordinal) && reference.Length > name.Length + 1);
                     ProcessResult? fetch = null;
-                    if (symbolic.ExitCode == 0 && reference.StartsWith("refs/remotes/", StringComparison.Ordinal)
-                        && reference["refs/remotes/".Length..].Split('/', 2) is [var remoteName, var branch])
+                    if (remote is not null)
                     {
-                        remote = remoteName;
+                        var branch = reference[(remote.Length + 1)..];
                         var key = (remote, branch);
                         if (!fetches.TryGetValue(key, out fetch))
                         {
-                            fetch = await git.RunAsync(repo, ct, "fetch", "--quiet", remote, branch);
+                            var environment = WorkerEnvironment.Snapshot();
+                            // The CLI removes credentials from its own environment before planning; restore them only for this operator call.
+                            if (Cli.RootEnvironment is { } root)
+                                foreach (var (name, value) in root.Passthrough(root.Removed)) environment[name] = value;
+                            var operatorGit = new Git(Executables.Resolve("git"), git.ControlFolder, environment);
+                            fetch = await operatorGit.RunAsync(repo, ct, "fetch", "--quiet", remote, branch);
                             fetches.Add(key, fetch);
                         }
                     }
@@ -164,8 +174,24 @@ static class Planner
                 var path = Locations.Worktree(spec.Id ?? "", runId);
                 if (OperatingSystem.IsWindows() && repoPath is not null)
                 {
-                    var depth = await Worktree.PathDepthAsync(git, repo, path, ct);
-                    if (depth.Length >= 248) plan.Warnings.Add($"{spec.Id}: {depth.Detail}");
+                    try
+                    {
+                        var head = await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", "HEAD");
+                        var key = (repo, head.Output.Trim());
+                        if (!depths.TryGetValue(key, out var measurement))
+                        {
+                            // Cache the tracked-path measurement, including failures, not the task's folder length.
+                            measurement = Worktree.PathDepthAsync(git, repo, Locations.WorktreeRoot, ct);
+                            depths.Add(key, measurement);
+                        }
+                        var depth = await measurement;
+                        var length = depth.Length + Path.TrimEndingDirectorySeparator(path).Length - Path.TrimEndingDirectorySeparator(Locations.WorktreeRoot).Length;
+                        if (length >= 248) plan.Warnings.Add($"{spec.Id}: {depth.Detail.Replace($"reach {depth.Length} characters", $"reach {length} characters", StringComparison.Ordinal)}");
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        plan.Warnings.Add($"{spec.Id}: worktree path depth not measured ({ex.Message})");
+                    }
                 }
                 if (Path.Exists(path)) e.Add($"worktree {path} already exists; clean it first");
                 if ((await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", $"refs/heads/dispatch/{runId}/{spec.Id}")).ExitCode == 0)

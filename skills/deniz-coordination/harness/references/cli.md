@@ -172,12 +172,20 @@ The live check adds, per task, the model's context window when the backend's cat
 `INFO <task>: context window <n> tokens (opencode:<route>)`. Codex's catalog lists none, so a Codex
 task prints `INFO <task>: context window of codex:<model> is known after the run (result.json contextWindow)`.
 
-Remote-tracking bases are fetched before resolution with `git fetch --quiet <remote> <branch>`,
-once per distinct remote and branch per planning call. A failed fetch refuses the plan without retry:
+Remote-tracking bases are recognised by the repository's configured remote names, even without a local
+tracking ref. They are fetched before resolution with `git fetch --quiet <remote> <branch>`, once per
+distinct remote and branch per planning call. Trailing revision suffixes (`~n`, `^n`, `^{...}`) are
+removed for the fetch; the full base is then resolved as written. Fetch uses the operator's process
+environment, with the harness's per-call git overrides and `GIT_TERMINAL_PROMPT=0`; worker and verify
+git calls remain scrubbed. A failed fetch refuses the plan without retry:
 `base <base>: fetch from <remote> failed: <first line of git's stderr>`.
 Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 hex digits>` for each
 base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
 are not fetched.
+
+On Windows, plan measures worktree path depth once per distinct repository and HEAD and reports each
+task's resulting depth when it reaches 248 characters. A measurement failure is advisory:
+`WARN <task>: worktree path depth not measured (<reason>)`; it does not refuse the plan.
 
 | Exit | Type | Meaning |
 |---|---|---|

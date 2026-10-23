@@ -155,5 +155,63 @@ public sealed class PlanOutputTests
         await Assert.That(Lines(result)).Contains("plan refused: 1 error(s)");
     }
 
+    [Test]
+    [Timeout(180_000)]
+    public async Task Plan_warns_when_path_depth_cannot_be_measured_and_caches_the_failure(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Worktree path depth is Windows-only.");
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        await repo.GitAsync(["symbolic-ref", "HEAD", "refs/heads/unborn"], ct);
+        using var git = new CapturedProcess();
+        var failed = await git.RunAsync("git", ["read-tree", "HEAD"], repo.Root, lab.Tree.ChildEnvironment(), ct);
+        await Assert.That(failed.ExitCode).IsNotEqualTo(0);
+        var reason = $"git read-tree HEAD failed in {repo.Root}: {failed.Stderr.Trim()}";
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "synthetic-auth");
+        File.WriteAllText(lab.Tasks, """{"schemaVersion":2,"tasks":[{"id":"z-inspect","kind":"research","base":"main","project":"off","prompt":"Inspect."},{"id":"a","kind":"research","base":"main","project":"off","prompt":"Inspect."}]}""");
+        lab.Environment["GIT_TRACE"] = Path.Combine(lab.Tree.Root, "git.trace");
+        using var process = new HarnessProcess(lab.Tree);
+        var result = await process.RunAsync(["plan", lab.Tasks, "--repo", repo.Root], ct,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("unborn HEAD path depth plan");
+        await Assert.That(Lines(result).Where(line => line.Contains(": worktree path depth not measured ")))
+            .IsEquivalentTo(new[] {
+                $"WARN z-inspect: worktree path depth not measured ({reason})",
+                $"WARN a: worktree path depth not measured ({reason})" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadLines(lab.Environment["GIT_TRACE"]).Count(line => line.Contains("built-in: git ") && line.EndsWith(" read-tree HEAD")))
+            .IsEqualTo(1);
+        await Assert.That(Lines(result).Where(line => line.StartsWith("ERROR "))).IsEquivalentTo(Array.Empty<string>(), CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Plan_measures_path_depth_once_but_reports_each_task_length(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Worktree path depth is Windows-only.");
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        await repo.GitAsync(["config", "core.longpaths", "true"], ct);
+        var run = $"{DateTime.UtcNow:yyyy-MM-dd}-cached-depth";
+        var folder = Path.Combine(lab.Tree.WorktreeRoot, run, "a");
+        var file = new string('d', 248 - folder.Length - 10) + "/leaf.txt";
+        Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, file))!);
+        File.WriteAllText(Path.Combine(repo.Root, file), "tracked");
+        await repo.GitAsync(["add", "--", file], ct);
+        await repo.GitAsync(["commit", "-m", "Track cached depth fixture"], ct);
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "synthetic-auth");
+        File.WriteAllText(lab.Tasks, """{"schemaVersion":2,"run":"cached-depth","tasks":[{"id":"z-inspect","kind":"research","base":"main","project":"off","prompt":"Inspect."},{"id":"a","kind":"research","base":"main","project":"off","prompt":"Inspect."}]}""");
+        lab.Environment["GIT_TRACE"] = Path.Combine(lab.Tree.Root, "git.trace");
+        using var process = new HarnessProcess(lab.Tree);
+        var result = await process.RunAsync(["plan", lab.Tasks, "--repo", repo.Root], ct,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("cached path depth plan");
+        await Assert.That(Lines(result).Where(line => line.Contains(": worktree paths reach "))).IsEquivalentTo(new[] { "z-inspect", "a" }.Select(id =>
+            $"WARN {id}: worktree paths reach {Path.Combine(lab.Tree.WorktreeRoot, run, id).Length + 1 + file.Length} characters ({file.Replace('/', '\\')}); builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config"), CollectionOrdering.Matching);
+        await Assert.That(File.ReadLines(lab.Environment["GIT_TRACE"]).Count(line => line.Contains("built-in: git ") && line.EndsWith(" read-tree HEAD")))
+            .IsEqualTo(1);
+        await Assert.That(File.ReadLines(lab.Environment["GIT_TRACE"]).Count(line => line.Contains("built-in: git ") && line.EndsWith(" ls-files -z")))
+            .IsEqualTo(1);
+    }
+
     static string[] Lines(CapturedResult result) => result.Stdout.Split('\n').Select(line => line.TrimEnd('\r')).ToArray();
 }
