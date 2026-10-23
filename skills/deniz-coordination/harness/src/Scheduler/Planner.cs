@@ -222,6 +222,7 @@ static class Planner
         {
             plan.Errors.AddRange(check.Errors.Select(error => $"{check.TaskId}: {error}"));
             plan.Warnings.AddRange(check.Warnings.Select(warning => $"{check.TaskId}: {warning}"));
+            plan.Info.AddRange((check.Info ?? []).Select(info => $"{check.TaskId}: {info}"));
             if (plan.Config is { } config && config.Effective.Tasks[check.TaskId].Settings.Profile is { } profile)
             {
                 profile.Actual = check.Profile;

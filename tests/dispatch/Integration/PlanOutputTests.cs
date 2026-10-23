@@ -113,6 +113,9 @@ public sealed class PlanOutputTests
         await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal) && line.Contains("shell", StringComparison.Ordinal))).IsFalse();
         await Assert.That(lines.Any(line => line.StartsWith("WARN inspect: The pinned Codex app-server", StringComparison.Ordinal))).IsTrue();
         await Assert.That(lines.Any(line => line.Contains("readOnlyShell", StringComparison.Ordinal) && !line.StartsWith("INFO ", StringComparison.Ordinal))).IsFalse();
+        // Codex's catalog lists no context window; plan says when it becomes known.
+        await Assert.That(lines.Count(line => line.StartsWith("INFO inspect: context window of codex:", StringComparison.Ordinal)
+            && line.EndsWith("is known after the run (result.json contextWindow)", StringComparison.Ordinal))).IsEqualTo(1);
     }
 
     [Test]
@@ -130,6 +133,9 @@ public sealed class PlanOutputTests
         var lines = Lines(result);
         await Assert.That(lines).Contains("INFO inspect: no shell for a read-only task (readOnlyShell decline, from tool)");
         await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal) && line.Contains("shell", StringComparison.Ordinal))).IsFalse();
+        // The fixture catalog's model limit is 8192 tokens.
+        foreach (var task in new[] { "inspect", "edit" })
+            await Assert.That(lines.Count(line => line.StartsWith($"INFO {task}: context window 8192 tokens (opencode:fixture/model", StringComparison.Ordinal))).IsEqualTo(1);
     }
 
     [Test]

@@ -139,7 +139,9 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
                 if (catalog.IsManualRoute(task.Route)) errors.Add($"route {task.Route} equals a manual-class agent's model");
                 else if (catalog.CheckRoute(task.Route) is { } why) errors.Add($"route {task.Route}: {why}");
             }
-            result.Add(new(task.TaskId, errors, [], route is null ? "unknown" : catalog.Lineage(route), task.Modes.Profile, null));
+            var window = route is null ? null : catalog.FindModel(route)?.Limit.Context;
+            result.Add(new(task.TaskId, errors, [], route is null ? "unknown" : catalog.Lineage(route), task.Modes.Profile, null,
+                route is null ? null : [window is null ? $"context window of opencode:{route} is not listed in the catalog" : $"context window {window} tokens (opencode:{route})"]));
         }
         return result;
     }

@@ -158,7 +158,7 @@ sealed record InterruptResult(bool Stopped, string Detail, bool? Interrupted = n
 
 sealed record LiveCheck(
     string TaskId, IReadOnlyList<string> Errors, IReadOnlyList<string> Warnings,
-    string Lineage, string Profile, string? ProfileReason)
+    string Lineage, string Profile, string? ProfileReason, IReadOnlyList<string>? Info = null)
 {
     public string Profile { get; } = BackendValues.Profile(Profile, ProfileReason);
     public string? ProfileReason { get; } = ProfileReason;

@@ -112,8 +112,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (task.Agent is not null || task.Persona is not null) errors.Add("Codex does not support agents or personas");
             if (OperatingSystem.IsWindows() && task.Modes.Access != "full" && connection.Readiness != "ready")
                 errors.Add($"Windows sandbox is {connection.Readiness}; setup is the operator's responsibility");
+            // Codex's model catalog lists no context window; its token usage reports one during the run.
             return new LiveCheck(task.TaskId, errors, [], task.Route.Model, task.Modes.Profile == "clean" ? clean.Actual : "full",
-                task.Modes.Profile == "clean" ? clean.Reason : null);
+                task.Modes.Profile == "clean" ? clean.Reason : null, [$"context window of codex:{task.Route.Model} is known after the run (result.json contextWindow)"]);
         }).ToList();
     }
 
