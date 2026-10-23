@@ -73,6 +73,35 @@ public sealed class ToolProgressTests
         await Assert.That(File.ReadAllText(Path.Combine(core.Ledger.Dir, "events.jsonl"))).DoesNotContain("synthetic-password");
     }
 
+    [Test]
+    [Timeout(30_000)]
+    public async Task A_skill_tool_call_records_the_skill_id_as_its_resource(CancellationToken ct)
+    {
+        using var core = new CoreLab();
+        await using var lab = new OpenCodeLab(core.Tree);
+        var run = await core.TaskAsync("inspect", ct);
+        lab.Create("worker");
+        lab.Prompt("worker")["events"] = new JsonArray(
+            Tool("input.started", "load", 2100, new() { ["name"] = "skill" }),
+            Tool("called", "load", 2200, new() { ["input"] = new JsonObject { ["id"] = "brainstorming" }, ["executed"] = false }),
+            Tool("success", "load", 3200, new() { ["content"] = new JsonArray(), ["executed"] = false }),
+            OpenCodeLab.Event("session.execution.succeeded", new() { ["sessionID"] = "worker" }, 5000));
+        lab.Add("GET /api/permission/request", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Add("GET /api/session/active", new JsonObject { ["data"] = new JsonObject() }, repeat: true);
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "succeeded", 5000), repeat: true);
+        lab.Add("GET /api/session/worker/message", JsonNode.Parse("""{"data":[{"id":"answer","type":"assistant","time":{"created":2,"completed":5},"agent":"build","model":{"id":"model","providerID":"fixture"},"content":[{"type":"text","text":"Report"}],"tokens":{"input":0,"output":0,"reasoning":0,"cache":{"read":0,"write":0}}}],"cursor":{}}"""));
+        lab.Write();
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["opencode"] = lab.Backend },
+            core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, 1, ct, core.Git);
+
+        await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(0);
+
+        var tool = core.Ledger.Read().Single(x => x.Type == "tool");
+        await Assert.That(tool.Data!["tool"]!.GetValue<string>()).IsEqualTo("skill");
+        await Assert.That(tool.Data!["resource"]!.GetValue<string>()).IsEqualTo("brainstorming");
+    }
+
     static JsonObject Tool(string phase, string id, double created, JsonObject fields)
     {
         fields["sessionID"] = "worker";

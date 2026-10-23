@@ -309,7 +309,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `session` | `sessionId` string, optional `projectId` string and `rules` string array | Worker created. |
 | `environment` | `variables` integer, `removed` string array | Names/count only; no secret values. |
 | `prompt` | `turn`/`promptId` strings, `chars` integer, `sha256` string; optional `contracts` hash array, `rawPrompt`/`continue`/`resume` booleans | Sent prompt metadata; continuation omits contract bodies. |
-| `tool` | `tool`/`resource`/`outcome` strings, `duration` number | One completion per call, duration in seconds. Resource is a bounded summary. Missing start means zero duration. |
+| `tool` | `tool`/`resource`/`outcome` strings, `duration` number | One completion per call, duration in seconds. Resource is a bounded summary: the path, URL, command, pattern or query; for the opencode `skill` tool, the skill id. Codex reports no skill tool call; only its shell and edit items are recorded. Missing start means zero duration. |
 | `permission` | `id` string, optional `session`, `action`, `resources`, `answer`, `by`, `message`, `waitedSeconds`, `status` | Answer evidence; `by` is harness, operator or server. `answer` is once or reject. |
 | `escalated` | `id`/`action`/`rule`/`file` strings, `resources` string array, optional child `session` | Ask waits for operator. |
 | `escalation-dropped` | `id`/`action`/`reason` strings | Ask no longer applies. |
