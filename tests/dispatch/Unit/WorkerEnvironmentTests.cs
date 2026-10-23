@@ -60,4 +60,18 @@ public sealed class WorkerEnvironmentTests
         await Assert.That(result.Passthrough(["KEEP", "MISSING"])).IsEmpty();
         await Assert.That(snapshot.Count).IsEqualTo(3);
     }
+
+    // H-13: Windows spells PATH "Path"; a copy that drops the case-insensitive comparer hid it from
+    // the Codex executable lookup, so every Codex task failed to start.
+    [Test]
+    public async Task A_copied_environment_finds_Windows_Path_as_PATH()
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows names environment variables case-insensitively.");
+        var source = new Dictionary<string, string>(StringComparer.Ordinal) { ["Path"] = @"C:\tools" };
+
+        var copy = WorkerEnvironment.Copy(source);
+
+        await Assert.That(copy.GetValueOrDefault("PATH")).IsEqualTo(@"C:\tools");
+        await Assert.That(WorkerEnvironment.Copy(WorkerEnvironment.Snapshot()).GetValueOrDefault("PATH")).IsNotNull();
+    }
 }

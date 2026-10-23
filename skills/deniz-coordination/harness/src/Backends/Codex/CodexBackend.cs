@@ -73,7 +73,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         if (!home.Temporary) return (cleanProfile = (home.Profile, home.Reason)).Value;
         try
         {
-            var variables = environment.ToDictionary(x => x.Key, x => x.Value);
+            var variables = WorkerEnvironment.Copy(environment);
             variables["CODEX_HOME"] = home.Home;
             var connection = await ConnectAsync(directory, variables, home, ct);
             try
@@ -156,7 +156,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         };
         var userHome = UserHome;
         var home = CodexHome.Create(context, launch, userHome, CodexHome.ReadWindowsSandbox(userHome));
-        var variables = launch.Environment.ToDictionary(x => x.Key, x => x.Value);
+        var variables = WorkerEnvironment.Copy(launch.Environment);
         variables["CODEX_HOME"] = home.Home;
         Connection connection;
         connection = await ConnectAsync(launch.Directory, variables, home, ct);
