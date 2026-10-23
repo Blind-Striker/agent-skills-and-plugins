@@ -61,8 +61,10 @@ public sealed class WorkspaceTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
     [Timeout(60_000)]
-    public async Task Clean_keeps_a_detached_worktree_whose_HEAD_holds_unmerged_commits(CancellationToken ct)
+    public async Task Clean_keeps_a_detached_worktree_whose_HEAD_holds_unmerged_commits(bool folderGone, CancellationToken ct)
     {
         using var lab = new CoreLab("detached-work");
         var run = await lab.TaskAsync("inspect", ct);
@@ -75,8 +77,11 @@ public sealed class WorkspaceTests
         File.WriteAllText(Path.Combine(path, "detached.txt"), "work");
         await repo.GitAsync(["-C", path, "add", "detached.txt"], ct);
         await repo.GitAsync(["-C", path, "commit", "-m", "Detached work"], ct);
+        var head = await repo.GitAsync(["-C", path, "rev-parse", "HEAD"], ct);
+        // Git keeps the registration, and its HEAD, when the folder alone disappears.
+        if (folderGone) Directory.Delete(path, recursive: true);
         await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, repo.Root, false, ct, lab.Git)).IsFalse();
-        await Assert.That(File.ReadAllText(Path.Combine(path, "detached.txt"))).IsEqualTo("work");
+        await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).Contains("HEAD " + head);
     }
 
     [Test]
