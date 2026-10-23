@@ -3,7 +3,7 @@ static class Settlement
     public static async Task<TaskResult> SettleAsync(IWorkerBackend backend, Ledger ledger, TaskRun run, string? outcomeOverride, CancellationToken ct, Git? git = null)
     {
         var record = run.Record;
-        var report = run.Zombie ? new WorkerReport("lost", null, new(), null, false, [], null, false)
+        var report = run.Zombie && !run.ReportReady ? new WorkerReport("lost", null, new(), null, false, [], null, false)
             : await backend.CollectAsync(run.SavedWorker(), ct);
         var outcome = outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
         var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";

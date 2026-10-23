@@ -85,6 +85,13 @@ abstract record WorkerSignal
         public string Outcome { get; } = BackendValues.Outcome(Outcome);
     }
 
+    // The turn ended, but the backend could not confirm that its processes stopped: one may still write.
+    // The task settles as a zombie at once (no commit, no verify) instead of waiting for its timeout.
+    public sealed record StopUnconfirmed(string TaskId, string Turn, string Outcome, string Detail) : TaskSignal(TaskId, Turn)
+    {
+        public string Outcome { get; } = BackendValues.Outcome(Outcome);
+    }
+
     public sealed record Host(string HostKey, string State, string Reason, int Attempt) : WorkerSignal
     {
         public string State { get; } = BackendValues.OneOf(State, nameof(State), "connected", "disconnected");

@@ -281,7 +281,7 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |
-| `zombie` | string | Hard stop was not confirmed; commit and verify were skipped. |
+| `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or a Codex turn that ended while a worker process could not be observed): a process may still write, so commit and verify were skipped. The worktree keeps the work. |
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |
 
 The `workspace-dirty` start failure writes a minimal result before its error and final events.
@@ -321,6 +321,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `timeout` | Optional `interrupted` boolean and `status` integer | Timeout interrupt attempt. |
 | `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
 | `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
+| `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands ran | Verify summary; `failed` counts `verify` commands only. Zero commands can mean skipped or absent. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |

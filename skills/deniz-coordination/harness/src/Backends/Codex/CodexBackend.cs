@@ -342,6 +342,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 connection.Ended = new(worker.TaskId, worker.Turn!, connection.Outcome, connection.ExecutionError);
                 signals.Writer.TryWrite(connection.Ended);
             }
+            else signals.Writer.TryWrite(new WorkerSignal.StopUnconfirmed(worker.TaskId, worker.Turn!, connection.Outcome, stopped.Detail));
         }
     }
 

@@ -455,6 +455,42 @@ public sealed class SchedulerTests
         await Assert.That(lab.Ledger.Read().Any(x => x.Type == "final")).IsFalse();
     }
 
+    // A Codex turn completed but two descendants could not be observed, so the stop stayed unconfirmed
+    // and the supervisor waited 58 minutes for an Ended signal that never came.
+    [Test]
+    [Timeout(30_000)]
+    public async Task An_ended_turn_whose_stop_is_unconfirmed_settles_as_a_zombie_at_once(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Spec.Verify = ["exit 0"];
+        var sent = false;
+        lab.Backend.OnPoll = (live, _) =>
+        {
+            if (live.Count > 0 && !sent)
+            {
+                sent = true;
+                lab.Backend.Emit(new WorkerSignal.Status(run.Id, run.Worker!.Turn!, "succeeded", null));
+                var unconfirmed = new WorkerSignal.StopUnconfirmed(run.Id, run.Worker.Turn!, "succeeded", "kill descendant pid=1972: Access is denied");
+                lab.Backend.Emit(unconfirmed);
+                lab.Backend.Emit(unconfirmed);
+            }
+            return Task.FromResult(new PollResult([]));
+        };
+        lab.Backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Report\n\nStatus: done", new(), null, true, ["fixture/model#default"], null, true));
+
+        var exit = await lab.Scheduler(ct).RunAsync([run]);
+
+        await Assert.That(exit).IsEqualTo(1);
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.State).IsEqualTo("failed");
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie" });
+        await Assert.That(result.Verify).IsEmpty();
+        await Assert.That(result.WorkerStatus).IsEqualTo("done");
+        await Assert.That(lab.Ledger.Read().Count(x => x.Type == "stop-unconfirmed")).IsEqualTo(1);
+        await Assert.That(lab.Backend.Calls.Count(x => x.Member == "CollectAsync")).IsEqualTo(1);
+    }
+
     [Test]
     [Timeout(30_000)]
     public async Task Max_parallel_counts_starting_running_and_settling_tasks(CancellationToken ct)
