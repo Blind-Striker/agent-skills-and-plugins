@@ -49,8 +49,14 @@ static partial class Commands
         {
             if (OperatingSystem.IsWindows())
             {
-                var depth = await Worktree.PathDepthAsync(git, repo, Locations.Worktree("selfcheck"), ct);
-                Check("worktree path depth", true, depth.Detail, warn: depth.Length >= 248);
+                try
+                {
+                    var depth = await Worktree.PathDepthAsync(git, repo,
+                        Locations.Worktree("selfcheck", $"{DateTime.UtcNow:yyyy-MM-dd}-selfcheck"), ct);
+                    Check("worktree path depth", true, depth.Detail, warn: depth.Length >= 248);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                { Check("worktree path depth", true, ex.Message, warn: true); }
             }
             worktree = Path.Combine(Locations.WorktreeRoot, $"selfcheck-{Guid.NewGuid():N}");
             var add = await git.RunAsync(repo, ct, "worktree", "add", "--detach", worktree, "HEAD");
@@ -168,7 +174,7 @@ static partial class Commands
                         }
                         Check("launch", true, worker.Id);
                     }
-                    catch (Exception ex)
+                    catch (Exception ex) when (ex is not OperationCanceledException)
                     { Check("launch", false, ex.Message); }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
@@ -236,7 +242,11 @@ static partial class Commands
                     _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
                     found = true;
                 }
-                catch (HarnessException) { /* Unresolved candidates are skipped only during discovery. */ }
+                catch (HarnessException ex)
+                {
+                    // A resolved but unusable executable must reach the live check for its diagnostic.
+                    found = !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
+                }
             }
             if (found) installed.Add(name);
             else Console.WriteLine($"SKIP  backend {name}: not installed ({name} on PATH)");

@@ -83,6 +83,8 @@ and the command exits 2. A supplied task file retains the empty-selection refusa
 Named backends are never skipped: a missing executable remains a failed check (exit 1).
 Resolved executables undergo every existing probe and launch check; version, login and launch
 failures remain failures and do not prevent checking the next backend.
+An executable that resolves but is unusable, including PowerShell-only Codex, is installed for
+discovery purposes and fails its backend check with the resolver's diagnostic, rather than being skipped.
 Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
@@ -98,9 +100,11 @@ that falls back to `clean-partial` is `WARN`, including the profile reason; vali
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
-With a repository on Windows, `worktree path depth` checks the resolved worktree root with synthetic
-task id `selfcheck` plus the longest tracked path at HEAD: `PASS` below 248 characters, `WARN` at 248
-or more, never `FAIL`. See [worktree root configuration](config.md#files-and-locations) for the trade-off.
+With a repository on Windows, `worktree path depth` measures
+`<resolved worktree root>\<yyyy-MM-dd>-selfcheck\selfcheck` (today's UTC date) plus the longest tracked
+path at HEAD: `PASS` below 248 characters, `WARN` at 248 or more, never `FAIL`. A measurement error
+prints `WARN` with its reason and checks continue; cancellation still propagates.
+See [worktree root configuration](config.md#files-and-locations) for the trade-off.
 
 On Windows only, a successful Codex probe also prints exactly one
 `PASS  windows sandbox: mode <mode>; readiness <status>` check. Mode comes from the user's Codex

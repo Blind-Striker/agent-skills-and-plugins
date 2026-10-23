@@ -19,7 +19,7 @@ public sealed class CatalogCommandTests
         var repo = await LabRepo.CreateAsync(lab.Tree, ct);
         var environment = Configure(lab, both: false);
         await repo.GitAsync(["config", "core.longpaths", "true"], ct);
-        var folder = Path.Combine(lab.Tree.WorktreeRoot, "selfcheck");
+        var folder = Path.Combine(lab.Tree.WorktreeRoot, $"{DateTime.UtcNow:yyyy-MM-dd}-selfcheck", "selfcheck");
         var file = depth == 0 ? "README.md" : new string('d', depth - folder.Length - 10) + "/leaf.txt";
         if (depth != 0)
         {
@@ -44,6 +44,30 @@ public sealed class CatalogCommandTests
         await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r'))
             .IsEqualTo($"selfcheck passed ({(OperatingSystem.IsWindows() && length >= 248 ? 1 : 0)} warning(s))");
         await Assert.That(await repo.GitAsync(["diff", "--cached", "--name-only"], ct)).IsEqualTo(staged);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_path_depth_failure_is_a_warning_and_worktree_check_continues(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Path depth is checked only on Windows.");
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = Configure(lab, both: false);
+        await repo.GitAsync(["symbolic-ref", "HEAD", "refs/heads/unborn"], ct);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--repo", repo.Root], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(line => line.TrimEnd('\r'))
+            .Where(line => line.Length > 0).SkipWhile(line => !line.StartsWith("WARN  worktree path depth:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] {
+                $"WARN  worktree path depth: git read-tree HEAD failed in {repo.Root}: fatal: Not a valid object name HEAD",
+                "FAIL  worktree: warning: HEAD points to an invalid (or orphaned) reference.",
+                "fatal: invalid reference: HEAD",
+            }, CollectionOrdering.Matching);
+        await Assert.That(result.Stderr.Trim()).IsEqualTo("");
+        await Assert.That(result.ExitCode).IsEqualTo(1);
     }
 
     [Test]
@@ -222,6 +246,35 @@ public sealed class CatalogCommandTests
 
     [Test]
     [Timeout(180_000)]
+    public async Task Selfcheck_discovers_PowerShell_only_Codex_as_installed_but_unusable(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("PowerShell-only Codex resolution is Windows-only.");
+        using var lab = new CodexLab();
+        var environment = Discoverable(lab, opencode: false, codex: false);
+        var shim = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "powershell-only")).FullName;
+        var script = Path.Combine(shim, "codex.ps1");
+        File.WriteAllText(script, "throw 'must not run'");
+        environment["PATH"] = shim + Path.PathSeparator + environment["PATH"];
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(line => line.TrimEnd('\r'))
+            .Where(line => line.StartsWith("SKIP  ", StringComparison.Ordinal) || line.StartsWith("backend ", StringComparison.Ordinal)
+                || line.StartsWith("FAIL  ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] {
+                "SKIP  backend opencode: not installed (opencode on PATH)",
+                "backend codex",
+                $"FAIL  live: codex: HarnessException: codex resolves only to a PowerShell script ({script}); set backends.codex.executable to its .cmd or .exe",
+            }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r')).IsEqualTo("selfcheck: 1 check(s) failed");
+        await Assert.That(result.Stderr.Trim()).IsEqualTo("");
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await DiscoveryCleanedUp(lab);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Selfcheck_launches_and_releases_each_backend(CancellationToken ct)
     {
         using var lab = new CodexLab();
@@ -314,6 +367,44 @@ public sealed class CatalogCommandTests
             .IsEquivalentTo(new[] { "PASS  launch: thread-main" }, CollectionOrdering.Matching);
         await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "thread/start")).IsEqualTo(1);
         await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "turn/start")).IsEqualTo(0);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_launch_cancellation_propagates(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Configure(lab, both: true);
+        await using var gated = new OpenCodeLab(lab.Tree);
+        gated.Steps.Clear();
+        gated.Steps.AddRange(File.ReadLines(environment["FAKE_OPENCODE_SCENARIO"]!).Select(line => JsonNode.Parse(line)!.AsObject()));
+        var arrived = Path.Combine(lab.Tree.Root, "launch-arrived");
+        var release = Path.Combine(lab.Tree.Root, "launch-allowed");
+        var setup = gated.Steps.Single(step => step["expect"]!.GetValue<string>() == "PUT /api/session/ses_fixture/environment");
+        setup["arrived"] = arrived;
+        setup["waitFor"] = release;
+        gated.Write();
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var watcher = new FileSystemWatcher(lab.Tree.Root, Path.GetFileName(arrived));
+        watcher.Created += (_, _) => reached.TrySetResult();
+        watcher.Error += (_, error) => reached.TrySetException(error.GetException());
+        watcher.EnableRaisingEvents = true;
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var running = Commands.SelfCheckAsync(Args.Parse(["selfcheck", "--backend", "opencode"]), cancellation.Token);
+        try
+        {
+            await Assert.That(await Task.WhenAny(reached.Task, running)).IsEqualTo(reached.Task);
+            await reached.Task;
+            cancellation.Cancel();
+            await Assert.That(async () => await running).Throws<OperationCanceledException>();
+            await Assert.That(TestContext.Current!.Output.GetStandardOutput()).DoesNotContain("FAIL  launch:");
+        }
+        finally
+        {
+            File.WriteAllText(release, "go");
+            try { await running; }
+            catch (OperationCanceledException) { }
+        }
     }
 
     [Test]
