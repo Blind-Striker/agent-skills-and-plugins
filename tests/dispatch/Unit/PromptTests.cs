@@ -25,6 +25,9 @@ public sealed class PromptTests
             + "- Declared scope: (none declared). Changes outside it are flagged for review.\n"
             + "- This is a read-only task: do not create, change or delete files. Report your findings instead.\n"
             + "- Nobody answers questions during this run: a question is cancelled, so continue without the answer.\n"
+            + "- End your final message with exactly one status line: `Status: done` when the task is done, "
+            + "`Status: stopped` when you stopped on a rule or a contradiction, "
+            + "`Status: blocked` when the environment kept you from the work (a missing tool, access or input).\n"
             + "- Keep the report short.\n\n---\nTask:\n\nInspect.\n";
         await Assert.That(Encoding.UTF8.GetBytes(actual).SequenceEqual(Encoding.UTF8.GetBytes(expected))).IsTrue();
         var contracts = new Prompt.Inputs([new(new() { Path = "contract.md" }, "Contract v1\r\nKeep this.\r\n"), new(new() { Path = "other.md" }, "No final newline")]);

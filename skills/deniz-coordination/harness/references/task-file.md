@@ -104,6 +104,12 @@ receive the assembled text unchanged as one user input. `task.json` records each
 SHA-256 of the file bytes, and first line trimmed and cut to 120 characters. The `prompt` event
 records contract hashes. No contract files are copied into the ledger.
 
+The harness's own standing instructions name the working folder, any deny rules, the declared scope,
+read-only access, that nobody answers questions and, except for structured tasks, the status line:
+the worker ends its final message with `Status: done`, `Status: stopped` (it stopped on a rule or a
+contradiction) or `Status: blocked` (a missing tool, access or input kept it from the work).
+Settlement reads the last such line; see `workerStatus` in [the ledger](ledger.md).
+
 `resume --continue` of a started opencode session sends a fixed continuation line and does not read
 the files again. An unprompted task with contracts cannot be reconstructed from recorded hashes:
 it fails with `original contract text is unavailable; cannot start an unprompted task from the ledger`.

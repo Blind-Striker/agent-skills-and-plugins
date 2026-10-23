@@ -200,7 +200,8 @@ stop or attach processes independently.
 
 Ordinary settlement is done only when outcome is succeeded, final text is non-blank, no execution
 or settlement error exists, every verify command passed without timeout, scope is valid, no
-reported route drifts from the requested one, and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
+reported route drifts from the requested one, the worker did not report itself stopped or blocked,
+and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
 `zombie` failure. Some pre-dispatch errors produce only a final event; inspect events as well.
 
 | Field | Type | Default or absence | Meaning |
@@ -212,7 +213,8 @@ reported route drifts from the requested one, and a structured deliverable valid
 | `backend` | string | Recorded when known | Backend name. |
 | `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
 | `failures` | string array | `[]` | Machine-readable causes below. |
-| `warnings` | string array | Absent without findings | Non-failing findings, currently non-blocking `git-config-changed`. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, and `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone. |
+| `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
 | `routeRequested` | string | Absent if unavailable | Qualified requested route; for an `agent` task, the agent route. |
@@ -274,6 +276,7 @@ reported route drifts from the requested one, and a structured deliverable valid
 | `verify-failed` | string | Verify command failed or timed out. |
 | `out-of-scope` | string | Collected changes exceed scope. |
 | `route-drift` | string | The backend reported a route other than the requested one; see `routeDrift`. |
+| `worker-stopped` | string | The worker's status line says `stopped` or `blocked`: it did not do the task, whatever the session outcome. |
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |

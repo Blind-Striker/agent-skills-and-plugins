@@ -226,6 +226,7 @@ sealed class TaskResult : VersionedContract
     public List<string> RoutesUsed { get; set; } = [];
     public bool RouteVerified { get; set; }
     public List<string>? RouteDrift { get; set; }
+    public string? WorkerStatus { get; set; }
     public double? Cost { get; set; }
     public TokenTotals? Tokens { get; set; }
     public bool? TokensComplete { get; set; }

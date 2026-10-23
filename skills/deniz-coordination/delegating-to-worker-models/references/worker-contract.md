@@ -1,4 +1,4 @@
-worker-contract v3
+worker-contract v4
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -110,3 +110,6 @@ Report language: English.
 7. Every edit to an existing test: old -> new, with the rule that allows it.
 8. This contract's version line, and the version line of every other file prepended to your task.
 9. For an evaluation: every FRICTION entry, and every requirement reported FAILED.
+10. The last line of your final message, alone: `Status: done` when the task is done, `Status: stopped` when
+    you stopped on a rule above or a contradiction, `Status: blocked` when the environment kept you from the
+    work (a missing tool, access or input). A dispatch harness reads this line; a stop or block fails the task.

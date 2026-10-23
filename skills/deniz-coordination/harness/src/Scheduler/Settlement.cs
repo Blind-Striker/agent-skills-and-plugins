@@ -30,6 +30,7 @@ static class Settlement
         };
         (result.RouteVerified, var drift) = CheckRoutes(record.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
         result.RouteDrift = drift.Count > 0 ? drift : null;
+        if (record.Spec.Kind != "structured") result.WorkerStatus = ReadStatus(report.FinalText);
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
         if (record.Spec.Kind == "structured")
         {
@@ -69,6 +70,11 @@ static class Settlement
             if (result.Verify.Any(x => x.ExitCode != 0 || x.TimedOut)) result.Failures.Add("verify-failed");
             if (result.OutOfScope.Count > 0) result.Failures.Add("out-of-scope");
             if (result.RouteDrift is not null) result.Failures.Add("route-drift");
+            // A worker that reports it stopped or was blocked did not do the task, whatever the session outcome says.
+            if (result.WorkerStatus is "stopped" or "blocked") result.Failures.Add("worker-stopped");
+            if (record.Spec.Kind != "structured" && record.Spec.RawPrompt != true && result.WorkerStatus is null
+                && !string.IsNullOrWhiteSpace(report.FinalText))
+                (result.Warnings ??= []).Add("worker-status-missing");
             if (record.Spec.Kind == "structured" && result.Validation?.Ok != true) result.Failures.Add("invalid-output");
             result.Failures = result.Failures.Distinct().ToList();
             result.State = result.Failures.Count == 0 ? "done" : "failed";
@@ -81,6 +87,13 @@ static class Settlement
         });
         return result;
     }
+
+    public const string StatusPrefix = "Status:";
+
+    // The last status line of the final text wins; the worker may quote the instruction earlier.
+    public static string? ReadStatus(string? text) => text is null ? null : Regex
+        .Matches(text, @"^[ \t>*_`]*Status:[ \t*_`]*(done|stopped|blocked)\b", RegexOptions.Multiline | RegexOptions.IgnoreCase)
+        .LastOrDefault()?.Groups[1].Value.ToLowerInvariant();
 
     // Verified only when the backend reported at least one route and every route it reported is the
     // requested one. A requested route without a variant accepts any variant of that model. Drift is a

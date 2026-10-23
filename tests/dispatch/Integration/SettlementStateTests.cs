@@ -15,6 +15,8 @@ public sealed class SettlementStateTests
     [Arguments("execution-error", "failed", "settle-error")]
     [Arguments("structured", "failed", "invalid-output")]
     [Arguments("drift", "failed", "route-drift")]
+    [Arguments("blocked", "failed", "worker-stopped")]
+    [Arguments("stopped", "failed", "worker-stopped")]
     [Arguments("cancelled", "cancelled", "")]
     [Arguments("success", "done", "")]
     [Timeout(30_000)]
@@ -30,7 +32,13 @@ public sealed class SettlementStateTests
         {
             if (condition is "scope" or "both") File.WriteAllText(Path.Combine(lab.Tree.Repository, "outside.txt"), "outside scope");
             return Task.FromResult(new WorkerReport(condition == "outcome" ? "failed" : "succeeded",
-                condition == "no-final" ? " \n" : "Report", new(), null, true,
+                condition switch
+                {
+                    "no-final" => " \n",
+                    "blocked" => "Blocked: this session exposes no shell tool.\n\nStatus: blocked",
+                    "stopped" => "Stopped: the plan contradicts the scope.\n\n**Status: stopped**",
+                    _ => "Report\n\nStatus: done",
+                }, new(), null, true,
                 condition == "drift" ? ["fixture/model#default", "opencode/flint-40b-free#default"] : ["fixture/model#default"],
                 condition == "execution-error" ? "backend execution failed" : null, true));
         };
@@ -43,6 +51,9 @@ public sealed class SettlementStateTests
         await Assert.That(saved.State).IsEqualTo(state);
         await Assert.That(saved.Failures).IsEquivalentTo(result.Failures);
         await Assert.That(saved.RouteVerified).IsEqualTo(condition != "drift");
+        await Assert.That(saved.WorkerStatus).IsEqualTo(condition switch
+        { "no-final" => null, "blocked" or "stopped" => condition, "structured" => null, _ => "done" });
+        await Assert.That(saved.Warnings).IsNull();
         if (condition == "drift") await Assert.That(saved.RouteDrift!).IsEquivalentTo(new[] { "opencode/flint-40b-free#default" });
         else await Assert.That(saved.RouteDrift).IsNull();
         if (condition is "verify" or "both")
