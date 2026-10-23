@@ -30,18 +30,32 @@ static class Worktree
     }
 
     // Resolves every existing link component of a path; missing components are kept as written.
-    public static string RealPath(string path) => RealPath(path, 0);
-
-    static string RealPath(string path, int depth)
+    // Resolves links component by component, as realpath(3) does: a link's raw target replaces it before any
+    // later ".." applies, so "link/.." means the target's parent. Missing components are kept as written.
+    public static string RealPath(string path)
     {
-        var full = Path.GetFullPath(path);
-        var root = Path.GetPathRoot(full)!;
-        var current = root;
-        foreach (var part in full[root.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        var separators = new[] { '\\', '/' };
+        var full = Path.IsPathRooted(path) ? path : Path.Combine(Environment.CurrentDirectory, path);
+        var current = Path.GetPathRoot(full)!;
+        var pending = new LinkedList<string>(full[current.Length..].Split(separators, StringSplitOptions.RemoveEmptyEntries));
+        var hops = 0;
+        while (pending.First is { } first)
         {
-            current = Path.Combine(current, part);
-            if (depth < 40 && Directory.Exists(current) && new DirectoryInfo(current).ResolveLinkTarget(returnFinalTarget: true) is { } target)
-                current = RealPath(target.FullName, depth + 1);
+            pending.RemoveFirst();
+            if (first.Value == ".") continue;
+            if (first.Value == "..") { current = Path.GetDirectoryName(current) ?? current; continue; }
+            var next = Path.Combine(current, first.Value);
+            if (hops < 40 && Directory.Exists(next) && new DirectoryInfo(next).LinkTarget is { } target)
+            {
+                hops++;
+                var resolved = Path.IsPathRooted(target) ? target : current + Path.DirectorySeparatorChar + target;
+                var root = Path.GetPathRoot(resolved)!;
+                foreach (var part in resolved[root.Length..].Split(separators, StringSplitOptions.RemoveEmptyEntries).Reverse())
+                    pending.AddFirst(part);
+                current = root;
+                continue;
+            }
+            current = next;
         }
         return current;
     }
