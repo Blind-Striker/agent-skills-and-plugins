@@ -31,6 +31,7 @@ public sealed class CodexBackendTests
     public async Task Catalog_commands_select_Codex_from_the_committed_repository_config(string command, CancellationToken cancellationToken)
     {
         using var lab = new CodexLab();
+        if (command == "selfcheck") lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Split('\n')[0] + "\n");
         var repo = await LabRepo.CreateAsync(lab.Tree, cancellationToken);
         var userPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
         var user = JsonNode.Parse(File.ReadAllText(userPath))!;
@@ -47,7 +48,9 @@ public sealed class CodexBackendTests
         result.RequireSuccess("repository-selected catalog command");
         await Assert.That(result.Stdout).Contains("backend codex");
         await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.163.0");
-        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")).IsEmpty();
+        // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
+            .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
     }
 
     [Test]
@@ -216,13 +219,16 @@ public sealed class CodexBackendTests
     public async Task Catalog_commands_cover_the_selected_Codex_backend_without_prompting(string command, CancellationToken cancellationToken)
     {
         using var lab = new CodexLab();
+        if (command == "selfcheck") lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Split('\n')[0] + "\n");
         var repo = await LabRepo.CreateAsync(lab.Tree, cancellationToken);
         using var harness = new HarnessProcess(lab.Tree);
         var result = await harness.RunAsync([command, "--backend", "codex", "--repo", repo.Root], cancellationToken,
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("Codex catalog command");
         await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.163.0");
-        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")).IsEmpty();
+        // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
+            .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
     }
 
     [Test]
