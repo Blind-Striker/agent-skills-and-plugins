@@ -118,6 +118,14 @@ workspace. The backend does not replace every project-off code workspace with an
 The note on inherited exec-policy rules is described under
 [inherited Codex rules on read-only tasks](cli.md#inherited-codex-rules-on-read-only-tasks).
 
+**Known limit: sandbox-denied commands on macOS and Linux.** The pinned Codex sends no command item
+for a shell call it runs from its code mode when the sandboxed session fails to open, as a
+sandbox-denied write does. Such an attempt leaves no tool event in the ledger, although the sandbox
+refused it. A request to rerun the command outside the sandbox still arrives as an approval request:
+it follows the deny and escalation rules, reaches the operator when a rule escalates it, and is
+recorded with its outcome. On Windows the denied attempt is recorded as a failed tool event. The
+upstream report is openai/codex#56396; check it before a Codex pin moves.
+
 **Known limit: descendants of an opencode server.** The harness ends the server only through the
 SDK's disposal and counts it stopped once the SDK reports the server's exit. A confirmed stop proves
 that the opencode server process exited, not that every process it started did. The SDK keeps

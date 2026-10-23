@@ -253,11 +253,28 @@ public sealed class RealBackendTests
         // command prefix distinguishes the relative inside target from the absolute outside target.
         var insideEvents = MatchingWriteEvents(tools, inside);
         var outsideEvents = MatchingWriteEvents(tools, outside);
-        await Assert.That(insideEvents.Length).IsEqualTo(1);
-        await Assert.That(outsideEvents.Length).IsEqualTo(1);
-        await Assert.That(insideEvents[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo(insideOutcome);
-        await Assert.That(outsideEvents[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("failed");
-        await Assert.That(Array.IndexOf(tools, insideEvents[0])).IsLessThan(Array.IndexOf(tools, outsideEvents[0]));
+        if (OperatingSystem.IsWindows())
+        {
+            await Assert.That(insideEvents.Length).IsEqualTo(1);
+            await Assert.That(outsideEvents.Length).IsEqualTo(1);
+            await Assert.That(insideEvents[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo(insideOutcome);
+            await Assert.That(outsideEvents[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("failed");
+            await Assert.That(Array.IndexOf(tools, insideEvents[0])).IsLessThan(Array.IndexOf(tools, outsideEvents[0]));
+            return;
+        }
+        // On macOS and Linux the pinned Codex sends no command item for a code-mode exec whose
+        // sandboxed session fails to open, so a sandbox-denied write may leave no tool event
+        // (references/backends.md, "Known limit: sandbox-denied commands on macOS and Linux").
+        // A write that is recorded must carry its real outcome, and a denied one is never a success.
+        await AssertAtMostOneWithOutcome(insideEvents, insideOutcome, required: insideOutcome == "succeeded");
+        await AssertAtMostOneWithOutcome(outsideEvents, "failed", required: false);
+    }
+
+    static async Task AssertAtMostOneWithOutcome(JsonObject[] events, string outcome, bool required)
+    {
+        await Assert.That(events.Length).IsLessThanOrEqualTo(1);
+        if (required) await Assert.That(events.Length).IsEqualTo(1);
+        if (events.Length == 1) await Assert.That(events[0]["data"]!["outcome"]!.GetValue<string>()).IsEqualTo(outcome);
     }
 
     internal static JsonObject[] MatchingWriteEvents(JsonObject[] tools, string command) => tools.Where(entry =>
