@@ -46,6 +46,46 @@ public sealed class ConfigTests
     }
 
     [Test]
+    [NotInParallel]
+    [Arguments("user")]
+    [Arguments("repo")]
+    [Arguments("task-file-defaults")]
+    [Arguments("task")]
+    public async Task TempRoot_refuses_worktree_and_ledger_roots_with_task_and_layer(string layer)
+    {
+        using var lab = new CoreLab("temp-containment");
+        foreach (var (root, name) in new[] { (lab.Tree.WorktreeRoot, "worktree root"), (Locations.LedgerRoot, "ledger root") })
+        {
+            foreach (var path in new[] { root, Path.Combine(root, "private-temp"), Path.Combine(root, "other", "..", "private-temp") })
+            {
+                var file = Tasks();
+                file.Defaults = new() { Backend = "opencode", TempRoot = layer == "task-file-defaults" ? path : null };
+                file.Tasks![0].TempRoot = layer == "task" ? path : null;
+                var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file,
+                    user: new() { Preferences = new() { TempRoot = layer == "user" ? path : null } },
+                    repo: new() { Preferences = new() { TempRoot = layer == "repo" ? path : null } })));
+                await Assert.That(error!.Message).IsEqualTo($"inspect: tempRoot from {layer} must be outside the {name}");
+            }
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task TempRoot_accepts_siblings_of_worktree_and_ledger_roots()
+    {
+        using var lab = new CoreLab("temp-siblings");
+        foreach (var root in new[] { lab.Tree.WorktreeRoot, Locations.LedgerRoot })
+        {
+            var path = root + "-temp";
+            var file = Tasks();
+            file.Defaults = new() { Backend = "opencode", TempRoot = path };
+            var setting = ConfigResolver.Resolve(file).Tasks["inspect"].Settings.TempRoot!;
+            await Assert.That(setting.Value).IsEqualTo(path);
+            await Assert.That(setting.From).IsEqualTo("task-file-defaults");
+        }
+    }
+
+    [Test]
     public async Task OpenCode_model_tags_preserve_colons_and_only_backend_names_are_prefixes()
     {
         var file = Tasks();

@@ -76,6 +76,22 @@ public sealed class PlanOutputTests
     }
 
     [Test]
+    [Timeout(180_000)]
+    public async Task Plan_refuses_a_tempRoot_inside_the_repository(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        var inside = Path.Combine(repo.Root, "scratch-temp").Replace("\\", "\\\\");
+        File.WriteAllText(tasks, $$"""{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect.","tempRoot":"{{inside}}"}]}""");
+        using var process = new HarnessProcess(tree);
+        var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await Assert.That(Lines(result)).Contains("ERROR inspect: tempRoot from task must be outside the repository");
+    }
+
+    [Test]
     [Arguments("plan")]
     [Arguments("run")]
     [Timeout(180_000)]

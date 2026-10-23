@@ -92,9 +92,12 @@ root belongs in user configuration or the private task file, not a public reposi
 
 The effective non-null value must be an absolute path: relative, empty, tilde and platform-relative
 paths fail with `tempRoot must be an absolute path`; neither tilde nor variables are expanded.
+The root must also be outside the repository, the worktree root and the ledger root, and equal to none
+of them; violations name the task id and the preference's source layer.
 The value and source (`user`, `repo`, `task-file-defaults` or `task`) are frozen in `config.json`
 and recorded in `task.json`. Recovery, verification and cleanup use the recorded root, not current
-preferences. `clean` deletes only `<tempRoot>/<run>/<task>`, leaving sibling folders and the root.
+preferences. `clean` deletes `<tempRoot>/<run>/<task>` and any legacy default
+`<worktree root>/<run>/.tmp/<task>` folder, leaving sibling folders and the roots.
 See [task files](task-file.md#scope-and-workspaces) for layouts and environment semantics, and
 [plan output](cli.md) for the resolved path.
 

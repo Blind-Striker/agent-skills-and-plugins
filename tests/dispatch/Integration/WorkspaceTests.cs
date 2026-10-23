@@ -26,11 +26,33 @@ public sealed class WorkspaceTests
         var run = Path.GetFileName(ledger);
         var temp = Path.Combine(root, run, "inspect");
         await Assert.That(Directory.Exists(temp)).IsTrue();
+        var defaultTemp = Path.Combine(tree.DispatchHome, "state", "worktrees", run, ".tmp", "inspect");
+        await Assert.That(Directory.Exists(defaultTemp)).IsFalse();
         using var clean = new HarnessProcess(tree);
         (await clean.RunAsync(["clean", run], ct,
             FakeOpenCode.Environment(tree, "cleanup.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value))).RequireSuccess("clean");
         await Assert.That(Directory.Exists(temp)).IsFalse();
+        await Assert.That(Directory.Exists(defaultTemp)).IsFalse();
         await Assert.That(File.ReadAllText(sibling)).IsEqualTo("keep");
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Clean_removes_configured_and_legacy_task_temp(CancellationToken ct)
+    {
+        using var lab = new CoreLab("legacy-temp");
+        var run = await lab.TaskAsync("inspect", ct);
+        var root = Path.Combine(lab.Tree.Root, "private-temp");
+        run.Record.Settings.TempRoot = new() { Value = root, From = "task" };
+        lab.Ledger.SaveRecord(run.Record);
+        var temp = Path.Combine(root, "legacy-temp", "inspect");
+        var defaultTemp = Path.Combine(lab.Tree.WorktreeRoot, "legacy-temp", ".tmp", "inspect");
+        Directory.CreateDirectory(temp);
+        Directory.CreateDirectory(defaultTemp);
+
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, false, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(temp)).IsFalse();
+        await Assert.That(Directory.Exists(defaultTemp)).IsFalse();
     }
 
     [Test]

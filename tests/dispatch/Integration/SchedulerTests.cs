@@ -28,6 +28,51 @@ public sealed class SchedulerTests
     }
 
     [Test]
+    [Timeout(60_000)]
+    public async Task Reattached_continue_receives_recorded_tempRoot(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        const string run = "resume-temp";
+        const string controlId = "abcdefghijklmnopqrstuvwxyz";
+        var ledger = Path.Combine(tree.DispatchHome, "state", "ledgers", run);
+        var control = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "state", "control", controlId)).FullName;
+        await repo.BaselineAsync(control, ct);
+        File.WriteAllText(Path.Combine(control, "setup.done"), "");
+        Json.WriteFile(Path.Combine(ledger, "run.json"), new RunInfo { Run = run, Repo = repo.Root, ControlId = controlId }, LedgerJson.Files.RunInfo);
+        File.WriteAllText(Path.Combine(ledger, "events.jsonl"), $$"""{"schemaVersion":2,"run":"{{run}}","task":"inspect","type":"queued"}""" + "\n");
+        var root = Path.Combine(tree.Root, "recorded-temp");
+        var settings = new EffectiveSettings
+        {
+            Backend = new() { Value = "opencode" }, Route = new() { Value = "opencode:fixture/model" },
+            RawPrompt = new() { Value = true }, TempRoot = new() { Value = root, From = "task" },
+        };
+        Json.WriteFile(Path.Combine(ledger, "config.json"), new EffectiveConfig
+        { Tasks = new() { ["inspect"] = new() { Settings = settings } } }, LedgerJson.Files.EffectiveConfig);
+        Json.WriteFile(Path.Combine(ledger, "inspect", "task.json"), new TaskRecord
+        {
+            Spec = new() { Id = "inspect", Kind = "research" }, Settings = settings,
+            Session = new() { Id = "ses_fixture", Turn = "old-turn" },
+            Workspace = new() { Path = repo.Root, BaseSha = await repo.GitAsync(["rev-parse", "HEAD"], ct) },
+        }, LedgerJson.Files.TaskRecord);
+        var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(x => System.Text.Json.Nodes.JsonNode.Parse(x)!).ToList();
+        var interrupted = steps.Single(x => x["expect"]!.GetValue<string>() == "GET /api/session/ses_fixture").DeepClone();
+        interrupted["repeat"] = false;
+        interrupted["reply"]!["data"]!["outcome"] = "interrupted";
+        steps.Insert(4, interrupted);
+        var scenario = Path.Combine(tree.Root, "resume.jsonl");
+        File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        using var child = new HarnessProcess(tree);
+        (await child.RunAsync(["resume", run, "--continue"], ct, environment)).RequireSuccess("resume --continue");
+        var sent = File.ReadLines(Path.Combine(tree.Root, "requests.jsonl")).Select(x => System.Text.Json.Nodes.JsonNode.Parse(x)!)
+            .Single(x => x["method"]!.GetValue<string>() == "PUT");
+        foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+            await Assert.That(sent["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(Path.Combine(root, run, "inspect"));
+    }
+
+    [Test]
     [Arguments("codex", "codex app-server")]
     [Arguments("opencode", "opencode server")]
     [Timeout(30_000)]

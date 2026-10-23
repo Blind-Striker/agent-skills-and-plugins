@@ -50,6 +50,9 @@ static class Planner
             plan.Errors.Add("in-place workspace refuses a worktree root inside the repository");
         if (specs.Any(x => !Scratch.Required(x) && x.Workspace == "in-place") && Worktree.IsInside(Locations.LedgerRoot, repo))
             plan.Errors.Add("in-place workspace refuses a ledger root inside the repository");
+        foreach (var spec in specs)
+            if (plan.Config?.Effective.Tasks[spec.Id!].Settings.TempRoot is { Value: { } tempRoot } setting && Worktree.IsInside(tempRoot, repo))
+                plan.Errors.Add($"{spec.Id}: tempRoot from {setting.From} must be outside the repository");
         foreach (var path in file.SharedPaths ?? [])
             if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path) || path.Replace('\\', '/').Split('/').Contains("..") || path.IndexOfAny(['*', '?', '!']) >= 0)
                 plan.Errors.Add("sharedPaths must contain repository-relative paths, not globs or parent paths");

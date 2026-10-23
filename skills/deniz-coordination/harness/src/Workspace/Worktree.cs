@@ -113,6 +113,7 @@ static class Worktree
             if (branchExists && (await git.RunAsync(repo, ct, "branch", force ? "-D" : "-d", branch)).ExitCode != 0) return false;
         }
         DeleteTemp(Locations.TaskTemp(task, ledger.RunId, record.Settings.TempRoot?.Value));
+        if (record.Settings.TempRoot?.Value is not null) DeleteTemp(Locations.TaskTemp(task, ledger.RunId));
         Snapshot.Delete(git, task);
         ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
         return true;
