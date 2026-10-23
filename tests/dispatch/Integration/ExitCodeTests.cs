@@ -100,7 +100,7 @@ public sealed class ExitCodeTests
         File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
         var scenario = Path.Combine(tree.Root, "other-version.jsonl");
         File.WriteAllLines(scenario, File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl"))
-            .Select(line => line.Replace("\"version\":\"2.0.32\"", "\"version\":\"2.1.4\"")));
+            .Select(line => line.Replace("\"version\":\"2.1.4\"", "\"version\":\"2.1.5\"")));
         var env = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
         env["FAKE_OPENCODE_SCENARIO"] = scenario;
         using var child = new HarnessProcess(tree);
@@ -109,7 +109,7 @@ public sealed class ExitCodeTests
 
         TestContext.Current!.Output.WriteLine(result.ToString());
         await Assert.That(result.ExitCode).IsEqualTo(2);
-        await Assert.That(result.Stdout + result.Stderr).Contains($"'2.1.4' differs from pin {Constants.PinnedUpstream}");
+        await Assert.That(result.Stdout + result.Stderr).Contains($"'2.1.5' differs from pin {Constants.PinnedUpstream}");
         await Assert.That(Directory.GetFiles(tree.DispatchHome, "run.json", SearchOption.AllDirectories)).IsEmpty();
     }
 

@@ -249,7 +249,7 @@ static partial class Commands
     static bool OpenCodeInstalled(string command)
     {
         if (command != Path.GetFileName(command)) return File.Exists(command);
-        // OpenCodeDotNet.Sdk 0.9.0-preview.13 resolves bare commands in the parent environment,
+        // OpenCodeDotNet.Sdk 0.9.0-preview.14 resolves bare commands in the parent environment,
         // retaining relative PATH entries and probing PATHEXT in order (not just .exe).
         var extensions = new[] { "" };
         if (OperatingSystem.IsWindows() && !command.AsSpan(1).Contains('.'))
