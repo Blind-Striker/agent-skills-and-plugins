@@ -48,6 +48,11 @@ public sealed class UserPathGuardTests
             lab.Add($"GET /api/session/ses_fixture/{endpoint}", empty.DeepClone());
         lab.Add("DELETE /api/session/ses_fixture", status: 204);
         lab.Add("GET /api/session/ses_fixture", new JsonObject { ["_tag"] = "SessionNotFoundError", ["sessionID"] = "ses_fixture", ["message"] = "removed" }, status: 404);
+        // The selfcheck launch check starts and releases one worker after the checks above.
+        lab.Add("POST /api/session", OpenCodeLab.Session("ses_launch"));
+        lab.Add("PUT /api/session/ses_fixture/environment", status: 204);
+        lab.Add("PUT /api/session/ses_launch/environment", status: 204);
+        lab.Add("DELETE /api/session/ses_launch", status: 204);
         lab.Write();
         var exit = await Commands.SelfCheckAsync(Args.Parse(["selfcheck", "--repo", repo.Root]), ct, () => new string('x', 8001));
         var error = TestContext.Current!.Output.GetErrorOutput();
