@@ -335,7 +335,7 @@ configuration/filter checks, worktree locks, structured-scratch ownership or in-
 finds the task's registration by its recorded path, or by its branch when Git records the path
 differently (a root reached through a link); a detached worktree is found by path. A worktree in
 the task's folder that is on another branch is never the task's: clean refuses it, even with force.
-Without force, a worktree whose own HEAD (detached or not) is not merged into the recorded base is
+Without force, a worktree whose registered HEAD (detached or not, folder present or not) is not merged into the recorded base is
 kept. Only the task's registration is removed, never repository-wide pruning.
 
 After all tasks succeed, clean removes empty run/temp containers bottom-up, including an empty
