@@ -332,6 +332,27 @@ public sealed class ExitCodeTests
             await Assert.That(JsonNode.Parse(File.ReadAllText(Path.Combine(ledger, "recover", "result.json")))!["state"]!.GetValue<string>()).IsEqualTo("done");
     }
 
+    // A coordinator that does not poll `asks` learns from the summary that a worker's call was declined
+    // because its escalation closed unanswered.
+    [Test]
+    [Timeout(30_000)]
+    public async Task Status_notes_escalated_asks_that_closed_without_an_answer(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var ledger = Seed(tree, "failed");
+        File.AppendAllText(Path.Combine(ledger, "events.jsonl"), new JsonObject
+        {
+            ["run"] = "recorded", ["task"] = "inspect", ["type"] = "escalation-dropped",
+            ["data"] = new JsonObject { ["id"] = "inspect-1", ["action"] = "bash", ["reason"] = "task interrupted" },
+        }.ToJsonString() + "\n");
+        using var child = new HarnessProcess(tree);
+
+        var result = await child.RunAsync(["status", "recorded"], ct);
+
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+        await Assert.That(result.Stdout).Contains("asks closed without an answer: 1 (bash: task interrupted)");
+    }
+
     static string Seed(TempTree tree, string state)
     {
         var ledger = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "state", "ledgers", "recorded")).FullName;

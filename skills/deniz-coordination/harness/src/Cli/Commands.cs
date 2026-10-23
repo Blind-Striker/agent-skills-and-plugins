@@ -322,7 +322,11 @@ static partial class Commands
         else run.EnsureExists();
         Console.WriteLine($"run {run.RunId}{(SupervisorLock.IsHeld(run.RunId) ? " (supervised now)" : "")}");
         Console.WriteLine($"  {"task",-24} {"state",-10} {"outcome",-12} {"cost",8} {"in/out tokens",-16} {"files",5} {"scope!",6} {"asks",4} {"esc",3} verify");
-        var toolCalls = run.Read().Where(x => x.Type == "tool" && x.Task is not null).ToLookup(x => x.Task!);
+        var events = run.Read();
+        var toolCalls = events.Where(x => x.Type == "tool" && x.Task is not null).ToLookup(x => x.Task!);
+        // An escalated ask that closed unanswered declined the worker's call: a coordinator who did not
+        // poll `asks` learns it here.
+        var unanswered = events.Where(x => x.Type == "escalation-dropped" && x.Task is not null).ToLookup(x => x.Task!);
         foreach (var (task, state) in run.TaskStates())
         {
             var result = run.LoadResult(task);
@@ -331,6 +335,8 @@ static partial class Commands
                 ? "-"
                 : string.Join(' ', result.Verify.Select(v => v.ExitCode == 0 ? "ok" : $"exit {v.ExitCode}"));
             Console.WriteLine($"  {task,-24} {state,-10} {result?.Outcome ?? "-",-12} {result?.Cost?.ToString("0.0000", CultureInfo.InvariantCulture) ?? "-",8} {tokens,-16} {result?.FilesChanged.Count.ToString(CultureInfo.InvariantCulture) ?? "-",5} {result?.OutOfScope.Count.ToString(CultureInfo.InvariantCulture) ?? "-",6} {result?.Asks.ToString(CultureInfo.InvariantCulture) ?? "-",4} {result?.AsksEscalated.ToString(CultureInfo.InvariantCulture) ?? "-",3} {verify}");
+            if (unanswered[task].ToList() is { Count: > 0 } dropped)
+                Console.WriteLine($"    asks closed without an answer: {dropped.Count} ({string.Join("; ", dropped.Select(x => $"{x.Data?["action"]}: {x.Data?["reason"]}").Distinct())})");
             if (state is "running" or "waiting" or "dispatching" or "settling")
             {
                 var calls = toolCalls[task].ToList();
