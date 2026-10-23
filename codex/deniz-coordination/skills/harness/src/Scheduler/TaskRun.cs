@@ -38,6 +38,8 @@ sealed class TaskRun
     public CancellationTokenSource? InterruptCancellation { get; set; }
     public bool? WorkerStopped { get; set; }
     public bool Zombie { get; set; }
+    // The backend still holds the final report of a zombie whose turn ended; settlement may collect it.
+    public bool ReportReady { get; set; }
     public bool PromptAttempted { get; set; }
     public string? StartFailure { get; set; }
 

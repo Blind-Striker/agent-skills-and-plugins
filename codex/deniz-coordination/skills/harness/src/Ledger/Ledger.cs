@@ -216,6 +216,21 @@ sealed class Ledger(string runId)
             : throw new HarnessException($"no run.json in {Dir}");
     }
 
+    // A full run id, or a bare run name that exactly one dated ledger carries.
+    public static string Resolve(string run)
+    {
+        if (Directory.Exists(Path.Combine(Locations.LedgerRoot, run)) || !Directory.Exists(Locations.LedgerRoot)) return run;
+        var pattern = new Regex($@"\A[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}-{Regex.Escape(run)}\z");
+        var matches = Directory.GetDirectories(Locations.LedgerRoot).Select(dir => Path.GetFileName(dir))
+            .Where(id => pattern.IsMatch(id)).Order(StringComparer.Ordinal).ToList();
+        return matches.Count switch
+        {
+            0 => run,
+            1 => matches[0],
+            _ => throw new HarnessException($"run name {run} matches {matches.Count} ledgers: {string.Join(", ", matches)}; name the full run id"),
+        };
+    }
+
     // The newest run whose ledger knows the task, unless the run is named.
     public static Ledger FindRunFor(string task, string? run)
     {

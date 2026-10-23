@@ -17,7 +17,7 @@ See [CLI](cli.md) for invocation and [configuration](config.md) for layering.
 |---|---|---|---|
 | `schemaVersion` | integer | Required, `2` | Other old versions: `schemaVersion must be 2; version 1 is not read`. A newer version: `written by a newer dispatch; update the plugin`. |
 | `repo` | string path | None | Relative to the task file, or absolute. `--repo` overrides it. Repository tasks require one: `task needs repo or --repo`. An explicit target must be a Git working tree. |
-| `run` | string | Task filename without extension | `run` uses `--run` first. Name must match `^[a-z0-9][a-z0-9-]{0,40}$`; the harness prefixes the UTC calendar day to form the recorded run id. |
+| `run` | string | Task filename without extension and a trailing `.tasks` (`x.tasks.jsonc` gives `x`) | `run` uses `--run` first. Name must match `^[a-z0-9][a-z0-9-]{0,40}$`; the harness prefixes the UTC calendar day to form the recorded run id. |
 | `maxParallel` | integer | `3`, after lower layers | Range 1 through 8: `maxParallel from <layer> must be between 1 and 8`. |
 | `defaults` | object | No overrides | Only the preference fields below, plus `defaultRoutes` and `dir`. It cannot supply arbitrary task fields such as `base`, `prompt`, `scope` or `verify`. |
 | `policy` | object | No added restrictions | Accepts `deny`, `escalate`, `scope`, `maxAccess`, `networkAllowed`, `instructions`. See [configuration](config.md). |
@@ -40,10 +40,11 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `prompt` | string | None | Exactly one of `prompt` and `promptFile`; otherwise `name exactly one of prompt or promptFile`. Whitespace-only text: `prompt is empty`. |
 | `promptFile` | string path | None | Same exclusivity as `prompt`; missing file: `promptFile not found: <path>`. |
 | `contracts` | string array | `[]` | Added after top-level contracts and before CLI contracts. Same file validation as top-level contracts. |
-| `base` | string Git ref | Required for a non-structured worktree without `reviewOf` | `base is required (a branch, tag or commit of the repo)` or `base <ref> does not resolve in <repo>`. In-place refuses it. |
+| `base` | string Git ref | Required for a non-structured worktree without `reviewOf` | `base is required (a branch, tag or commit of the repo)` or `base <ref> does not resolve in <repo>`. A remote-tracking base is fetched before resolution; plan and run print `INFO <task>: base <base> resolves to <12 hex digits> (fetched from <remote>)`, omitting the suffix for local branches, tags and SHAs (no fetch). In-place refuses it. |
 | `reviewOf` | string task id | None | Starts from that task's branch after it finishes. Refuses self or missing target: `reviewOf names no other task`; refuses chains: `reviewOf chains are not supported`. With `base`: `a reviewOf task starts from the reviewed task's branch; omit base`. A non-review kind produces a warning. Use a worktree author. |
 | `scope` | string array | `[]` | `code and mechanical tasks declare a scope` when absent or empty. Structured tasks refuse it. Every changed path on review or research is out of scope regardless of this field. |
 | `verify` | string array | No commands | Runs after collection for a succeeded non-structured task. Structured tasks refuse it. A missing or unsupported shell is a plan error. |
+| `advisoryVerify` | string array | No commands | Runs after `verify`, in the same shell and folder, and is recorded with `advisory: true`, but a failure never fails the task: it adds the `advisory-verify-failed` warning. For a check that fails by design on this change (a baseline the coordinator owns), so a dependent `reviewOf` task still starts. Structured tasks refuse it. |
 | `shell` | string enum | `pwsh` on Windows, `bash` elsewhere | `bash` or `pwsh`, resolved on PATH. Other values: `verify shell: shell must be bash or pwsh`; structured: `shell is forbidden for structured tasks`. Review and research can also use it. |
 | `dir` | string relative directory | `defaults.dir`, then `.` | In-place: existing directory inside the same repository working tree. Errors: `in-place dir must be relative to and inside the repository`, `in-place dir does not exist`, `in-place dir belongs to another working tree`. Worktree tasks do not use it. Project-enabled structured tasks use their task entry's `dir`. |
 | `input` | object | Required for structured | See structured fields below. Non-structured tasks do not consume structured input. |
@@ -52,7 +53,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 ## Preferences
 
 These fields may appear in user or repository `preferences`, task-file `defaults`, or a task.
-Corresponding command-line flags win last. A backend has no tool default for a task.
+Corresponding command-line flags, where available, win last. A backend has no tool default for a task.
 
 | Field | Type | Tool default | Validation and meaning |
 |---|---|---|---|
@@ -64,6 +65,7 @@ Corresponding command-line flags win last. A backend has no tool default for a t
 | `access` | string enum | `workspace` for code and mechanical, otherwise `read-only` | `read-only`, `workspace`, `full`. An explicit value above `maxAccess` fails and names both layers; the tool default is clamped. |
 | `network` | string enum | `on` | `on` or `off`. An explicit `on` forbidden by policy fails; the tool default is clamped. Codex refuses `full` access with network `off`. |
 | `workspace` | string enum | `worktree` | `worktree` or `in-place`. Structured tasks use scratch or a named project folder instead of Git workspace preparation. |
+| `tempRoot` | string, absolute path | Unset | Private temp root; relative or empty values fail with `tempRoot must be an absolute path`. No CLI option; [configuration](config.md#temporary-folders) owns layering and provenance. |
 | `commit` | string enum | `none` in-place; forced `harness` for worktrees | `none` or `harness`. A worktree task entry naming it fails: `task commit is only valid in-place`. Structured tasks never commit. |
 | `rawPrompt` | boolean | `false` | Sends only task text with a normalized final newline. Contracts, standing instructions or structured input conflict: `rawPrompt conflicts with contracts, instructions or structured input`. Rules and scope checks still apply. |
 | `defaultRoutes` | map of backend to string, defaults only | No route | In task-file `defaults`, user or repository preferences. Backend-specific routes provide defaults, not a backend's implicit model selection. |
@@ -104,11 +106,23 @@ receive the assembled text unchanged as one user input. `task.json` records each
 SHA-256 of the file bytes, and first line trimmed and cut to 120 characters. The `prompt` event
 records contract hashes. No contract files are copied into the ledger.
 
+The harness's own standing instructions name the working folder, any deny rules, the declared scope,
+read-only access, that nobody answers questions and, except for structured tasks, the status line:
+the worker ends its final message with `Status: done`, `Status: stopped` (it stopped on a rule or a
+contradiction) or `Status: blocked` (a missing tool, access or input kept it from the work).
+Settlement reads the last such line; see `workerStatus` in [the ledger](ledger.md).
+
 `resume --continue` of a started opencode session sends a fixed continuation line and does not read
 the files again. An unprompted task with contracts cannot be reconstructed from recorded hashes:
 it fails with `original contract text is unavailable; cannot start an unprompted task from the ledger`.
 
 ## Scope and workspaces
+
+With `tempRoot`, the private temporary directory is `<tempRoot>/<run>/<task>`, for worktree,
+in-place and structured workers. `<run>` is the dated recorded run id. Workers and ordinary and
+advisory verify commands receive that same directory in `TEMP`, `TMP` and `TMPDIR`; verify still
+runs in the task's working folder. Unset, the layout stays `<worktree root>/<run>/.tmp/<task>`
+(or `<worktree root>/.dispatch-tmp/<task>` without a run). `plan` prints paths without creating them.
 
 Scopes use repository-relative paths and globs. A plain path covers itself and descendants; `*`
 and `?` stay within a segment, `**` crosses directories, and `**/` also matches no directory.
@@ -146,7 +160,7 @@ and temporary index, but leaves the in-place folder, edits and current branch al
 
 ## Structured tasks
 
-Structured tasks refuse `scope`, `verify`, `shell`, `reviewOf`, `agent`, `persona` and raw prompts.
+Structured tasks refuse `scope`, `verify`, `advisoryVerify`, `shell`, `reviewOf`, `agent`, `persona` and raw prompts.
 With `project: off`, the harness chooses scratch outside any ancestor containing `.git`; neither
 repository nor base is needed. With `project: on`, it uses the named repository folder. Structured
 tasks never commit or verify.

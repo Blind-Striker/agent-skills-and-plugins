@@ -1,4 +1,4 @@
-worker-contract v3
+worker-contract v4
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -91,12 +91,14 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 - Your green run must be the run the verify step repeats. Do not redirect build outputs, do not change
   test helpers to fit your own layout, and do not repoint HOME, USERPROFILE, or a tool's home folder.
   Put caches and temporary files under the system temp folder, never inside or above the workspace.
+  These rules cover what you add and run. A repository's existing test fixtures, which may isolate
+  HOME or place temporary trees for their own tests, are part of its gate: leave them as they are.
 
 ## Verification
 
 The coordinator or its tool runs the verify commands on your committed tree. That run is the evidence,
-not your report. Run them yourself after your last edit: the focused tests while you work, the full
-suite once at the end.
+not your report. Run them yourself after your last edit: the focused tests while you work, then the
+verification the task names. Run the full suite only when the task asks for it.
 
 ## Report
 
@@ -110,3 +112,6 @@ Report language: English.
 7. Every edit to an existing test: old -> new, with the rule that allows it.
 8. This contract's version line, and the version line of every other file prepended to your task.
 9. For an evaluation: every FRICTION entry, and every requirement reported FAILED.
+10. The last line of your final message, alone: `Status: done` when the task is done, `Status: stopped` when
+    you stopped on a rule above or a contradiction, `Status: blocked` when the environment kept you from the
+    work (a missing tool, access or input). A dispatch harness reads this line; a stop or block fails the task.

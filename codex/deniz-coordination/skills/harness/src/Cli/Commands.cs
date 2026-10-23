@@ -3,10 +3,17 @@ static partial class Commands
     public static string CreateRunId(string name, TimeProvider? time = null) =>
         $"{(time ?? TimeProvider.System).GetUtcNow().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}-{name}";
 
+    // The usual x.tasks.jsonc names run x.
+    public static string RunName(Args? a, TaskFile file, string tasksPath) =>
+        a?.Get("run") ?? file.Run ?? Regex.Replace(Path.GetFileNameWithoutExtension(tasksPath), @"\.tasks\z", "");
+
+    static string RunId(Args a) => Ledger.Resolve(a.Require(0, "run"));
+
     public static async Task<int> RoutesAsync(Args a, CancellationToken ct)
     {
         var dir = Path.GetFullPath(a.Get("repo") ?? throw new HarnessException("routes needs --repo"));
         var layers = await ConfigLayers.LoadAsync(dir, new TaskFile(), null, a, ct);
+        layers.PrintWarnings();
         var allow = layers.Allow;
         var selectedBackends = BackendScope.Selected(a, layers);
         await using var scope = new BackendScope(selectedBackends, subscribe: false);
@@ -77,8 +84,18 @@ static partial class Commands
     public static async Task<int> PlanAsync(Args a, CancellationToken ct)
     {
         var plan = await Planner.LoadAsync(a.Require(0, "task file"), a.Get("repo"), AllowList.From(null), ct, args: a);
+        var runId = CreateRunId(RunName(a, plan.File, plan.TasksPath));
+        foreach (var spec in plan.File.Tasks ?? [])
+        {
+            if (spec.Kind == "structured" || plan.Config is null) continue;
+            var root = plan.Config.Effective.Tasks[spec.Id!].Settings.TempRoot;
+            var temp = Locations.TaskTemp(spec.Id!, runId, root?.Value);
+            var source = root?.Value is null ? "(default)" : $"(tempRoot from {root.From})";
+            Console.WriteLine($"INFO {spec.Id}: temp {temp} {source}");
+        }
         foreach (var (id, task) in plan.Config?.Effective.Tasks ?? [])
-            if (task.Settings.ReadOnlyShell is { } shell) Console.WriteLine($"{id}: readOnlyShell {shell.Value} ({shell.From})");
+            if (task.Settings.Access?.Value == "read-only" && task.Settings.ReadOnlyShell is { } shell)
+                Console.WriteLine($"INFO {id}: {ReadOnlyShellNote(task.Settings.Backend?.Value, shell.Value)} (readOnlyShell {shell.Value}, from {shell.From})");
         var allow = plan.Config?.Allow ?? AllowList.From(null);
         if (plan.Errors.Count == 0)
         {
@@ -88,6 +105,14 @@ static partial class Commands
 
         return plan.Report();
     }
+
+    static string ReadOnlyShellNote(string? backend, string? shell) => (backend, shell) switch
+    {
+        ("codex", "decline") => "sandboxed shell; escalations declined",
+        ("codex", _) => "sandboxed shell; escalations reach the operator through a matching rule",
+        (_, "decline") => "no shell for a read-only task",
+        _ => "shell asks reach the operator through a matching rule",
+    };
 
     public static async Task<int> RunAsync(Args a, CancellationToken ct, Func<RunInfo, string, Task>? setupCheckpoint = null,
         Func<IWorkerBackend>? backendFactory = null, Func<string?>? userPathReader = null,
@@ -113,7 +138,7 @@ static partial class Commands
         var policy = layers.Policy;
         Console.WriteLine(policy.Describe());
 
-        var name = a.Get("run") ?? plan.File.Run ?? Path.GetFileNameWithoutExtension(tasksPath);
+        var name = RunName(a, plan.File, tasksPath);
         if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9-]{0,40}$"))
         {
             throw new HarnessException($"run name '{name}' must match ^[a-z0-9][a-z0-9-]{{0,40}}$");
@@ -160,6 +185,7 @@ static partial class Commands
             {
                 return plan.Report();
             }
+            plan.PrintWarnings();
 
             var info = new RunInfo
             {
@@ -185,6 +211,7 @@ static partial class Commands
                 claim.Flush(flushToDisk: true);
             }
             catch (IOException) when (!claimed && File.Exists(Path.Combine(ledger.Dir, "run.json"))) { throw RecordedRun(runId); }
+            Console.WriteLine($"run {runId}: ledger {ledger.Dir}");
             if (setupCheckpoint is not null) await setupCheckpoint(info, "claimed");
             File.Copy(plan.TasksPath, Path.Combine(ledger.Dir, "tasks.jsonc"));
             layers.Freeze(ledger.Dir);
@@ -299,12 +326,16 @@ static partial class Commands
             return 0;
         }
 
-        var run = new Ledger(a.Require(0, "run"));
+        var run = new Ledger(RunId(a));
         if (File.Exists(Path.Combine(run.Dir, "run.json"))) Locations.ControlDir(run.RunId);
         else run.EnsureExists();
         Console.WriteLine($"run {run.RunId}{(SupervisorLock.IsHeld(run.RunId) ? " (supervised now)" : "")}");
         Console.WriteLine($"  {"task",-24} {"state",-10} {"outcome",-12} {"cost",8} {"in/out tokens",-16} {"files",5} {"scope!",6} {"asks",4} {"esc",3} verify");
-        var toolCalls = run.Read().Where(x => x.Type == "tool" && x.Task is not null).ToLookup(x => x.Task!);
+        var events = run.Read();
+        var toolCalls = events.Where(x => x.Type == "tool" && x.Task is not null).ToLookup(x => x.Task!);
+        // An escalated ask that closed unanswered declined the worker's call: a coordinator who did not
+        // poll `asks` learns it here.
+        var unanswered = events.Where(x => x.Type == "escalation-dropped" && x.Task is not null).ToLookup(x => x.Task!);
         foreach (var (task, state) in run.TaskStates())
         {
             var result = run.LoadResult(task);
@@ -313,6 +344,8 @@ static partial class Commands
                 ? "-"
                 : string.Join(' ', result.Verify.Select(v => v.ExitCode == 0 ? "ok" : $"exit {v.ExitCode}"));
             Console.WriteLine($"  {task,-24} {state,-10} {result?.Outcome ?? "-",-12} {result?.Cost?.ToString("0.0000", CultureInfo.InvariantCulture) ?? "-",8} {tokens,-16} {result?.FilesChanged.Count.ToString(CultureInfo.InvariantCulture) ?? "-",5} {result?.OutOfScope.Count.ToString(CultureInfo.InvariantCulture) ?? "-",6} {result?.Asks.ToString(CultureInfo.InvariantCulture) ?? "-",4} {result?.AsksEscalated.ToString(CultureInfo.InvariantCulture) ?? "-",3} {verify}");
+            if (unanswered[task].ToList() is { Count: > 0 } dropped)
+                Console.WriteLine($"    asks closed without an answer: {dropped.Count} ({string.Join("; ", dropped.Select(x => $"{x.Data?["action"]}: {x.Data?["reason"]}").Distinct())})");
             if (state is "running" or "waiting" or "dispatching" or "settling")
             {
                 var calls = toolCalls[task].ToList();
@@ -333,7 +366,7 @@ static partial class Commands
 
     public static async Task<int> ResumeAsync(Args a, CancellationToken ct)
     {
-        var ledger = new Ledger(a.Require(0, "run"));
+        var ledger = new Ledger(RunId(a));
         var control = Locations.RequireControlFolder(ledger.RunId);
         using var supervisorLock = SupervisorLock.AcquireFolder(control);
         Locations.RequireControlFolder(ledger.RunId, setup: true);
@@ -344,8 +377,9 @@ static partial class Commands
             if (config.InputSha256 is not null || config.ResultSchemaSha256 is not null)
                 StructuredOutput.Load(ledger, task);
         Cli.RestrictEnvironment(frozen.Restrictions?.Scrub);
-        var allow = proceed ? (await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct)).Allow
-            : AllowList.From(frozen.Restrictions?.Routes);
+        var current = proceed ? await ConfigLayers.LoadAsync(info.Repo, new TaskFile(), null, a, ct) : null;
+        current?.PrintWarnings();
+        var allow = current?.Allow ?? AllowList.From(frozen.Restrictions?.Routes);
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
         AskQueue.Reset(ledger.RunId);

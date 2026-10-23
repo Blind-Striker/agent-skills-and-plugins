@@ -2,7 +2,7 @@ static partial class Commands
 {
     public static int Cancel(Args a)
     {
-        var ledger = new Ledger(a.Require(0, "run"));
+        var ledger = new Ledger(RunId(a));
         var task = a.Require(1, "task");
         var control = Locations.RequireControlFolder(ledger.RunId);
         var states = ledger.TaskStates();
@@ -39,7 +39,7 @@ static partial class Commands
 
     public static async Task<int> CollectAsync(Args a, CancellationToken ct)
     {
-        var ledger = new Ledger(a.Require(0, "run"));
+        var ledger = new Ledger(RunId(a));
         var task = a.Require(1, "task");
         var control = Locations.RequireControlFolder(ledger.RunId);
         using var supervisorLock = SupervisorLock.AcquireFolder(control);
@@ -76,7 +76,7 @@ static partial class Commands
 
     public static async Task<int> CleanAsync(Args a, CancellationToken ct)
     {
-        var ledger = new Ledger(a.Require(0, "run"));
+        var ledger = new Ledger(RunId(a));
         var control = Locations.ControlDir(ledger.RunId);
         using var supervisorLock = Directory.Exists(control) ? SupervisorLock.AcquireFolder(control) : null;
         var info = ledger.LoadRunInfo();
@@ -174,8 +174,8 @@ static partial class Commands
     public static int Asks(Args a)
     {
         if (a.Positional.Count == 0) return ListControlFolders();
-        Locations.RequireControlFolder(a.Require(0, "run"));
-        List<string> runs = [a.Positional[0]];
+        List<string> runs = [RunId(a)];
+        Locations.RequireControlFolder(runs[0]);
         var shown = 0;
         foreach (var run in runs)
         {
@@ -228,7 +228,7 @@ static partial class Commands
     // The operator's answer to one escalated ask. The running supervisor picks the decision file up.
     public static async Task<int> ReplyAsync(Args a, CancellationToken ct)
     {
-        var run = a.Require(0, "run");
+        var run = RunId(a);
         var askId = a.Require(1, "ask id");
         var decision = a.Require(2, "decision (once or reject)");
         if (decision is not ("once" or "reject"))

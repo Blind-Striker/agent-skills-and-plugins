@@ -17,9 +17,14 @@ static class WorkerEnvironment
         }
     }
 
+    // Windows names variables case-insensitively (its PATH is spelled "Path"); every copy keeps that.
+    public static StringComparer NameComparer => OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+
+    public static Dictionary<string, string> Copy(IEnumerable<KeyValuePair<string, string>> variables) =>
+        variables.ToDictionary(x => x.Key, x => x.Value, NameComparer);
+
     public static Dictionary<string, string> Snapshot() => System.Environment.GetEnvironmentVariables()
-        .Cast<System.Collections.DictionaryEntry>().ToDictionary(e => (string)e.Key, e => e.Value as string ?? "",
-            OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        .Cast<System.Collections.DictionaryEntry>().ToDictionary(e => (string)e.Key, e => e.Value as string ?? "", NameComparer);
 
     public static Scrubbed Scrub(IReadOnlyDictionary<string, string> snapshot, IEnumerable<string>? patterns = null)
     {
@@ -27,9 +32,8 @@ static class WorkerEnvironment
         var valuePattern = new Regex(@"[A-Za-z][A-Za-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@");
         var extras = (patterns ?? []).Select(p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).ToArray();
         var proxies = new HashSet<string>(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"], StringComparer.OrdinalIgnoreCase);
-        var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
-        var variables = new Dictionary<string, string>(comparer);
-        var removed = new Dictionary<string, string>(comparer);
+        var variables = new Dictionary<string, string>(NameComparer);
+        var removed = new Dictionary<string, string>(NameComparer);
         foreach (var (name, value) in snapshot)
         {
             if (secret.IsMatch(name) || extras.Any(p => p.IsMatch(name)) || (!proxies.Contains(name) && valuePattern.IsMatch(value))) removed[name] = value;
@@ -39,12 +43,12 @@ static class WorkerEnvironment
     }
 
     // The session's shell environment without credentials, with a per-task TEMP.
-    public static (Dictionary<string, string> Variables, List<string> Removed) Environment(string task, string? run = null)
+    public static (Dictionary<string, string> Variables, List<string> Removed) Environment(string task, string? run = null, string? tempRoot = null)
     {
         var scrubbed = Scrub(Snapshot());
         var variables = scrubbed.Variables;
         var removed = scrubbed.Removed;
-        var temp = Locations.TaskTemp(task, run);
+        var temp = Locations.TaskTemp(task, run, tempRoot);
         Directory.CreateDirectory(temp);
         variables["TEMP"] = temp;
         variables["TMP"] = temp;

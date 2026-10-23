@@ -107,6 +107,7 @@ sealed class EffectiveSettings
     public Setting<string>? ReadOnlyShell { get; set; }
     public Setting<string>? Network { get; set; }
     public Setting<string>? Workspace { get; set; }
+    public Setting<string>? TempRoot { get; set; }
     public Setting<string>? Dir { get; set; }
     public Setting<string>? Commit { get; set; }
     public Setting<bool>? RawPrompt { get; set; }
@@ -207,6 +208,7 @@ sealed class VerifyResult
     public int ExitCode { get; set; }
     public double Seconds { get; set; }
     public bool TimedOut { get; set; }
+    public bool? Advisory { get; set; }
 }
 
 sealed class TaskResult : VersionedContract
@@ -226,9 +228,11 @@ sealed class TaskResult : VersionedContract
     public List<string> RoutesUsed { get; set; } = [];
     public bool RouteVerified { get; set; }
     public List<string>? RouteDrift { get; set; }
+    public string? WorkerStatus { get; set; }
     public double? Cost { get; set; }
     public TokenTotals? Tokens { get; set; }
     public bool? TokensComplete { get; set; }
+    public long? ContextWindow { get; set; }
     public int Asks { get; set; }
     public int AsksEscalated { get; set; }
     public int FormsCancelled { get; set; }

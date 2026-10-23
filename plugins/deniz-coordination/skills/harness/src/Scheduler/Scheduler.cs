@@ -64,7 +64,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             {
                 Starter(run).CheckAllowed(run);
                 if (run.Record.Spec.Kind == "structured") StructuredOutput.Load(ledger, run);
-                var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
+                var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId, run.Record.Settings.TempRoot?.Value);
                 ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
                 var prompt = new WorkerPrompt(run.Record.Spec.RawPrompt == true ? "Continue the task from where you stopped."
                     : "Continue the task from where you stopped. The standing instructions and the task above still apply.", true);
@@ -354,7 +354,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         }
         if (pending.Remove(run.Id, out var admitted))
             foreach (var queued in admitted) await HandleAsync(queued);
-        if (signal is WorkerSignal.Ended or WorkerSignal.Status or WorkerSignal.ToolCall && task.Turn != run.Worker?.Turn) return;
+        if (signal is WorkerSignal.Ended or WorkerSignal.StopUnconfirmed or WorkerSignal.Status or WorkerSignal.ToolCall && task.Turn != run.Worker?.Turn) return;
         if (run.Zombie && signal is not (WorkerSignal.Ask or WorkerSignal.Form)) return;
         if (signal is WorkerSignal.Ended or WorkerSignal.Status or WorkerSignal.Retry && !observed.Add(signal)) return;
         switch (signal)
@@ -385,6 +385,15 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 if (status.Execution == "interrupted") data["reason"] = status.Detail;
                 ledger.Write(run.Id, "status", data);
                 run.NextCheck = time.GetUtcNow().AddSeconds(2);
+                break;
+            // A stop already under way (cancel, timeout) owns its own zombie decision.
+            case WorkerSignal.StopUnconfirmed unconfirmed when run.State == TaskState.Running && run.StopStarted is null:
+                ledger.Write(run.Id, "stop-unconfirmed", new JsonObject { ["outcome"] = unconfirmed.Outcome, ["detail"] = unconfirmed.Detail });
+                escalation.Drop(run.Id, "worker stop unconfirmed");
+                run.Zombie = true;
+                run.WorkerStopped = false;
+                run.ReportReady = true;
+                BeginSettle(run, unconfirmed.Outcome);
                 break;
             case WorkerSignal.Ended ended when !run.IsFinal && run.State != TaskState.Settling:
                 run.WorkerEnded = true;

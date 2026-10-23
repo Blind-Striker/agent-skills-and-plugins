@@ -73,7 +73,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         if (!home.Temporary) return (cleanProfile = (home.Profile, home.Reason)).Value;
         try
         {
-            var variables = environment.ToDictionary(x => x.Key, x => x.Value);
+            var variables = WorkerEnvironment.Copy(environment);
             variables["CODEX_HOME"] = home.Home;
             var connection = await ConnectAsync(directory, variables, home, ct);
             try
@@ -156,7 +156,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         };
         var userHome = UserHome;
         var home = CodexHome.Create(context, launch, userHome, CodexHome.ReadWindowsSandbox(userHome));
-        var variables = launch.Environment.ToDictionary(x => x.Key, x => x.Value);
+        var variables = WorkerEnvironment.Copy(launch.Environment);
         variables["CODEX_HOME"] = home.Home;
         Connection connection;
         connection = await ConnectAsync(launch.Directory, variables, home, ct);
@@ -284,6 +284,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                             var usage = data.Deserialize(CodexJson.Wire.CodexThreadTokenUsageUpdatedNotification)!;
                             connection.Usage[usage.ThreadId] = usage.TokenUsage.Total;
                             connection.UsageComplete |= taskTurn;
+                            if (taskThread && usage.TokenUsage.ModelContextWindow is { } contextWindow)
+                                connection.ContextWindow = contextWindow;
                             break;
                         case "model/rerouted":
                             var model = data.GetProperty("toModel").GetString();
@@ -308,7 +310,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                                     ? $"{failure.Message}; {failure.CodexErrorInfo}; {failure.AdditionalDetails}" : null;
                                 signals.Writer.TryWrite(new WorkerSignal.Status(worker.TaskId, worker.Turn!, execution,
                                     execution == "failed" ? new JsonObject { ["message"] = connection.ExecutionError }.ToJsonString() : connection.ExecutionError));
-                                await connection.Process.StopAsync();
+                                connection.TurnEnded.TrySetResult();
+                                // A process that survives the stop can hold stdout open, so this loop may never
+                                // reach its finally: report the unconfirmed stop here.
+                                var stop = await connection.Process.StopAsync();
+                                if (!stop.Stopped) signals.Writer.TryWrite(new WorkerSignal.StopUnconfirmed(worker.TaskId, worker.Turn!, execution, stop.Detail));
                             }
                             else if (!taskThread)
                                 signals.Writer.TryWrite(new WorkerSignal.Status(worker.TaskId, worker.Turn!, execution,
@@ -342,6 +348,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 connection.Ended = new(worker.TaskId, worker.Turn!, connection.Outcome, connection.ExecutionError);
                 signals.Writer.TryWrite(connection.Ended);
             }
+            else signals.Writer.TryWrite(new WorkerSignal.StopUnconfirmed(worker.TaskId, worker.Turn!, connection.Outcome, stopped.Detail));
         }
     }
 
@@ -507,7 +514,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             var recovery = recovered[worker.Id];
             return new("lost", null, new(), null, false, [], recovery.Detail, recovery.Stopped);
         }
-        await connection.Pump.WaitAsync(ct);
+        // Prefer the pump's end, which records the stop. A process that survives the stop can keep the
+        // pump open after the turn ended: then the turn's report is complete without it.
+        await Task.WhenAny(connection.Pump, Task.WhenAll(connection.TurnEnded.Task, Task.Delay(TimeSpan.FromSeconds(10), ct))).WaitAsync(ct);
         var usage = connection.Usage.Values;
         var totals = usage.Count == 0 ? new TokenTotals() : new TokenTotals
         {
@@ -515,7 +524,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             CacheRead = usage.Sum(x => x.CachedInputTokens), CacheWrite = usage.Sum(x => x.CacheWriteInputTokens),
         };
         return new(connection.Outcome ?? "lost", connection.FinalText ?? connection.LastText, totals, null, connection.UsageComplete,
-            connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped);
+            connection.Routes.ToArray(), connection.ExecutionError, connection.Stopped, ContextWindow: connection.ContextWindow);
     }
     public async Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct)
     {
@@ -603,9 +612,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public int Retries { get; set; }
         public Dictionary<string, CodexTokenUsageBreakdown> Usage { get; } = new(StringComparer.Ordinal);
         public bool UsageComplete { get; set; }
+        public long? ContextWindow { get; set; }
         public string Effort { get; set; } = "";
         public HashSet<string> Routes { get; } = new(StringComparer.Ordinal);
         public Task Pump { get; set; } = Task.CompletedTask;
+        public TaskCompletionSource TurnEnded { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         bool disposed;
         public async ValueTask DisposeAsync()
         {

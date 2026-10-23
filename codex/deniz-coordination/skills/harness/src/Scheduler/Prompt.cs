@@ -39,8 +39,8 @@ static class Prompt
         JsonNode? schema = null;
         if (task.Kind == "structured")
         {
-            if (task.Scope is not null || task.Verify is not null || task.Shell is not null || task.ReviewOf is not null || task.Agent is not null || task.Persona is not null)
-                throw new HarnessException("structured tasks refuse scope, verify, shell, reviewOf, agent and persona");
+            if (task.Scope is not null || task.Verify is not null || task.AdvisoryVerify is not null || task.Shell is not null || task.ReviewOf is not null || task.Agent is not null || task.Persona is not null)
+                throw new HarnessException("structured tasks refuse scope, verify, advisoryVerify, shell, reviewOf, agent and persona");
             if (task.Input is not { } input || (input.Items is null) == (input.ItemsFile is null))
                 throw new HarnessException("structured input needs exactly one of items or itemsFile");
             if (task.Result is not { Schema: { Length: > 0 } } result || result.ItemsAt is null ||
@@ -89,6 +89,10 @@ static class Prompt
         if (task.Spec.Kind != "structured" && task.Spec.Access == "read-only")
             lines.Add("This is a read-only task: do not create, change or delete files. Report your findings instead.");
         lines.Add("Nobody answers questions during this run: a question is cancelled, so continue without the answer.");
+        if (task.Spec.Kind != "structured")
+            lines.Add($"End your final message with exactly one status line: `{Settlement.StatusPrefix} done` when the task is done, "
+                + $"`{Settlement.StatusPrefix} stopped` when you stopped on a rule or a contradiction, "
+                + $"`{Settlement.StatusPrefix} blocked` when the environment kept you from the work (a missing tool, access or input).");
         lines.AddRange(policy.Instructions);
         text.Append("Standing instructions from the dispatch harness (they apply to the whole task):\n")
             .Append(string.Join("\n", lines.Select(x => $"- {x}"))).Append("\n\n---\nTask:\n\n").Append(task.PromptText.TrimEnd('\n')).Append('\n');

@@ -17,6 +17,18 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
 
     static EffectiveRule Convert(PolicyRule rule) => new() { Name = rule.Name!, Action = rule.Action!, Resources = rule.Resources! };
 
+    public static (WorkerLaunch Launch, List<string> Removed) BuildLaunch(TaskRecord record, string runId, string backendName, Policy policy, string? tempRoot)
+    {
+        RouteRef? route;
+        if (backendName == "codex") route = CodexBackend.ParseRoute(record.Spec.Route!);
+        else RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out route, out _);
+        var (variables, removed) = WorkerEnvironment.Environment(record.Spec.Id!, runId, tempRoot);
+        return (new(runId, record.Spec.Id!, record.Spec.Kind!, route!, record.Spec.Agent,
+            record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
+            record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
+            record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason), removed);
+    }
+
     public void CheckAllowed(TaskRun run)
     {
         var spec = run.Record.Spec;
@@ -45,14 +57,8 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         else await Worktree.PrepareAsync(run, ledger, repo, ct, git);
         CheckAllowed(run);
         var record = run.Record;
-        RouteRef? route;
-        if (backend.Name == "codex") route = CodexBackend.ParseRoute(record.Spec.Route!);
-        else RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out route, out _);
-        var (variables, removed) = WorkerEnvironment.Environment(run.Id, ledger.RunId);
-        var created = await backend.CreateAsync(new(ledger.RunId, run.Id, record.Spec.Kind!, route!, record.Spec.Agent,
-            record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
-            record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
-            record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason), ct);
+        var (launch, removed) = BuildLaunch(record, ledger.RunId, backend.Name, policy, record.Settings.TempRoot?.Value);
+        var created = await backend.CreateAsync(launch, ct);
         // Persist the reference before calling PromptAsync, even if that call fails or never returns.
         run.SaveWorker(created.Worker, ledger);
         if (backend.Name == "codex")
@@ -75,7 +81,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
             ledger.Write(run.Id, "route", new JsonObject { ["route"] = record.Settings.Route.Value, ["agent"] = record.Agent, ["lineage"] = record.Lineage });
             ledger.Write(run.Id, "session", new JsonObject { ["sessionId"] = created.Worker.Id, ["projectId"] = details.ProjectId, ["rules"] = Json.Array(details.Rules) });
         }
-        ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = variables.Count, ["removed"] = Json.Array(removed) });
+        ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = launch.Environment.Count, ["removed"] = Json.Array(removed) });
         if (record.PromptInputs is null && record.Contracts is { Count: > 0 })
             throw new HarnessException("original contract text is unavailable; cannot start an unprompted task from the ledger");
         var text = policy.Render(new PlannedOrRecord(record.Spec, record.PromptText), record.Workspace.Path!, record.PromptInputs);

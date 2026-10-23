@@ -52,7 +52,7 @@ sealed class HarnessServer : IAsyncDisposable
         var output = new OpenCodeServerOutput();
         var command = Command(context.Executable);
         OpenCodeServer server;
-        var environment = context.Passthrough.ToDictionary(x => x.Key, x => x.Value);
+        var environment = WorkerEnvironment.Copy(context.Passthrough);
         environment["OPENCODE_FILEWATCHER_DISABLE"] = "1";
         environment["OPENCODE_DISABLE_FILEWATCHER"] = "1";
         if (modes.Profile == "clean")

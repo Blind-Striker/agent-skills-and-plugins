@@ -13,7 +13,7 @@ composition and [configuration](config.md) for restrictions.
 |---|---|---|---|---|
 | `profile` | Enum; `clean` for structured or read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
-| `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Read-only denies `edit`, recorded `policy`. Workspace/full add no access rule, recorded `none`. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows sandboxed tasks require ready setup. |
+| `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Read-only denies `edit`, recorded `policy`, and with the default `readOnlyShell: decline` it declines every shell call, so a read-only opencode task has no shell (no `git`); this differs from Codex and is part of the open sandbox design. Workspace/full add no access rule, recorded `none`. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows sandboxed tasks require ready setup. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
 | `workspace` | Enum; `worktree` | Core prepares the folder. | Same core workspace rules. | `worktree` or `in-place`; structured tasks bypass Git workspace preparation. |
 
@@ -92,7 +92,18 @@ turns also supply the output schema. Approval, tool, retry and token events feed
 
 The `workspace-write` sandbox lets a task write only inside its workspace. A task that must write
 elsewhere (the system temp folder included, where many build and test tools keep caches) or start
-`wsl.exe` fails there: give it to opencode, or widen its `access`.
+`wsl.exe` fails there.
+
+**Known limit: .NET and MSYS tools in the Windows sandbox.** In both of the sandbox's Windows modes,
+measured and reported upstream, `dotnet build` and `dotnet test` fail on the NuGet cache, MSBuild
+temp files, named pipes and project-reference evaluation, often with no diagnostic, and MSYS-based
+tools (Git Bash, `git submodule`) fail on shared memory (openai/codex#13183, #39927, #15295,
+#21715). Several of these failures exit 0: a submodule stays empty and the step still passes. Read
+a sandboxed command's output, never its exit code alone. A Windows task that must build or test
+.NET runs with `access: full`, chosen explicitly; the ledger records that it ran without the
+sandbox. opencode runs no OS sandbox in any mode: its `workspace` is already unfenced, so the same task
+runs there without `access: full` and with the same exposure. A sandbox model shared by both backends
+is an open design.
 
 On Linux and macOS, sandbox prerequisites depend on the installed runtime and host. A fake protocol
 test or build does not prove enforcement; a Functional test that tries an outside write must pass

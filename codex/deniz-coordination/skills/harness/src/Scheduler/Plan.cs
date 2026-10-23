@@ -27,10 +27,18 @@ sealed class Plan
 
     public List<string> Warnings { get; } = [];
 
+    public List<string> Info { get; } = [];
+
+    public void PrintWarnings()
+    {
+        foreach (var info in Info) Console.WriteLine($"INFO {info}");
+        foreach (var warning in Warnings) Console.WriteLine($"WARN {warning}");
+    }
+
     public int Report()
     {
-        foreach (var warning in Warnings) Console.WriteLine($"warning: {warning}");
-        foreach (var error in Errors) Console.WriteLine($"error: {error}");
+        PrintWarnings();
+        foreach (var error in Errors) Console.WriteLine($"ERROR {error}");
         Console.WriteLine(Errors.Count == 0
             ? $"plan ok: {Tasks.Count} task(s) against {Repo}"
             : $"plan refused: {Errors.Count} error(s)");

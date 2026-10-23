@@ -41,6 +41,7 @@ sealed partial class OpenCodeBackend
             CacheRead = info.Tokens.Cache.Read, CacheWrite = info.Tokens.Cache.Write,
         }, info.Cost, assistants.All(x => x.Tokens is not null),
             assistants.Select(x => OpenCodeModels.From(x.Model).ToString()).Distinct().ToList(),
-            idle?.Error?.Message ?? assistants.FirstOrDefault(x => x.Error is not null)?.Error?.Message, complete);
+            idle?.Error?.Message ?? assistants.FirstOrDefault(x => x.Error is not null)?.Error?.Message, complete,
+            ContextWindow: worker.State["contextWindow"]?.GetValue<long>());
     }
 }

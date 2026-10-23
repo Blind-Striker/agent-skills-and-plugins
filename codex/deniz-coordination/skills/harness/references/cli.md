@@ -34,7 +34,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
 | `--contract <path>` | repeatable absolute file | None | Plan/run, prepended to every task after file contracts. Relative: `--contract must be an absolute path`. |
-| `--run <name>` | string | Task-file `run`, then task filename | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
+| `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
 | `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
@@ -57,6 +57,11 @@ arguments produce `missing <argument>`. Invalid preference choices name the valu
 
 ## Commands
 
+Every command that takes `<run>` (`status`, `asks`, `reply`, `cancel`, `collect`, `resume`,
+`clean`) accepts the full run id or the bare run name. A ledger folder named exactly as given wins;
+otherwise a bare name resolves when exactly one ledger is named `<yyyy-MM-dd>-<name>`. With several
+matches the command refuses with exit 2 and lists their run ids.
+
 ### `selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]`
 
 Sends no prompt. Prints the allow-list and policy, the state, worktree and control folders, and on
@@ -67,7 +72,12 @@ configured backends); with none it refuses: "no backend configured; set preferen
 defaultRoutes or --backend". Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
-request. With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
+request. Both backends also perform a `launch` check: build a synthetic code task through the same
+launch builder as real tasks, create its worker, then release it without a prompt or model call
+(no Codex `turn/start` or opencode prompt request). `PASS  launch: <worker id>` is printed only after
+release succeeds; otherwise `FAIL  launch: <exception message>` makes the exit code 1, and checks
+continue for other backends. Synthetic task temporary folders and backend-owned homes are cleaned up.
+With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
 removes it afterwards; without one it prints `repository checks skipped`. Its temporary folder is
 removed on exit. Prints `PASS` or `FAIL` per check, then `selfcheck passed` or a failed-check count.
 
@@ -108,29 +118,54 @@ each in its own labelled section. No prompt is sent.
 ### `plan <tasks.jsonc> [--repo <path>] [--contract <path>]... [--policy <file>]`
 
 Applies preference flags, checks task fields, contracts, structured schemas, repository refs,
-workspace collisions, writer scopes, route allow-list and live catalogs. Prints `warning:` and
-`error:` lines, followed by `plan ok: <count> task(s) against <repo>` or
-`plan refused: <count> error(s)`. Sends no prompt and creates no recorded run.
+workspace collisions, writer scopes, route allow-list and live catalogs. Every advisory line
+starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. Then it prints
+`plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
+creates no recorded run.
+
+For every non-structured task, in task-file order, `plan` also prints
+`INFO <task>: temp <resolved folder> (tempRoot from <layer>)`, or
+`INFO <task>: temp <resolved folder> (default)` when unset. It creates no temporary folder.
+`tempRoot` is a layered preference, not a CLI option; see
+[configuration](config.md#temporary-folders) and [layouts](task-file.md#scope-and-workspaces).
+
+Remote-tracking bases are fetched before resolution with `git fetch --quiet <remote> <branch>`,
+once per distinct remote and branch per planning call. A failed fetch refuses the plan without retry:
+`base <base>: fetch from <remote> failed: <first line of git's stderr>`.
+Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 hex digits>` for each
+base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
+are not fetched.
 
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | All checks passed; warnings are allowed. |
 | `2` | integer | Any planning or setup error. |
 
+### Read-only shell lines in plan
+
+For each read-only task, an `INFO` line states its shell, per backend, with the resolved
+`readOnlyShell` value and its layer. A `workspace` or `full` task gets no such line.
+
+| Backend | `decline` | `escalate` |
+|---|---|---|
+| Codex | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+
 ### Inherited Codex rules on read-only tasks
 
 The pinned Codex app-server cannot be told to ignore exec-policy rules, and an explicit allow rule
 can run a matching command outside the sandbox without asking. For every read-only Codex task, plan
-prints a warning and `result.json` records it in `capabilityNotes`, worded by profile: with `full`,
-the user's and the system's rules apply; with `clean`, only system-level rules do. A clean profile
-that fell back to `clean-partial` counts as `full`.
+prints a `WARN` line and `result.json` records it in `capabilityNotes`, worded by profile: with
+`full`, the user's and the system's rules apply; with `clean`, only system-level rules do. A clean
+profile that fell back to `clean-partial` counts as `full`.
 
 ### `run <tasks.jsonc> [--repo <path>] [--run <name>] [--max <n>] [--contract <path>]... [--policy <file>]`
 
-Performs plan and live checks, locks and claims a new run, freezes inputs, queues tasks, supervises
-workers, settles results and runs verification. It blocks until the scheduler ends and prints a
-status summary. Ledger writes also print event lines. The `run` process is the supervisor and owns
-the backend processes: never kill it (use `cancel`). To keep working while it runs, start it from a
+Performs plan and live checks, prints each plan warning once, locks and claims a new run, freezes
+inputs, queues tasks, supervises workers, settles results and runs verification. Once it claims the
+run it prints `run <run id>: ledger <folder>`. It blocks until the scheduler ends and prints a status summary.
+Ledger writes also print event lines. The `run` process is the supervisor and owns the backend
+processes: never kill it (use `cancel`). To keep working while it runs, start it from a
 background shell and watch with `status <run>` from another shell; when a run's own process ends
 without settling every task, `resume <run>` settles what it left. Watch a run through its ledger
 (`status`, `events.jsonl`), not through the shell that started it: a host under memory pressure
@@ -150,6 +185,8 @@ Use a new name for a new run rather than editing or deleting recorded input.
 With no run, lists directories in the ledger root and counts their task states, or prints `no runs`.
 With a run, prints state, outcome, cost/tokens if known, changed-file and scope counts, asks,
 escalations and verify results. Live task rows also show tool count and the last completed call.
+A task whose escalated asks closed without an answer (the worker's call was declined) gets a line
+`asks closed without an answer: <count> (<action>: <reason>; ...)`.
 It reports whether the run lock is held and whether asks are pending. It does not wait for success.
 
 | Exit | Type | Meaning |

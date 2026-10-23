@@ -24,6 +24,7 @@ static partial class Commands
         foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" }) environment[name] = temp;
         var git = new Git(Executables.Resolve("git"), commandFolder, environment);
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
+        layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");
@@ -121,6 +122,37 @@ static partial class Commands
                         foreach (var error in result.Errors) Check("clean profile validation", false, error);
                         foreach (var detail in result.Warnings) Console.WriteLine($"warning: {detail}");
                     }
+                    var runId = Path.GetFileName(scope.OwnedFolder!);
+                    var record = new TaskRecord
+                    {
+                        Spec = new() { Id = "selfcheck", Kind = "code", Route = selected == "codex" ? candidate.Route.Model : candidate.Route.ToString(), Backend = selected },
+                        Settings = settings, Workspace = new() { Path = directory },
+                    };
+                    WorkerRef? worker = null;
+                    try
+                    {
+                        try
+                        {
+                            var (launch, _) = TaskStarter.BuildLaunch(record, runId, selected, layers.Policy, tempRoot: null);
+                            worker = (await backend.CreateAsync(launch, ct)).Worker;
+                        }
+                        catch (WorkerCreationException ex) { worker = ex.Worker; throw; }
+                        finally
+                        {
+                            try
+                            {
+                                if (worker is not null) await backend.ReleaseAsync(worker, CancellationToken.None);
+                            }
+                            finally
+                            {
+                                var folder = Path.Combine(Locations.WorktreeRoot, runId);
+                                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+                            }
+                        }
+                        Check("launch", true, worker.Id);
+                    }
+                    catch (Exception ex)
+                    { Check("launch", false, ex.Message); }
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 { Check("live", false, $"{selected}: {ex.GetType().Name}: {ex.Message}"); }

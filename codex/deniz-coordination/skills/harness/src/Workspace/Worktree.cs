@@ -29,7 +29,7 @@ static class Worktree
             throw;
         }
         repo = Path.GetFullPath((await git.CheckAsync(repo, ct, "rev-parse", "--show-toplevel")).Trim());
-        Directory.CreateDirectory(Locations.TaskTemp(run.Id, ledger.RunId));
+        Directory.CreateDirectory(Locations.TaskTemp(run.Id, ledger.RunId, record.Settings.TempRoot?.Value));
         if (InPlace(record))
         {
             var folder = await FolderAsync(git, repo, record.Settings.Dir?.Value ?? record.Spec.Dir, ct);
@@ -92,7 +92,7 @@ static class Worktree
                 ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path])).ExitCode != 0) return false;
             if (branchExists && (await git.RunAsync(repo, ct, "branch", force ? "-D" : "-d", branch)).ExitCode != 0) return false;
         }
-        DeleteTemp(Locations.TaskTemp(task, ledger.RunId));
+        DeleteTemp(Locations.TaskTemp(task, ledger.RunId, record.Settings.TempRoot?.Value));
         Snapshot.Delete(git, task);
         ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
         return true;

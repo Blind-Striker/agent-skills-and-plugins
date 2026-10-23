@@ -519,7 +519,7 @@ sealed class CodexProcess : IAsyncDisposable
         bool version, CancellationToken ct)
     {
         var executable = ResolveExecutable(context.Executable, environment);
-        var variables = environment.ToDictionary(x => x.Key, x => x.Value);
+        var variables = WorkerEnvironment.Copy(environment);
         foreach (var (name, value) in context.Passthrough) variables[name] = value;
         if (OperatingSystem.IsWindows() && Path.GetExtension(executable).ToLowerInvariant() is ".cmd" or ".bat")
         {

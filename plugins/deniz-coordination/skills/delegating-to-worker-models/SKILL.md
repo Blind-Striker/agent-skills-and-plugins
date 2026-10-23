@@ -20,7 +20,9 @@ is any subagent tool you have; the rules below hold for all of them.
 - Scope, ownership, cross-lane ordering, maintainer policy, and canon or decision wording.
 - Suppressions, baseline, ratchet, and threshold decisions; baseline mappings without a mechanical oracle.
 - A choice between equally valid designs, API taste, and judging whether evidence supports a claim.
-- Pushes, merges, filing issues, and the words "green" or "verified".
+- Pushes, merges, filing issues, and the words "verified" and "green". Green means the head SHA, its
+  required checks passed, and the change mergeable: a conflicted change runs no main CI and only looks
+  green.
 - Anything where "verified" rests on the worker's own report.
 
 ## Before every hand-off
@@ -89,8 +91,12 @@ is any subagent tool you have; the rules below hold for all of them.
    prove it with evidence, fix it where it lives". A raised timeout, a retry, or a serialized test is not
    a fix for a flaky test.
 4. **Review.** A worker never judges its own work; the worker's profile says where to look. Your own read follows `deniz-process:requesting-code-review`. Low-risk scaffolding and
-   mechanical work needs your read only. Other work adds a fresh reviewer from a family other than the
-   author's, who gets the request, the requirements, and the diff, but not your assessment. Rubric:
+   mechanical work needs your read only. Code and spec work always adds a fresh reviewer from a family
+   other than the author's, who gets the request, the requirements, and the diff, but not your
+   assessment: the other family catches what the author's family misses. The family claim rests on the
+   record of the model that ran, never on the route you asked for: on every dispatch-harness task the
+   claim rests on, `routeVerified: true`; an author that is a session writing by hand, not a task, is
+   identified by that session's own model. Rubric:
    defects first, then gaps against the request, then anything not asked for, then tests that pass for a
    reason production lacks. For a refactor, both reads compare the base and the new code behaviour by
    behaviour. For new lock, race, or cancellation-lifetime code, add a third family if one is available.

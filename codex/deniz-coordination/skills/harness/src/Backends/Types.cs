@@ -85,6 +85,13 @@ abstract record WorkerSignal
         public string Outcome { get; } = BackendValues.Outcome(Outcome);
     }
 
+    // The turn ended, but the backend could not confirm that its processes stopped: one may still write.
+    // The task settles as a zombie at once (no commit, no verify) instead of waiting for its timeout.
+    public sealed record StopUnconfirmed(string TaskId, string Turn, string Outcome, string Detail) : TaskSignal(TaskId, Turn)
+    {
+        public string Outcome { get; } = BackendValues.Outcome(Outcome);
+    }
+
     public sealed record Host(string HostKey, string State, string Reason, int Attempt) : WorkerSignal
     {
         public string State { get; } = BackendValues.OneOf(State, nameof(State), "connected", "disconnected");
@@ -111,7 +118,8 @@ static class ToolResource
                 }
         if (Regex.IsMatch(resource, @"\b(?:proxy-)?authorization\s*[:=]|\bbearer\s+\S+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return "[REDACTED]";
-        foreach (Match assignment in Regex.Matches(resource, @"(?<name>[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
+        // PowerShell's env: drive qualifies the variable name; it is not the ENV variable itself.
+        foreach (Match assignment in Regex.Matches(resource, @"(?i:\$?env:)?(?<name>(?!(?i:env):)[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
             if (Credential(assignment.Groups["name"].Value, assignment.Groups["value"].Value))
                 return "[REDACTED]";
         if (Cli.RootEnvironment is { } environment)
@@ -168,7 +176,7 @@ sealed record WorkerStartDetails(string Route, string Agent, string Lineage, str
 
 sealed record WorkerReport(
     string Outcome, string? FinalText, TokenTotals Usage, double? Cost, bool UsageComplete,
-    IReadOnlyList<string> RoutesUsed, string? ExecutionError, bool Complete)
+    IReadOnlyList<string> RoutesUsed, string? ExecutionError, bool Complete, long? ContextWindow = null)
 {
     public string Outcome { get; } = BackendValues.Outcome(Outcome);
 }

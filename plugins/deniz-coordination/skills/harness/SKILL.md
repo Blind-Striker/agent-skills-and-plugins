@@ -46,12 +46,13 @@ structured output. Modes and defaults:
 
 | Setting | Values | Code, mechanical | Review, research | Structured |
 |---|---|---|---|---|
-| `profile` | `clean` (minimal profile), `full` (installed profile) | `full` | Codex `clean`; opencode `full` | `clean` |
+| `profile` | `clean` (minimal profile), `full` (installed profile) | code `full`; mechanical `clean` | `clean` | `clean` |
 | `project` | `on` (repository context loads), `off` | `on` | `on` | `off` |
 | `access` | `read-only`, `workspace`, `full` | `workspace` | `read-only` | `read-only` |
 | `workspace` | `worktree` (own branch from `base`), `in-place` (`dir`) | `worktree` | `worktree` | scratch folder |
 
-- Read-only Codex defaults to `profile: clean`; explicit profiles win. Codex `access: full` removes
+- A read-only Codex task of any kind also defaults to `profile: clean`; explicit profiles win. A task
+  that needs the installed profile's tools (MCP servers, plugins, skills) sets `profile: full`. Codex `access: full` removes
   its sandbox. opencode `read-only` denies edit; other access adds no rule. Shell can still write.
 - `workspace: in-place` runs in `dir`, main checkout included. `commit: none` (default) records the
   diff without committing; `commit: harness` requires a clean tree and commits on the current branch.
@@ -148,7 +149,8 @@ A recorded run is never run again and its ledger is never edited by hand.
 
 ## References
 
-Read on demand: `references/task-file.md` (every field, default, validation error), `references/cli.md`
+Read on demand: `references/guide.md` (which setting to choose for a task, why, and what a result
+proves), `references/task-file.md` (every field, default, validation error), `references/cli.md`
 (arguments, output and exit codes), `references/ledger.md` (run folder, events, fields),
 `references/config.md` (layers, rules, allow-list, locations), `references/backends.md` (each mode,
 rule and limit on opencode and Codex).

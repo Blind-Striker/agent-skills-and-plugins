@@ -200,7 +200,8 @@ stop or attach processes independently.
 
 Ordinary settlement is done only when outcome is succeeded, final text is non-blank, no execution
 or settlement error exists, every verify command passed without timeout, scope is valid, no
-reported route drifts from the requested one, and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
+reported route drifts from the requested one, the worker did not report itself stopped or blocked,
+and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
 `zombie` failure. Some pre-dispatch errors produce only a final event; inspect events as well.
 
 | Field | Type | Default or absence | Meaning |
@@ -212,7 +213,8 @@ reported route drifts from the requested one, and a structured deliverable valid
 | `backend` | string | Recorded when known | Backend name. |
 | `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
 | `failures` | string array | `[]` | Machine-readable causes below. |
-| `warnings` | string array | Absent without findings | Non-failing findings, currently non-blocking `git-config-changed`. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, and `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone. |
+| `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
 | `routeRequested` | string | Absent if unavailable | Qualified requested route; for an `agent` task, the agent route. |
@@ -220,14 +222,15 @@ reported route drifts from the requested one, and a structured deliverable valid
 | `routesUsed` | string array | `[]` | Routes actually reported by backend. |
 | `routeVerified` | boolean | `false` | True only when the backend reported at least one route and every reported route is the requested one (`routeResolved` for an `agent` task). A request without a variant accepts any variant of its model. False when nothing was reported or a route cannot be read; only a true value supports a claim about which model did the work. |
 | `routeDrift` | string array | Absent without drift | Reported routes of another model, or of another variant when the request named one. Adds the `route-drift` failure. |
-| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. |
+| `cost` | number | Absent if not reported | Backend-reported cost, no synthesized estimate. It is an estimate at the model's list price, not money spent: a subscription or negotiated rate bills differently. Codex reports no cost, so a Codex task is measured by `tokens` alone. |
 | `tokens` | object | Absent if no counts reported | Nullable numeric counts below. |
-| `tokens.input` | number | Absent if unavailable | Input count. |
+| `tokens.input` | number | Absent if unavailable | Input count, summed over every model call of the task: each call re-sends the conversation so far, so 300k over ten calls is not a 300k context. |
 | `tokens.output` | number | Absent if unavailable | Output count. |
 | `tokens.reasoning` | number | Absent if unavailable | Reasoning count. |
-| `tokens.cacheRead` | number | Absent if unavailable | Cache-read count. |
+| `tokens.cacheRead` | number | Absent if unavailable | The cached part of `tokens.input`; `input` minus `cacheRead` is what the task sent uncached. |
 | `tokens.cacheWrite` | number | Absent if unavailable | Cache-write count. |
 | `tokensComplete` | boolean | Absent if not populated | Whether backend usage was complete. |
+| `contextWindow` | number | Absent when the backend reported none | The context window, in tokens, of the model that ran: Codex reports it with token usage; opencode's comes from its model catalog. |
 | `asks` | integer | `0` | Observed permission asks. |
 | `asksEscalated` | integer | `0` | Asks sent to the operator. |
 | `formsCancelled` | integer | `0` | Cancelled form questions. |
@@ -246,6 +249,7 @@ reported route drifts from the requested one, and a structured deliverable valid
 | `verify[].exitCode` | integer | Process exit | Nonzero fails verification. |
 | `verify[].seconds` | number | Measured duration | Rounded to one decimal. |
 | `verify[].timedOut` | boolean | `false` | Timeout fails verification even if exit is zero. |
+| `verify[].advisory` | boolean | Absent for `verify` commands | `true` for an `advisoryVerify` command: its failure is the `advisory-verify-failed` warning, not `verify-failed`. |
 | `verifyShell` | string path | Absent if no verify ran | Absolute resolved shell executable. |
 | `deliverable` | string relative filename | Valid structured only | `deliverable.json`. |
 | `validation` | object | Structured only | Common schema and identity validation. |
@@ -274,10 +278,11 @@ reported route drifts from the requested one, and a structured deliverable valid
 | `verify-failed` | string | Verify command failed or timed out. |
 | `out-of-scope` | string | Collected changes exceed scope. |
 | `route-drift` | string | The backend reported a route other than the requested one; see `routeDrift`. |
+| `worker-stopped` | string | The worker's status line says `stopped` or `blocked`: it did not do the task, whatever the session outcome. |
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |
-| `zombie` | string | Hard stop was not confirmed; commit and verify were skipped. |
+| `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or a Codex turn that ended while a worker process could not be observed): a process may still write, so commit and verify were skipped. The worktree keeps the work. |
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |
 
 The `workspace-dirty` start failure writes a minimal result before its error and final events.
@@ -305,7 +310,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `session` | `sessionId` string, optional `projectId` string and `rules` string array | Worker created. |
 | `environment` | `variables` integer, `removed` string array | Names/count only; no secret values. |
 | `prompt` | `turn`/`promptId` strings, `chars` integer, `sha256` string; optional `contracts` hash array, `rawPrompt`/`continue`/`resume` booleans | Sent prompt metadata; continuation omits contract bodies. |
-| `tool` | `tool`/`resource`/`outcome` strings, `duration` number | One completion per call, duration in seconds. Resource is a bounded summary. Missing start means zero duration. |
+| `tool` | `tool`/`resource`/`outcome` strings, `duration` number | One completion per call, duration in seconds. Resource is a bounded summary: the path, URL, command, pattern or query; for the opencode `skill` tool, the skill id. Codex reports no event when a skill loads; only its shell and edit items are recorded. A resource that carries a credential (an assignment or flag whose name the environment scrub treats as secret, URL credentials, an authorization header) is recorded as `[REDACTED]`; a PowerShell `$env:NAME=value` assignment is judged by `NAME`. Missing start means zero duration. |
 | `permission` | `id` string, optional `session`, `action`, `resources`, `answer`, `by`, `message`, `waitedSeconds`, `status` | Answer evidence; `by` is harness, operator or server. `answer` is once or reject. |
 | `escalated` | `id`/`action`/`rule`/`file` strings, `resources` string array, optional child `session` | Ask waits for operator. |
 | `escalation-dropped` | `id`/`action`/`reason` strings | Ask no longer applies. |
@@ -317,8 +322,9 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `timeout` | Optional `interrupted` boolean and `status` integer | Timeout interrupt attempt. |
 | `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
 | `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
+| `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
-| `verified` | `commands`/`failed` integers | Verify summary; zero commands can mean skipped or absent. |
+| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands ran | Verify summary; `failed` counts `verify` commands only. Zero commands can mean skipped or absent. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |

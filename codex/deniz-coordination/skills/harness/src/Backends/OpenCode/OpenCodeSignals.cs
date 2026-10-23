@@ -92,15 +92,17 @@ sealed partial class OpenCodeBackend
     {
         var key = ToolKey(tool.Data.SessionId, tool.Data.AssistantMessageId, tool.Data.Id);
         if (await OwnerAsync(server, tool.Data.SessionId, ct) is not { } owner) return;
-        var resource = new[] { "filePath", "path", "url", "command", "pattern", "query" }
-            .Select(name => tool.Data.Input.TryGetValue(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null)
-            .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "";
         Publish(owner, admitted =>
         {
             var turn = turns.GetValueOrDefault(admitted.Id)?.LastOrDefault(x =>
                 x.State["promptCreated"] is not { } time || time.GetValue<double>() <= tool.Created) ?? admitted;
             if (turn.Turn is null || completedTools.Contains(key) || toolStarts.ContainsKey(key)) return;
-            var start = new WorkerSignal.ToolCall(turn.TaskId, turn.Turn, key, toolNames.GetValueOrDefault(key, "unknown"), resource,
+            var name = toolNames.GetValueOrDefault(key, "unknown");
+            // The skill tool names its skill by id; an audit needs to see which skill loaded.
+            var resource = (name == "skill" ? ["id"] : new[] { "filePath", "path", "url", "command", "pattern", "query" })
+                .Select(field => tool.Data.Input.TryGetValue(field, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null)
+                .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)) ?? "";
+            var start = new WorkerSignal.ToolCall(turn.TaskId, turn.Turn, key, name, resource,
                 "start", null, DateTimeOffset.FromUnixTimeMilliseconds(checked((long)tool.Created)));
             toolStarts[key] = start;
             Emit(start);
