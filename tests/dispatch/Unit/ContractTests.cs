@@ -73,6 +73,29 @@ public sealed class ContractTests
     }
 
     [Test]
+    public async Task Alias_metadata_survives_task_and_frozen_config_roundtrips()
+    {
+        const string text = """
+            {"schemaVersion":2,"contracts":[{"alias":"@sol-worker","path":"/models/sol.md","from":"task",
+              "sha256":"selected-hash","version":"worker-model sol v3"}]}
+            """;
+        var record = JsonSerializer.Deserialize(text, LedgerJson.Files.TaskRecord)!;
+        var task = JsonSerializer.SerializeToNode(record, LedgerJson.Files.TaskRecord)!;
+        var frozen = new EffectiveConfig { Tasks = new() { ["inspect"] = new() { Contracts = record.Contracts } } };
+        var copy = JsonSerializer.Deserialize(JsonSerializer.Serialize(frozen, LedgerJson.Files.EffectiveConfig), LedgerJson.Files.EffectiveConfig)!;
+        var config = JsonSerializer.SerializeToNode(copy, LedgerJson.Files.EffectiveConfig)!;
+        foreach (var contracts in new[] { task["contracts"]!, config["tasks"]!["inspect"]!["contracts"]! })
+        {
+            await Assert.That(contracts.AsArray().Count).IsEqualTo(1);
+            await Assert.That(contracts[0]!["alias"]?.GetValue<string>()).IsEqualTo("@sol-worker");
+            await Assert.That(contracts[0]!["path"]!.GetValue<string>()).IsEqualTo("/models/sol.md");
+            await Assert.That(contracts[0]!["from"]!.GetValue<string>()).IsEqualTo("task");
+            await Assert.That(contracts[0]!["sha256"]!.GetValue<string>()).IsEqualTo("selected-hash");
+            await Assert.That(contracts[0]!["version"]!.GetValue<string>()).IsEqualTo("worker-model sol v3");
+        }
+    }
+
+    [Test]
     public async Task Ledger_TaskAndFrozenSettings_RoundTrip()
     {
         const string text = """

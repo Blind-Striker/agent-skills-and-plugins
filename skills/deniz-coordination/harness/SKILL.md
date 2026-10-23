@@ -28,7 +28,9 @@ dotnet dispatch.cs -- <command> [arguments]
 - Build before every command. A non-zero build exit means nothing started; fix the error or retry
   when two builds collided. The `--` keeps `dotnet` from taking flags such as `--force`.
 - Paths on the command line are absolute (task file, `--repo`, `--contract`, `--ledger`); paths in a
-  task file are relative to that file. In PowerShell use `$PWD.ProviderPath`.
+  task file are relative to that file. Exception: `--contract` also accepts bundled aliases
+  `@worker-contract` and `@<model>-worker`; semantics: `references/task-file.md#contracts`.
+  In PowerShell use `$PWD.ProviderPath`.
 - Run `selfcheck [--repo <path>]` on a new machine, after an update, and in a new repository. It
   checks each configured backend (version, sign-in, catalog, a clean profile), Windows readiness and
   every resolved folder, and sends no prompt.

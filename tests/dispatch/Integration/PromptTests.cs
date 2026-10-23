@@ -10,6 +10,42 @@ public sealed class PromptTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Bundled_aliases_plan_and_record_repository_sibling_contracts(CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, cancellationToken);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"contracts":["@worker-contract","@sol-worker"],"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""", cancellationToken);
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(p => p.Key, p => (string?)p.Value);
+        using (var planner = new HarnessProcess(tree))
+            (await planner.RunAsync(["plan", tasks, "--repo", repo.Root], cancellationToken, environment)).RequireSuccess("alias plan");
+        using var harness = new HarnessProcess(tree);
+        (await harness.RunAsync(["run", tasks, "--repo", repo.Root], cancellationToken, environment)).RequireSuccess("alias run");
+        var run = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var record = JsonNode.Parse(File.ReadAllText(Path.Combine(run, "inspect", "task.json")))!;
+        var frozen = JsonNode.Parse(File.ReadAllText(Path.Combine(run, "config.json")))!;
+        var references = Path.GetFullPath(Path.Combine(TestPaths.Harness, "..", "delegating-to-worker-models", "references"));
+        var paths = new[] { Path.Combine(references, "worker-contract.md"), Path.Combine(references, "models", "sol.md") };
+        var aliases = new[] { "@worker-contract", "@sol-worker" };
+        var texts = paths.Select(File.ReadAllText).ToArray();
+        texts[1] = texts[1][texts[1].IndexOf("\nworker-model ", StringComparison.Ordinal)..][1..];
+        foreach (var contracts in new[] { record["contracts"]!, frozen["tasks"]!["inspect"]!["contracts"]! })
+        {
+            await Assert.That(contracts.AsArray().Count).IsEqualTo(2);
+            for (var i = 0; i < 2; i++)
+            {
+                await Assert.That(contracts[i]!["alias"]!.GetValue<string>()).IsEqualTo(aliases[i]);
+                await Assert.That(contracts[i]!["path"]!.GetValue<string>()).IsEqualTo(paths[i]);
+                await Assert.That(contracts[i]!["sha256"]!.GetValue<string>()).IsEqualTo(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(texts[i]))).ToLowerInvariant());
+            }
+        }
+        var requests = File.ReadLines(Path.Combine(tree.Root, "requests.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
+        var prompt = requests.Single(r => r["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))["body"]!["text"]!.GetValue<string>();
+        await Assert.That(prompt).StartsWith(string.Concat(texts.Select(t => t + (t.EndsWith('\n') ? "\n" : "\n\n"))) + "Standing instructions");
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Contracts_are_ordered_deduplicated_and_recorded_with_prompt_hash(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();

@@ -143,6 +143,16 @@ public sealed class ArgsTests
     }
 
     [Test]
+    public async Task Contract_aliases_pass_path_validation_in_order()
+    {
+        var args = Args.Parse(["plan", "--contract", "@sol-worker", "--contract", "@worker-contract", "--contract", "@sol-worker", "--contract", "@unknown"]);
+        await Assert.That(() => args.ValidatePaths()).ThrowsNothing();
+        await Assert.That(args.Contracts).IsEquivalentTo(new[] { "@sol-worker", "@worker-contract", "@sol-worker", "@unknown" }, CollectionOrdering.Matching);
+        await Assert.That(() => Args.Parse(["plan", "--contract", "contract.md"]).ValidatePaths())
+            .ThrowsExactly<HarnessException>().WithMessage("--contract must be an absolute path");
+    }
+
+    [Test]
     [Arguments("repo")]
     [Arguments("dir")]
     [Arguments("policy")]

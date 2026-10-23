@@ -136,6 +136,7 @@ sealed class RuleEnforcement
 sealed class ContractRecord
 {
     public string Path { get; set; } = "";
+    public string? Alias { get; set; }
     public string From { get; set; } = "";
     public string Sha256 { get; set; } = "";
     public string Version { get; set; } = "";

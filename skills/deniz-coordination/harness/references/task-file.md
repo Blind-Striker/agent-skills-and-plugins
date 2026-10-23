@@ -21,11 +21,11 @@ See [CLI](cli.md) for invocation and [configuration](config.md) for layering.
 | `maxParallel` | integer | `3`, after lower layers | Range 1 through 8: `maxParallel from <layer> must be between 1 and 8`. |
 | `defaults` | object | No overrides | Only the preference fields below, plus `defaultRoutes` and `dir`. It cannot supply arbitrary task fields such as `base`, `prompt`, `scope` or `verify`. |
 | `policy` | object | No added restrictions | Accepts `deny`, `escalate`, `scope`, `maxAccess`, `networkAllowed`, `instructions`. See [configuration](config.md). |
-| `contracts` | string array | `[]` | Files prepended to every task. Missing, unreadable or invalid UTF-8 text is a plan error. |
+| `contracts` | string array | `[]` | Files or bundled aliases prepended to every task. See [Contracts](#contracts) for resolution and plan errors. |
 | `sharedPaths` | string array | `[]` | Exempts these paths from writer scope-overlap detection only. Refuses blank, absolute, parent paths and `*`, `?`, `!`: `sharedPaths must contain repository-relative paths, not globs or parent paths`. It grants no write permission. |
 | `tasks` | task array | Required | `tasks must be a non-empty array`. Every entry needs `kind`; ids must be unique. |
 
-`promptFile`, contract paths, `input.itemsFile` and `result.schema` resolve from the task file's
+`promptFile`, ordinary contract paths, `input.itemsFile` and `result.schema` resolve from the task file's
 folder, or may be absolute. `dir` has a different base: the repository root.
 
 ## Task identity and content
@@ -39,7 +39,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `persona` | string | `build` for an opencode route | `persona goes with route, not with agent`. Must exist and must not be manual-class. Codex refuses it. |
 | `prompt` | string | None | Exactly one of `prompt` and `promptFile`; otherwise `name exactly one of prompt or promptFile`. Whitespace-only text: `prompt is empty`. |
 | `promptFile` | string path | None | Same exclusivity as `prompt`; missing file: `promptFile not found: <path>`. |
-| `contracts` | string array | `[]` | Added after top-level contracts and before CLI contracts. Same file validation as top-level contracts. |
+| `contracts` | string array | `[]` | Files or bundled aliases added after top-level contracts and before CLI contracts. Same resolution and validation as top-level [Contracts](#contracts). |
 | `base` | string Git ref | Required for a non-structured worktree without `reviewOf` | `base is required (a branch, tag or commit of the repo)` or `base <ref> does not resolve in <repo>`. A remote-tracking base is fetched before resolution; plan and run print `INFO <task>: base <base> resolves to <12 hex digits> (fetched from <remote>)`, omitting the suffix for local branches, tags and SHAs (no fetch). In-place refuses it. |
 | `reviewOf` | string task id | None | Starts from that task's branch after it finishes. Refuses self or missing target: `reviewOf names no other task`; refuses chains: `reviewOf chains are not supported`. With `base`: `a reviewOf task starts from the reviewed task's branch; omit base`. A non-review kind produces a warning. Use a worktree author. |
 | `scope` | string array | `[]` | `code and mechanical tasks declare a scope` when absent or empty. Structured tasks refuse it. Every changed path on review or research is out of scope regardless of this field. |
@@ -101,10 +101,32 @@ order. The harness resolves paths, deduplicates each task's list by absolute pat
 first occurrence. It reads each distinct file once during planning within a command. It removes a
 leading BOM, preserves the text, and adds separators between contracts.
 
+Every entry beginning with `@` is a bundled alias, never an ordinary filename:
+
+- `@worker-contract` selects `delegating-to-worker-models/references/worker-contract.md` in the
+  sibling skill beside this harness.
+- `@<model>-worker` selects that sibling's `references/models/<model>.md`, with no fixed model
+  roster. Only the first column-one line beginning `worker-model ` and everything through EOF is
+  prepended; coordinator guidance before it is excluded. Line endings and final-newline presence
+  are preserved.
+
+Aliases resolve from this harness's own source location captured at compilation, not the task file,
+working directory or compiled cache folder. CLI contract aliases are the exception to absolute CLI
+paths. Alias and explicit-file references to the same absolute path still use first-path-wins,
+even when they would select different text. The whole-file cache never stores a selected worker block.
+
+Unknown aliases fail with `unknown contract alias <alias>; known: @worker-contract, @<model>-worker
+(looked in <the sibling skill's references folder>)`. Missing siblings or files and missing worker
+markers are plan errors naming the alias and lookup path. Missing ordinary files, unreadable files
+and invalid UTF-8 also refuse planning; both file and alias content are strictly decoded as UTF-8.
+
 Contracts precede standing instructions, task text, and structured items and schema. Both backends
 receive the assembled text unchanged as one user input. `task.json` records each path, source,
-SHA-256 of the file bytes, and first line trimmed and cut to 120 characters. The `prompt` event
-records contract hashes. No contract files are copied into the ledger.
+optional alias, SHA-256, and selected first line trimmed and cut to 120 characters. Alias hashes
+cover the text actually prepended encoded as UTF-8, without the BOM or harness separators (only the
+worker block for model aliases). Ordinary path contracts retain SHA-256 of the original file bytes,
+including any BOM. Frozen configuration carries the same metadata. The `prompt` event records
+contract hashes. No contract files are copied into the ledger.
 
 The harness's own standing instructions name the working folder, any deny rules, the declared scope,
 read-only access, that nobody answers questions and, except for structured tasks, the status line:
