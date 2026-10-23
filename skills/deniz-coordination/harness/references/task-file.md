@@ -17,7 +17,7 @@ See [CLI](cli.md) for invocation and [configuration](config.md) for layering.
 |---|---|---|---|
 | `schemaVersion` | integer | Required, `2` | Other old versions: `schemaVersion must be 2; version 1 is not read`. A newer version: `written by a newer dispatch; update the plugin`. |
 | `repo` | string path | None | Relative to the task file, or absolute. `--repo` overrides it. Repository tasks require one: `task needs repo or --repo`. An explicit target must be a Git working tree. |
-| `run` | string | Task filename without extension | `run` uses `--run` first. Name must match `^[a-z0-9][a-z0-9-]{0,40}$`; the harness prefixes the UTC calendar day to form the recorded run id. |
+| `run` | string | Task filename without extension and a trailing `.tasks` (`x.tasks.jsonc` gives `x`) | `run` uses `--run` first. Name must match `^[a-z0-9][a-z0-9-]{0,40}$`; the harness prefixes the UTC calendar day to form the recorded run id. |
 | `maxParallel` | integer | `3`, after lower layers | Range 1 through 8: `maxParallel from <layer> must be between 1 and 8`. |
 | `defaults` | object | No overrides | Only the preference fields below, plus `defaultRoutes` and `dir`. It cannot supply arbitrary task fields such as `base`, `prompt`, `scope` or `verify`. |
 | `policy` | object | No added restrictions | Accepts `deny`, `escalate`, `scope`, `maxAccess`, `networkAllowed`, `instructions`. See [configuration](config.md). |

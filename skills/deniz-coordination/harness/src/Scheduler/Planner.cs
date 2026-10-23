@@ -45,7 +45,7 @@ static class Planner
             foreach (var spec in specs) ConfigLayers.Apply(spec, plan.Config.Effective.Tasks[spec.Id!].Settings);
             plan.Warnings.AddRange(plan.Config.Effective.Warnings);
         }
-        var runId = Commands.CreateRunId(args?.Get("run") ?? file.Run ?? Path.GetFileNameWithoutExtension(tasksPath));
+        var runId = Commands.CreateRunId(Commands.RunName(args, file, tasksPath));
         if (specs.Any(x => !Scratch.Required(x) && x.Workspace == "in-place") && Worktree.IsInside(Locations.WorktreeRoot, repo))
             plan.Errors.Add("in-place workspace refuses a worktree root inside the repository");
         if (specs.Any(x => !Scratch.Required(x) && x.Workspace == "in-place") && Worktree.IsInside(Locations.LedgerRoot, repo))

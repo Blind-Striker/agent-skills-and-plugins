@@ -3,6 +3,10 @@ static partial class Commands
     public static string CreateRunId(string name, TimeProvider? time = null) =>
         $"{(time ?? TimeProvider.System).GetUtcNow().ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}-{name}";
 
+    // The usual x.tasks.jsonc names run x.
+    public static string RunName(Args? a, TaskFile file, string tasksPath) =>
+        a?.Get("run") ?? file.Run ?? Regex.Replace(Path.GetFileNameWithoutExtension(tasksPath), @"\.tasks\z", "");
+
     public static async Task<int> RoutesAsync(Args a, CancellationToken ct)
     {
         var dir = Path.GetFullPath(a.Get("repo") ?? throw new HarnessException("routes needs --repo"));
@@ -113,7 +117,7 @@ static partial class Commands
         var policy = layers.Policy;
         Console.WriteLine(policy.Describe());
 
-        var name = a.Get("run") ?? plan.File.Run ?? Path.GetFileNameWithoutExtension(tasksPath);
+        var name = RunName(a, plan.File, tasksPath);
         if (!Regex.IsMatch(name, "^[a-z0-9][a-z0-9-]{0,40}$"))
         {
             throw new HarnessException($"run name '{name}' must match ^[a-z0-9][a-z0-9-]{{0,40}}$");

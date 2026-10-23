@@ -37,6 +37,27 @@ public sealed class RunSetupTests
     }
 
     [Test]
+    [Timeout(30_000)]
+    public async Task Default_run_name_drops_the_tasks_suffix_of_the_file_name(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var tasks = Path.Combine(lab.Tree.Root, "review.tasks.jsonc");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
+        var backend = new FakeBackend("opencode", new("policy", "policy", "text", true));
+        backend.OnProbe = (_, _) => Task.FromResult(new BackendProbe(true, "fixture", [], []));
+        backend.OnValidate = (plans, _) => Task.FromResult<IReadOnlyList<LiveCheck>>(plans.Select(x => new LiveCheck(x.TaskId, [], [], "fixture", "full", null)).ToList());
+        string? run = null;
+        var result = await Commands.RunAsync(Args.Parse(["run", tasks, "--repo", repo.Root]), ct, (info, _) =>
+        {
+            run = info.Run;
+            throw new IOException("setup interrupted");
+        }, () => backend);
+        await Assert.That(result).IsEqualTo(1);
+        await Assert.That(run).IsEqualTo(Commands.CreateRunId("review"));
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(30_000)]
