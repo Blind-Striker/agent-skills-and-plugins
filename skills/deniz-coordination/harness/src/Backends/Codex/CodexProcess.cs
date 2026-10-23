@@ -483,7 +483,7 @@ sealed class CodexProcess : IAsyncDisposable
         return parents;
     }
 
-    static string ResolveExecutable(string? configured, IReadOnlyDictionary<string, string> environment)
+    internal static string ResolveExecutable(string? configured, IReadOnlyDictionary<string, string> environment)
     {
         if (configured is not null && Path.IsPathFullyQualified(configured)
             && Path.GetExtension(configured).Equals(".ps1", StringComparison.OrdinalIgnoreCase))

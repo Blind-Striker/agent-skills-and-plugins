@@ -28,6 +28,7 @@ static partial class Commands
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
         layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
+        if (selectedBackends.Count == 0) selectedBackends = InstalledBackends();
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");
         Check("policy", true, layers.Policy.Describe());
@@ -214,6 +215,51 @@ static partial class Commands
         var failed = checks.Count(x => !x.Ok);
         Console.WriteLine(failed == 0 ? $"selfcheck passed ({warnings} warning(s))" : $"selfcheck: {failed} check(s) failed");
         return failed == 0 ? 0 : 1;
+    }
+
+    static IReadOnlyList<string> InstalledBackends()
+    {
+        var installed = new List<string>();
+        foreach (var name in new[] { "opencode", "codex" })
+        {
+            var found = false;
+            if (name == "opencode") found = OpenCodeInstalled(HarnessServer.Command(null)[0]);
+            else
+            {
+                try
+                {
+                    _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
+                    found = true;
+                }
+                catch (HarnessException) { /* Unresolved candidates are skipped only during discovery. */ }
+            }
+            if (found) installed.Add(name);
+            else Console.WriteLine($"SKIP  backend {name}: not installed ({name} on PATH)");
+        }
+        if (installed.Count == 0)
+            throw new HarnessException("no backend installed; install opencode or Codex, or set backends.<name>.executable");
+        return installed;
+    }
+
+    static bool OpenCodeInstalled(string command)
+    {
+        if (command != Path.GetFileName(command)) return File.Exists(command);
+        // OpenCodeDotNet.Sdk 0.9.0-preview.13 resolves bare commands in the parent environment,
+        // retaining relative PATH entries and probing PATHEXT in order (not just .exe).
+        var extensions = new[] { "" };
+        if (OperatingSystem.IsWindows() && !command.AsSpan(1).Contains('.'))
+        {
+            var configured = Environment.GetEnvironmentVariable("PATHEXT");
+            extensions = (string.IsNullOrWhiteSpace(configured) ? ".COM;.EXE;.BAT;.CMD" : configured)
+                .Split(';', StringSplitOptions.RemoveEmptyEntries);
+        }
+        foreach (var entry in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            var directory = Path.IsPathRooted(entry) ? entry : Path.Combine(Environment.CurrentDirectory, entry);
+            foreach (var extension in extensions)
+                if (File.Exists(Path.Combine(directory, command + extension))) return true;
+        }
+        return false;
     }
 
     static EffectiveSettings SelfCheckSettings(Args args, ConfigLayers layers, string backend, RouteRef route)

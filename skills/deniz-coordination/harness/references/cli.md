@@ -38,7 +38,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--contract <path or alias>` | repeatable absolute file or bundled alias | None | Plan/run, prepended to every task after file contracts. Ordinary relative paths: `--contract must be an absolute path`. Alias semantics: [Contracts](task-file.md#contracts). |
 | `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
-| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. `opencode` or `codex`. |
+| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` discovers installed backends when those layers name none. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
@@ -70,8 +70,20 @@ Sends no prompt. Prints the allow-list and policy, the state, worktree and contr
 Windows a warning when git's `core.longpaths` is not true and when the user PATH in the registry
 exceeds 8,000 characters. The backends checked are `--backend`, else every backend the task file and
 the configuration layers name (preferred backend, default routes, allow-list, task backends, then
-configured backends); with none it refuses: "no backend configured; set preferences.backend,
-defaultRoutes or --backend". Each backend gets its own `backend <name>` section. opencode
+configured backends). If none is named and no task file was supplied, it discovers installed
+backends in order: `opencode`, then `codex`, before preparing a worktree or creating backend
+instances. Installed means the executable resolves through that backend's launch lookup, not
+that its version, sign-in or server readiness has passed. OpenCode retains native npm-shim
+selection and the pinned SDK's PATH/PATHEXT lookup, including relative PATH entries; Codex uses
+the shared resolution described below. Each unresolved candidate prints exactly
+`SKIP  backend <name>: not installed (<name> on PATH)`; skips are not failed checks. If neither
+resolves, stderr prints `dispatch: no backend installed; install opencode or Codex, or set backends.<name>.executable`
+and the command exits 2. A supplied task file retains the empty-selection refusal:
+`dispatch: no backend configured; set preferences.backend, defaultRoutes or --backend`.
+Named backends are never skipped: a missing executable remains a failed check (exit 1).
+Resolved executables undergo every existing probe and launch check; version, login and launch
+failures remain failures and do not prevent checking the next backend.
+Each backend gets its own `backend <name>` section. opencode
 checks its server pin, event bus, catalog, stored permissions and the creation and removal of an
 idle session; Codex probes version, sign-in and catalog and reports the sandbox mode a task would
 request. Both backends also perform a `launch` check: build a synthetic code task through the same
@@ -96,13 +108,15 @@ still fail. This line is absent on Linux/macOS and from OpenCode sections.
 
 | Exit | Type | Meaning |
 |---|---|---|
-| `0` | integer | No performed check failed; warnings are allowed. |
+| `0` | integer | No performed check failed; warnings and automatic-discovery skips are allowed. |
 | `1` | integer | A reported check failed, including worktree preparation or a caught live backend failure. |
-| `2` | integer | Checks could not start or an uncaught setup/configuration error occurred. |
+| `2` | integer | No installed backend was discovered, checks could not start, or an uncaught setup/configuration error occurred. |
 
 ### Configured backend coverage
 
-`selfcheck` and `routes` cover every configured backend, each in its own labelled section. A task
+`selfcheck` and `routes` cover every configured backend, each in its own labelled section, unless
+`--backend` limits selection. Only task-file-free `selfcheck` falls back to installed-backend
+discovery when none is named; `routes` retains the empty-selection refusal above. A task
 route may carry its backend prefix, such as `codex:<model>#<effort>`, when it matches the task's
 resolved `backend`; a prefix naming another backend is a plan error that names both.
 

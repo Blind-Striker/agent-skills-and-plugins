@@ -111,6 +111,79 @@ public sealed class CatalogCommandTests
 
     [Test]
     [Timeout(180_000)]
+    public async Task Selfcheck_without_config_checks_installed_backends_in_order(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = Discoverable(lab, opencode: true, codex: true);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck", "--repo", repo.Root], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.StartsWith("backend ", StringComparison.Ordinal) || x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { "backend opencode", "PASS  launch: ses_launch", "backend codex", "PASS  launch: thread-main" }, CollectionOrdering.Matching);
+        result.RequireSuccess("installed-backend selfcheck");
+        await Assert.That(result.Stdout).DoesNotContain("SKIP  ");
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
+            .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(new[] { "thread/start" }, CollectionOrdering.Matching);
+        var requests = File.ReadLines(environment["FAKE_OPENCODE_RECORD"]!).Select(x => JsonNode.Parse(x)!).ToArray();
+        await Assert.That(requests.Any(x => x["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))).IsFalse();
+        await Assert.That(requests.Where(x => x["method"]!.GetValue<string>() != "GET")
+            .Select(x => $"{x["method"]} {x["path"]}").ToArray()).IsEquivalentTo(new[] {
+                "POST /api/session", "DELETE /api/session/ses_fixture", "POST /api/session",
+                "PUT /api/session/ses_launch/environment", "DELETE /api/session/ses_launch",
+            }, CollectionOrdering.Matching);
+        await Assert.That(requests.Where(x => x["unexpected"]!.GetValue<bool>()).ToArray()).IsEmpty();
+        await DiscoveryCleanedUp(lab);
+        await Assert.That((await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).Split('\n')
+            .Count(x => x.StartsWith("worktree ", StringComparison.Ordinal))).IsEqualTo(1);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_without_config_skips_only_missing_backends(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Discoverable(lab, opencode: false, codex: true);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.StartsWith("SKIP  ", StringComparison.Ordinal) || x.StartsWith("backend ", StringComparison.Ordinal)
+                || x.Contains("  launch:", StringComparison.Ordinal)).ToArray()).IsEquivalentTo(new[] {
+                "SKIP  backend opencode: not installed (opencode on PATH)", "backend codex", "PASS  launch: thread-main",
+            }, CollectionOrdering.Matching);
+        result.RequireSuccess("one installed backend");
+        await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
+            .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(new[] { "thread/start" }, CollectionOrdering.Matching);
+        await DiscoveryCleanedUp(lab);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_without_installed_backends_refuses(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Discoverable(lab, opencode: false, codex: false);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Length > 0).ToArray())
+            .IsEquivalentTo(new[] {
+                "SKIP  backend opencode: not installed (opencode on PATH)",
+                "SKIP  backend codex: not installed (codex on PATH)",
+            }, CollectionOrdering.Matching);
+        await Assert.That(result.Stderr.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Length > 0).ToArray())
+            .IsEquivalentTo(new[] { "dispatch: no backend installed; install opencode or Codex, or set backends.<name>.executable" }, CollectionOrdering.Matching);
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await DiscoveryCleanedUp(lab);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Selfcheck_launches_and_releases_each_backend(CancellationToken ct)
     {
         using var lab = new CodexLab();
@@ -203,6 +276,22 @@ public sealed class CatalogCommandTests
             .IsEquivalentTo(new[] { "PASS  launch: thread-main" }, CollectionOrdering.Matching);
         await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "thread/start")).IsEqualTo(1);
         await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "turn/start")).IsEqualTo(0);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Routes_without_config_still_refuses(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = Discoverable(lab, opencode: true, codex: true);
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["routes", "--repo", repo.Root], ct, environment);
+
+        await Assert.That(result.Stderr.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Length > 0).ToArray())
+            .IsEquivalentTo(new[] { "dispatch: no backend configured; set preferences.backend, defaultRoutes or --backend" }, CollectionOrdering.Matching);
+        await Assert.That(result.ExitCode).IsEqualTo(2);
     }
 
     [Test]
@@ -414,6 +503,26 @@ public sealed class CatalogCommandTests
         await Assert.That(result.Stdout).DoesNotContain("backend opencode");
         await Assert.That(Directory.GetDirectories(lab.Tree.WorktreeRoot)).IsEmpty();
         await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
+    }
+
+    static Dictionary<string, string?> Discoverable(CodexLab lab, bool opencode, bool codex)
+    {
+        var environment = Configure(lab, both: true);
+        File.Delete(Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc"));
+        var paths = new List<string> { Path.GetDirectoryName(Executables.Resolve("git"))! };
+        if (opencode) paths.Add(Path.GetDirectoryName(FakeOpenCode.Executable)!);
+        if (codex) paths.Add(Path.GetDirectoryName(CodexLab.Executable)!);
+        environment["PATH"] = string.Join(Path.PathSeparator, paths);
+        environment["PATHEXT"] = ".EXE;.CMD;.BAT;.COM";
+        return environment;
+    }
+
+    static async Task DiscoveryCleanedUp(CodexLab lab)
+    {
+        var state = Path.Combine(lab.Tree.DispatchHome, "state");
+        await Assert.That(Directory.GetDirectories(Path.Combine(state, "control"))).IsEmpty();
+        var worktrees = Path.Combine(state, "worktrees");
+        await Assert.That(Directory.Exists(worktrees) ? Directory.GetFileSystemEntries(worktrees) : []).IsEmpty();
     }
 
     internal static Dictionary<string, string?> Configure(CodexLab lab, bool both)
