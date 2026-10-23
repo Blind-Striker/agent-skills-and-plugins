@@ -213,7 +213,7 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `backend` | string | Recorded when known | Backend name. |
 | `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
 | `failures` | string array | `[]` | Machine-readable causes below. |
-| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, and `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, and `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone. |
 | `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
@@ -248,6 +248,7 @@ and a structured deliverable validates. Cancelled outcome produces cancelled sta
 | `verify[].exitCode` | integer | Process exit | Nonzero fails verification. |
 | `verify[].seconds` | number | Measured duration | Rounded to one decimal. |
 | `verify[].timedOut` | boolean | `false` | Timeout fails verification even if exit is zero. |
+| `verify[].advisory` | boolean | Absent for `verify` commands | `true` for an `advisoryVerify` command: its failure is the `advisory-verify-failed` warning, not `verify-failed`. |
 | `verifyShell` | string path | Absent if no verify ran | Absolute resolved shell executable. |
 | `deliverable` | string relative filename | Valid structured only | `deliverable.json`. |
 | `validation` | object | Structured only | Common schema and identity validation. |
@@ -321,7 +322,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
 | `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
-| `verified` | `commands`/`failed` integers | Verify summary; zero commands can mean skipped or absent. |
+| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands ran | Verify summary; `failed` counts `verify` commands only. Zero commands can mean skipped or absent. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |

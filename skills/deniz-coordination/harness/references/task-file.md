@@ -44,6 +44,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `reviewOf` | string task id | None | Starts from that task's branch after it finishes. Refuses self or missing target: `reviewOf names no other task`; refuses chains: `reviewOf chains are not supported`. With `base`: `a reviewOf task starts from the reviewed task's branch; omit base`. A non-review kind produces a warning. Use a worktree author. |
 | `scope` | string array | `[]` | `code and mechanical tasks declare a scope` when absent or empty. Structured tasks refuse it. Every changed path on review or research is out of scope regardless of this field. |
 | `verify` | string array | No commands | Runs after collection for a succeeded non-structured task. Structured tasks refuse it. A missing or unsupported shell is a plan error. |
+| `advisoryVerify` | string array | No commands | Runs after `verify`, in the same shell and folder, and is recorded with `advisory: true`, but a failure never fails the task: it adds the `advisory-verify-failed` warning. For a check that fails by design on this change (a baseline the coordinator owns), so a dependent `reviewOf` task still starts. Structured tasks refuse it. |
 | `shell` | string enum | `pwsh` on Windows, `bash` elsewhere | `bash` or `pwsh`, resolved on PATH. Other values: `verify shell: shell must be bash or pwsh`; structured: `shell is forbidden for structured tasks`. Review and research can also use it. |
 | `dir` | string relative directory | `defaults.dir`, then `.` | In-place: existing directory inside the same repository working tree. Errors: `in-place dir must be relative to and inside the repository`, `in-place dir does not exist`, `in-place dir belongs to another working tree`. Worktree tasks do not use it. Project-enabled structured tasks use their task entry's `dir`. |
 | `input` | object | Required for structured | See structured fields below. Non-structured tasks do not consume structured input. |
@@ -152,7 +153,7 @@ and temporary index, but leaves the in-place folder, edits and current branch al
 
 ## Structured tasks
 
-Structured tasks refuse `scope`, `verify`, `shell`, `reviewOf`, `agent`, `persona` and raw prompts.
+Structured tasks refuse `scope`, `verify`, `advisoryVerify`, `shell`, `reviewOf`, `agent`, `persona` and raw prompts.
 With `project: off`, the harness chooses scratch outside any ancestor containing `.git`; neither
 repository nor base is needed. With `project: on`, it uses the named repository folder. Structured
 tasks never commit or verify.

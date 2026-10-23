@@ -67,7 +67,8 @@ static class Settlement
                 if (outcome == "succeeded")
                     result.Error ??= "the session succeeded but left no final assistant text; run `dispatch collect` later";
             }
-            if (result.Verify.Any(x => x.ExitCode != 0 || x.TimedOut)) result.Failures.Add("verify-failed");
+            if (result.Verify.Any(x => x.Advisory != true && Verifier.Failed(x))) result.Failures.Add("verify-failed");
+            if (result.Verify.Any(x => x.Advisory == true && Verifier.Failed(x))) (result.Warnings ??= []).Add("advisory-verify-failed");
             if (result.OutOfScope.Count > 0) result.Failures.Add("out-of-scope");
             if (result.RouteDrift is not null) result.Failures.Add("route-drift");
             // A worker that reports it stopped or was blocked did not do the task, whatever the session outcome says.

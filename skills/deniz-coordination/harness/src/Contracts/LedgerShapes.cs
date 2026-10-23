@@ -207,6 +207,7 @@ sealed class VerifyResult
     public int ExitCode { get; set; }
     public double Seconds { get; set; }
     public bool TimedOut { get; set; }
+    public bool? Advisory { get; set; }
 }
 
 sealed class TaskResult : VersionedContract

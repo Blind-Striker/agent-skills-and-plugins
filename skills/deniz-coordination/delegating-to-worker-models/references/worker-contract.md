@@ -95,8 +95,8 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 ## Verification
 
 The coordinator or its tool runs the verify commands on your committed tree. That run is the evidence,
-not your report. Run them yourself after your last edit: the focused tests while you work, the full
-suite once at the end.
+not your report. Run them yourself after your last edit: the focused tests while you work, then the
+verification the task names. Run the full suite only when the task asks for it.
 
 ## Report
 

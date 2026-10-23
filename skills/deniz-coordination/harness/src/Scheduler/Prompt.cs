@@ -39,8 +39,8 @@ static class Prompt
         JsonNode? schema = null;
         if (task.Kind == "structured")
         {
-            if (task.Scope is not null || task.Verify is not null || task.Shell is not null || task.ReviewOf is not null || task.Agent is not null || task.Persona is not null)
-                throw new HarnessException("structured tasks refuse scope, verify, shell, reviewOf, agent and persona");
+            if (task.Scope is not null || task.Verify is not null || task.AdvisoryVerify is not null || task.Shell is not null || task.ReviewOf is not null || task.Agent is not null || task.Persona is not null)
+                throw new HarnessException("structured tasks refuse scope, verify, advisoryVerify, shell, reviewOf, agent and persona");
             if (task.Input is not { } input || (input.Items is null) == (input.ItemsFile is null))
                 throw new HarnessException("structured input needs exactly one of items or itemsFile");
             if (task.Result is not { Schema: { Length: > 0 } } result || result.ItemsAt is null ||

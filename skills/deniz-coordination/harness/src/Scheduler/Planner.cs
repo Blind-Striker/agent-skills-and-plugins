@@ -67,7 +67,7 @@ static class Planner
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
             if (spec.Kind == "structured" && spec.Shell is not null) e.Add("shell is forbidden for structured tasks");
-            else if (spec.Shell is not null || spec.Verify is { Count: > 0 })
+            else if (spec.Shell is not null || spec.Verify is { Count: > 0 } || spec.AdvisoryVerify is { Count: > 0 })
             {
                 try { Verifier.ResolveShell(spec, executableSearchPath); }
                 catch (HarnessException ex) { e.Add($"verify shell: {ex.Message}"); }
