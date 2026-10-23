@@ -101,7 +101,9 @@ static class Settlement
     // reported route of another model or variant; an unreadable route is unverified, not drift.
     public static (bool Verified, List<string> Drift) CheckRoutes(string? requested, IReadOnlyList<string> used)
     {
+        // A requested "#default" names no variant: an agent pin without one is recorded that way.
         var want = requested is null ? null : ParseRoute(requested);
+        if (want is { Variant: "default" }) want = want with { Variant = null };
         var parsed = used.Select(text => (Text: text, Route: ParseRoute(text))).ToList();
         var drift = want is null ? [] : parsed.Where(x => x.Route is { } route && !Satisfies(route, want)).Select(x => x.Text).ToList();
         var verified = want is not null && parsed.Count > 0 && parsed.All(x => x.Route is { } route && Satisfies(route, want));

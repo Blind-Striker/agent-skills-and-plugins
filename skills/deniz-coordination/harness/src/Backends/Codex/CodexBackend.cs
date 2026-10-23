@@ -308,7 +308,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                                     ? $"{failure.Message}; {failure.CodexErrorInfo}; {failure.AdditionalDetails}" : null;
                                 signals.Writer.TryWrite(new WorkerSignal.Status(worker.TaskId, worker.Turn!, execution,
                                     execution == "failed" ? new JsonObject { ["message"] = connection.ExecutionError }.ToJsonString() : connection.ExecutionError));
-                                await connection.Process.StopAsync();
+                                connection.TurnEnded.TrySetResult();
+                                // A process that survives the stop can hold stdout open, so this loop may never
+                                // reach its finally: report the unconfirmed stop here.
+                                var stop = await connection.Process.StopAsync();
+                                if (!stop.Stopped) signals.Writer.TryWrite(new WorkerSignal.StopUnconfirmed(worker.TaskId, worker.Turn!, execution, stop.Detail));
                             }
                             else if (!taskThread)
                                 signals.Writer.TryWrite(new WorkerSignal.Status(worker.TaskId, worker.Turn!, execution,
@@ -508,7 +512,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             var recovery = recovered[worker.Id];
             return new("lost", null, new(), null, false, [], recovery.Detail, recovery.Stopped);
         }
-        await connection.Pump.WaitAsync(ct);
+        // Prefer the pump's end, which records the stop. A process that survives the stop can keep the
+        // pump open after the turn ended: then the turn's report is complete without it.
+        await Task.WhenAny(connection.Pump, Task.WhenAll(connection.TurnEnded.Task, Task.Delay(TimeSpan.FromSeconds(10), ct))).WaitAsync(ct);
         var usage = connection.Usage.Values;
         var totals = usage.Count == 0 ? new TokenTotals() : new TokenTotals
         {
@@ -607,6 +613,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public string Effort { get; set; } = "";
         public HashSet<string> Routes { get; } = new(StringComparer.Ordinal);
         public Task Pump { get; set; } = Task.CompletedTask;
+        public TaskCompletionSource TurnEnded { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         bool disposed;
         public async ValueTask DisposeAsync()
         {

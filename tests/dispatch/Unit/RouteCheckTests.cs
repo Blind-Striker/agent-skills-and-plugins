@@ -11,6 +11,7 @@ public sealed class RouteCheckTests
     [Arguments("opencode:fixture/model", "opencode/flint-40b-free#default", false, "opencode/flint-40b-free#default")]
     [Arguments("opencode:fixture/model", "fixture/model#default,other/model#default", false, "other/model#default")]
     [Arguments("opencode:fixture/model#default", "fixture/model#default", true, "")]
+    [Arguments("opencode:fixture/model#default", "fixture/model#high", true, "")]
     [Arguments("codex:gpt-x#high", "codex:gpt-x#high", true, "")]
     [Arguments("codex:gpt-x#high", "codex:gpt-y#high", false, "codex:gpt-y#high")]
     [Arguments("codex:gpt-x", "codex:gpt-x#medium", true, "")]
