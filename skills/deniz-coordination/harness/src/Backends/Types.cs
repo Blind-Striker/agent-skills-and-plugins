@@ -118,7 +118,8 @@ static class ToolResource
                 }
         if (Regex.IsMatch(resource, @"\b(?:proxy-)?authorization\s*[:=]|\bbearer\s+\S+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
             return "[REDACTED]";
-        foreach (Match assignment in Regex.Matches(resource, @"(?<name>[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
+        // PowerShell's env: drive qualifies the variable name; it is not the ENV variable itself.
+        foreach (Match assignment in Regex.Matches(resource, @"(?i:\$?env:)?(?<name>(?!(?i:env):)[\w-]+)\s*[=:]\s*(?<value>[^\s&;]+)|--?(?<name>[\w-]+)\s+(?<value>[^\s&;]+)"))
             if (Credential(assignment.Groups["name"].Value, assignment.Groups["value"].Value))
                 return "[REDACTED]";
         if (Cli.RootEnvironment is { } environment)

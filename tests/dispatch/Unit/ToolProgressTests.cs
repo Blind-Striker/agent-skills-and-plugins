@@ -28,6 +28,24 @@ public sealed class ToolProgressTests
         await Assert.That(Call(new string('x', 201)).Resource).IsEqualTo(new string('x', 200));
     }
 
+    [Test]
+    [Arguments("$env:OPENCODE_SDK_TESTS_BUN_MISMATCH='allow'; dotnet build OpenCode.slnx -c Release")]
+    [Arguments("$Env:OPENCODE_SDK_TESTS_BUN_MISMATCH = 'allow'; dotnet test --project tests/OpenCode.Sdk.Tests -c Release --no-build")]
+    [Arguments("echo $env:PATH")]
+    public async Task Tool_resources_keep_commands_that_set_a_harmless_environment_variable(string resource)
+    {
+        await Assert.That(Call(resource).Resource).IsEqualTo(resource);
+    }
+
+    [Test]
+    [Arguments("$env:GITHUB_TOKEN='synthetic-value'; dotnet build")]
+    [Arguments("$Env:API_KEY = 'synthetic-value'; dotnet test")]
+    [Arguments("env:NUGET_PASSWORD=synthetic-value dotnet restore")]
+    public async Task Tool_resources_redact_commands_that_set_a_secret_environment_variable(string resource)
+    {
+        await Assert.That(Call(resource).Resource).IsEqualTo("[REDACTED]");
+    }
+
     static WorkerSignal.ToolCall Call(string resource) => new("task", "turn", "call", "shell", resource,
         "start", null, DateTimeOffset.UnixEpoch);
 }
