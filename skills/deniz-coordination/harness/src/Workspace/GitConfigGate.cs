@@ -58,6 +58,8 @@ sealed class GitConfigGate(Git git)
             var entry = Field();
             var newline = Array.IndexOf(entry, (byte)'\n');
             var key = Encoding.UTF8.GetString(newline < 0 ? entry : entry[..newline]);
+            // System config needs an administrator (a Git upgrade writes it), not a worker.
+            if (scope == "system") continue;
             // These command-scope entries are our per-call overrides, not repository changes.
             if (scope == "command" && key is "core.hookspath" or "core.fsmonitor" or "commit.gpgsign" or "gc.auto" or "maintenance.auto") continue;
             var digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(newline < 0 ? [] : entry[(newline + 1)..]));

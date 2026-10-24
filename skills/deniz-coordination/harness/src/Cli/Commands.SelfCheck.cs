@@ -28,7 +28,8 @@ static partial class Commands
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
         layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
-        if (selectedBackends.Count == 0) selectedBackends = InstalledBackends();
+        if (a.Get("backend") is null && a.Positional.Count == 0)
+            selectedBackends = selectedBackends.Union(InstalledBackends()).Order(StringComparer.Ordinal).ToArray();
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");
         Check("policy", true, layers.Policy.Describe());
@@ -53,7 +54,7 @@ static partial class Commands
                 {
                     var depth = await Worktree.PathDepthAsync(git, repo,
                         Locations.Worktree("selfcheck", $"{DateTime.UtcNow:yyyy-MM-dd}-selfcheck"), ct);
-                    Check("worktree path depth", true, depth.Detail, warn: depth.Length >= 248);
+                    Check("worktree path depth", true, depth.Length >= 248 ? depth.Detail : depth.Detail[..depth.Detail.IndexOf("; builds", StringComparison.Ordinal)], warn: depth.Length >= 248);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 { Check("worktree path depth", true, ex.Message, warn: true); }

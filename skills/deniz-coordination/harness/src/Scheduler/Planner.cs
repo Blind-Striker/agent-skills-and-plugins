@@ -69,6 +69,14 @@ static class Planner
             try { promptInputs = Prompt.Load(file, spec, tasksPath, args, plan.Config?.Policy.Instructions ?? [], contractCache); }
             catch (Exception ex) when (ex is HarnessException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException)
             { e.Add(ex.Message); }
+            if (promptInputs is { Contracts: var loaded })
+            {
+                if (loaded.Count > 0)
+                    plan.Info.Add($"{spec.Id}: contracts {string.Join("; ", loaded.Select(x => $"{x.Record.Alias ?? x.Record.Path} ({x.Record.Version})"))}");
+                if (spec.Kind is "code" or "mechanical" && spec.RawPrompt != true
+                    && !loaded.Any(x => Path.GetFileName(x.Record.Path) == "worker-contract.md"))
+                    plan.Warnings.Add($"{spec.Id}: no worker contract; add \"@worker-contract\" (and \"@<model>-worker\") to contracts");
+            }
             if (!Regex.IsMatch(spec.Id ?? "", "^[a-z0-9][a-z0-9-]{0,39}$")) e.Add("id must match ^[a-z0-9][a-z0-9-]{0,39}$");
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
