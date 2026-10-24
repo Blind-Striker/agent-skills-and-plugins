@@ -121,3 +121,4 @@ Report language: English.
 10. The last line of your final message, alone: `Status: done` when the task is done, `Status: stopped` when
     you stopped on a rule above or a contradiction, `Status: blocked` when the environment kept you from the
     work (a missing tool, access or input). A dispatch harness reads this line; a stop or block fails the task.
+    A structured task (its answer is one JSON document) ends with that document and no status line.

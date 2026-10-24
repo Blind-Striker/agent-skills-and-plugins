@@ -60,7 +60,7 @@ Corresponding command-line flags, where available, win last. A backend has no to
 | `backend` | string enum | Required after layering | `opencode` or `codex`; invalid choices name the value, layer and allowed values. |
 | `effort` | string | Route suffix or catalog default | Non-empty. A suffix and a different `effort` in the same layer fail: `route variant and effort disagree in <layer>`. A later layer wins. |
 | `timeoutMinutes` | integer | `60` | Range 1 through 720: `timeoutMinutes from <layer> must be between 1 and 720`. Each verify command separately has a 30-minute timeout. |
-| `profile` | string enum | `clean` for structured or read-only Codex tasks, otherwise `full` | `clean` or `full`; explicit values override. Actual clean isolation may be partial; see [backends](backends.md). |
+| `profile` | string enum | `clean` for mechanical, review, research and structured tasks and for read-only Codex tasks, otherwise `full` | `clean` or `full`; explicit values override. Actual clean isolation may be partial; see [backends](backends.md). |
 | `project` | string enum | `off` for structured, otherwise `on` | `on` or `off`. Controls backend repository context. Non-structured tasks still need a repository and workspace. |
 | `access` | string enum | `workspace` for code and mechanical, otherwise `read-only` | `read-only`, `workspace`, `full`. An explicit value above `maxAccess` fails and names both layers; the tool default is clamped. |
 | `network` | string enum | `on` | `on` or `off`. An explicit `on` forbidden by policy fails; the tool default is clamped. Codex refuses `full` access with network `off`. |
@@ -70,7 +70,7 @@ Corresponding command-line flags, where available, win last. A backend has no to
 | `rawPrompt` | boolean | `false` | Sends only task text with a normalized final newline. Contracts, standing instructions or structured input conflict: `rawPrompt conflicts with contracts, instructions or structured input`. Rules and scope checks still apply. |
 | `defaultRoutes` | map of backend to string, defaults only | No route | In task-file `defaults`, user or repository preferences. Backend-specific routes provide defaults, not a backend's implicit model selection. |
 
-The pending `readOnlyShell` preference is described in
+The `readOnlyShell` preference is described in
 [configuration](config.md#read-only-shell-preference).
 
 ## Routes and kind defaults
@@ -86,12 +86,12 @@ without a suffix does not clear an earlier effort. Do not combine a default rout
 | Kind | Profile | Project | Access | Working folder | Reason |
 |---|---|---|---|---|---|
 | `code` | `full` | `on` | `workspace` | Worktree | Needs repository context and writes. |
-| `mechanical` | `full` | `on` | `workspace` | Worktree | Makes bounded repository edits. |
-| `review` | `full` | `on` | `read-only` | Worktree | Reads repository context; every change fails scope. |
-| `research` | `full` | `on` | `read-only` | Worktree | Reads repository context; every change fails scope. |
+| `mechanical` | `clean` | `on` | `workspace` | Worktree | Makes bounded repository edits. |
+| `review` | `clean` | `on` | `read-only` | Worktree | Reads repository context; every change fails scope. |
+| `research` | `clean` | `on` | `read-only` | Worktree | Reads repository context; every change fails scope. |
 | `structured` | `clean` | `off` | `read-only` | Projectless scratch | Transforms supplied items without Git settlement. |
 
-For pending support for backend-qualified task routes, see
+For backend-qualified task routes, see
 [configured backend coverage](cli.md#configured-backend-coverage).
 
 ## Contracts

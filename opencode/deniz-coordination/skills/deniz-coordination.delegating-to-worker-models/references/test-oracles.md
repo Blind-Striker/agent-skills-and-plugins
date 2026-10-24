@@ -21,7 +21,7 @@ reads this table as a checklist over-proves and burns the run.
 ## What each test prompt names
 
 - **Name the mutant class** for every new bound ("a no-op that sends nothing", "a sort by the wrong key").
-  The mutant is the true no-op: a valid success shape with no effect. A mutant counts only when the
+  Include the true no-op among them: a valid success shape with no effect. A mutant counts only when the
   mutated build compiles; commit the change before you mutate, so reverting a mutant cannot wipe it.
   Before you name a mutant, name what the oracle reads that the mutant changes. A mutant the oracle cannot
   see (a deduplicating set, a value captured before the change) proves nothing. Name no kill site narrower
@@ -29,9 +29,11 @@ reads this table as a checklist over-proves and burns the run.
   oracle. A hang guard that fires and names the awaited event is reported as "detected by a bounded
   wait", apart from kills, and never counts as a mutation proof. A run that never finishes is neither.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
-  after. A mutant is a temporary product edit, so the scope must allow it: name every product line the
-  mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
-  A blanket "do not edit src/" beside a mutant requirement makes the proof a guaranteed stop.
+  after. A mutant is a temporary product edit, so the prompt must authorize it: name every product line
+  the mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
+  That authorization is not the task's settlement `scope`, which stays without those files so a leftover
+  mutant fails the task. A blanket "do not edit src/" beside a mutant requirement makes the proof a
+  guaranteed stop.
 - **Order fixtures:** require entries that a wrong key would reorder.
 - **Refusals:** require the full ordered error list unless the plan names a filter; a filter hides
   cascades.
