@@ -308,9 +308,9 @@ static partial class Commands
         {
             await Task.Delay(TimeSpan.FromSeconds(1), ct);
             var events = ledger.Read().Skip(previousEvents).ToList();
-            if (events.Any(x => x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "decision" && x.Data?["id"]?.GetValue<string>() == askId))
+            if (events.FirstOrDefault(x => x.Type == "error" && x.Data?["while"]?.GetValue<string>() == "decision" && x.Data?["id"]?.GetValue<string>() == askId) is { } failure)
             {
-                Console.WriteLine($"{askId}: decision {decision} was attempted but not confirmed; the ledger records the error");
+                Console.WriteLine($"{askId}: decision {decision} was attempted but not confirmed: {failure.Data?["message"]?.GetValue<string>()}");
                 return 1;
             }
             if (events.Any(x => x.Type == "permission" && x.Data?["id"]?.GetValue<string>() == askId
