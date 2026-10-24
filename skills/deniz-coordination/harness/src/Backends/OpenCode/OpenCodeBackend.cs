@@ -134,7 +134,9 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             else
             {
                 var persona = task.Persona ?? Constants.DefaultPersona;
-                if (catalog.Agents.All(x => x.Id != persona)) errors.Add($"persona {persona} not found");
+                if (catalog.Agents.All(x => x.Id != persona))
+                    errors.Add(task.Modes.Profile == "clean" ? $"persona {persona} not found: profile clean loads no user agents; set profile full or use a built-in persona"
+                        : $"persona {persona} not found");
                 else if (catalog.Manual.Contains(persona)) errors.Add($"persona {persona} is manual-class");
                 if (catalog.IsManualRoute(task.Route)) errors.Add($"route {task.Route} equals a manual-class agent's model");
                 else if (catalog.CheckRoute(task.Route) is { } why) errors.Add($"route {task.Route}: {why}");

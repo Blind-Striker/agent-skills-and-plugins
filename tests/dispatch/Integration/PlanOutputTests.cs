@@ -115,6 +115,22 @@ public sealed class PlanOutputTests
 
     [Test]
     [Timeout(180_000)]
+    public async Task Plan_says_a_clean_task_has_no_user_persona(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        // A research task defaults to profile clean, which loads no user agents.
+        File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","persona":"work","prompt":"Inspect."}]}""");
+        using var process = new HarnessProcess(tree);
+        var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await Assert.That(Lines(result)).Contains("ERROR inspect: persona work not found: profile clean loads no user agents; set profile full or use a built-in persona");
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Plan_refuses_a_tempRoot_inside_the_repository(CancellationToken ct)
     {
         using var tree = new TempTree();
