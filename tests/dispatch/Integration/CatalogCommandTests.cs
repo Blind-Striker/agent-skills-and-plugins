@@ -37,7 +37,8 @@ public sealed class CatalogCommandTests
         result.RequireSuccess("path depth selfcheck");
         var length = folder.Length + 1 + file.Length;
         var level = length >= 248 ? "WARN" : "PASS";
-        var expected = $"{level}  worktree path depth: worktree paths reach {length} characters ({file.Replace('/', '\\')}); builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config";
+        var expected = $"{level}  worktree path depth: worktree paths reach {length} characters ({file.Replace('/', '\\')})"
+            + (length >= 248 ? "; builds can fail past 260 on Windows. Set locations.worktreeRoot to a short folder (for example C:\\wt) in the user config" : "");
         await Assert.That(result.Stdout.Split('\n').Select(line => line.TrimEnd('\r'))
             .Where(line => line.Contains("  worktree path depth:", StringComparison.Ordinal)).ToArray())
             .IsEquivalentTo(OperatingSystem.IsWindows() ? new[] { expected } : [], CollectionOrdering.Matching);
@@ -151,7 +152,8 @@ public sealed class CatalogCommandTests
             await Assert.That(result.Stdout).Contains("warning: core.longpaths");
             await Assert.That(result.Stdout).Contains("locations.worktreeRoot");
         }
-        await Assert.That(result.Stdout.Contains("backend opencode", StringComparison.Ordinal)).IsEqualTo(both);
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.StartsWith("backend ", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { "backend codex", "backend opencode" }, CollectionOrdering.Matching);
         await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "thread/start")).IsEqualTo(1);
         await Assert.That(lab.Input().Count(x => x["method"]?.GetValue<string>() == "turn/start")).IsEqualTo(0);
         var starts = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!).ToArray();
@@ -184,7 +186,7 @@ public sealed class CatalogCommandTests
 
         await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
             .Where(x => x.StartsWith("backend ", StringComparison.Ordinal) || x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
-            .IsEquivalentTo(new[] { "backend opencode", "PASS  launch: ses_launch", "backend codex", "PASS  launch: thread-main" }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new[] { "backend codex", "PASS  launch: thread-main", "backend opencode", "PASS  launch: ses_launch" }, CollectionOrdering.Matching);
         result.RequireSuccess("installed-backend selfcheck");
         await Assert.That(result.Stdout).DoesNotContain("SKIP  ");
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
@@ -200,6 +202,27 @@ public sealed class CatalogCommandTests
         await DiscoveryCleanedUp(lab);
         await Assert.That((await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).Split('\n')
             .Count(x => x.StartsWith("worktree ", StringComparison.Ordinal))).IsEqualTo(1);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Selfcheck_with_only_a_codex_executable_also_checks_installed_OpenCode(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Discoverable(lab, opencode: true, codex: true);
+        File.WriteAllText(Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc"), new JsonObject
+        {
+            ["schemaVersion"] = 2,
+            ["backends"] = new JsonObject { ["codex"] = new JsonObject { ["executable"] = CodexLab.Executable } },
+        }.ToJsonString());
+        using var harness = new HarnessProcess(lab.Tree);
+        var result = await harness.RunAsync(["selfcheck"], ct, environment);
+        result.RequireSuccess("configured Codex plus installed OpenCode selfcheck");
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+            .Where(x => x.StartsWith("backend ", StringComparison.Ordinal) || x.Contains("  launch:", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { "backend codex", "PASS  launch: thread-main", "backend opencode", "PASS  launch: ses_fixture" }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout).DoesNotContain("SKIP  ");
+        await DiscoveryCleanedUp(lab);
     }
 
     [Test]
@@ -629,7 +652,8 @@ public sealed class CatalogCommandTests
         result.RequireSuccess("repository-free selfcheck");
         await Assert.That(result.Stdout).Contains("repository checks skipped");
         await Assert.That(result.Stdout).Contains("PASS  clean profile: clean");
-        await Assert.That(result.Stdout).DoesNotContain("backend opencode");
+        await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.StartsWith("backend ", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { "backend codex", "backend opencode" }, CollectionOrdering.Matching);
         await Assert.That(Directory.GetDirectories(lab.Tree.WorktreeRoot)).IsEmpty();
         await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
     }

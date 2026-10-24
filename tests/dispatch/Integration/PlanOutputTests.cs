@@ -8,6 +8,44 @@ namespace Dispatch.Tests.Integration;
 public sealed class PlanOutputTests
 {
     [Test]
+    [Timeout(180_000)]
+    public async Task Plan_prints_contract_aliases_paths_and_versions_in_prepend_order(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        var extra = Path.Combine(tree.Root, "extra.md");
+        File.WriteAllText(extra, "Extra contract v2\nKeep this.");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","contracts":["extra.md","@worker-contract"],"prompt":"Inspect."}]}""");
+        var worker = Path.GetFullPath(Path.Combine(TestPaths.Harness, "..", "delegating-to-worker-models", "references", "worker-contract.md"));
+        var version = File.ReadLines(worker).First();
+        using var process = new HarnessProcess(tree);
+        var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("contract plan");
+        await Assert.That(Lines(result).Where(line => line.Contains(": contracts ", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { $"INFO inspect: contracts {extra} (Extra contract v2); @worker-contract ({version})" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Arguments("code")]
+    [Arguments("mechanical")]
+    [Timeout(180_000)]
+    public async Task Plan_warns_only_for_the_writer_without_a_worker_contract(string kind, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        File.WriteAllText(tasks, $$"""{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"zulu","kind":"{{kind}}","base":"main","route":"fixture/model","scope":["z.txt"],"prompt":"Edit."},{"id":"alpha","kind":"{{kind}}","base":"main","route":"fixture/model","scope":["a.txt"],"contracts":["@worker-contract"],"prompt":"Edit."}]}""");
+        using var process = new HarnessProcess(tree);
+        var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root], ct,
+            FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
+        result.RequireSuccess("worker contract plan");
+        await Assert.That(Lines(result).Where(line => line.StartsWith("WARN ", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { "WARN zulu: no worker contract; add \"@worker-contract\" (and \"@<model>-worker\") to contracts" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Arguments("plan", 0)]
     [Arguments("plan", 247)]
     [Arguments("plan", 248)]

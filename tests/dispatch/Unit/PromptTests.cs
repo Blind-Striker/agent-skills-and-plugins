@@ -62,6 +62,19 @@ public sealed class PromptTests
     }
 
     [Test]
+    public async Task Unknown_model_alias_lists_sorted_existing_aliases_without_README()
+    {
+        using var tree = new TempTree();
+        var references = ContractReferences(tree);
+        File.WriteAllText(Path.Combine(references, "models", "zeta.md"), "worker-model zeta v1\nWork.");
+        File.WriteAllText(Path.Combine(references, "models", "alpha.md"), "worker-model alpha v2\nWork.");
+        File.WriteAllText(Path.Combine(references, "models", "README.md"), "Model index.");
+        await Assert.That(() => Prompt.Load(new(), new() { Id = "inspect", Contracts = ["@missing-worker"] },
+            Path.Combine(tree.Root, "tasks.jsonc"), null, [], harnessRoot: Path.Combine(tree.Root, "harness")))
+            .ThrowsExactly<HarnessException>().WithMessage($"unknown contract alias @missing-worker; known: @worker-contract, @alpha-worker, @zeta-worker (looked in {references})");
+    }
+
+    [Test]
     public async Task Invalid_aliases_refuse_planning_with_alias_and_lookup_path()
     {
         using var tree = new TempTree();
@@ -73,11 +86,11 @@ public sealed class PromptTests
         File.WriteAllText(Path.Combine(references, "models", "unmarked.md"), "inline worker-model decoy\n worker-model indented");
         var cases = new[]
         {
-            ("@unknown", harness, $"unknown contract alias @unknown; known: @worker-contract, @<model>-worker (looked in {references})"),
-            ("@../worker", harness, $"unknown contract alias @../worker; known: @worker-contract, @<model>-worker (looked in {references})"),
+            ("@unknown", harness, $"unknown contract alias @unknown; known: @worker-contract, @unmarked-worker (looked in {references})"),
+            ("@../worker", harness, $"unknown contract alias @../worker; known: @worker-contract, @unmarked-worker (looked in {references})"),
             ("@worker-contract", absentHarness, $"inspect: contract task @worker-contract {absent}: file not found"),
             ("@worker-contract", harness, $"inspect: contract task @worker-contract {Path.Combine(references, "worker-contract.md")}: file not found"),
-            ("@missing-worker", harness, $"inspect: contract task @missing-worker {Path.Combine(references, "models", "missing.md")}: file not found"),
+            ("@missing-worker", harness, $"unknown contract alias @missing-worker; known: @worker-contract, @unmarked-worker (looked in {references})"),
             ("@unmarked-worker", harness, $"inspect: contract task @unmarked-worker {Path.Combine(references, "models", "unmarked.md")}: missing column-one worker-model marker"),
         };
         var errors = new List<string>();

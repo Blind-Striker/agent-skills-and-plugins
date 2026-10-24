@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -7,6 +8,44 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel]
 public sealed class GitSafetyTests
 {
+    [Test]
+    [Timeout(60_000)]
+    public async Task ConfigGate_ignores_system_changes_but_reports_global_local_and_worktree_changes(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var environment = lab.Tree.ChildEnvironment();
+        environment.Remove("GIT_CONFIG_NOSYSTEM");
+        environment["GIT_CONFIG_SYSTEM"] = Path.Combine(lab.Tree.Root, "system.gitconfig");
+        File.WriteAllText(environment["GIT_CONFIG_SYSTEM"]!, "");
+        async Task<string> GitAsync(params string[] args)
+        {
+            using var child = new CapturedProcess();
+            var result = await child.RunAsync("git", args, repo.Root, environment, ct);
+            result.RequireSuccess("scoped config fixture");
+            return result.Stdout.TrimEnd();
+        }
+        await GitAsync("config", "--local", "extensions.worktreeConfig", "true");
+        var scopes = new[] { "system", "global", "local", "worktree" };
+        foreach (var scope in scopes)
+            await GitAsync("config", "--" + scope, $"filter.{scope}.clean", "before");
+        var git = new Git(Executables.Resolve("git"), lab.Git.ControlFolder,
+            environment.ToDictionary(x => x.Key, x => x.Value!)).ForWorkspace(lab.Ledger, "inspect");
+        await git.InitializeBaselineAsync(repo.Root, ct);
+        foreach (var scope in scopes)
+            await GitAsync("config", "--" + scope, $"filter.{scope}.clean", "after");
+        // Prove system config is loaded, not hidden by the fixture's usual NOSYSTEM isolation.
+        await Assert.That(await GitAsync("config", "--show-scope", "--get", "filter.system.clean")).IsEqualTo("system\tafter");
+        await Assert.That((await git.CheckAsync(repo.Root, ct, "config", "--show-scope", "--get", "filter.system.clean")).TrimEnd()).IsEqualTo("system\tafter");
+        await Assert.That(async () => await new GitConfigGate(git).CheckAsync(repo.Root, ct))
+            .ThrowsExactly<GitConfigChangedException>().WithMessage("git-config-changed: refusing worker-changed filters");
+        var changes = lab.Ledger.Read().Where(x => x.Type == "git-config-changed").ToArray();
+        await Assert.That(changes.Length).IsEqualTo(1);
+        await Assert.That(changes[0].Data!["keys"]!.AsArray().Select(x => x!.GetValue<string>()))
+            .IsEquivalentTo(new[] { "filter.global.clean", "filter.local.clean", "filter.worktree.clean" }, CollectionOrdering.Matching);
+        await Assert.That(changes[0].Data!["blocking"]!.GetValue<bool>()).IsTrue();
+    }
+
     [Test]
     [Timeout(60_000)]
     public async Task ConfigGate_FiltersOnlyForeignAutoSetup(CancellationToken ct)

@@ -115,9 +115,12 @@ working directory or compiled cache folder. CLI contract aliases are the excepti
 paths. Alias and explicit-file references to the same absolute path still use first-path-wins,
 even when they would select different text. The whole-file cache never stores a selected worker block.
 
-Unknown aliases fail with `unknown contract alias <alias>; known: @worker-contract, @<model>-worker
-(looked in <the sibling skill's references folder>)`. Missing siblings or files and missing worker
-markers are plan errors naming the alias and lookup path. Missing ordinary files, unreadable files
+Unknown aliases, including `@<model>-worker` when `models/<model>.md` does not exist, fail with
+`unknown contract alias <alias>; known: <known aliases> (looked in <the sibling skill's references folder>)`.
+The known list starts with `@worker-contract`, followed by the aliases of existing `models/*.md`
+files in ordinal name order, excluding `README.md`; it lists actual model names, not the
+`@<model>-worker` placeholder. Missing sibling worker contracts and missing worker markers are plan
+errors naming the alias and lookup path. Missing ordinary files, unreadable files
 and invalid UTF-8 also refuse planning; both file and alias content are strictly decoded as UTF-8.
 
 Contracts precede standing instructions, task text, and structured items and schema. Both backends
