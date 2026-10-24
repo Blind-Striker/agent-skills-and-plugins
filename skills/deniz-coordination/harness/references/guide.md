@@ -45,7 +45,8 @@ Each section says when to use a setting, why, and what it costs. Field details l
 
 - `workspace: worktree` (the default) gives each task its own branch from `base`, so parallel tasks
   never share files. `in-place` runs in `dir`; use it only when the task must see uncommitted state.
-- A worktree task's result is always committed by the harness on the task's branch. An in-place task
+- A worktree task's result is committed by the harness on the task's branch, unless its worker stopped or
+  was blocked: that work stays uncommitted and goes to `wip.patch`. An in-place task
   takes `commit: none` (the default: the diff is recorded, nothing is committed) or `commit: harness`
   (a clean tree is required, and the commit lands on the current branch).
 - `base` takes a branch, a tag or a SHA. A SHA is exact; planning fetches remote-tracking bases before
@@ -54,8 +55,9 @@ Each section says when to use a setting, why, and what it costs. Field details l
 
 ## Verify, advisory verify and review
 
-- `verify` lists the commands whose failure fails the task. They run after collection, on the
-  committed tree, as your user, outside any sandbox. Run each one on the base once before you hand
+- `verify` lists the commands whose failure fails the task. They run after collection, on the task's
+  result (the committed tree, or the working folder of an in-place `commit: none` task), as your user,
+  outside any sandbox; a stopped or blocked worker's result is not verified. Run each one on the base once before you hand
   the task out, and check that its result means something: zero tests run is never a pass.
 - `advisoryVerify` lists checks that may fail by design on this change (a baseline the coordinator
   owns, a known red gate). They run and are recorded, but a failure only adds a warning, so the task

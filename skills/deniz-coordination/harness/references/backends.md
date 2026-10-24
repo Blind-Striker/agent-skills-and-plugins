@@ -11,7 +11,7 @@ composition and [configuration](config.md) for restrictions.
 
 | Setting | Type and default | opencode | Codex | Validation |
 |---|---|---|---|---|
-| `profile` | Enum; `clean` for structured or read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
+| `profile` | Enum; `clean` for mechanical, review, research and structured tasks and for read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
 | `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Linux/macOS: read-only and workspace use the [accident guard](#opencode-accident-guard), recorded `sandbox`; read-only keeps its shell and denies `edit`. Windows: unfenced; read-only denies `edit` and, with `readOnlyShell: decline`, every shell call (no `git`), recorded `policy`; workspace is `none`. Full is unfenced, recorded `none`, on every OS. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows Codex sandboxed tasks require ready setup. Missing opencode fence readiness refuses plan/run, never falls back. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
@@ -144,8 +144,8 @@ backend checks the returned sandbox type. Each `turn/start` supplies the resolve
 and network value. The selected effort comes from the route or the catalog's default. Structured
 turns also supply the output schema. Approval, tool, retry and token events feed the common ledger.
 
-The `workspace-write` sandbox lets a task write only inside its workspace. A task that must write
-elsewhere (the system temp folder included, where many build and test tools keep caches) or start
+The `workspace-write` sandbox lets a task write inside its workspace, its task temp folder and the
+configured `writableRoots`. A task that must write elsewhere (another cache folder, for example) or start
 `wsl.exe` fails there.
 
 **Known limit: .NET and MSYS tools in the Windows sandbox.** In both of the sandbox's Windows modes,

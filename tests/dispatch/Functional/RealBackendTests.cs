@@ -258,7 +258,6 @@ public sealed class RealBackendTests
               <PropertyGroup>
                 <TargetFramework>{{framework}}</TargetFramework>
                 <OutputType>Exe</OutputType>
-                <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
               </PropertyGroup>
               <ItemGroup><PackageReference Include="TUnit" Version="{{version}}" /></ItemGroup>
             </Project>
@@ -280,7 +279,7 @@ public sealed class RealBackendTests
         // No shared MSBuild node or compiler server: on a shared host other builds use those, and the test kills its own tree.
         const string prefix = "XDG_DATA_HOME=\"$HOME/.local/share\" MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0 ";
         var build = prefix + $"dotnet build probe.csproj -nodeReuse:false -p:UseSharedCompilation=false -p:RestorePackagesPath='{packages.Replace("'", "'\\''", StringComparison.Ordinal)}'";
-        const string test = prefix + "dotnet test probe.csproj --no-build --no-restore -- --output Detailed";
+        const string test = prefix + "dotnet run --project probe.csproj --no-build -- --output Detailed";
         var task = lab.CodeTask($"Run exactly `{build}`, then `{test}` in separate shell calls in your worktree. "
             + "Both must succeed and the test output must show FN10 passed. Do not change the project or tests. "
             + "Then create inside.txt containing dotnet-ok with no newline. Finish with Status: done.", "workspace");
@@ -294,7 +293,7 @@ public sealed class RealBackendTests
         await Assert.That(lab.Record["settings"]!["writableRoots"]!["value"]!.AsArray().Select(x => x!.GetValue<string>()).ToArray())
             .IsEquivalentTo(new[] { cliHome, packages, nugetConfig, nugetData }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
-        foreach (var command in new[] { "dotnet build probe.csproj", "dotnet test probe.csproj --no-build" })
+        foreach (var command in new[] { "dotnet build probe.csproj", "dotnet run --project probe.csproj --no-build" })
         {
             var call = tools.Single(x => x["data"]!["resource"]!.GetValue<string>().Contains(command, StringComparison.Ordinal));
             await Assert.That(call["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("succeeded");
@@ -326,7 +325,14 @@ public sealed class RealBackendTests
         // command prefix distinguishes the relative inside target from the absolute outside target.
         var insideEvents = MatchingWriteEvents(tools, inside);
         var outsideEvents = MatchingWriteEvents(tools, outside);
-        if (OperatingSystem.IsWindows() || lab.Backend == "opencode")
+        if (lab.Backend == "opencode")
+        {
+            await Assert.That(insideEvents.Length).IsEqualTo(1);
+            await Assert.That(outsideEvents.Length).IsEqualTo(1);
+            await Assert.That(Array.IndexOf(tools, insideEvents[0])).IsLessThan(Array.IndexOf(tools, outsideEvents[0]));
+            return;
+        }
+        if (OperatingSystem.IsWindows())
         {
             await Assert.That(insideEvents.Length).IsEqualTo(1);
             await Assert.That(outsideEvents.Length).IsEqualTo(1);

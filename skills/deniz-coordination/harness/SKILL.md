@@ -7,7 +7,7 @@ description: The bundled dispatch harness, which runs a task file on worker mode
 
 The harness runs tasks on worker models out of process, through two equal backends, opencode and
 Codex. Per task it prepares a workspace, starts the worker, answers or escalates its asks, settles
-the result from git, runs the verify commands on the committed tree, and records every step in a
+the result from git, runs the verify commands on that result, and records every step in a
 ledger. This skill is the harness's contract.
 
 ## Boundary
@@ -29,7 +29,7 @@ dotnet dispatch.cs -- <command> [arguments]
 - Build before every command. A non-zero build exit means nothing started; fix the error or retry
   when two builds collided. The `--` keeps `dotnet` from taking flags such as `--force`.
 - Paths on the command line are absolute (task file, `--repo`, `--contract`, `--ledger`); paths in a
-  task file are relative to that file. Exception: `--contract` also accepts bundled aliases
+  task file are relative to that file, except `dir` (relative to the repository root). `--contract` also accepts bundled aliases
   `@worker-contract` and `@<model>-worker`; semantics: `references/task-file.md#contracts`.
   In PowerShell use `$PWD.ProviderPath`.
 - Run `selfcheck [--repo <path>]` on a new machine, after an update, and in a new repository. It
@@ -146,7 +146,8 @@ A recorded run is never run again and its ledger is never edited by hand.
   change returns `done` with an empty diff. The fix belongs in that repository: scope its approval
   rules to the session that talks to the user; a dispatched worker runs the task it was given.
 - **Read-only planning.** A read-only task cannot write a plan file: return the plan in the final
-  text, or run with `access: workspace` and `scope` set to the plan path.
+  text, or run it as a `code` task with `access: workspace` and `scope` set to the plan path (any change
+  by a `review` or `research` task fails scope).
 - **Long single-line inputs.** Worker read tools truncate them; give Markdown or pretty-printed JSON.
 - **Windows paths.** Deep repositories pass the path limit in worktrees: see `references/config.md`.
 - **Shell deny rules match command text only.** Treat them as a guard against mistakes.

@@ -41,15 +41,17 @@ is any subagent tool you have; the rules below hold for all of them.
    operating system, drive, and path depth it meets, or tests that do not depend on them.
 3. **Prove the base.** `git merge-base --is-ancestor <prerequisite> <base>` for every prerequisite, and
    put that SHA in the task. The worker only confirms that its HEAD equals the stated base.
-4. **Plan-first** for M-size or larger work, any new type, more than three production files, or a new file
+4. **Plan-first** for any new type, more than three production files, or a new file
    expected to exceed about 150 lines. The worker writes the plan with a required section "Contradictions
    and spec defects found"; you amend and approve it; the code task runs against the approved plan. Every
-   other spec or prompt you wrote, S tasks included, goes once in read-only mode to a worker of another
-   family to scan for contradictions before the real task; a plan step is that scan. Before you
+   other spec or prompt you wrote goes once in read-only mode to a worker of another family to scan for
+   contradictions before the real task; a plan step is that scan, and the scan's own prompt needs none.
+   Before you
    approve a plan, cut what the request did not ask for: verification and one-off checks use the tools
    the repository already has, and a one-off check is a command in a step, not a new file.
 5. **Fill the prompt** from `references/prompt-template.md`. Write only the per-task fill-in. Every
-   worker gets `references/worker-contract.md` and its model's worker block verbatim: when your
+   worker gets `references/worker-contract.md` and its model's worker block verbatim (the contract's
+   status-line rule exempts a structured task): when your
    mechanism prepends files, name them; otherwise paste them in yourself. Every value the repository
    owns elsewhere comes in as an input, never as an anchor to a document. Every term gets an in-scope
    and an out-of-scope example.
