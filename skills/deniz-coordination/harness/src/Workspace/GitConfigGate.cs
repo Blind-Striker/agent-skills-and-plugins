@@ -61,7 +61,7 @@ sealed class GitConfigGate(Git git)
             // System config needs an administrator (a Git upgrade writes it), not a worker.
             if (scope == "system") continue;
             // These command-scope entries are our per-call overrides, not repository changes.
-            if (scope == "command" && key is "core.hookspath" or "core.fsmonitor" or "commit.gpgsign" or "gc.auto" or "maintenance.auto") continue;
+            if (scope == "command" && key is "core.hookspath" or "core.fsmonitor" or "commit.gpgsign" or "gc.auto" or "maintenance.auto" or "core.longpaths") continue;
             var digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(newline < 0 ? [] : entry[(newline + 1)..]));
             if (snapshot[key] is not JsonArray entries) snapshot[key] = entries = new();
             entries.Add((JsonNode)new JsonObject { ["scope"] = scope, ["origin"] = origin, ["key"] = key, ["hasValue"] = newline >= 0, ["sha256"] = digest });
