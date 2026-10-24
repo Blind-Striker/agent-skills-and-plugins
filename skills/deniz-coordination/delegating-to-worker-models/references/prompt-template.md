@@ -62,7 +62,8 @@ keeping order, arguments, and results; no new type, no suppression">
 <the mutant class for each new bound, e.g. "a no-op that sends nothing">; <any rule from the repository
 addendum or a language reference, quoted>
 Mutant proof (when the task requires one): a mutant is a temporary write, so authorize it here. Mutate
-only <files>, one mutant at a time; after each revert, `git diff --exit-code -- <file>` must pass. Keep
+only <files>, one mutant at a time, with a clean rebuild before and after each (a stale binary can pass
+for a kill or a survivor); after each revert, `git diff --exit-code -- <file>` must pass. Keep
 those files out of the task's scope, so settlement still catches a mutant left behind.
 
 ## Refactor only                           (changes to existing behaviour-preserving code)
