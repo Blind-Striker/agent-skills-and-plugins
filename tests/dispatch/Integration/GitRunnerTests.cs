@@ -293,7 +293,7 @@ public sealed class GitRunnerTests
         var config = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "config")).FullName;
         await File.WriteAllTextAsync(Path.Combine(config, "config.jsonc"), """{"schemaVersion":2,"preferences":{"backend":"opencode"},"restrictions":{"routes":["opencode:fixture/model"],"deny":[{"name":"no-edits","action":"edit","resources":["*"]}]},"instructions":["Report findings only."]}""", ct);
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
-        var task = JsonNode.Parse("""{"schemaVersion":2,"run":"git-test","tasks":[{"id":"inspect","kind":"code","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""")!;
+        var task = JsonNode.Parse("""{"schemaVersion":2,"run":"git-test","tasks":[{"id":"inspect","kind":"code","access":"full","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""")!;
         task["tasks"]![0]!["scope"] = new JsonArray(scope.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray());
         await File.WriteAllTextAsync(tasks, task.ToJsonString(), ct);
         using var harness = new HarnessProcess(tree);

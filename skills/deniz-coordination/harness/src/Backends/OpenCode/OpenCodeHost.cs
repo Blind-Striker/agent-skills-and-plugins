@@ -93,6 +93,7 @@ sealed class HarnessServer : IAsyncDisposable
     Task _pump = Task.CompletedTask;
     Task? _disposal;
     readonly object _disposeGate = new();
+    string[] _privateFolders = [];
     public bool IsStopping { get; private set; }
 
     HarnessServer(OpenCodeServer server, OpenCodeClient client, OpenCodeServerOutput output, string commandDescription)
@@ -157,7 +158,8 @@ sealed class HarnessServer : IAsyncDisposable
             var inherited = WorkerEnvironment.Snapshot();
             foreach (var (name, value) in environment) inherited[name] = value;
             string? common = null;
-            var git = await Git.Default.RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
+            var git = await new Git(Executables.Resolve("git"), profileRoot, launch.Environment)
+                .RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
             if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
             var writable = Ready.WritableSet(launch, profileRoot, inherited.GetValueOrDefault("HOME")
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), inherited, common);
@@ -192,6 +194,8 @@ sealed class HarnessServer : IAsyncDisposable
 
         var description = command[0].EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? "opencode.exe (shim resolved)" : command[0];
         var host = new HarnessServer(server, server.CreateClient(), output, description);
+        if (launch is not null && Ready.Fenced(modes))
+            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"]];
         try
         {
             var info = await Ready.PollAsync(() => host.Client.Server.GetInfoAsync(cancellationToken: ct), TimeSpan.FromSeconds(60), "server info", ct);
@@ -337,6 +341,9 @@ sealed class HarnessServer : IAsyncDisposable
                     // the profile folder; the SDK's Exited completes only once the handle signals.
                     try { await Server.Exited.WaitAsync(ExitConfirmation); }
                     catch (TimeoutException) { /* Unconfirmed: StopTreeAsync reports not stopped. */ }
+                    if (Server.Exited.IsCompletedSuccessfully)
+                        foreach (var folder in _privateFolders)
+                            if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
                 }
                 finally
                 {

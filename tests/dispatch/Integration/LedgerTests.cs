@@ -130,7 +130,7 @@ public sealed class LedgerTests
         var config = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "config")).FullName;
         await File.WriteAllTextAsync(Path.Combine(config, "config.jsonc"), """{"schemaVersion":2,"preferences":{"backend":"opencode"},"restrictions":{"routes":["opencode:fixture/model"],"deny":[{"name":"no-edits","action":"edit","resources":["*"]}]},"instructions":["Report findings only."]}""", cancellationToken);
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
-        await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"run":"recover","tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
+        await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"run":"recover","tasks":[{"id":"inspect","kind":"research","access":"full","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
         var scenario = Path.Combine(tree.Root, "running.jsonl");
         var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(line => JsonNode.Parse(line)!.AsObject()).ToArray();
         steps.Single(step => step["expect"]!.GetValue<string>() == "GET /api/form").Remove("events");

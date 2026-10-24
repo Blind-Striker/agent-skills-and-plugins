@@ -22,6 +22,15 @@ internal sealed class Scenario : IDisposable
     {
         steps = File.ReadLines(path).Where(line => !string.IsNullOrWhiteSpace(line))
             .Select(line => JsonNode.Parse(line)!.AsObject()).ToArray();
+        // D7: fenced read-only tasks retain their shell. Normalize fixtures, not matching.
+        if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            foreach (var step in steps.Where(step => step["expect"]!.GetValue<string>() == "POST /api/session"))
+                if (step["body"]?["permissions"] is JsonArray rules
+                    && rules.Any(rule => rule?["action"]?.GetValue<string>() == "edit"
+                        && rule["resource"]?.GetValue<string>() == "*" && rule["effect"]?.GetValue<string>() == "deny"))
+                    foreach (var rule in rules.Where(rule => rule?["action"]?.GetValue<string>() == "shell"
+                        && rule["resource"]?.GetValue<string>() == "*" && rule["effect"]?.GetValue<string>() == "deny").ToArray())
+                        rules.Remove(rule);
         this.record = record;
     }
 

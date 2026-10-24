@@ -88,7 +88,7 @@ internal sealed class OpenCodeLab : IAsyncDisposable
     }
 
     public Task<CreateResult> CreateAsync(string id, CancellationToken ct) => Backend.CreateAsync(new("run", id, "research",
-        new("fixture", "model", null), null, "build", new("full", "on", "read-only", "on", "worktree"),
+        new("fixture", "model", null), null, "build", new("full", "on", "full", "on", "worktree"),
         Tree.Repository, new([], []), Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!), null, "full", null), ct);
 
     public async Task<WorkerSignal> ReadAsync(Func<WorkerSignal, bool> match, CancellationToken ct)

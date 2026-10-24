@@ -239,6 +239,9 @@ public sealed class OpenCodeModesTests
         while (!File.Exists(arrived) && !creating.IsCompleted) await Task.Delay(10, ct);
         var host = lab.Hosts().Single();
         var process = ObservedProcess.Capture(host["pid"]!.GetValue<int>());
+        // Guard: both private folders must exist while the server is live.
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsTrue();
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "tmp"))).IsTrue();
         await File.WriteAllTextAsync(release, "release", ct);
         HarnessException? failure = null;
         try { await creating; }
@@ -248,7 +251,48 @@ public sealed class OpenCodeModesTests
         foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
             await Assert.That(host["environment"]![name]!.GetValue<string>()).IsEqualTo(Path.Combine(launch.Environment["TEMP"], "tmp"));
         await Assert.That(host["environment"]!["XDG_CACHE_HOME"]!.GetValue<string>()).IsEqualTo(Path.Combine(launch.Environment["TEMP"], "cache"));
-        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsTrue();
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsFalse();
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "tmp"))).IsFalse();
+    }
+
+    [Test]
+    public async Task Fenced_disposal_removes_private_folders_without_removing_task_or_peer_temp(CancellationToken ct)
+    {
+        if (Ready.FenceKind is null) Skip.Test("opencode runs unfenced on Windows.");
+        if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
+        await using var lab = new OpenCodeLab();
+        lab.Create("worker");
+        lab.Create("peer");
+        lab.Add("DELETE /api/session/worker", status: 204);
+        lab.Write();
+        WorkerLaunch TaskLaunch(string id)
+        {
+            var launch = Launch(lab, id);
+            var environment = new Dictionary<string, string>(launch.Environment);
+            foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+                environment[name] = Path.Combine(lab.Tree.Root, id);
+            return launch with { Environment = environment };
+        }
+        var launch = TaskLaunch("worker");
+        var peerLaunch = TaskLaunch("peer");
+        var worker = (await lab.Backend.CreateAsync(launch, ct)).Worker;
+        var peer = (await lab.Backend.CreateAsync(peerLaunch, ct)).Worker;
+        foreach (var task in new[] { launch, peerLaunch })
+        {
+            File.WriteAllText(Path.Combine(task.Environment["TEMP"], "keep"), task.TaskId);
+            foreach (var name in new[] { "cache", "tmp" })
+                File.WriteAllText(Path.Combine(task.Environment["TEMP"], name, "server-file"), name);
+        }
+        await lab.Backend.ReleaseAsync(worker, ct);
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsFalse();
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "tmp"))).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(launch.Environment["TEMP"], "keep"))).IsEqualTo("worker");
+        foreach (var name in new[] { "cache", "tmp" })
+            await Assert.That(File.ReadAllText(Path.Combine(peerLaunch.Environment["TEMP"], name, "server-file"))).IsEqualTo(name);
+        await Hosts(lab.Backend)[peer.State["host"]!.GetValue<string>()].DisposeAsync();
+        await Assert.That(Directory.Exists(Path.Combine(peerLaunch.Environment["TEMP"], "cache"))).IsFalse();
+        await Assert.That(Directory.Exists(Path.Combine(peerLaunch.Environment["TEMP"], "tmp"))).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(peerLaunch.Environment["TEMP"], "keep"))).IsEqualTo("peer");
     }
 
     [Test]

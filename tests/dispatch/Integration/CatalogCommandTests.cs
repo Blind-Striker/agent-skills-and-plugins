@@ -665,9 +665,12 @@ public sealed class CatalogCommandTests
     static Dictionary<string, string?> Discoverable(CodexLab lab, bool opencode, bool codex)
     {
         var environment = Configure(lab, both: true);
-        File.Delete(Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc"));
+        var configPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
+        var opencodeExecutable = JsonNode.Parse(File.ReadAllText(configPath))!["backends"]!["opencode"]!["executable"]!.GetValue<string>();
+        File.Delete(configPath);
         var paths = new List<string> { Path.GetDirectoryName(Executables.Resolve("git"))! };
-        if (opencode) paths.Add(Path.GetDirectoryName(FakeOpenCode.Executable)!);
+        if (Ready.FenceKind is { } fence) paths.Add(Path.GetDirectoryName(Executables.Resolve(fence))!);
+        if (opencode) paths.Add(Path.GetDirectoryName(opencodeExecutable)!);
         if (codex) paths.Add(Path.GetDirectoryName(CodexLab.Executable)!);
         environment["PATH"] = string.Join(Path.PathSeparator, paths);
         environment["PATHEXT"] = ".EXE;.CMD;.BAT;.COM";
@@ -712,12 +715,12 @@ public sealed class CatalogCommandTests
         steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_fixture", ["status"] = 204 });
         steps.Add(new JsonObject { ["expect"] = "GET /api/session/ses_fixture", ["status"] = 404,
             ["reply"] = new JsonObject { ["_tag"] = "SessionNotFoundError", ["sessionID"] = "ses_fixture", ["message"] = "removed" } });
+        var launchStart = steps.Count;
         steps.Add(new JsonObject { ["expect"] = "POST /api/session", ["reply"] = OpenCodeLab.Session("ses_launch") });
         steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_fixture/environment", ["status"] = 204 });
         steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_launch/environment", ["status"] = 204 });
         steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_launch", ["status"] = 204 });
-        File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
-        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        FakeOpenCode.SelfcheckScenario(lab.Tree, scenario, steps, launchStart, environment);
         return environment;
     }
 }

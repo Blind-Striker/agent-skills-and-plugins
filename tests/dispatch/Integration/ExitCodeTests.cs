@@ -72,12 +72,12 @@ public sealed class ExitCodeTests
             steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_fixture", ["status"] = 204 });
             steps.Add(new JsonObject { ["expect"] = "GET /api/session/ses_fixture", ["status"] = 404,
                 ["reply"] = new JsonObject { ["_tag"] = "SessionNotFoundError", ["sessionID"] = "ses_fixture", ["message"] = "removed" } });
+            var launchStart = steps.Count;
             steps.Add(new JsonObject { ["expect"] = "POST /api/session", ["reply"] = OpenCodeLab.Session("ses_launch") });
             steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_launch/environment", ["status"] = 204 });
             steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_launch", ["status"] = 204 });
             var scenario = Path.Combine(tree.Root, "selfcheck.jsonl");
-            File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
-            env["FAKE_OPENCODE_SCENARIO"] = scenario;
+            FakeOpenCode.SelfcheckScenario(tree, scenario, steps, launchStart, env);
         }
         using var child = new HarnessProcess(tree);
 
