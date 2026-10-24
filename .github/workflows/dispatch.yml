@@ -58,7 +58,8 @@ jobs:
           sudo apt-get install -y bubblewrap
           if ! bwrap --ro-bind / / --dev /dev true 2>bwrap.err; then
             cat bwrap.err
-            if grep -qi "namespace" bwrap.err; then sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0; fi
+            # Ubuntu 24.04's AppArmor restriction shows as "setting up uid map: Permission denied".
+            if grep -qiE "namespace|uid map" bwrap.err; then sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0; fi
             bwrap --ro-bind / / --dev /dev true
           fi
       - name: Unit and Integration tests
