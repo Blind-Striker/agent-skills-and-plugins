@@ -16,7 +16,7 @@ sealed record WorkerRules(IReadOnlyList<EffectiveRule> Deny, IReadOnlyList<Effec
 sealed record WorkerLaunch(
     string RunId, string TaskId, string Kind, RouteRef Route, string? Agent, string? Persona,
     Modes Modes, string Directory, WorkerRules Rules, IReadOnlyDictionary<string, string> Environment,
-    JsonObject? OutputSchema, string ProfileActual, string? ProfileReason)
+    JsonObject? OutputSchema, string ProfileActual, string? ProfileReason, IReadOnlyList<string>? WritableRoots = null)
 {
     public string ProfileActual { get; } = BackendValues.Profile(ProfileActual, ProfileReason);
     public string? ProfileReason { get; } = ProfileReason;

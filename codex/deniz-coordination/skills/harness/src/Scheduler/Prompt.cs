@@ -79,9 +79,13 @@ static class Prompt
         var references = Path.GetFullPath(Path.Combine(harnessRoot, "..", "delegating-to-worker-models", "references"));
         if (alias == "@worker-contract") return Path.Combine(references, "worker-contract.md");
         var model = Regex.Match(alias, @"\A@([^/\\]+)-worker\z", RegexOptions.CultureInvariant);
-        if (model.Success && model.Groups[1].Value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
-            return Path.Combine(references, "models", model.Groups[1].Value + ".md");
-        throw new HarnessException($"unknown contract alias {alias}; known: @worker-contract, @<model>-worker (looked in {references})");
+        if (model.Success && model.Groups[1].Value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
+            && Path.Combine(references, "models", model.Groups[1].Value + ".md") is var path && File.Exists(path))
+            return path;
+        var models = Directory.Exists(Path.Combine(references, "models"))
+            ? Directory.GetFiles(Path.Combine(references, "models"), "*.md").Select(Path.GetFileNameWithoutExtension)
+                .Where(name => name != "README").Order(StringComparer.Ordinal).Select(name => $"@{name}-worker") : [];
+        throw new HarnessException($"unknown contract alias {alias}; known: {string.Join(", ", models.Prepend("@worker-contract"))} (looked in {references})");
     }
 
     static void CheckRaw(bool raw, TaskSpec task, int contracts, int instructions)

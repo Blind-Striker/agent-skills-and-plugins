@@ -4,9 +4,12 @@ static class OpenCodeRules
 {
     // Agent rules precede these. Last match wins, so every deny follows every escalation.
     public static AppliedEnforcement Enforcement(Modes modes) => new(
-        modes.Access == "read-only" ? "policy" : "none", modes.Network == "off" ? "policy" : "none", "policy");
+        Ready.Fenced(modes) ? "sandbox" : modes.Access == "read-only" ? "policy" : "none", modes.Network == "off" ? "policy" : "none", "policy");
 
     public static List<PermissionRule> Render(WorkerRules source, string? run = null, Modes? modes = null)
+        => Render(source, run, modes, Ready.FenceKind);
+
+    internal static List<PermissionRule> Render(WorkerRules source, string? run, Modes? modes, string? fenceKind)
     {
         List<PermissionRule> rules = [];
         // Override inherited shell allows; only explicit escalation may reach the harness.
@@ -17,7 +20,7 @@ static class OpenCodeRules
          .. source.Deny.SelectMany(rule => rule.Resources.Select(resource => new PermissionRule
          { Action = rule.Action, Resource = resource, Effect = PermissionEffect.Deny }))]);
         if (modes?.Access == "read-only") rules.Add(new() { Action = "edit", Resource = "*", Effect = PermissionEffect.Deny });
-        if (modes?.Access == "read-only" && modes.ReadOnlyShell == "decline")
+        if (modes?.Access == "read-only" && modes.ReadOnlyShell == "decline" && fenceKind is null)
             rules.Add(new() { Action = "shell", Resource = "*", Effect = PermissionEffect.Deny });
         if (modes?.Network == "off")
         {

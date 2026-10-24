@@ -8,6 +8,7 @@ sealed partial class OpenCodeBackend
 
     async Task<WorkerReport> CollectCoreAsync(WorkerRef worker, CancellationToken ct)
     {
+        if (LostFence(worker)) return new("lost", null, new(), null, false, [], "fenced opencode server is no longer live", true);
         var server = await HostAsync(worker, ct);
         var session = server.Client.Sessions.GetSessionClient(worker.Id);
         SessionInfo info;

@@ -26,7 +26,8 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         return (new(runId, record.Spec.Id!, record.Spec.Kind!, route!, record.Spec.Agent,
             record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
             record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
-            record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason), removed);
+            record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason,
+            record.Settings.WritableRoots?.Value), removed);
     }
 
     public void CheckAllowed(TaskRun run)

@@ -344,7 +344,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded | Verify summary; `commands` includes not-run records; `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |
-| `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. |
+| `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. `tokensIn` and `tokensOut` are `result.json`'s `tokens.input` and `tokens.output`, respectively. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
 | `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |
 | `cleaned` | Optional `worktree`/`branch` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. |
@@ -359,8 +359,10 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 The pending `warning` event for Windows user PATH changes is described under the
 [Windows user PATH guard](cli.md#windows-user-path-guard).
 
-The Git guard excludes only exact `branch.<name>.remote`, `.merge` and `.rebase` keys for branches
-the harness does not own: every branch outside `dispatch/`, the prefix of the `dispatch/<run>/<task>`
+The Git configuration check ignores entries with `system` scope; global, local and worktree entries
+are still compared. Among the remaining entries, the Git guard excludes only exact
+`branch.<name>.remote`, `.merge` and `.rebase` keys for branches the harness does not own: every branch
+outside `dispatch/`, the prefix of the `dispatch/<run>/<task>`
 branches the harness creates. The exclusion applies to both baseline and current keys; owned-branch keys, all other config and hook changes retain their existing ordering,
 hashing and blocking behavior. Cleanup never refreshes the baseline.
 

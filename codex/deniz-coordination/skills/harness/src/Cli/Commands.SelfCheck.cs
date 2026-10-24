@@ -28,7 +28,7 @@ static partial class Commands
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
         layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
-        if (selectedBackends.Count == 0) selectedBackends = InstalledBackends();
+        if (a.Get("backend") is null && a.Positional.Count == 0) selectedBackends = InstalledBackends(selectedBackends);
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");
         Check("policy", true, layers.Policy.Describe());
@@ -53,7 +53,7 @@ static partial class Commands
                 {
                     var depth = await Worktree.PathDepthAsync(git, repo,
                         Locations.Worktree("selfcheck", $"{DateTime.UtcNow:yyyy-MM-dd}-selfcheck"), ct);
-                    Check("worktree path depth", true, depth.Detail, warn: depth.Length >= 248);
+                    Check("worktree path depth", true, depth.Length >= 248 ? depth.Detail : depth.Detail[..depth.Detail.IndexOf("; builds", StringComparison.Ordinal)], warn: depth.Length >= 248);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 { Check("worktree path depth", true, ex.Message, warn: true); }
@@ -70,6 +70,11 @@ static partial class Commands
             foreach (var selected in selectedBackends)
             {
                 Console.WriteLine($"backend {selected}");
+                if (selected == "opencode")
+                {
+                    var refusal = await Ready.FenceAsync(ct);
+                    Check("opencode fence", refusal is null, refusal ?? Ready.FenceKind ?? "unfenced on Windows", warn: Ready.FenceKind is null);
+                }
                 try
                 {
                     await using var scope = new BackendScope([selected]);
@@ -228,32 +233,34 @@ static partial class Commands
         return failed == 0 ? 0 : 1;
     }
 
-    static IReadOnlyList<string> InstalledBackends()
+    // The configured backends in their order, then every other installed one (opencode, then codex).
+    static IReadOnlyList<string> InstalledBackends(IReadOnlyList<string> configured)
     {
         var installed = new List<string>();
+        static bool CodexInstalled()
+        {
+            try
+            {
+                _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
+                return true;
+            }
+            catch (HarnessException ex)
+            {
+                // A resolved but unusable executable must reach the live check for its diagnostic.
+                return !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
+            }
+        }
         foreach (var name in new[] { "opencode", "codex" })
         {
-            var found = false;
-            if (name == "opencode") found = OpenCodeInstalled(HarnessServer.Command(null)[0]);
-            else
-            {
-                try
-                {
-                    _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
-                    found = true;
-                }
-                catch (HarnessException ex)
-                {
-                    // A resolved but unusable executable must reach the live check for its diagnostic.
-                    found = !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
-                }
-            }
+            // A configured backend is checked even when PATH lacks it: its configured executable decides.
+            var found = configured.Contains(name) || (name == "opencode" ? OpenCodeInstalled(HarnessServer.Command(null)[0]) : CodexInstalled());
+            if (configured.Contains(name)) continue;
             if (found) installed.Add(name);
             else Console.WriteLine($"SKIP  backend {name}: not installed ({name} on PATH)");
         }
-        if (installed.Count == 0)
+        if (installed.Count == 0 && configured.Count == 0)
             throw new HarnessException("no backend installed; install opencode or Codex, or set backends.<name>.executable");
-        return installed;
+        return [.. configured, .. installed];
     }
 
     static bool OpenCodeInstalled(string command)

@@ -58,6 +58,11 @@ static class ConfigResolver
             Network = Pick("on", p => p.Network),
             Workspace = Pick("worktree", p => p.Workspace),
             TempRoot = Pick<string>(null, p => p.TempRoot),
+            WritableRoots = new()
+            {
+                Value = layers.SelectMany(x => x.Preferences?.WritableRoots ?? []).Distinct(StringComparer.Ordinal).ToList(),
+                From = string.Join(",", layers.Where(x => x.Preferences?.WritableRoots is { Count: > 0 }).Select(x => x.Name)) is { Length: > 0 } from ? from : "tool",
+            },
             Commit = Pick("none", p => p.Commit),
             Dir = new() { Value = task.Dir ?? defaults?.Dir ?? ".", From = task.Dir is not null ? "task" : defaults?.Dir is not null ? "task-file-defaults" : "tool" },
             RawPrompt = new() { Value = false, From = "tool" },
@@ -85,6 +90,14 @@ static class ConfigResolver
         Choice(settings.Workspace, "worktree", "in-place");
         if (settings.TempRoot.Value is { } tempRoot && !Path.IsPathFullyQualified(tempRoot))
             throw new HarnessException("tempRoot must be an absolute path");
+        foreach (var root in settings.WritableRoots.Value!)
+        {
+            if (!Path.IsPathFullyQualified(root)) throw new HarnessException($"{task.Id}: writableRoots from {settings.WritableRoots.From} must hold absolute paths: {root}");
+            // A writable root must not open the harness's own folders to the worker, also through a link.
+            foreach (var (folder, name) in new[] { (Locations.ControlRoot, "control root"), (Locations.LedgerRoot, "ledger root") })
+                if (Worktree.IsInside(Worktree.RealPath(root), Worktree.RealPath(folder)) || Worktree.IsInside(Worktree.RealPath(folder), Worktree.RealPath(root)))
+                    throw new HarnessException($"{task.Id}: writableRoots from {settings.WritableRoots.From} must not contain or lie inside the {name}: {root}");
+        }
         if (settings.TempRoot.Value is { } absoluteTempRoot)
             foreach (var (root, name) in new[] { (Locations.WorktreeRoot, "worktree root"), (Locations.LedgerRoot, "ledger root") })
                 if (Worktree.IsInside(absoluteTempRoot, root))
@@ -159,7 +172,7 @@ static class ConfigResolver
             new RuleEnforcement { Name = rule.Name, Enforcement = rule.Enforcement[settings.Backend.Value!] }).ToList();
         if (settings.Backend.Value == "codex")
             config.Warnings.AddRange(settings.Rules.Select(r => $"{task.Id}: {r.Name} is enforced at the approval gate only"));
-        config.Warnings.AddRange(CapabilityNotes(settings).Select(note => $"{task.Id}: {note}"));
+        if (settings.Backend.Value == "codex") config.Warnings.AddRange(CapabilityNotes(settings).Select(note => $"{task.Id}: {note}"));
         if (settings.RawPrompt.Value && (config.Instructions.Count > 0 || task.Contracts is { Count: > 0 }))
             throw new HarnessException($"{task.Id}: rawPrompt from {settings.RawPrompt.From} conflicts with contracts or instructions from {string.Join(", ", config.Instructions.Select(i => i.From).Distinct())}");
         return settings;
@@ -167,6 +180,8 @@ static class ConfigResolver
 
     public static List<string> CapabilityNotes(EffectiveSettings settings)
     {
+        if (OperatingSystem.IsWindows() && settings.Backend?.Value == "opencode" && settings.Access?.Value is "read-only" or "workspace")
+            return ["opencode runs unfenced on Windows"];
         if (settings.Backend?.Value != "codex" || settings.Access?.Value != "read-only") return [];
         var layers = (settings.Profile?.Actual ?? settings.Profile?.Value) == "clean"
             ? "only system-level" : "user and system-level";

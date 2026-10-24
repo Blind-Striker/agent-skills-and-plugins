@@ -33,6 +33,7 @@ class TaskPreferences : AnnotatedObject
     public string? Network { get; set; }
     public string? Workspace { get; set; }
     public string? TempRoot { get; set; }
+    public List<string>? WritableRoots { get; set; }
     public string? Commit { get; set; }
     public bool? RawPrompt { get; set; }
 }

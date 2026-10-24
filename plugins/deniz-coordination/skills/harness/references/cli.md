@@ -38,7 +38,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--contract <path or alias>` | repeatable absolute file or bundled alias | None | Plan/run, prepended to every task after file contracts. Ordinary relative paths: `--contract must be an absolute path`. Alias semantics: [Contracts](task-file.md#contracts). |
 | `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
-| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` discovers installed backends when those layers name none. `opencode` or `codex`. |
+| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` also checks every installed backend. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
@@ -70,17 +70,20 @@ Sends no prompt. Prints the allow-list and policy, the state, worktree and contr
 Windows a warning when git's `core.longpaths` is not true and when the user PATH in the registry
 exceeds 8,000 characters. The backends checked are `--backend`, else every backend the task file and
 the configuration layers name (preferred backend, default routes, allow-list, task backends, then
-configured backends). If none is named and no task file was supplied, it discovers installed
-backends in order: `opencode`, then `codex`, before preparing a worktree or creating backend
-instances. Installed means the executable resolves through that backend's launch lookup, not
-that its version, sign-in or server readiness has passed. OpenCode retains native npm-shim
+configured backends). Without `--backend` and without a task file, it also discovers installed
+backends, even when configuration names only one backend. Discovery probes `opencode`, then `codex`,
+before preparing a worktree or creating backend instances; the combined selection is deduplicated
+and checked in ordinal name order (`codex`, then `opencode`). Installed means the executable resolves
+through that backend's launch lookup, not that its version, sign-in or server readiness has passed.
+OpenCode retains native npm-shim
 selection and the pinned SDK's PATH/PATHEXT lookup, including relative PATH entries; Codex uses
 the shared resolution described below. Each unresolved candidate prints exactly
 `SKIP  backend <name>: not installed (<name> on PATH)`; skips are not failed checks. If neither
 resolves, stderr prints `dispatch: no backend installed; install opencode or Codex, or set backends.<name>.executable`
 and the command exits 2. A supplied task file retains the empty-selection refusal:
 `dispatch: no backend configured; set preferences.backend, defaultRoutes or --backend`.
-Named backends are never skipped: a missing executable remains a failed check (exit 1).
+With `--backend` or a task file, named backends are never skipped: a missing executable remains a
+failed check (exit 1).
 Resolved executables undergo every existing probe and launch check; version, login and launch
 failures remain failures and do not prevent checking the next backend.
 An executable that resolves but is unusable, including PowerShell-only Codex, is installed for
@@ -95,14 +98,25 @@ release succeeds; otherwise `FAIL  launch: <exception message>` makes the exit c
 continue for other backends. Synthetic task temporary folders and backend-owned homes are cleaned up.
 With `--repo` or a task-file `repo`, it also creates a detached test worktree at HEAD and
 removes it afterwards; without one it prints `repository checks skipped`. Its temporary folder is
-removed on exit. Prints `PASS`, `WARN` or `FAIL` per check. A successful clean-profile validation
+removed on exit. Check lines use `PASS`, `WARN`, `FAIL` or discovery's `SKIP`; not every output line
+has one of those prefixes. The headers and context lines `state folder:`, `worktree root:`,
+`control root:`, `backend <name>`, `control folder:`, `hardlink volume:` and `sandbox:` are unprefixed
+(`hardlink volume:` and `sandbox:` describe Codex). A successful clean-profile validation
 that falls back to `clean-partial` is `WARN`, including the profile reason; validation errors remain
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
+Each opencode section prints exactly one fence check: `PASS  opencode fence: bwrap` on ready Linux,
+`PASS  opencode fence: sandbox-exec` on ready macOS, or
+`WARN  opencode fence: unfenced on Windows`. A failed readiness check prints
+`FAIL  opencode fence: opencode fence unavailable (<detail>)`, appending the Linux installation and
+AppArmor prerequisite below, and fails selfcheck. The Windows line contributes one warning.
+
 With a repository on Windows, `worktree path depth` measures
 `<resolved worktree root>\<yyyy-MM-dd>-selfcheck\selfcheck` (today's UTC date) plus the longest tracked
-path at HEAD: `PASS` below 248 characters, `WARN` at 248 or more, never `FAIL`. A measurement error
+path at HEAD: `PASS` below 248 characters, `WARN` at 248 or more, never `FAIL`. A passing line carries
+only `worktree paths reach <n> characters (<file>)`; the short-root advice, including
+`Set locations.worktreeRoot`, appears only on the depth `WARN` line. A measurement error
 prints `WARN` with its reason and checks continue; cancellation still propagates.
 See [worktree root configuration](config.md#files-and-locations) for the trade-off.
 
@@ -123,8 +137,8 @@ still fail. This line is absent on Linux/macOS and from OpenCode sections.
 ### Configured backend coverage
 
 `selfcheck` and `routes` cover every configured backend, each in its own labelled section, unless
-`--backend` limits selection. Only task-file-free `selfcheck` falls back to installed-backend
-discovery when none is named; `routes` retains the empty-selection refusal above. A task
+`--backend` limits selection. Without `--backend`, task-file-free `selfcheck` additionally discovers
+installed backends as described above; `routes` retains the empty-selection refusal above. A task
 route may carry its backend prefix, such as `codex:<model>#<effort>`, when it matches the task's
 resolved `backend`; a prefix naming another backend is a plan error that names both.
 
@@ -166,6 +180,24 @@ starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. 
 `plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
 creates no recorded run.
 
+For each task with contracts, `plan` prints
+`INFO <task>: contracts <alias or path> (<version line>); ...` in prepend order, after path
+deduplication. Bundled contracts use their supplied alias; ordinary files use their resolved path.
+The version is the recorded selected first line described under [Contracts](task-file.md#contracts).
+A `code` or `mechanical` task that is not `rawPrompt` and has no contract file named
+`worker-contract.md` gets
+`WARN <task>: no worker contract; add "@worker-contract" (and "@<model>-worker") to contracts`.
+This is advisory, not a plan refusal; an explicit path to `worker-contract.md` also satisfies it.
+
+For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
+`INFO <task>: fenced (bwrap)` or `INFO <task>: fenced (sandbox-exec)` and records access enforcement
+as `sandbox`. If not ready, it refuses with
+`ERROR <task>: opencode fence unavailable (<detail>)`; Linux appends
+`; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)`.
+There is no unfenced fallback. On Windows it prints
+`WARN <task>: opencode runs unfenced on Windows; access <value> is enforced by permission rules only`,
+and result capability notes include `opencode runs unfenced on Windows`. Full access gets no fence line.
+
 For every non-structured task, in task-file order, `plan` also prints
 `INFO <task>: temp <resolved folder> (tempRoot from <layer>)`, or
 `INFO <task>: temp <resolved folder> (default)` when unset. It creates no temporary folder.
@@ -204,7 +236,8 @@ For each read-only task, an `INFO` line states its shell, per backend, with the 
 | Backend | `decline` | `escalate` |
 |---|---|---|
 | Codex | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
-| opencode | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode Linux/macOS | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode Windows | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
 
 ### Inherited Codex rules on read-only tasks
 
@@ -304,7 +337,8 @@ It does not re-prompt. A released done opencode session is not collectible.
 Takes the run lock, requires `setup.done`, reloads frozen settings, resets stale asks and reconciles
 non-final tasks. Without `--continue`, never-prompted tasks remain queued and interrupted opencode
 sessions settle as failed. With it, queued tasks start and interrupted opencode sessions receive a
-fixed continuation line. Started Codex tasks cannot continue; either form recovers their backend
+fixed continuation line when their server is recoverable. Fenced opencode tasks whose server is gone
+cannot continue and settle as `lost`, without starting a replacement. Started Codex tasks cannot continue; either form recovers their backend
 outcome as `lost`, with recorded cancellation or timeout taking precedence in settlement.
 Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
 status summary. Recovery is backend-specific; see [backends](backends.md).

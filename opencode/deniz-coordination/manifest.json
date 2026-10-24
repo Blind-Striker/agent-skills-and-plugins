@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.1.2",
-  "digest": "sha256:c8bc3bf7b3d9e8a4baf5bc2fad2237df2706743c2438a3f7785c7f955ad86304",
+  "digest": "sha256:6e026cf40b1ad92c47324776045a0b4d269f4df50f101c36c4387988597f2293",
   "requiredModules": [
     "deniz-process"
   ],
@@ -28,7 +28,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:8b9ff4acdf0eae38acbed77ede27c641e6345b8f0f5e1680f87eb29f2ec03a47",
+      "sha256": "sha256:3ed079ad14425676cc849fd751662611e40afe5f3e89fe30bc81cdf7cb54318d",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
@@ -52,7 +52,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/prompt-template.md": {
-      "sha256": "sha256:59e27b8a8f85ef59af1d9fba0902c590404c1ea05334e2f2b79293348807f310",
+      "sha256": "sha256:d346370334528135d0350142b2dac1895f47252894ef97bcda8222b069bb20c3",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/repo-addendum-template.md": {
@@ -60,7 +60,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/test-oracles.md": {
-      "sha256": "sha256:d4c6f08d95de3daadcdbb34769d2ea777d5f2060cc1ee4ec713176f6c97890db",
+      "sha256": "sha256:de7e54ba589ac98d836e3e07ab54c1d2e90e1a657dddf9fcf1b54428c6d5821b",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/walls/README.md": {
@@ -84,7 +84,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:9117f6c378801b422d0dc3d6c4a825a0c21fe76993c916f493bbb56e6dd25d83",
+      "sha256": "sha256:52601bbd55fbbc5137c70d099dd08a8b45d4fc1bac40946b643725d42ddac5e6",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {

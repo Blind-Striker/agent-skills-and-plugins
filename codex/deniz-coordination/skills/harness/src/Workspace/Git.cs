@@ -87,7 +87,9 @@ sealed class Git
             var started = DateTime.UtcNow;
             var result = await Proc.RunAsync(file,
                 ["-C", repo, "-c", $"core.hooksPath={hooks}", "-c", "core.fsmonitor=false", "-c", "commit.gpgSign=false",
-                    "-c", "gc.auto=0", "-c", "maintenance.auto=false", .. commandArgs],
+                    "-c", "gc.auto=0", "-c", "maintenance.auto=false",
+                    // Git for Windows refuses paths past 260 characters without it; config reads keep the repository's own value.
+                    .. OperatingSystem.IsWindows() && commandArgs.FirstOrDefault() != "config" ? ["-c", "core.longpaths=true"] : Array.Empty<string>(), .. commandArgs],
                 repo, callToken, timeout, environment: childEnvironment);
             if (result.TimedOut && result.Killed && !lockExisted && lockPath is not null && File.Exists(lockPath)
                 && File.GetCreationTimeUtc(lockPath) >= started)

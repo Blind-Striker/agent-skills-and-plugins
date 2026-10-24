@@ -13,14 +13,17 @@ composition and [configuration](config.md) for restrictions.
 |---|---|---|---|---|
 | `profile` | Enum; `clean` for structured or read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
-| `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Read-only denies `edit`, recorded `policy`, and with the default `readOnlyShell: decline` it declines every shell call, so a read-only opencode task has no shell (no `git`); this differs from Codex and is part of the open sandbox design. Workspace/full add no access rule, recorded `none`. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows sandboxed tasks require ready setup. |
+| `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Linux/macOS: read-only and workspace are fenced, recorded `sandbox`; read-only keeps its shell and denies `edit`. Windows: unfenced; read-only denies `edit` and, with `readOnlyShell: decline`, every shell call (no `git`), recorded `policy`; workspace is `none`. Full is unfenced, recorded `none`, on every OS. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows Codex sandboxed tasks require ready setup. Missing opencode fence readiness refuses plan/run, never falls back. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
 | `workspace` | Enum; `worktree` | Core prepares the folder. | Same core workspace rules. | `worktree` or `in-place`; structured tasks bypass Git workspace preparation. |
 
-opencode has no OS sandbox. A shell command can write despite an edit deny, reach the network
-despite web-tool denies, and modify harness state. Workspace scope is a settle-time check, not a
-filesystem boundary. Codex writable roots contain the task folder for workspace access. Full access
-removes the sandbox boundary. Verify runs outside backend sandboxing as the user on both backends.
+opencode uses bubblewrap (`bwrap`) on Linux and `sandbox-exec` on macOS for read-only and workspace
+access; Windows remains unfenced. Workspace scope is a settle-time check, not a filesystem boundary.
+Both backends' workspace writable roots include the task folder, task temp and configured
+[`writableRoots`](config.md#writable-roots). Full access removes the sandbox boundary. An unfenced
+opencode shell can write despite an edit deny and modify harness state. On every OS, opencode
+network-off is tool-level only: a shell can reach the network despite web-tool denies. Verify runs
+outside backend sandboxing as the user on both backends.
 
 ## Rules, asks and results
 
@@ -34,7 +37,7 @@ removes the sandbox boundary. Verify runs outside backend sandboxing as the user
 | Reject feedback | Supplied message or default decline | Message travels with the rejection. | Decline first, then `turn/steer` with feedback; a failed steer does not undo the decline. |
 | Form question | No-human feedback | Cancels the form. | Answers user-input questions by question id; declines MCP elicitations. |
 | Structured output | Validated after completion | Text output; common validator extracts the document. | Adds schema-constrained output on `turn/start`; common validator still checks identity and immutable fields. |
-| Recovery | Never rerun recorded ids | Reattach to stored session; `resume --continue` can re-prompt interrupted work. | Started sessions report `lost` during recovery and cannot be re-prompted; recorded cancel/timeout takes precedence in settlement. |
+| Recovery | Never rerun recorded ids | Unfenced: reattach to stored session; `resume --continue` can re-prompt interrupted work. Fenced: a task whose private server is gone reports `lost`, with no reconstruction or continuation after a supervisor restart. | Started sessions report `lost` during recovery and cannot be re-prompted; recorded cancel/timeout takes precedence in settlement. |
 | Cost and tokens | Absent when unavailable | Collects reported usage and cost. | Collects token usage if reported; no cost estimate is synthesized. |
 
 A deny wins over an escalation. Rule restrictions cannot be weakened by later config. On Codex,
@@ -48,8 +51,10 @@ For the read-only shell behaviour, read
 
 ## opencode process and profile
 
-The harness starts private `opencode serve` processes for the run, keyed by profile/project modes,
-and subscribes to their event streams. It disables file watchers. On Windows it resolves the native
+The harness starts private `opencode serve` processes for the run and subscribes to their event
+streams. Each fenced task has its own server, keyed by run/task; releasing its worker disposes that
+server. Unfenced tasks share servers keyed by profile/project modes. It disables file watchers.
+On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
 version differs from pin `2.1.4`, as the Codex backend refuses a CLI off its pin; there is no
@@ -68,14 +73,26 @@ lazily discovered subfolder instructions and the user's session database remain 
 context. The harness reports the requested profile; it does not prove all those sources absent.
 
 Sessions inherit harness denies on the edit tool for the control folder and that run's ledger.
-Shell and MCP tools may reach both. A backend inactivity interruption can leave a task `interrupted`;
-use `resume --continue` to re-prompt it. The harness itself does not set a separate 60-minute
+Fenced servers allow writes only to opencode's data, state, cache and config folders (each
+`XDG_*_HOME/opencode`, otherwise the usual home fallback), their profile root, task temp and `/dev`.
+Workspace access also allows the workspace, Git common folder and configured writable roots; it
+never adds the control or ledger root. macOS additionally allows `/tmp`, `/private/tmp` and
+`/private/var/folders`; Linux mounts a private `/tmp`. Unfenced shell and MCP tools may write control
+and ledger state. A backend inactivity interruption can leave a task `interrupted`; use
+`resume --continue` to re-prompt it only while its server is live. The harness itself does not set a separate 60-minute
 inactivity timer; its task timeout is independent.
 
 After a done settlement the supervisor removes the session. Failed sessions stay available for
 collection until cleanup. `clean` releases recorded sessions and searches for orphan sessions using
 run/task metadata. Server processes end with their owning scope; session persistence does not make
 the supervising process durable.
+
+Fence readiness is checked once per harness process: Linux requires `bwrap` on PATH and a successful
+`bwrap --ro-bind / / --dev /dev true`; macOS requires a successful
+`sandbox-exec -p "(version 1)(allow default)" /usr/bin/true`. Ubuntu 24.04 needs the operator to set
+`kernel.apparmor_restrict_unprivileged_userns=0` as root; the harness never changes it. A failed check
+refuses fenced work, without an unfenced fallback. There is no PID namespace: a fenced process can
+still signal the user's other processes. Network is not fenced; the SDK needs loopback connectivity.
 
 ## Codex process and sandbox
 
@@ -101,9 +118,9 @@ tools (Git Bash, `git submodule`) fail on shared memory (openai/codex#13183, #39
 #21715). Several of these failures exit 0: a submodule stays empty and the step still passes. Read
 a sandboxed command's output, never its exit code alone. A Windows task that must build or test
 .NET runs with `access: full`, chosen explicitly; the ledger records that it ran without the
-sandbox. opencode runs no OS sandbox in any mode: its `workspace` is already unfenced, so the same task
-runs there without `access: full` and with the same exposure. A sandbox model shared by both backends
-is an open design.
+sandbox. On Windows, opencode's `workspace` is already unfenced, so the same task runs there without
+`access: full` and with the same exposure. On Linux/macOS, use fenced workspace access and the
+[build-cache recipe](config.md#writable-roots) instead of removing the fence for build caches.
 
 On Linux and macOS, sandbox prerequisites depend on the installed runtime and host. A fake protocol
 test or build does not prove enforcement; a Functional test that tries an outside write must pass

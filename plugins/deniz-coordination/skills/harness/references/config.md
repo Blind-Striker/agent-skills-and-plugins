@@ -56,6 +56,7 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `preferences.maxParallel` | integer | `3` | Last configured value, task-file top level, then `--max`; must be 1 through 8. Set it by the host's memory, not by the task count: each task whose verify runs a test suite starts many processes. |
 | `preferences.defaultRoutes` | map of backend to string | No default routes | Keys must be `opencode` or `codex`: `<layer>: defaultRoutes keys must be opencode or codex`. Values use backend notation without a qualification prefix. |
 | `preferences.tempRoot` | string, absolute path | Unset | Root for private worker and verify temporary folders; see [temporary folders](#temporary-folders). |
+| `preferences.writableRoots` | string array of absolute paths | `[]` | Additional writable folders for workspace sandboxes; layers join, not replace. See [writable roots](#writable-roots). |
 | `locations.ledgerRoot` | string path | `<state root>/ledgers` | Absolute or starts with `~`; otherwise `locations.ledgerRoot must be an absolute path (or ~ in user locations)`. |
 | `locations.worktreeRoot` | string path | `<state root>/worktrees` | Same expansion and validation as ledger root. |
 | `backends.opencode.executable` | string path | Discover `opencode` | Absolute: `<layer>: backends executable must be an absolute path`. |
@@ -72,7 +73,7 @@ locations, backends, `restrictions.routes` and `restrictions.scrub`.
 
 | Field | Type | Default | Meaning |
 |---|---|---|---|
-| `readOnlyShell` | string enum preference | `decline` | `decline` rejects shell approval for a read-only task. `escalate` lets a matching escalation rule reach the operator. |
+| `readOnlyShell` | string enum preference | `decline` | `decline` rejects escalated shell approval for a read-only task. Codex and fenced opencode keep their sandboxed shell; unfenced Windows opencode denies shell calls. `escalate` lets a matching escalation rule reach the operator. |
 
 Set it in user or repository preferences, task-file defaults, the task, or CLI, following the usual
 preference order. An operator reply of `once` permits one command, outside the sandbox on Codex.
@@ -101,10 +102,42 @@ preferences. `clean` deletes `<tempRoot>/<run>/<task>` and any legacy default
 See [task files](task-file.md#scope-and-workspaces) for layouts and environment semantics, and
 [plan output](cli.md) for the resolved path.
 
+### Writable roots
+
+`writableRoots` joins user preferences, repository preferences, task-file defaults, the task entry
+and CLI preference layers in that order, keeping each identical path once. There is no command-line
+flag. Each root must be absolute; tilde and environment variables are not expanded. A root that
+contains, equals or lies inside the control root or ledger root is refused, including through links.
+These are workspace-only additions: read-only tasks do not gain them. Unfenced Windows opencode and
+full access cannot enforce a writable-root boundary. The resolved list and source layers are frozen
+in settings. The workspace and task temp are already writable; opencode also adds its Git common
+folder and backend-owned folders, as described in [backends](backends.md).
+
+For .NET and Bun on Linux/macOS, generate a ready preference fragment from the repository root,
+then copy it into `preferences` in user/repository config, task-file `defaults`, or the task entry:
+
+```sh
+jq -n --arg home "$HOME" --arg repo "$(pwd -P)" '{writableRoots: [
+  ($home + "/.nuget/packages"), ($home + "/.local/share/NuGet"),
+  ($home + "/.nuget/NuGet"), ($home + "/.dotnet"), ($home + "/.bun/install/cache"),
+  ($repo + "/tests/dispatch/bin/labs"), ($repo + "/tests/dispatch/bin/dotnet-cli-home")
+]}'
+```
+
+The last two roots are this repository's own test-run folders; other repositories use their own
+documented roots. Grant only caches the task needs. If the lab or operator already supplies isolated
+`DOTNET_CLI_HOME` or `NUGET_PACKAGES`, use those absolute folders instead of real home caches, plus
+NuGet's config/data folders under that isolated home. `NUGET_*` environment variables are scrubbed;
+pass the isolated package cache explicitly to the worker's build (for example
+`dotnet build -p:RestorePackagesPath='<absolute isolated package cache>'`). If opencode keeps its
+credential `XDG_DATA_HOME` outside the lab, scope `XDG_DATA_HOME="$HOME/.local/share"` to the .NET
+command only, with `HOME` still the lab's isolated home; do not relocate backend credential homes.
+Writable roots do not change the Windows Codex .NET/MSYS limitation.
+
 ## Layering
 
 Preferences replace earlier values in this order: tool defaults, user config, committed repository
-config, task-file defaults, task entry, CLI. Parallelism uses the task file's top-level
+config, task-file defaults, task entry, CLI; `writableRoots` is the additive exception. Parallelism uses the task file's top-level
 `maxParallel`, not `defaults.maxParallel`. Route model and effort have separate provenance.
 
 The layer-0 `profile` default is `clean` for `structured`, `review`, `research` and `mechanical` tasks,
@@ -209,7 +242,7 @@ rely on an inherited SSH agent socket. `HOME`, `USERPROFILE`, installed tools an
 machine state are not isolation boundaries.
 
 Verify runs worker code as the user outside sandboxing on both backends. It can write the control
-folder or influence other tasks. opencode's shell can write the ledger and control folder despite
-edit-tool denies. The Git configuration guard detects relevant changes and disables hooks, but a
+folder or influence other tasks. Unfenced opencode's shell can write the ledger and control folder
+despite edit-tool denies; fenced opencode does not add those roots. The Git configuration guard detects relevant changes and disables hooks, but a
 same-user process can race the check or populate a hooks folder before Git uses it. In-place diffs
 also include anyone else's concurrent edits. Treat these as operational limits.

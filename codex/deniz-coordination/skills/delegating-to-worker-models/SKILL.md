@@ -24,6 +24,9 @@ is any subagent tool you have; the rules below hold for all of them.
   required checks passed, and the change mergeable: a conflicted change runs no main CI and only looks
   green.
 - Anything where "verified" rests on the worker's own report.
+- Research you rely on. Delegate it like code: a read-only worker task that cites file and line for each
+  claim. Check every claim you use, and give research that feeds a spec, a decision or an upstream report
+  a review by another family.
 
 ## Before every hand-off
 
@@ -44,8 +47,9 @@ is any subagent tool you have; the rules below hold for all of them.
    put that SHA in the task. The worker only confirms that its HEAD equals the stated base.
 4. **Plan-first** for M-size or larger work, any new type, more than three production files, or a new file
    expected to exceed about 150 lines. The worker writes the plan with a required section "Contradictions
-   and spec defects found"; you amend and approve it; the code task runs against the approved plan. For an
-   S task, optionally send the filled prompt once in read-only mode to scan for contradictions. Before you
+   and spec defects found"; you amend and approve it; the code task runs against the approved plan. Every
+   other spec or prompt you wrote, S tasks included, goes once in read-only mode to a worker of another
+   family to scan for contradictions before the real task; a plan step is that scan. Before you
    approve a plan, cut what the request did not ask for: verification and one-off checks use the tools
    the repository already has, and a one-off check is a command in a step, not a new file.
 5. **Fill the prompt** from `references/prompt-template.md`. Write only the per-task fill-in. Every

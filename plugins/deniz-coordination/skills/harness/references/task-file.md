@@ -36,7 +36,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `kind` | string enum | Required | `code`, `review`, `research`, `mechanical`, `structured`; otherwise `kind must be one of code, review, research, mechanical, structured`. |
 | `route` | string | Effective backend's `defaultRoutes` entry | Exactly one effective route or `agent`: `name exactly one of route or agent after merging`. The catalog must offer the model and variant or effort. |
 | `agent` | string | None | opencode roster agent with a pinned model. Codex: `codex refuses agent and persona`. An inherited default route also counts against the exactly-one rule. Manual-class agents are refused. |
-| `persona` | string | `build` for an opencode route | `persona goes with route, not with agent`. Must exist and must not be manual-class. Codex refuses it. |
+| `persona` | string | `build` for an opencode route | `persona goes with route, not with agent`. Must exist and must not be manual-class. Codex refuses it. A user-defined persona needs `profile: full`: `clean` (the default for review, research and mechanical tasks) loads no user agents, and plan refuses with `persona <x> not found: profile clean loads no user agents`. |
 | `prompt` | string | None | Exactly one of `prompt` and `promptFile`; otherwise `name exactly one of prompt or promptFile`. Whitespace-only text: `prompt is empty`. |
 | `promptFile` | string path | None | Same exclusivity as `prompt`; missing file: `promptFile not found: <path>`. |
 | `contracts` | string array | `[]` | Files or bundled aliases added after top-level contracts and before CLI contracts. Same resolution and validation as top-level [Contracts](#contracts). |
@@ -115,9 +115,12 @@ working directory or compiled cache folder. CLI contract aliases are the excepti
 paths. Alias and explicit-file references to the same absolute path still use first-path-wins,
 even when they would select different text. The whole-file cache never stores a selected worker block.
 
-Unknown aliases fail with `unknown contract alias <alias>; known: @worker-contract, @<model>-worker
-(looked in <the sibling skill's references folder>)`. Missing siblings or files and missing worker
-markers are plan errors naming the alias and lookup path. Missing ordinary files, unreadable files
+Unknown aliases, including `@<model>-worker` when `models/<model>.md` does not exist, fail with
+`unknown contract alias <alias>; known: <known aliases> (looked in <the sibling skill's references folder>)`.
+The known list starts with `@worker-contract`, followed by the aliases of existing `models/*.md`
+files in ordinal name order, excluding `README.md`; it lists actual model names, not the
+`@<model>-worker` placeholder. Missing sibling worker contracts and missing worker markers are plan
+errors naming the alias and lookup path. Missing ordinary files, unreadable files
 and invalid UTF-8 also refuse planning; both file and alias content are strictly decoded as UTF-8.
 
 Contracts precede standing instructions, task text, and structured items and schema. Both backends
