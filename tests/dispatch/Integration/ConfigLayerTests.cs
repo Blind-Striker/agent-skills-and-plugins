@@ -82,7 +82,7 @@ public sealed class ConfigLayerTests
         var run = JsonNode.Parse(File.ReadLines(Path.Combine(ledger, "events.jsonl")).First())!;
         await Assert.That(run["data"]!["sharedPaths"]!["paths"]![0]!.GetValue<string>()).IsEqualTo("shared.txt");
         await Assert.That(run["data"]!["sharedPaths"]!["mergedBy"]!.GetValue<string>()).IsEqualTo("coordinator");
-        var requests = File.ReadLines(Path.Combine(tree.Root, "requests.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
+        var requests = File.ReadLines(FakeOpenCode.Record(tree)).Select(line => JsonNode.Parse(line)!).ToArray();
         await Assert.That(requests.Any(r => r["body"]?.ToJsonString().Contains("Committed instruction.") == true)).IsTrue();
         await Assert.That(requests.Any(r => r["body"]?.ToJsonString().Contains("git push*") == true)).IsTrue();
     }

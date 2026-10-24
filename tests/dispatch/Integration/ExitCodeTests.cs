@@ -145,7 +145,7 @@ public sealed class ExitCodeTests
         File.WriteAllText(tasks, document.ToJsonString());
         var env = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
         var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(x => JsonNode.Parse(x)!).ToArray();
-        var arrived = Path.Combine(tree.Root, "prompt-arrived");
+        var arrived = Path.Combine(Path.GetDirectoryName(FakeOpenCode.Record(tree))!, "prompt-arrived");
         var release = Path.Combine(tree.Root, "release-prompt");
         if (condition == "scope")
         {
@@ -156,7 +156,7 @@ public sealed class ExitCodeTests
         File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
         env["FAKE_OPENCODE_SCENARIO"] = scenario;
         var promptArrived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var watcher = new FileSystemWatcher(tree.Root, Path.GetFileName(arrived));
+        using var watcher = new FileSystemWatcher(Path.GetDirectoryName(arrived)!, Path.GetFileName(arrived));
         watcher.Created += (_, _) => promptArrived.TrySetResult();
         watcher.Error += (_, error) => promptArrived.TrySetException(error.GetException());
         watcher.EnableRaisingEvents = true;
@@ -250,7 +250,7 @@ public sealed class ExitCodeTests
         await Assert.That(result.ExitCode).IsEqualTo(1);
         await Assert.That(result.Stderr).Contains("events.jsonl");
         await Assert.That(result.Stderr).Contains("line 3");
-        await Assert.That(File.Exists(Path.Combine(tree.Root, "requests.jsonl"))).IsFalse();
+        await Assert.That(File.Exists(FakeOpenCode.Record(tree))).IsFalse();
     }
 
     [Test]

@@ -41,8 +41,36 @@ public sealed class PlanOutputTests
         var result = await process.RunAsync(["plan", tasks, "--repo", repo.Root], ct,
             FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("worker contract plan");
-        await Assert.That(Lines(result).Where(line => line.StartsWith("WARN ", StringComparison.Ordinal)))
+        await Assert.That(Lines(result).Where(line => line.StartsWith("WARN ", StringComparison.Ordinal) && line.Contains("worker contract", StringComparison.Ordinal)))
             .IsEquivalentTo(new[] { "WARN zulu: no worker contract; add \"@worker-contract\" (and \"@<model>-worker\") to contracts" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Arguments("plan")]
+    [Arguments("run")]
+    [Timeout(180_000)]
+    public async Task Unavailable_opencode_fence_refuses_without_starting_an_unfenced_server(string command, CancellationToken ct)
+    {
+        if (Ready.FenceKind is null) Skip.Test("opencode runs unfenced on Windows.");
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = Path.Combine(tree.Root, "tasks.jsonc");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        var shim = Directory.CreateDirectory(Path.Combine(tree.Root, "fence-shim")).FullName;
+        var executable = Path.Combine(shim, Ready.FenceKind!);
+        File.WriteAllText(executable, "#!/bin/sh\nprintf 'fixture fence refused' >&2\nexit 97\n");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        environment["PATH"] = shim + Path.PathSeparator + environment["PATH"];
+        using var process = new HarnessProcess(tree);
+        var result = await process.RunAsync([command, tasks, "--repo", repo.Root], ct, environment);
+        var error = $"ERROR inspect: opencode fence unavailable ({Ready.FenceKind} exited 97: fixture fence refused)"
+            + (Ready.FenceKind == "bwrap" ? "; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)" : "");
+        await Assert.That(Lines(result).Where(line => line.StartsWith("ERROR ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] { error }, CollectionOrdering.Matching);
+        await Assert.That(result.Stderr.Trim()).IsEqualTo("");
+        await Assert.That(result.ExitCode).IsEqualTo(2);
+        await Assert.That(File.Exists(FakeOpenCode.Record(tree))).IsFalse();
     }
 
     [Test]
@@ -231,7 +259,17 @@ public sealed class PlanOutputTests
             FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("plan");
         var lines = Lines(result);
-        await Assert.That(lines).Contains("INFO inspect: no shell for a read-only task (readOnlyShell decline, from tool)");
+        await Assert.That(lines).Contains(Ready.FenceKind is null
+            ? "INFO inspect: no shell for a read-only task (readOnlyShell decline, from tool)"
+            : "INFO inspect: sandboxed shell; escalations declined (readOnlyShell decline, from tool)");
+        var fenceLines = lines.Where(line => line.Contains("fenced (", StringComparison.Ordinal)
+            || line.Contains("opencode runs unfenced on Windows;", StringComparison.Ordinal)).ToArray();
+        await Assert.That(fenceLines).IsEquivalentTo(Ready.FenceKind is { } kind
+            ? new[] { $"INFO inspect: fenced ({kind})", $"INFO edit: fenced ({kind})" }
+            : new[] {
+                "WARN inspect: opencode runs unfenced on Windows; access read-only is enforced by permission rules only",
+                "WARN edit: opencode runs unfenced on Windows; access workspace is enforced by permission rules only",
+            }, CollectionOrdering.Matching);
         await Assert.That(lines.Any(line => line.StartsWith("INFO edit:", StringComparison.Ordinal) && line.Contains("shell", StringComparison.Ordinal))).IsFalse();
         // The fixture catalog's model limit is 8192 tokens.
         foreach (var task in new[] { "inspect", "edit" })

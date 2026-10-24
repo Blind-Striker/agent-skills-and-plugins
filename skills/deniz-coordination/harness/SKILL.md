@@ -39,8 +39,8 @@ dotnet dispatch.cs -- <command> [arguments]
 
 ## Backend and modes
 
-Codex provides an OS sandbox; opencode serves its models and roster agents without one. Both support
-structured output. Modes and defaults:
+Codex provides an OS sandbox; opencode fences read-only and workspace tasks on Linux/macOS and
+runs unfenced on Windows. Both support structured output. Modes and defaults:
 
 | Setting | Values | Code, mechanical | Review, research | Structured |
 |---|---|---|---|---|
@@ -51,17 +51,19 @@ structured output. Modes and defaults:
 
 - A read-only Codex task of any kind also defaults to `profile: clean`; explicit profiles win. A task
   that needs the installed profile's tools (MCP servers, plugins, skills) sets `profile: full`. Codex `access: full` removes
-  its sandbox. opencode `read-only` denies edit; other access adds no rule. Shell can still write.
+  its sandbox. opencode `read-only` denies edit; its Linux/macOS fence keeps the shell but refuses
+  workspace writes. Windows opencode relies on permission rules only. Backend limits: `references/backends.md`.
 - `workspace: in-place` runs in `dir`, main checkout included. `commit: none` (default) records the
   diff without committing; `commit: harness` requires a clean tree and commits on the current branch.
-- Read-only writes are declined. For shell asks, `readOnlyShell: decline` (default) rejects;
+- Read-only writes are declined. For escalated shell asks, `readOnlyShell: decline` (default) rejects;
   `escalate` lets a matching rule reach the operator. Reply `once` permits one command, outside
   the sandbox on Codex.
 - Denies beat escalation. Both backends decline unmatched asks in read-only tasks, MCP tools included.
   Otherwise opencode answers `once`; Codex declines with feedback. Codex denies apply only at
   approval: with `workspace` and network on, a `git push` deny cannot stop a push.
-- On opencode the worker runs as your user: a shell command can reach the harness's control folder
-  and the run's ledger. Verify commands run the worker's code as your user on every backend.
+- An unfenced opencode shell can write the harness's control folder and run ledger. Fenced tasks
+  do not gain those writable roots; build-cache additions use `writableRoots` (`references/config.md`).
+  Verify commands run the worker's code as your user, outside sandboxing, on every backend.
 - Preferences layer user config < repository `.dispatch/` < task file < command line. Restrictions
   (denies, scope, maximum access, network) only add up, and the route allow-list is the
   intersection of the layers that have one. Details: `references/config.md`.
@@ -119,8 +121,9 @@ structured output. Modes and defaults:
 A recorded run is never run again and its ledger is never edited by hand.
 
 - The supervisor stopped (restart, killed process): run `resume <run>` once. It settles what ended
-  and settles every started Codex task that is not final as `lost`; `resume <run> --continue` also
-  re-prompts interrupted opencode tasks and starts the tasks that never started.
+  and settles every started Codex task that is not final as `lost`; fenced opencode tasks whose
+  server is gone are also lost, never reconstructed. `resume <run> --continue` re-prompts interrupted
+  unfenced opencode tasks and starts the tasks that never started.
 - A task without a result while no supervisor holds the run: `collect <run> <task>`.
 - Only what collect cannot recover goes into a new task file, under a new run id.
 

@@ -277,6 +277,16 @@ static class Planner
                     if (!plan.Config.Effective.Warnings.Contains(warning)) plan.Config.Effective.Warnings.Add(warning);
                 }
             }
+            if (backend.Name == "opencode" && plan.Config?.Effective.Tasks[check.TaskId].Settings is { } opencode
+                && opencode.Access?.Value is "read-only" or "workspace")
+            {
+                if (Ready.FenceKind is { } kind)
+                {
+                    opencode.Access.Enforcement = "sandbox";
+                    if (check.Errors.Count == 0) plan.Info.Add($"{check.TaskId}: fenced ({kind})");
+                }
+                else plan.Warnings.Add($"{check.TaskId}: opencode runs unfenced on Windows; access {opencode.Access.Value} is enforced by permission rules only");
+            }
         }
 
         foreach (var task in plan.Tasks.Where(t => t.Spec.ReviewOf is not null))

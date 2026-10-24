@@ -7,6 +7,8 @@ internal static class FakeOpenCode
 
     public static string Fixture(string name) => Path.Combine(TestPaths.Tests, "fixtures", "scenarios", "opencode", name);
 
+    public static string Record(TempTree tree) => Path.Combine(tree.ChildEnvironment()["XDG_DATA_HOME"]!, "opencode", "requests.jsonl");
+
     public static Dictionary<string, string> Environment(TempTree tree, string scenario)
     {
         var environment = tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!);
@@ -19,7 +21,8 @@ internal static class FakeOpenCode
         };
         File.WriteAllText(path, document.ToJsonString());
         environment["FAKE_OPENCODE_SCENARIO"] = Fixture(scenario);
-        environment["FAKE_OPENCODE_RECORD"] = Path.Combine(tree.Root, "requests.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(Record(tree))!);
+        environment["FAKE_OPENCODE_RECORD"] = Record(tree);
         return environment;
     }
 }

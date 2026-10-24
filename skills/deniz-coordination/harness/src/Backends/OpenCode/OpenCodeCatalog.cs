@@ -132,7 +132,7 @@ sealed class Catalog
 }
 
 // A fresh location can answer 503 while its plugins activate. Bound every startup listing.
-static class Ready
+static partial class Ready
 {
     public static bool IsNotReady(OpenCodeApiException ex) => ex.Status == 503;
 

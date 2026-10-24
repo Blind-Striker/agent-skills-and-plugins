@@ -255,7 +255,7 @@ public sealed class ControlCommandTests
         environment["FAKE_OPENCODE_PROFILE_HANDLES"] = "1";
         using var child = new HarnessProcess(tree);
 
-        var requests = Path.Combine(tree.Root, "requests.jsonl");
+        var requests = FakeOpenCode.Record(tree);
         var running = child.RunAsync(["resume", Run, "--continue"], ct, environment);
         System.Diagnostics.Process? server = null;
         try
@@ -265,7 +265,7 @@ public sealed class ControlCommandTests
                 if (running.IsCompleted) throw new InvalidOperationException((await running).ToString());
                 await Task.Delay(10, ct);
             }
-            var observedHost = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
+            var observedHost = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(tree))!, "requests.jsonl.*.host.json").Single()))!;
             server = System.Diagnostics.Process.GetProcessById(observedHost["pid"]!.GetValue<int>());
             var observedServer = ObservedProcess.Capture(server.Id);
             if (OperatingSystem.IsWindows()) _ = server.Handle;
@@ -299,7 +299,7 @@ public sealed class ControlCommandTests
         var expected = Path.Combine(tree.DispatchHome, "state", "worktrees", Run, ".tmp", "inspect");
         foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
             await Assert.That(variables[name]!.GetValue<string>()).IsEqualTo(expected);
-        var host = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(tree.Root, "requests.jsonl.*.host.json").Single()))!;
+        var host = JsonNode.Parse(File.ReadAllText(Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(tree))!, "requests.jsonl.*.host.json").Single()))!;
         await Assert.That(host["directory"]!.GetValue<string>()).IsEqualTo(Path.Combine(control, "profiles", "opencode"));
     }
 

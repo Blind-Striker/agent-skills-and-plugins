@@ -172,7 +172,7 @@ static class ConfigResolver
             new RuleEnforcement { Name = rule.Name, Enforcement = rule.Enforcement[settings.Backend.Value!] }).ToList();
         if (settings.Backend.Value == "codex")
             config.Warnings.AddRange(settings.Rules.Select(r => $"{task.Id}: {r.Name} is enforced at the approval gate only"));
-        config.Warnings.AddRange(CapabilityNotes(settings).Select(note => $"{task.Id}: {note}"));
+        if (settings.Backend.Value == "codex") config.Warnings.AddRange(CapabilityNotes(settings).Select(note => $"{task.Id}: {note}"));
         if (settings.RawPrompt.Value && (config.Instructions.Count > 0 || task.Contracts is { Count: > 0 }))
             throw new HarnessException($"{task.Id}: rawPrompt from {settings.RawPrompt.From} conflicts with contracts or instructions from {string.Join(", ", config.Instructions.Select(i => i.From).Distinct())}");
         return settings;
@@ -180,6 +180,8 @@ static class ConfigResolver
 
     public static List<string> CapabilityNotes(EffectiveSettings settings)
     {
+        if (OperatingSystem.IsWindows() && settings.Backend?.Value == "opencode" && settings.Access?.Value is "read-only" or "workspace")
+            return ["opencode runs unfenced on Windows"];
         if (settings.Backend?.Value != "codex" || settings.Access?.Value != "read-only") return [];
         var layers = (settings.Profile?.Actual ?? settings.Profile?.Value) == "clean"
             ? "only system-level" : "user and system-level";

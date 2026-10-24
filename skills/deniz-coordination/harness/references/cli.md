@@ -106,6 +106,12 @@ that falls back to `clean-partial` is `WARN`, including the profile reason; vali
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
+Each opencode section prints exactly one fence check: `PASS  opencode fence: bwrap` on ready Linux,
+`PASS  opencode fence: sandbox-exec` on ready macOS, or
+`WARN  opencode fence: unfenced on Windows`. A failed readiness check prints
+`FAIL  opencode fence: opencode fence unavailable (<detail>)`, appending the Linux installation and
+AppArmor prerequisite below, and fails selfcheck. The Windows line contributes one warning.
+
 With a repository on Windows, `worktree path depth` measures
 `<resolved worktree root>\<yyyy-MM-dd>-selfcheck\selfcheck` (today's UTC date) plus the longest tracked
 path at HEAD: `PASS` below 248 characters, `WARN` at 248 or more, never `FAIL`. A passing line carries
@@ -183,6 +189,15 @@ A `code` or `mechanical` task that is not `rawPrompt` and has no contract file n
 `WARN <task>: no worker contract; add "@worker-contract" (and "@<model>-worker") to contracts`.
 This is advisory, not a plan refusal; an explicit path to `worker-contract.md` also satisfies it.
 
+For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
+`INFO <task>: fenced (bwrap)` or `INFO <task>: fenced (sandbox-exec)` and records access enforcement
+as `sandbox`. If not ready, it refuses with
+`ERROR <task>: opencode fence unavailable (<detail>)`; Linux appends
+`; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)`.
+There is no unfenced fallback. On Windows it prints
+`WARN <task>: opencode runs unfenced on Windows; access <value> is enforced by permission rules only`,
+and result capability notes include `opencode runs unfenced on Windows`. Full access gets no fence line.
+
 For every non-structured task, in task-file order, `plan` also prints
 `INFO <task>: temp <resolved folder> (tempRoot from <layer>)`, or
 `INFO <task>: temp <resolved folder> (default)` when unset. It creates no temporary folder.
@@ -221,7 +236,8 @@ For each read-only task, an `INFO` line states its shell, per backend, with the 
 | Backend | `decline` | `escalate` |
 |---|---|---|
 | Codex | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
-| opencode | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode Linux/macOS | `INFO <task>: sandboxed shell; escalations declined (readOnlyShell decline, from <layer>)` | `INFO <task>: sandboxed shell; escalations reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
+| opencode Windows | `INFO <task>: no shell for a read-only task (readOnlyShell decline, from <layer>)` | `INFO <task>: shell asks reach the operator through a matching rule (readOnlyShell escalate, from <layer>)` |
 
 ### Inherited Codex rules on read-only tasks
 
@@ -321,7 +337,8 @@ It does not re-prompt. A released done opencode session is not collectible.
 Takes the run lock, requires `setup.done`, reloads frozen settings, resets stale asks and reconciles
 non-final tasks. Without `--continue`, never-prompted tasks remain queued and interrupted opencode
 sessions settle as failed. With it, queued tasks start and interrupted opencode sessions receive a
-fixed continuation line. Started Codex tasks cannot continue; either form recovers their backend
+fixed continuation line when their server is recoverable. Fenced opencode tasks whose server is gone
+cannot continue and settle as `lost`, without starting a replacement. Started Codex tasks cannot continue; either form recovers their backend
 outcome as `lost`, with recorded cancellation or timeout taking precedence in settlement.
 Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
 status summary. Recovery is backend-specific; see [backends](backends.md).

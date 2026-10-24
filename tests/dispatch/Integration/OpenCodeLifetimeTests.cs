@@ -36,7 +36,7 @@ public sealed class OpenCodeLifetimeTests
         using var tree = new TempTree();
         try
         {
-            var evidence = await ObserveAsync(tree.Root, tree.ChildEnvironment(), ct);
+            var evidence = await ObserveAsync(tree.Root, tree.ChildEnvironment(), FakeOpenCode.Record(tree), ct);
             await RequireStoppedAsync(evidence, ct);
         }
         finally { await ObservedProcess.CleanupRecordedChildrenAsync(tree.Root); }
@@ -50,7 +50,7 @@ public sealed class OpenCodeLifetimeTests
         if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_OWNER_PROBE") is { } root)
         {
             // The outer test owns cleanup: it must observe the descendants after this process exits.
-            var evidence = await ObserveAsync(root, new Dictionary<string, string?>(), ct);
+            var evidence = await ObserveAsync(root, new Dictionary<string, string?>(), Environment.GetEnvironmentVariable("FAKE_OPENCODE_RECORD")!, ct);
             await File.WriteAllTextAsync(Path.Combine(root, "evidence.json"), evidence.ToJsonString(), ct);
             return;
         }
@@ -59,6 +59,7 @@ public sealed class OpenCodeLifetimeTests
         using var owner = new CapturedProcess();
         var environment = tree.ChildEnvironment();
         environment["FAKE_OPENCODE_OWNER_PROBE"] = tree.Root;
+        environment["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(tree);
         try
         {
             var result = await owner.RunAsync("dotnet", [typeof(OpenCodeLifetimeTests).Assembly.Location,
@@ -80,7 +81,7 @@ public sealed class OpenCodeLifetimeTests
         using var tree = new TempTree();
         try
         {
-            var evidence = await ObserveAsync(tree.Root, tree.ChildEnvironment(), ct);
+            var evidence = await ObserveAsync(tree.Root, tree.ChildEnvironment(), FakeOpenCode.Record(tree), ct);
             var (child, grandchild) = ObservedProcess.Descendants(evidence["descendants"]!);
             await Assert.That(child.IsAlive()).IsTrue();
             await Assert.That(grandchild.IsAlive()).IsTrue();
@@ -95,7 +96,7 @@ public sealed class OpenCodeLifetimeTests
         if (OperatingSystem.IsWindows()) Skip.Test("POSIX process groups only; Windows job cleanup is covered separately");
         if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_OWNER_PROBE") is { } root)
         {
-            var observed = await ObserveAsync(root, new Dictionary<string, string?>(), ct);
+            var observed = await ObserveAsync(root, new Dictionary<string, string?>(), Environment.GetEnvironmentVariable("FAKE_OPENCODE_RECORD")!, ct);
             await File.WriteAllTextAsync(Path.Combine(root, "evidence.json"), observed.ToJsonString(), ct);
             return;
         }
@@ -104,6 +105,7 @@ public sealed class OpenCodeLifetimeTests
         using var owner = new CapturedProcess();
         var environment = tree.ChildEnvironment();
         environment["FAKE_OPENCODE_OWNER_PROBE"] = tree.Root;
+        environment["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(tree);
         try
         {
             var result = await owner.RunAsync("dotnet", [typeof(OpenCodeLifetimeTests).Assembly.Location,
@@ -118,13 +120,14 @@ public sealed class OpenCodeLifetimeTests
         finally { await ObservedProcess.CleanupRecordedChildrenAsync(tree.Root); }
     }
 
-    static async Task<JsonObject> ObserveAsync(string root, IReadOnlyDictionary<string, string?> environment, CancellationToken ct)
+    static async Task<JsonObject> ObserveAsync(string root, IReadOnlyDictionary<string, string?> environment, string record, CancellationToken ct)
     {
         var childRecord = Path.Combine(root, "children");
         var exitWhen = Path.Combine(root, "exit");
         var passthrough = environment.Where(x => x.Value is not null).ToDictionary(x => x.Key, x => x.Value!);
         passthrough["FAKE_OPENCODE_SCENARIO"] = FakeOpenCode.Fixture("one-task.jsonl");
-        passthrough["FAKE_OPENCODE_RECORD"] = Path.Combine(root, "requests.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(record)!);
+        passthrough["FAKE_OPENCODE_RECORD"] = record;
         passthrough["FAKE_OPENCODE_CHILD_RECORD"] = childRecord;
         passthrough["FAKE_OPENCODE_EXIT_WHEN"] = exitWhen;
         var context = new BackendContext(root, FakeOpenCode.Executable, passthrough);

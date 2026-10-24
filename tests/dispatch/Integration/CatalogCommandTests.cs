@@ -43,7 +43,8 @@ public sealed class CatalogCommandTests
             .Where(line => line.Contains("  worktree path depth:", StringComparison.Ordinal)).ToArray())
             .IsEquivalentTo(OperatingSystem.IsWindows() ? new[] { expected } : [], CollectionOrdering.Matching);
         await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r'))
-            .IsEqualTo($"selfcheck passed ({(OperatingSystem.IsWindows() && length >= 248 ? 1 : 0)} warning(s))");
+            // On Windows an opencode section also warns that opencode runs unfenced.
+            .IsEqualTo($"selfcheck passed ({(OperatingSystem.IsWindows() && length >= 248 ? 1 : 0) + (result.Stdout.Contains("WARN  opencode fence:", StringComparison.Ordinal) ? 1 : 0)} warning(s))");
         await Assert.That(await repo.GitAsync(["diff", "--cached", "--name-only"], ct)).IsEqualTo(staged);
     }
 
@@ -100,7 +101,7 @@ public sealed class CatalogCommandTests
         var result = await harness.RunAsync(["selfcheck", "--backend", "opencode", "--repo", repo.Root], ct, environment);
 
         result.RequireSuccess("selfcheck with directory handles");
-        var held = Directory.GetFiles(lab.Tree.Root, "requests.jsonl.*.directory.json")
+        var held = Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "requests.jsonl.*.directory.json")
             .Select(path => JsonNode.Parse(File.ReadAllText(path))!.GetValue<string>()).ToArray();
         await Assert.That(held.Length).IsEqualTo(2);
         foreach (var directory in held)
@@ -115,9 +116,10 @@ public sealed class CatalogCommandTests
             .Count(line => line.StartsWith("worktree ", StringComparison.Ordinal))).IsEqualTo(1);
         if (transientLock)
         {
-            var gitCalls = File.ReadLines(calls).Select(line => JsonNode.Parse(line)!.AsArray()).ToArray();
-            await Assert.That(gitCalls.Count(args => args[12]!.GetValue<string>() == "worktree" && args[13]!.GetValue<string>() == "remove")).IsEqualTo(1);
-            await Assert.That(gitCalls.Any(args => args[12]!.GetValue<string>() == "worktree" && args[13]!.GetValue<string>() == "list")).IsTrue();
+            // The subcommand follows the harness's -c overrides, whose count differs by platform.
+            var gitCalls = File.ReadLines(calls).Select(line => string.Join(" ", JsonNode.Parse(line)!.AsArray().Select(x => x!.GetValue<string>()))).ToArray();
+            await Assert.That(gitCalls.Count(call => call.Contains(" worktree remove ", StringComparison.Ordinal))).IsEqualTo(1);
+            await Assert.That(gitCalls.Any(call => call.Contains(" worktree list", StringComparison.Ordinal))).IsTrue();
         }
     }
 
@@ -160,11 +162,15 @@ public sealed class CatalogCommandTests
         await Assert.That(starts.Any(x => x["scenario"]!.GetValue<string>() == "probe.jsonl")).IsTrue();
         if (both)
         {
-            var hosts = Directory.GetFiles(lab.Tree.Root, "requests.jsonl.*.host.json").Select(x => JsonNode.Parse(File.ReadAllText(x))!)
+            await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
+                .Where(x => x.Contains("  opencode fence:", StringComparison.Ordinal)).ToArray())
+                .IsEquivalentTo(new[] { Ready.FenceKind is { } kind ? $"PASS  opencode fence: {kind}"
+                    : "WARN  opencode fence: unfenced on Windows" }, CollectionOrdering.Matching);
+            var hosts = Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "requests.jsonl.*.host.json").Select(x => JsonNode.Parse(File.ReadAllText(x))!)
                 .OrderBy(x => x["environment"]!["OPENCODE_DISABLE_CLAUDE_CODE"]?.GetValue<string>(), StringComparer.Ordinal).ToArray();
             await Assert.That(hosts.Any(x => x["environment"]!["OPENCODE_DISABLE_CLAUDE_CODE"] is null)).IsTrue();
             await Assert.That(hosts.Any(x => x["environment"]!["OPENCODE_DISABLE_CLAUDE_CODE"]?.GetValue<string>() == "1")).IsTrue();
-            var requests = File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!).ToArray();
+            var requests = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!).ToArray();
             await Assert.That(requests.Any(x => x["unexpected"]!.GetValue<bool>())).IsFalse();
             await Assert.That(requests.Any(x => x["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))).IsFalse();
         }
@@ -323,7 +329,7 @@ public sealed class CatalogCommandTests
         var starts = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!).ToArray();
         var worker = starts.Single(x => x["scenario"]!.GetValue<string>() == "task.jsonl");
         await Assert.That(Directory.Exists(worker["codexHome"]!.GetValue<string>())).IsFalse();
-        var hosts = Directory.GetFiles(lab.Tree.Root, "requests.jsonl.*.host.json").Select(x => JsonNode.Parse(File.ReadAllText(x))!);
+        var hosts = Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "requests.jsonl.*.host.json").Select(x => JsonNode.Parse(File.ReadAllText(x))!);
         foreach (var start in starts.Concat(hosts))
         {
             var stopped = true;
@@ -338,14 +344,14 @@ public sealed class CatalogCommandTests
         await using var gated = new OpenCodeLab(lab.Tree);
         gated.Steps.Clear();
         gated.Steps.AddRange(File.ReadLines(environment["FAKE_OPENCODE_SCENARIO"]!).Select(x => JsonNode.Parse(x)!.AsObject()));
-        var arrived = Path.Combine(lab.Tree.Root, "release-arrived");
+        var arrived = Path.Combine(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "release-arrived");
         var release = Path.Combine(lab.Tree.Root, "release-allowed");
         var deletion = gated.Steps.Single(x => x["expect"]!.GetValue<string>() == "DELETE /api/session/ses_fixture");
         deletion["arrived"] = arrived;
         deletion["waitFor"] = release;
         gated.Write();
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var watcher = new FileSystemWatcher(lab.Tree.Root, Path.GetFileName(arrived));
+        using var watcher = new FileSystemWatcher(Path.GetDirectoryName(arrived)!, Path.GetFileName(arrived));
         watcher.Created += (_, _) => reached.TrySetResult();
         watcher.Error += (_, error) => reached.TrySetException(error.GetException());
         watcher.EnableRaisingEvents = true;
@@ -401,14 +407,14 @@ public sealed class CatalogCommandTests
         await using var gated = new OpenCodeLab(lab.Tree);
         gated.Steps.Clear();
         gated.Steps.AddRange(File.ReadLines(environment["FAKE_OPENCODE_SCENARIO"]!).Select(line => JsonNode.Parse(line)!.AsObject()));
-        var arrived = Path.Combine(lab.Tree.Root, "launch-arrived");
+        var arrived = Path.Combine(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "launch-arrived");
         var release = Path.Combine(lab.Tree.Root, "launch-allowed");
         var setup = gated.Steps.Single(step => step["expect"]!.GetValue<string>() == "PUT /api/session/ses_fixture/environment");
         setup["arrived"] = arrived;
         setup["waitFor"] = release;
         gated.Write();
         var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        using var watcher = new FileSystemWatcher(lab.Tree.Root, Path.GetFileName(arrived));
+        using var watcher = new FileSystemWatcher(Path.GetDirectoryName(arrived)!, Path.GetFileName(arrived));
         watcher.Created += (_, _) => reached.TrySetResult();
         watcher.Error += (_, error) => reached.TrySetException(error.GetException());
         watcher.EnableRaisingEvents = true;
@@ -688,7 +694,8 @@ public sealed class CatalogCommandTests
         File.WriteAllText(configPath, config.ToJsonString());
         File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
         var environment = lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value);
-        environment["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl");
+        Directory.CreateDirectory(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!);
+        environment["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree);
         var scenario = Path.Combine(lab.Tree.Root, "selfcheck.jsonl");
         var fixture = File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(x => JsonNode.Parse(x)!).ToArray();
         var steps = fixture.Take(4).ToList();

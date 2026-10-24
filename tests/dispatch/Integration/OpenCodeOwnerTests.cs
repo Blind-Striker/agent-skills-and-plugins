@@ -155,6 +155,6 @@ public sealed class OpenCodeOwnerTests
         return signals;
     }
 
-    static JsonNode[] Requests(OpenCodeLab lab) => File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl"))
+    static JsonNode[] Requests(OpenCodeLab lab) => File.ReadLines(FakeOpenCode.Record(lab.Tree))
         .Select(x => JsonNode.Parse(x)!).ToArray();
 }

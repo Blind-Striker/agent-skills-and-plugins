@@ -33,7 +33,7 @@ public sealed class OpenCodeCleanupTests
         lab.Add("GET /api/session", new JsonObject { ["data"] = new JsonArray(), ["cursor"] = new JsonObject() }, repeat: true);
         lab.Write();
         var environment = new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
-            ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") };
+            ["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree) };
         string[] arguments = force ? ["clean", "run", "--force"] : ["clean", "run"];
         using (var cleaner = new HarnessProcess(lab.Tree))
         {
@@ -79,7 +79,7 @@ public sealed class OpenCodeCleanupTests
 
         var result = await cleaner.RunAsync(["clean", "run"], ct,
             new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
-                ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") });
+                ["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree) });
 
         result.RequireSuccess("clean queued structured session");
         await Assert.That(Requests(lab.Tree).Where(x => x["method"]!.GetValue<string>() == "DELETE")
@@ -110,7 +110,7 @@ public sealed class OpenCodeCleanupTests
         {
             var launch = new WorkerLaunch("run", "inspect", "research", new("fixture", "model", null), null, "build",
                 new("full", "on", "read-only", "on", "in-place"), lab.Tree.Repository, new([], []),
-                new Dictionary<string, string>(), null, "full", null);
+                lab.Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!), null, "full", null);
             await creator.CreateAsync(launch, ct);
             try
             {
@@ -142,7 +142,7 @@ public sealed class OpenCodeCleanupTests
 
         var result = await cleaner.RunAsync(["clean", "run", "--ledger", firstRoot], ct,
             new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
-                ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") });
+                ["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree) });
 
         result.RequireSuccess("clean one ledger");
         await Assert.That(Requests(lab.Tree).Where(x => x["method"]!.GetValue<string>() == "DELETE")
@@ -201,7 +201,7 @@ public sealed class OpenCodeCleanupTests
             .Where(step => step["expect"]!.GetValue<string>() != "DELETE /api/session/ses_fixture"));
         lab.Steps.Single(step => step["expect"]!.GetValue<string>() == "POST /api/session/ses_fixture/permission/per_fixture/reply")["body"]
             = new JsonObject { ["decision"] = "reject", ["message"] = Policy.LeadDeclined };
-        var releasing = Path.Combine(lab.Tree.Root, "releasing");
+        var releasing = Path.Combine(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "releasing");
         var continueRelease = Path.Combine(lab.Tree.Root, "continue-release");
         var release = lab.Add("DELETE /api/session/ses_fixture", status: releaseFails ? 500 : 204);
         release["arrived"] = releasing;
@@ -210,7 +210,7 @@ public sealed class OpenCodeCleanupTests
         var environment = new Dictionary<string, string?>
         {
             ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
-            ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl"),
+            ["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree),
         };
         using var runner = new HarnessProcess(lab.Tree);
 
@@ -281,7 +281,7 @@ public sealed class OpenCodeCleanupTests
         var environment = new Dictionary<string, string?>
         {
             ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
-            ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl"),
+            ["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree),
         };
         using (var runner = new HarnessProcess(lab.Tree))
         {
@@ -354,7 +354,7 @@ public sealed class OpenCodeCleanupTests
 
         var result = await child.RunAsync(["collect", "run", "inspect"], ct,
             new Dictionary<string, string?> { ["FAKE_OPENCODE_SCENARIO"] = lab.Scenario,
-                ["FAKE_OPENCODE_RECORD"] = Path.Combine(lab.Tree.Root, "requests.jsonl") });
+                ["FAKE_OPENCODE_RECORD"] = FakeOpenCode.Record(lab.Tree) });
 
         TestContext.Current!.Output.WriteLine($"exit {result.ExitCode}\n{result.Stdout}\n{result.Stderr}");
         await Assert.That(result.ExitCode).IsEqualTo(exit);
@@ -368,7 +368,7 @@ public sealed class OpenCodeCleanupTests
 
     static JsonObject[] Requests(TempTree tree)
     {
-        var path = Path.Combine(tree.Root, "requests.jsonl");
+        var path = FakeOpenCode.Record(tree);
         return File.Exists(path) ? File.ReadAllLines(path).Select(x => JsonNode.Parse(x)!.AsObject()).ToArray() : [];
     }
 }

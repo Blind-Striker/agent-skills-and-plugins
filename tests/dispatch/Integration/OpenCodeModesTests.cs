@@ -8,6 +8,48 @@ namespace Dispatch.Tests.Integration;
 public sealed class OpenCodeModesTests
 {
     [Test]
+    public async Task Missing_fenced_host_is_lost_on_reattach_and_collection_without_reconstruction(CancellationToken ct)
+    {
+        await using var backend = new OpenCodeBackend();
+        var worker = new WorkerRef("opencode", "task", "session", "turn", new JsonObject { ["host"] = "fence=run/task" });
+        var reattached = await backend.ReattachAsync(worker, ct);
+        await Assert.That(reattached).IsTypeOf<ReattachResult.Ended>();
+        await Assert.That(((ReattachResult.Ended)reattached).Outcome).IsEqualTo("lost");
+        var report = await backend.CollectAsync(worker, ct);
+        await Assert.That(report.Outcome).IsEqualTo("lost");
+        await Assert.That(report.ExecutionError).IsEqualTo("fenced opencode server is no longer live");
+        await Assert.That(report.Complete).IsTrue();
+        await backend.ReleaseAsync(worker, ct);
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Fenced_tasks_have_private_keys_and_release_disposes_only_their_server(CancellationToken ct)
+    {
+        if (Ready.FenceKind is null) Skip.Test("opencode runs unfenced on Windows.");
+        if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
+        await using var lab = new OpenCodeLab();
+        lab.Add("POST /api/session", OpenCodeLab.Session("worker"), repeat: true);
+        lab.Add("PUT /api/session/worker/environment", status: 204, repeat: true);
+        lab.Add("DELETE /api/session/worker", status: 204, repeat: true);
+        lab.Write();
+        var first = (await lab.Backend.CreateAsync(Launch(lab, "first"), ct)).Worker;
+        var firstPid = lab.Hosts().Single()["pid"]!.GetValue<int>();
+        var second = (await lab.Backend.CreateAsync(Launch(lab, "second"), ct)).Worker;
+        await Assert.That(new[] { first.State["host"]!.GetValue<string>(), second.State["host"]!.GetValue<string>() })
+            .IsEquivalentTo(new[] { "fence=run/first", "fence=run/second" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(lab.Hosts().Count).IsEqualTo(2);
+        var secondPid = lab.Hosts().Single(x => x["pid"]!.GetValue<int>() != firstPid)["pid"]!.GetValue<int>();
+        var firstServer = ObservedProcess.Capture(firstPid);
+        var secondServer = ObservedProcess.Capture(secondPid);
+        await lab.Backend.ReleaseAsync(first, ct);
+        await Assert.That(firstServer.IsAlive()).IsFalse();
+        await Assert.That(secondServer.IsAlive()).IsTrue();
+        await lab.Backend.ReleaseAsync(second, ct);
+        await Assert.That(secondServer.IsAlive()).IsFalse();
+    }
+
+    [Test]
     [Timeout(30_000)]
     public async Task Clean_profile_server_uses_generated_root_and_overrides_inherited_config(CancellationToken ct)
     {
@@ -28,7 +70,14 @@ public sealed class OpenCodeModesTests
         lab.Create("worker");
         lab.Write();
 
-        await lab.Backend.CreateAsync(Launch(lab, "worker", "clean"), ct);
+        var launch = Launch(lab, "worker", "clean");
+        var variables = new Dictionary<string, string>(launch.Environment)
+        {
+            ["OPENCODE_CONFIG_DIR"] = global, ["OPENCODE_CONFIG"] = "inherited-config",
+            ["OPENCODE_CONFIG_CONTENT"] = "{\"instructions\":[\"inherited\"]}",
+            ["OPENCODE_DISABLE_FILEWATCHER"] = "0",
+        };
+        await lab.Backend.CreateAsync(launch with { Environment = variables }, ct);
 
         var host = lab.Hosts().Single();
         var root = host["configRoot"]?.GetValue<string>();
@@ -126,7 +175,7 @@ public sealed class OpenCodeModesTests
             };
             var created = await lab.Backend.CreateAsync(launch, ct);
 
-            await Assert.That(created.Applied.Access).IsEqualTo(item.AccessEnforcement);
+            await Assert.That(created.Applied.Access).IsEqualTo(Ready.Fenced(launch.Modes) ? "sandbox" : item.AccessEnforcement);
             await Assert.That(created.Applied.Network).IsEqualTo(item.NetworkEnforcement);
             await Assert.That(created.Applied.Rules).IsEqualTo("policy");
             foreach (var action in new[] { "edit", "webfetch", "websearch" })
@@ -143,7 +192,8 @@ public sealed class OpenCodeModesTests
     public async Task Hard_stop_of_an_unshared_host_kills_server_children_without_removing_session(CancellationToken ct)
     {
         await using var lab = new OpenCodeLab();
-        lab.SetEnvironment("FAKE_OPENCODE_CHILD_RECORD", Path.Combine(lab.Tree.Root, "children"));
+        var records = Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!;
+        lab.SetEnvironment("FAKE_OPENCODE_CHILD_RECORD", Path.Combine(records, "children"));
         lab.Create("worker");
         lab.Add("POST /api/session/worker/interrupt", new JsonObject { ["interrupted"] = false }, repeat: true);
         lab.Write();
@@ -151,7 +201,7 @@ public sealed class OpenCodeModesTests
         {
             var worker = (await lab.Backend.CreateAsync(Launch(lab, "worker"), ct)).Worker;
             var pid = lab.Hosts().Single()["pid"]!.GetValue<int>();
-            var descendants = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.Tree.Root, $"children.{pid}.json")))!;
+            var descendants = JsonNode.Parse(File.ReadAllText(Path.Combine(records, $"children.{pid}.json")))!;
             using var server = System.Diagnostics.Process.GetProcessById(pid);
             var (child, grandchild) = ObservedProcess.Descendants(descendants);
             await lab.Backend.InterruptAsync(worker, InterruptKind.Timeout, ct);
@@ -165,12 +215,12 @@ public sealed class OpenCodeModesTests
                 await Task.Delay(20, ct);
             await Assert.That(child.IsAlive()).IsFalse();
             await Assert.That(grandchild.IsAlive()).IsFalse();
-            var requests = File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!).ToList();
+            var requests = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!).ToList();
             await Assert.That(requests.Count(x => x["method"]!.GetValue<string>() == "DELETE")).IsEqualTo(0);
         }
         finally
         {
-            await ObservedProcess.CleanupRecordedChildrenAsync(lab.Tree.Root);
+            await ObservedProcess.CleanupRecordedChildrenAsync(records);
         }
     }
 
@@ -187,8 +237,8 @@ public sealed class OpenCodeModesTests
             : new JsonObject { ["_tag"] = "InternalError", ["message"] = "interrupt failed" }, status, repeat: true);
         lab.Prompt("peer");
         lab.Write();
-        var worker = (await lab.Backend.CreateAsync(Launch(lab, "worker"), ct)).Worker;
-        var peer = (await lab.Backend.CreateAsync(Launch(lab, "peer"), ct)).Worker;
+        var worker = (await lab.Backend.CreateAsync(Launch(lab, "worker", access: "full"), ct)).Worker;
+        var peer = (await lab.Backend.CreateAsync(Launch(lab, "peer", access: "full"), ct)).Worker;
         using var server = System.Diagnostics.Process.GetProcessById(lab.Hosts().Single()["pid"]!.GetValue<int>());
 
         await lab.Backend.InterruptAsync(worker, InterruptKind.Timeout, ct);
@@ -199,7 +249,7 @@ public sealed class OpenCodeModesTests
         await Assert.That(server.HasExited).IsFalse();
         var prompted = await lab.Backend.PromptAsync(peer, new("Inspect.", false), ct);
         await Assert.That(prompted.Turn).IsEqualTo("turn");
-        var requests = File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!).ToList();
+        var requests = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!).ToList();
         await Assert.That(requests.Count(x => x["path"]!.GetValue<string>() == "/api/session/worker/interrupt")).IsEqualTo(2);
         await Assert.That(requests.Count(x => x["method"]!.GetValue<string>() == "DELETE")).IsEqualTo(0);
     }
@@ -224,5 +274,5 @@ public sealed class OpenCodeModesTests
     static WorkerLaunch Launch(OpenCodeLab lab, string id, string profile = "full", string project = "on",
         string access = "workspace", string network = "on") => new("run", id, "research", new("fixture", "model", null),
         null, "build", new(profile, project, access, network, "worktree"), lab.Tree.Repository,
-        new([], []), new Dictionary<string, string>(), null, profile, null);
+        new([], []), lab.Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!), null, profile, null);
 }

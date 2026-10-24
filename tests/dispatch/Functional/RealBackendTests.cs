@@ -28,10 +28,12 @@ public sealed class RealBackendTests
     }
 
     [Test]
+    [Arguments("codex")]
+    [Arguments("opencode")]
     [Timeout(360_000)]
-    public async Task FN3_Codex_workspace_allows_inside_and_refuses_outside_write(CancellationToken ct)
+    public async Task FN3_Codex_workspace_allows_inside_and_refuses_outside_write(string backend, CancellationToken ct)
     {
-        using var lab = await FunctionalLab.CreateAsync("codex", ct, requireSandbox: true);
+        using var lab = await FunctionalLab.CreateAsync(backend, ct, requireSandbox: true);
         var outside = Path.Combine(lab.Tree.Root, "outside.txt");
         File.WriteAllText(outside, "unchanged");
         var insideCommand = WriteCommand("inside.txt", "inside-ok");
@@ -48,10 +50,12 @@ public sealed class RealBackendTests
     }
 
     [Test]
+    [Arguments("codex")]
+    [Arguments("opencode")]
     [Timeout(360_000)]
-    public async Task FN4_Codex_read_only_refuses_inside_and_outside_writes(CancellationToken ct)
+    public async Task FN4_Codex_read_only_refuses_inside_and_outside_writes(string backend, CancellationToken ct)
     {
-        using var lab = await FunctionalLab.CreateAsync("codex", ct, requireSandbox: true);
+        using var lab = await FunctionalLab.CreateAsync(backend, ct, requireSandbox: true);
         var outside = Path.Combine(lab.Tree.Root, "outside.txt");
         File.WriteAllText(outside, "unchanged");
         var insideCommand = WriteCommand("inside.txt", "forbidden");
@@ -235,6 +239,74 @@ public sealed class RealBackendTests
         }
     }
 
+    [Test]
+    [Timeout(360_000)]
+    public async Task FN10_Fenced_opencode_builds_and_tests_dotnet_with_writableRoots(CancellationToken ct)
+    {
+        using var lab = await FunctionalLab.CreateAsync("opencode", ct, requireSandbox: true);
+        var cliHome = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "dotnet-home")).FullName;
+        var packages = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "nuget-packages")).FullName;
+        var nugetConfig = Path.Combine(lab.Environment["HOME"]!, ".nuget", "NuGet");
+        var nugetData = Path.Combine(lab.Environment["HOME"]!, ".local", "share", "NuGet");
+        lab.Environment["DOTNET_CLI_HOME"] = cliHome;
+        lab.Environment["NUGET_PACKAGES"] = packages;
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(TestPaths.Tests, "Dispatch.Tests.csproj"));
+        var framework = project.Descendants("TargetFramework").Single().Value;
+        var version = project.Descendants("PackageReference").Single(x => (string?)x.Attribute("Include") == "TUnit").Attribute("Version")!.Value;
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "probe.csproj"), $$"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup>
+                <TargetFramework>{{framework}}</TargetFramework>
+                <OutputType>Exe</OutputType>
+                <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+              </PropertyGroup>
+              <ItemGroup><PackageReference Include="TUnit" Version="{{version}}" /></ItemGroup>
+            </Project>
+            """);
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "Probe.cs"), """
+            using TUnit.Assertions;
+            public class RealBackendTests
+            {
+                [TUnit.Core.Test]
+                public async System.Threading.Tasks.Task FN10() => await TUnit.Assertions.Assert.That(2 + 2).IsEqualTo(4);
+            }
+            """);
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, ".gitignore"), "bin/\nobj/\nTestResults/\n");
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["add", "."], ct);
+        await repo.GitAsync(["commit", "-m", "Add tiny dotnet test project"], ct);
+        // NUGET_* is scrubbed at dispatch's boundary; use the same lab-local cache explicitly for restore.
+        // opencode keeps its real credential data root; only dotnet uses the lab's NuGet data home.
+        const string prefix = "XDG_DATA_HOME=\"$HOME/.local/share\" ";
+        var build = prefix + $"dotnet build probe.csproj -p:RestorePackagesPath='{packages.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+        const string test = prefix + "dotnet test probe.csproj --no-build --no-restore -- --output Detailed";
+        var task = lab.CodeTask($"Run exactly `{build}`, then `{test}` in separate shell calls in your worktree. "
+            + "Both must succeed and the test output must show FN10 passed. Do not change the project or tests. "
+            + "Then create inside.txt containing dotnet-ok with no newline. Finish with Status: done.", "workspace");
+        task["writableRoots"] = new JsonArray(cliHome, packages, nugetConfig, nugetData);
+        task["verify"] = new JsonArray(build, test, "test \"$(cat inside.txt)\" = dotnet-ok");
+        lab.WriteTask(task);
+        using var process = new HarnessProcess(lab.Tree);
+        var result = await lab.CompleteAsync(lab.StartAsync(process, ct));
+        await lab.AssertDoneAsync(result);
+        await Assert.That(lab.Record["settings"]!["access"]!["enforcement"]!.GetValue<string>()).IsEqualTo("sandbox");
+        await Assert.That(lab.Record["settings"]!["writableRoots"]!["value"]!.AsArray().Select(x => x!.GetValue<string>()).ToArray())
+            .IsEquivalentTo(new[] { cliHome, packages, nugetConfig, nugetData }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
+        foreach (var command in new[] { "dotnet build probe.csproj", "dotnet test probe.csproj --no-build" })
+        {
+            var call = tools.Single(x => x["data"]!["resource"]!.GetValue<string>().Contains(command, StringComparison.Ordinal));
+            await Assert.That(call["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("succeeded");
+        }
+        await Assert.That(lab.Result["verify"]!.AsArray().Select(x => x!["command"]!.GetValue<string>()).ToArray())
+            .IsEquivalentTo(new[] { build, test, "test \"$(cat inside.txt)\" = dotnet-ok" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        foreach (var check in lab.Result["verify"]!.AsArray()) await Assert.That(check!["exitCode"]!.GetValue<int>()).IsEqualTo(0);
+        await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "inside.txt"))).IsEqualTo("dotnet-ok");
+        var log = File.ReadAllText(Path.Combine(lab.TaskFolder, "verify.log"));
+        await Assert.That(log).Contains("FN10");
+        await Assert.That(log).Contains("succeeded: 1");
+    }
+
     static bool IsFailedTool(JsonObject entry) => entry["type"]!.GetValue<string>() == "tool"
         && entry["data"]?["outcome"]?.GetValue<string>() == "failed";
 
@@ -253,7 +325,7 @@ public sealed class RealBackendTests
         // command prefix distinguishes the relative inside target from the absolute outside target.
         var insideEvents = MatchingWriteEvents(tools, inside);
         var outsideEvents = MatchingWriteEvents(tools, outside);
-        if (OperatingSystem.IsWindows())
+        if (OperatingSystem.IsWindows() || lab.Backend == "opencode")
         {
             await Assert.That(insideEvents.Length).IsEqualTo(1);
             await Assert.That(outsideEvents.Length).IsEqualTo(1);

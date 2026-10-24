@@ -18,7 +18,7 @@ internal sealed class OpenCodeLab : IAsyncDisposable
         Tree = tree ?? new();
         var environment = FakeOpenCode.Environment(Tree, "one-task.jsonl");
         environment["FAKE_OPENCODE_SCENARIO"] = Scenario;
-        foreach (var name in new[] { "DISPATCH_HOME", "FAKE_OPENCODE_SCENARIO", "FAKE_OPENCODE_RECORD" })
+        foreach (var name in new[] { "DISPATCH_HOME", "XDG_DATA_HOME", "FAKE_OPENCODE_SCENARIO", "FAKE_OPENCODE_RECORD" })
         {
             saved[name] = Environment.GetEnvironmentVariable(name);
             Environment.SetEnvironmentVariable(name, environment[name]);
@@ -34,7 +34,7 @@ internal sealed class OpenCodeLab : IAsyncDisposable
         Environment.SetEnvironmentVariable(name, value);
     }
 
-    public List<JsonObject> Hosts() => Directory.GetFiles(Tree.Root, "requests.jsonl.*.host.json")
+    public List<JsonObject> Hosts() => Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(Tree))!, "requests.jsonl.*.host.json")
         .Select(path => JsonNode.Parse(File.ReadAllText(path))!.AsObject()).ToList();
 
     public JsonObject Add(string request, JsonNode? reply = null, int status = 200, bool repeat = false)
@@ -89,7 +89,7 @@ internal sealed class OpenCodeLab : IAsyncDisposable
 
     public Task<CreateResult> CreateAsync(string id, CancellationToken ct) => Backend.CreateAsync(new("run", id, "research",
         new("fixture", "model", null), null, "build", new("full", "on", "read-only", "on", "worktree"),
-        Tree.Repository, new([], []), new Dictionary<string, string>(), null, "full", null), ct);
+        Tree.Repository, new([], []), Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!), null, "full", null), ct);
 
     public async Task<WorkerSignal> ReadAsync(Func<WorkerSignal, bool> match, CancellationToken ct)
     {

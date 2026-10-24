@@ -66,7 +66,7 @@ public sealed class SchedulerTests
         environment["FAKE_OPENCODE_SCENARIO"] = scenario;
         using var child = new HarnessProcess(tree);
         (await child.RunAsync(["resume", run, "--continue"], ct, environment)).RequireSuccess("resume --continue");
-        var sent = File.ReadLines(Path.Combine(tree.Root, "requests.jsonl")).Select(x => System.Text.Json.Nodes.JsonNode.Parse(x)!)
+        var sent = File.ReadLines(FakeOpenCode.Record(tree)).Select(x => System.Text.Json.Nodes.JsonNode.Parse(x)!)
             .Single(x => x["method"]!.GetValue<string>() == "PUT");
         foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
             await Assert.That(sent["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(Path.Combine(root, run, "inspect"));

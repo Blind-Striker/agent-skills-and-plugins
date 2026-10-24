@@ -86,6 +86,11 @@ internal sealed class FunctionalLab : IDisposable
         var variable = "DISPATCH_FUNCTIONAL_ROUTE_" + backend.ToUpperInvariant();
         var route = System.Environment.GetEnvironmentVariable(variable);
         if (string.IsNullOrWhiteSpace(route)) Skip.Test($"{variable} is unset.");
+        if (backend == "opencode" && requireSandbox)
+        {
+            if (Ready.FenceKind is null) Skip.Test("opencode runs unfenced on Windows.");
+            if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
+        }
         if (backend == "codex")
         {
             var source = System.Environment.GetEnvironmentVariable("CODEX_HOME")

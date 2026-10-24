@@ -53,10 +53,13 @@ if (args.SequenceEqual(new[] { "--hung-leaf" }))
 if (args.FirstOrDefault() == "-C" && Environment.GetEnvironmentVariable("FAKE_GIT_MODE") is { } gitMode)
 {
     var repo = args[1];
-    var command = args[12];
+    // The subcommand follows "-C <repo>" and the harness's "-c <key=value>" pairs, whose count differs by platform.
+    var at = 2;
+    while (at < args.Length && args[at] == "-c") at += 2;
+    var command = args[at];
     if (Environment.GetEnvironmentVariable("FAKE_GIT_CALLS") is { } calls)
         await File.AppendAllTextAsync(calls, JsonSerializer.Serialize(args) + "\n");
-    using var directoryHandle = gitMode == "worktree-lock" && command == "worktree" && args[13] == "remove"
+    using var directoryHandle = gitMode == "worktree-lock" && command == "worktree" && args[at + 1] == "remove"
         && !File.Exists(Environment.GetEnvironmentVariable("FAKE_GIT_READY")!)
         ? File.Open(Path.Combine(args[^1], "cleanup-handle"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read)
         : null;

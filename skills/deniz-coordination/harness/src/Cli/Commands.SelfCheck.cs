@@ -70,6 +70,11 @@ static partial class Commands
             foreach (var selected in selectedBackends)
             {
                 Console.WriteLine($"backend {selected}");
+                if (selected == "opencode")
+                {
+                    var refusal = await Ready.FenceAsync(ct);
+                    Check("opencode fence", refusal is null, refusal ?? Ready.FenceKind ?? "unfenced on Windows", warn: Ready.FenceKind is null);
+                }
                 try
                 {
                     await using var scope = new BackendScope([selected]);

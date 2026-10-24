@@ -39,7 +39,7 @@ public sealed class PromptTests
                 await Assert.That(contracts[i]!["sha256"]!.GetValue<string>()).IsEqualTo(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(texts[i]))).ToLowerInvariant());
             }
         }
-        var requests = File.ReadLines(Path.Combine(tree.Root, "requests.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
+        var requests = File.ReadLines(FakeOpenCode.Record(tree)).Select(line => JsonNode.Parse(line)!).ToArray();
         var prompt = requests.Single(r => r["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))["body"]!["text"]!.GetValue<string>();
         await Assert.That(prompt).StartsWith(string.Concat(texts.Select(t => t + (t.EndsWith('\n') ? "\n" : "\n\n"))) + "Standing instructions");
     }
@@ -63,7 +63,7 @@ public sealed class PromptTests
         using var harness = new HarnessProcess(tree);
         var result = await harness.RunAsync(["run", tasks, "--repo", repo.Root, "--contract", third, "--contract", second], cancellationToken, environment);
         result.RequireSuccess("contract run");
-        var requests = File.ReadLines(Path.Combine(tree.Root, "requests.jsonl")).Select(line => JsonNode.Parse(line)!).ToArray();
+        var requests = File.ReadLines(FakeOpenCode.Record(tree)).Select(line => JsonNode.Parse(line)!).ToArray();
         var prompt = requests.Single(r => r["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))["body"]!["text"]!.GetValue<string>();
         await Assert.That(prompt).StartsWith("Contract one\r\nKeep this.\r\n\nContract two\n\nContract three\n\nStanding instructions");
         var run = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();

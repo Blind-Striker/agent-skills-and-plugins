@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Unit;
 
@@ -7,6 +8,42 @@ namespace Dispatch.Tests.Unit;
 public sealed class ConfigTests
 {
     static TaskFile Tasks() => new() { Tasks = [new TaskSpec { Id = "inspect", Kind = "research", Route = "fixture/model" }] };
+
+    [Test]
+    public async Task WritableRoots_guard_joins_all_layers_in_order()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "writable-roots");
+        var paths = new[] { "z-user", "a-repo", "y-defaults", "b-task", "x-cli" }.Select(x => Path.Combine(root, x)).ToList();
+        var file = Tasks();
+        file.Defaults = new() { Backend = "opencode", WritableRoots = [paths[2], paths[0]] };
+        file.Tasks![0].WritableRoots = [paths[3]];
+        var settings = ConfigResolver.Resolve(file,
+            new() { Preferences = new() { WritableRoots = [paths[0]] } },
+            new() { Preferences = new() { WritableRoots = [paths[1]] } }, new() { WritableRoots = [paths[4]] }).Tasks["inspect"].Settings;
+        await Assert.That(settings.WritableRoots!.Value).IsEquivalentTo(paths, CollectionOrdering.Matching);
+        await Assert.That(settings.WritableRoots.From).IsEqualTo("user,repo,task-file-defaults,task,cli");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task WritableRoots_guard_refuses_relative_and_control_or_ledger_overlaps()
+    {
+        using var lab = new CoreLab("writable-roots");
+        var file = Tasks();
+        file.Defaults = new() { Backend = "opencode" };
+        file.Tasks![0].WritableRoots = ["relative"];
+        var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+        await Assert.That(error!.Message).IsEqualTo("inspect: writableRoots from task must hold absolute paths: relative");
+        foreach (var (folder, name) in new[] { (Locations.ControlRoot, "control root"), (Locations.LedgerRoot, "ledger root") })
+            foreach (var path in new[] { Path.GetDirectoryName(folder)!, folder, Path.Combine(folder, "child") })
+            {
+                file.Tasks[0].WritableRoots = [path];
+                error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+                // The shared parent contains control first; equal/child roots identify their own protected folder.
+                var refused = path == Path.GetDirectoryName(folder) ? "control root" : name;
+                await Assert.That(error!.Message).IsEqualTo($"inspect: writableRoots from task must not contain or lie inside the {refused}: {path}");
+            }
+    }
 
     [Test]
     public async Task TempRoot_layers_preserve_value_and_source()

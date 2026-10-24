@@ -29,18 +29,23 @@ public sealed class OpenCodeGoldenTests
         var result = await harness.RunAsync(["run", tasks, "--repo", repo.Root, "--max", "1"], cancellationToken,
             environment);
 
-        if (result.ExitCode != 0 && File.Exists(Path.Combine(tree.Root, "requests.jsonl")))
-            TestContext.Current!.Output.WriteLine(await File.ReadAllTextAsync(Path.Combine(tree.Root, "requests.jsonl"), cancellationToken));
+        if (result.ExitCode != 0 && File.Exists(FakeOpenCode.Record(tree)))
+            TestContext.Current!.Output.WriteLine(await File.ReadAllTextAsync(FakeOpenCode.Record(tree), cancellationToken));
         result.RequireSuccess("scripted opencode run");
         var ledger = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var settled = JsonNode.Parse(File.ReadAllText(Path.Combine(ledger, "inspect", "result.json")))!;
+        if (OperatingSystem.IsWindows())
+            await Assert.That(settled["capabilityNotes"]!.AsArray().Select(x => x!.GetValue<string>()).ToArray())
+                .IsEquivalentTo(new[] { "opencode runs unfenced on Windows" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         var events = File.ReadAllLines(Path.Combine(ledger, "events.jsonl")).Select(line => JsonNode.Parse(line)!.AsObject()).ToArray();
-        var requests = File.ReadAllLines(Path.Combine(tree.Root, "requests.jsonl")).Select(line => JsonNode.Parse(line)!.AsObject()).ToArray();
+        var requests = File.ReadAllLines(FakeOpenCode.Record(tree)).Select(line => JsonNode.Parse(line)!.AsObject()).ToArray();
         await Assert.That(requests.All(request => request["authenticated"]!.GetValue<bool>())).IsTrue();
         await Assert.That(requests.Where(request => request["unexpected"]!.GetValue<bool>())).IsEmpty();
         var permissions = requests.Single(request => request["method"]!.GetValue<string>() == "POST" && request["path"]!.GetValue<string>() == "/api/session")["body"]!["permissions"]!.AsArray();
-        await Assert.That(permissions.Count).IsEqualTo(5);
-        await Assert.That(permissions[2]!["action"]!.GetValue<string>()).IsEqualTo("shell");
-        await Assert.That(permissions[2]!["effect"]!.GetValue<string>()).IsEqualTo("deny");
+        await Assert.That(permissions.Count).IsEqualTo(Ready.FenceKind is null ? 5 : 4);
+        await Assert.That(permissions.Where(x => x!["action"]!.GetValue<string>() == "shell")
+            .Select(x => $"{x!["action"]} {x["resource"]} {x["effect"]}").ToArray())
+            .IsEquivalentTo(Ready.FenceKind is null ? new[] { "shell * deny" } : [], TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(permissions[0]!["resource"]!.GetValue<string>()).IsEqualTo("*");
         await Assert.That(permissions[^2]!["resource"]!.GetValue<string>()).IsEqualTo(Path.Combine(tree.DispatchHome, "state", "control", "**").Replace('\\', '/'));
         await Assert.That(permissions[^1]!["resource"]!.GetValue<string>()).IsEqualTo(Path.Combine(ledger, "**").Replace('\\', '/'));
@@ -52,6 +57,7 @@ public sealed class OpenCodeGoldenTests
         await Assert.That(promptEvent["sha256"]!.GetValue<string>()).IsEqualTo(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(promptText))).ToLowerInvariant());
         var normalized = LedgerSnapshot.Normalize(events, tree.Root, Path.GetFileName(ledger), await repo.GitAsync(["rev-parse", "HEAD"], cancellationToken));
         var expected = await File.ReadAllTextAsync(Path.Combine(TestPaths.Tests, "fixtures", "ledgers", "opencode-one-task.jsonl"), cancellationToken);
+        if (Ready.FenceKind is not null) expected = expected.Replace(",\"shell * deny\"", "", StringComparison.Ordinal);
         await Assert.That(normalized).IsEqualTo(expected);
         var final = await File.ReadAllTextAsync(Path.Combine(ledger, "inspect", "final.md"), cancellationToken);
         await Assert.That(final).Contains("Outcome: succeeded");

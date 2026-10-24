@@ -1,6 +1,61 @@
 using OpenCode.Sdk;
 using OpenCode.Sdk.Models;
 
+static partial class Ready
+{
+    public static string? FenceKind => OperatingSystem.IsLinux() ? "bwrap" : OperatingSystem.IsMacOS() ? "sandbox-exec" : null;
+    public static bool Fenced(Modes modes) => FenceKind is not null && modes.Access is "read-only" or "workspace";
+    static readonly Lazy<Task<string?>> fenceReadiness = new(CheckFenceAsync);
+    public static Task<string?> FenceAsync(CancellationToken ct) => fenceReadiness.Value.WaitAsync(ct);
+
+    static async Task<string?> CheckFenceAsync()
+    {
+        if (FenceKind is not { } kind) return null;
+        string? detail;
+        try
+        {
+            var executable = Executables.Resolve(kind);
+            var result = await Proc.RunAsync(executable, kind == "bwrap"
+                ? ["--ro-bind", "/", "/", "--dev", "/dev", "true"]
+                : ["-p", "(version 1)(allow default)", "/usr/bin/true"], Environment.CurrentDirectory,
+                CancellationToken.None, TimeSpan.FromSeconds(30));
+            if (result.ExitCode == 0) return null;
+            detail = $"{kind} exited {result.ExitCode}: {result.Stderr.Trim()}";
+        }
+        catch (Exception ex) when (ex is HarnessException or System.ComponentModel.Win32Exception or IOException)
+        { detail = ex.Message; }
+        return $"opencode fence unavailable ({detail})" + (kind == "bwrap"
+            ? "; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)" : "");
+    }
+
+    public static IReadOnlyList<string> WritableSet(WorkerLaunch launch, string profileRoot, string home,
+        IReadOnlyDictionary<string, string> environment, string? gitCommon)
+    {
+        var roots = new List<string>();
+        foreach (var (name, fallback) in new[] { ("DATA", ".local/share"), ("STATE", ".local/state"), ("CACHE", ".cache"), ("CONFIG", ".config") })
+            roots.Add(Path.Combine(environment.GetValueOrDefault($"XDG_{name}_HOME") is { Length: > 0 } xdg
+                ? xdg : Path.Combine(home, fallback), "opencode"));
+        roots.AddRange([profileRoot, launch.Environment["TEMP"], "/dev"]);
+        if (launch.Modes.Access == "workspace")
+        {
+            roots.Add(launch.Directory);
+            if (gitCommon is not null) roots.Add(gitCommon);
+            roots.AddRange(launch.WritableRoots ?? []);
+        }
+        return roots.Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    public static string FenceProfile(IReadOnlyList<string> writable) =>
+        "(version 1) (allow default) (deny file-write*) (allow file-write* "
+        + string.Join(" ", writable.Concat(["/dev", "/tmp", "/private/tmp", "/private/var/folders"]).Distinct(StringComparer.Ordinal)
+            .Select(path => $"(subpath \"{path.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\")")) + ")";
+
+    public static IReadOnlyList<string> FenceCommand(string kind, IReadOnlyList<string> command, IReadOnlyList<string> writable) => kind == "bwrap"
+        ? ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+            .. writable.Where(path => path != "/dev").SelectMany(path => new[] { "--bind", path, path }), "--", .. command]
+        : ["sandbox-exec", "-p", FenceProfile(writable), .. command];
+}
+
 sealed record BusDisconnected(string Reason);
 
 sealed record BusConnected(int Attempt);
@@ -47,12 +102,15 @@ sealed class HarnessServer : IAsyncDisposable
         return completion.Task.WaitAsync(ct);
     }
 
-    public static async Task<HarnessServer> StartAsync(bool subscribe, BackendContext context, string profileRoot, Modes modes, CancellationToken ct)
+    public static async Task<HarnessServer> StartAsync(bool subscribe, BackendContext context, string profileRoot, Modes modes, CancellationToken ct,
+        WorkerLaunch? launch = null)
     {
         var output = new OpenCodeServerOutput();
         var command = Command(context.Executable);
         OpenCodeServer server;
         var environment = WorkerEnvironment.Copy(context.Passthrough);
+        if (launch is not null && Ready.Fenced(modes))
+            foreach (var (name, value) in launch.Environment) environment[name] = value;
         environment["OPENCODE_FILEWATCHER_DISABLE"] = "1";
         environment["OPENCODE_DISABLE_FILEWATCHER"] = "1";
         if (modes.Profile == "clean")
@@ -66,6 +124,22 @@ sealed class HarnessServer : IAsyncDisposable
         {
             environment["OPENCODE_CONFIG_PROJECT_DISABLE"] = "1";
             environment["OPENCODE_DISABLE_PROJECT_CONFIG"] = "1";
+        }
+        if (launch is not null && Ready.Fenced(modes))
+        {
+            if (await Ready.FenceAsync(ct) is { } refusal) throw new HarnessException(refusal);
+            var inherited = WorkerEnvironment.Snapshot();
+            foreach (var (name, value) in environment) inherited[name] = value;
+            string? common = null;
+            if (modes.Access == "workspace")
+            {
+                var git = await Git.Default.RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
+                if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
+            }
+            var writable = Ready.WritableSet(launch, profileRoot, inherited.GetValueOrDefault("HOME")
+                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), inherited, common);
+            foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
+            command = Ready.FenceCommand(Ready.FenceKind!, command, writable);
         }
         try
         {

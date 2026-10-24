@@ -9,6 +9,27 @@ public sealed class CodexBackendTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Workspace_writableRoots_guard_sends_worktree_temp_and_configured_roots(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        await LabRepo.CreateAsync(lab.Tree, ct);
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var temp = Path.Combine(lab.Tree.Root, "task-temp");
+        var first = Path.Combine(lab.Tree.Root, "z-cache");
+        var second = Path.Combine(lab.Tree.Root, "a-cache");
+        var variables = new Dictionary<string, string>(lab.Environment) { ["TEMP"] = temp };
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), variables, null, "full", null,
+            [first, second]), ct);
+        await backend.PromptAsync(created.Worker, new("Perform the task.", false), ct);
+        var turn = lab.Input().Single(x => x["method"]?.GetValue<string>() == "turn/start")["params"]!;
+        await Assert.That(turn["sandboxPolicy"]!["writableRoots"]!.AsArray().Select(x => x!.GetValue<string>()))
+            .IsEquivalentTo(new[] { lab.Tree.Repository, temp, first, second }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Unknown_internal_access_is_refused_instead_of_requesting_full_access(CancellationToken cancellationToken)
     {
         using var lab = new CodexLab();

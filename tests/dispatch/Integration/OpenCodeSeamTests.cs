@@ -20,7 +20,7 @@ public sealed class OpenCodeSeamTests
         var worker = new WorkerRef("opencode", "inspect", "worker", "old-turn", new() { ["promptCreated"] = 2d });
         await lab.Backend.ReattachAsync(worker, ct);
         await lab.Backend.PromptAsync(worker, new("Continue.", true), ct);
-        var request = File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+        var request = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!)
             .Single(x => x["method"]!.GetValue<string>() == "PUT");
         var expected = Path.Combine(lab.Tree.WorktreeRoot, "run", ".tmp", "inspect");
         foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
@@ -444,7 +444,7 @@ public sealed class OpenCodeSeamTests
         }
         finally
         {
-            var pid = JsonNode.Parse(File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).First())!["pid"]!.GetValue<int>();
+            var pid = JsonNode.Parse(File.ReadLines(FakeOpenCode.Record(lab.Tree)).First())!["pid"]!.GetValue<int>();
             try { await lab.DisposeAsync(); }
             catch (Exception ex) { disposalError = ex; }
             try

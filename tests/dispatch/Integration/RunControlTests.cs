@@ -51,22 +51,23 @@ public sealed class RunControlTests
             File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
         }
         var release = Path.Combine(tree.Root, "release");
+        var records = Path.GetDirectoryName(FakeOpenCode.Record(tree))!;
         Dictionary<string, string?> EnvironmentFor(int n)
         {
             var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(x => JsonNode.Parse(x)!.AsObject()).ToArray();
             var step = steps.Single(x => x["expect"]!.GetValue<string>() == "GET /api/model");
-            step["arrived"] = Path.Combine(tree.Root, $"arrived-{n}");
+            step["arrived"] = Path.Combine(records, $"arrived-{n}");
             step["waitFor"] = release;
             steps.Single(x => x["expect"]!.GetValue<string>() == "POST /api/session").Remove("body");
             var path = Path.Combine(tree.Root, $"scenario-{n}.jsonl");
             File.WriteAllLines(path, steps.Select(x => x.ToJsonString()));
-            return new(environment) { ["FAKE_OPENCODE_SCENARIO"] = path, ["FAKE_OPENCODE_RECORD"] = Path.Combine(tree.Root, $"requests-{n}.jsonl") };
+            return new(environment) { ["FAKE_OPENCODE_SCENARIO"] = path, ["FAKE_OPENCODE_RECORD"] = Path.Combine(records, $"requests-{n}.jsonl") };
         }
         using var first = new HarnessProcess(tree);
         using var second = new HarnessProcess(tree);
         var one = first.RunAsync(["run", tasks, "--repo", repo.Root], ct, EnvironmentFor(1));
         var two = second.RunAsync(["run", tasks, "--repo", repo.Root], ct, EnvironmentFor(2));
-        while (!File.Exists(Path.Combine(tree.Root, "arrived-1")) || !File.Exists(Path.Combine(tree.Root, "arrived-2")))
+        while (!File.Exists(Path.Combine(records, "arrived-1")) || !File.Exists(Path.Combine(records, "arrived-2")))
         {
             if (one.IsCompleted || two.IsCompleted)
                 throw new InvalidOperationException($"run ended before the preflight barrier: {(one.IsCompleted ? await one : await two)}");
@@ -84,7 +85,7 @@ public sealed class RunControlTests
         await Assert.That(File.Exists(Path.Combine(control, "setup.done"))).IsTrue();
         await Assert.That(File.Exists(Path.Combine(control, "supervisor.lock"))).IsTrue();
         await Assert.That(File.Exists(Path.Combine(control, "run.ref"))).IsTrue();
-        var requests = Enumerable.Range(1, 2).SelectMany(n => File.ReadLines(Path.Combine(tree.Root, $"requests-{n}.jsonl")))
+        var requests = Enumerable.Range(1, 2).SelectMany(n => File.ReadLines(Path.Combine(records, $"requests-{n}.jsonl")))
             .Select(x => JsonNode.Parse(x)!).ToArray();
         await Assert.That(requests.Count(x => x["method"]!.GetValue<string>() == "POST" && x["path"]!.GetValue<string>() == "/api/session")).IsEqualTo(1);
         var prompt = requests.Single(x => x["path"]!.GetValue<string>().EndsWith("/prompt", StringComparison.Ordinal))["body"]!["text"]!.GetValue<string>();

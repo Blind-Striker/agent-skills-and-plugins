@@ -65,10 +65,17 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         _ => throw new HarnessException("invalid opencode host key"),
     };
 
-    Task<HarnessServer> HostAsync(WorkerRef worker, CancellationToken ct) => HostAsync(ct, HostModes(HostKey(worker)));
+    Task<HarnessServer> HostAsync(WorkerRef worker, CancellationToken ct) => HostAsync(HostKey(worker), ct);
+
+    Task<HarnessServer> HostAsync(string key, CancellationToken ct) => hosts.TryGetValue(key, out var host)
+        ? Task.FromResult(host) : key.StartsWith("fence=", StringComparison.Ordinal)
+            ? throw new HarnessException("fenced opencode server is no longer live") : HostAsync(ct, HostModes(key));
+
+    bool LostFence(WorkerRef worker) => HostKey(worker).StartsWith("fence=", StringComparison.Ordinal)
+        && (!hosts.TryGetValue(HostKey(worker), out var host) || host.IsStopping || host.Server.Exited.IsCompleted);
 
     async Task<HarnessServer> HostAsync(CancellationToken ct, Modes? modes = null, RouteRef? route = null, string? run = null,
-        IEnumerable<RouteRef>? routes = null)
+        IEnumerable<RouteRef>? routes = null, WorkerLaunch? launch = null)
     {
         await hostGate.WaitAsync(ct);
         try
@@ -90,10 +97,10 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             OpenCodeProfile.CreateFolder(backendContext.ProfilesFolder);
             OpenCodeProfile.CreateFolder(profile.Root);
             if (modes.Profile == "clean") profile.Prepare(routes ?? (route is null ? [] : [route]));
-            var key = HostKey(modes);
+            var key = launch is not null && Ready.Fenced(modes) ? $"fence={launch.RunId}/{launch.TaskId}" : HostKey(modes);
             if (!hosts.TryGetValue(key, out var host))
             {
-                host = await HarnessServer.StartAsync(subscribe, backendContext, profile.Root, modes, ct);
+                host = await HarnessServer.StartAsync(subscribe, backendContext, profile.Root, modes, ct, launch);
                 hosts[key] = host;
                 pumps[key] = PumpAsync(host, key, lifetime.Token);
             }
@@ -118,6 +125,11 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         var result = new List<LiveCheck>();
         foreach (var task in tasks)
         {
+            if (Ready.Fenced(task.Modes) && await Ready.FenceAsync(ct) is { } refusal)
+            {
+                result.Add(new(task.TaskId, [refusal], [], "unknown", task.Modes.Profile, null));
+                continue;
+            }
             var server = await HostAsync(ct, task.Modes, task.Route,
                 routes: tasks.Where(x => x.Modes.Profile == "clean").Select(x => x.Route));
             // The SDK decodes only its pinned wire contract; another server version can lose events.
@@ -150,7 +162,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     async Task<CreateResult> CreateCoreAsync(WorkerLaunch launch, CancellationToken ct)
     {
-        var server = await HostAsync(ct, launch.Modes, launch.Route, launch.RunId);
+        var server = await HostAsync(ct, launch.Modes, launch.Route, launch.RunId, launch: launch);
         var client = server.Client;
         var catalog = await Catalog.LoadAsync(client, launch.Directory, TimeSpan.FromSeconds(60), ct);
         var route = launch.Route;
@@ -176,7 +188,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         var worker = new WorkerRef(Name, launch.TaskId, created.Session.Id, null, new JsonObject
         {
             ["projectId"] = created.Session.ProjectId,
-            ["host"] = HostKey(launch.Modes),
+            ["host"] = Ready.Fenced(launch.Modes) ? $"fence={launch.RunId}/{launch.TaskId}" : HostKey(launch.Modes),
         });
         lock (eventGate)
         {
@@ -235,7 +247,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     async Task<AnswerResult> AnswerCoreAsync(BlockerRef blocker, BlockerAnswer answer, CancellationToken ct, HarnessServer? server = null)
     {
-        server ??= await HostAsync(ct, HostModes(sessionHosts.GetValueOrDefault(blocker.WorkerId, DefaultHost)));
+        server ??= await HostAsync(sessionHosts.GetValueOrDefault(blocker.WorkerId, DefaultHost), ct);
         var session = server.Client.Sessions.GetSessionClient(blocker.OriginChildId ?? blocker.WorkerId);
         if (answer is BlockerAnswer.Cancel cancel)
         {
@@ -288,6 +300,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     async Task<ReattachResult> ReattachCoreAsync(WorkerRef worker, CancellationToken ct)
     {
+        if (LostFence(worker)) return new ReattachResult.Ended("lost");
         var read = await (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id).GetAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (read.IsError) return new ReattachResult.Unreadable($"session {worker.Id} unreadable: HTTP {read.Status} {read.Error?.Tag}");
         lock (eventGate)
@@ -304,6 +317,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     async Task ReleaseCoreAsync(WorkerRef worker, CancellationToken ct)
     {
+        if (LostFence(worker)) return;
         var response = await (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (response.IsError && response.Status != 404) throw new HarnessException($"session {worker.Id} release failed: HTTP {response.Status}");
         lock (eventGate)
@@ -311,6 +325,11 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             workers.TryRemove(worker.Id, out _);
             liveWorkers.TryRemove(worker.Id, out _);
             admissions.Remove(worker.Id);
+        }
+        if (HostKey(worker).StartsWith("fence=", StringComparison.Ordinal) && hosts.TryRemove(HostKey(worker), out var server))
+        {
+            await server.DisposeAsync();
+            await pumps[HostKey(worker)];
         }
     }
 

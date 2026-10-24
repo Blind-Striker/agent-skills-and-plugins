@@ -32,7 +32,7 @@ public sealed class ReadOnlyShellBackendTests
         var settings = new EffectiveSettings { Access = new() { Value = access } };
         var created = await lab.Backend.CreateAsync(new("run", "inspect", "research", new("fixture", "model", null), null, null,
             TaskStarter.ModesFor(new() { Spec = new() { Kind = "research" }, Settings = settings }), core.Tree.Repository,
-            new([], []), new Dictionary<string, string>(), null, "full", null), ct);
+            new([], []), core.Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!), null, "full", null), ct);
         var worker = await lab.Backend.PromptAsync(created.Worker, new("Inspect.", false), ct);
         if (matchingRule) core.Policy.Escalate.Add(new() { Name = "lookup", Action = "catalog_*", Resources = ["*"] });
         if (denied) core.Policy.Deny.Add(new() { Name = "deny-lookup", Action = "catalog_*", Resources = ["*"] });
@@ -54,7 +54,7 @@ public sealed class ReadOnlyShellBackendTests
             await escalation.CheckDecisionsAsync(ct);
         }
         await Assert.That(AskQueue.List(core.Ledger.RunId)).IsEmpty();
-        var reply = File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+        var reply = File.ReadLines(FakeOpenCode.Record(core.Tree)).Select(x => JsonNode.Parse(x)!)
             .Single(x => x["path"]!.GetValue<string>().EndsWith("/reply", StringComparison.Ordinal));
         await Assert.That(reply["body"]!["decision"]!.GetValue<string>()).IsEqualTo(decision);
     }
@@ -126,14 +126,18 @@ public sealed class ReadOnlyShellBackendTests
         var created = await backend.CreateAsync(new("run", "inspect", "research",
             name == "codex" ? new("codex", "model-y", "high") : new("fixture", "model", null), null, null,
             TaskStarter.ModesFor(new() { Spec = new() { Kind = "research" }, Settings = settings }), core.Tree.Repository, new([], []),
-            codex?.Environment ?? new Dictionary<string, string>(), null, "full", null), ct);
+            codex?.Environment ?? core.Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!), null, "full", null), ct);
         if (opencode is not null)
         {
-            var request = File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+            var request = File.ReadLines(FakeOpenCode.Record(core.Tree)).Select(x => JsonNode.Parse(x)!)
                 .Single(x => x["method"]!.GetValue<string>() == "POST" && x["path"]!.GetValue<string>() == "/api/session");
             var shell = request["body"]!["permissions"]!.AsArray().LastOrDefault(x => x!["action"]!.GetValue<string>() == "shell");
-            await Assert.That(shell?["resource"]?.GetValue<string>()).IsEqualTo("*");
-            await Assert.That(shell?["effect"]?.GetValue<string>()).IsEqualTo(setting == "decline" ? "deny" : "ask");
+            if (Ready.FenceKind is not null && setting == "decline") await Assert.That(shell).IsNull();
+            else
+            {
+                await Assert.That(shell?["resource"]?.GetValue<string>()).IsEqualTo("*");
+                await Assert.That(shell?["effect"]?.GetValue<string>()).IsEqualTo(setting == "decline" ? "deny" : "ask");
+            }
         }
         var worker = await backend.PromptAsync(created.Worker, new("Inspect.", false), ct);
         if (matchingRule) core.Policy.Escalate.Add(new() { Name = "inspect", Action = action, Resources = ["inspect *"] });
@@ -159,7 +163,7 @@ public sealed class ReadOnlyShellBackendTests
                 await Assert.That(pending.Resources).IsEquivalentTo(index == 0 ? new[] { "inspect files" } : ["inspect more files"]);
                 await Assert.That(core.Ledger.Read().Count(x => x.Type == "permission")).IsEqualTo(index);
                 if (codex is not null) await Assert.That(codex.Input().Count(x => x.ContainsKey("result"))).IsEqualTo(index);
-                else await Assert.That(File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+                else await Assert.That(File.ReadLines(FakeOpenCode.Record(core.Tree)).Select(x => JsonNode.Parse(x)!)
                     .Count(x => x["path"]!.GetValue<string>().EndsWith("/reply", StringComparison.Ordinal))).IsEqualTo(index);
                 AskQueue.WriteDecision(core.Ledger.RunId, new() { AskId = pending.AskId, Decision = "once", Time = Json.Timestamp() });
                 await escalation.CheckDecisionsAsync(ct);
@@ -178,7 +182,7 @@ public sealed class ReadOnlyShellBackendTests
         }
         else
         {
-            var replies = File.ReadLines(Path.Combine(core.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+            var replies = File.ReadLines(FakeOpenCode.Record(core.Tree)).Select(x => JsonNode.Parse(x)!)
                 .Where(x => x["path"]!.GetValue<string>().EndsWith("/reply", StringComparison.Ordinal)).ToArray();
             await Assert.That(replies.Length).IsEqualTo(count);
             foreach (var reply in replies)

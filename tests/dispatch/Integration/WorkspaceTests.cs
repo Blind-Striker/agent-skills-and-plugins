@@ -517,7 +517,7 @@ public sealed class WorkspaceTests
         await Assert.That(result.ExitCode).IsEqualTo(2);
         await Assert.That(result.Stdout + result.Stderr).Contains("ledger root inside the repository");
         await Assert.That(Directory.Exists(ledger)).IsFalse();
-        await Assert.That(File.Exists(Path.Combine(tree.Root, "requests.jsonl"))).IsFalse();
+        await Assert.That(File.Exists(FakeOpenCode.Record(tree))).IsFalse();
     }
 
     [Test]

@@ -42,7 +42,7 @@ public sealed class StructuredRunTests
             await Assert.That(JsonNode.DeepEquals(JsonNode.Parse(File.ReadAllText(Path.Combine(lab.TaskFolder, "deliverable.json"))), JsonNode.Parse(StructuredLab.Valid))).IsTrue();
             var directory = backend == "codex"
                 ? lab.CodexInput().Single(x => x["method"]?.GetValue<string>() == "thread/start")["params"]!["cwd"]!.GetValue<string>()
-                : File.ReadLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Select(x => JsonNode.Parse(x)!)
+                : File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!)
                     .Single(x => x["method"]!.GetValue<string>() == "POST" && x["path"]!.GetValue<string>() == "/api/session")["body"]!["location"]!["directory"]!.GetValue<string>();
             await Assert.That(directory).IsEqualTo(scratch);
         }
@@ -76,7 +76,7 @@ public sealed class StructuredRunTests
             }.ToJsonString() + "\n");
         File.AppendAllText(Path.Combine(lab.TaskFolder, name), " ");
         var evidence = Directory.GetFiles(lab.RunFolder, "*", SearchOption.AllDirectories).ToDictionary(x => x, File.ReadAllBytes);
-        var calls = backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Length;
+        var calls = backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(FakeOpenCode.Record(lab.Tree)).Length;
         using var second = new HarnessProcess(lab.Tree);
 
         var result = await second.RunAsync(command == "collect" ? [command, run, "answer"] : [command, run, "--continue"], ct, lab.Environment);
@@ -86,7 +86,7 @@ public sealed class StructuredRunTests
         await Assert.That(result.Stderr).Contains(name);
         await Assert.That(result.Stderr).Contains("SHA-256 mismatch");
         foreach (var (path, bytes) in evidence) await Assert.That(File.ReadAllBytes(path).SequenceEqual(bytes)).IsTrue();
-        await Assert.That(backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Length).IsEqualTo(calls);
+        await Assert.That(backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(FakeOpenCode.Record(lab.Tree)).Length).IsEqualTo(calls);
     }
 
     [Test]
@@ -113,7 +113,7 @@ public sealed class StructuredRunTests
         var pids = backend == "codex"
             ? Directory.GetFiles(Path.Combine(lab.Tree.Root, "record"), "start.json", SearchOption.AllDirectories)
                 .Select(x => JsonNode.Parse(File.ReadAllText(x))!["pid"]!.GetValue<int>())
-            : Directory.GetFiles(lab.Tree.Root, "requests.jsonl.*.host.json")
+            : Directory.GetFiles(Path.GetDirectoryName(FakeOpenCode.Record(lab.Tree))!, "requests.jsonl.*.host.json")
                 .Select(x => JsonNode.Parse(File.ReadAllText(x))!["pid"]!.GetValue<int>());
         foreach (var pid in pids) await Assert.That(IsAlive(pid)).IsFalse();
     }
@@ -169,7 +169,7 @@ public sealed class StructuredRunTests
         if (scenario == "missing-route") await Assert.That(result.Stdout + result.Stderr).Contains("answer");
         await Assert.That(Directory.Exists(Path.Combine(lab.Tree.DispatchHome, "state", "ledgers"))).IsFalse();
         await Assert.That(Directory.Exists(Path.Combine(lab.Tree.Root, "record"))).IsFalse();
-        await Assert.That(File.Exists(Path.Combine(lab.Tree.Root, "requests.jsonl"))).IsFalse();
+        await Assert.That(File.Exists(FakeOpenCode.Record(lab.Tree))).IsFalse();
     }
 
     [Test]
@@ -183,13 +183,13 @@ public sealed class StructuredRunTests
         using var first = new HarnessProcess(lab.Tree);
         (await first.RunAsync(["run", lab.Tasks, "--repo", repo.Root], ct, lab.Environment)).RequireSuccess("first structured run");
         var evidence = Directory.GetFiles(lab.RunFolder, "*", SearchOption.AllDirectories).ToDictionary(x => x, File.ReadAllBytes);
-        var starts = backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Length;
+        var starts = backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(FakeOpenCode.Record(lab.Tree)).Length;
         using var second = new HarnessProcess(lab.Tree);
         var result = await second.RunAsync(["run", lab.Tasks, "--repo", repo.Root], ct, lab.Environment);
         await Assert.That(result.ExitCode).IsEqualTo(2);
         await Assert.That(result.Stdout + result.Stderr).Contains("new run id");
         foreach (var (path, bytes) in evidence) await Assert.That(File.ReadAllBytes(path).SequenceEqual(bytes)).IsTrue();
-        await Assert.That(backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(Path.Combine(lab.Tree.Root, "requests.jsonl")).Length).IsEqualTo(starts);
+        await Assert.That(backend == "codex" ? lab.CodexInput().Length : File.ReadAllLines(FakeOpenCode.Record(lab.Tree)).Length).IsEqualTo(starts);
     }
 
     public static IEnumerable<(string Backend, string Text, string At, string Message)> InvalidAnswers()

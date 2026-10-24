@@ -36,7 +36,7 @@ public sealed class FakeOpenCodeTests
             catch (OperationCanceledException) when (subscription.IsCancellationRequested) { /* Owned shutdown. */ }
         }
 
-        var events = File.ReadAllLines(Path.Combine(tree.Root, "requests.jsonl"))
+        var events = File.ReadAllLines(FakeOpenCode.Record(tree))
             .Select(line => JsonNode.Parse(line)!)
             .Where(request => request["path"]!.GetValue<string>() == "/api/event").ToArray();
         await Assert.That(events.Length).IsEqualTo(1);

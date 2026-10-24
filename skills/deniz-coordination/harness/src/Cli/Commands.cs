@@ -108,8 +108,8 @@ static partial class Commands
 
     static string ReadOnlyShellNote(string? backend, string? shell) => (backend, shell) switch
     {
-        ("codex", "decline") => "sandboxed shell; escalations declined",
-        ("codex", _) => "sandboxed shell; escalations reach the operator through a matching rule",
+        ("codex", "decline") or ("opencode", "decline") when backend == "codex" || Ready.FenceKind is not null => "sandboxed shell; escalations declined",
+        ("codex", _) or ("opencode", _) when backend == "codex" || Ready.FenceKind is not null => "sandboxed shell; escalations reach the operator through a matching rule",
         (_, "decline") => "no shell for a read-only task",
         _ => "shell asks reach the operator through a matching rule",
     };
