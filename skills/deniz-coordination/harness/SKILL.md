@@ -32,9 +32,8 @@ dotnet dispatch.cs -- <command> [arguments]
   `@worker-contract` and `@<model>-worker`; semantics: `references/task-file.md#contracts`.
   In PowerShell use `$PWD.ProviderPath`.
 - Run `selfcheck [--repo <path>]` on a new machine, after an update, and in a new repository. It
-  checks each configured backend, or discovers installed backends when none is named (version,
-  sign-in, catalog, a clean profile), Windows readiness and every resolved folder, and sends no
-  prompt. Discovery and exit behavior: `references/cli.md`.
+  checks each configured backend and every other installed one (version, sign-in, catalog, a clean
+  profile), Windows readiness and every resolved folder, and sends no prompt. Discovery and exit behavior: `references/cli.md`.
 - Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `asks`, `reply`, `cancel`, `collect`,
   `resume`, `clean`. Arguments, output and exit codes of each: `references/cli.md`.
 

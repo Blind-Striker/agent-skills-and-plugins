@@ -28,8 +28,7 @@ static partial class Commands
         var layers = await ConfigLayers.LoadAsync(repo, file, tasksPath, a, ct, git);
         layers.PrintWarnings();
         var selectedBackends = BackendScope.Selected(a, layers);
-        if (a.Get("backend") is null && a.Positional.Count == 0)
-            selectedBackends = selectedBackends.Union(InstalledBackends()).Order(StringComparer.Ordinal).ToArray();
+        if (a.Get("backend") is null && a.Positional.Count == 0) selectedBackends = InstalledBackends(selectedBackends);
         var allow = layers.Allow;
         Check("allow-list", true, allow.IsRestricted ? "route restrictions apply per backend" : "no route restriction");
         Check("policy", true, layers.Policy.Describe());
@@ -229,32 +228,34 @@ static partial class Commands
         return failed == 0 ? 0 : 1;
     }
 
-    static IReadOnlyList<string> InstalledBackends()
+    // The configured backends in their order, then every other installed one (opencode, then codex).
+    static IReadOnlyList<string> InstalledBackends(IReadOnlyList<string> configured)
     {
         var installed = new List<string>();
+        static bool CodexInstalled()
+        {
+            try
+            {
+                _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
+                return true;
+            }
+            catch (HarnessException ex)
+            {
+                // A resolved but unusable executable must reach the live check for its diagnostic.
+                return !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
+            }
+        }
         foreach (var name in new[] { "opencode", "codex" })
         {
-            var found = false;
-            if (name == "opencode") found = OpenCodeInstalled(HarnessServer.Command(null)[0]);
-            else
-            {
-                try
-                {
-                    _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
-                    found = true;
-                }
-                catch (HarnessException ex)
-                {
-                    // A resolved but unusable executable must reach the live check for its diagnostic.
-                    found = !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
-                }
-            }
+            // A configured backend is checked even when PATH lacks it: its configured executable decides.
+            var found = configured.Contains(name) || (name == "opencode" ? OpenCodeInstalled(HarnessServer.Command(null)[0]) : CodexInstalled());
+            if (configured.Contains(name)) continue;
             if (found) installed.Add(name);
             else Console.WriteLine($"SKIP  backend {name}: not installed ({name} on PATH)");
         }
-        if (installed.Count == 0)
+        if (installed.Count == 0 && configured.Count == 0)
             throw new HarnessException("no backend installed; install opencode or Codex, or set backends.<name>.executable");
-        return installed;
+        return [.. configured, .. installed];
     }
 
     static bool OpenCodeInstalled(string command)

@@ -186,7 +186,7 @@ public sealed class CatalogCommandTests
 
         await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
             .Where(x => x.StartsWith("backend ", StringComparison.Ordinal) || x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
-            .IsEquivalentTo(new[] { "backend codex", "PASS  launch: thread-main", "backend opencode", "PASS  launch: ses_launch" }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new[] { "backend opencode", "PASS  launch: ses_launch", "backend codex", "PASS  launch: thread-main" }, CollectionOrdering.Matching);
         result.RequireSuccess("installed-backend selfcheck");
         await Assert.That(result.Stdout).DoesNotContain("SKIP  ");
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
