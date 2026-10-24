@@ -48,6 +48,19 @@ jobs:
       - name: Pinned Codex CLI for the schema contract test (Linux only)
         if: runner.os == 'Linux'
         run: npm install --no-save --prefix "$RUNNER_TEMP/codex" @openai/codex@0.163.0
+      # On Linux the harness fences opencode tasks with bubblewrap and refuses them when it cannot (no
+      # unfenced fallback). The runner gets bubblewrap, and its user-namespace restriction is lifted on
+      # this throwaway VM only when bwrap reports exactly that failure. Operators decide that on real hosts.
+      - name: bubblewrap for the opencode fence (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bubblewrap
+          if ! bwrap --ro-bind / / --dev /dev true 2>bwrap.err; then
+            cat bwrap.err
+            if grep -qi "namespace" bwrap.err; then sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0; fi
+            bwrap --ro-bind / / --dev /dev true
+          fi
       - name: Unit and Integration tests
         working-directory: tests/dispatch
         env:
