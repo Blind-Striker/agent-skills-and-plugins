@@ -75,14 +75,25 @@ internal sealed class CapturedProcess : IDisposable
         try
         {
             await child.WaitForExitAsync(cancellationToken);
+            await DrainAsync(executable, stdout, stderr);
             return new CapturedResult(child.ExitCode, await stdout, await stderr);
         }
         catch (OperationCanceledException)
         {
             KillTree(child);
             await child.WaitForExitAsync(CancellationToken.None);
-            await Task.WhenAll(stdout, stderr);
+            await DrainAsync(executable, stdout, stderr);
             throw;
+        }
+    }
+
+    // A descendant that outlives the child keeps its output pipes open; name it instead of hanging past the test's timeout.
+    static async Task DrainAsync(string executable, Task<string> stdout, Task<string> stderr)
+    {
+        try { await Task.WhenAll(stdout, stderr).WaitAsync(TimeSpan.FromSeconds(30)); }
+        catch (TimeoutException)
+        {
+            throw new TimeoutException($"{executable} exited, but a descendant still holds its output pipes 30 s later");
         }
     }
 
