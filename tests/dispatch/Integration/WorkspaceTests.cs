@@ -83,6 +83,29 @@ public sealed class WorkspaceTests
     }
 
     [Test]
+    [Timeout(60_000)]
+    public async Task Clean_without_force_keeps_a_worktree_git_refuses_to_remove(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Git for Windows' path limit is a Windows limit.");
+        // Without --force a git refusal stands (it guards data the dirty check cannot see, such as submodules).
+        using var lab = new CoreLab("refused");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var deep = Path.Combine([path, "node_modules", .. Enumerable.Repeat(new string('n', 200), 22)]);
+        Directory.CreateDirectory(deep);
+        File.WriteAllText(Path.Combine(path, ".git", "..", ".gitignore"), "node_modules/\n");
+        await new LabRepo(lab.Tree).GitAsync(["-C", path, "add", ".gitignore"], ct);
+        await new LabRepo(lab.Tree).GitAsync(["-C", path, "commit", "-m", "Ignore node_modules"], ct);
+        await new LabRepo(lab.Tree).GitAsync(["update-ref", "refs/heads/main", run.Record.Workspace.Branch!], ct);
+        await Assert.That(async () => await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, false, ct, lab.Git))
+            .Throws<HarnessException>().WithMessageContaining("git worktree remove failed");
+        await Assert.That(Directory.Exists(deep)).IsTrue();
+    }
+
+    [Test]
     public async Task RealPath_keeps_a_backslash_in_a_Unix_name()
     {
         if (OperatingSystem.IsWindows()) Skip.Test("A backslash is a separator on Windows.");

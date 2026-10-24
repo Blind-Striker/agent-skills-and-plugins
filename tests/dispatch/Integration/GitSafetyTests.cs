@@ -10,6 +10,27 @@ public sealed class GitSafetyTests
 {
     [Test]
     [Timeout(60_000)]
+    public async Task ConfigGate_reads_an_older_baseline_without_its_system_entries(CancellationToken ct)
+    {
+        // A baseline saved before system scope was ignored still lists system entries such as Git LFS filters.
+        using var lab = new CoreLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var git = lab.Git.ForWorkspace(lab.Ledger, "inspect");
+        await git.InitializeBaselineAsync(repo.Root, ct);
+        var path = Path.Combine(git.ControlFolder, "git-baseline.json");
+        var baseline = JsonNode.Parse(File.ReadAllText(path))!.AsObject();
+        baseline["filter.lfs.clean"] = new JsonArray(new JsonObject
+        {
+            ["scope"] = "system", ["origin"] = "file:C:/Program Files/Git/etc/gitconfig", ["key"] = "filter.lfs.clean",
+            ["hasValue"] = true, ["sha256"] = "00",
+        });
+        File.WriteAllText(path, baseline.ToJsonString());
+        await new GitConfigGate(git).CheckAsync(repo.Root, ct);
+        await Assert.That(lab.Ledger.Read().Any(x => x.Type == "git-config-changed")).IsFalse();
+    }
+
+    [Test]
+    [Timeout(60_000)]
     public async Task ConfigGate_ignores_system_changes_but_reports_global_local_and_worktree_changes(CancellationToken ct)
     {
         using var lab = new CoreLab();

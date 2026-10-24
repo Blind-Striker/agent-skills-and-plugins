@@ -38,7 +38,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--contract <path or alias>` | repeatable absolute file or bundled alias | None | Plan/run, prepended to every task after file contracts. Ordinary relative paths: `--contract must be an absolute path`. Alias semantics: [Contracts](task-file.md#contracts). |
 | `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
-| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` also checks every installed backend. `opencode` or `codex`. |
+| `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` checks every installed backend when the configuration selects none, and names the installed ones it skips otherwise. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
@@ -70,10 +70,11 @@ Sends no prompt. Prints the allow-list and policy, the state, worktree and contr
 Windows a warning when git's `core.longpaths` is not true and when the user PATH in the registry
 exceeds 8,000 characters. The backends checked are `--backend`, else every backend the task file and
 the configuration layers name (preferred backend, default routes, allow-list, task backends, then
-configured backends). Without `--backend` and without a task file, it also discovers installed
-backends, even when configuration names only one backend. Discovery probes `opencode`, then `codex`,
-before preparing a worktree or creating backend instances; the combined selection is deduplicated
-and checked in ordinal name order (`codex`, then `opencode`). Installed means the executable resolves
+configured backends). Without `--backend` and without a task file: when the configuration selects
+nothing, it discovers and checks every installed backend, `opencode` then `codex`; when it selects
+some, it checks those and prints
+`SKIP  backend <name>: installed but not configured; selfcheck --backend <name> checks it` for each
+other installed backend. Installed means the executable resolves
 through that backend's launch lookup, not that its version, sign-in or server readiness has passed.
 OpenCode retains native npm-shim
 selection and the pinned SDK's PATH/PATHEXT lookup, including relative PATH entries; Codex uses
