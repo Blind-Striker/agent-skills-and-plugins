@@ -70,7 +70,9 @@ public sealed class PlanOutputTests
             .IsEquivalentTo(new[] { error }, CollectionOrdering.Matching);
         await Assert.That(result.Stderr.Trim()).IsEqualTo("");
         await Assert.That(result.ExitCode).IsEqualTo(2);
-        await Assert.That(File.Exists(FakeOpenCode.Record(tree))).IsFalse();
+        // Planning probes stay unfenced by design (they run no worker code); the refusal must stop any task session.
+        var record = FakeOpenCode.Record(tree);
+        await Assert.That(File.Exists(record) && File.ReadLines(record).Any(line => line.Contains("\"method\":\"POST\",\"path\":\"/api/session\"", StringComparison.Ordinal))).IsFalse();
     }
 
     [Test]

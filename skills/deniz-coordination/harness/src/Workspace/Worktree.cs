@@ -137,8 +137,9 @@ static class Worktree
                 {
                     // Listing is read-only; a repeat clean can have already removed the baseline.
                     var reader = Git.ForTask(task, ledger.RunId, git.ControlFolder);
-                    var entries = (await reader.CheckAsync(repo, ct, "worktree", "list", "--porcelain", "-z")).Split("\0\0", StringSplitOptions.RemoveEmptyEntries)
-                        .Select(x => x.Split('\0')).ToList();
+                    // shortcut: no -z (Git 2.36+), so a worktree path holding a newline is not supported.
+                    var entries = (await reader.CheckAsync(repo, ct, "worktree", "list", "--porcelain")).ReplaceLineEndings("\n")
+                        .Split("\n\n", StringSplitOptions.RemoveEmptyEntries).Select(x => x.Split('\n', StringSplitOptions.RemoveEmptyEntries)).ToList();
                     // Git records real paths, so a root reached through a link matches by branch instead;
                     // a detached or rebasing worktree has no branch line and matches by path.
                     var real = RealPath(path);

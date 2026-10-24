@@ -144,7 +144,10 @@ public sealed class PlanBaseFetchTests
         foreach (var setting in new[] { "core.fsmonitor=false", "commit.gpgSign=false", "gc.auto=0", "maintenance.auto=false" })
             await Assert.That(fetch).Contains(setting);
         var hooks = fetch.Single(arg => arg.StartsWith("core.hooksPath=", StringComparison.Ordinal))["core.hooksPath=".Length..];
-        await Assert.That(Directory.GetParent(Path.GetDirectoryName(hooks)!)!.FullName).IsEqualTo(Path.Combine(lab.Tree.DispatchHome, "state", "control"));
+        // Windows has no /dev/null for git, so the harness points hooks at an empty control-folder directory there.
+        if (OperatingSystem.IsWindows())
+            await Assert.That(Directory.GetParent(Path.GetDirectoryName(hooks)!)!.FullName).IsEqualTo(Path.Combine(lab.Tree.DispatchHome, "state", "control"));
+        else await Assert.That(hooks).IsEqualTo("/dev/null");
         await Assert.That(BaseInfo(result)).IsEquivalentTo(new[] {
             $"INFO inspect: base origin/main resolves to {sha[..12]} (fetched from origin)" }, CollectionOrdering.Matching);
     }

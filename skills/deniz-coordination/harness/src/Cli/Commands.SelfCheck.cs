@@ -160,7 +160,8 @@ static partial class Commands
                     var record = new TaskRecord
                     {
                         Spec = new() { Id = "selfcheck", Kind = "code", Route = selected == "codex" ? candidate.Route.Model : candidate.Route.ToString(), Backend = selected },
-                        Settings = settings, Workspace = new() { Path = directory },
+                        // Without a repository the launch needs a folder outside the control root, which the fence never grants.
+                        Settings = settings, Workspace = new() { Path = worktree ?? Directory.CreateDirectory(Path.Combine(Locations.WorktreeRoot, runId, "workspace")).FullName },
                     };
                     WorkerRef? worker = null;
                     try
@@ -210,9 +211,10 @@ static partial class Commands
                     {
                         await Task.Delay(TimeSpan.FromMilliseconds(100 * (retry + 1)), CancellationToken.None);
                         // Git can unregister a worktree even when deleting its directory fails.
-                        var listing = await git.RunAsync(repo!, CancellationToken.None, "worktree", "list", "--porcelain", "-z");
+                        // No -z: it needs Git 2.36, and Ubuntu 22.04 ships 2.34.
+                        var listing = await git.RunAsync(repo!, CancellationToken.None, "worktree", "list", "--porcelain");
                         if (listing.ExitCode != 0) { detail = listing.Stderr.Trim(); break; }
-                        var registered = listing.Output.Split('\0').Any(field => field.StartsWith("worktree ", StringComparison.Ordinal)
+                        var registered = listing.Output.ReplaceLineEndings("\n").Split('\n').Any(field => field.StartsWith("worktree ", StringComparison.Ordinal)
                             && Locations.Same(field[9..], worktree));
                         if (registered)
                         {
