@@ -79,6 +79,8 @@ sealed partial class OpenCodeBackend
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { /* Owned shutdown. */ }
         catch (Exception ex)
         {
+            if (hostKey.StartsWith("fence=", StringComparison.Ordinal))
+            { Emit(new WorkerSignal.Host(hostKey, "disconnected", ex.Message, 0)); return; }
             Emit(new WorkerSignal.Fault(null, "event pump", ex.Message));
             signals.Writer.TryComplete(new HarnessException($"the event mapping stream failed: {ex.Message}"));
         }
@@ -216,9 +218,27 @@ sealed partial class OpenCodeBackend
             }
         foreach (var group in live.Where(x => !hardStops.ContainsKey(x.Id)).GroupBy(HostKey))
         {
-            var server = await HostAsync(group.First(), ct);
+            HarnessServer server;
+            IReadOnlyDictionary<string, SessionActive> active;
+            try
+            {
+                if (LostFence(group.First())) throw new HarnessException("fenced opencode server is no longer live");
+                server = await HostAsync(group.First(), ct);
+                active = (await server.Client.Sessions.GetActiveAsync(cancellationToken: ct)).Active;
+            }
+            catch (Exception) when (group.Key.StartsWith("fence=", StringComparison.Ordinal) && !ct.IsCancellationRequested)
+            {
+                foreach (var worker in group.Where(x => x.Turn is not null && ended.GetValueOrDefault(x.Id) != x.Turn))
+                {
+                    ended[worker.Id] = worker.Turn!;
+                    liveWorkers.TryRemove(worker.Id, out _);
+                    Emit(new WorkerSignal.Ended(worker.TaskId, worker.Turn!, "lost", null));
+                }
+                try { await DisposeFenceAsync(group.Key); }
+                catch (Exception ex) { Emit(new WorkerSignal.Fault(group.First().TaskId, "fence disposal", ex.Message)); }
+                continue;
+            }
             var client = server.Client;
-            var active = (await client.Sessions.GetActiveAsync(cancellationToken: ct)).Active;
             foreach (var worker in group)
             {
                 if (worker.Turn is null) continue;

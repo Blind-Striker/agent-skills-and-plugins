@@ -20,6 +20,14 @@ sealed class GitConfigGate(Git git)
     {
         if (!File.Exists(BaselinePath)) throw new HarnessException("git config baseline is missing; refusing workspace git writes");
         var baseline = JsonNode.Parse(await File.ReadAllTextAsync(BaselinePath, ct))!.AsObject();
+        // A baseline saved before system scope was ignored still holds those entries (for example Git LFS filters).
+        foreach (var (key, value) in baseline.ToList())
+            if (value is JsonArray entries)
+            {
+                var kept = new JsonArray(entries.Where(x => x?["scope"]?.GetValue<string>() != "system").Select(x => x?.DeepClone()).ToArray());
+                if (kept.Count == 0) baseline.Remove(key);
+                else if (kept.Count != entries.Count) baseline[key] = kept;
+            }
         var current = await CaptureAsync(repo, ct);
         // The harness creates only dispatch/<run>/<task> branches; tracking setup of any other branch
         // (git's auto-setup when a lane adds its own worktree) is not a worker change.

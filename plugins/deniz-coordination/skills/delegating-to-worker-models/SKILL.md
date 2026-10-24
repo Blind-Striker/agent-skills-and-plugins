@@ -94,7 +94,9 @@ is any subagent tool you have; the rules below hold for all of them.
 3. **Prove the cause before you hand out a fix.** When the cause is unproven, the task is "reproduce,
    prove it with evidence, fix it where it lives". A raised timeout, a retry, or a serialized test is not
    a fix for a flaky test.
-4. **Review.** A worker never judges its own work; the worker's profile says where to look. Your own read follows `deniz-process:requesting-code-review`. Low-risk scaffolding and
+4. **Review.** A worker never judges its own work; the worker's profile says where to look. Send a
+   head to review only after its build, analyzers included, and the task's verify passed: a static
+   review is not a build. Your own read follows `deniz-process:requesting-code-review`. Low-risk scaffolding and
    mechanical work needs your read only. Code and spec work always adds a fresh reviewer from a family
    other than the author's, who gets the request, the requirements, and the diff, but not your
    assessment: the other family catches what the author's family misses. The family claim rests on the

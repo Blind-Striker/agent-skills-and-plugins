@@ -119,13 +119,15 @@ then copy it into `preferences` in user/repository config, task-file `defaults`,
 ```sh
 jq -n --arg home "$HOME" --arg repo "$(pwd -P)" '{writableRoots: [
   ($home + "/.nuget/packages"), ($home + "/.local/share/NuGet"),
-  ($home + "/.nuget/NuGet"), ($home + "/.dotnet"), ($home + "/.bun/install/cache"),
+  ($home + "/.nuget/NuGet"), ($home + "/.bun/install/cache"),
   ($repo + "/tests/dispatch/bin/labs"), ($repo + "/tests/dispatch/bin/dotnet-cli-home")
 ]}'
 ```
 
 The last two roots are this repository's own test-run folders; other repositories use their own
-documented roots. Grant only caches the task needs. If the lab or operator already supplies isolated
+documented roots. A writable root is trusted, because code a worker writes there runs unfenced later
+(for example a NuGet package cache restored by the harness). Grant only caches the task needs.
+If the lab or operator already supplies isolated
 `DOTNET_CLI_HOME` or `NUGET_PACKAGES`, use those absolute folders instead of real home caches, plus
 NuGet's config/data folders under that isolated home. `NUGET_*` environment variables are scrubbed;
 pass the isolated package cache explicitly to the worker's build (for example
@@ -243,6 +245,7 @@ machine state are not isolation boundaries.
 
 Verify runs worker code as the user outside sandboxing on both backends. It can write the control
 folder or influence other tasks. Unfenced opencode's shell can write the ledger and control folder
-despite edit-tool denies; fenced opencode does not add those roots. The Git configuration guard detects relevant changes and disables hooks, but a
+despite edit-tool denies; fenced write grants and IPC limits are described in [backends](backends.md).
+The Git configuration guard detects relevant changes and disables hooks, but a
 same-user process can race the check or populate a hooks folder before Git uses it. In-place diffs
 also include anyone else's concurrent edits. Treat these as operational limits.

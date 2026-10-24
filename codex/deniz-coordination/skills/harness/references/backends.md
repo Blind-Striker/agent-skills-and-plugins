@@ -52,8 +52,9 @@ For the read-only shell behaviour, read
 ## opencode process and profile
 
 The harness starts private `opencode serve` processes for the run and subscribes to their event
-streams. Each fenced task has its own server, keyed by run/task; releasing its worker disposes that
-server. Unfenced tasks share servers keyed by profile/project modes. It disables file watchers.
+streams. Each fenced task has its own server, keyed by run/task; releasing its worker, a failed
+creation, or settlement in any final state disposes that server. A dead or unresponsive fenced
+server loses only its own task, not the run. Unfenced tasks share servers keyed by profile/project modes. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
@@ -73,26 +74,39 @@ lazily discovered subfolder instructions and the user's session database remain 
 context. The harness reports the requested profile; it does not prove all those sources absent.
 
 Sessions inherit harness denies on the edit tool for the control folder and that run's ledger.
-Fenced servers allow writes only to opencode's data, state, cache and config folders (each
-`XDG_*_HOME/opencode`, otherwise the usual home fallback), their profile root, task temp and `/dev`.
-Workspace access also allows the workspace, Git common folder and configured writable roots; it
-never adds the control or ledger root. macOS additionally allows `/tmp`, `/private/tmp` and
-`/private/var/folders`; Linux mounts a private `/tmp`. Unfenced shell and MCP tools may write control
+Fenced servers allow writes to opencode's data and state folders (`XDG_DATA_HOME/opencode` and
+`XDG_STATE_HOME/opencode`, otherwise the usual home fallbacks), task temp and `/dev`. The user's
+opencode cache and config folders and the server's profile root are not granted write access.
+Each fenced server gets a private `XDG_CACHE_HOME` and `TMPDIR`/`TEMP`/`TMP` under task temp.
+Workspace access also allows the workspace, Git common folder and configured writable roots.
+The opencode data `bin` path is read-only (on Linux, overlaid when it exists); existing Git common
+`hooks` and `config` paths are also overlaid read-only after the writable grants. Every writable root is checked again at launch using real paths; a root
+inside, equal to or containing the control or ledger root refuses the start, including Git common
+folders and links. A config write needed at server startup fails closed.
+macOS grants no global temporary folders; Linux mounts a private `/tmp` and rebinds a read-only
+task's directory there read-only so it remains visible. Unfenced shell and MCP tools may write control
 and ledger state. A backend inactivity interruption can leave a task `interrupted`; use
 `resume --continue` to re-prompt it only while its server is live. The harness itself does not set a separate 60-minute
 inactivity timer; its task timeout is independent.
 
-After a done settlement the supervisor removes the session. Failed sessions stay available for
-collection until cleanup. `clean` releases recorded sessions and searches for orphan sessions using
+After a done settlement the supervisor removes the session. Unfenced failed sessions stay available
+for collection until cleanup; fenced failed sessions remain stored, but their disposed private server
+is not reconstructed for collection or continuation. `clean` releases recorded sessions, using an unfenced shared host when a
+fenced server is gone (the session database is shared), and searches for orphan sessions using
 run/task metadata. Server processes end with their owning scope; session persistence does not make
 the supervising process durable.
 
 Fence readiness is checked once per harness process: Linux requires `bwrap` on PATH and a successful
-`bwrap --ro-bind / / --dev /dev true`; macOS requires a successful
+`bwrap --ro-bind / / --dev /dev --ro-bind /proc /proc --tmpfs /tmp --bind <temp> <temp> -- true`;
+macOS requires a successful
 `sandbox-exec -p "(version 1)(allow default)" /usr/bin/true`. Ubuntu 24.04 needs the operator to set
 `kernel.apparmor_restrict_unprivileged_userns=0` as root; the harness never changes it. A failed check
-refuses fenced work, without an unfenced fallback. There is no PID namespace: a fenced process can
-still signal the user's other processes. Network is not fenced; the SDK needs loopback connectivity.
+refuses fenced work, without an unfenced fallback. Launch uses the absolute fence executable resolved
+by readiness. On Linux, an existing `$XDG_RUNTIME_DIR` is hidden with a private tmpfs to block its
+user D-Bus and systemd sockets. The fence blocks file writes, not IPC: Linux processes can still reach
+other Unix sockets such as `/var/run/docker.sock` and signal the user's processes (no PID namespace);
+macOS processes can still talk to system services, for example `launchctl`.
+Network is not fenced; the SDK needs loopback connectivity.
 
 ## Codex process and sandbox
 

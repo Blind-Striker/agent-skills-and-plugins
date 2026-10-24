@@ -184,6 +184,8 @@ static class Worktree
                 if ((registration is not null || intact)
                     && await git.RunAsync(repo, ct, force || !exists ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]) is { ExitCode: not 0 } removal)
                 {
+                    // Without --force a git refusal stands: it protects data the dirty check cannot see (submodules).
+                    if (!force) throw new HarnessException($"git worktree remove failed: {removal.Stderr.Trim()}");
                     // Git cannot delete some trees (bun's node_modules on Windows, paths past its own limit): the folder
                     // was already judged safe to remove, so delete it here, without following links, then drop its registration.
                     try { DeleteTemp(path); }

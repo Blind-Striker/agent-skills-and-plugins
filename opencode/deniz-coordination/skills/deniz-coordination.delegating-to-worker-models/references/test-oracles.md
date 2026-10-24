@@ -25,9 +25,9 @@ reads this table as a checklist over-proves and burns the run.
   mutated build compiles; commit the change before you mutate, so reverting a mutant cannot wipe it.
   Before you name a mutant, name what the oracle reads that the mutant changes. A mutant the oracle cannot
   see (a deduplicating set, a value captured before the change) proves nothing. Name no kill site narrower
-  than the test: a mutant is killed when the test fails within its bound, at the operation, at the
-  oracle, or at a hang guard that names the awaited event; a run that never finishes (no result) is no
-  kill. Report hang-guard kills apart from oracle kills.
+  than the test: a mutant is killed when the test fails within its bound, at the operation or at the
+  oracle. A hang guard that fires and names the awaited event is reported as "detected by a bounded
+  wait", apart from kills, and never counts as a mutation proof. A run that never finishes is neither.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
   after. A mutant is a temporary product edit, so the scope must allow it: name every product line the
   mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.

@@ -36,8 +36,9 @@ dotnet dispatch.cs -- <command> [arguments]
   `@worker-contract` and `@<model>-worker`; semantics: `references/task-file.md#contracts`.
   In PowerShell use `$PWD.ProviderPath`.
 - Run `selfcheck [--repo <path>]` on a new machine, after an update, and in a new repository. It
-  checks each configured backend and every other installed one (version, sign-in, catalog, a clean
-  profile), Windows readiness and every resolved folder, and sends no prompt. Discovery and exit behavior: `references/cli.md`.
+  checks each backend the configuration selects, or every installed one when none is selected
+  (version, sign-in, catalog, a clean profile), Windows readiness and every resolved folder, and sends
+  no prompt. Discovery and exit behavior: `references/cli.md`.
 - Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `asks`, `reply`, `cancel`, `collect`,
   `resume`, `clean`. Arguments, output and exit codes of each: `references/cli.md`.
 
@@ -65,8 +66,8 @@ runs unfenced on Windows. Both support structured output. Modes and defaults:
 - Denies beat escalation. Both backends decline unmatched asks in read-only tasks, MCP tools included.
   Otherwise opencode answers `once`; Codex declines with feedback. Codex denies apply only at
   approval: with `workspace` and network on, a `git push` deny cannot stop a push.
-- An unfenced opencode shell can write the harness's control folder and run ledger. Fenced tasks
-  do not gain those writable roots; build-cache additions use `writableRoots` (`references/config.md`).
+- An unfenced opencode shell can write the harness's control folder and run ledger. Fenced write
+  grants and IPC limits: `references/backends.md`; build-cache additions use `writableRoots` (`references/config.md`).
   Verify commands run the worker's code as your user, outside sandboxing, on every backend.
 - Preferences layer user config < repository `.dispatch/` < task file < command line. Restrictions
   (denies, scope, maximum access, network) only add up, and the route allow-list is the
