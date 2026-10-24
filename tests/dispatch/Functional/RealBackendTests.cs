@@ -277,8 +277,9 @@ public sealed class RealBackendTests
         await repo.GitAsync(["commit", "-m", "Add tiny dotnet test project"], ct);
         // NUGET_* is scrubbed at dispatch's boundary; use the same lab-local cache explicitly for restore.
         // opencode keeps its real credential data root; only dotnet uses the lab's NuGet data home.
-        const string prefix = "XDG_DATA_HOME=\"$HOME/.local/share\" ";
-        var build = prefix + $"dotnet build probe.csproj -p:RestorePackagesPath='{packages.Replace("'", "'\\''", StringComparison.Ordinal)}'";
+        // No shared MSBuild node or compiler server: on a shared host other builds use those, and the test kills its own tree.
+        const string prefix = "XDG_DATA_HOME=\"$HOME/.local/share\" MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0 ";
+        var build = prefix + $"dotnet build probe.csproj -nodeReuse:false -p:UseSharedCompilation=false -p:RestorePackagesPath='{packages.Replace("'", "'\\''", StringComparison.Ordinal)}'";
         const string test = prefix + "dotnet test probe.csproj --no-build --no-restore -- --output Detailed";
         var task = lab.CodeTask($"Run exactly `{build}`, then `{test}` in separate shell calls in your worktree. "
             + "Both must succeed and the test output must show FN10 passed. Do not change the project or tests. "
