@@ -1,4 +1,4 @@
-worker-contract v4
+worker-contract v5
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -36,7 +36,9 @@ copies.
 
 - a protection or a check would be lost;
 - a requirement looks wrong, or no reading of the text meets the done-when list;
-- a requirement is already met by the base, so no test can fail on the base;
+- a requirement is already met by the base, so no test can fail on the base (a characterization task
+  excepted: its tests pin existing behaviour, pass on the base by design, and are each proven by a mutant
+  the task names);
 - you would need a suppression, a baseline change, or a flag, option, rule, or mode that nobody named (an
   opt-in the documentation requires of every consumer, such as an experimental-API attribute, is usage,
   not a suppression, when you place it at the narrowest scope the documentation shows);
