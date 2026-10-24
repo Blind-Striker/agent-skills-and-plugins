@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.1.2",
-  "digest": "sha256:edcf27d168ac1965fd8afeb902af29aef9fcbe76c989abdee956901ba5adb04d",
+  "digest": "sha256:119dad5f514b2b1112ca202fda4df534515a2c027356601d18b8a2d54d39dcff",
   "requiredModules": [
     "deniz-process"
   ],
@@ -28,7 +28,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:f3aba0bf247e60da27951b5053a1885ef26e186dc37b208e1a7389f81304fd9a",
+      "sha256": "sha256:378e5c96ad346ac4a66eb6bab0cb859593a13250a096a261765557b1fbd34d22",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {

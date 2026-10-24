@@ -65,7 +65,9 @@ Each section says when to use a setting, why, and what it costs. Field details l
 
 ## Contracts and the status line
 
-- `contracts` prepends files to the prompt; the harness adds no contract by default.
+- `contracts` prepends files to the prompt; the harness adds none by default. Name the bundled ones by alias,
+  `@worker-contract` and `@<model>-worker`, so a plugin update cannot leave a stale path; `plan` prints each
+  task's resolved contracts and warns on a code or mechanical task without the worker contract.
 - The harness asks every non-structured task to end with `Status: done`, `Status: stopped` or
   `Status: blocked`. A stopped or blocked worker fails the task (`worker-stopped`) even when the
   session succeeded: read its final text for the reason.
@@ -80,4 +82,6 @@ Each section says when to use a setting, why, and what it costs. Field details l
 | `routeVerified` | Every route the backend reported is the requested one | Only `true` supports a claim about which model did the work |
 | `workerStatus` | The worker's own verdict | `stopped` or `blocked`: fix the prompt or the environment, then run a new task |
 | `zombie` (a failure) | A stop could not be confirmed | The worktree keeps the work; commit and verify were skipped |
+| `wipPatch` | A stopped or blocked worker's unfinished changes, as `wip.patch` | Judge the partial state; verify did not run (`verify[].notRun`) |
+| `recoveredErrors` | Model calls that failed while the session still succeeded | Not a failure; read them when a result looks thin |
 | `tokens` | Input summed over every model call | Not a context size; `cacheRead` is the cached part |

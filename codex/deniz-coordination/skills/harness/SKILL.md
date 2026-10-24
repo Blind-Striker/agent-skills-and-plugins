@@ -17,7 +17,8 @@ ledger. This skill is the harness's contract.
 ## Boundary
 
 - This skill says how to run a task. What to hand out and how to judge the result belong to the caller.
-- The harness prepends only the contract files you name (`contracts`, `--contract`); nothing by default.
+- The harness prepends only the contracts you name (`contracts`, `--contract`); `plan` warns on a code or
+  mechanical task that names no worker contract.
 - A calling skill that sends `structured` tasks owns their prompt and result schema.
 
 ## Invocation
@@ -57,8 +58,8 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 
 - A read-only Codex task of any kind also defaults to `profile: clean`; explicit profiles win. A task
   that needs the installed profile's tools (MCP servers, plugins, skills) sets `profile: full`. Codex `access: full` removes
-  its sandbox. opencode `read-only` denies edit; its Linux/macOS accident guard keeps the shell but stops
-  accidental workspace writes. Windows opencode relies on permission rules only. Backend limits: `references/backends.md#opencode-accident-guard`.
+  its sandbox. opencode `read-only` denies edit and keeps the shell inside the fence; on Windows it also
+  declines every shell call by default.
 - `workspace: in-place` runs in `dir`, main checkout included. `commit: none` (default) records the
   diff without committing; `commit: harness` requires a clean tree and commits on the current branch.
 - Read-only writes are declined. For escalated shell asks, `readOnlyShell: decline` (default) rejects;
@@ -67,9 +68,9 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 - Denies beat escalation. Both backends decline unmatched asks in read-only tasks, MCP tools included.
   Otherwise opencode answers `once`; Codex declines with feedback. Codex denies apply only at
   approval: with `workspace` and network on, a `git push` deny cannot stop a push.
-- An unfenced opencode shell can write the harness's control folder and run ledger. The fence's
-  accident-guard grants and limits: [backends](references/backends.md#opencode-accident-guard); build-cache additions use `writableRoots` (`references/config.md`).
-  Verify commands run the worker's code as your user, outside sandboxing, on every backend.
+- An unfenced opencode shell can write the harness's control folder and run ledger. Build caches a
+  fenced or sandboxed task must write go in `writableRoots` (`references/config.md`). Verify commands
+  run the worker's code as your user, outside sandboxing, on every backend.
 - Preferences layer user config < repository `.dispatch/` < task file < command line. Restrictions
   (denies, scope, maximum access, network) only add up, and the route allow-list is the
   intersection of the layers that have one. Details: `references/config.md`.
@@ -79,7 +80,7 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 ```jsonc
 {
   "schemaVersion": 2,
-  "contracts": ["worker-contract.md"],
+  "contracts": ["@worker-contract", "@<model>-worker"],
   "tasks": [
     { "id": "fix-guide-typo", "kind": "code", "backend": "codex", "route": "<model>#<effort>",
       "base": "<branch>", "promptFile": "fix-guide-typo.md", "scope": ["docs/guide/"],

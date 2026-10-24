@@ -94,21 +94,25 @@ is any subagent tool you have; the rules below hold for all of them.
 3. **Prove the cause before you hand out a fix.** When the cause is unproven, the task is "reproduce,
    prove it with evidence, fix it where it lives". A raised timeout, a retry, or a serialized test is not
    a fix for a flaky test.
-4. **Review.** A worker never judges its own work; the worker's profile says where to look. Send a
-   head to review only after its build, analyzers included, and the task's verify passed: a static
-   review is not a build. Your own read follows `deniz-process:requesting-code-review`. Low-risk scaffolding and
-   mechanical work needs your read only. Code and spec work always adds a fresh reviewer from a family
-   other than the author's, who gets the request, the requirements, and the diff, but not your
-   assessment: the other family catches what the author's family misses. The family claim rests on the
-   record of the model that ran, never on the route you asked for: on every dispatch-harness task the
-   claim rests on, `routeVerified: true`; an author that is a session writing by hand, not a task, is
-   identified by that session's own model. Rubric:
-   defects first, then gaps against the request, then anything not asked for, then tests that pass for a
-   reason production lacks. For a refactor, both reads compare the base and the new code behaviour by
-   behaviour. For new lock, race, or cancellation-lifetime code, add a third family if one is available.
-   A change to infrastructure another lane or team owns adds a review by that owner, even when the other
-   reviews passed: it knows how the infrastructure is used. A reviewer gets every source its claims depend on in a readable place (an
-   initialized submodule, a fetched tag, a named path), and its report states what it could not read.
+4. **Review.** A worker never judges its own work; the worker's profile says where to look.
+   - **When:** send a head to review only after its build, analyzers included, and the task's verify passed:
+     a static review is not a build.
+   - **Who:** your own read follows `deniz-process:requesting-code-review`; low-risk scaffolding and mechanical
+     work needs only that. Code and spec work always adds a fresh reviewer from a family other than the
+     author's, who gets the request, the requirements and the diff, but not your assessment. The family claim
+     rests on the record of the model that ran, never on the route you asked for: `routeVerified: true` on
+     every dispatch-harness task it rests on; a session writing by hand is identified by its own model.
+     Code you write by hand to fix a worker's work is authored by your family, so it goes to another.
+   - **More readers:** new lock, race, or cancellation-lifetime code adds a third family if one is available.
+     A change to infrastructure another lane or team owns adds a review by that owner, even when the other
+     reviews passed: it knows how the infrastructure is used.
+   - **Until it converges:** code that deletes data or guards a boundary repeats review and fix-up until a
+     pass finds nothing new; each fix of such code is new code to review.
+   - **Rubric:** defects first, then gaps against the request, then anything not asked for, then tests that
+     pass for a reason production lacks. For a refactor, both reads compare the base and the new code
+     behaviour by behaviour.
+   - **Sources:** a reviewer gets every source its claims depend on in a readable place (an initialized
+     submodule, a fetched tag, a named path), and its report states what it could not read.
    The merge queue and CI stay the last net for cross-change effects.
 5. **Fix-up loop.** Turn findings into a per-file cut list with line ranges and the replacement. A worker
    fix pass reports each item done or rejected with figures. Spot-check the blockers yourself. A fix pass
