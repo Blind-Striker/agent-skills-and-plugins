@@ -295,7 +295,8 @@ public sealed class RealBackendTests
         var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
         foreach (var command in new[] { "dotnet build probe.csproj", "dotnet run --project probe.csproj --no-build" })
         {
-            var call = tools.Single(x => x["data"]!["resource"]!.GetValue<string>().Contains(command, StringComparison.Ordinal));
+            // A curious worker may rerun the command (under strace, say); the prescribed call comes first.
+            var call = tools.First(x => x["data"]!["resource"]!.GetValue<string>().Contains(command, StringComparison.Ordinal));
             await Assert.That(call["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("succeeded");
         }
         await Assert.That(lab.Result["verify"]!.AsArray().Select(x => x!["command"]!.GetValue<string>()).ToArray())
@@ -325,6 +326,7 @@ public sealed class RealBackendTests
         // command prefix distinguishes the relative inside target from the absolute outside target.
         var insideEvents = MatchingWriteEvents(tools, inside);
         var outsideEvents = MatchingWriteEvents(tools, outside);
+        // Under a fence, opencode's shell tool reports that the command ran, not its exit code; the files are the oracle.
         if (lab.Backend == "opencode")
         {
             await Assert.That(insideEvents.Length).IsEqualTo(1);
