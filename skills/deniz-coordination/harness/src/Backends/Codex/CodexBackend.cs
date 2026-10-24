@@ -205,7 +205,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     static JsonObject SandboxPolicy(WorkerLaunch launch) => launch.Modes.Access switch
     {
         "read-only" => new() { ["type"] = "readOnly", ["networkAccess"] = launch.Modes.Network == "on" },
-        "workspace" => new() { ["type"] = "workspaceWrite", ["writableRoots"] = Json.Array([launch.Directory]), ["networkAccess"] = launch.Modes.Network == "on" },
+        "workspace" => new()
+        {
+            ["type"] = "workspaceWrite", ["networkAccess"] = launch.Modes.Network == "on",
+            ["writableRoots"] = Json.Array([launch.Directory, .. launch.Environment.TryGetValue("TEMP", out var temp) ? [temp] : Array.Empty<string>(),
+                .. launch.WritableRoots ?? []]),
+        },
         "full" => new() { ["type"] = "dangerFullAccess" },
         _ => throw new HarnessException($"unknown Codex access: {launch.Modes.Access}"),
     };
