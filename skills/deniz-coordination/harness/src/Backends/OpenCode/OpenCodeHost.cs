@@ -343,7 +343,11 @@ sealed class HarnessServer : IAsyncDisposable
                     catch (TimeoutException) { /* Unconfirmed: StopTreeAsync reports not stopped. */ }
                     if (Server.Exited.IsCompletedSuccessfully)
                         foreach (var folder in _privateFolders)
-                            if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+                        {
+                            // The exiting server can still be removing its own temp entries while this runs.
+                            try { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); }
+                            catch (DirectoryNotFoundException) { }
+                        }
                 }
                 finally
                 {
