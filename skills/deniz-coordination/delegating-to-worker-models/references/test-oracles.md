@@ -23,6 +23,9 @@ reads this table as a checklist over-proves and burns the run.
 - **Name the mutant class** for every new bound ("a no-op that sends nothing", "a sort by the wrong key").
   The mutant is the true no-op: a valid success shape with no effect. A mutant counts only when the
   mutated build compiles; commit the change before you mutate, so reverting a mutant cannot wipe it.
+  Before you name a mutant, name what the oracle reads that the mutant changes. A mutant the oracle cannot
+  see (a deduplicating set, a value captured before the change, an assertion narrower than the effect)
+  proves nothing.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
   after. A mutant is a temporary product edit, so the scope must allow it: name every product line the
   mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
