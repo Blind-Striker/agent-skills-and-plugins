@@ -181,8 +181,17 @@ static class Worktree
                 if (registration?.Split('\0').Any(x => x == "locked" || x.StartsWith("locked ", StringComparison.Ordinal)) == true)
                     throw new HarnessException($"worktree is locked: {path}");
                 if (force && !intact) DeleteTemp(path);
-                if (registration is not null || intact)
-                    await git.CheckAsync(repo, ct, force || !exists ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]);
+                if ((registration is not null || intact)
+                    && await git.RunAsync(repo, ct, force || !exists ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]) is { ExitCode: not 0 } removal)
+                {
+                    // Git cannot delete some trees (bun's node_modules on Windows, paths past its own limit): the folder
+                    // was already judged safe to remove, so delete it here, without following links, then drop its registration.
+                    try { DeleteTemp(path); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                    { throw new HarnessException($"git worktree remove failed ({removal.Stderr.Trim()}), and deleting {path} failed too: {ex.Message}"); }
+                    // A failed remove can already have dropped the registration.
+                    if (await Registration() is not null) await git.CheckAsync(repo, ct, "worktree", "remove", "--force", path);
+                }
                 if (Path.Exists(path) || await Registration() is not null) throw new HarnessException($"worktree removal did not remove {path}");
                 step = "branch";
                 if (branchExists) await git.CheckAsync(repo, ct, "branch", force ? "-D" : "-d", branch);

@@ -62,6 +62,27 @@ public sealed class WorkspaceTests
     }
 
     [Test]
+    [Timeout(60_000)]
+    public async Task Clean_removes_a_worktree_that_git_itself_cannot_delete(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Git for Windows' path limit is a Windows limit.");
+        // Past about 4096 characters Git for Windows fails even with core.longpaths; .NET deletes such a tree.
+        using var lab = new CoreLab("past-git-limit");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var deep = Path.Combine([path, "node_modules", .. Enumerable.Repeat(new string('n', 200), 22)]);
+        Directory.CreateDirectory(deep);
+        File.WriteAllText(Path.Combine(deep, "package.json"), "{}");
+        await Assert.That(deep.Length).IsGreaterThan(4096);
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, true, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(path)).IsFalse();
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["worktree", "list", "--porcelain"], ct)).DoesNotContain(path.Replace('\\', '/'));
+    }
+
+    [Test]
     public async Task RealPath_keeps_a_backslash_in_a_Unix_name()
     {
         if (OperatingSystem.IsWindows()) Skip.Test("A backslash is a separator on Windows.");
