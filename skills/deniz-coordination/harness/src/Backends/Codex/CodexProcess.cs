@@ -358,7 +358,9 @@ sealed class CodexProcess : IAsyncDisposable
         var executable = ResolveExecutable(context.Executable, environment);
         var sessionLauncher = ResolveSessionLauncher(environment);
         var batch = OperatingSystem.IsWindows() && Path.GetExtension(executable).ToLowerInvariant() is ".cmd" or ".bat";
-        var start = new ProcessStartInfo(sessionLauncher ?? (batch ? Path.Combine(Environment.SystemDirectory, "cmd.exe") : executable))
+        // nice lowers the priority before exec, so no early descendant escapes it; Windows uses the job's priority class.
+        var nice = OperatingSystem.IsWindows() ? null : Executables.Resolve("nice");
+        var start = new ProcessStartInfo(sessionLauncher ?? nice ?? (batch ? Path.Combine(Environment.SystemDirectory, "cmd.exe") : executable))
         {
             WorkingDirectory = directory, UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardInput = true,
@@ -375,6 +377,12 @@ sealed class CodexProcess : IAsyncDisposable
             if (sessionLauncher is not null)
             {
                 start.ArgumentList.Add("--");
+                start.ArgumentList.Add(nice!);
+            }
+            if (nice is not null)
+            {
+                start.ArgumentList.Add("-n");
+                start.ArgumentList.Add("10");
                 start.ArgumentList.Add(executable);
             }
             start.ArgumentList.Add("app-server");
@@ -388,11 +396,7 @@ sealed class CodexProcess : IAsyncDisposable
         {
             if (OperatingSystem.IsWindows()) job = CreateJob();
             process = Process.Start(start) ?? throw new HarnessException("codex app-server did not start");
-            if (job is not null)
-            {
-                if (!Native.AssignProcessToJobObject(job, process.SafeHandle)) throw new Win32Exception(Marshal.GetLastWin32Error());
-            }
-            else if (Native.setpriority(0, process.Id, 10) != 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
+            if (job is not null && !Native.AssignProcessToJobObject(job, process.SafeHandle)) throw new Win32Exception(Marshal.GetLastWin32Error());
             int? processGroup = null;
             if (sessionLauncher is not null)
             {
@@ -726,7 +730,5 @@ sealed class CodexProcess : IAsyncDisposable
         internal static extern int getpgid(int pid);
         [DllImport("libc", ExactSpelling = true, SetLastError = true)]
         internal static extern int kill(int pid, int signal);
-        [DllImport("libc", ExactSpelling = true, SetLastError = true)]
-        internal static extern int setpriority(int which, int who, int priority);
     }
 }
