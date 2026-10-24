@@ -107,6 +107,7 @@ that falls back to `clean-partial` is `WARN`, including the profile reason; vali
 `FAIL`. With no failures, the closing line is `selfcheck passed (<n> warning(s))`, counting only
 `WARN` check lines, not free-form advisory warnings. Otherwise it prints `selfcheck: <n> check(s) failed`.
 
+The opencode fence is an [accident guard](backends.md#opencode-accident-guard), not a security boundary.
 Each opencode section prints exactly one fence check: `PASS  opencode fence: bwrap` on ready Linux,
 `PASS  opencode fence: sandbox-exec` on ready macOS, or
 `WARN  opencode fence: unfenced on Windows`. A failed readiness check prints
@@ -191,8 +192,9 @@ A `code` or `mechanical` task that is not `rawPrompt` and has no contract file n
 This is advisory, not a plan refusal; an explicit path to `worker-contract.md` also satisfies it.
 
 For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
-`INFO <task>: fenced (bwrap)` or `INFO <task>: fenced (sandbox-exec)` and records access enforcement
-as `sandbox`. If not ready, it refuses with
+`INFO <task>: write-fenced (bwrap; accident guard)` or
+`INFO <task>: write-fenced (sandbox-exec; accident guard)` and records access enforcement
+as `sandbox`; this means only the [accident guard](backends.md#opencode-accident-guard). If not ready, it refuses with
 `ERROR <task>: opencode fence unavailable (<detail>)`; Linux appends
 `; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)`.
 There is no unfenced fallback. On Windows it prints

@@ -111,7 +111,8 @@ contains, equals or lies inside the control root or ledger root is refused, incl
 These are workspace-only additions: read-only tasks do not gain them. Unfenced Windows opencode and
 full access cannot enforce a writable-root boundary. The resolved list and source layers are frozen
 in settings. The workspace and task temp are already writable; opencode also adds its Git common
-folder and backend-owned folders, as described in [backends](backends.md).
+folder and backend-owned folders, as described in [backends](backends.md#opencode-process-and-profile).
+Its fence is an [accident guard](backends.md#opencode-accident-guard), not a security boundary.
 
 For .NET and Bun on Linux/macOS, generate a ready preference fragment from the repository root,
 then copy it into `preferences` in user/repository config, task-file `defaults`, or the task entry:
@@ -245,7 +246,7 @@ machine state are not isolation boundaries.
 
 Verify runs worker code as the user outside sandboxing on both backends. It can write the control
 folder or influence other tasks. Unfenced opencode's shell can write the ledger and control folder
-despite edit-tool denies; fenced write grants and IPC limits are described in [backends](backends.md).
+despite edit-tool denies; accident-guard write grants and limits are described in [backends](backends.md#opencode-accident-guard).
 The Git configuration guard detects relevant changes and disables hooks, but a
 same-user process can race the check or populate a hooks folder before Git uses it. In-place diffs
 also include anyone else's concurrent edits. Treat these as operational limits.

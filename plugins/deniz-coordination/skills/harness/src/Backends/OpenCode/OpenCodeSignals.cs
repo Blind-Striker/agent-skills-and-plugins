@@ -6,6 +6,7 @@ sealed partial class OpenCodeBackend
     readonly ConcurrentDictionary<string, string> directories = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, string> owners = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, int> absent = new(StringComparer.Ordinal);
+    readonly ConcurrentDictionary<string, int> hostFailures = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, string> ended = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, WorkerSignal.Ask> asks = new(StringComparer.Ordinal);
     readonly ConcurrentDictionary<string, string> completionChecks = new(StringComparer.Ordinal);
@@ -225,9 +226,12 @@ sealed partial class OpenCodeBackend
                 if (LostFence(group.First())) throw new HarnessException("fenced opencode server is no longer live");
                 server = await HostAsync(group.First(), ct);
                 active = (await server.Client.Sessions.GetActiveAsync(cancellationToken: ct)).Active;
+                hostFailures[group.Key] = 0;
             }
             catch (Exception) when (group.Key.StartsWith("fence=", StringComparison.Ordinal) && !ct.IsCancellationRequested)
             {
+                if (!LostFence(group.First()) && hostFailures.AddOrUpdate(group.Key, 1, (_, count) => count + 1) < Constants.WatchdogFailureLimit)
+                    continue;
                 foreach (var worker in group.Where(x => x.Turn is not null && ended.GetValueOrDefault(x.Id) != x.Turn))
                 {
                     ended[worker.Id] = worker.Turn!;

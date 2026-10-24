@@ -9,6 +9,7 @@ static class Constants
     public const int DefaultTimeoutMinutes = 60;
     public static readonly TimeSpan BusRead = TimeSpan.FromSeconds(5);
     public static readonly TimeSpan Watchdog = TimeSpan.FromSeconds(30);
+    public const int WatchdogFailureLimit = 3;
     public static readonly TimeSpan RouteWait = TimeSpan.FromMinutes(2);
     public static readonly TimeSpan VerifyTimeout = TimeSpan.FromMinutes(30);
     public const int SettleReads = 15;

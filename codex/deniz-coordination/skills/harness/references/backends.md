@@ -13,14 +13,15 @@ composition and [configuration](config.md) for restrictions.
 |---|---|---|---|---|
 | `profile` | Enum; `clean` for structured or read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
-| `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Linux/macOS: read-only and workspace are fenced, recorded `sandbox`; read-only keeps its shell and denies `edit`. Windows: unfenced; read-only denies `edit` and, with `readOnlyShell: decline`, every shell call (no `git`), recorded `policy`; workspace is `none`. Full is unfenced, recorded `none`, on every OS. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows Codex sandboxed tasks require ready setup. Missing opencode fence readiness refuses plan/run, never falls back. |
+| `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Linux/macOS: read-only and workspace use the [accident guard](#opencode-accident-guard), recorded `sandbox`; read-only keeps its shell and denies `edit`. Windows: unfenced; read-only denies `edit` and, with `readOnlyShell: decline`, every shell call (no `git`), recorded `policy`; workspace is `none`. Full is unfenced, recorded `none`, on every OS. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows Codex sandboxed tasks require ready setup. Missing opencode fence readiness refuses plan/run, never falls back. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
 | `workspace` | Enum; `worktree` | Core prepares the folder. | Same core workspace rules. | `worktree` or `in-place`; structured tasks bypass Git workspace preparation. |
 
-opencode uses bubblewrap (`bwrap`) on Linux and `sandbox-exec` on macOS for read-only and workspace
-access; Windows remains unfenced. Workspace scope is a settle-time check, not a filesystem boundary.
+opencode uses bubblewrap (`bwrap`) on Linux and `sandbox-exec` on macOS as an
+[accident guard](#opencode-accident-guard) for read-only and workspace access; Windows remains unfenced.
+Workspace scope is a settle-time check, not a filesystem boundary.
 Both backends' workspace writable roots include the task folder, task temp and configured
-[`writableRoots`](config.md#writable-roots). Full access removes the sandbox boundary. An unfenced
+[`writableRoots`](config.md#writable-roots). Full access removes Codex's sandbox or opencode's accident guard. An unfenced
 opencode shell can write despite an edit deny and modify harness state. On every OS, opencode
 network-off is tool-level only: a shell can reach the network despite web-tool denies. Verify runs
 outside backend sandboxing as the user on both backends.
@@ -49,12 +50,36 @@ For the read-only shell behaviour, read
 [configuration](config.md#read-only-shell-preference). For catalog and probe coverage, read
 [configured backend coverage](cli.md#configured-backend-coverage).
 
+## opencode accident guard
+
+Stage 1's fence stops a worker's accidental writes outside its writable set. It is an **accident
+guard**, not a security boundary against a worker that tries to escape; a real boundary is stage 2.
+The recorded `sandbox` enforcement value and the CLI's `sandboxed shell` label do not imply more.
+It does not stop:
+
+- Loopback connections to other opencode servers, including unfenced servers: the harness's own
+  servers and the operator's background service. The SDK needs loopback connectivity.
+- Writes to the shared opencode data folder, including the session database and snapshot Git folders.
+- IPC to other Unix sockets (for example `/var/run/docker.sock`) and system services (for example macOS `launchctl`).
+- Signals to the user's processes; there is no PID namespace.
+- Detached processes that outlive the task; see the descendant lifecycle below.
+- Network access.
+
+**Descendant lifecycle.** The harness ends the server only through the
+SDK's disposal and counts it stopped once the SDK reports the server's exit. A confirmed stop proves
+that the opencode server process exited, not that every process it started did. The SDK keeps
+upstream opencode's behaviour: on Windows a server's grandchildren leave its job object, and on
+POSIX tool processes run in their own sessions and a server that exits successfully leaves its group
+alone. A worker's build or test process can therefore outlive the task. The harness cannot contain
+them without SDK support; check for leftover processes after a cancelled or timed-out opencode task.
+
 ## opencode process and profile
 
 The harness starts private `opencode serve` processes for the run and subscribes to their event
 streams. Each fenced task has its own server, keyed by run/task; releasing its worker, a failed
-creation, or settlement in any final state disposes that server. A dead or unresponsive fenced
-server loses only its own task, not the run. Unfenced tasks share servers keyed by profile/project modes. It disables file watchers.
+creation, or settlement in any final state disposes that server. An exited fenced server loses only
+its own task immediately; three consecutive failed `/active` polls do the same, with success resetting
+the count. Unfenced tasks share servers keyed by profile/project modes. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
@@ -83,8 +108,9 @@ The opencode data `bin` path is read-only (on Linux, overlaid when it exists); e
 `hooks` and `config` paths are also overlaid read-only after the writable grants. Every writable root is checked again at launch using real paths; a root
 inside, equal to or containing the control or ledger root refuses the start, including Git common
 folders and links. A config write needed at server startup fails closed.
-macOS grants no global temporary folders; Linux mounts a private `/tmp` and rebinds a read-only
-task's directory there read-only so it remains visible. Unfenced shell and MCP tools may write control
+macOS grants no global temporary folders and resolves every profile write grant and deny to its real
+path. Linux mounts a private `/tmp` and rebinds a read-only task's directory and its Git common folder
+(when under `/tmp`) read-only so they remain visible. Unfenced shell and MCP tools may write control
 and ledger state. A backend inactivity interruption can leave a task `interrupted`; use
 `resume --continue` to re-prompt it only while its server is live. The harness itself does not set a separate 60-minute
 inactivity timer; its task timeout is independent.
@@ -103,10 +129,7 @@ macOS requires a successful
 `kernel.apparmor_restrict_unprivileged_userns=0` as root; the harness never changes it. A failed check
 refuses fenced work, without an unfenced fallback. Launch uses the absolute fence executable resolved
 by readiness. On Linux, an existing `$XDG_RUNTIME_DIR` is hidden with a private tmpfs to block its
-user D-Bus and systemd sockets. The fence blocks file writes, not IPC: Linux processes can still reach
-other Unix sockets such as `/var/run/docker.sock` and signal the user's processes (no PID namespace);
-macOS processes can still talk to system services, for example `launchctl`.
-Network is not fenced; the SDK needs loopback connectivity.
+user D-Bus and systemd sockets. This remains only an [accident guard](#opencode-accident-guard).
 
 ## Codex process and sandbox
 
@@ -170,14 +193,6 @@ refused it. A request to rerun the command outside the sandbox still arrives as 
 it follows the deny and escalation rules, reaches the operator when a rule escalates it, and is
 recorded with its outcome. On Windows the denied attempt is recorded as a failed tool event. The
 upstream report is openai/codex#56396; check it before a Codex pin moves.
-
-**Known limit: descendants of an opencode server.** The harness ends the server only through the
-SDK's disposal and counts it stopped once the SDK reports the server's exit. A confirmed stop proves
-that the opencode server process exited, not that every process it started did. The SDK keeps
-upstream opencode's behaviour: on Windows a server's grandchildren leave its job object, and on
-POSIX tool processes run in their own sessions and a server that exits successfully leaves its group
-alone. A worker's build or test process can therefore outlive the task. The harness cannot contain
-them without SDK support; check for leftover processes after a cancelled or timed-out opencode task.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
