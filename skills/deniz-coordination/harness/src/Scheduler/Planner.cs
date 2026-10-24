@@ -283,7 +283,7 @@ static class Planner
                 if (Ready.FenceKind is { } kind)
                 {
                     opencode.Access.Enforcement = "sandbox";
-                    if (check.Errors.Count == 0) plan.Info.Add($"{check.TaskId}: fenced ({kind})");
+                    if (check.Errors.Count == 0) plan.Info.Add($"{check.TaskId}: write-fenced ({kind}; accident guard)");
                 }
                 else plan.Warnings.Add($"{check.TaskId}: opencode runs unfenced on Windows; access {opencode.Access.Value} is enforced by permission rules only");
             }

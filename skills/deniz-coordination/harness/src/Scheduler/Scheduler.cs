@@ -430,7 +430,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 ledger.Write(null, "error", new JsonObject { ["while"] = "watchdog", ["backend"] = backend.Name, ["message"] = ex.Message });
                 var failures = watchdogFailures[backend.Name] = watchdogFailures.GetValueOrDefault(backend.Name) + 1;
                 var server = backend.Name == "codex" ? "codex app-server" : $"{backend.Name} server";
-                if (failures >= 3) throw new HarnessException($"the {server} stopped answering; run `resume {ledger.RunId}` after checking it");
+                if (failures >= Constants.WatchdogFailureLimit) throw new HarnessException($"the {server} stopped answering; run `resume {ledger.RunId}` after checking it");
             }
         }
     }

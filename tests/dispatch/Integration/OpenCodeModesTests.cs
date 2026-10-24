@@ -44,9 +44,10 @@ public sealed class OpenCodeModesTests
     }
 
     [Test]
-    [Arguments(false)]
-    [Arguments(true)]
-    public async Task Unresponsive_or_missing_fenced_host_loses_only_its_worker(bool missing, CancellationToken ct)
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(false, true)]
+    public async Task Unresponsive_or_missing_fenced_host_loses_only_its_worker(bool missing, bool exited, CancellationToken ct)
     {
         await using var lab = new OpenCodeLab();
         lab.Create("worker");
@@ -64,7 +65,23 @@ public sealed class OpenCodeModesTests
         lab.Write();
         var peer = (await lab.Backend.CreateAsync(Launch(lab, "peer", access: "full"), ct)).Worker with { Turn = "peer-turn" };
         var host = Hosts(lab.Backend)[worker.State["host"]!.GetValue<string>()];
-        if (missing) { await host.DisposeAsync(); Hosts(lab.Backend).TryRemove(worker.State["host"]!.GetValue<string>(), out _); }
+        if (missing) await host.DisposeAsync();
+        if (exited)
+        {
+            using var process = System.Diagnostics.Process.GetProcessById(checked((int)host.Pid));
+            process.Kill();
+            await host.Server.Exited.WaitAsync(ct);
+        }
+        if (missing) Hosts(lab.Backend).TryRemove(worker.State["host"]!.GetValue<string>(), out _);
+        // Missing/exited-host cases are guards; a live process gets the three-failure watchdog tolerance.
+        if (!missing && !exited)
+            for (var poll = 1; poll < 3; poll++)
+            {
+                await lab.Backend.PollAsync([worker, peer], ct);
+                var premature = new List<WorkerSignal.Ended>();
+                while (lab.Backend.Signals.TryRead(out var signal)) if (signal is WorkerSignal.Ended e) premature.Add(e);
+                await Assert.That(premature).IsEmpty();
+            }
         Exception? failure = null;
         try { await lab.Backend.PollAsync([worker, peer], ct); }
         catch (HarnessException ex) { failure = ex; }
@@ -73,6 +90,61 @@ public sealed class OpenCodeModesTests
         while (lab.Backend.Signals.TryRead(out var signal)) if (signal is WorkerSignal.Ended e) ended.Add(e);
         await Assert.That(ended).IsEquivalentTo(new[] { new WorkerSignal.Ended("worker", "lost-turn", "lost", null) }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That((await lab.Backend.PromptAsync(peer, new("Continue.", false), ct)).Turn).IsEqualTo("turn");
+    }
+
+    [Test]
+    public async Task Successful_active_poll_resets_fenced_host_failure_count(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Create("worker");
+        var error = new JsonObject { ["_tag"] = "InternalError", ["message"] = "offline" };
+        lab.Add("GET /api/session/active", error, 500);
+        lab.Add("GET /api/session/active", new JsonObject { ["data"] = new JsonObject { ["worker"] = new JsonObject { ["type"] = "busy" } } });
+        lab.Add("GET /api/session/active", error.DeepClone(), 500, repeat: true);
+        lab.Add("GET /api/permission/request", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Write();
+        var worker = Fence(lab.Backend, (await lab.Backend.CreateAsync(Launch(lab, "worker", access: "full"), ct)).Worker) with { Turn = "turn" };
+        for (var poll = 1; poll <= 5; poll++)
+        {
+            await lab.Backend.PollAsync([worker], ct);
+            var ended = new List<WorkerSignal.Ended>();
+            while (lab.Backend.Signals.TryRead(out var signal)) if (signal is WorkerSignal.Ended e) ended.Add(e);
+            await Assert.That(ended).IsEquivalentTo(poll == 5 ? new[] { new WorkerSignal.Ended("worker", "turn", "lost", null) } : [],
+                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+    }
+
+    [Test]
+    public async Task Read_only_linux_launch_rebinds_git_common_under_tmp(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux bwrap argv only.");
+        if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
+        await using var lab = new OpenCodeLab();
+        var temp = Directory.CreateDirectory(Path.Combine("/tmp", $"dispatch-common-{Guid.NewGuid():N}")).FullName;
+        var common = Path.Combine(temp, "common");
+        var argv = Path.Combine(temp, "argv");
+        var shim = Path.Combine(temp, "bwrap");
+        var field = typeof(Ready).GetField("fenceExecutable", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var original = field.GetValue(null);
+        try
+        {
+            using var git = new CapturedProcess();
+            (await git.RunAsync("git", ["init", "--separate-git-dir", common, lab.Tree.Repository], lab.Tree.Root,
+                lab.Tree.ChildEnvironment(), ct)).RequireSuccess("separate git folder fixture");
+            File.WriteAllText(shim, $"#!/bin/sh\nprintf '%s\\n' \"$@\" > '{argv}'\nwhile [ \"$1\" != -- ]; do shift; done\nshift\nexec \"$@\"\n");
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(shim, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            field.SetValue(null, shim);
+            lab.Create("worker");
+            lab.Write();
+            await lab.Backend.CreateAsync(Launch(lab, "worker", access: "read-only"), ct);
+            var arguments = File.ReadAllLines(argv);
+            var bind = Array.IndexOf(arguments, common);
+            await Assert.That(bind).IsGreaterThan(0);
+            await Assert.That(arguments[(bind - 1)..(bind + 2)])
+                .IsEquivalentTo(new[] { "--ro-bind", common, common }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+        finally { field.SetValue(null, original); Directory.Delete(temp, recursive: true); }
     }
 
     [Test]

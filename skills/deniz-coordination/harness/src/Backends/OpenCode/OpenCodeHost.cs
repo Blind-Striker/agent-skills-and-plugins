@@ -56,7 +56,11 @@ static partial class Ready
         return roots.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    static string Subpath(string path) => $"(subpath \"{path.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\")";
+    static string Subpath(string path)
+    {
+        if (OperatingSystem.IsMacOS()) path = Worktree.RealPath(path);
+        return $"(subpath \"{path.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\")";
+    }
 
     public static string FenceProfile(IReadOnlyList<string> writable, IReadOnlyList<string> readOnly) =>
         "(version 1) (allow default) (deny file-write*) (allow file-write* "
@@ -153,17 +157,16 @@ sealed class HarnessServer : IAsyncDisposable
             var inherited = WorkerEnvironment.Snapshot();
             foreach (var (name, value) in environment) inherited[name] = value;
             string? common = null;
-            if (modes.Access == "workspace")
-            {
-                var git = await Git.Default.RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
-                if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
-            }
+            var git = await Git.Default.RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
+            if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
             var writable = Ready.WritableSet(launch, profileRoot, inherited.GetValueOrDefault("HOME")
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), inherited, common);
             foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
             Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
             Directory.CreateDirectory(environment["TMPDIR"]);
             var readOnly = new List<string> { Path.Combine(writable[0], "bin") };
+            if (Ready.FenceKind == "bwrap" && modes.Access == "read-only" && common is not null && Worktree.IsInside(common, "/tmp"))
+                readOnly.Add(common);
             if (common is not null) readOnly.AddRange(new[] { Path.Combine(common, "hooks"), Path.Combine(common, "config") }.Where(Path.Exists));
             if (Ready.FenceKind == "bwrap") readOnly.RemoveAll(path => !Path.Exists(path));
             var runtime = inherited.GetValueOrDefault("XDG_RUNTIME_DIR");

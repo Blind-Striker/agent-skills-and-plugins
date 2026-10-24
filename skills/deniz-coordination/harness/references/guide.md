@@ -20,8 +20,8 @@ Each section says when to use a setting, why, and what it costs. Field details l
 - Choose the backend for the route you need: the model, its effort, its context window, and its
   family. A review counts as a second family only when its route's family differs from the author's,
   and only when the result shows `routeVerified: true` for both tasks.
-- Codex runs its tools in an OS sandbox; opencode fences read-only and workspace tasks on Linux/macOS,
-  but not on Windows. On Windows, Codex's sandbox
+- Codex runs its tools in an OS sandbox; opencode's Linux/macOS fence for read-only and workspace tasks
+  is an [accident guard](backends.md#opencode-accident-guard), not a security boundary. Windows is unfenced. On Windows, Codex's sandbox
   cannot run .NET builds and tests or MSYS git reliably ([backends](backends.md)): such a task needs
   `access: full` there, chosen on purpose, while on opencode its `workspace` access is already
   unfenced. Either Windows choice runs without a fence; choose the backend for its route. On
@@ -33,8 +33,8 @@ Each section says when to use a setting, why, and what it costs. Field details l
 
 | Setting | Choose | Because |
 |---|---|---|
-| `access: read-only` | Reviews, research, anything that must not change files | Codex and Linux/macOS opencode fence writes and keep the shell; Windows opencode denies edits and, by default, every shell call |
-| `access: workspace` | Code that changes only its worktree | The default for `code` and `mechanical`; Codex and Linux/macOS opencode fence writes to the workspace, temp and configured writable roots; Windows opencode is unfenced |
+| `access: read-only` | Reviews, research, anything that must not change files | Codex's sandbox and Linux/macOS opencode's accident guard keep the shell; Windows opencode denies edits and, by default, every shell call |
+| `access: workspace` | Code that changes only its worktree | The default for `code` and `mechanical`; Codex's sandbox and Linux/macOS opencode's accident guard grant writes to the workspace, temp and configured writable roots; Windows opencode is unfenced |
 | `access: full` | Only when a task must write outside its worktree (build caches, temp) and no sandbox can host it | It removes the fence; the ledger records the choice, so choose it explicitly |
 | `network: off` | A task that must not fetch anything | Codex enforces it; opencode denies its web tools only |
 | `profile: clean` | Reviews, research, mechanical and structured work: their default | A minimal profile: no user MCP servers, plugins or instructions; measured at 13% fewer prompt tokens and 33% fewer uncached prompt tokens per task |

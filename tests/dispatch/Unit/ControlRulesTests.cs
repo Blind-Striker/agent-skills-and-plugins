@@ -7,6 +7,31 @@ namespace Dispatch.Tests.Unit;
 public sealed class ControlRulesTests
 {
     [Test]
+    public async Task Fence_profile_uses_real_paths_for_writable_and_deny_entries(CancellationToken ct)
+    {
+        var root = Directory.CreateTempSubdirectory("dispatch-profile-").FullName;
+        var target = Directory.CreateDirectory(Path.Combine(root, "real")).FullName;
+        var link = Path.Combine(root, "alias");
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                using var command = new Dispatch.Tests.Support.CapturedProcess();
+                (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, target], root,
+                    new Dictionary<string, string?>(), ct)).RequireSuccess("junction fixture");
+            }
+            else Directory.CreateSymbolicLink(link, target);
+            // Guard on non-macOS: exercise the same builder with already-resolved inputs there.
+            var input = OperatingSystem.IsMacOS() ? link : Worktree.RealPath(link);
+            var real = Worktree.RealPath(target).Replace("\\", "\\\\", StringComparison.Ordinal);
+            var dev = OperatingSystem.IsWindows() ? "/dev" : Worktree.RealPath("/dev");
+            await Assert.That(Ready.FenceProfile([Path.Combine(input, "write")], [Path.Combine(input, "deny")]))
+                .IsEqualTo($"(version 1) (allow default) (deny file-write*) (allow file-write* (subpath \"{real}{(OperatingSystem.IsWindows() ? "\\\\" : "/")}write\") (subpath \"{dev}\")) (deny file-write* (subpath \"{real}{(OperatingSystem.IsWindows() ? "\\\\" : "/")}deny\"))");
+        }
+        finally { if (Directory.Exists(link)) Directory.Delete(link); Directory.Delete(root, recursive: true); }
+    }
+
+    [Test]
     public async Task Fence_builders_emit_exact_argv_and_escaped_profile()
     {
         string[] roots = ["/profile", "/space and \"quote\"\\slash", "/dev"];

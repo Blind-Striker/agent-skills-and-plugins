@@ -265,7 +265,7 @@ public sealed class PlanOutputTests
         var fenceLines = lines.Where(line => line.Contains("fenced (", StringComparison.Ordinal)
             || line.Contains("opencode runs unfenced on Windows;", StringComparison.Ordinal)).ToArray();
         await Assert.That(fenceLines).IsEquivalentTo(Ready.FenceKind is { } kind
-            ? new[] { $"INFO inspect: fenced ({kind})", $"INFO edit: fenced ({kind})" }
+            ? new[] { $"INFO inspect: write-fenced ({kind}; accident guard)", $"INFO edit: write-fenced ({kind}; accident guard)" }
             : new[] {
                 "WARN inspect: opencode runs unfenced on Windows; access read-only is enforced by permission rules only",
                 "WARN edit: opencode runs unfenced on Windows; access workspace is enforced by permission rules only",

@@ -40,8 +40,9 @@ dotnet dispatch.cs -- <command> [arguments]
 
 ## Backend and modes
 
-Codex provides an OS sandbox; opencode fences read-only and workspace tasks on Linux/macOS and
-runs unfenced on Windows. Both support structured output. Modes and defaults:
+Codex provides an OS sandbox; opencode's Linux/macOS fence is an
+[accident guard](references/backends.md#opencode-accident-guard), not a security boundary;
+Windows runs unfenced. Both support structured output. Modes and defaults:
 
 | Setting | Values | Code, mechanical | Review, research | Structured |
 |---|---|---|---|---|
@@ -52,8 +53,8 @@ runs unfenced on Windows. Both support structured output. Modes and defaults:
 
 - A read-only Codex task of any kind also defaults to `profile: clean`; explicit profiles win. A task
   that needs the installed profile's tools (MCP servers, plugins, skills) sets `profile: full`. Codex `access: full` removes
-  its sandbox. opencode `read-only` denies edit; its Linux/macOS fence keeps the shell but refuses
-  workspace writes. Windows opencode relies on permission rules only. Backend limits: `references/backends.md`.
+  its sandbox. opencode `read-only` denies edit; its Linux/macOS accident guard keeps the shell but stops
+  accidental workspace writes. Windows opencode relies on permission rules only. Backend limits: `references/backends.md#opencode-accident-guard`.
 - `workspace: in-place` runs in `dir`, main checkout included. `commit: none` (default) records the
   diff without committing; `commit: harness` requires a clean tree and commits on the current branch.
 - Read-only writes are declined. For escalated shell asks, `readOnlyShell: decline` (default) rejects;
@@ -62,8 +63,8 @@ runs unfenced on Windows. Both support structured output. Modes and defaults:
 - Denies beat escalation. Both backends decline unmatched asks in read-only tasks, MCP tools included.
   Otherwise opencode answers `once`; Codex declines with feedback. Codex denies apply only at
   approval: with `workspace` and network on, a `git push` deny cannot stop a push.
-- An unfenced opencode shell can write the harness's control folder and run ledger. Fenced write
-  grants and IPC limits: `references/backends.md`; build-cache additions use `writableRoots` (`references/config.md`).
+- An unfenced opencode shell can write the harness's control folder and run ledger. The fence's
+  accident-guard grants and limits: [backends](references/backends.md#opencode-accident-guard); build-cache additions use `writableRoots` (`references/config.md`).
   Verify commands run the worker's code as your user, outside sandboxing, on every backend.
 - Preferences layer user config < repository `.dispatch/` < task file < command line. Restrictions
   (denies, scope, maximum access, network) only add up, and the route allow-list is the
