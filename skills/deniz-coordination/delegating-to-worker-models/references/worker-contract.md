@@ -1,4 +1,4 @@
-worker-contract v5
+worker-contract v6
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -95,7 +95,8 @@ serializing a test to make a flaky test pass. The task text may add repository-s
   foreground with an explicit timeout, and leave no background process behind.
 - Your green run must be the run the verify step repeats. Do not redirect build outputs, do not change
   test helpers to fit your own layout, and do not repoint HOME, USERPROFILE, or a tool's home folder.
-  Put caches and temporary files under the system temp folder, never inside or above the workspace.
+  Put the caches and temporary files you create under the system temp folder, never inside or above the
+  workspace; a tool's own default user cache (under HOME, such as the NuGet or bun cache) is fine.
   These rules cover what you add and run. A repository's existing test fixtures, which may isolate
   HOME or place temporary trees for their own tests, are part of its gate: leave them as they are.
 
