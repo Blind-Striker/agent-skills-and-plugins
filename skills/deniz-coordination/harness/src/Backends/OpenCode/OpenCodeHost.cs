@@ -6,6 +6,7 @@ static partial class Ready
     public static string? FenceKind => OperatingSystem.IsLinux() ? "bwrap" : OperatingSystem.IsMacOS() ? "sandbox-exec" : null;
     public static bool Fenced(Modes modes) => FenceKind is not null && modes.Access is "read-only" or "workspace";
     static readonly Lazy<Task<string?>> fenceReadiness = new(CheckFenceAsync);
+    static string? fenceExecutable;
     public static Task<string?> FenceAsync(CancellationToken ct) => fenceReadiness.Value.WaitAsync(ct);
 
     static async Task<string?> CheckFenceAsync()
@@ -14,15 +15,21 @@ static partial class Ready
         string? detail;
         try
         {
-            var executable = Executables.Resolve(kind);
-            var result = await Proc.RunAsync(executable, kind == "bwrap"
-                ? ["--ro-bind", "/", "/", "--dev", "/dev", "true"]
-                : ["-p", "(version 1)(allow default)", "/usr/bin/true"], Environment.CurrentDirectory,
-                CancellationToken.None, TimeSpan.FromSeconds(30));
+            fenceExecutable = Executables.Resolve(kind);
+            var temp = Directory.CreateTempSubdirectory("dispatch-fence-").FullName;
+            ProcessResult result;
+            try
+            {
+                result = await Proc.RunAsync(fenceExecutable, kind == "bwrap"
+                    ? FenceCommand(kind, fenceExecutable, ["true"], [temp], [], null, null).Skip(1).ToArray()
+                    : ["-p", "(version 1)(allow default)", "/usr/bin/true"], Environment.CurrentDirectory,
+                    CancellationToken.None, TimeSpan.FromSeconds(30));
+            }
+            finally { Directory.Delete(temp, recursive: true); }
             if (result.ExitCode == 0) return null;
             detail = $"{kind} exited {result.ExitCode}: {result.Stderr.Trim()}";
         }
-        catch (Exception ex) when (ex is HarnessException or System.ComponentModel.Win32Exception or IOException)
+        catch (Exception ex)
         { detail = ex.Message; }
         return $"opencode fence unavailable ({detail})" + (kind == "bwrap"
             ? "; install bubblewrap, and on Ubuntu 24.04 set kernel.apparmor_restrict_unprivileged_userns=0 (root)" : "");
@@ -32,28 +39,40 @@ static partial class Ready
         IReadOnlyDictionary<string, string> environment, string? gitCommon)
     {
         var roots = new List<string>();
-        foreach (var (name, fallback) in new[] { ("DATA", ".local/share"), ("STATE", ".local/state"), ("CACHE", ".cache"), ("CONFIG", ".config") })
+        foreach (var (name, fallback) in new[] { ("DATA", ".local/share"), ("STATE", ".local/state") })
             roots.Add(Path.Combine(environment.GetValueOrDefault($"XDG_{name}_HOME") is { Length: > 0 } xdg
                 ? xdg : Path.Combine(home, fallback), "opencode"));
-        roots.AddRange([profileRoot, launch.Environment["TEMP"], "/dev"]);
+        roots.AddRange([launch.Environment["TEMP"], "/dev"]);
         if (launch.Modes.Access == "workspace")
         {
             roots.Add(launch.Directory);
             if (gitCommon is not null) roots.Add(gitCommon);
             roots.AddRange(launch.WritableRoots ?? []);
         }
+        foreach (var root in roots)
+            foreach (var (folder, name) in new[] { (Locations.ControlRoot, "control root"), (Locations.LedgerRoot, "ledger root") })
+                if (Worktree.IsInside(Worktree.RealPath(root), Worktree.RealPath(folder)) || Worktree.IsInside(Worktree.RealPath(folder), Worktree.RealPath(root)))
+                    throw new HarnessException($"{launch.TaskId}: opencode fence writable root overlaps {name}: {root}");
         return roots.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    public static string FenceProfile(IReadOnlyList<string> writable) =>
-        "(version 1) (allow default) (deny file-write*) (allow file-write* "
-        + string.Join(" ", writable.Concat(["/dev", "/tmp", "/private/tmp", "/private/var/folders"]).Distinct(StringComparer.Ordinal)
-            .Select(path => $"(subpath \"{path.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\")")) + ")";
+    static string Subpath(string path) => $"(subpath \"{path.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal)}\")";
 
-    public static IReadOnlyList<string> FenceCommand(string kind, IReadOnlyList<string> command, IReadOnlyList<string> writable) => kind == "bwrap"
-        ? ["bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
-            .. writable.Where(path => path != "/dev").SelectMany(path => new[] { "--bind", path, path }), "--", .. command]
-        : ["sandbox-exec", "-p", FenceProfile(writable), .. command];
+    public static string FenceProfile(IReadOnlyList<string> writable, IReadOnlyList<string> readOnly) =>
+        "(version 1) (allow default) (deny file-write*) (allow file-write* "
+        + string.Join(" ", writable.Append("/dev").Distinct(StringComparer.Ordinal).Select(Subpath)) + ")"
+        + string.Concat(readOnly.Select(path => $" (deny file-write* {Subpath(path)})"));
+
+    public static IReadOnlyList<string> FenceCommand(string kind, string executable, IReadOnlyList<string> command,
+        IReadOnlyList<string> writable, IReadOnlyList<string> readOnly, string? directory, string? runtime) => kind == "bwrap"
+        ? [executable, "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+            .. directory is null ? Array.Empty<string>() : ["--ro-bind", directory, directory],
+            .. writable.Where(path => path != "/dev").SelectMany(path => new[] { "--bind", path, path }),
+            .. runtime is null ? Array.Empty<string>() : ["--tmpfs", runtime],
+            .. readOnly.SelectMany(path => new[] { "--ro-bind", path, path }), "--", .. command]
+        : [executable, "-p", FenceProfile(writable, readOnly), .. command];
+
+    public static string FenceExecutable => fenceExecutable ?? throw new HarnessException("opencode fence readiness has not resolved an executable");
 }
 
 sealed record BusDisconnected(string Reason);
@@ -128,6 +147,9 @@ sealed class HarnessServer : IAsyncDisposable
         if (launch is not null && Ready.Fenced(modes))
         {
             if (await Ready.FenceAsync(ct) is { } refusal) throw new HarnessException(refusal);
+            environment["XDG_CACHE_HOME"] = Path.Combine(launch.Environment["TEMP"], "cache");
+            foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
+                environment[name] = Path.Combine(launch.Environment["TEMP"], "tmp");
             var inherited = WorkerEnvironment.Snapshot();
             foreach (var (name, value) in environment) inherited[name] = value;
             string? common = null;
@@ -139,7 +161,14 @@ sealed class HarnessServer : IAsyncDisposable
             var writable = Ready.WritableSet(launch, profileRoot, inherited.GetValueOrDefault("HOME")
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), inherited, common);
             foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
-            command = Ready.FenceCommand(Ready.FenceKind!, command, writable);
+            Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
+            Directory.CreateDirectory(environment["TMPDIR"]);
+            var readOnly = new List<string> { Path.Combine(writable[0], "bin") };
+            if (common is not null) readOnly.AddRange(new[] { Path.Combine(common, "hooks"), Path.Combine(common, "config") }.Where(Path.Exists));
+            if (Ready.FenceKind == "bwrap") readOnly.RemoveAll(path => !Path.Exists(path));
+            var runtime = inherited.GetValueOrDefault("XDG_RUNTIME_DIR");
+            command = Ready.FenceCommand(Ready.FenceKind!, Ready.FenceExecutable, command, writable, readOnly,
+                modes.Access == "read-only" ? launch.Directory : null, Directory.Exists(runtime) ? runtime : null);
         }
         try
         {

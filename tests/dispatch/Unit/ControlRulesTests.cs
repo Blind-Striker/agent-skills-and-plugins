@@ -10,16 +10,23 @@ public sealed class ControlRulesTests
     public async Task Fence_builders_emit_exact_argv_and_escaped_profile()
     {
         string[] roots = ["/profile", "/space and \"quote\"\\slash", "/dev"];
-        await Assert.That(Ready.FenceCommand("bwrap", ["/bin/opencode", "serve"], roots)).IsEquivalentTo(new[]
+        string[] readOnly = ["/data/bin", "/git/hooks", "/git/config"];
+        await Assert.That(Ready.FenceCommand("bwrap", "/usr/bin/bwrap", ["/bin/opencode", "serve"], roots, readOnly, "/tmp/inspect", "/run/user/1000")).IsEquivalentTo(new[]
         {
-            "bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+            "/usr/bin/bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+            "--ro-bind", "/tmp/inspect", "/tmp/inspect",
             "--bind", "/profile", "/profile", "--bind", "/space and \"quote\"\\slash", "/space and \"quote\"\\slash",
+            "--tmpfs", "/run/user/1000",
+            "--ro-bind", "/data/bin", "/data/bin", "--ro-bind", "/git/hooks", "/git/hooks", "--ro-bind", "/git/config", "/git/config",
             "--", "/bin/opencode", "serve",
         }, CollectionOrdering.Matching);
-        const string profile = "(version 1) (allow default) (deny file-write*) (allow file-write* (subpath \"/profile\") (subpath \"/space and \\\"quote\\\"\\\\slash\") (subpath \"/dev\") (subpath \"/tmp\") (subpath \"/private/tmp\") (subpath \"/private/var/folders\"))";
-        await Assert.That(Ready.FenceProfile(roots)).IsEqualTo(profile);
-        await Assert.That(Ready.FenceCommand("sandbox-exec", ["/bin/opencode", "serve"], roots))
-            .IsEquivalentTo(new[] { "sandbox-exec", "-p", profile, "/bin/opencode", "serve" }, CollectionOrdering.Matching);
+        const string profile = "(version 1) (allow default) (deny file-write*) (allow file-write* (subpath \"/profile\") (subpath \"/space and \\\"quote\\\"\\\\slash\") (subpath \"/dev\")) (deny file-write* (subpath \"/data/bin\")) (deny file-write* (subpath \"/git/hooks\")) (deny file-write* (subpath \"/git/config\"))";
+        await Assert.That(Ready.FenceProfile(roots, readOnly)).IsEqualTo(profile);
+        await Assert.That(Ready.FenceCommand("sandbox-exec", "/usr/bin/sandbox-exec", ["/bin/opencode", "serve"], roots, readOnly, null, null))
+            .IsEquivalentTo(new[] { "/usr/bin/sandbox-exec", "-p", profile, "/bin/opencode", "serve" }, CollectionOrdering.Matching);
+        await Assert.That(Ready.FenceCommand("bwrap", "/usr/bin/bwrap", ["true"], ["/probe-temp"], [], null, null))
+            .IsEquivalentTo(new[] { "/usr/bin/bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+                "--bind", "/probe-temp", "/probe-temp", "--", "true" }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -41,14 +48,19 @@ public sealed class ControlRulesTests
         var launch = new WorkerLaunch("run", "task", "code", new("fixture", "model", null), null, null,
             new("clean", "on", access, "on", "worktree"), workspace, new([], []), new Dictionary<string, string> { ["TEMP"] = temp },
             null, "clean", null, [cache]);
-        string[] expected = xdg
-            ? [Path.Combine(home, "DATA", "opencode"), Path.Combine(home, "STATE", "opencode"), Path.Combine(home, "CACHE", "opencode"), Path.Combine(home, "CONFIG", "opencode")]
-            : [Path.Combine(home, ".local/share", "opencode"), Path.Combine(home, ".local/state", "opencode"), Path.Combine(home, ".cache", "opencode"), Path.Combine(home, ".config", "opencode")];
         var actual = Ready.WritableSet(launch, profile, home, environment, common);
-        await Assert.That(actual).IsEquivalentTo(expected.Concat(new[] { profile, temp, "/dev" })
-            .Concat(access == "workspace" ? new[] { workspace, common, cache } : []), CollectionOrdering.Matching);
-        await Assert.That(actual).DoesNotContain(Locations.ControlRoot);
-        await Assert.That(actual).DoesNotContain(Locations.LedgerRoot);
+        foreach (var root in actual)
+            foreach (var protectedRoot in new[] { Locations.ControlRoot, Locations.LedgerRoot })
+            {
+                await Assert.That(Worktree.IsInside(Worktree.RealPath(root), Worktree.RealPath(protectedRoot))).IsFalse();
+                await Assert.That(Worktree.IsInside(Worktree.RealPath(protectedRoot), Worktree.RealPath(root))).IsFalse();
+            }
+        await Assert.That(actual).DoesNotContain(Path.Combine(home, xdg ? "CONFIG" : ".config", "opencode"));
+        await Assert.That(actual).DoesNotContain(Path.Combine(home, xdg ? "CACHE" : ".cache", "opencode"));
+        await Assert.That(actual).Contains(temp);
+        foreach (var extra in new[] { workspace, common, cache })
+            if (access == "workspace") await Assert.That(actual).Contains(extra);
+            else await Assert.That(actual).DoesNotContain(extra);
     }
 
     [Test]

@@ -10,7 +10,10 @@ public sealed class OpenCodeModesTests
     [Test]
     public async Task Missing_fenced_host_is_lost_on_reattach_and_collection_without_reconstruction(CancellationToken ct)
     {
-        await using var backend = new OpenCodeBackend();
+        await using var lab = new OpenCodeLab();
+        lab.Add("DELETE /api/session/session", status: 204);
+        lab.Write();
+        var backend = lab.Backend;
         var worker = new WorkerRef("opencode", "task", "session", "turn", new JsonObject { ["host"] = "fence=run/task" });
         var reattached = await backend.ReattachAsync(worker, ct);
         await Assert.That(reattached).IsTypeOf<ReattachResult.Ended>();
@@ -20,6 +23,160 @@ public sealed class OpenCodeModesTests
         await Assert.That(report.ExecutionError).IsEqualTo("fenced opencode server is no longer live");
         await Assert.That(report.Complete).IsTrue();
         await backend.ReleaseAsync(worker, ct);
+    }
+
+    [Test]
+    [Arguments(204)]
+    [Arguments(500)]
+    public async Task Lost_fence_release_deletes_through_shared_host_and_reports_failure(int status, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Add("DELETE /api/session/session", new JsonObject { ["_tag"] = "InternalError", ["message"] = "release failed" }, status);
+        lab.Write();
+        var worker = new WorkerRef("opencode", "task", "session", "turn", new JsonObject { ["host"] = "fence=run/task" });
+        Exception? failure = null;
+        try { await lab.Backend.ReleaseAsync(worker, ct); }
+        catch (HarnessException ex) { failure = ex; }
+        await Assert.That(failure?.Message).IsEqualTo(status == 204 ? null : "session session release failed: HTTP 500");
+        var requests = (File.Exists(FakeOpenCode.Record(lab.Tree)) ? File.ReadLines(FakeOpenCode.Record(lab.Tree)) : []).Select(x => JsonNode.Parse(x)!);
+        await Assert.That(requests.Where(x => x["method"]!.GetValue<string>() == "DELETE")
+            .Select(x => x["path"]!.GetValue<string>())).IsEquivalentTo(new[] { "/api/session/session" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Unresponsive_or_missing_fenced_host_loses_only_its_worker(bool missing, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Create("worker");
+        lab.Create("peer");
+        lab.Prompt("peer");
+        var active = lab.Add("GET /api/session/active", new JsonObject { ["_tag"] = "InternalError", ["message"] = "offline" }, 500, repeat: true);
+        lab.Add("GET /api/permission/request", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Add("GET /api/form", new JsonObject { ["location"] = new JsonObject { ["directory"] = "$directory" }, ["data"] = new JsonArray() }, repeat: true);
+        lab.Write();
+        var worker = Fence(lab.Backend, (await lab.Backend.CreateAsync(Launch(lab, "worker", access: "full"), ct)).Worker) with { Turn = "lost-turn" };
+        active["status"] = 200;
+        active["reply"] = new JsonObject { ["data"] = new JsonObject { ["peer"] = new JsonObject { ["type"] = "busy" } } };
+        lab.Steps.RemoveAll(x => x["reply"]?["data"] is JsonObject data && data["id"]?.GetValue<string>() == "worker"
+            || x["expect"]!.GetValue<string>() == "PUT /api/session/worker/environment");
+        lab.Write();
+        var peer = (await lab.Backend.CreateAsync(Launch(lab, "peer", access: "full"), ct)).Worker with { Turn = "peer-turn" };
+        var host = Hosts(lab.Backend)[worker.State["host"]!.GetValue<string>()];
+        if (missing) { await host.DisposeAsync(); Hosts(lab.Backend).TryRemove(worker.State["host"]!.GetValue<string>(), out _); }
+        Exception? failure = null;
+        try { await lab.Backend.PollAsync([worker, peer], ct); }
+        catch (HarnessException ex) { failure = ex; }
+        await Assert.That(failure).IsNull();
+        var ended = new List<WorkerSignal.Ended>();
+        while (lab.Backend.Signals.TryRead(out var signal)) if (signal is WorkerSignal.Ended e) ended.Add(e);
+        await Assert.That(ended).IsEquivalentTo(new[] { new WorkerSignal.Ended("worker", "lost-turn", "lost", null) }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That((await lab.Backend.PromptAsync(peer, new("Continue.", false), ct)).Turn).IsEqualTo("turn");
+    }
+
+    [Test]
+    public async Task Failed_fenced_task_disposes_its_server_but_keeps_session(CancellationToken ct)
+    {
+        using var core = new CoreLab();
+        await using var lab = new OpenCodeLab(core.Tree);
+        var run = await core.TaskAsync("worker", ct);
+        lab.Create("worker");
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "failed"));
+        lab.Add("GET /api/session/worker/message", new JsonObject { ["data"] = new JsonArray(), ["cursor"] = new JsonObject() });
+        lab.Write();
+        run.Worker = Fence(lab.Backend, (await lab.Backend.CreateAsync(Launch(lab, "worker", access: "full"), ct)).Worker);
+        run.WorkerEnded = true;
+        run.State = TaskState.Settling;
+        var process = ObservedProcess.Capture(lab.Hosts().Single()["pid"]!.GetValue<int>());
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["opencode"] = lab.Backend }, core.Ledger,
+            core.Tree.Repository, AllowList.From(null), core.Policy, 1, ct, core.Git);
+        await (Task)typeof(Scheduler).GetMethod("SettleAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .Invoke(scheduler, [run, "failed"])!;
+        await Assert.That(run.State).IsEqualTo(TaskState.Failed);
+        await Assert.That(core.Ledger.LoadResult(run.Id)!.Failures).IsEquivalentTo(new[] { "outcome:failed", "no-final-text" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(process.IsAlive()).IsFalse();
+        await Assert.That(File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!["method"]!.GetValue<string>())).DoesNotContain("DELETE");
+    }
+
+    static System.Collections.Concurrent.ConcurrentDictionary<string, HarnessServer> Hosts(OpenCodeBackend backend) =>
+        (System.Collections.Concurrent.ConcurrentDictionary<string, HarnessServer>)typeof(OpenCodeBackend)
+            .GetField("hosts", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(backend)!;
+
+    static WorkerRef Fence(OpenCodeBackend backend, WorkerRef worker)
+    {
+        var key = "fence=run/" + worker.TaskId;
+        foreach (var name in new[] { "hosts", "pumps" })
+        {
+            var map = (System.Collections.IDictionary)typeof(OpenCodeBackend).GetField(name,
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(backend)!;
+            var old = worker.State["host"]!.GetValue<string>();
+            var value = map[old];
+            map.Remove(old);
+            map.Add(key, value);
+        }
+        return worker with { State = new JsonObject { ["host"] = key } };
+    }
+
+    [Test]
+    public async Task Writable_link_into_control_is_refused_again_at_fenced_start(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        Directory.CreateDirectory(Locations.ControlRoot);
+        var link = Path.Combine(lab.Tree.Root, "writable-link");
+        if (OperatingSystem.IsWindows())
+        {
+            using var command = new CapturedProcess();
+            (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, Locations.ControlRoot], lab.Tree.Root, lab.Tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+        }
+        else Directory.CreateSymbolicLink(link, Locations.ControlRoot);
+        try
+        {
+            var launch = Launch(lab, "worker") with { WritableRoots = [link] };
+            HarnessException? refusal = null;
+            try { Ready.WritableSet(launch, "unused", lab.Tree.Root, launch.Environment, null); }
+            catch (HarnessException ex) { refusal = ex; }
+            var expected = $"worker: opencode fence writable root overlaps control root: {link}";
+            await Assert.That(refusal?.Message).IsEqualTo(expected);
+            if (Ready.FenceKind is not null && await Ready.FenceAsync(ct) is null)
+            {
+                refusal = null;
+                try { await lab.Backend.CreateAsync(launch, ct); }
+                catch (HarnessException ex) { refusal = ex; }
+                await Assert.That(refusal?.Message).IsEqualTo(expected);
+                await Assert.That(lab.Hosts()).IsEmpty();
+            }
+        }
+        finally { Directory.Delete(link); }
+    }
+
+    [Test]
+    public async Task Fenced_creation_failure_disposes_server_with_private_cache_and_temp(CancellationToken ct)
+    {
+        if (Ready.FenceKind is null) Skip.Test("opencode runs unfenced on Windows.");
+        if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
+        await using var lab = new OpenCodeLab();
+        var create = lab.Add("POST /api/session", new JsonObject { ["_tag"] = "InternalError", ["message"] = "create failed" }, 500);
+        var arrived = Path.Combine(lab.Tree.ChildEnvironment()["TEMP"]!, "create-arrived");
+        var release = Path.Combine(lab.Tree.ChildEnvironment()["TEMP"]!, "create-release");
+        create["arrived"] = arrived;
+        create["waitFor"] = release;
+        lab.Write();
+        var launch = Launch(lab, "worker");
+        var creating = lab.Backend.CreateAsync(launch, ct);
+        while (!File.Exists(arrived) && !creating.IsCompleted) await Task.Delay(10, ct);
+        var host = lab.Hosts().Single();
+        var process = ObservedProcess.Capture(host["pid"]!.GetValue<int>());
+        await File.WriteAllTextAsync(release, "release", ct);
+        HarnessException? failure = null;
+        try { await creating; }
+        catch (HarnessException ex) { failure = ex; }
+        await Assert.That(failure?.Message).IsEqualTo("the server call failed: OpenCodeApiException: The opencode API returned status 500 ('InternalError').");
+        await Assert.That(process.IsAlive()).IsFalse();
+        foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
+            await Assert.That(host["environment"]![name]!.GetValue<string>()).IsEqualTo(Path.Combine(launch.Environment["TEMP"], "tmp"));
+        await Assert.That(host["environment"]!["XDG_CACHE_HOME"]!.GetValue<string>()).IsEqualTo(Path.Combine(launch.Environment["TEMP"], "cache"));
+        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsTrue();
     }
 
     [Test]

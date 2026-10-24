@@ -32,6 +32,17 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     {
         await workerGate.WaitAsync(ct);
         try { return await GuardAsync(() => CreateCoreAsync(launch, ct)); }
+        catch (Exception failure)
+        {
+            try { await DisposeFenceAsync($"fence={launch.RunId}/{launch.TaskId}"); }
+            catch (Exception disposal)
+            {
+                var message = $"{failure.Message}; fence disposal failed: {disposal.Message}";
+                if (failure is WorkerCreationException creation) throw new WorkerCreationException(creation.Worker, message);
+                throw new HarnessException(message);
+            }
+            throw;
+        }
         finally { workerGate.Release(); }
     }
     public Task<WorkerRef> PromptAsync(WorkerRef worker, WorkerPrompt prompt, CancellationToken ct) => GuardAsync(() => PromptCoreAsync(worker, prompt, ct));
@@ -45,6 +56,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     {
         try { await ReleaseCoreAsync(worker, ct); }
         catch (OpenCodeException ex) { throw Failure(ex); }
+        finally { await DisposeFenceAsync(HostKey(worker)); }
     }
 
     static async Task<T> GuardAsync<T>(Func<Task<T>> call)
@@ -268,6 +280,11 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     {
         interrupts[worker.Id] = kind;
         if (hardStops.TryGetValue(worker.Id, out var previous)) return previous;
+        if (kind == InterruptKind.Hard && LostFence(worker))
+        {
+            await DisposeFenceAsync(HostKey(worker));
+            return new(true, "fenced server is gone");
+        }
         if (kind == InterruptKind.Hard)
         {
             await workerGate.WaitAsync(ct);
@@ -317,8 +334,8 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     async Task ReleaseCoreAsync(WorkerRef worker, CancellationToken ct)
     {
-        if (LostFence(worker)) return;
-        var response = await (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(OpenCodeRequestOptions.NoThrow, ct);
+        var server = LostFence(worker) ? await HostAsync(ct) : await HostAsync(worker, ct);
+        var response = await server.Client.Sessions.GetSessionClient(worker.Id).RemoveAsync(OpenCodeRequestOptions.NoThrow, ct);
         if (response.IsError && response.Status != 404) throw new HarnessException($"session {worker.Id} release failed: HTTP {response.Status}");
         lock (eventGate)
         {
@@ -326,10 +343,14 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             liveWorkers.TryRemove(worker.Id, out _);
             admissions.Remove(worker.Id);
         }
-        if (HostKey(worker).StartsWith("fence=", StringComparison.Ordinal) && hosts.TryRemove(HostKey(worker), out var server))
+    }
+
+    async Task DisposeFenceAsync(string key)
+    {
+        if (key.StartsWith("fence=", StringComparison.Ordinal) && hosts.TryRemove(key, out var server))
         {
             await server.DisposeAsync();
-            await pumps[HostKey(worker)];
+            await pumps[key];
         }
     }
 

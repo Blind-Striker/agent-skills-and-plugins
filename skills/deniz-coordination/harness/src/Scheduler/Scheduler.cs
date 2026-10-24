@@ -527,6 +527,17 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             Error(run, "settle", ex);
             if (!ledgerFailed) Finish(run, TaskState.Failed, outcome, $"settle failed: {ex.GetType().Name}: {ex.Message}");
         }
+        finally
+        {
+            if (run.IsFinal && run.Worker is { Backend: "opencode" } worker
+                && worker.State["host"]?.GetValue<string>()?.StartsWith("fence=", StringComparison.Ordinal) == true)
+                try
+                {
+                    if (!(await Backend(run).InterruptAsync(worker, InterruptKind.Hard, CancellationToken.None)).Stopped)
+                        throw new HarnessException("fenced server stop unconfirmed");
+                }
+                catch (Exception ex) { Error(run, "fence disposal", ex); }
+        }
     }
 
     void Finish(TaskRun run, TaskState state, string? outcome, string? reason)

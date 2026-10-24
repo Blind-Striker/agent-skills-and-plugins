@@ -122,7 +122,7 @@ if (Environment.GetEnvironmentVariable("FAKE_OPENCODE_CHILD_RECORD") is { } chil
 var modeEnvironment = new JsonObject();
 foreach (var name in new[] { "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG", "OPENCODE_CONFIG_CONTENT",
     "OPENCODE_DISABLE_CLAUDE_CODE", "OPENCODE_CONFIG_PROJECT_DISABLE", "OPENCODE_DISABLE_PROJECT_CONFIG",
-    "OPENCODE_FILEWATCHER_DISABLE", "OPENCODE_DISABLE_FILEWATCHER" })
+    "OPENCODE_FILEWATCHER_DISABLE", "OPENCODE_DISABLE_FILEWATCHER", "XDG_CACHE_HOME", "TMPDIR", "TEMP", "TMP" })
     modeEnvironment[name] = Environment.GetEnvironmentVariable(name);
 await File.WriteAllTextAsync($"{record}.{Environment.ProcessId}.host.json", new JsonObject
 {
