@@ -64,9 +64,20 @@ jobs:
             if grep -qiE "namespace|uid map" bwrap.err; then sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0; fi
             bwrap --ro-bind / / --dev /dev true
           fi
+      # The Windows runner's OS disk (C:) stalls writes for seconds, and tests that wait on a child
+      # process stretch with it; the runner's temp disk does not. The checkout is already there.
+      - name: Keep temp on the runner's temp disk
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $temp = Join-Path $env:RUNNER_TEMP 'tmp'
+          New-Item -ItemType Directory -Force -Path $temp | Out-Null
+          "TEMP=$temp" | Add-Content -LiteralPath $env:GITHUB_ENV
+          "TMP=$temp" | Add-Content -LiteralPath $env:GITHUB_ENV
       - name: Unit and Integration tests
         working-directory: tests/dispatch
-        # Inside the job's limit, so a hung test still leaves the log the next step prints.
+        # Inside the job's limit, so a hung test still leaves its dump, results and log behind:
+        # the session ends at 25 minutes, and a test stuck for 15 is dumped first.
         timeout-minutes: 35
         shell: bash
         env:
@@ -74,8 +85,15 @@ jobs:
           DISPATCH_CONTRACT_CODEX: ${{ runner.os == 'Linux' && format('{0}/codex/node_modules/.bin/codex', runner.temp) || '' }}
         run: |
           set -o pipefail
-          dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]" 2>&1 | tee "$RUNNER_TEMP/tests.log"
+          dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"             --results-directory "$GITHUB_WORKSPACE/test-results" --timeout 25m             --hangdump --hangdump-timeout 15m --hangdump-type Mini 2>&1 | tee "$RUNNER_TEMP/tests.log"
       - name: The tests' last output, after a failure or a timeout
         if: failure() || cancelled()
         shell: bash
         run: tail -n 120 "$RUNNER_TEMP/tests.log" || true
+      - name: Keep the results and any hang dump
+        if: failure() || cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dispatch-test-results-${{ matrix.os }}-${{ github.run_id }}
+          path: test-results/**
+          if-no-files-found: ignore
