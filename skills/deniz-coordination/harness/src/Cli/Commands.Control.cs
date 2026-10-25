@@ -33,8 +33,9 @@ static partial class Commands
         }
 
         var reason = "cancelled while no supervisor ran";
-        var record = ledger.LoadRecord(task);
-        if (record.PrepareRunning == true)
+        // A task with no record never began prepare; cancel settles it as before.
+        var record = File.Exists(Path.Combine(ledger.TaskDir(task), "task.json")) ? ledger.LoadRecord(task) : null;
+        if (record?.PrepareRunning == true)
         {
             reason = "prepare-interrupted: a prepare command may still run on this host";
             ledger.SaveRecord(record);
