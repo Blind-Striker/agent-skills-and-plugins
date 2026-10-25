@@ -287,7 +287,10 @@ public sealed class CodexBackendTests
             while (!running.IsCompleted && home is null)
             {
                 var path = Directory.Exists(ledgers) ? Directory.GetDirectories(ledgers).Select(x => Path.Combine(x, "edit", "task.json")).SingleOrDefault(File.Exists) : null;
-                var record = path is null ? null : JsonNode.Parse(File.ReadAllText(path));
+                JsonNode? record = null;
+                // The supervisor replaces the record while this loop polls it; a locked read is "not yet".
+                try { record = path is null ? null : JsonNode.Parse(File.ReadAllText(path)); }
+                catch (IOException) { }
                 if (record?["session"]?["turn"] is not null) home = record["backendState"]?["codexHome"]?.GetValue<string>();
                 if (home is null) await Task.Delay(50, cancellationToken);
             }
