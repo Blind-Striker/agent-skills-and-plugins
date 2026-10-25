@@ -292,23 +292,74 @@ public sealed class CodexBackendTests
                 if (home is null) await Task.Delay(50, cancellationToken);
             }
         }
-        finally { supervisor.Kill(); await running; }
-        // The killed supervisor never released the worker, so its temporary home is still there.
-        await Assert.That(home).IsNotNull();
-        await Assert.That(Path.GetFileName(home!)).IsEqualTo("codex-edit");
-        await Assert.That(Directory.Exists(home)).IsTrue();
-        using var status = new HarnessProcess(lab.Tree);
-        var shown = await status.RunAsync(["status", Path.GetFileName(lab.RunFolder)], cancellationToken,
-            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
-        await Assert.That(shown.Stdout).Contains("(no supervisor: `resume");
-        using var resume = new HarnessProcess(lab.Tree);
-        var resumed = await resume.RunAsync(["resume", Path.GetFileName(lab.RunFolder)], cancellationToken,
-            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
-        await Assert.That(resumed.ExitCode).IsEqualTo(1);
-        await Assert.That(resumed.Stdout).DoesNotContain("ownership");
-        await Assert.That(lab.Result["outcome"]!.GetValue<string>()).IsEqualTo("lost");
-        await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("failed");
-        await Assert.That(Directory.Exists(home)).IsFalse();
+        finally
+        {
+            // A Windows job closes with its supervisor; on POSIX the worker outlives it, and resume must stop it from its record.
+            if (OperatingSystem.IsWindows()) supervisor.Kill(); else supervisor.KillRoot();
+            await running;
+        }
+        var worker = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!)
+            .Single(x => x["scenario"]!.GetValue<string>() == "task.jsonl")["pid"]!.GetValue<int>();
+        try
+        {
+            // The killed supervisor never released the worker, so its temporary home is still there.
+            await Assert.That(home).IsNotNull();
+            await Assert.That(Path.GetFileName(home!)).IsEqualTo("codex-edit");
+            await Assert.That(Directory.Exists(home)).IsTrue();
+            await Assert.That(IsAlive(worker)).IsEqualTo(!OperatingSystem.IsWindows());
+            using var status = new HarnessProcess(lab.Tree);
+            var shown = await status.RunAsync(["status", Path.GetFileName(lab.RunFolder)], cancellationToken,
+                lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+            await Assert.That(shown.Stdout).Contains("(no supervisor: `resume");
+            using var resume = new HarnessProcess(lab.Tree);
+            var resumed = await resume.RunAsync(["resume", Path.GetFileName(lab.RunFolder)], cancellationToken,
+                lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+            await Assert.That(resumed.ExitCode).IsEqualTo(1);
+            await Assert.That(resumed.Stdout).DoesNotContain("ownership");
+            await Assert.That(lab.Result["outcome"]!.GetValue<string>()).IsEqualTo("lost");
+            await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("failed");
+            await Assert.That(IsAlive(worker)).IsFalse();
+            await Assert.That(Directory.Exists(home)).IsFalse();
+        }
+        finally
+        {
+            if (IsAlive(worker)) { using var leftover = Process.GetProcessById(worker); leftover.Kill(entireProcessTree: true); }
+        }
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task A_fresh_backend_hard_stops_a_recorded_worker_and_declines_a_soft_interrupt(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + "{\"hang\":true}\n");
+        await using var first = lab.Backend();
+        var created = await first.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await first.PromptAsync(created.Worker, new("Perform the task.", false), cancellationToken);
+        // What a later process holds: the state after the ledger's round trip.
+        var recorded = worker with
+        {
+            State = JsonSerializer.SerializeToNode(worker.State.Deserialize(LedgerJson.Files.BackendState), LedgerJson.Files.BackendState)!.AsObject(),
+        };
+        var pid = recorded.State["pid"]!.GetValue<int>();
+        await using var second = lab.Backend();
+        var soft = await second.InterruptAsync(recorded, InterruptKind.Cancel, cancellationToken);
+        await Assert.That(soft.Stopped).IsFalse();
+        await Assert.That(IsAlive(pid)).IsTrue();
+        var hard = await second.InterruptAsync(recorded, InterruptKind.Hard, cancellationToken);
+        await Assert.That(hard.Stopped).IsTrue();
+        await Assert.That(IsAlive(pid)).IsFalse();
+    }
+
+    static bool IsAlive(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException) { return false; }
     }
 
     [Test]

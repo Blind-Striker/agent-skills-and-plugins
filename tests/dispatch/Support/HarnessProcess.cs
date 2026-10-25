@@ -23,6 +23,8 @@ internal sealed class HarnessProcess(TempTree tree) : IDisposable
 
     public void Kill() => child.Kill();
 
+    public void KillRoot() => child.KillRoot();
+
     public void Dispose() => child.Dispose();
 }
 
@@ -125,6 +127,12 @@ internal sealed class CapturedProcess : IDisposable
     public void Kill()
     {
         if (process is { } child) KillTree(child);
+    }
+
+    // Kills the harness alone, as a host does when it reaps the supervisor's shell; its workers keep running.
+    public void KillRoot()
+    {
+        if (process is { HasExited: false } child) child.Kill(entireProcessTree: false);
     }
 
     public void Dispose()

@@ -280,9 +280,11 @@ public sealed class RealBackendTests
         const string prefix = "XDG_DATA_HOME=\"$HOME/.local/share\" MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0 ";
         var build = prefix + $"dotnet build probe.csproj -nodeReuse:false -p:UseSharedCompilation=false -p:RestorePackagesPath='{packages.Replace("'", "'\\''", StringComparison.Ordinal)}'";
         const string test = prefix + "dotnet run --project probe.csproj --no-build -- --output Detailed";
-        var task = lab.CodeTask($"Run exactly `{build}`, then `{test}` in separate shell calls in your worktree. "
-            + "Both must succeed and the test output must show FN10 passed. Do not change the project or tests. "
-            + "Then create inside.txt containing dotnet-ok with no newline. Finish with Status: done.", "workspace");
+        // opencode's shell event says only that the call ran; inside.txt exists only if the fenced build and test both exit 0.
+        var chain = $"{build} && {test} && printf dotnet-ok > inside.txt";
+        var task = lab.CodeTask($"Run exactly `{chain}` once, in one shell call in your worktree. "
+            + "It must succeed and the test output must show FN10 passed. Do not change the project or tests, and do not "
+            + "create inside.txt any other way: if the call fails, finish without it. Finish with Status: done.", "workspace");
         task["writableRoots"] = new JsonArray(cliHome, packages, nugetConfig, nugetData);
         task["verify"] = new JsonArray(build, test, "test \"$(cat inside.txt)\" = dotnet-ok");
         lab.WriteTask(task);
@@ -293,12 +295,9 @@ public sealed class RealBackendTests
         await Assert.That(lab.Record["settings"]!["writableRoots"]!["value"]!.AsArray().Select(x => x!.GetValue<string>()).ToArray())
             .IsEquivalentTo(new[] { cliHome, packages, nugetConfig, nugetData }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
-        foreach (var command in new[] { "dotnet build probe.csproj", "dotnet run --project probe.csproj --no-build" })
-        {
-            // A curious worker may rerun the command (under strace, say); the prescribed call comes first.
-            var call = tools.First(x => x["data"]!["resource"]!.GetValue<string>().Contains(command, StringComparison.Ordinal));
-            await Assert.That(call["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("succeeded");
-        }
+        // A curious worker may rerun the build (under strace, say); the prescribed call comes first.
+        await Assert.That(tools.First(x => x["data"]!["resource"]!.GetValue<string>().Contains("dotnet build probe.csproj", StringComparison.Ordinal))
+            ["data"]!["outcome"]!.GetValue<string>()).IsEqualTo("succeeded");
         await Assert.That(lab.Result["verify"]!.AsArray().Select(x => x!["command"]!.GetValue<string>()).ToArray())
             .IsEquivalentTo(new[] { build, test, "test \"$(cat inside.txt)\" = dotnet-ok" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         foreach (var check in lab.Result["verify"]!.AsArray()) await Assert.That(check!["exitCode"]!.GetValue<int>()).IsEqualTo(0);
