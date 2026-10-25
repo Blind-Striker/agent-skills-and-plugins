@@ -1,18 +1,18 @@
 ---
 name: harness
 description: The bundled dispatch harness, which runs a task file on worker
-  models through OpenCode or Codex, escalates their asks to the operator,
-  settles each result from git and its verify commands, and records every step
-  in a ledger. Its commands, task file, modes, configuration, runs, ledger and
-  exit codes.
+  models through OpenCode or Codex, fences their writes, escalates their asks to
+  the operator, settles each result from git and its verify commands, and
+  records every step in a ledger. Its commands, task file, modes and write
+  fence, configuration, runs and their recovery, ledger and exit codes.
 ---
 
 # Dispatch harness
 
 The harness runs tasks on worker models out of process, through two equal backends, opencode and
-Codex. Per task it prepares a workspace, starts the worker, answers or escalates its asks, settles
-the result from git, runs the verify commands on that result, and records every step in a
-ledger. This skill is the harness's contract.
+Codex. Per task it prepares a workspace, starts the worker behind a write fence where the platform
+has one, answers or escalates its asks, settles the result from git, runs the verify commands on
+that result, and records every step in a ledger. This skill is the harness's contract.
 
 ## Boundary
 
@@ -127,6 +127,9 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 
 A recorded run is never run again and its ledger is never edited by hand.
 
+- `status <run>` tells a stalled run from a working one: `(supervised now)` while a supervisor
+  drives it, `(no supervisor: resume <run> settles it)` once none does. Check it whenever a run's
+  completion notice is late or the host killed the shell that waited for it.
 - The supervisor stopped (restart, killed process): run `resume <run>` once. It settles what ended
   and settles every started Codex task that is not final as `lost`; fenced opencode tasks whose
   server is gone are also lost, never reconstructed. `resume <run> --continue` re-prompts interrupted

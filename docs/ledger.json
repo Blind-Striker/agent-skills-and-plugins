@@ -140,7 +140,7 @@
       "claude",
       "codex"
     ],
-    "description": "The bundled dispatch harness, which runs a task file on worker models through OpenCode or Codex, escalates their asks to the operator, settles each result from git and its verify commands, and records every step in a ledger. Its commands, task file, modes, configuration, runs, ledger and exit codes.",
+    "description": "The bundled dispatch harness, which runs a task file on worker models through OpenCode or Codex, fences their writes, escalates their asks to the operator, settles each result from git and its verify commands, and records every step in a ledger. Its commands, task file, modes and write fence, configuration, runs and their recovery, ledger and exit codes.",
     "claude": {
       "artifacts": [
         "skill"
