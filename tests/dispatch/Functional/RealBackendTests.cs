@@ -425,8 +425,9 @@ public sealed class RealBackendTests
         await Assert.That(cache.EnumerateFileSystemInfos().ToArray()).IsEmpty();
         await Assert.That(Directory.Exists(Path.Combine(lab.Tree.Repository, "node_modules"))).IsFalse();
         await CommitDependencyFixtureAsync(lab, "node_modules/\n.npm-cache/\n", ct);
-        var command = (prepared ? "npm test --offline" : "npm test") + " > test.log 2>&1; status=$?; "
-            + "printf '%s' \"$status\" > test.exit; if [ \"$status\" -eq 0 ]; then printf node-ok > inside.txt; fi";
+        // zsh, the macOS login shell opencode runs, makes `status` read-only, so the exit code goes in `code`.
+        var command = (prepared ? "npm test --offline" : "npm test") + " > test.log 2>&1; code=$?; "
+            + "printf '%s' \"$code\" > test.exit; if [ \"$code\" -eq 0 ]; then printf node-ok > inside.txt; fi";
         await RunDependencyWorkerAsync(lab, command, prepared ? "npm ci" : null, ct);
         var log = File.ReadAllText(Path.Combine(lab.Workspace, "test.log"));
         TestContext.Current!.Output.WriteLine(log);
