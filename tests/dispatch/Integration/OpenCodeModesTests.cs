@@ -256,7 +256,7 @@ public sealed class OpenCodeModesTests
         await Assert.That(Directory.Exists(temporary)).IsFalse();
     }
 
-    // macOS gives a fenced server a short private TMPDIR, for Unix sockets; Linux keeps it in the task's temp.
+    // Linux and macOS give a fenced server a short private TMPDIR for Unix sockets.
     static string PrivateTemp(JsonNode host, WorkerLaunch launch)
     {
         var temporary = host["environment"]!["TMPDIR"]!.GetValue<string>();
@@ -265,7 +265,9 @@ public sealed class OpenCodeModesTests
             if (!System.Text.RegularExpressions.Regex.IsMatch(temporary, "^/private/tmp/dispatch-[0-9a-f]{12}$"))
                 throw new InvalidOperationException($"unexpected macOS private temp: {temporary}");
         }
-        else if (temporary != Path.Combine(launch.Environment["TEMP"], "tmp"))
+        else if (OperatingSystem.IsLinux()
+            ? !System.Text.RegularExpressions.Regex.IsMatch(temporary, "^/var/tmp/dispatch-[0-9a-f]{12}$")
+            : temporary != Path.Combine(launch.Environment["TEMP"], "tmp"))
             throw new InvalidOperationException($"unexpected private temp: {temporary}");
         return temporary;
     }
@@ -298,7 +300,7 @@ public sealed class OpenCodeModesTests
         string[] Private(WorkerLaunch task) => [Path.Combine(task.Environment["TEMP"], "cache"), PrivateTemp(HostOf(task), task)];
         var (own, peers) = (Private(launch), Private(peerLaunch));
         await Assert.That(own[1]).IsNotEqualTo(peers[1]);
-        // The session's shell takes the same temp on macOS, so its Unix sockets fit; elsewhere it keeps the task temp.
+        // The session's shell takes the server's short private temp so its Unix sockets fit.
         foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
         {
             // Both fake servers name their first session alike; the server's pid tells their requests apart.
@@ -309,7 +311,7 @@ public sealed class OpenCodeModesTests
             await Assert.That(puts).IsNotEmpty();
             foreach (var put in puts)
                 foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
-                    await Assert.That(put["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(OperatingSystem.IsMacOS() ? folders[1] : task.Environment["TEMP"]);
+                    await Assert.That(put["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(folders[1]);
         }
         foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
         {
@@ -324,6 +326,80 @@ public sealed class OpenCodeModesTests
         await Hosts(lab.Backend)[peer.State["host"]!.GetValue<string>()].DisposeAsync();
         foreach (var folder in peers) await Assert.That(Directory.Exists(folder)).IsFalse();
         await Assert.That(File.ReadAllText(Path.Combine(peerLaunch.Environment["TEMP"], "keep"))).IsEqualTo("peer");
+    }
+
+    [Test]
+    public async Task Linux_fenced_launch_has_short_private_temp_and_private_runfile_bind(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux private folders only.");
+        if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
+        await using var lab = new OpenCodeLab();
+        var argv = Path.Combine(lab.Tree.Root, "bwrap-argv");
+        var shim = Path.Combine(lab.Tree.Root, "bwrap");
+        File.WriteAllText(shim, $"#!/bin/sh\nprintf '%s\\n' \"$@\" > '{argv}'\nwhile [ \"$1\" != -- ]; do shift; done\nshift\nexec \"$@\"\n");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(shim, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var field = typeof(Ready).GetField("fenceExecutable", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var original = field.GetValue(null);
+        field.SetValue(null, shim);
+        try
+        {
+            lab.Create("worker");
+            lab.Write();
+            var launch = Launch(lab, "worker");
+            var environment = new Dictionary<string, string>(launch.Environment) { ["XDG_DATA_HOME"] = Path.Combine(lab.Tree.Root, "private-data") };
+            launch = launch with { Environment = environment };
+            var target = Path.Combine(environment["XDG_DATA_HOME"], "dotnet", "runfile");
+            await Assert.That(Directory.Exists(target)).IsFalse();
+            var worker = (await lab.Backend.CreateAsync(launch, ct)).Worker;
+            var host = lab.Hosts().Single();
+            var temporary = host["environment"]!["TMPDIR"]!.GetValue<string>();
+            var source = temporary + "-runfile";
+            await Assert.That(temporary).StartsWith("/var/tmp/dispatch-");
+            await Assert.That(temporary.Length).IsLessThanOrEqualTo(30);
+            await Assert.That(Directory.Exists(temporary)).IsTrue();
+            if (!OperatingSystem.IsWindows()) await Assert.That(File.GetUnixFileMode(temporary))
+                .IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
+                await Assert.That(host["environment"]![name]!.GetValue<string>()).IsEqualTo(temporary);
+            var puts = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!)
+                .Where(x => x["method"]!.GetValue<string>() == "PUT" && x["path"]!.GetValue<string>() == "/api/session/worker/environment").ToArray();
+            await Assert.That(puts.Length).IsEqualTo(1);
+            foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
+                await Assert.That(puts[0]["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(temporary);
+            var arguments = File.ReadAllLines(argv);
+            var bind = Array.IndexOf(arguments, source);
+            await Assert.That(bind).IsGreaterThan(0);
+            await Assert.That(arguments[(bind - 1)..(bind + 2)])
+                .IsEquivalentTo(new[] { "--bind", source, target }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(Directory.Exists(source)).IsTrue();
+            if (!OperatingSystem.IsWindows()) await Assert.That(File.GetUnixFileMode(source))
+                .IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            await Assert.That(Directory.Exists(target)).IsTrue();
+            await Hosts(lab.Backend)[worker.State["host"]!.GetValue<string>()].DisposeAsync();
+            await Assert.That(Directory.Exists(temporary)).IsFalse();
+            await Assert.That(Directory.Exists(source)).IsFalse();
+        }
+        finally { field.SetValue(null, original); }
+    }
+
+    [Test]
+    public async Task Linux_private_runfile_creation_refuses_existing_folder(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux private runfile bind only.");
+        if (await Ready.FenceAsync(ct) is { } unavailable) Skip.Test(unavailable);
+        await using var lab = new OpenCodeLab();
+        var source = Directory.CreateDirectory(Path.Combine("/var/tmp", $"dispatch-{Guid.NewGuid():N}"[..21]) + "-runfile").FullName;
+        var keep = Path.Combine(source, "keep");
+        File.WriteAllText(keep, "pre-existing");
+        HarnessException? failure = null;
+        try
+        {
+            try { typeof(HarnessServer).GetMethod("CreateRunfileFolder", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, ["worker", source]); }
+            catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is HarnessException refusal) { failure = refusal; }
+            await Assert.That(failure?.Message).IsEqualTo($"worker: refused an existing private runfile folder: {source}");
+            await Assert.That(File.ReadAllText(keep)).IsEqualTo("pre-existing");
+        }
+        finally { Directory.Delete(source, recursive: true); }
     }
 
     [Test]

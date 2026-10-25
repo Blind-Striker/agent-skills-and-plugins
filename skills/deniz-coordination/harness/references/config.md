@@ -64,6 +64,9 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `backends.opencode.env` | array of variable names | `[]` | Re-adds named scrubbed values to backend processes. Names match `^[A-Za-z_][A-Za-z0-9_]*$`; otherwise `<layer>: backends env must contain environment variable names`. |
 | `backends.codex.env` | array of variable names | `[]` | Same name validation and passthrough behaviour. |
 
+A fenced opencode worker's `TMPDIR` is a short private folder outside `tempRoot`
+(`/var/tmp/dispatch-*` on Linux, `/private/tmp/dispatch-*` on macOS).
+
 Repository config cannot request `preferences.access: full`: `repo: preferences.access full is
 forbidden`. User config, a task or CLI may request it if restrictions permit it. A `--policy` file
 has the config shape but may contain only restrictions and instructions. It refuses preferences,
@@ -105,7 +108,7 @@ On Linux and macOS, a .NET test host built on Microsoft.Testing.Platform opens a
 default task temp is often longer, so the host fails with `The named pipe path ... is too long`, in
 the worker and in verify alike. The temp is `<tempRoot>/<run>/<task>`, so give such tasks a tiny
 `tempRoot` such as `/var/tmp/d` and keep the run and task ids short; the budget for all three is
-about 50 bytes. A fenced opencode worker on macOS already gets a short private temp
+about 50 bytes. A fenced opencode worker on Linux or macOS already gets a short private temp
 ([backends](backends.md)); its verify commands still use the task temp.
 See [task files](task-file.md#scope-and-workspaces) for layouts and environment semantics, and
 [plan output](cli.md) for the resolved path.
@@ -144,6 +147,9 @@ pass the isolated package cache explicitly to the worker's build (for example
 credential `XDG_DATA_HOME` outside the lab, scope `XDG_DATA_HOME="$HOME/.local/share"` to the .NET
 command only, with `HOME` still the lab's isolated home; do not relocate backend credential homes.
 Writable roots do not change the Windows Codex .NET/MSYS limitation.
+Do not add `dotnet/runfile` to `writableRoots`: the shared folder holds the harness's own `dispatch.cs`
+build, which would let a worker change code the harness later runs unfenced; fenced opencode tasks on
+Linux get a private bind instead ([backends](backends.md)).
 
 ## Layering
 

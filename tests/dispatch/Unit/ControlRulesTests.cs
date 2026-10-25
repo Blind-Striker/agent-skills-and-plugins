@@ -55,6 +55,20 @@ public sealed class ControlRulesTests
     }
 
     [Test]
+    public async Task Fence_bwrap_binds_private_runfile_after_writable_before_read_only()
+    {
+        await Assert.That(Ready.FenceCommand("bwrap", "/usr/bin/bwrap", ["opencode", "serve"],
+            ["/task-temp", "/workspace"], ["/data/opencode/bin"], null, "/run/user/1000",
+            ("/task-temp/runfile", "/data/dotnet/runfile"))).IsEquivalentTo(new[]
+        {
+            "/usr/bin/bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+            "--bind", "/task-temp", "/task-temp", "--bind", "/workspace", "/workspace",
+            "--bind", "/task-temp/runfile", "/data/dotnet/runfile", "--tmpfs", "/run/user/1000",
+            "--ro-bind", "/data/opencode/bin", "/data/opencode/bin", "--", "opencode", "serve",
+        }, CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Arguments("read-only", false)]
     [Arguments("workspace", false)]
     [Arguments("read-only", true)]
