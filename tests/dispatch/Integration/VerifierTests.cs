@@ -74,6 +74,31 @@ public sealed class VerifierTests
         }
     }
 
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_timeout_text_is_invariant_and_uses_singular(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.GetCultureInfo("fr-FR");
+            foreach (var (limit, text) in new (TimeSpan?, string)[] { (null, "30 minutes"), (TimeSpan.FromMinutes(1), "1 minute"), (TimeSpan.FromSeconds(1), "1 second"), (TimeSpan.FromMinutes(1.5), "1.5 minutes") })
+            {
+                using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                using var reason = new CancellationTokenSource();
+                var command = OperatingSystem.IsWindows() ? "while ($true) { Start-Sleep -Milliseconds 20 }" : "while :; do sleep 0.02; done";
+                var running = Verifier.RunCommandAsync(new(), null, tree.Repository, WorkerEnvironment.Snapshot(), command, false, stop.Token, reason.Token, limit);
+                stop.Cancel(); // Proc has started synchronously; its existing cancellation classification supplies a timeout without waiting 30 minutes.
+                var executed = await running;
+                await Assert.That(executed.Result.ExitCode).IsEqualTo(-1);
+                await Assert.That(executed.Result.TimedOut).IsTrue();
+                await Assert.That(executed.Error!.Message).IsEqualTo($"timed out after {text}");
+            }
+        }
+        finally { System.Globalization.CultureInfo.CurrentCulture = culture; }
+    }
+
     static (TaskRun Run, Ledger Ledger) VerifyFixture(TempTree tree) => (new TaskRun { Record = new TaskRecord
     {
         Spec = new() { Id = "inspect", Kind = "research" }, Workspace = new() { Path = tree.Repository },

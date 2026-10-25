@@ -77,7 +77,7 @@ public sealed class SchedulerTests
     [Timeout(60_000)]
     public async Task Prepare_rejects_workspace_changes(CancellationToken ct)
     {
-        foreach (var arrangement in new[] { "tracked", "untracked", "dirty", "ignored", "many", "unicode" })
+        foreach (var arrangement in new[] { "tracked", "untracked", "dirty", "ignored", "many", "unicode", "leading-space" })
         {
             using var lab = new CoreLab();
             var run = await PrepareTaskAsync(lab, ct);
@@ -88,7 +88,7 @@ public sealed class SchedulerTests
             if (arrangement == "dirty") File.WriteAllText(Path.Combine(repo.Root, "README.md"), "already dirty");
             var paths = arrangement == "many" ? Enumerable.Range(1, 25).Reverse().Select(n => $"path-{n}.txt").ToArray()
                 : arrangement == "ignored" ? new[] { "obj/marker", "bin/marker", "node_modules/marker", ".pkgs/marker" }
-                : new[] { arrangement == "unicode" ? "ışık-世界.txt" : arrangement == "untracked" ? "new.txt" : "README.md" };
+                : new[] { arrangement == "leading-space" ? " leading.txt" : arrangement == "unicode" ? "ışık-世界.txt" : arrangement == "untracked" ? "new.txt" : "README.md" };
             foreach (var path in paths) Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, path))!);
             run.Record.Spec.Prepare = [string.Join("; ", paths.Select(path => WriteCommand(path, "changed")))];
             EndOnPoll(lab, run);
@@ -542,6 +542,32 @@ public sealed class SchedulerTests
             await Assert.That(lab.Backend.Calls).IsEmpty();
             await Assert.That(run.PrepareCancellation).IsNull();
         }
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_completed_evidence_survives_log_failure(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await PrepareTaskAsync(lab, ct);
+        run.Record.Spec.Prepare = ["exit 0", "exit 3"];
+        var log = Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log");
+        var scheduler = lab.Scheduler(ct, prepareCommand: async (task, command, environment, token) =>
+        {
+            var executed = await Verifier.RunCommandAsync(task.Record.Spec, null, task.Record.Workspace.Path!, environment, command, false, token);
+            File.Move(log, log + ".saved");
+            Directory.CreateDirectory(log);
+            return executed;
+        });
+        await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Prepare!.Select(x => x.Command)).IsEquivalentTo(new[] { "exit 0" }, CollectionOrdering.Matching);
+        await Assert.That(result.Prepare![0].ExitCode).IsEqualTo(0);
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
+        await Assert.That(result.Error).Contains(log);
+        await Assert.That(lab.Ledger.LoadRecord(run.Id).Prepare!.Select(x => x.ExitCode)).IsEquivalentTo(new[] { 0 }, CollectionOrdering.Matching);
+        await Assert.That(lab.Ledger.Read().Single(x => x.Type == "prepared").Data!.ToJsonString()).IsEqualTo("{\"commands\":1,\"failed\":0,\"checkFailed\":false}");
+        await Assert.That(lab.Backend.Calls).IsEmpty();
     }
 
     static string WritePrepareTasks(TempTree tree, IReadOnlyList<string> commands)

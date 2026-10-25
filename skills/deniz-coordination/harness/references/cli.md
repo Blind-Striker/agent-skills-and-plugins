@@ -184,7 +184,7 @@ creates no recorded run.
 
 Nonempty prepare prints `INFO <task>: prepare <n> command(s) in <shell>`, where `<shell>` is the resolved
 executable path. Empty/unset prepare adds no line; missing or unsupported shells refuse planning with
-the `verify shell:` error, even when only `prepare` needs the shell.
+`prepare shell:` when there are no verify or advisory-verify commands, otherwise `verify shell:`.
 
 For each task with contracts, `plan` prints
 `INFO <task>: contracts <alias or path> (<version line>); ...` in prepend order, after path

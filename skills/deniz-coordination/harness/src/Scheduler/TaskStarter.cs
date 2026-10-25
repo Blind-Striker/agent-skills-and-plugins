@@ -158,17 +158,17 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
                     executed = prepareCommand is not null
                         ? await prepareCommand(run, command, environment, commandCancellation.Token)
                         : await Verifier.RunCommandAsync(record.Spec, null, record.Workspace.Path!, environment, command, false, ct, commandCancellation.Token);
+                    commandRunning = false;
                 }
                 catch (OperationCanceledException) when (!ct.IsCancellationRequested && Cancelled()) { return End(); }
                 if (ct.IsCancellationRequested) executed = Verifier.CancelledCommand(executed);
-                await File.AppendAllTextAsync(logPath, executed.Log, CancellationToken.None);
                 record.Prepare.Add(executed.Result);
                 ledger.SaveRecord(record);
-                commandRunning = false;
+                await File.AppendAllTextAsync(logPath, executed.Log, CancellationToken.None);
                 ct.ThrowIfCancellationRequested();
                 if (Cancelled()) return End();
                 if (executed.Error is not null || Verifier.Failed(executed.Result))
-                    return End("prepare-failed", executed.Result.TimedOut ? $"prepare command {record.Prepare.Count} {executed.Error!.Message}"
+                    return End("prepare-failed", executed.Result.TimedOut ? $"prepare command {record.Prepare.Count} {executed.Error?.Message ?? "timed out"}"
                         : executed.Error?.Message ?? $"prepare command {record.Prepare.Count} exited {executed.Result.ExitCode}");
             }
             if (Cancelled()) return End();
@@ -177,8 +177,8 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
             var afterHead = await Check(() => prepareHead?.Invoke(runner, record.Workspace.Path!, indexTask, false, ct) ?? ReadHeadAsync(runner, record.Workspace.Path!, ct));
             if (before != after)
             {
-                var diff = await Check(() => runner.CheckAsync(record.Workspace.Path!, ct, "-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", before, after));
-                var paths = diff.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Order(StringComparer.Ordinal).ToList();
+                var diff = await Check(() => runner.CheckAsync(record.Workspace.Path!, ct, "diff", "--name-only", "-z", "--no-renames", before, after));
+                var paths = diff.Split('\0', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal).ToList();
                 return End("prepare-changed-workspace", string.Join(", ", paths.Take(20)) + (paths.Count > 20 ? $", and {paths.Count - 20} more" : ""), changed: true);
             }
             if (head != afterHead) return End("prepare-changed-workspace", $"prepare moved HEAD from {head} to {afterHead}", changed: true);

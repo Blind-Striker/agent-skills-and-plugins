@@ -29,7 +29,7 @@ public sealed class PlanOutputTests
         File.WriteAllText(Path.Combine(tree.Root, "schema.json"), """{"type":"array"}""");
         File.WriteAllText(path, structured.ToJsonString());
         var git = new Git(Executables.Resolve("git"), Path.Combine(tree.Root, "control"), tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
-        var rejected = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git);
+        var rejected = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git, executableSearchPath: tree.Root);
         await Assert.That(rejected.Errors).IsEquivalentTo(new[] { "inspect: prepare is forbidden for structured tasks" }, CollectionOrdering.Matching);
         await Assert.That(rejected.Info.Where(x => x.Contains(": prepare ", StringComparison.Ordinal))).IsEmpty();
         structured["tasks"]![0]!["prepare"] = new System.Text.Json.Nodes.JsonArray();
@@ -44,6 +44,13 @@ public sealed class PlanOutputTests
         var unavailable = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git, executableSearchPath: tree.Root);
         var name = OperatingSystem.IsWindows() ? "pwsh" : "bash";
         await Assert.That(unavailable.Errors).IsEquivalentTo(new[] { $"alpha: prepare shell: required executable is not on PATH: {name}" }, CollectionOrdering.Matching);
+        missing["tasks"]![0]!["shell"] = name;
+        File.WriteAllText(path, missing.ToJsonString());
+        var explicitShell = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git, executableSearchPath: tree.Root);
+        await Assert.That(explicitShell.Errors).IsEquivalentTo(new[] { $"alpha: prepare shell: required executable is not on PATH: {name}" }, CollectionOrdering.Matching);
+        var explicitValid = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git);
+        await Assert.That(explicitValid.Errors).IsEmpty();
+        await Assert.That(explicitValid.Info.Where(x => x.Contains(": prepare ", StringComparison.Ordinal))).IsEquivalentTo(new[] { $"alpha: prepare 1 command(s) in {shell}" }, CollectionOrdering.Matching);
     }
 
     [Test]

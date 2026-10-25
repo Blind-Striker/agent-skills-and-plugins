@@ -75,7 +75,9 @@ static class Verifier
         if (outcome.TimedOut && cancelReason.CanBeCanceled && !cancelReason.IsCancellationRequested)
         {
             var limit = timeout ?? Constants.VerifyTimeout;
-            error = new TimeoutException($"timed out after {(limit.TotalMinutes >= 1 ? $"{limit.TotalMinutes:g} minutes" : $"{limit.TotalSeconds:g} seconds")}");
+            var amount = limit.TotalMinutes >= 1 ? limit.TotalMinutes : limit.TotalSeconds;
+            var unit = limit.TotalMinutes >= 1 ? "minute" : "second";
+            error = new TimeoutException(FormattableString.Invariant($"timed out after {amount:g} {unit}{(amount == 1 ? "" : "s")}"));
         }
         var result = new VerifyResult { Command = command, ExitCode = outcome.ExitCode, Seconds = Math.Round(started.Elapsed.TotalSeconds, 1),
             TimedOut = outcome.TimedOut, Advisory = advisory ? true : null };

@@ -81,14 +81,14 @@ static class Planner
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
             if (spec.Kind == "structured" && spec.Shell is not null) e.Add("shell is forbidden for structured tasks");
-            else if (spec.Shell is not null || spec.Verify is { Count: > 0 } || spec.AdvisoryVerify is { Count: > 0 } || spec.Prepare is { Count: > 0 })
+            else if (spec.Shell is not null || spec.Verify is { Count: > 0 } || spec.AdvisoryVerify is { Count: > 0 } || spec.Kind != "structured" && spec.Prepare is { Count: > 0 })
             {
                 try
                 {
                     var shell = Verifier.ResolveShell(spec, executableSearchPath);
-                    if (spec.Kind != "structured" && spec.Prepare is { Count: > 0 }) plan.Info.Add($"{spec.Id}: prepare {spec.Prepare.Count} command(s) in {shell}");
+                    if (spec.Prepare is { Count: > 0 }) plan.Info.Add($"{spec.Id}: prepare {spec.Prepare.Count} command(s) in {shell}");
                 }
-                catch (HarnessException ex) { e.Add($"{(spec.Shell is null && spec.Verify is not { Count: > 0 } && spec.AdvisoryVerify is not { Count: > 0 } ? "prepare" : "verify")} shell: {ex.Message}"); }
+                catch (HarnessException ex) { e.Add($"{(spec.Verify is not { Count: > 0 } && spec.AdvisoryVerify is not { Count: > 0 } ? "prepare" : "verify")} shell: {ex.Message}"); }
             }
 
             RouteRef? route = null;

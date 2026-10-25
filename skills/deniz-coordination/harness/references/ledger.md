@@ -301,7 +301,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `no-final-text` | string | Final assistant text is missing or blank. |
 | `commit-failed` | string | Harness commit command failed. |
 | `verify-failed` | string | Verify command failed or timed out. |
-| `prepare-failed` | string | Prepare command failed, timed out or could not start, or baseline/check Git operation failed. |
+| `prepare-failed` | string | Prepare command failed, timed out or could not start, a baseline/check Git operation failed, or preparation setup/logging failed. |
 | `prepare-changed-workspace` | string | Successful prepare commands changed non-ignored workspace content or HEAD. |
 | `out-of-scope` | string | Collected changes exceed scope. |
 | `route-drift` | string | The backend reported a route other than the requested one; see `routeDrift`. |
@@ -333,6 +333,7 @@ Every completed attempt saves its record, maintains the log and emits exactly on
 | Cancel | `{commands:k,failed:0,cancelled:true}` | `cancelled` / `[]` | Preserve executed entries; killed command exit `-1`, `timedOut: false`; no synthetic pre-start entry. |
 | Baseline Git failure | `{commands:0,failed:0,checkFailed:true}` | `failed` / `["prepare-failed"]` | Empty array; Git's message. |
 | Check Git failure | `{commands:n,failed:0,checkFailed:true}` | `failed` / `["prepare-failed"]` | All entries; Git's message. |
+| Other preparation failure (such as log writing or environment setup) | `{commands:k,failed:0,checkFailed:false}` | `failed` / `["prepare-failed"]` | Preserve completed entries; exception message. |
 | Workspace change | `{commands:n,failed:0,changed:true}` | `failed` / `["prepare-changed-workspace"]` | All entries; paths or HEAD diagnostic per [task-file lifecycle](task-file.md#preparation). |
 
 Here `n` is the full list length, `k` the number executed, and command numbers are one-based.
