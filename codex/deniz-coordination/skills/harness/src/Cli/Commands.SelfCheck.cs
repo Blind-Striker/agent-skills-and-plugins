@@ -71,6 +71,9 @@ static partial class Commands
         }
         else Console.WriteLine("repository checks skipped (no --repo or task-file repo)");
 
+        // Launch folders outlive their backend scope: an unfenced opencode server keeps its project
+        // directory open until it stops, and Windows refuses to delete an open directory.
+        var launchFolders = new List<string>();
         try
         {
             foreach (var selected in selectedBackends)
@@ -181,7 +184,7 @@ static partial class Commands
                             finally
                             {
                                 var folder = Path.Combine(Locations.WorktreeRoot, runId);
-                                if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true);
+                                if (Directory.Exists(folder)) launchFolders.Add(folder);
                             }
                         }
                         Check("launch", true, worker.Id);
@@ -235,6 +238,18 @@ static partial class Commands
                 }
                 Check("worktree removed", removed, removed ? worktree : detail);
             }
+        }
+        foreach (var folder in launchFolders)
+        {
+            // Every backend scope has been disposed; Windows can still hold a directory handle briefly.
+            string? left = null;
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                try { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); left = null; break; }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                { left = ex.Message; await Task.Delay(TimeSpan.FromMilliseconds(250 * (attempt + 1)), CancellationToken.None); }
+            }
+            if (left is not null) Check("launch folder removed", true, $"{folder} is left: {left}", warn: true);
         }
         var failed = checks.Count(x => !x.Ok);
         Console.WriteLine(failed == 0 ? $"selfcheck passed ({warnings} warning(s))" : $"selfcheck: {failed} check(s) failed");
