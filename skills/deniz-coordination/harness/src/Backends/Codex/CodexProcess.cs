@@ -382,7 +382,7 @@ sealed class CodexProcess : IAsyncDisposable
             if (nice is not null)
             {
                 start.ArgumentList.Add("-n");
-                start.ArgumentList.Add("10");
+                start.ArgumentList.Add(NiceIncrement().ToString(System.Globalization.CultureInfo.InvariantCulture));
                 start.ArgumentList.Add(executable);
             }
             start.ArgumentList.Add("app-server");
@@ -418,6 +418,15 @@ sealed class CodexProcess : IAsyncDisposable
             }
             throw new HarnessException($"cannot start codex app-server: {exception.Message}");
         }
+    }
+
+    // nice is relative and the harness itself may run below niceness 0 (CI macOS does): aim for absolute niceness 10.
+    static int NiceIncrement()
+    {
+        Marshal.SetLastPInvokeError(0);
+        var current = Native.getpriority(0, 0);
+        if (current == -1 && Marshal.GetLastPInvokeError() != 0) throw new Win32Exception(Marshal.GetLastPInvokeError());
+        return Math.Max(0, 10 - current);
     }
 
     static string? ResolveSessionLauncher(IReadOnlyDictionary<string, string> environment)
@@ -730,5 +739,7 @@ sealed class CodexProcess : IAsyncDisposable
         internal static extern int getpgid(int pid);
         [DllImport("libc", ExactSpelling = true, SetLastError = true)]
         internal static extern int kill(int pid, int signal);
+        [DllImport("libc", ExactSpelling = true, SetLastError = true)]
+        internal static extern int getpriority(int which, int who);
     }
 }
