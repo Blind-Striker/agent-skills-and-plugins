@@ -8,6 +8,79 @@ namespace Dispatch.Tests.Integration;
 public sealed class VerifierTests
 {
     [Test]
+    public async Task Prepare_cancel_preserves_completed_command_exit(CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        var result = new VerifyResult { Command = "exit 3", ExitCode = 3, TimedOut = false };
+        const string log = "$ exit 3\n[exit 3]\n";
+        var executed = Verifier.CancelledCommand((result, log, null));
+        await Assert.That(executed.Result.Command).IsEqualTo("exit 3");
+        await Assert.That(executed.Result.ExitCode).IsEqualTo(3);
+        await Assert.That(executed.Result.TimedOut).IsFalse();
+        await Assert.That(executed.Log).IsEqualTo(log);
+        await Assert.That(executed.Error).IsNull();
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Verify_continues_after_failure(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var (run, ledger) = VerifyFixture(tree);
+        var marker = Path.Combine(tree.Root, "second").Replace("'", "''");
+        var second = OperatingSystem.IsWindows() ? $"Set-Content -LiteralPath '{marker}' -Value done" : $"printf done > '{marker}'";
+        run.Record.Spec.Verify = ["exit 3", second];
+        var result = new TaskResult { Outcome = "succeeded" };
+        await Verifier.VerifyAsync(ledger, run, result, ct);
+        await Assert.That(result.Verify.Select(x => x.Command)).IsEquivalentTo(new[] { "exit 3", second }, CollectionOrdering.Matching);
+        await Assert.That(result.Verify.Select(x => x.ExitCode)).IsEquivalentTo(new[] { 3, 0 }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(marker).Trim()).IsEqualTo("done");
+        await Assert.That(ledger.Read().Single(x => x.Type == "verified").Data!.ToJsonString()).IsEqualTo("{\"commands\":2,\"failed\":1}");
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Verify_cancel_preserves_existing_evidence(CancellationToken ct)
+    {
+        foreach (var cancelDuringCommand in new[] { false, true })
+        {
+            using var tree = new TempTree();
+            var (run, ledger) = VerifyFixture(tree);
+            var marker = Path.Combine(tree.Root, "entered");
+            var command = OperatingSystem.IsWindows()
+                ? $"Set-Content -LiteralPath '{marker}' -Value entered; while ($true) {{ Start-Sleep -Milliseconds 20 }}"
+                : $"printf entered > '{marker}'; while :; do sleep 0.02; done";
+            run.Record.Spec.Verify = [command, "exit 0"];
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var result = new TaskResult { Outcome = "succeeded", Verify = [new() { Command = "previous", ExitCode = 7 }] };
+            await ledger.WriteArtifactAsync(run.Id, "verify.log", "existing log", ct);
+            if (!cancelDuringCommand) cancel.Cancel();
+            var verifying = Verifier.VerifyAsync(ledger, run, result, cancel.Token);
+            if (cancelDuringCommand)
+            {
+                while (!File.Exists(marker) && !verifying.IsCompleted) await Task.Delay(10, ct);
+                cancel.Cancel();
+            }
+            await Assert.That(async () => await verifying).Throws<OperationCanceledException>();
+            await Assert.That(result.Verify.Select(x => x.Command)).IsEquivalentTo(cancelDuringCommand ? new[] { "previous", command } : new[] { "previous" }, CollectionOrdering.Matching);
+            await Assert.That(result.Verify[0].ExitCode).IsEqualTo(7);
+            if (cancelDuringCommand)
+            {
+                await Assert.That(result.Verify[1].TimedOut).IsTrue();
+                await Assert.That(result.Verify[1].ExitCode).IsEqualTo(-1);
+            }
+            await Assert.That(File.ReadAllText(Path.Combine(ledger.TaskDir(run.Id), "verify.log"))).IsEqualTo("existing log");
+            await Assert.That(ledger.Read().Select(x => x.Type)).DoesNotContain("verified");
+        }
+    }
+
+    static (TaskRun Run, Ledger Ledger) VerifyFixture(TempTree tree) => (new TaskRun { Record = new TaskRecord
+    {
+        Spec = new() { Id = "inspect", Kind = "research" }, Workspace = new() { Path = tree.Repository },
+        Settings = new() { TempRoot = new() { Value = tree.WorktreeRoot } },
+    } }, new Ledger(Path.Combine(tree.Root, "ledger")));
+
+    [Test]
     [Timeout(180_000)]
     public async Task Verify_uses_configured_temp(CancellationToken ct)
     {

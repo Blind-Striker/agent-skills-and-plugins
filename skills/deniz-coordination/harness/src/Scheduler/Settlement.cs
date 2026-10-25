@@ -18,6 +18,7 @@ static class Settlement
         var result = new TaskResult
         {
             Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name, Outcome = outcome,
+            Prepare = record.Prepare,
             Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = record.RouteResolved,
             RoutesUsed = report.RoutesUsed.ToList(),
             Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,

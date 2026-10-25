@@ -59,6 +59,7 @@ sealed class TaskSpec : TaskPreferences
     public string? Prompt { get; set; }
     public string? PromptFile { get; set; }
     public List<string>? Scope { get; set; }
+    public List<string>? Prepare { get; set; }
     public List<string>? Verify { get; set; }
     // Run after verify and recorded, but never fail the task: a check that fails by design.
     public List<string>? AdvisoryVerify { get; set; }

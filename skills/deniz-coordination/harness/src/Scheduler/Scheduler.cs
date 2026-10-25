@@ -1,4 +1,7 @@
-sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Ledger ledger, string repo, AllowList allow, Policy policy, int max, CancellationToken ct, Git? git = null, TimeProvider? timeProvider = null)
+sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Ledger ledger, string repo, AllowList allow, Policy policy, int max, CancellationToken ct, Git? git = null, TimeProvider? timeProvider = null,
+    Func<TaskRun, string, IReadOnlyDictionary<string, string>, CancellationToken, Task<(VerifyResult Result, string Log, Exception? Error)>>? prepareCommand = null,
+    Func<Git, string, string, bool, CancellationToken, Task<string>>? prepareSnapshot = null,
+    Func<Git, string, string, bool, CancellationToken, Task<string>>? prepareHead = null)
 {
     readonly TimeProvider time = timeProvider ?? TimeProvider.System;
     readonly Escalation escalation = new(backends, ledger, policy);
@@ -28,7 +31,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     }
 
     IWorkerBackend Backend(TaskRun run) => backends[run.Record.Settings.Backend?.Value ?? "opencode"];
-    TaskStarter Starter(TaskRun run) => new(Backend(run), ledger, repo, allow, policy, git, time);
+    TaskStarter Starter(TaskRun run) => new(Backend(run), ledger, repo, allow, policy, git, time, prepareCommand, prepareSnapshot, prepareHead);
 
     public async Task<int> RunAsync(List<TaskRun> tasks)
     {
@@ -247,7 +250,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     {
         try
         {
-            await Starter(run).StartAsync(run, ct);
+            if (await Starter(run).StartAsync(run, ct) is { } terminal)
+            {
+                await FailStartCoreAsync(run, new HarnessException(terminal.Error ?? terminal.State), "prepare", terminal);
+                return;
+            }
             await Backend(run).PollAsync([run.SavedWorker()], ct);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -269,8 +276,14 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         catch (LedgerWriteException failure) { Error(run, operation, failure); }
     }
 
-    async Task FailStartCoreAsync(TaskRun run, Exception ex, string operation)
+    async Task FailStartCoreAsync(TaskRun run, Exception ex, string operation, TaskResult? prepareResult = null)
     {
+        if (prepareResult is not null)
+        {
+            ledger.SaveResult(prepareResult);
+            Finish(run, prepareResult.State == "cancelled" ? TaskState.Cancelled : TaskState.Failed, prepareResult.Outcome, prepareResult.Error);
+            return;
+        }
         if (run.PromptAttempted && run.Worker is not null)
         {
             run.StartFailure = $"{operation} failed: {ex.GetType().Name}: {ex.Message}";

@@ -9,6 +9,45 @@ public sealed class PlanOutputTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Plan_reports_and_validates_prepare(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var path = Path.Combine(tree.Root, "tasks.jsonc");
+        const string document = """{"schemaVersion":2,"defaults":{"backend":"opencode"},"tasks":[{"id":"zulu","kind":"code","base":"main","scope":["z.txt"],"route":"fixture/model","prompt":"Edit.","prepare":["exit 0","exit 0"]},{"id":"alpha","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect.","prepare":["exit 0"]},{"id":"empty","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect.","prepare":[]},{"id":"unset","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""";
+        File.WriteAllText(path, document);
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        using var process = new HarnessProcess(tree);
+        var output = await process.RunAsync(["plan", path, "--repo", repo.Root], ct, environment);
+        output.RequireSuccess("prepare plan");
+        var shell = Verifier.ResolveShell(new TaskSpec());
+        await Assert.That(Lines(output).Where(x => x.Contains(": prepare ", StringComparison.Ordinal))).IsEquivalentTo(new[] {
+            $"INFO zulu: prepare 2 command(s) in {shell}", $"INFO alpha: prepare 1 command(s) in {shell}" }, CollectionOrdering.Matching);
+        await Assert.That(() => Json.ReadTaskFile("""{"schemaVersion":2,"defaults":{"prepare":[]},"tasks":[{"kind":"research"}]}""")).Throws<System.Text.Json.JsonException>();
+        var structured = System.Text.Json.Nodes.JsonNode.Parse(document)!;
+        structured["tasks"] = new System.Text.Json.Nodes.JsonArray(System.Text.Json.Nodes.JsonNode.Parse("""{"id":"inspect","kind":"structured","route":"fixture/model","prompt":"Transform.","prepare":["exit 0"],"input":{"items":[]},"result":{"schema":"schema.json","itemsAt":""}}"""));
+        File.WriteAllText(Path.Combine(tree.Root, "schema.json"), """{"type":"array"}""");
+        File.WriteAllText(path, structured.ToJsonString());
+        var git = new Git(Executables.Resolve("git"), Path.Combine(tree.Root, "control"), tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
+        var rejected = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git);
+        await Assert.That(rejected.Errors).IsEquivalentTo(new[] { "inspect: prepare is forbidden for structured tasks" }, CollectionOrdering.Matching);
+        await Assert.That(rejected.Info.Where(x => x.Contains(": prepare ", StringComparison.Ordinal))).IsEmpty();
+        structured["tasks"]![0]!["prepare"] = new System.Text.Json.Nodes.JsonArray();
+        File.WriteAllText(path, structured.ToJsonString());
+        var accepted = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git);
+        await Assert.That(accepted.Errors).IsEmpty();
+        await Assert.That(accepted.Tasks.Select(x => x.Spec.Id!)).IsEquivalentTo(new[] { "inspect" }, CollectionOrdering.Matching);
+        await Assert.That(accepted.Info.Where(x => x.Contains(": prepare ", StringComparison.Ordinal))).IsEmpty();
+        var missing = System.Text.Json.Nodes.JsonNode.Parse(document)!;
+        missing["tasks"] = new System.Text.Json.Nodes.JsonArray(missing["tasks"]![1]!.DeepClone());
+        File.WriteAllText(path, missing.ToJsonString());
+        var unavailable = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git, executableSearchPath: tree.Root);
+        var name = OperatingSystem.IsWindows() ? "pwsh" : "bash";
+        await Assert.That(unavailable.Errors).IsEquivalentTo(new[] { $"alpha: prepare shell: required executable is not on PATH: {name}" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Plan_prints_contract_aliases_paths_and_versions_in_prepend_order(CancellationToken ct)
     {
         using var tree = new TempTree();

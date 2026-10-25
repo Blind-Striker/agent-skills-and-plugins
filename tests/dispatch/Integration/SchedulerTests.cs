@@ -1,5 +1,8 @@
 using Dispatch.Tests.Support;
 using Microsoft.Extensions.Time.Testing;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -7,6 +10,599 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel]
 public sealed class SchedulerTests
 {
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_precedes_worker_creation(CancellationToken ct)
+    {
+        using var lab = new CoreLab("prepare-order");
+        var run = await PrepareTaskAsync(lab, ct);
+        var second = await lab.TaskAsync("second", ct);
+        var entered = Path.Combine(lab.Tree.Root, "entered");
+        var release = Path.Combine(lab.Tree.Root, "release");
+        var marker = Path.Combine(Locations.TaskTemp(run.Id, lab.Ledger.RunId), "marker");
+        run.Record.Spec.Prepare = [GateCommand(entered, release) + "; " + WriteCommand(marker, "final line")];
+        var contents = new List<string>();
+        var create = lab.Backend.OnCreate!;
+        lab.Backend.OnCreate = (launch, token) => { contents.Add(File.Exists(marker) ? File.ReadAllText(marker).Trim() : "missing"); return create(launch, token); };
+        lab.Backend.OnPoll = (live, _) => { foreach (var worker in live) lab.End(worker.TaskId == run.Id ? run : second); return Task.FromResult(new PollResult([])); };
+        var running = lab.Scheduler(ct).RunAsync([run, second]);
+        var reached = await WaitFileAsync(entered, running, ct);
+        var state = run.State;
+        var pending = second.State;
+        var earlyCalls = lab.Backend.Calls.Select(x => x.Member).ToArray();
+        File.WriteAllText(release, "go");
+        await Assert.That(await running).IsEqualTo(0);
+        await Assert.That(reached).IsTrue();
+        await Assert.That(state).IsEqualTo(TaskState.Dispatching);
+        await Assert.That(pending).IsEqualTo(TaskState.Pending);
+        await Assert.That(earlyCalls).IsEmpty();
+        await Assert.That(contents).IsEquivalentTo(new[] { "final line", "final line" }, CollectionOrdering.Matching);
+        await Assert.That(lab.Backend.Calls.Where(x => x.Member is "CreateAsync" or "PromptAsync").Select(x => x.Member))
+            .IsEquivalentTo(new[] { "CreateAsync", "PromptAsync", "CreateAsync", "PromptAsync" }, CollectionOrdering.Matching);
+        await Assert.That(run.Record.Prepare!.Select(x => x.Command)).IsEquivalentTo(run.Record.Spec.Prepare, CollectionOrdering.Matching);
+        await Assert.That(run.Record.Prepare![0].ExitCode).IsEqualTo(0);
+        await Assert.That(run.PrepareCancellation).IsNull();
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_failure_stops_before_worker(CancellationToken ct)
+    {
+        foreach (var spawn in new[] { false, true })
+        {
+            using var lab = new CoreLab();
+            var run = await PrepareTaskAsync(lab, ct);
+            var marker = Path.Combine(lab.Tree.Root, "second");
+            var first = OperatingSystem.IsWindows() ? "Write-Output first-output; exit 3" : "printf 'first-output\\n'; exit 3";
+            run.Record.Spec.Prepare = [first, WriteCommand(marker, "second")];
+            var scheduler = spawn ? lab.Scheduler(ct, prepareCommand: (task, command, environment, token) =>
+                Verifier.RunCommandAsync(task.Record.Spec, null, Path.Combine(lab.Tree.Root, "missing-workspace"), environment, command, false, token)) : lab.Scheduler(ct);
+            await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+            var result = lab.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.State).IsEqualTo("failed");
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
+            await Assert.That(result.Prepare!.Select(x => x.Command)).IsEquivalentTo(new[] { first }, CollectionOrdering.Matching);
+            await Assert.That(result.Prepare![0].ExitCode).IsEqualTo(spawn ? -1 : 3);
+            await Assert.That(result.Prepare[0].TimedOut).IsFalse();
+            if (spawn) await Assert.That(result.Error).Contains("missing-workspace");
+            else await Assert.That(result.Error).IsEqualTo("prepare command 1 exited 3");
+            var log = File.ReadAllText(Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log"));
+            await Assert.That(log).Contains(spawn ? "missing-workspace" : "first-output");
+            await Assert.That(File.Exists(marker)).IsFalse();
+            await AssertPrepareTerminalAsync(lab, run, "{\"commands\":1,\"failed\":1}");
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Prepare_rejects_workspace_changes(CancellationToken ct)
+    {
+        foreach (var arrangement in new[] { "tracked", "untracked", "dirty", "ignored", "many", "unicode" })
+        {
+            using var lab = new CoreLab();
+            var run = await PrepareTaskAsync(lab, ct);
+            var repo = new LabRepo(lab.Tree);
+            File.WriteAllText(Path.Combine(repo.Root, ".gitignore"), "obj/\nbin/\nnode_modules/\n.pkgs/\n");
+            await repo.GitAsync(["add", ".gitignore"], ct);
+            await repo.GitAsync(["commit", "-m", "Ignore dependency output"], ct);
+            if (arrangement == "dirty") File.WriteAllText(Path.Combine(repo.Root, "README.md"), "already dirty");
+            var paths = arrangement == "many" ? Enumerable.Range(1, 25).Reverse().Select(n => $"path-{n}.txt").ToArray()
+                : arrangement == "ignored" ? new[] { "obj/marker", "bin/marker", "node_modules/marker", ".pkgs/marker" }
+                : new[] { arrangement == "unicode" ? "ışık-世界.txt" : arrangement == "untracked" ? "new.txt" : "README.md" };
+            foreach (var path in paths) Directory.CreateDirectory(Path.GetDirectoryName(Path.Combine(repo.Root, path))!);
+            run.Record.Spec.Prepare = [string.Join("; ", paths.Select(path => WriteCommand(path, "changed")))];
+            EndOnPoll(lab, run);
+            await Assert.That(await lab.Scheduler(ct).RunAsync([run])).IsEqualTo(arrangement == "ignored" ? 0 : 1);
+            var result = lab.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.Prepare!.Select(x => x.ExitCode)).IsEquivalentTo(new[] { 0 }, CollectionOrdering.Matching);
+            if (arrangement == "ignored")
+            {
+                await Assert.That(result.State).IsEqualTo("done");
+                await Assert.That(run.Record.PrepareDone).IsTrue();
+                await Assert.That(File.ReadAllText(Path.Combine(repo.Root, "obj", "marker")).Trim()).IsEqualTo("changed");
+            }
+            else
+            {
+                await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-changed-workspace" }, CollectionOrdering.Matching);
+                var expected = arrangement == "many"
+                    ? "path-1.txt, path-10.txt, path-11.txt, path-12.txt, path-13.txt, path-14.txt, path-15.txt, path-16.txt, path-17.txt, path-18.txt, path-19.txt, path-2.txt, path-20.txt, path-21.txt, path-22.txt, path-23.txt, path-24.txt, path-25.txt, path-3.txt, path-4.txt, and 5 more"
+                    : paths[0];
+                await Assert.That(result.Error).IsEqualTo(expected);
+                await AssertPrepareTerminalAsync(lab, run, "{\"commands\":1,\"failed\":0,\"changed\":true}");
+            }
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Prepare_snapshot_failures_are_terminal(CancellationToken ct)
+    {
+        foreach (var baseline in new[] { true, false })
+        {
+            using var lab = new CoreLab();
+            var run = await PrepareTaskAsync(lab, ct);
+            var marker = Path.Combine(lab.Tree.Root, "command");
+            run.Record.Spec.Prepare = [WriteCommand(marker, "ran")];
+            var scheduler = lab.Scheduler(ct, prepareSnapshot: (git, cwd, task, start, token) => start == baseline
+                ? throw new HarnessException("git fixture capture failed") : Snapshot.CaptureAsync(git, cwd, task, start, token));
+            await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+            var result = lab.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.Error).IsEqualTo("git fixture capture failed");
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
+            await Assert.That(result.Prepare!.Select(x => x.Command)).IsEquivalentTo(baseline ? [] : run.Record.Spec.Prepare, CollectionOrdering.Matching);
+            await Assert.That(File.Exists(marker)).IsEqualTo(!baseline);
+            await AssertPrepareTerminalAsync(lab, run, baseline ? "{\"commands\":0,\"failed\":0,\"checkFailed\":true}" : "{\"commands\":1,\"failed\":0,\"checkFailed\":true}");
+        }
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_short_command_succeeds(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await PrepareTaskAsync(lab, ct);
+        run.Record.Spec.Prepare = ["exit 0"];
+        EndOnPoll(lab, run);
+        await Assert.That(await lab.Scheduler(ct).ResumeAsync([run], true)).IsEqualTo(0);
+        await Assert.That(run.Record.PrepareDone).IsTrue();
+        await Assert.That(run.Record.PrepareRunning).IsFalse();
+        await Assert.That(run.Record.Prepare!.Select(x => x.Command)).IsEquivalentTo(new[] { "exit 0" }, CollectionOrdering.Matching);
+        await Assert.That(run.Record.Prepare![0].ExitCode).IsEqualTo(0);
+        await Assert.That(run.Record.Prepare[0].Advisory).IsNull();
+        await Assert.That(run.Record.Prepare[0].NotRun).IsNull();
+        await Assert.That(lab.Ledger.Read().Single(x => x.Type == "prepared").Data!.ToJsonString()).IsEqualTo("{\"commands\":1,\"failed\":0,\"changed\":false}");
+        await Assert.That(lab.Backend.Calls.Count(x => x.Member == "CreateAsync")).IsEqualTo(1);
+        // A completed, sessionless preparation is not replayed when startup resumes.
+        var saved = lab.Ledger.LoadRecord(run.Id);
+        saved.Session = new();
+        var resumed = new TaskRun { Record = saved };
+        EndOnPoll(lab, resumed);
+        await Assert.That(await lab.Scheduler(ct, prepareCommand: (_, _, _, _) => throw new InvalidOperationException("replayed")).ResumeAsync([resumed], true)).IsEqualTo(0);
+        await Assert.That(lab.Ledger.Read().Count(x => x.Type == "prepared")).IsEqualTo(1);
+        foreach (var commands in new List<string>?[] { null, [] })
+        {
+            using var emptyLab = new CoreLab();
+            var emptyRun = await PrepareTaskAsync(emptyLab, ct);
+            emptyRun.Record.Spec.Prepare = commands;
+            EndOnPoll(emptyLab, emptyRun);
+            await Assert.That(await emptyLab.Scheduler(ct).RunAsync([emptyRun])).IsEqualTo(0);
+            var emptyRecord = emptyLab.Ledger.LoadRecord(emptyRun.Id);
+            await Assert.That(emptyRecord.Prepare).IsNull();
+            await Assert.That(emptyRecord.PrepareDone).IsNull();
+            await Assert.That(emptyRecord.PrepareRunning).IsNull();
+            await Assert.That(File.Exists(Path.Combine(emptyLab.Ledger.TaskDir(emptyRun.Id), "prepare.log"))).IsFalse();
+            await Assert.That(emptyLab.Ledger.Read().Select(x => x.Type)).DoesNotContain("prepared");
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Prepare_obeys_precedence_and_boundaries(CancellationToken ct)
+    {
+        foreach (var boundary in new[] { "between", "last", "failure", "baseline-error", "snapshot", "git-error", "changed" })
+        {
+            using var lab = new CoreLab();
+            var run = await PrepareTaskAsync(lab, ct);
+            run.Record.Spec.Prepare = boundary == "between" ? ["exit 0", "exit 0"] : boundary == "failure" ? ["exit 3"] : ["exit 0"];
+            EndOnPoll(lab, run);
+            var commands = new List<string>();
+            var snapshots = new List<bool>();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var scheduler = lab.Scheduler(ct, prepareCommand: async (task, command, environment, token) =>
+            {
+                var executed = await Verifier.RunCommandAsync(task.Record.Spec, null, task.Record.Workspace.Path!, environment, command, false, token, task.PrepareCancellation!.Token);
+                commands.Add(command);
+                if (boundary is "between" or "last" or "failure") { entered.SetResult(); await release.Task.WaitAsync(ct); }
+                return executed;
+            }, prepareSnapshot: async (git, cwd, task, start, token) =>
+            {
+                snapshots.Add(start);
+                if (boundary == "baseline-error")
+                {
+                    entered.SetResult();
+                    await release.Task.WaitAsync(ct);
+                    throw new HarnessException("git baseline failed");
+                }
+                var tree = await Snapshot.CaptureAsync(git, cwd, task, start, token);
+                if (!start)
+                {
+                    entered.SetResult();
+                    await release.Task.WaitAsync(ct);
+                    if (boundary == "git-error") throw new HarnessException("git comparison failed");
+                    if (boundary == "changed") return new string('0', 40);
+                }
+                return tree;
+            });
+            var running = scheduler.RunAsync([run]);
+            var reached = await Task.WhenAny(entered.Task, running) == entered.Task;
+            run.CancelRequested = true;
+            release.SetResult();
+            await Assert.That(await running).IsEqualTo(1);
+            await Assert.That(reached).IsTrue();
+            var result = lab.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.State).IsEqualTo("cancelled");
+            await Assert.That(result.Failures).IsEmpty();
+            await Assert.That(result.Error).IsNull();
+            await Assert.That(commands).IsEquivalentTo(boundary == "baseline-error" ? [] : new[] { boundary == "failure" ? "exit 3" : "exit 0" }, CollectionOrdering.Matching);
+            await Assert.That(snapshots).IsEquivalentTo(boundary is "between" or "last" or "failure" or "baseline-error" ? new[] { true } : new[] { true, false }, CollectionOrdering.Matching);
+            await AssertPrepareTerminalAsync(lab, run, boundary == "baseline-error" ? "{\"commands\":0,\"failed\":0,\"cancelled\":true}" : "{\"commands\":1,\"failed\":0,\"cancelled\":true}");
+        }
+        foreach (var arrangement in new[] { "edit-fail", "head", "unborn" })
+        {
+            using var lab = new CoreLab();
+            var run = await PrepareTaskAsync(lab, ct);
+            var repo = new LabRepo(lab.Tree);
+            var before = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+            string? after = null;
+            if (arrangement == "head") after = await repo.GitAsync(["commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "Same tree"], ct);
+            if (arrangement == "unborn") await repo.GitAsync(["symbolic-ref", "HEAD", "refs/heads/unborn"], ct);
+            run.Record.Spec.Prepare = [arrangement == "edit-fail" ? WriteCommand("README.md", "edited") + "; exit 1"
+                : arrangement == "head" ? $"git update-ref HEAD {after}" : "exit 0"];
+            EndOnPoll(lab, run);
+            await Assert.That(await lab.Scheduler(ct).RunAsync([run])).IsEqualTo(arrangement == "unborn" ? 0 : 1);
+            var result = lab.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.Prepare!.Count).IsEqualTo(1);
+            if (arrangement == "unborn") await Assert.That(run.Record.PrepareDone).IsTrue();
+            else
+            {
+                await Assert.That(result.Failures).IsEquivalentTo(new[] { arrangement == "head" ? "prepare-changed-workspace" : "prepare-failed" }, CollectionOrdering.Matching);
+                await Assert.That(result.Error).IsEqualTo(arrangement == "head" ? $"prepare moved HEAD from {before} to {after}" : "prepare command 1 exited 1");
+            }
+        }
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_cancel_kills_running_command(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await PrepareTaskAsync(lab, ct);
+        var entered = Path.Combine(lab.Tree.Root, "pid");
+        var release = Path.Combine(lab.Tree.Root, "release");
+        run.Record.Spec.Prepare = [GateCommand(entered, release), "exit 0"];
+        var running = lab.Scheduler(ct).RunAsync([run]);
+        var reached = await WaitFileAsync(entered, running, ct);
+        Json.WriteFile(Path.Combine(Locations.CancelDir(lab.Ledger.RunId), run.Id + ".json"),
+            new CancelRequest { Run = lab.Ledger.RunId, Task = run.Id, Time = Json.Timestamp() }, ControlJson.Files.CancelRequest);
+        var stoppedOnCancel = await Task.WhenAny(running, Task.Delay(TimeSpan.FromSeconds(5), ct)) == running;
+        File.WriteAllText(release, "go");
+        var exit = await running;
+        await Assert.That(reached).IsTrue();
+        await Assert.That(stoppedOnCancel).IsTrue();
+        await Assert.That(exit).IsEqualTo(1);
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.State).IsEqualTo("cancelled");
+        await Assert.That(result.Failures).IsEmpty();
+        await Assert.That(result.Prepare!.Select(x => x.Command)).IsEquivalentTo(new[] { run.Record.Spec.Prepare[0] }, CollectionOrdering.Matching);
+        await Assert.That(result.Prepare![0].ExitCode).IsEqualTo(-1);
+        await Assert.That(result.Prepare[0].TimedOut).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log"))).DoesNotContain("[harness] timed out");
+        await Assert.That(ProcessStopped(int.Parse(File.ReadAllText(entered).Trim()))).IsTrue();
+        await AssertPrepareTerminalAsync(lab, run, "{\"commands\":1,\"failed\":0,\"cancelled\":true}");
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_command_timeout_fails_task(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await PrepareTaskAsync(lab, ct);
+        var entered = Path.Combine(lab.Tree.Root, "pid");
+        run.Record.Spec.Prepare = [GateCommand(entered, Path.Combine(lab.Tree.Root, "release"))];
+        var scheduler = lab.Scheduler(ct, prepareCommand: (task, command, environment, token) =>
+            Verifier.RunCommandAsync(task.Record.Spec, null, task.Record.Workspace.Path!, environment, command, false, token,
+                task.PrepareCancellation!.Token, TimeSpan.FromSeconds(2)));
+        await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
+        await Assert.That(result.Prepare!.Count).IsEqualTo(1);
+        await Assert.That(result.Prepare[0].Command).IsEqualTo(run.Record.Spec.Prepare[0]);
+        await Assert.That(result.Prepare[0].TimedOut).IsTrue();
+        await Assert.That(result.Prepare[0].ExitCode).IsEqualTo(-1);
+        await Assert.That(result.TimedOut).IsFalse();
+        await Assert.That(result.Error).IsEqualTo("prepare command 1 timed out after 2 seconds");
+        await Assert.That(ProcessStopped(int.Parse(File.ReadAllText(entered).Trim()))).IsTrue();
+        await AssertPrepareTerminalAsync(lab, run, "{\"commands\":1,\"failed\":1}");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Prepare_interruption_is_not_replayed(CancellationToken ct)
+    {
+        foreach (var recovery in new[] { "resume", "continue", "cancel" })
+        {
+            using var tree = new TempTree();
+            var repo = await LabRepo.CreateAsync(tree, ct);
+            var entered = Path.Combine(tree.Root, "pid");
+            var release = Path.Combine(tree.Root, "release");
+            var completed = Path.Combine(tree.Root, "orphan-done");
+            var second = Path.Combine(tree.Root, "second");
+            var tasks = WritePrepareTasks(tree, [GateCommand(entered, release) + "; " + WriteCommand(completed, "done"), WriteCommand(second, "wrong")]);
+            var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+            using var supervisor = new HarnessProcess(tree);
+            var running = supervisor.RunAsync(["run", tasks, "--repo", repo.Root], ct, environment);
+            var reached = await WaitFileAsync(entered, running, ct);
+            using var supervisorProcess = System.Diagnostics.Process.GetProcessById(supervisor.ProcessId);
+            supervisor.KillRoot();
+            CapturedResult recovered;
+            string folder;
+            try
+            {
+                folder = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+                // The supervisor process has exited, even though the orphan still holds its pipes.
+                await supervisorProcess.WaitForExitAsync(ct);
+                using var recoveryProcess = new HarnessProcess(tree);
+                recovered = await recoveryProcess.RunAsync(recovery == "cancel" ? ["cancel", Path.GetFileName(folder), "inspect"]
+                    : recovery == "continue" ? ["resume", Path.GetFileName(folder), "--continue"] : ["resume", Path.GetFileName(folder)], ct, environment);
+            }
+            finally
+            {
+                File.WriteAllText(release, "go");
+                await running;
+            }
+            await Assert.That(reached).IsTrue();
+            await Assert.That(await WaitFileAsync(completed, Task.Delay(1000, ct), ct)).IsTrue();
+            var pid = int.Parse(File.ReadAllText(entered).Trim());
+            if (!ProcessStopped(pid))
+            {
+                using var process = System.Diagnostics.Process.GetProcessById(pid);
+                await process.WaitForExitAsync(ct);
+            }
+            await Assert.That(File.Exists(second)).IsFalse();
+            var lines = File.ReadAllLines(Path.Combine(folder, "events.jsonl")).Select(x => JsonSerializer.Deserialize(x, LedgerJson.Events.LedgerLine)!).ToList();
+            var record = JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(folder, "inspect", "task.json")), LedgerJson.Files.TaskRecord)!;
+            await Assert.That(record.PrepareRunning).IsTrue();
+            await Assert.That(record.Prepare).IsEmpty();
+            await Assert.That(record.Session.Id).IsNull();
+            if (recovery == "cancel")
+            {
+                await Assert.That(recovered.ExitCode).IsEqualTo(0);
+                var result = JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(folder, "inspect", "result.json")), LedgerJson.Files.TaskResult)!;
+                await Assert.That(result.State).IsEqualTo("cancelled");
+                await Assert.That(result.Failures).IsEmpty();
+                await Assert.That(result.Prepare).IsEmpty();
+                await Assert.That(result.Warnings).IsEquivalentTo(new[] { "prepare-interrupted: a prepare command may still run on this host" }, CollectionOrdering.Matching);
+                await Assert.That(lines.Single(x => x.Type == "prepared").Data!.ToJsonString()).IsEqualTo("{\"commands\":0,\"failed\":0,\"cancelled\":true}");
+                await Assert.That(lines.Last().Type).IsEqualTo("final");
+                await Assert.That(lines.Last().Data!["reason"]!.GetValue<string>()).IsEqualTo("prepare-interrupted: a prepare command may still run on this host");
+            }
+            else
+            {
+                await Assert.That(recovered.ExitCode).IsEqualTo(1);
+                await Assert.That(lines.Where(x => x.Type == "error").Select(x => x.Data!["message"]!.GetValue<string>())).IsEquivalentTo(new[] {
+                    "inspect: prepare was interrupted by a supervisor exit; a command may still run on this host. Check for it, then clean the task and start it under a new run id." }, CollectionOrdering.Matching);
+                await Assert.That(lines.TakeLast(2).Select(x => x.Type)).IsEquivalentTo(new[] { "queued", "error" }, CollectionOrdering.Matching);
+                await Assert.That(lines.Select(x => x.Type)).DoesNotContain("final");
+            }
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Prepare_failed_task_stays_terminal(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var counter = Path.Combine(tree.Root, "counter");
+        var command = OperatingSystem.IsWindows() ? $"Add-Content -LiteralPath {Quote(counter)} -Value once; exit 3" : $"printf 'once\\n' >> {Quote(counter)}; exit 3";
+        var tasks = WritePrepareTasks(tree, [command]);
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        using var supervisor = new HarnessProcess(tree);
+        var outcome = await supervisor.RunAsync(["run", tasks, "--repo", repo.Root], ct, environment);
+        await Assert.That(outcome.ExitCode).IsEqualTo(1);
+        var folder = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var resultPath = Path.Combine(folder, "inspect", "result.json");
+        var resultBefore = File.ReadAllText(resultPath);
+        using var recovery = new HarnessProcess(tree);
+        await Assert.That((await recovery.RunAsync(["resume", Path.GetFileName(folder), "--continue"], ct, environment)).ExitCode).IsEqualTo(1);
+        await Assert.That(File.ReadAllText(resultPath)).IsEqualTo(resultBefore);
+        var result = JsonSerializer.Deserialize(resultBefore, LedgerJson.Files.TaskResult)!;
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
+        await Assert.That(result.Error).IsEqualTo("prepare command 1 exited 3");
+        await Assert.That(result.Prepare!.Select(x => x.Command)).IsEquivalentTo(new[] { command }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllLines(counter)).IsEquivalentTo(new[] { "once" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllLines(Path.Combine(folder, "events.jsonl")).Select(x => JsonNode.Parse(x)!["type"]!.GetValue<string>()).Last()).IsEqualTo("final");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Prepare_evidence_survives_collect(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var tasks = WritePrepareTasks(tree, ["exit 0", OperatingSystem.IsWindows() ? "Write-Output evidence" : "printf evidence"]);
+        var document = JsonNode.Parse(File.ReadAllText(tasks))!;
+        document["tasks"]![0]!["access"] = "full";
+        File.WriteAllText(tasks, document.ToJsonString());
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        var steps = File.ReadAllLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(x => JsonNode.Parse(x)!.AsObject()).ToList();
+        // Keep this fake session collectible instead of simulating the release marker of a fenced server.
+        foreach (var step in steps.Where(x => x["expect"]!.GetValue<string>() == "GET /api/session/ses_fixture"))
+            step["reply"]!["data"]!["outcome"] = "failed";
+        var message = steps.Single(x => x["expect"]!.GetValue<string>() == "GET /api/session/ses_fixture/message");
+        message["reply"]!["data"]![1]!["content"]![0]!["text"] = "Report\nStatus: stopped";
+        var scenario = Path.Combine(tree.Root, "collect.jsonl");
+        File.WriteAllLines(scenario, steps.Select(x => x.ToJsonString()));
+        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        using var supervisor = new HarnessProcess(tree);
+        await supervisor.RunAsync(["run", tasks, "--repo", repo.Root], ct, environment);
+        var folder = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var record = JsonNode.Parse(File.ReadAllText(Path.Combine(folder, "inspect", "task.json")))!;
+        var expected = record["prepare"]!.ToJsonString();
+        await Assert.That(record["prepare"]!.AsArray().Select(x => x!["command"]!.GetValue<string>())).IsEquivalentTo(new[] { "exit 0", OperatingSystem.IsWindows() ? "Write-Output evidence" : "printf evidence" }, CollectionOrdering.Matching);
+        await Assert.That(record["prepare"]!.AsArray().Select(x => x!["exitCode"]!.GetValue<int>())).IsEquivalentTo(new[] { 0, 0 }, CollectionOrdering.Matching);
+        for (var i = 0; i < 2; i++)
+        {
+            var resultPath = Path.Combine(folder, "inspect", "result.json");
+            var previous = JsonNode.Parse(File.ReadAllText(resultPath))!;
+            previous.AsObject().Remove("prepare");
+            File.WriteAllText(resultPath, previous.ToJsonString());
+            using var collect = new HarnessProcess(tree);
+            await collect.RunAsync(["collect", Path.GetFileName(folder), "inspect"], ct, environment);
+            var result = JsonNode.Parse(File.ReadAllText(Path.Combine(folder, "inspect", "result.json")))!;
+            await Assert.That(result["prepare"]!.ToJsonString()).IsEqualTo(expected);
+        }
+        var events = File.ReadAllLines(Path.Combine(folder, "events.jsonl")).Select(x => JsonNode.Parse(x)!);
+        await Assert.That(events.Count(x => x["type"]!.GetValue<string>() == "collected")).IsEqualTo(3);
+        await Assert.That(events.Count(x => x["type"]!.GetValue<string>() == "final" && x["data"]?["via"]?.GetValue<string>() == "collect")).IsEqualTo(2);
+        var calls = File.ReadLines(FakeOpenCode.Record(tree)).Select(x => JsonNode.Parse(x)!);
+        await Assert.That(calls.Count(x => x["method"]!.GetValue<string>() == "DELETE")).IsEqualTo(0);
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_supervisor_cancel_is_not_a_timeout(CancellationToken ct)
+    {
+        foreach (var injected in new[] { false, true })
+        {
+            using var lab = new CoreLab();
+            using var supervisor = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var run = await PrepareTaskAsync(lab, ct);
+            var entered = Path.Combine(lab.Tree.Root, "pid");
+            run.Record.Spec.Prepare = [GateCommand(entered, Path.Combine(lab.Tree.Root, "release")), "exit 0"];
+            var scheduler = lab.Scheduler(supervisor.Token, prepareCommand: injected ? (task, command, environment, token) =>
+                Verifier.RunCommandAsync(task.Record.Spec, null, task.Record.Workspace.Path!, environment, command, false, token) : null);
+            var running = scheduler.RunAsync([run]);
+            var reached = await WaitFileAsync(entered, running, ct);
+            supervisor.Cancel();
+            await Assert.That(async () => await running).Throws<OperationCanceledException>();
+            await Assert.That(reached).IsTrue();
+            var saved = lab.Ledger.LoadRecord(run.Id);
+            await Assert.That(saved.Prepare!.Select(x => x.Command)).IsEquivalentTo(new[] { run.Record.Spec.Prepare[0] }, CollectionOrdering.Matching);
+            await Assert.That(saved.Prepare![0].ExitCode).IsEqualTo(-1);
+            await Assert.That(saved.Prepare[0].TimedOut).IsFalse();
+            await Assert.That(saved.PrepareRunning).IsTrue();
+            await Assert.That(saved.PrepareDone).IsNull();
+            await Assert.That(lab.Backend.Calls).IsEmpty();
+            await Assert.That(File.ReadAllText(Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log"))).DoesNotContain("[harness] timed out");
+            await Assert.That(ProcessStopped(int.Parse(File.ReadAllText(entered).Trim()))).IsTrue();
+        }
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_final_head_cancel_prevents_worker(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await PrepareTaskAsync(lab, ct);
+        run.Record.Spec.Prepare = ["exit 0"];
+        EndOnPoll(lab, run);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var scheduler = lab.Scheduler(ct, prepareHead: async (git, cwd, task, start, token) =>
+        {
+            var head = (await git.CheckAsync(cwd, token, "rev-parse", "--verify", "HEAD^{commit}")).Trim();
+            if (!start) { entered.SetResult(); await release.Task.WaitAsync(ct); }
+            return head;
+        });
+        var running = scheduler.RunAsync([run]);
+        var reached = await Task.WhenAny(entered.Task, running) == entered.Task;
+        var cancellation = run.PrepareCancellation!;
+        run.CancelRequested = true;
+        release.SetResult();
+        await Assert.That(await running).IsEqualTo(1);
+        await Assert.That(reached).IsTrue();
+        await Assert.That(lab.Ledger.LoadResult(run.Id)!.State).IsEqualTo("cancelled");
+        await Assert.That(lab.Ledger.LoadResult(run.Id)!.Failures).IsEmpty();
+        await AssertPrepareTerminalAsync(lab, run, "{\"commands\":1,\"failed\":0,\"cancelled\":true}");
+        cancellation.Cancel(); // A concurrent canceller may still own this reference after startup clears it.
+        await Assert.That(run.PrepareCancellation).IsNull();
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_non_git_failures_are_terminal(CancellationToken ct)
+    {
+        foreach (var stage in new[] { "log", "environment", "command" })
+        {
+            using var lab = new CoreLab("prepare-non-git");
+            var run = await PrepareTaskAsync(lab, ct);
+            run.Record.Spec.Prepare = ["exit 0"];
+            var log = Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log");
+            if (stage == "log") Directory.CreateDirectory(log);
+            var blocked = Path.Combine(lab.Tree.Root, "blocked");
+            File.WriteAllText(blocked, "not a directory");
+            var scheduler = lab.Scheduler(ct, prepareCommand: (_, _, _, _) => throw new InvalidOperationException("prepare fixture failed"),
+                prepareHead: async (git, cwd, task, start, token) =>
+                {
+                    var head = (await git.CheckAsync(cwd, token, "rev-parse", "--verify", "HEAD^{commit}")).Trim();
+                    if (stage == "environment") run.Record.Settings.TempRoot = new() { Value = blocked };
+                    return head;
+                });
+            await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+            var result = lab.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.State).IsEqualTo("failed");
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
+            await Assert.That(result.Prepare).IsEmpty();
+            if (stage == "command") await Assert.That(result.Error).IsEqualTo("prepare fixture failed");
+            else await Assert.That(result.Error).Contains(stage == "log" ? log : blocked);
+            await Assert.That(lab.Ledger.Read().Single(x => x.Type == "prepared").Data!.ToJsonString()).IsEqualTo(stage == "command"
+                ? "{\"commands\":0,\"failed\":1}" : "{\"commands\":0,\"failed\":0,\"checkFailed\":false}");
+            await Assert.That(lab.Backend.Calls).IsEmpty();
+            await Assert.That(run.PrepareCancellation).IsNull();
+        }
+    }
+
+    static string WritePrepareTasks(TempTree tree, IReadOnlyList<string> commands)
+    {
+        var path = Path.Combine(tree.Root, "tasks.jsonc");
+        File.WriteAllText(path, new JsonObject { ["schemaVersion"] = 2, ["run"] = "prepare",
+            ["tasks"] = new JsonArray(new JsonObject { ["id"] = "inspect", ["kind"] = "research", ["backend"] = "opencode", ["base"] = "main",
+                ["route"] = "fixture/model", ["prompt"] = "Inspect.", ["prepare"] = new JsonArray(commands.Select(x => (JsonNode?)JsonValue.Create(x)).ToArray()) }) }.ToJsonString());
+        return path;
+    }
+
+    static async Task<TaskRun> PrepareTaskAsync(CoreLab lab, CancellationToken ct)
+    {
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Spec.Workspace = "in-place";
+        run.Record.Spec.Commit = "none";
+        run.Record.Workspace = new();
+        lab.Ledger.SaveRecord(run.Record);
+        return run;
+    }
+
+    static void EndOnPoll(CoreLab lab, TaskRun run) => lab.Backend.OnPoll = (live, _) =>
+    {
+        if (live.Count > 0) lab.End(run);
+        return Task.FromResult(new PollResult([]));
+    };
+
+    static string Quote(string value) => "'" + value.Replace("'", OperatingSystem.IsWindows() ? "''" : "'\\''", StringComparison.Ordinal) + "'";
+    static string WriteCommand(string path, string text) => OperatingSystem.IsWindows()
+        ? $"Set-Content -LiteralPath {Quote(path)} -Value {Quote(text)}" : $"printf '%s\\n' {Quote(text)} > {Quote(path)}";
+    static string GateCommand(string entered, string release) => OperatingSystem.IsWindows()
+        ? $"Set-Content -LiteralPath {Quote(entered)} -Value $PID; while (!(Test-Path -LiteralPath {Quote(release)})) {{ Start-Sleep -Milliseconds 20 }}"
+        : $"printf '%s\\n' $$ > {Quote(entered)}; while [ ! -f {Quote(release)} ]; do sleep 0.02; done";
+
+    static async Task<bool> WaitFileAsync(string path, Task running, CancellationToken ct)
+    {
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        while (!File.Exists(path) && !running.IsCompleted && clock.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(10, ct);
+        return File.Exists(path);
+    }
+
+    static bool ProcessStopped(int pid)
+    {
+        try { using var process = System.Diagnostics.Process.GetProcessById(pid); return process.HasExited; }
+        catch (ArgumentException) { return true; }
+    }
+
+    static async Task AssertPrepareTerminalAsync(CoreLab lab, TaskRun run, string summary)
+    {
+        var saved = lab.Ledger.LoadRecord(run.Id);
+        await Assert.That(saved.PrepareRunning).IsTrue();
+        await Assert.That(saved.PrepareDone).IsNull();
+        await Assert.That(saved.Session.Id).IsNull();
+        await Assert.That(lab.Ledger.LoadResult(run.Id)!.TimedOut).IsFalse();
+        await Assert.That(lab.Backend.Calls.Select(x => x.Member)).IsEmpty();
+        var events = lab.Ledger.Read();
+        await Assert.That(events.Single(x => x.Type == "prepared").Data!.ToJsonString()).IsEqualTo(summary);
+        await Assert.That(events.FindIndex(x => x.Type == "final")).IsGreaterThan(events.FindIndex(x => x.Type == "prepared"));
+        await Assert.That(File.Exists(Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log"))).IsTrue();
+    }
+
     [Test]
     [Timeout(30_000)]
     public async Task Workers_receive_configured_temp(CancellationToken ct)

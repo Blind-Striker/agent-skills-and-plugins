@@ -52,6 +52,7 @@ static class Prompt
         JsonNode? schema = null;
         if (task.Kind == "structured")
         {
+            if (task.Prepare is { Count: > 0 }) throw new HarnessException("prepare is forbidden for structured tasks");
             if (task.Scope is not null || task.Verify is not null || task.AdvisoryVerify is not null || task.Shell is not null || task.ReviewOf is not null || task.Agent is not null || task.Persona is not null)
                 throw new HarnessException("structured tasks refuse scope, verify, advisoryVerify, shell, reviewOf, agent and persona");
             if (task.Input is not { } input || (input.Items is null) == (input.ItemsFile is null))

@@ -7,6 +7,40 @@ namespace Dispatch.Tests.Unit;
 public sealed class ContractTests
 {
     [Test]
+    public async Task Prepare_contracts_round_trip()
+    {
+        var spec = Json.ReadTaskFile("""{"schemaVersion":2,"tasks":[{"id":"inspect","kind":"research","prepare":["z-command","a-command"]}]}""").Tasks![0];
+        await Assert.That(spec.Prepare).IsEquivalentTo(new[] { "z-command", "a-command" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var record = new TaskRecord { Spec = spec, PrepareRunning = false, PrepareDone = true,
+            Prepare = [new() { Command = "z-command", ExitCode = 0, Seconds = 1.2 }, new() { Command = "a-command", ExitCode = -1, Seconds = 2.3, TimedOut = true }] };
+        var copy = JsonSerializer.Deserialize(JsonSerializer.Serialize(record, LedgerJson.Files.TaskRecord), LedgerJson.Files.TaskRecord)!;
+        await Assert.That(copy.PrepareRunning).IsFalse();
+        await Assert.That(copy.PrepareDone).IsTrue();
+        var result = new TaskResult { Prepare = copy.Prepare };
+        var resultCopy = JsonSerializer.Deserialize(JsonSerializer.Serialize(result, LedgerJson.Files.TaskResult), LedgerJson.Files.TaskResult)!;
+        foreach (var entries in new[] { copy.Prepare!, resultCopy.Prepare! })
+        {
+            await Assert.That(entries.Select(x => x.Command)).IsEquivalentTo(new[] { "z-command", "a-command" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(entries.Select(x => x.ExitCode)).IsEquivalentTo(new[] { 0, -1 }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(entries.Select(x => x.Seconds)).IsEquivalentTo(new[] { 1.2, 2.3 }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(entries.Select(x => x.TimedOut)).IsEquivalentTo(new[] { false, true }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            foreach (var entry in entries)
+            {
+                await Assert.That(entry.Advisory).IsNull();
+                await Assert.That(entry.NotRun).IsNull();
+            }
+        }
+        var node = JsonSerializer.SerializeToNode(copy, LedgerJson.Files.TaskRecord)!;
+        await Assert.That(node["schemaVersion"]!.GetValue<int>()).IsEqualTo(2);
+        await Assert.That(node["prepare"]![0]!.AsObject().ContainsKey("advisory")).IsFalse();
+        await Assert.That(node["prepare"]![0]!.AsObject().ContainsKey("notRun")).IsFalse();
+        var empty = JsonSerializer.SerializeToNode(new TaskRecord(), LedgerJson.Files.TaskRecord)!;
+        foreach (var name in new[] { "prepare", "prepareRunning", "prepareDone" })
+            await Assert.That(empty.AsObject().ContainsKey(name)).IsFalse();
+        await Assert.That(JsonSerializer.SerializeToNode(new TaskResult(), LedgerJson.Files.TaskResult)!.AsObject().ContainsKey("prepare")).IsFalse();
+    }
+
+    [Test]
     [Arguments("{}")]
     [Arguments("{\"schemaVersion\":1}")]
     public async Task TaskFile_V1Refusal_ExplainsTheWholeConversion(string text)
