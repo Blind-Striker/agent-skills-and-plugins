@@ -266,6 +266,52 @@ public sealed class CodexBackendTests
     }
 
     [Test]
+    [Timeout(180_000)]
+    public async Task Resume_after_a_killed_supervisor_reclaims_the_temporary_Codex_home_and_settles_lost(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, cancellationToken);
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{\"synthetic\":true}");
+        lab.CodeTask();
+        var task = JsonNode.Parse(File.ReadAllText(lab.Tasks))!;
+        task["tasks"]![0]!["profile"] = "clean";
+        File.WriteAllText(lab.Tasks, task.ToJsonString());
+        lab.Write("task", CodexLab.Handshake + CodexLab.Thread + "{\"hang\":true}\n");
+        using var supervisor = new HarnessProcess(lab.Tree);
+        var running = supervisor.RunAsync(["run", lab.Tasks, "--repo", repo.Root], cancellationToken,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        var ledgers = Path.Combine(lab.Tree.DispatchHome, "state", "ledgers");
+        string? home = null;
+        try
+        {
+            while (!running.IsCompleted && home is null)
+            {
+                var path = Directory.Exists(ledgers) ? Directory.GetDirectories(ledgers).Select(x => Path.Combine(x, "edit", "task.json")).SingleOrDefault(File.Exists) : null;
+                var record = path is null ? null : JsonNode.Parse(File.ReadAllText(path));
+                if (record?["session"]?["turn"] is not null) home = record["backendState"]?["codexHome"]?.GetValue<string>();
+                if (home is null) await Task.Delay(50, cancellationToken);
+            }
+        }
+        finally { supervisor.Kill(); await running; }
+        // The killed supervisor never released the worker, so its temporary home is still there.
+        await Assert.That(home).IsNotNull();
+        await Assert.That(Path.GetFileName(home!)).IsEqualTo("codex-edit");
+        await Assert.That(Directory.Exists(home)).IsTrue();
+        using var status = new HarnessProcess(lab.Tree);
+        var shown = await status.RunAsync(["status", Path.GetFileName(lab.RunFolder)], cancellationToken,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(shown.Stdout).Contains("(no supervisor: `resume");
+        using var resume = new HarnessProcess(lab.Tree);
+        var resumed = await resume.RunAsync(["resume", Path.GetFileName(lab.RunFolder)], cancellationToken,
+            lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
+        await Assert.That(resumed.ExitCode).IsEqualTo(1);
+        await Assert.That(resumed.Stdout).DoesNotContain("ownership");
+        await Assert.That(lab.Result["outcome"]!.GetValue<string>()).IsEqualTo("lost");
+        await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("failed");
+        await Assert.That(Directory.Exists(home)).IsFalse();
+    }
+
+    [Test]
     [Arguments("routes")]
     [Arguments("selfcheck")]
     [Timeout(180_000)]

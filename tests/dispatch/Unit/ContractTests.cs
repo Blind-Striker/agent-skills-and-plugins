@@ -113,8 +113,11 @@ public sealed class ContractTests
              "session":{"id":"thread","turn":"turn"},"lineage":"unknown",
              "contracts":[{"path":"/contract.md","from":"cli","sha256":"abc","version":"contract v2"}],
              "backendState":{"pid":123,"processGroup":true,"processStartTime":"2030-01-01T00:00:00Z",
-               "descendants":[{"pid":124,"startTime":"2030-01-01T00:00:00+00:00"}],
-               "codexHome":"/profile","codexHomeTemporary":true,"future":true}}
+               "linuxBootId":"boot","linuxStartTicks":77,
+               "descendants":[{"pid":124,"startTime":"2030-01-01T00:00:00+00:00","linuxBootId":"boot","linuxStartTicks":78}],
+               "codexHome":"/profile","codexHomeTemporary":true,
+               "codexHomeMarkerName":".dispatch-home-0123","codexHomeMarkerText":"secret-marker",
+               "profile":"clean-partial","profileReason":"link unavailable","future":true}}
             """;
         var record = JsonSerializer.Deserialize(text, LedgerJson.Files.TaskRecord)!;
         var output = JsonSerializer.SerializeToNode(record, LedgerJson.Files.TaskRecord)!;
@@ -124,6 +127,12 @@ public sealed class ContractTests
         await Assert.That(output["workspace"]!["branch"]).IsNull();
         await Assert.That(output["backendState"]!["descendants"]![0]!["pid"]!.GetValue<int>()).IsEqualTo(124);
         await Assert.That(output["backendState"]!["future"]).IsNull();
+        // A later process recovers a Codex worker only from these recorded fields.
+        foreach (var (name, value) in new[] { ("linuxBootId", "boot"), ("codexHomeMarkerName", ".dispatch-home-0123"),
+            ("codexHomeMarkerText", "secret-marker"), ("profile", "clean-partial"), ("profileReason", "link unavailable") })
+            await Assert.That(output["backendState"]![name]?.GetValue<string>()).IsEqualTo(value);
+        await Assert.That(output["backendState"]!["linuxStartTicks"]?.GetValue<long>()).IsEqualTo(77);
+        await Assert.That(output["backendState"]!["descendants"]![0]!["linuxStartTicks"]?.GetValue<long>()).IsEqualTo(78);
         var frozen = new EffectiveConfig
         {
             Tasks = new() { ["inspect"] = new FrozenTask { Settings = record.Settings, Contracts = record.Contracts, InputSha256 = "input-hash", ResultSchemaSha256 = "schema-hash" } },

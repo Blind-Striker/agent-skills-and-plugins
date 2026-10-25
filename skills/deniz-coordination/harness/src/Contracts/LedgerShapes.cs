@@ -184,15 +184,23 @@ sealed class BackendState
     public int? Pid { get; set; }
     public bool? ProcessGroup { get; set; }
     public string? ProcessStartTime { get; set; }
+    public string? LinuxBootId { get; set; }
+    public long? LinuxStartTicks { get; set; }
     public List<ProcessIdentity>? Descendants { get; set; }
     public string? CodexHome { get; set; }
     public bool? CodexHomeTemporary { get; set; }
+    public string? CodexHomeMarkerName { get; set; }
+    public string? CodexHomeMarkerText { get; set; }
+    public string? Profile { get; set; }
+    public string? ProfileReason { get; set; }
 }
 
 sealed class ProcessIdentity
 {
     public int Pid { get; set; }
     public string StartTime { get; set; } = "";
+    public string? LinuxBootId { get; set; }
+    public long? LinuxStartTicks { get; set; }
 }
 
 sealed class TokenTotals

@@ -278,7 +278,10 @@ With a run, prints state, outcome, cost/tokens if known, changed-file and scope 
 escalations and verify results. Live task rows also show tool count and the last completed call.
 A task whose escalated asks closed without an answer (the worker's call was declined) gets a line
 `asks closed without an answer: <count> (<action>: <reason>; ...)`.
-It reports whether the run lock is held and whether asks are pending. It does not wait for success.
+It reports whether the run lock is held and whether asks are pending: a held lock prints
+`(supervised now)`, and a run with unfinished tasks and no supervisor prints
+`` (no supervisor: `resume <run>` settles it) ``, so a watcher can tell a stalled run from a working one.
+It does not wait for success.
 
 | Exit | Type | Meaning |
 |---|---|---|
