@@ -37,12 +37,17 @@ is any subagent tool you have; the rules below hold for all of them.
 2. **Verify the verify.** Run every verify command once on the base and see a non-empty, meaningful
    result; a test run that reports zero tests is never a pass. Check that every test filter, class, or path
    it names exists. A change to a type, a public name, or a shared fixture runs the whole test project that
-   holds inventories or registries, not a filtered subset. Verify where the result is used: every
+   holds inventories or registries, not a filtered subset. Before a move, rename, or removal, grep the
+   tests for code they reach by name: reflection on each removed or renamed member, and source-text reads
+   (file reads, path literals, parses) of each moved or edited file; each hit's test joins the verify.
+   Verify where the result is used: every
    operating system, drive, and path depth it meets, or tests that do not depend on them.
 3. **Prove the base.** `git merge-base --is-ancestor <prerequisite> <base>` for every prerequisite, and
    put that SHA in the task. The worker only confirms that its HEAD equals the stated base.
-4. **Plan-first** for any new type, more than three production files, or a new file
-   expected to exceed about 150 lines. The worker writes the plan with a required section "Contradictions
+4. **Plan-first** when the spec leaves ownership or wiring open (which type owns a resource, what is
+   passed where, who disposes it), when the change touches more than three production files, or when a
+   new file is expected to exceed about 150 lines. A new type whose owner and wiring the spec pins needs
+   no plan. The worker writes the plan with a required section "Contradictions
    and spec defects found"; you amend and approve it; the code task runs against the approved plan. Every
    other spec or prompt you wrote goes once in read-only mode to a worker of another family to scan for
    contradictions before the real task; a plan step is that scan, and the scan's own prompt needs none.
@@ -100,7 +105,9 @@ is any subagent tool you have; the rules below hold for all of them.
      author's, who gets the request, the requirements and the diff, but not your assessment. The family claim
      rests on the record of the model that ran, never on the route you asked for: `routeVerified: true` on
      every dispatch-harness task it rests on; a session writing by hand is identified by its own model.
-     Code you write by hand to fix a worker's work is authored by your family, so it goes to another.
+     Code you write by hand to fix a worker's work is authored by your family, so a hand fix that changes
+     logic goes to another family as a review of its hunks; a pure deletion, a rename, or a one-line
+     change an analyzer mandates needs only your own read.
    - **More readers:** new lock, race, or cancellation-lifetime code adds a third family if one is available.
      A change to infrastructure another lane or team owns adds a review by that owner, even when the other
      reviews passed: it knows how the infrastructure is used.
@@ -108,7 +115,10 @@ is any subagent tool you have; the rules below hold for all of them.
      pass finds nothing new; each fix of such code is new code to review.
    - **Rubric:** defects first, then gaps against the request, then anything not asked for, then tests that
      pass for a reason production lacks. For a refactor, both reads compare the base and the new code
-     behaviour by behaviour.
+     behaviour by behaviour. After a move or an extraction, the old owner keeps no forwarding member; a
+     plan that lets one forward names the change that removes it.
+   - **Reading:** read every scan and review report whole: the last finding weighs as much as the first,
+     so a read through `head` or a line limit is no read.
    - **Sources:** a reviewer gets every source its claims depend on in a readable place (an initialized
      submodule, a fetched tag, a named path), and its report states what it could not read.
    The merge queue and CI stay the last net for cross-change effects.

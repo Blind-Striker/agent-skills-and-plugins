@@ -29,7 +29,7 @@ Most stops on the template trace back to the coordinator. The categories, most f
 | Category | Examples | Countermeasure |
 |---|---|---|
 | Contradiction or gap left in the prompt | a base given as a branch while the prompt stated a SHA; a test permission written as line ranges; detector exemptions that contradicted its own positive tests; preparation "as an earlier task" against an older plan's prohibition; a free-text budget exemption beside a binding checkpoint; an analyzer limit hit by a planned move | the no-contradiction pass in SKILL.md |
-| Something named that does not exist, or only implied | a nonexistent test class or registry; a runtime requirement only implied by the verify list; a verify command broken by shell expansion | verify the verify; one line per requirement |
+| Something named that does not exist, or only implied | a nonexistent test class or registry; a runtime requirement only implied by the verify list; a verify command broken by shell expansion; a contract test that read a removed private field by reflection, outside the filtered verify | verify the verify; one line per requirement |
 | A coordinator duty in the worker prompt | a base-ancestry check the policy denied the worker | keep proofs on the coordinator side |
 | Goal divergence | the brief narrowed the user's goal; a proposal from an earlier handoff became a decision; a ban the user never set; a spec review that checked only your own plan | the request word for word in your notes and in the review; every ban traced to its source |
 | Tooling | builds joined another session's long-lived build server | `references/walls/<language>.md` traps |

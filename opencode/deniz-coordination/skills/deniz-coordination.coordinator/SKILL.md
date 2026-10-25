@@ -78,6 +78,9 @@ A lane is one stream of work: a subagent, or a separate session when the scale n
 - When several lanes or a separate session run, keep a status file and a decisions file outside the
   repository, so no lane depends on your memory.
 - A lane that finishes an item reports and takes the next one; it asks you only when its queue is empty.
+- A lane waits only on an approval its next run needs. While the user's word on anything else (an
+  install, an upgrade) is pending, keep the lane on the current setup and put that item in the next
+  progress message.
 - Propose separate sessions only when the work's scale needs them and your harness or its tools let
   sessions talk to each other. Propose it with the plan and start with subagents meanwhile; read
   `references/sessions.md` before you brief one.

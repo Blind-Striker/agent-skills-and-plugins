@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
   "version": "0.14.1",
-  "digest": "sha256:92b2e9409b9fe2c8813ab79ffe0da0592db5a90471ec6d52f7d590193285253e",
+  "digest": "sha256:8468448b7e72cfe7237c0578aac3cfe003b837e1ffcda3627187e2a481c4cdad",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -641,7 +641,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.writing-tunit-tests/references/oracle-rules.md": {
-      "sha256": "sha256:0c6a4cef056b419c7b20b8308d9ee98f267bf5ca1c8c82e52268bbc504b1fedf",
+      "sha256": "sha256:e2506dc9ed2366273708ca27f64bbf74ee4770482abf42c40c50719a81097d73",
       "mode": "100644"
     },
     "third_party/dotnet-agent-skills/LICENSE": {

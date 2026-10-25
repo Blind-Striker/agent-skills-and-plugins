@@ -1,4 +1,4 @@
-dotnet-test-oracles v1
+dotnet-test-oracles v2
 
 # Oracle rules for .NET tests
 
@@ -42,3 +42,7 @@ A repository's own instructions win over this file.
   boolean, such as `IsTrue(items.Any(...))`.
 - Every mutant compiles. A mutant the analyzers reject counts as a second guard; report it as such. A
   run with the analyzers off is a demonstration, not evidence.
+- Spell a mutant so the analyzers still pass: make the branch dead through a condition they cannot
+  fold, such as `cond && Environment.ProcessorCount < 0`, or `[.. xs.Where(static _ =>
+  Environment.ProcessorCount < 0)]` for an empty collection. A literal `[]`, a deleted line, or a
+  parameter left unused often trips IDE0060, IDE0301, S3923 or S3358, and that mutant never builds.
