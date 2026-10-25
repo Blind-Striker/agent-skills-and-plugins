@@ -27,6 +27,7 @@ in [configuration](config.md). Run ids contain a UTC calendar-day prefix and the
 | `<task>/diff.patch` | Binary-capable Git patch | Non-structured collection | Full-index patch; includes both sides of renamed paths through non-rename evidence collection. |
 | `<task>/wip.patch` | Binary-capable Git patch | Nonempty snapshot diff for parsed `stopped` or `blocked` status, with worker termination confirmed | Full-index work-in-progress evidence; never a harness commit. |
 | `<task>/verify.log` | Text | Non-structured verification step | Command, stdout, stderr, exit and elapsed seconds; records each command as not run for parsed `stopped`/`blocked`, or a skip for other non-succeeded outcomes. |
+| `<task>/prepare.log` | Text | Nonempty preparation attempted, before baseline capture | Appended after each command in `verify.log` format; exists even if baseline capture fails. |
 | `<task>/result.json` | Versioned JSON object | Successful settlement write, or some start failures | Final result fields below. Not every final event guarantees this file exists. |
 | `<task>/input.json` | JSON array | Structured freeze | Resolved items, normalized and hashed. |
 | `<task>/result.schema.json` | JSON object | Structured freeze | Normalized schema, hashed; common validation uses this copy. |
@@ -181,6 +182,9 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `session.id` | string | Absent before creation | Backend session or thread id. |
 | `session.turn` | string | Absent before prompting | Last recorded prompt or turn id. |
 | `backendState` | object | Initially empty | Backend-owned recovery fields below. |
+| `prepare` | object array | Absent until attempted | Durable ordered command evidence; see [prepare outcomes](#prepare-evidence-and-outcomes). |
+| `prepareRunning` | boolean | Absent initially | Set and saved before baseline capture; cleared only on complete success. |
+| `prepareDone` | boolean | Absent initially | Set with clearing `prepareRunning`, in one save, after commands and unchanged-workspace check succeed. |
 
 | Backend-state field | Type | Default or absence | Meaning |
 |---|---|---|---|
@@ -229,7 +233,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `backend` | string | Recorded when known | Backend name. |
 | `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
 | `failures` | string array | `[]` | Machine-readable causes below. |
-| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone, and `recovered-model-error` when an opencode session succeeded after an earlier model call ended with an error. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone, and `recovered-model-error` when an opencode session succeeded after an earlier model call ended with an error, and `prepare-interrupted: a prepare command may still run on this host` when an unsupervised `cancel` settled a task whose `prepare` was interrupted. |
 | `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
@@ -263,6 +267,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `filesChanged` | string array | `[]` | All collected changed paths. |
 | `outOfScope` | string array | `[]` | Paths failing scope, including protected `.dispatch/` changes. |
 | `verify` | object array | `[]` | Per-command verification records. |
+| `prepare` | object array | Absent without an attempt | Copy of `task.json`'s record-owned evidence, including on every recollection; same command fields as `verify`, with `advisory` and `notRun` omitted. |
 | `verify[].command` | string | Authored command | Shell text executed or recorded as not run. |
 | `verify[].notRun` | string | Absent when executed | `worker stopped` means the command was not run; `exitCode: 0`, `seconds: 0` and `timedOut: false` are placeholders, not process evidence. |
 | `verify[].exitCode` | integer | Process exit, or `0` when not run | Nonzero fails executed verification. |
@@ -296,6 +301,8 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `no-final-text` | string | Final assistant text is missing or blank. |
 | `commit-failed` | string | Harness commit command failed. |
 | `verify-failed` | string | Verify command failed or timed out. |
+| `prepare-failed` | string | Prepare command failed, timed out or could not start, or baseline/check Git operation failed. |
+| `prepare-changed-workspace` | string | Successful prepare commands changed non-ignored workspace content or HEAD. |
 | `out-of-scope` | string | Collected changes exceed scope. |
 | `route-drift` | string | The backend reported a route other than the requested one; see `routeDrift`. |
 | `worker-stopped` | string | The worker's status line says `stopped` or `blocked`: it did not do the task, whatever the session outcome. |
@@ -306,6 +313,37 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |
 
 The `workspace-dirty` start failure writes a minimal result before its error and final events.
+
+## Prepare evidence and outcomes
+
+Before the baseline, nonempty preparation initializes `task.json.prepare` to `[]`, saves the running
+flag and creates `prepare.log`. Each executed command's formatted log block and record entry are
+saved before advancing. Entries reuse `VerifyResult`: `command`, `exitCode`, `seconds`, `timedOut`;
+`advisory` and `notRun` remain absent. Optional prepare members stay absent for empty/unset lists.
+These additions retain schema version 2, strict input and permissive ledger readers.
+
+Every completed attempt saves its record, maintains the log and emits exactly one `prepared` summary:
+
+| Case | `prepared` payload | Terminal state / `failures` | Evidence and `error` |
+|---|---|---|---|
+| Success | `{commands:n,failed:0,changed:false}` | Worker continues | All entries; done flags saved; ordinary settlement writes result/final later. |
+| Non-zero | `{commands:k,failed:1}` | `failed` / `["prepare-failed"]` | Include failing entry; `prepare command <n> exited <code>`. |
+| Timeout | `{commands:k,failed:1}` | `failed` / `["prepare-failed"]` | Include `timedOut: true`; `prepare command <n> timed out after 30 minutes`. |
+| Start failure | `{commands:k,failed:1}` | `failed` / `["prepare-failed"]` | Include exit `-1` and exception message in log; task error contains that message. |
+| Cancel | `{commands:k,failed:0,cancelled:true}` | `cancelled` / `[]` | Preserve executed entries; killed command exit `-1`, `timedOut: false`; no synthetic pre-start entry. |
+| Baseline Git failure | `{commands:0,failed:0,checkFailed:true}` | `failed` / `["prepare-failed"]` | Empty array; Git's message. |
+| Check Git failure | `{commands:n,failed:0,checkFailed:true}` | `failed` / `["prepare-failed"]` | All entries; Git's message. |
+| Workspace change | `{commands:n,failed:0,changed:true}` | `failed` / `["prepare-changed-workspace"]` | All entries; paths or HEAD diagnostic per [task-file lifecycle](task-file.md#preparation). |
+
+Here `n` is the full list length, `k` the number executed, and command numbers are one-based.
+Every non-success row writes an explicit sessionless `result.json` before `final`; task `timedOut`
+is always false. Failure/cancel retains the running flag and workspace. A terminal final is never
+replayed; interrupted non-terminal recovery is described in [CLI](cli.md#resume-run---continue---ledger-dir).
+Unsupervised interrupted cancel preserves recorded entries and the running flag, maintains log/record,
+emits `prepared {commands:<recorded>, failed:0, cancelled:true}` and saves a cancelled result with
+`failures: []` before `final`.
+Its exact result warning and final `reason` are
+`prepare-interrupted: a prepare command may still run on this host`.
 
 ## Events
 
@@ -345,6 +383,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded | Verify summary; `commands` includes not-run records; `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
+| `prepared` | `commands`/`failed` integers; optional `changed`, `checkFailed`, `cancelled` booleans | Preparation summary; exact payloads and sessionless settlement above. Does not change the task's state: it stays `dispatching` until the worker starts or `final` is written. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. `tokensIn` and `tokensOut` are `result.json`'s `tokens.input` and `tokens.output`, respectively. |

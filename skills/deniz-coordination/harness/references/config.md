@@ -125,7 +125,10 @@ in settings. The workspace and task temp are already writable; opencode also add
 folder and backend-owned folders, as described in [backends](backends.md#opencode-process-and-profile).
 Its fence is an [accident guard](backends.md#opencode-accident-guard), not a security boundary.
 
-For .NET and Bun on Linux/macOS, generate a ready preference fragment from the repository root,
+Dependency downloads can run in `prepare` instead of widening writable roots; see
+[Dependencies and the sandbox](guide.md#dependencies-and-the-sandbox).
+
+For .NET and Bun build-time cache writes on Linux/macOS, generate a ready preference fragment from the repository root,
 then copy it into `preferences` in user/repository config, task-file `defaults`, or the task entry:
 
 ```sh
@@ -146,7 +149,8 @@ pass the isolated package cache explicitly to the worker's build (for example
 `dotnet build -p:RestorePackagesPath='<absolute isolated package cache>'`). If opencode keeps its
 credential `XDG_DATA_HOME` outside the lab, scope `XDG_DATA_HOME="$HOME/.local/share"` to the .NET
 command only, with `HOME` still the lab's isolated home; do not relocate backend credential homes.
-Writable roots do not change the Windows Codex .NET/MSYS limitation.
+Writable roots do not fix Windows Codex TLS or MSYS limits; elevated .NET builds/tests after an
+outside restore are supported by the bounded [backend evidence](backends.md#codex-process-and-sandbox).
 Do not add `dotnet/runfile` to `writableRoots`: the shared folder holds the harness's own `dispatch.cs`
 build, which would let a worker change code the harness later runs unfenced; fenced opencode tasks on
 Linux get a private bind instead ([backends](backends.md)).

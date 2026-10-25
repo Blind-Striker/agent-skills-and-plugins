@@ -78,6 +78,10 @@ Authorized preparation, each step as its command: <e.g. `dotnet tool restore`; `
 not apply to this task on this point; the steps above are authorized.
 <each runtime or target-framework requirement on its own line, e.g. "Run the tests on BOTH net10.0 and
 net472"; a requirement only implied by the verify list is skipped>
+<For a task with prepare, in place of the Authorized preparation line:> Dependencies were prepared
+before you started. Build only with <concrete offline build command> and test only with
+<concrete offline test command>, inside the sandbox.
+Adding dependencies is out of scope; do not restore/install again or request a sandbox bypass.
 
 ## Verify
 The verify step runs: <commands>. <Walls: command and limits, when present.>

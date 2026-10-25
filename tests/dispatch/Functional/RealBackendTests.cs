@@ -317,6 +317,173 @@ public sealed class RealBackendTests
         await Assert.That(log).Contains("succeeded: 1");
     }
 
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    [Timeout(360_000)]
+    public async Task FN11_Prepare_enables_elevated_dotnet(bool prepared, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("FN11 requires elevated Windows Codex.");
+        using var lab = await FunctionalLab.CreateAsync("codex", ct, requireSandbox: true);
+        await Assert.That(CodexHome.ReadWindowsSandbox(lab.Environment["CODEX_HOME"]!)).IsEqualTo("elevated");
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(TestPaths.Tests, "Dispatch.Tests.csproj"));
+        var framework = project.Descendants("TargetFramework").Single().Value;
+        var version = project.Descendants("PackageReference").Single(x => (string?)x.Attribute("Include") == "TUnit").Attribute("Version")!.Value;
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "probe.csproj"), $$"""
+            <Project Sdk="Microsoft.NET.Sdk">
+              <PropertyGroup><TargetFramework>{{framework}}</TargetFramework><OutputType>Exe</OutputType></PropertyGroup>
+              <ItemGroup><PackageReference Include="TUnit" Version="{{version}}" /></ItemGroup>
+            </Project>
+            """);
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "Probe.cs"), """
+            public class Probe
+            {
+                [TUnit.Core.Test]
+                public async System.Threading.Tasks.Task FN11() => await TUnit.Assertions.Assert.That(2 + 2).IsEqualTo(4);
+            }
+            """);
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "Directory.Build.props"), """
+            <Project><PropertyGroup><RestorePackagesPath>$(MSBuildThisFileDirectory).pkgs</RestorePackagesPath></PropertyGroup></Project>
+            """);
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "NuGet.Config"), """
+            <configuration><packageSources><clear /><add key="nuget.org" value="https://api.nuget.org/v3/index.json" /></packageSources></configuration>
+            """);
+        var global = JsonNode.Parse(File.ReadAllText(Path.Combine(TestPaths.Tests, "global.json")))!.AsObject();
+        global["test"] = new JsonObject { ["runner"] = "Microsoft.Testing.Platform" };
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "global.json"), global.ToJsonString());
+        var packages = Directory.CreateDirectory(Path.Combine(lab.Tree.Repository, ".pkgs"));
+        await Assert.That(packages.EnumerateFileSystemInfos().ToArray()).IsEmpty();
+        await CommitDependencyFixtureAsync(lab, "bin/\nobj/\n.pkgs/\nTestResults/\n", ct);
+        var build = "dotnet build probe.csproj" + (prepared ? " --no-restore" : "");
+        var command = build + " *> build.log; $buildExit = $LASTEXITCODE; "
+            + "[System.IO.File]::WriteAllText('build.exit', [string]$buildExit); "
+            + (prepared ? "if ($buildExit -eq 0) { dotnet test --no-build -- --output Detailed *> test.log; "
+                + "$testExit = $LASTEXITCODE; [System.IO.File]::WriteAllText('test.exit', [string]$testExit); "
+                + "if ($testExit -eq 0) { [System.IO.File]::WriteAllText('inside.txt','dotnet-ok') } }" : "");
+        await RunDependencyWorkerAsync(lab, command, prepared ? "dotnet restore" : null, ct);
+        await Assert.That(CodexHome.ReadWindowsSandbox(lab.Record["backendState"]!["codexHome"]!.GetValue<string>())).IsEqualTo("elevated");
+        var buildLog = File.ReadAllText(Path.Combine(lab.Workspace, "build.log"));
+        TestContext.Current!.Output.WriteLine(buildLog);
+        var buildExit = File.ReadAllText(Path.Combine(lab.Workspace, "build.exit"));
+        if (prepared)
+        {
+            await Assert.That(buildExit).IsEqualTo("0");
+            await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "test.exit"))).IsEqualTo("0");
+            var testLog = File.ReadAllText(Path.Combine(lab.Workspace, "test.log"));
+            TestContext.Current!.Output.WriteLine(testLog);
+            await Assert.That(testLog).Matches(@"(?im)^(?:[^\r\n]*\bpassed\b[^\r\n]*\bFN11\b|[^\r\n]*[✓✔][^\r\n]*\bFN11\b|[^\r\n]*\bFN11\b[^\r\n]*\bpassed\b)");
+            await Assert.That(testLog).Contains("succeeded: 1");
+            await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "inside.txt"))).IsEqualTo("dotnet-ok");
+            await Assert.That(Directory.GetDirectories(Path.Combine(lab.Workspace, ".pkgs"))).IsNotEmpty();
+        }
+        else
+        {
+            await Assert.That(buildExit).IsNotEqualTo("0");
+            await Assert.That(buildLog).Contains("NU1301");
+            await Assert.That(buildLog).Matches("(?i)schannel|SEC_E_NO_CREDENTIALS|0x8009030e|No credentials are available in the security package");
+            await Assert.That(File.Exists(Path.Combine(lab.Workspace, "inside.txt"))).IsFalse();
+        }
+    }
+
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    [Timeout(360_000)]
+    public async Task FN12_Prepare_enables_fenced_node(bool prepared, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) Skip.Test("FN12 requires fenced Linux/macOS opencode.");
+        using var lab = await FunctionalLab.CreateAsync("opencode", ct, requireSandbox: true);
+        var source = JsonNode.Parse(File.ReadAllText(Path.Combine(TestPaths.Root, "package-lock.json")))!;
+        var dependency = source["packages"]!["node_modules/yaml"]!.DeepClone().AsObject();
+        dependency.Remove("dev");
+        var dependencies = new JsonObject { ["yaml"] = dependency["version"]!.DeepClone() };
+        var package = new JsonObject
+        {
+            ["name"] = "prepare-probe", ["version"] = "1.0.0", ["dependencies"] = dependencies,
+            ["scripts"] = new JsonObject { ["test"] = "node --test --test-reporter=tap probe.test.mjs" },
+        };
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "package.json"), package.ToJsonString());
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "package-lock.json"), new JsonObject
+        {
+            ["name"] = "prepare-probe", ["version"] = "1.0.0", ["lockfileVersion"] = source["lockfileVersion"]!.DeepClone(),
+            ["packages"] = new JsonObject
+            {
+                [""] = new JsonObject { ["name"] = "prepare-probe", ["version"] = "1.0.0", ["dependencies"] = dependencies.DeepClone() },
+                ["node_modules/yaml"] = dependency,
+            },
+        }.ToJsonString());
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, ".npmrc"), "cache=.npm-cache\n");
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, "probe.test.mjs"), """
+            import test from 'node:test';
+            import assert from 'node:assert/strict';
+            import YAML from './node_modules/yaml/dist/index.js';
+            test('FN12', () => assert.deepEqual(YAML.parse('answer: 42'), { answer: 42 }));
+            """);
+        var cache = Directory.CreateDirectory(Path.Combine(lab.Tree.Repository, ".npm-cache"));
+        await Assert.That(cache.EnumerateFileSystemInfos().ToArray()).IsEmpty();
+        await Assert.That(Directory.Exists(Path.Combine(lab.Tree.Repository, "node_modules"))).IsFalse();
+        await CommitDependencyFixtureAsync(lab, "node_modules/\n.npm-cache/\n", ct);
+        var command = (prepared ? "npm test --offline" : "npm test") + " > test.log 2>&1; status=$?; "
+            + "printf '%s' \"$status\" > test.exit; if [ \"$status\" -eq 0 ]; then printf node-ok > inside.txt; fi";
+        await RunDependencyWorkerAsync(lab, command, prepared ? "npm ci" : null, ct);
+        var log = File.ReadAllText(Path.Combine(lab.Workspace, "test.log"));
+        TestContext.Current!.Output.WriteLine(log);
+        var exit = File.ReadAllText(Path.Combine(lab.Workspace, "test.exit"));
+        if (prepared)
+        {
+            await Assert.That(exit).IsEqualTo("0");
+            await Assert.That(log).Matches(@"(?m)^ok \d+ - FN12\s*$");
+            await Assert.That(File.ReadAllText(Path.Combine(lab.Workspace, "inside.txt"))).IsEqualTo("node-ok");
+            await Assert.That(File.Exists(Path.Combine(lab.Workspace, "node_modules", "yaml", "dist", "index.js"))).IsTrue();
+            await Assert.That(Directory.GetFileSystemEntries(Path.Combine(lab.Workspace, ".npm-cache"))).IsNotEmpty();
+        }
+        else
+        {
+            await Assert.That(exit).IsNotEqualTo("0");
+            await Assert.That(log).Contains("ERR_MODULE_NOT_FOUND");
+            await Assert.That(log).Contains("node_modules/yaml/dist/index.js");
+            await Assert.That(Directory.Exists(Path.Combine(lab.Workspace, "node_modules"))).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(lab.Workspace, "inside.txt"))).IsFalse();
+        }
+    }
+
+    static async Task CommitDependencyFixtureAsync(FunctionalLab lab, string ignored, CancellationToken ct)
+    {
+        File.WriteAllText(Path.Combine(lab.Tree.Repository, ".gitignore"), ignored + "*.log\n*.exit\n");
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["add", "."], ct);
+        await repo.GitAsync(["commit", "-m", "Add dependency probe"], ct);
+    }
+
+    static async Task RunDependencyWorkerAsync(FunctionalLab lab, string command, string? prepare, CancellationToken ct)
+    {
+        var task = lab.CodeTask($"Run exactly `{command}` once in one shell call in your worktree. "
+            + "Do not change source, project, lockfile, configuration or tests. Do not add dependencies, install/restore "
+            + "anything beyond that exact call, retry, request escalation or bypass the sandbox. "
+            + "Do not fabricate logs, exit files or inside.txt. Leave the command's evidence as written even if it fails. "
+            + "Then finish with Status: done whether the command succeeded or failed.", "workspace");
+        if (prepare is not null) task["prepare"] = new JsonArray(prepare);
+        lab.WriteTask(task);
+        using var process = new HarnessProcess(lab.Tree);
+        await lab.AssertDoneAsync(await lab.CompleteAsync(lab.StartAsync(process, ct)));
+        await Assert.That(lab.Record["settings"]!["access"]!["enforcement"]!.GetValue<string>()).IsEqualTo("sandbox");
+        await Assert.That(lab.Result["asksEscalated"]!.GetValue<int>()).IsEqualTo(0);
+        await Assert.That(lab.Events().Count(x => x["type"]!.GetValue<string>() == "tool" &&
+            System.Text.RegularExpressions.Regex.IsMatch(x["data"]!["resource"]!.GetValue<string>(),
+                @"\b(npm|pnpm)\s+(ci|install|i)\b|dotnet\s+restore"))).IsEqualTo(0);
+        var tools = lab.Events().Where(x => x["type"]!.GetValue<string>() == "tool" && x["data"]!["tool"]!.GetValue<string>() == "shell").ToArray();
+        await Assert.That(MatchingWriteEvents(tools, command).Length).IsEqualTo(1);
+        if (prepare is not null)
+        {
+            await Assert.That(File.ReadAllText(Path.Combine(lab.TaskFolder, "prepare.log"))).Contains(prepare);
+            await Assert.That(lab.Result["prepare"]!.AsArray().Select(x => x!["command"]!.GetValue<string>()).ToArray())
+                .IsEquivalentTo(new[] { prepare }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(lab.Result["prepare"]![0]!["exitCode"]!.GetValue<int>()).IsEqualTo(0);
+            await Assert.That(lab.Result["prepare"]![0]!["timedOut"]!.GetValue<bool>()).IsFalse();
+        }
+        else await Assert.That(lab.Result.ContainsKey("prepare")).IsFalse();
+    }
+
     static bool IsFailedTool(JsonObject entry) => entry["type"]!.GetValue<string>() == "tool"
         && entry["data"]?["outcome"]?.GetValue<string>() == "failed";
 

@@ -163,16 +163,20 @@ The `workspace-write` sandbox lets a task write inside its workspace, its task t
 configured `writableRoots`. A task that must write elsewhere (another cache folder, for example) or start
 `wsl.exe` fails there.
 
-**Known limit: .NET and MSYS tools in the Windows sandbox.** In both of the sandbox's Windows modes,
-measured and reported upstream, `dotnet build` and `dotnet test` fail on the NuGet cache, MSBuild
-temp files, named pipes and project-reference evaluation, often with no diagnostic, and MSYS-based
-tools (Git Bash, `git submodule`) fail on shared memory (openai/codex#13183, #39927, #15295,
-#21715). Several of these failures exit 0: a submodule stays empty and the step still passes. Read
-a sandboxed command's output, never its exit code alone. A Windows task that must build or test
-.NET runs with `access: full`, chosen explicitly; the ledger records that it ran without the
-sandbox. On Windows, opencode's `workspace` is already unfenced, so the same task runs there without
-`access: full` and with the same exposure. On Linux/macOS, use fenced workspace access and the
-[build-cache recipe](config.md#writable-roots) instead of removing the fence for build caches.
+**Windows .NET and MSYS limits.** With `[windows] sandbox = "elevated"`, an outside restore enables
+inside-sandbox .NET builds and tests, including project references and Microsoft.Testing.Platform
+(measured once on 2026-10-25; record `2026-10-25-dispatch-prepare-windows-elevated` in this repository's
+`experiments/harness-invocation/records/`).
+A restore inside the sandbox that has to download packages fails with NU1301 (an SChannel error).
+Use [prepare dependency recipes](guide.md#dependencies-and-the-sandbox), not blanket full access.
+Unelevated mode retains the recorded NuGet-cache, MSBuild-temp, named-pipe and project-reference
+failures, often without diagnostics. MSYS tools (Git Bash, `git submodule`) retain shared-memory
+failures (openai/codex#13183, #39927, #15295, #21715). Several failures exit 0: a submodule may stay
+empty while the step passes. Read output, never just exit codes. If these limits require
+`access: full`, choose it explicitly; the ledger records the missing sandbox. On Windows, opencode's
+`workspace` is already unfenced, so the same task runs there without `access: full` and with the same
+exposure. On Linux/macOS, use fenced workspace access and the [build-cache recipe](config.md#writable-roots)
+instead of removing the fence for build caches.
 
 On Linux and macOS, sandbox prerequisites depend on the installed runtime and host. A fake protocol
 test or build does not prove enforcement; a Functional test that tries an outside write must pass

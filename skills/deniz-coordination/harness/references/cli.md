@@ -182,6 +182,10 @@ starts with its level: `INFO`, `WARN` or `ERROR`; any `ERROR` refuses the plan. 
 `plan ok: <count> task(s) against <repo>` or `plan refused: <count> error(s)`. Sends no prompt and
 creates no recorded run.
 
+Nonempty prepare prints `INFO <task>: prepare <n> command(s) in <shell>`, where `<shell>` is the resolved
+executable path. Empty/unset prepare adds no line; missing or unsupported shells refuse planning with
+the `verify shell:` error, even when only `prepare` needs the shell.
+
 For each task with contracts, `plan` prints
 `INFO <task>: contracts <alias or path> (<version line>); ...` in prepend order, after path
 deduplication. Bundled contracts use their supplied alias; ordinary files use their resolved path.
@@ -319,6 +323,11 @@ If supervised, writes a cancel request and waits up to 30 seconds for its matchi
 Otherwise marks the task cancelled in the ledger. An already-final task is a no-op. Cancel targets
 the task; do not stop it by killing the supervisor.
 
+With no supervisor and a non-terminal `prepareRunning` record, cancel still succeeds: it writes the
+explicit cancelled result, cancellation summary and warning described in
+[prepare outcomes](ledger.md#prepare-evidence-and-outcomes) before `final`. It attempts no process
+discovery or kill; the command may still run. Check for it before cleanup.
+
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | Request confirmed, unsupervised task marked cancelled, or task already final. |
@@ -349,6 +358,19 @@ outcome as `lost`, with recorded cancellation or timeout taking precedence in se
 Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
 status summary. Recovery is backend-specific; see [backends](backends.md).
 
+Exception in both forms: a non-terminal task with `prepareRunning` stays queued (a `queued` event is
+persisted), is omitted from supervisor candidates and gets this exact `error` event message:
+
+```text
+<task>: prepare was interrupted by a supervisor exit; a command may still run on this host. Check for it, then clean the task and start it under a new run id.
+```
+
+Inspect host processes for a stale `prepare` command and stop it yourself. Settle the task with
+`cancel <run> <task>` (it records `cancelled` with the `prepare-interrupted` warning), inspect retained
+work, run `clean <run>` (it cleans the whole run; use `--force` only to discard inspected dirty or
+unmerged work), then start the task again with `run <tasks.jsonc> --run <new-name>`. Never clear the
+flags or reuse the recorded id.
+
 | Exit | Type | Meaning |
 |---|---|---|
 | `0` | integer | Every recorded task is done after reconciliation. |
@@ -365,6 +387,9 @@ Refuses while supervised. Releases opencode sessions, removes recognized worktre
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
+
+Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
+undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
 
 Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
 its registration, branch, task temp and temporary index independently. A folder with a missing or

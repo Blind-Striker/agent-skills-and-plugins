@@ -19,7 +19,7 @@ See [CLI](cli.md) for invocation and [configuration](config.md) for layering.
 | `repo` | string path | None | Relative to the task file, or absolute. `--repo` overrides it. Repository tasks require one: `task needs repo or --repo`. An explicit target must be a Git working tree. |
 | `run` | string | Task filename without extension and a trailing `.tasks` (`x.tasks.jsonc` gives `x`) | `run` uses `--run` first. Name must match `^[a-z0-9][a-z0-9-]{0,40}$`; the harness prefixes the UTC calendar day to form the recorded run id. |
 | `maxParallel` | integer | `3`, after lower layers | Range 1 through 8: `maxParallel from <layer> must be between 1 and 8`. |
-| `defaults` | object | No overrides | Only the preference fields below, plus `defaultRoutes` and `dir`. It cannot supply arbitrary task fields such as `base`, `prompt`, `scope` or `verify`. |
+| `defaults` | object | No overrides | Only the preference fields below, plus `defaultRoutes` and `dir`. It cannot supply arbitrary task fields such as `base`, `prompt`, `scope`, `prepare` or `verify`. |
 | `policy` | object | No added restrictions | Accepts `deny`, `escalate`, `scope`, `maxAccess`, `networkAllowed`, `instructions`. See [configuration](config.md). |
 | `contracts` | string array | `[]` | Files or bundled aliases prepended to every task. See [Contracts](#contracts) for resolution and plan errors. |
 | `sharedPaths` | string array | `[]` | Exempts these paths from writer scope-overlap detection only. Refuses blank, absolute, parent paths and `*`, `?`, `!`: `sharedPaths must contain repository-relative paths, not globs or parent paths`. It grants no write permission. |
@@ -43,6 +43,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `base` | string Git ref | Required for a non-structured worktree without `reviewOf` | `base is required (a branch, tag or commit of the repo)` or `base <ref> does not resolve in <repo>`. A remote-tracking base is fetched before resolution; plan and run print `INFO <task>: base <base> resolves to <12 hex digits> (fetched from <remote>)`, omitting the suffix for local branches, tags and SHAs (no fetch). In-place refuses it. |
 | `reviewOf` | string task id | None | Starts from that task's branch after it finishes. Refuses self or missing target: `reviewOf names no other task`; refuses chains: `reviewOf chains are not supported`. With `base`: `a reviewOf task starts from the reviewed task's branch; omit base`. A non-review kind produces a warning. Use a worktree author. |
 | `scope` | string array | `[]` | `code and mechanical tasks declare a scope` when absent or empty. Structured tasks refuse it. Every changed path on review or research is out of scope regardless of this field. |
+| `prepare` | string array | No commands | Task-entry only, never `defaults`. Unset/empty runs and records nothing. Every non-structured kind accepts it; any non-null structured value refuses with `prepare is forbidden for structured tasks`. See [Preparation](#preparation). |
 | `verify` | string array | No commands | Runs after collection for a succeeded non-structured task. Structured tasks refuse it. A missing or unsupported shell is a plan error. |
 | `advisoryVerify` | string array | No commands | Runs after `verify`, in the same shell and folder, and is recorded with `advisory: true`, but a failure never fails the task: it adds the `advisory-verify-failed` warning. For a check that fails by design on this change (a baseline the coordinator owns), so a dependent `reviewOf` task still starts. Structured tasks refuse it. |
 | `shell` | string enum | `pwsh` on Windows, `bash` elsewhere | `bash` or `pwsh`, resolved on PATH. Other values: `verify shell: shell must be bash or pwsh`; structured: `shell is forbidden for structured tasks`. Review and research can also use it. |
@@ -183,9 +184,40 @@ settings, so a value inherited from defaults or CLI may reach a later start chec
 An in-place run refuses a worktree or ledger root inside the repository. `clean` removes its temp
 and temporary index, but leaves the in-place folder, edits and current branch alone.
 
+## Preparation
+
+`prepare` is an ecosystem-neutral list of shell commands. After workspace preparation and the
+allow-list check, it runs before launch construction or worker creation, while the task remains
+`dispatching` and holds its concurrency slot. Run-level probes and validation are unchanged.
+Commands run sequentially as the operator, outside backend sandboxing, in the workspace, with the
+task's `bash` or `pwsh` shell and no shell profile. They use the worker environment and recorded task
+temp, plus `MSBUILDDISABLENODEREUSE=1` and `UseSharedCompilation=false`, below-normal priority
+(`nice -n 10` on Unix), and a 30-minute timeout per command. `timeoutMinutes` does not apply;
+the worker's timeout clock still starts after prompting. Unlike verify, prepare stops at the first
+nonzero exit, timeout or start exception. It tells the worker nothing automatically.
+
+Within the workspace, preparation may change ignored outputs only. Before commands, a temporary-index snapshot captures
+tracked and non-ignored untracked content, including existing in-place dirt, and HEAD is read
+(`unborn` is valid). Both remain in memory. After successful commands, both are compared again.
+Tree changes use `git diff --name-only --no-renames <before> <after>`, ordinal-sorted,
+retaining 20 comma-separated paths, then `, and <k> more`. A HEAD-only change reports `prepare moved HEAD from <a> to <b>`.
+Ignored `obj/`, `bin/`, `node_modules/` and `.pkgs/` outputs do not count when the repository ignores them.
+
+Cancellation is checked before each command, during execution, before the workspace check and
+immediately before worker creation. Precedence is cancel, command failure (skip the check), Git
+failure, then workspace change. Tasks without nonempty prepare keep their existing cancellation path.
+Success alone completes preparation and enters the ordinary worker lifecycle. Other outcomes settle
+without a session, collection, commit, verification or worker calls; the workspace stays for inspection.
+Evidence, exact terminal outcomes and failure codes: [ledger](ledger.md#prepare-evidence-and-outcomes).
+
+Preparation is skipped when already done or when a session exists. A never-started prepare can run
+on `resume --continue`; an interrupted attempt is never replayed. Recovery and operator steps:
+[resume](cli.md#resume-run---continue---ledger-dir). Dependency recipes and process limits:
+[guide](guide.md#dependencies-and-the-sandbox).
+
 ## Structured tasks
 
-Structured tasks refuse `scope`, `verify`, `advisoryVerify`, `shell`, `reviewOf`, `agent`, `persona` and raw prompts.
+Structured tasks refuse `prepare`, `scope`, `verify`, `advisoryVerify`, `shell`, `reviewOf`, `agent`, `persona` and raw prompts.
 With `project: off`, the harness chooses scratch outside any ancestor containing `.git`; neither
 repository nor base is needed. With `project: on`, it uses the named repository folder. Structured
 tasks never commit or verify.

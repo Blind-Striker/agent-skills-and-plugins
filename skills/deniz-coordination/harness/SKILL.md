@@ -16,6 +16,7 @@ that result, and records every step in a ledger. This skill is the harness's con
 - The harness prepends only the contracts you name (`contracts`, `--contract`); `plan` warns on a code or
   mechanical task that names no worker contract.
 - A calling skill that sends `structured` tasks owns their prompt and result schema.
+- Use `prepare` for outside-sandbox dependency steps; recipes and limits: [Dependencies and the sandbox](references/guide.md#dependencies-and-the-sandbox).
 
 ## Invocation
 
