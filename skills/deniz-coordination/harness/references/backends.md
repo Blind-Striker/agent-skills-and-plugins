@@ -201,6 +201,7 @@ recorded with its outcome. On Windows the denied attempt is recorded as a failed
 upstream report is openai/codex#56396; check it before a Codex pin moves.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
+On Windows, a process created before its recorded parent is a parent-PID reuse and is never adopted.
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
 timeout, either resume mode settles a started non-final Codex task as failed with outcome `lost`;
 recorded stop requests retain their cancelled or timeout outcome. Use a new run id for a retry. An

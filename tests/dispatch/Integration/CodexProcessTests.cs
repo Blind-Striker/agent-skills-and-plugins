@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json.Nodes;
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -10,6 +11,67 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel("processes")]
 public sealed class CodexProcessTests
 {
+    [Test]
+    [Arguments(-3600)]
+    [Arguments(0)]
+    [Arguments(1)]
+    [Timeout(60_000)]
+    public async Task Snapshot_creation_time_rejects_reuse_but_keeps_later_unreadable_children(int secondsAfterParent, CancellationToken cancellationToken)
+    {
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"notify":"ready","params":{}}
+            """);
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(process.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        const int candidate = int.MaxValue;
+        var unobservable = new List<int>();
+        var snapshot = process.ReadSnapshot;
+        var limitedStart = process.QueryLimitedStartTime;
+        process.ReadSnapshot = _ => new()
+        {
+            [process.Id] = (Environment.ProcessId, process.StartTime),
+            [candidate] = (process.Id, process.StartTime.AddSeconds(secondsAfterParent)),
+        };
+        process.OpenProcess = pid => pid == candidate ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        process.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5);
+        process.DescendantUnobservable = (pid, _) => unobservable.Add(pid);
+        try
+        {
+            process.RefreshDescendants();
+            await Assert.That(process.Descendants.Select(identity => identity.Pid).ToArray())
+                .IsEquivalentTo(secondsAfterParent >= 0 ? [candidate] : Array.Empty<int>(), CollectionOrdering.Matching);
+            await Assert.That(unobservable).IsEquivalentTo(secondsAfterParent >= 0 ? [candidate] : Array.Empty<int>(), CollectionOrdering.Matching);
+            if (secondsAfterParent >= 0)
+                await Assert.That(process.Descendants.Single(identity => identity.Pid == candidate).StartTime).IsNull();
+        }
+        finally
+        {
+            process.ReadSnapshot = snapshot;
+            process.OpenProcess = Process.GetProcessById;
+            process.QueryLimitedStartTime = limitedStart;
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Windows_snapshot_reports_kernel_creation_time_and_independent_child_parent(CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows system process snapshot only");
+        using var tree = new TempTree();
+        var environment = Scenario(tree, """
+            {"notify":"ready","params":{}}
+            """);
+        await using var child = CodexProcess.Start(Context(tree), tree.Repository, environment);
+        using var reader = new StreamReader(child.Stdout, Encoding.UTF8, false, leaveOpen: true);
+        await Assert.That(await reader.ReadLineAsync(cancellationToken)).Contains("ready");
+        using var current = Process.GetCurrentProcess();
+        var snapshot = child.ReadSnapshot(File.ReadAllText);
+        await Assert.That(snapshot[current.Id].CreationTime).IsEqualTo(current.StartTime.ToUniversalTime());
+        await Assert.That(snapshot[child.Id].Parent).IsEqualTo(current.Id);
+    }
+
     [Test]
     [Arguments(false, 2)]
     [Arguments(false, 3)]
