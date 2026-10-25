@@ -99,6 +99,9 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 1. **Plan.** `plan <tasks.jsonc>` validates the file, contracts, allow-list and live catalog.
 2. **Run.** `run <tasks.jsonc> [--run <name>]` is the supervisor: it blocks until every task is
    final. To keep working meanwhile, start it from a background shell and watch from another one.
+   A background run wakes you only through a waiter you arm in the same step: your tool's
+   completion notice for that shell, or a loop on `status`. When you come back to a run without one,
+   start with `status <run>`; `(no supervisor: …)` means nothing is driving it.
 3. **Watch.** `status <run>` shows each task's state, tool count and last tool call. States:
    `queued`, `dispatching`, `running`, `waiting` (escalated ask), `settling`, `interrupted`, and the
    final `done`, `failed`, `cancelled`.
