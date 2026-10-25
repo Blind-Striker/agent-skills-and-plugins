@@ -20,7 +20,7 @@ internal static class FakeOpenCode
         var launch = path + ".launch";
         File.WriteAllLines(launch, steps.Take(4).Concat(steps.Skip(launchStart)).Select(step => step.ToJsonString()));
         var executable = Path.Combine(Directory.CreateDirectory(path + ".bin").FullName, "opencode");
-        File.WriteAllText(executable, $"#!/bin/sh\nif [ \"$XDG_CACHE_HOME\" = \"${{TMPDIR%/tmp}}/cache\" ] && [ \"$OPENCODE_DISABLE_CLAUDE_CODE\" != 1 ] && [ \"$OPENCODE_DISABLE_PROJECT_CONFIG\" != 1 ]; then\nexport FAKE_OPENCODE_SCENARIO='{launch}'\nfi\nexec '{Executable}' \"$@\"\n");
+        File.WriteAllText(executable, $"#!/bin/sh\nif [ \"${{XDG_CACHE_HOME%/cache}}\" != \"$XDG_CACHE_HOME\" ] && [ \"$OPENCODE_DISABLE_CLAUDE_CODE\" != 1 ] && [ \"$OPENCODE_DISABLE_PROJECT_CONFIG\" != 1 ]; then\nexport FAKE_OPENCODE_SCENARIO='{launch}'\nfi\nexec '{Executable}' \"$@\"\n");
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var configPath = Path.Combine(tree.DispatchHome, "config", "config.jsonc");
         var config = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(configPath))!;
