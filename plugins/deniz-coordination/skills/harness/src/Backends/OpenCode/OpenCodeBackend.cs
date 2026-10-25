@@ -230,8 +230,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     static Dictionary<string, string> SessionVariables(IReadOnlyDictionary<string, string> variables, HarnessServer host)
     {
         var copy = variables.ToDictionary(x => x.Key, x => x.Value);
-        if (host.SessionTemp is { } temp)
-            foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" }) copy[name] = temp;
+        foreach (var (name, value) in host.SessionOverrides) copy[name] = value;
         return copy;
     }
 

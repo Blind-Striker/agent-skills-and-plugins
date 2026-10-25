@@ -95,8 +95,8 @@ sealed class HarnessServer : IAsyncDisposable
     readonly object _disposeGate = new();
     string[] _privateFolders = [];
 
-    // A fenced macOS server's short private temp; its sessions' shells use it instead of the task temp.
-    public string? SessionTemp { get; private set; }
+    // What a fenced server's sessions' shells take from the server instead of the task environment.
+    public IReadOnlyDictionary<string, string> SessionOverrides { get; private set; } = new Dictionary<string, string>();
     public bool IsStopping { get; private set; }
 
     HarnessServer(OpenCodeServer server, OpenCodeClient client, OpenCodeServerOutput output, string commandDescription)
@@ -152,6 +152,7 @@ sealed class HarnessServer : IAsyncDisposable
             environment["OPENCODE_CONFIG_PROJECT_DISABLE"] = "1";
             environment["OPENCODE_DISABLE_PROJECT_CONFIG"] = "1";
         }
+        string? privateRuntime = null;
         if (launch is not null && Ready.Fenced(modes))
         {
             if (await Ready.FenceAsync(ct) is { } refusal) throw new HarnessException(refusal);
@@ -185,6 +186,14 @@ sealed class HarnessServer : IAsyncDisposable
             if (common is not null) readOnly.AddRange(new[] { Path.Combine(common, "hooks"), Path.Combine(common, "config") }.Where(Path.Exists));
             if (Ready.FenceKind == "bwrap") readOnly.RemoveAll(path => !Path.Exists(path));
             var runtime = inherited.GetValueOrDefault("XDG_RUNTIME_DIR");
+            if (Ready.FenceKind == "bwrap" && !Directory.Exists(runtime))
+            {
+                // Without a runtime dir .NET keeps named-mutex memory under the home, which the fence makes read-only.
+                privateRuntime = Path.Combine(launch.Environment["TEMP"], "runtime");
+                if (OperatingSystem.IsLinux()) Directory.CreateDirectory(privateRuntime, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                environment["XDG_RUNTIME_DIR"] = privateRuntime;
+                runtime = null;
+            }
             command = Ready.FenceCommand(Ready.FenceKind!, Ready.FenceExecutable, command, writable, readOnly,
                 modes.Access == "read-only" ? launch.Directory : null, Directory.Exists(runtime) ? runtime : null);
         }
@@ -209,8 +218,12 @@ sealed class HarnessServer : IAsyncDisposable
         var host = new HarnessServer(server, server.CreateClient(), output, description);
         if (launch is not null && Ready.Fenced(modes))
         {
-            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"]];
-            if (OperatingSystem.IsMacOS()) host.SessionTemp = environment["TMPDIR"];
+            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"], .. privateRuntime is null ? Array.Empty<string>() : [privateRuntime]];
+            var overrides = new Dictionary<string, string>();
+            if (OperatingSystem.IsMacOS())
+                foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" }) overrides[name] = environment["TMPDIR"];
+            if (privateRuntime is not null) overrides["XDG_RUNTIME_DIR"] = privateRuntime;
+            host.SessionOverrides = overrides;
         }
         try
         {
