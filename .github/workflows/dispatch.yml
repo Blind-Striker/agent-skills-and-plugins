@@ -74,7 +74,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path $temp | Out-Null
           "TEMP=$temp" | Add-Content -LiteralPath $env:GITHUB_ENV
           "TMP=$temp" | Add-Content -LiteralPath $env:GITHUB_ENV
+      - name: Build the tests
+        working-directory: tests/dispatch
+        # Apart from the test run, so a stall shows which half it is in.
+        timeout-minutes: 15
+        run: dotnet build -c Release
       - name: Unit and Integration tests
+        if: runner.os != 'Windows'
         working-directory: tests/dispatch
         # Inside the job's limit, so a hung test still leaves its dump, results and log behind:
         # the session ends at 25 minutes, and a test stuck for 15 is dumped first.
@@ -87,13 +93,45 @@ jobs:
         # pipe has exited, so a process a test leaves behind would keep it open past every timeout.
         run: |
           set +e
-          dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]" --results-directory "$GITHUB_WORKSPACE/test-results" \
+          dotnet run -c Release --no-build -- --treenode-filter "/*/*/*/*[Category!=Functional]" --results-directory "$GITHUB_WORKSPACE/test-results" \
             --timeout 25m --hangdump --hangdump-timeout 15m --hangdump-type Mini > "$RUNNER_TEMP/tests.log" 2>&1
           code=$?
           # TUnit colors its lines; strip the codes so the failed tests and the totals are found.
           sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E -A6 "^failed " | tail -n 300
           sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E "^  (failed|succeeded|skipped|duration):"
           exit $code
+      # Windows step timeouts did not end a hung run: the step waited past 35 minutes. A watchdog in the
+      # step ends it instead. The tests start through ShellExecute in a hidden window, so they inherit
+      # none of the step's handles; at 30 minutes the watchdog prints what still runs and kills the tree.
+      - name: Unit and Integration tests (Windows, with a watchdog)
+        if: runner.os == 'Windows'
+        working-directory: tests/dispatch
+        timeout-minutes: 40
+        shell: pwsh
+        run: |
+          $log = Join-Path $env:RUNNER_TEMP 'tests.log'
+          $results = Join-Path $env:GITHUB_WORKSPACE 'test-results'
+          $script = Join-Path $env:RUNNER_TEMP 'run-tests.cmd'
+          @(
+            '@echo off'
+            "dotnet run -c Release --no-build -- --treenode-filter ""/*/*/*/*[Category!=Functional]"" --results-directory ""$results"" --timeout 25m --hangdump --hangdump-timeout 15m --hangdump-type Mini > ""$log"" 2>&1"
+          ) | Set-Content -LiteralPath $script -Encoding ascii
+          $started = Get-Date
+          $run = Start-Process -FilePath $script -WindowStyle Hidden -PassThru
+          $null = $run.Handle
+          if (-not $run.WaitForExit(30 * 60 * 1000)) {
+            'WATCHDOG: the tests still run after 30 minutes; processes started since the tests began:'
+            Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -ge $started.AddSeconds(-5) } |
+              Select-Object ProcessId, ParentProcessId, Name, CreationDate, CommandLine | Format-List | Out-String -Width 400
+            'WATCHDOG: the last 150 lines of the test log:'
+            Get-Content -LiteralPath $log -Tail 150
+            taskkill /T /F /PID $run.Id
+            exit 1
+          }
+          $lines = ((Get-Content -LiteralPath $log -Raw) -replace "`e\[[0-9;]*m", '') -split "`r?`n"
+          $lines | Select-String -Pattern '^failed ' -Context 0, 6 | ForEach-Object { $_.ToString() }
+          $lines | Select-String -Pattern '^  (failed|succeeded|skipped|duration):' | ForEach-Object { $_.Line }
+          exit $run.ExitCode
       - name: The tests' last output, after a failure or a timeout
         if: failure() || cancelled()
         shell: bash
