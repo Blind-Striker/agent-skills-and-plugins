@@ -49,6 +49,7 @@ Each section says when to use a setting, why, and what it costs. Field details l
   was blocked: that work stays uncommitted and goes to `wip.patch`. An in-place task
   takes `commit: none` (the default: the diff is recorded, nothing is committed) or `commit: harness`
   (a clean tree is required, and the commit lands on the current branch).
+  Harness commits use `chore(dispatch): <run>/<task>`, with the run id and task id.
 - `base` takes a branch, a tag or a SHA. A SHA is exact; planning fetches remote-tracking bases before
   resolving them, including revision suffixes and branches without a local tracking ref. Local
   branches and tags use the repository's current refs without fetching. See [plan](cli.md#plan-tasksjsonc---repo-path---contract-path---policy-file).

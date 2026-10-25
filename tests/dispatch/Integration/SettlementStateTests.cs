@@ -9,6 +9,23 @@ namespace Dispatch.Tests.Integration;
 public sealed class SettlementStateTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task Harness_commit_uses_conventional_commit_message(CancellationToken ct)
+    {
+        using var lab = new CoreLab("commit-message");
+        var run = await lab.TaskAsync("change-file", ct);
+        await PrepareAsync(lab, run, "worktree", "harness", ct);
+        var wt = run.Record.Workspace.Path!;
+        File.WriteAllText(Path.Combine(wt, "README.md"), "worker change\n");
+        var result = await SettleAsync(lab, run, "done", ct);
+        await Assert.That(result.Failures).IsEmpty();
+        await Assert.That(result.Commit).IsNotNull();
+        var repo = new LabRepo(lab.Tree);
+        var message = await repo.GitAsync(["-C", wt, "log", "-1", "--format=%B", result.Commit!], ct);
+        await Assert.That(message.Trim()).IsEqualTo($"chore(dispatch): {lab.Ledger.RunId}/{run.Id}");
+    }
+
+    [Test]
     [Arguments("stopped", "worktree", "harness")]
     [Arguments("blocked", "worktree", "harness")]
     [Arguments("stopped", "in-place", "harness")]
