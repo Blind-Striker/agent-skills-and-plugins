@@ -102,7 +102,11 @@ Sessions inherit harness denies on the edit tool for the control folder and that
 Fenced servers allow writes to opencode's data and state folders (`XDG_DATA_HOME/opencode` and
 `XDG_STATE_HOME/opencode`, otherwise the usual home fallbacks), task temp and `/dev`. The user's
 opencode cache and config folders and the server's profile root are not granted write access.
-Each fenced server gets a private `XDG_CACHE_HOME` and `TMPDIR`/`TEMP`/`TMP` under task temp.
+Each fenced server gets a private `XDG_CACHE_HOME` and `TMPDIR`/`TEMP`/`TMP` under task temp. On
+macOS the temp variables, the server's and its session shells', instead name a short private folder
+`/private/tmp/dispatch-<random>`, writable and removed with the server: macOS caps a Unix socket path near 104 bytes, and a tool whose
+socket does not fit under a long `TMPDIR` (the .NET test host's named pipe, for one) falls back to
+`/tmp`, which the fence denies.
 Workspace access also allows the workspace, Git common folder and configured writable roots.
 The opencode data `bin` path is read-only (on Linux, overlaid when it exists); existing Git common
 `hooks` and `config` paths are also overlaid read-only after the writable grants. Every writable root is checked again at launch using real paths; a root

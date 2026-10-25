@@ -214,7 +214,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         try
         {
             await client.Sessions.GetSessionClient(worker.Id).SetEnvironmentAsync(new SessionEnvironmentRequest
-            { Variables = launch.Environment.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
+            { Variables = SessionVariables(launch.Environment, server) }, cancellationToken: ct);
         }
         catch (Exception ex)
         {
@@ -227,16 +227,25 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             created.Session.ProjectId, rules.Select(x => $"{x.Action} {x.Resource} {x.Effect.ToString().ToLowerInvariant()}").ToList()));
     }
 
+    static Dictionary<string, string> SessionVariables(IReadOnlyDictionary<string, string> variables, HarnessServer host)
+    {
+        var copy = variables.ToDictionary(x => x.Key, x => x.Value);
+        if (host.SessionTemp is { } temp)
+            foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" }) copy[name] = temp;
+        return copy;
+    }
+
     async Task<WorkerRef> PromptCoreAsync(WorkerRef worker, WorkerPrompt prompt, CancellationToken ct)
     {
-        var session = (await HostAsync(worker, ct)).Client.Sessions.GetSessionClient(worker.Id);
+        var host = await HostAsync(worker, ct);
+        var session = host.Client.Sessions.GetSessionClient(worker.Id);
         if (prompt.IsContinue)
         {
             lock (eventGate) admissions[worker.Id] = [];
             var variables = launches.TryGetValue(worker.Id, out var launch) ? launch.Environment
                 : WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id"),
                     Git.RecordedTempRoot(worker.TaskId, runId)).Variables;
-            await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = variables.ToDictionary(x => x.Key, x => x.Value) }, cancellationToken: ct);
+            await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = SessionVariables(variables, host) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
         }
         liveWorkers[worker.Id] = 0;

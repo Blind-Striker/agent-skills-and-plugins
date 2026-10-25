@@ -99,6 +99,13 @@ The value and source (`user`, `repo`, `task-file-defaults` or `task`) are frozen
 and recorded in `task.json`. Recovery, verification and cleanup use the recorded root, not current
 preferences. `clean` deletes `<tempRoot>/<run>/<task>` and any legacy default
 `<worktree root>/<run>/.tmp/<task>` folder, leaving sibling folders and the roots.
+
+On Linux and macOS, a .NET test host built on Microsoft.Testing.Platform opens a Unix socket under
+`TMPDIR`. Unix caps a socket path near 108 bytes (104 on macOS), and the default task temp is often
+longer, so the host fails with `The named pipe path ... is too long`, in the worker and in verify
+alike. Give such tasks a short `tempRoot`, for example `/var/tmp/dispatch`. A fenced opencode
+worker on macOS already gets a short private temp ([backends](backends.md)); its verify commands
+still use the task temp.
 See [task files](task-file.md#scope-and-workspaces) for layouts and environment semantics, and
 [plan output](cli.md) for the resolved path.
 
