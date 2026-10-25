@@ -248,10 +248,8 @@ public sealed class RealBackendTests
         var packages = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "nuget-packages")).FullName;
         var nugetConfig = Path.Combine(lab.Environment["HOME"]!, ".nuget", "NuGet");
         var nugetData = Path.Combine(lab.Environment["HOME"]!, ".local", "share", "NuGet");
-        // A user's NuGet data folder is migrated on its first restore, outside any fence; the lab's starts empty.
-        // That one-time migration takes a named mutex, which a fence on Ubuntu's AppArmor-confined bwrap refuses.
-        Directory.CreateDirectory(Path.Combine(nugetData, "Migrations"));
-        File.WriteAllText(Path.Combine(nugetData, "Migrations", "1"), "");
+        // The lab's NuGet data folder starts unmigrated and the lab sets no XDG_RUNTIME_DIR, so the fenced restore's
+        // one-time migration takes a named mutex in the server's private runtime dir.
         lab.Environment["DOTNET_CLI_HOME"] = cliHome;
         lab.Environment["NUGET_PACKAGES"] = packages;
         var project = System.Xml.Linq.XDocument.Load(Path.Combine(TestPaths.Tests, "Dispatch.Tests.csproj"));

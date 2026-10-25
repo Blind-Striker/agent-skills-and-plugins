@@ -106,7 +106,9 @@ Each fenced server gets a private `XDG_CACHE_HOME` and `TMPDIR`/`TEMP`/`TMP` und
 macOS the temp variables, the server's and its session shells', instead name a short private folder
 `/private/tmp/dispatch-<random>`, writable and removed with the server: macOS caps a Unix socket path near 104 bytes, and a tool whose
 socket does not fit under a long `TMPDIR` (the .NET test host's named pipe, for one) falls back to
-`/tmp`, which the fence denies.
+`/tmp`, which the fence denies. On Linux, a server started without an existing `XDG_RUNTIME_DIR` (from
+cron or a service, say) gets a private one under task temp, for it and its sessions: without it,
+.NET keeps named-mutex memory under the home, which the fence makes read-only.
 Workspace access also allows the workspace, Git common folder and configured writable roots.
 The opencode data `bin` path is read-only (on Linux, overlaid when it exists); existing Git common
 `hooks` and `config` paths are also overlaid read-only after the writable grants. Every writable root is checked again at launch using real paths; a root
