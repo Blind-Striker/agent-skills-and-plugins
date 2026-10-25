@@ -353,11 +353,13 @@ public sealed class RealBackendTests
         File.WriteAllText(Path.Combine(lab.Tree.Repository, "global.json"), global.ToJsonString());
         var packages = Directory.CreateDirectory(Path.Combine(lab.Tree.Repository, ".pkgs"));
         await Assert.That(packages.EnumerateFileSystemInfos().ToArray()).IsEmpty();
-        await CommitDependencyFixtureAsync(lab, "bin/\nobj/\n.pkgs/\nTestResults/\n", ct);
-        var build = "dotnet build probe.csproj" + (prepared ? " --no-restore" : "");
+        await CommitDependencyFixtureAsync(lab, "bin/\nobj/\n.pkgs/\n.appdata/\nTestResults/\n", ct);
+        // The sandbox user cannot read the lab's APPDATA, so the restoring build takes NuGet's user config from the workspace
+        // and reaches the network.
+        var build = prepared ? "dotnet build probe.csproj --no-restore" : "$env:APPDATA = Join-Path $PWD .appdata; dotnet build probe.csproj";
         var command = build + " *> build.log; $buildExit = $LASTEXITCODE; "
             + "[System.IO.File]::WriteAllText('build.exit', [string]$buildExit); "
-            + (prepared ? "if ($buildExit -eq 0) { dotnet test --no-build -- --output Detailed *> test.log; "
+            + (prepared ? "if ($buildExit -eq 0) { dotnet test --no-build --output Detailed *> test.log; "
                 + "$testExit = $LASTEXITCODE; [System.IO.File]::WriteAllText('test.exit', [string]$testExit); "
                 + "if ($testExit -eq 0) { [System.IO.File]::WriteAllText('inside.txt','dotnet-ok') } }" : "");
         await RunDependencyWorkerAsync(lab, command, prepared ? "dotnet restore" : null, ct);
