@@ -53,6 +53,14 @@ static class WorkerEnvironment
         variables["TEMP"] = temp;
         variables["TMP"] = temp;
         variables["TMPDIR"] = temp;
+        // Without a runtime dir .NET keeps named-mutex memory under the home, which a fence makes read-only
+        // (NuGet's first restore takes one). A worker started from cron or a service gets a private one.
+        if (OperatingSystem.IsLinux() && !Directory.Exists(variables.GetValueOrDefault("XDG_RUNTIME_DIR")))
+        {
+            var runtime = Path.Combine(temp, "runtime");
+            Directory.CreateDirectory(runtime, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            variables["XDG_RUNTIME_DIR"] = runtime;
+        }
         // A reused MSBuild server keeps the environment of whoever started it, so the per-task
         // temporary folder would not apply to its NuGet scratch work.
         variables["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
