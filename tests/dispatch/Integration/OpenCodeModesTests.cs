@@ -293,20 +293,23 @@ public sealed class OpenCodeModesTests
         var worker = (await lab.Backend.CreateAsync(launch, ct)).Worker;
         var peer = (await lab.Backend.CreateAsync(peerLaunch, ct)).Worker;
         // Each server's record names its own cache, and with it its private temp.
-        string[] Private(WorkerLaunch task)
-        {
-            var cache = Path.Combine(task.Environment["TEMP"], "cache");
-            return [cache, PrivateTemp(lab.Hosts().Single(x => x["environment"]!["XDG_CACHE_HOME"]!.GetValue<string>() == cache), task)];
-        }
+        JsonObject HostOf(WorkerLaunch task) =>
+            lab.Hosts().Single(x => x["environment"]!["XDG_CACHE_HOME"]!.GetValue<string>() == Path.Combine(task.Environment["TEMP"], "cache"));
+        string[] Private(WorkerLaunch task) => [Path.Combine(task.Environment["TEMP"], "cache"), PrivateTemp(HostOf(task), task)];
         var (own, peers) = (Private(launch), Private(peerLaunch));
         await Assert.That(own[1]).IsNotEqualTo(peers[1]);
         // The session's shell takes the same temp on macOS, so its Unix sockets fit; elsewhere it keeps the task temp.
         foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
         {
-            var variables = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!)
-                .Single(x => x["method"]!.GetValue<string>() == "PUT" && x["path"]!.GetValue<string>() == $"/api/session/{task.TaskId}/environment")["body"]!["variables"]!;
-            foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
-                await Assert.That(variables[name]!.GetValue<string>()).IsEqualTo(OperatingSystem.IsMacOS() ? folders[1] : task.Environment["TEMP"]);
+            // Both fake servers name their first session alike; the server's pid tells their requests apart.
+            var pid = HostOf(task)["pid"]!.GetValue<int>();
+            var puts = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!)
+                .Where(x => x["pid"]!.GetValue<int>() == pid && x["method"]!.GetValue<string>() == "PUT"
+                    && x["path"]!.GetValue<string>().EndsWith("/environment", StringComparison.Ordinal)).ToArray();
+            await Assert.That(puts).IsNotEmpty();
+            foreach (var put in puts)
+                foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+                    await Assert.That(put["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(OperatingSystem.IsMacOS() ? folders[1] : task.Environment["TEMP"]);
         }
         foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
         {

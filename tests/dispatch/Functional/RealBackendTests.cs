@@ -287,9 +287,15 @@ public sealed class RealBackendTests
             + "create inside.txt any other way: if the call fails, finish without it. Finish with Status: done.", "workspace");
         task["writableRoots"] = new JsonArray(cliHome, packages, nugetConfig, nugetData);
         task["verify"] = new JsonArray(build, test, "test \"$(cat inside.txt)\" = dotnet-ok");
+        // As a user runs it: the test host's Unix socket goes under TMPDIR, which must be short (references/config.md).
+        lab.Environment.Remove("TESTINGPLATFORM_PIPE_DIRECTORY");
+        var tempRoot = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : "/var/tmp", "ds-fn10-" + Guid.NewGuid().ToString("N")[..8]);
+        task["tempRoot"] = tempRoot;
         lab.WriteTask(task);
         using var process = new HarnessProcess(lab.Tree);
-        var result = await lab.CompleteAsync(lab.StartAsync(process, ct));
+        CapturedResult result;
+        try { result = await lab.CompleteAsync(lab.StartAsync(process, ct)); }
+        finally { if (Directory.Exists(tempRoot)) Directory.Delete(tempRoot, recursive: true); }
         await lab.AssertDoneAsync(result);
         await Assert.That(lab.Record["settings"]!["access"]!["enforcement"]!.GetValue<string>()).IsEqualTo("sandbox");
         await Assert.That(lab.Record["settings"]!["writableRoots"]!["value"]!.AsArray().Select(x => x!.GetValue<string>()).ToArray())
