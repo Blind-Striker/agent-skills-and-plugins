@@ -305,6 +305,10 @@ static partial class Commands
         return 1;
     }
 
+    // A run with unfinished tasks and no supervisor waits for resume; say so, so a watcher stops waiting.
+    static string Driver(string run, IEnumerable<string> states) => SupervisorLock.IsHeld(run) ? " (supervised now)"
+        : states.Any(x => x is not ("done" or "failed" or "cancelled")) ? $" (no supervisor: `resume {run}` settles it)" : "";
+
     public static int Status(Args a)
     {
         if (a.Positional.Count == 0)
@@ -320,7 +324,7 @@ static partial class Commands
                 var ledger = new Ledger(Path.GetFileName(dir));
                 var states = ledger.TaskStates();
                 var summary = string.Join(", ", states.GroupBy(x => x.Value).Select(g => $"{g.Key} {g.Count()}"));
-                Console.WriteLine($"{ledger.RunId,-40} {summary}{(SupervisorLock.IsHeld(ledger.RunId) ? " (supervised now)" : "")}");
+                Console.WriteLine($"{ledger.RunId,-40} {summary}{Driver(ledger.RunId, states.Values)}");
             }
 
             return 0;
@@ -329,7 +333,7 @@ static partial class Commands
         var run = new Ledger(RunId(a));
         if (File.Exists(Path.Combine(run.Dir, "run.json"))) Locations.ControlDir(run.RunId);
         else run.EnsureExists();
-        Console.WriteLine($"run {run.RunId}{(SupervisorLock.IsHeld(run.RunId) ? " (supervised now)" : "")}");
+        Console.WriteLine($"run {run.RunId}{Driver(run.RunId, run.TaskStates().Values)}");
         Console.WriteLine($"  {"task",-24} {"state",-10} {"outcome",-12} {"cost",8} {"in/out tokens",-16} {"files",5} {"scope!",6} {"asks",4} {"esc",3} verify");
         var events = run.Read();
         var toolCalls = events.Where(x => x.Type == "tool" && x.Task is not null).ToLookup(x => x.Task!);

@@ -504,7 +504,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     }
     public async Task<InterruptResult> InterruptAsync(WorkerRef worker, InterruptKind kind, CancellationToken ct)
     {
-        var connection = workers[worker.Id];
+        if (!workers.TryGetValue(worker.Id, out var connection))
+            return kind is InterruptKind.Hard or InterruptKind.Shutdown ? await CodexProcess.StopRecordedAsync(worker.State, ct)
+                : new(false, "no live connection: a recorded worker stops only by a hard stop");
         if (kind is InterruptKind.Hard or InterruptKind.Shutdown) return await connection.Process.StopAsync();
         await connection.Rpc.RequestAsync("turn/interrupt", new CodexTurnInterruptParams(worker.Id, worker.Turn!), CodexJson.Wire.CodexTurnInterruptParams, cancellationToken: ct);
         return new(false, "turn/interrupt sent");

@@ -191,9 +191,12 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `pid` | integer | Codex when known | Process id. |
 | `processGroup` | boolean | Codex when known | Whether a private process group was created. |
 | `processStartTime` | string timestamp | Codex when known | Guards against recycled process ids. |
-| `descendants` | object array | Codex when known | Each has `pid` integer and `startTime` timestamp. |
+| `linuxBootId`, `linuxStartTicks` | string, integer | Codex on Linux | Kernel process identity; a recorded stop checks it before it signals. |
+| `descendants` | object array | Codex when known | Each has `pid` integer and `startTime` timestamp, and on Linux the same kernel identity. |
 | `codexHome` | string path | Codex when known | Selected home. |
 | `codexHomeTemporary` | boolean | Codex when known | Whether that home is temporary. |
+| `codexHomeMarkerName`, `codexHomeMarkerText` | strings | Codex temporary home | The random marker that proves a later process owns the home it deletes. |
+| `profile`, `profileReason` | strings | Codex when known | The home's actual profile and, for a partial clean profile, why. |
 
 These fields support this version's recovery. They are not instructions for a caller to start,
 stop or attach processes independently.
