@@ -7,7 +7,7 @@
 plugin:
   name: deniz-coordination
   description: "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)"
-  version: 0.1.3
+  version: 0.1.4
 original_skills:
   coordinator:
     invocation: manual # a mode the user chooses per task: it makes the agent own the goal, plan, hand
