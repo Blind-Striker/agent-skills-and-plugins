@@ -318,7 +318,7 @@ public sealed class CodexBackendTests
             await Assert.That(resumed.Stdout).DoesNotContain("ownership");
             await Assert.That(lab.Result["outcome"]!.GetValue<string>()).IsEqualTo("lost");
             await Assert.That(lab.Result["state"]!.GetValue<string>()).IsEqualTo("failed");
-            await Assert.That(IsAlive(worker)).IsFalse();
+            await Assert.That(await ExitsWithinAsync(worker)).IsTrue();
             await Assert.That(Directory.Exists(home)).IsFalse();
         }
         finally
@@ -349,17 +349,28 @@ public sealed class CodexBackendTests
         await Assert.That(IsAlive(pid)).IsTrue();
         var hard = await second.InterruptAsync(recorded, InterruptKind.Hard, cancellationToken);
         await Assert.That(hard.Stopped).IsTrue();
-        await Assert.That(IsAlive(pid)).IsFalse();
+        await Assert.That(await ExitsWithinAsync(pid)).IsTrue();
     }
 
     static bool IsAlive(int pid)
     {
+        // A killed child stays a zombie until its parent reaps it; it no longer runs.
+        if (OperatingSystem.IsLinux() && File.Exists($"/proc/{pid}/stat")
+            && File.ReadAllText($"/proc/{pid}/stat") is var stat && stat[(stat.LastIndexOf(')') + 2)..].StartsWith('Z'))
+            return false;
         try
         {
             using var process = Process.GetProcessById(pid);
             return !process.HasExited;
         }
         catch (ArgumentException) { return false; }
+    }
+
+    // A stop confirms the signal; the kernel and the parent's reaping finish the exit shortly after.
+    static async Task<bool> ExitsWithinAsync(int pid)
+    {
+        for (var waited = 0; waited < 10_000 && IsAlive(pid); waited += 100) await Task.Delay(100);
+        return !IsAlive(pid);
     }
 
     [Test]
