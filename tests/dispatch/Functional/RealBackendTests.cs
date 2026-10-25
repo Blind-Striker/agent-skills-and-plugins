@@ -288,7 +288,8 @@ public sealed class RealBackendTests
         task["writableRoots"] = new JsonArray(cliHome, packages, nugetConfig, nugetData);
         task["verify"] = new JsonArray(build, test, "test \"$(cat inside.txt)\" = dotnet-ok");
         // As a user runs it: the test host's Unix socket goes under TMPDIR, which must be short (references/config.md).
-        lab.Environment.Remove("TESTINGPLATFORM_PIPE_DIRECTORY");
+        // The test tree sets it for every child; null unsets it, as a user's environment has it.
+        lab.Environment["TESTINGPLATFORM_PIPE_DIRECTORY"] = null;
         var tempRoot = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : "/var/tmp", "ds-fn10-" + Guid.NewGuid().ToString("N")[..8]);
         task["tempRoot"] = tempRoot;
         lab.WriteTask(task);
