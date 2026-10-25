@@ -66,7 +66,16 @@ jobs:
           fi
       - name: Unit and Integration tests
         working-directory: tests/dispatch
+        # Inside the job's limit, so a hung test still leaves the log the next step prints.
+        timeout-minutes: 35
+        shell: bash
         env:
           DISPATCH_CONTRACT: ${{ runner.os == 'Linux' && '1' || '' }}
           DISPATCH_CONTRACT_CODEX: ${{ runner.os == 'Linux' && format('{0}/codex/node_modules/.bin/codex', runner.temp) || '' }}
-        run: dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"
+        run: |
+          set -o pipefail
+          dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]" 2>&1 | tee "$RUNNER_TEMP/tests.log"
+      - name: The tests' last output, after a failure or a timeout
+        if: failure() || cancelled()
+        shell: bash
+        run: tail -n 120 "$RUNNER_TEMP/tests.log" || true
