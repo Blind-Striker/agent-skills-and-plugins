@@ -87,11 +87,12 @@ jobs:
         # pipe has exited, so a process a test leaves behind would keep it open past every timeout.
         run: |
           set +e
-          dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"             --results-directory "$GITHUB_WORKSPACE/test-results" --timeout 25m             --hangdump --hangdump-timeout 15m --hangdump-type Mini > "$RUNNER_TEMP/tests.log" 2>&1
+          dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]" --results-directory "$GITHUB_WORKSPACE/test-results" \
+            --timeout 25m --hangdump --hangdump-timeout 15m --hangdump-type Mini > "$RUNNER_TEMP/tests.log" 2>&1
           code=$?
           # TUnit colors its lines; strip the codes so the failed tests and the totals are found.
-          sed 's/\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E -A6 "^failed " | tail -n 300
-          sed 's/\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E "^  (failed|succeeded|skipped|duration):"
+          sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E -A6 "^failed " | tail -n 300
+          sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E "^  (failed|succeeded|skipped|duration):"
           exit $code
       - name: The tests' last output, after a failure or a timeout
         if: failure() || cancelled()
