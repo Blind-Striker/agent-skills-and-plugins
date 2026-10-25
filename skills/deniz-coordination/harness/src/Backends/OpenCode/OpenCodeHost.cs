@@ -94,6 +94,9 @@ sealed class HarnessServer : IAsyncDisposable
     Task? _disposal;
     readonly object _disposeGate = new();
     string[] _privateFolders = [];
+
+    // A fenced macOS server's short private temp; its sessions' shells use it instead of the task temp.
+    public string? SessionTemp { get; private set; }
     public bool IsStopping { get; private set; }
 
     HarnessServer(OpenCodeServer server, OpenCodeClient client, OpenCodeServerOutput output, string commandDescription)
@@ -205,7 +208,10 @@ sealed class HarnessServer : IAsyncDisposable
         var description = command[0].EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? "opencode.exe (shim resolved)" : command[0];
         var host = new HarnessServer(server, server.CreateClient(), output, description);
         if (launch is not null && Ready.Fenced(modes))
+        {
             host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"]];
+            if (OperatingSystem.IsMacOS()) host.SessionTemp = environment["TMPDIR"];
+        }
         try
         {
             var info = await Ready.PollAsync(() => host.Client.Server.GetInfoAsync(cancellationToken: ct), TimeSpan.FromSeconds(60), "server info", ct);

@@ -300,6 +300,14 @@ public sealed class OpenCodeModesTests
         }
         var (own, peers) = (Private(launch), Private(peerLaunch));
         await Assert.That(own[1]).IsNotEqualTo(peers[1]);
+        // The session's shell takes the same temp on macOS, so its Unix sockets fit; elsewhere it keeps the task temp.
+        foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
+        {
+            var variables = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!)
+                .Single(x => x["method"]!.GetValue<string>() == "PUT" && x["path"]!.GetValue<string>() == $"/api/session/{task.TaskId}/environment")["body"]!["variables"]!;
+            foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+                await Assert.That(variables[name]!.GetValue<string>()).IsEqualTo(OperatingSystem.IsMacOS() ? folders[1] : task.Environment["TEMP"]);
+        }
         foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
         {
             File.WriteAllText(Path.Combine(task.Environment["TEMP"], "keep"), task.TaskId);
