@@ -290,7 +290,8 @@ public sealed class RealBackendTests
         // As a user runs it: the test host's Unix socket goes under TMPDIR, which must be short (references/config.md).
         // The test tree sets it for every child; null unsets it, as a user's environment has it.
         lab.Environment["TESTINGPLATFORM_PIPE_DIRECTORY"] = null;
-        var tempRoot = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : "/var/tmp", "ds-fn10-" + Guid.NewGuid().ToString("N")[..8]);
+        // The socket path is TMPDIR plus about 55 bytes, and TMPDIR is <tempRoot>/<run>/<task>: keep the root tiny.
+        var tempRoot = Path.Combine(OperatingSystem.IsMacOS() ? "/private/tmp" : "/var/tmp", "d" + Guid.NewGuid().ToString("N")[..6]);
         task["tempRoot"] = tempRoot;
         lab.WriteTask(task);
         using var process = new HarnessProcess(lab.Tree);
