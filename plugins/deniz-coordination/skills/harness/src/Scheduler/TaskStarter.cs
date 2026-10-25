@@ -1,4 +1,7 @@
-sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, AllowList allow, Policy policy, Git? git = null, TimeProvider? timeProvider = null)
+sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, AllowList allow, Policy policy, Git? git = null, TimeProvider? timeProvider = null,
+    Func<TaskRun, string, IReadOnlyDictionary<string, string>, CancellationToken, Task<(VerifyResult Result, string Log, Exception? Error)>>? prepareCommand = null,
+    Func<Git, string, string, bool, CancellationToken, Task<string>>? prepareSnapshot = null,
+    Func<Git, string, string, bool, CancellationToken, Task<string>>? prepareHead = null)
 {
     public static Modes ModesFor(TaskRecord record)
     {
@@ -41,7 +44,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
             throw new HarnessException($"route {spec.Route} left the allow-list");
     }
 
-    public async Task StartAsync(TaskRun run, CancellationToken ct)
+    public async Task<TaskResult?> StartAsync(TaskRun run, CancellationToken ct)
     {
         if (run.Record.Spec.Kind == "structured" && run.Record.PromptInputs is null)
         {
@@ -57,6 +60,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         }
         else await Worktree.PrepareAsync(run, ledger, repo, ct, git);
         CheckAllowed(run);
+        if (await PrepareAsync(run, ct) is { } terminal) return terminal;
         var record = run.Record;
         var (launch, removed) = BuildLaunch(record, ledger.RunId, backend.Name, policy, record.Settings.TempRoot?.Value);
         var created = await backend.CreateAsync(launch, ct);
@@ -94,5 +98,120 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         ledger.Write(run.Id, "prompt", data);
         run.Deadline = (timeProvider ?? TimeProvider.System).GetUtcNow().AddMinutes(record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes);
         run.State = TaskState.Running;
+        return null;
+    }
+
+    async Task<TaskResult?> PrepareAsync(TaskRun run, CancellationToken ct)
+    {
+        var record = run.Record;
+        if (record.Spec.Prepare is not { Count: > 0 } commands || record.PrepareDone == true || record.Session.Id is not null) return null;
+        var cancellation = new CancellationTokenSource();
+        using var commandCancellation = CancellationTokenSource.CreateLinkedTokenSource(ct, cancellation.Token);
+        record.Prepare = [];
+        record.PrepareRunning = true;
+        var logPath = Path.Combine(ledger.Dir, run.Id, "prepare.log");
+        Git? runner = null;
+        var snapshot = prepareSnapshot ?? Snapshot.CaptureAsync;
+        var indexTask = run.Id + "-prepare";
+        bool checkFailed = false, commandRunning = false;
+        async Task<string> Check(Func<Task<string>> operation)
+        {
+            try { return await operation(); }
+            catch { checkFailed = true; throw; }
+        }
+        bool Cancelled() => run.CancelRequested || cancellation.IsCancellationRequested;
+        TaskResult End(string? code = null, string? error = null, bool? checkFailed = null, bool changed = false)
+        {
+            ct.ThrowIfCancellationRequested();
+            var cancelled = Cancelled();
+            var data = new JsonObject { ["commands"] = record.Prepare.Count, ["failed"] = !cancelled && code == "prepare-failed" && checkFailed is null ? 1 : 0 };
+            if (cancelled) data["cancelled"] = true;
+            else if (checkFailed is { } failedCheck) data["checkFailed"] = failedCheck;
+            else if (changed) data["changed"] = true;
+            ledger.SaveRecord(record);
+            ledger.Write(run.Id, "prepared", data);
+            return new TaskResult { Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name,
+                State = cancelled ? "cancelled" : "failed", Outcome = cancelled ? "cancelled" : null,
+                CancelRequested = cancelled, Prepare = record.Prepare, Failures = cancelled ? [] : [code!], Error = cancelled ? null : error };
+        }
+        try
+        {
+            run.PrepareCancellation = cancellation;
+            ledger.SaveRecord(record);
+            await File.WriteAllTextAsync(logPath, "", ct);
+            runner = (git ?? Worktree.Runner(ledger, run.Id)).ForWorkspace(ledger, run.Id);
+            if (Cancelled()) return End();
+            var before = await Check(() => snapshot(runner, record.Workspace.Path!, indexTask, true, ct));
+            if (Cancelled()) return End();
+            var head = await Check(() => prepareHead?.Invoke(runner, record.Workspace.Path!, indexTask, true, ct) ?? ReadHeadAsync(runner, record.Workspace.Path!, ct));
+            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId, record.Settings.TempRoot?.Value).Variables;
+            environment["MSBUILDDISABLENODEREUSE"] = "1";
+            environment["UseSharedCompilation"] = "false";
+            foreach (var command in commands)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (Cancelled()) return End();
+                (VerifyResult Result, string Log, Exception? Error) executed;
+                try
+                {
+                    commandRunning = true;
+                    executed = prepareCommand is not null
+                        ? await prepareCommand(run, command, environment, commandCancellation.Token)
+                        : await Verifier.RunCommandAsync(record.Spec, null, record.Workspace.Path!, environment, command, false, ct, commandCancellation.Token);
+                    commandRunning = false;
+                }
+                catch (OperationCanceledException) when (!ct.IsCancellationRequested && Cancelled()) { return End(); }
+                if (ct.IsCancellationRequested) executed = Verifier.CancelledCommand(executed);
+                record.Prepare.Add(executed.Result);
+                ledger.SaveRecord(record);
+                await File.AppendAllTextAsync(logPath, executed.Log, CancellationToken.None);
+                ct.ThrowIfCancellationRequested();
+                if (Cancelled()) return End();
+                if (executed.Error is not null || Verifier.Failed(executed.Result))
+                    return End("prepare-failed", executed.Result.TimedOut ? $"prepare command {record.Prepare.Count} {executed.Error?.Message ?? "timed out"}"
+                        : executed.Error?.Message ?? $"prepare command {record.Prepare.Count} exited {executed.Result.ExitCode}");
+            }
+            if (Cancelled()) return End();
+            var after = await Check(() => snapshot(runner, record.Workspace.Path!, indexTask, false, ct));
+            if (Cancelled()) return End();
+            var afterHead = await Check(() => prepareHead?.Invoke(runner, record.Workspace.Path!, indexTask, false, ct) ?? ReadHeadAsync(runner, record.Workspace.Path!, ct));
+            if (before != after)
+            {
+                var diff = await Check(() => runner.CheckAsync(record.Workspace.Path!, ct, "diff", "--name-only", "-z", "--no-renames", before, after));
+                var paths = diff.Split('\0', StringSplitOptions.RemoveEmptyEntries).Order(StringComparer.Ordinal).ToList();
+                return End("prepare-changed-workspace", string.Join(", ", paths.Take(20)) + (paths.Count > 20 ? $", and {paths.Count - 20} more" : ""), changed: true);
+            }
+            if (head != afterHead) return End("prepare-changed-workspace", $"prepare moved HEAD from {head} to {afterHead}", changed: true);
+            ct.ThrowIfCancellationRequested();
+            if (Cancelled()) return End();
+            record.PrepareRunning = false;
+            record.PrepareDone = true;
+            ledger.SaveRecord(record);
+            ledger.Write(run.Id, "prepared", new JsonObject { ["commands"] = record.Prepare.Count, ["failed"] = 0, ["changed"] = false });
+            return null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
+        {
+            return End("prepare-failed", ex.Message, checkFailed: checkFailed ? true : commandRunning ? null : false);
+        }
+        finally
+        {
+            run.PrepareCancellation = null;
+            if (runner is not null) Snapshot.Delete(runner, indexTask);
+        }
+    }
+
+    static async Task<string> ReadHeadAsync(Git git, string cwd, CancellationToken ct)
+    {
+        var head = await git.RunAsync(cwd, ct, "rev-parse", "--verify", "HEAD^{commit}");
+        if (head.ExitCode == 0)
+        {
+            var id = head.Output.Trim();
+            if (!Regex.IsMatch(id, "\\A[0-9a-f]{40}([0-9a-f]{24})?\\z")) throw new HarnessException("git returned an invalid object id");
+            return id;
+        }
+        var symbolic = await git.RunAsync(cwd, ct, "symbolic-ref", "--quiet", "HEAD");
+        if (symbolic.ExitCode == 0 && (await git.RunAsync(cwd, ct, "show-ref", "--verify", "--quiet", symbolic.Output.Trim())).ExitCode == 1) return "unborn";
+        throw new HarnessException($"git rev-parse --verify HEAD^{{commit}} failed in {cwd}: {head.Stderr.Trim()}");
     }
 }

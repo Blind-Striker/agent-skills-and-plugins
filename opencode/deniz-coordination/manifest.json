@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-coordination",
-  "version": "0.1.4",
-  "digest": "sha256:01b6cad60b7425b1cee416eb35c83baa7fff683fdd1cfbfe87e2186ecc371193",
+  "version": "0.1.5",
+  "digest": "sha256:6af3b291584ee2967c878352016d7c36a2d7915e511de99941ad302f21ec47a4",
   "requiredModules": [
     "deniz-process"
   ],
@@ -52,7 +52,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/prompt-template.md": {
-      "sha256": "sha256:d346370334528135d0350142b2dac1895f47252894ef97bcda8222b069bb20c3",
+      "sha256": "sha256:0f3a91d56ad67f85d2d52e418ec47abf4054f39748c05c8bb35e9a9748dcc959",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/repo-addendum-template.md": {

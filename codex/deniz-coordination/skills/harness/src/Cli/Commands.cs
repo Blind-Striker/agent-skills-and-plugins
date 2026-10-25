@@ -405,6 +405,12 @@ static partial class Commands
                 record.Settings = frozen.Tasks[task].Settings;
                 ConfigLayers.Apply(record.Spec, record.Settings);
                 var run = TaskRun.FromLedger(record, ledger);
+                if (record.PrepareRunning == true)
+                {
+                    ledger.Write(task, "queued", new JsonObject { ["kind"] = record.Spec.Kind });
+                    ledger.Write(task, "error", new JsonObject { ["message"] = $"{task}: prepare was interrupted by a supervisor exit; a command may still run on this host. Check for it, then clean the task and start it under a new run id." });
+                    continue;
+                }
                 if (record.Session.Id is null && !proceed)
                 {
                     Console.WriteLine($"{task}: never prompted; `resume --continue` dispatches it");

@@ -24,7 +24,7 @@ static partial class Commands
             return 1;
         }
 
-        // Without a supervisor nothing runs: the private server and its sessions ended with it.
+        // Private backend sessions ended with the supervisor; a prepare command may have survived.
         state = ledger.TaskStates().GetValueOrDefault(task);
         if (state is "done" or "failed" or "cancelled")
         {
@@ -32,7 +32,19 @@ static partial class Commands
             return 0;
         }
 
-        ledger.Write(task, "final", new JsonObject { ["state"] = "cancelled", ["reason"] = "cancelled while no supervisor ran" });
+        var reason = "cancelled while no supervisor ran";
+        var record = ledger.LoadRecord(task);
+        if (record.PrepareRunning == true)
+        {
+            reason = "prepare-interrupted: a prepare command may still run on this host";
+            ledger.SaveRecord(record);
+            using (File.Open(Path.Combine(ledger.TaskDir(task), "prepare.log"), FileMode.Append)) { }
+            ledger.Write(task, "prepared", new JsonObject { ["commands"] = record.Prepare?.Count ?? 0, ["failed"] = 0, ["cancelled"] = true });
+            ledger.SaveResult(new TaskResult { Run = ledger.RunId, Task = task, Kind = record.Spec.Kind,
+                Backend = record.Settings.Backend?.Value, State = "cancelled", Outcome = "cancelled",
+                CancelRequested = true, Prepare = record.Prepare, Warnings = [reason] });
+        }
+        ledger.Write(task, "final", new JsonObject { ["state"] = "cancelled", ["reason"] = reason });
         Console.WriteLine($"{ledger.RunId}/{task} marked cancelled; resume skips it");
         return 0;
     }

@@ -158,6 +158,9 @@ sealed class TaskRecord : VersionedContract
     public string? RouteResolved { get; set; }
     public SessionRecord Session { get; set; } = new();
     public BackendState BackendState { get; set; } = new();
+    public List<VerifyResult>? Prepare { get; set; }
+    public bool? PrepareRunning { get; set; }
+    public bool? PrepareDone { get; set; }
 }
 
 sealed class WorkspaceRecord
@@ -260,6 +263,7 @@ sealed class TaskResult : VersionedContract
     public List<string> FilesChanged { get; set; } = [];
     public List<string> OutOfScope { get; set; } = [];
     public List<VerifyResult> Verify { get; set; } = [];
+    public List<VerifyResult>? Prepare { get; set; }
     public string? VerifyShell { get; set; }
     public string? Deliverable { get; set; }
     public ValidationResult? Validation { get; set; }

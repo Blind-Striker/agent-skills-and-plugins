@@ -326,22 +326,22 @@ Every completed attempt saves its record, maintains the log and emits exactly on
 
 | Case | `prepared` payload | Terminal state / `failures` | Evidence and `error` |
 |---|---|---|---|
-| Success | `{commands:n,failed:0,changed:false}` | Worker continues | All entries; done flags saved; ordinary settlement writes result/final later. |
-| Non-zero | `{commands:k,failed:1}` | `failed` / `["prepare-failed"]` | Include failing entry; `prepare command <n> exited <code>`. |
-| Timeout | `{commands:k,failed:1}` | `failed` / `["prepare-failed"]` | Include `timedOut: true`; `prepare command <n> timed out after 30 minutes`. |
-| Start failure | `{commands:k,failed:1}` | `failed` / `["prepare-failed"]` | Include exit `-1` and exception message in log; task error contains that message. |
-| Cancel | `{commands:k,failed:0,cancelled:true}` | `cancelled` / `[]` | Preserve executed entries; killed command exit `-1`, `timedOut: false`; no synthetic pre-start entry. |
-| Baseline Git failure | `{commands:0,failed:0,checkFailed:true}` | `failed` / `["prepare-failed"]` | Empty array; Git's message. |
-| Check Git failure | `{commands:n,failed:0,checkFailed:true}` | `failed` / `["prepare-failed"]` | All entries; Git's message. |
-| Other preparation failure (such as log writing or environment setup) | `{commands:k,failed:0,checkFailed:false}` | `failed` / `["prepare-failed"]` | Preserve completed entries; exception message. |
-| Workspace change | `{commands:n,failed:0,changed:true}` | `failed` / `["prepare-changed-workspace"]` | All entries; paths or HEAD diagnostic per [task-file lifecycle](task-file.md#preparation). |
+| Success | `{"commands": n, "failed": 0, "changed": false}` | Worker continues | All entries; done flags saved; ordinary settlement writes result/final later. |
+| Non-zero | `{"commands": k, "failed": 1}` | `failed` / `["prepare-failed"]` | Include failing entry; `prepare command <n> exited <code>`. |
+| Timeout | `{"commands": k, "failed": 1}` | `failed` / `["prepare-failed"]` | Include `timedOut: true`; `prepare command <n> timed out after 30 minutes`. |
+| Start failure | `{"commands": k, "failed": 1}` | `failed` / `["prepare-failed"]` | Include exit `-1` and exception message in log; task error contains that message. |
+| Cancel | `{"commands": k, "failed": 0, "cancelled": true}` | `cancelled` / `[]` | Preserve executed entries; killed command exit `-1`, `timedOut: false`; no synthetic pre-start entry. |
+| Baseline Git failure | `{"commands": 0, "failed": 0, "checkFailed": true}` | `failed` / `["prepare-failed"]` | Empty array; Git's message. |
+| Check Git failure | `{"commands": n, "failed": 0, "checkFailed": true}` | `failed` / `["prepare-failed"]` | All entries; Git's message. |
+| Other preparation failure (such as log writing or environment setup) | `{"commands": k, "failed": 0, "checkFailed": false}` | `failed` / `["prepare-failed"]` | Preserve completed entries; exception message. |
+| Workspace change | `{"commands": n, "failed": 0, "changed": true}` | `failed` / `["prepare-changed-workspace"]` | All entries; paths or HEAD diagnostic per [task-file lifecycle](task-file.md#preparation). |
 
 Here `n` is the full list length, `k` the number executed, and command numbers are one-based.
 Every non-success row writes an explicit sessionless `result.json` before `final`; task `timedOut`
 is always false. Failure/cancel retains the running flag and workspace. A terminal final is never
 replayed; interrupted non-terminal recovery is described in [CLI](cli.md#resume-run---continue---ledger-dir).
 Unsupervised interrupted cancel preserves recorded entries and the running flag, maintains log/record,
-emits `prepared {commands:<recorded>, failed:0, cancelled:true}` and saves a cancelled result with
+emits `prepared {"commands": <recorded>, "failed": 0, "cancelled": true}` and saves a cancelled result with
 `failures: []` before `final`.
 Its exact result warning and final `reason` are
 `prepare-interrupted: a prepare command may still run on this host`.

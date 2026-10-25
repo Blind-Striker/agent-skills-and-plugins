@@ -55,13 +55,14 @@ sealed class CodexProcess : IAsyncDisposable
     internal Func<int, DateTime?> QueryLimitedStartTime { get; set; } = ReadLimitedStartTime;
     internal Action<int, string>? DescendantUnobservable { get; set; }
     internal Func<string, string> ReadProcStat { get; set; } = File.ReadAllText;
+    internal Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>> ReadSnapshot { get; set; } = ReadParents;
 
     // Supervisor snapshots are best effort: a wrapper can exit before its children are observed.
     public void RefreshDescendants()
     {
         lock (gate)
         {
-            var parents = ReadParents(ReadProcStat);
+            var parents = ReadSnapshot(ReadProcStat);
             var owners = new HashSet<int>();
             if (IsAlive(Identity, OpenProcess, QueryLimitedStartTime, ReadProcStat, confirmedOnly: true)) owners.Add(Id);
             foreach (var identity in descendants.Values)
@@ -70,9 +71,12 @@ sealed class CodexProcess : IAsyncDisposable
             do
             {
                 added = false;
-                foreach (var (pid, parent) in parents)
+                foreach (var (pid, entry) in parents)
                 {
+                    var parent = entry.Parent;
                     if (!owners.Contains(parent) || owners.Contains(pid)) continue;
+                    if (entry.CreationTime is { } created && parents.TryGetValue(parent, out var owner)
+                        && owner.CreationTime is { } parentCreated && created < parentCreated) continue;
                     try
                     {
                         var start = ReadStartTime(pid, OpenProcess, QueryLimitedStartTime);
@@ -449,17 +453,38 @@ sealed class CodexProcess : IAsyncDisposable
         throw new Win32Exception(error);
     }
 
-    static Dictionary<int, int> ReadParents(Func<string, string>? readProcStat = null)
+    static Dictionary<int, (int Parent, DateTime? CreationTime)> ReadParents(Func<string, string>? readProcStat = null)
     {
-        var parents = new Dictionary<int, int>();
+        var parents = new Dictionary<int, (int Parent, DateTime? CreationTime)>();
         if (OperatingSystem.IsWindows())
         {
-            using var snapshot = Native.CreateToolhelp32Snapshot(2, 0);
-            if (snapshot.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
-            var entry = new Native.ProcessEntry { Size = (uint)Marshal.SizeOf<Native.ProcessEntry>() };
-            if (!Native.Process32FirstW(snapshot, ref entry)) throw new Win32Exception(Marshal.GetLastWin32Error());
-            do { parents[(int)entry.Pid] = (int)entry.Parent; } while (Native.Process32NextW(snapshot, ref entry));
-            if (Marshal.GetLastWin32Error() != 18) throw new Win32Exception(Marshal.GetLastWin32Error());
+            var size = 1024 * 1024;
+            while (true)
+            {
+                var buffer = Marshal.AllocHGlobal(size);
+                try
+                {
+                    var status = Native.NtQuerySystemInformation(5, buffer, size, out var required); // SystemProcessInformation
+                    if (status == unchecked((int)0xC0000004)) // STATUS_INFO_LENGTH_MISMATCH
+                    {
+                        size = required + 64 * 1024;
+                        continue;
+                    }
+                    if (status < 0) throw new Win32Exception(status, $"NtQuerySystemInformation failed: 0x{status:X8}");
+                    var entry = buffer;
+                    while (true)
+                    {
+                        var pid = (int)Marshal.ReadIntPtr(entry, IntPtr.Size == 8 ? 80 : 68);
+                        var parent = (int)Marshal.ReadIntPtr(entry, IntPtr.Size == 8 ? 88 : 72);
+                        parents[pid] = (parent, DateTime.FromFileTimeUtc(Marshal.ReadInt64(entry, 32)));
+                        var next = Marshal.ReadInt32(entry);
+                        if (next == 0) break;
+                        entry = IntPtr.Add(entry, next);
+                    }
+                    break;
+                }
+                finally { Marshal.FreeHGlobal(buffer); }
+            }
         }
         else if (OperatingSystem.IsLinux())
         {
@@ -470,7 +495,7 @@ sealed class CodexProcess : IAsyncDisposable
                 {
                     var stat = (readProcStat ?? File.ReadAllText)(Path.Combine(path, "stat"));
                     var fields = stat[(stat.LastIndexOf(')') + 2)..].Split(' ');
-                    parents[pid] = int.Parse(fields[1], CultureInfo.InvariantCulture);
+                    parents[pid] = (int.Parse(fields[1], CultureInfo.InvariantCulture), null);
                 }
                 catch (FileNotFoundException) { continue; }
                 catch (DirectoryNotFoundException) { continue; }
@@ -488,7 +513,7 @@ sealed class CodexProcess : IAsyncDisposable
             while (ps.StandardOutput.ReadLine() is { } line)
             {
                 var fields = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-                if (fields.Length >= 2 && int.TryParse(fields[0], out var pid) && int.TryParse(fields[1], out var parent)) parents[pid] = parent;
+                if (fields.Length >= 2 && int.TryParse(fields[0], out var pid) && int.TryParse(fields[1], out var parent)) parents[pid] = (parent, null);
             }
             ps.WaitForExit();
             if (ps.ExitCode != 0) throw new IOException($"cannot enumerate descendants: {stderr.GetAwaiter().GetResult()}");
@@ -702,17 +727,6 @@ sealed class CodexProcess : IAsyncDisposable
             public long UserTime, KernelTime, PeriodUserTime, PeriodKernelTime;
             public uint PageFaults, TotalProcesses, ActiveProcesses, TerminatedProcesses;
         }
-        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        internal struct ProcessEntry
-        {
-            public uint Size, Usage, Pid;
-            public nuint DefaultHeap;
-            public uint ModuleId, Threads, Parent;
-            public int Priority;
-            public uint Flags;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)] public string? Executable;
-        }
-
         [DllImport("kernel32.dll", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
         internal static extern SafeFileHandle CreateJobObjectW(IntPtr attributes, string? name);
         [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
@@ -727,14 +741,8 @@ sealed class CodexProcess : IAsyncDisposable
         [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static extern bool QueryInformationJobObject(SafeFileHandle job, int infoClass, out JobAccounting accounting, uint length, IntPtr returnedLength);
-        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
-        internal static extern SafeFileHandle CreateToolhelp32Snapshot(uint flags, uint processId);
-        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool Process32FirstW(SafeFileHandle snapshot, ref ProcessEntry entry);
-        [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool Process32NextW(SafeFileHandle snapshot, ref ProcessEntry entry);
+        [DllImport("ntdll.dll")]
+        internal static extern int NtQuerySystemInformation(int infoClass, IntPtr buffer, int length, out int returnedLength);
         [DllImport("libc", ExactSpelling = true, SetLastError = true)]
         internal static extern int getpgid(int pid);
         [DllImport("libc", ExactSpelling = true, SetLastError = true)]

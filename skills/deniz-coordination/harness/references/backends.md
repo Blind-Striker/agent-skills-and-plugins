@@ -165,7 +165,7 @@ configured `writableRoots`. A task that must write elsewhere (another cache fold
 
 **Windows .NET and MSYS limits.** With `[windows] sandbox = "elevated"`, an outside restore enables
 inside-sandbox .NET builds and tests, including project references and Microsoft.Testing.Platform
-(measured once on 2026-10-25; record `2026-10-25-dispatch-prepare-windows-elevated` in this repository's
+(measured once; the `dispatch-prepare-windows-elevated` record in this repository's
 `experiments/harness-invocation/records/`).
 A restore inside the sandbox that has to download packages fails with NU1301 (an SChannel error).
 Use [prepare dependency recipes](guide.md#dependencies-and-the-sandbox), not blanket full access.

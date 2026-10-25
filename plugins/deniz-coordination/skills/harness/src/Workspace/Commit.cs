@@ -40,7 +40,7 @@ static class Commit
             var staged = await git.RunAsync(wt, ct, "diff", "--cached", "--quiet", "--ignore-submodules=none", "--no-ext-diff", "--no-textconv");
             if (staged.ExitCode == 1)
             {
-                var commit = await git.RunAsync(wt, CancellationToken.None, "commit", "-q", "--no-verify", "-m", $"dispatch: {ledger.RunId}/{run.Id}");
+                var commit = await git.RunAsync(wt, CancellationToken.None, "commit", "-q", "--no-verify", "-m", $"chore(dispatch): {ledger.RunId}/{run.Id}");
                 if (commit.ExitCode != 0) result.Error = $"harness commit failed: {commit.Stderr.Trim()}";
             }
             else if (staged.ExitCode != 0) throw new HarnessException($"git staged diff failed: {staged.Stderr.Trim()}");

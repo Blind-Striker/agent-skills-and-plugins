@@ -68,10 +68,12 @@ static partial class Ready
         + string.Concat(readOnly.Select(path => $" (deny file-write* {Subpath(path)})"));
 
     public static IReadOnlyList<string> FenceCommand(string kind, string executable, IReadOnlyList<string> command,
-        IReadOnlyList<string> writable, IReadOnlyList<string> readOnly, string? directory, string? runtime) => kind == "bwrap"
+        IReadOnlyList<string> writable, IReadOnlyList<string> readOnly, string? directory, string? runtime,
+        (string Source, string Target)? runfile = null) => kind == "bwrap"
         ? [executable, "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
             .. directory is null ? Array.Empty<string>() : ["--ro-bind", directory, directory],
             .. writable.Where(path => path != "/dev").SelectMany(path => new[] { "--bind", path, path }),
+            .. runfile is { } bind ? new[] { "--bind", bind.Source, bind.Target } : Array.Empty<string>(),
             .. runtime is null ? Array.Empty<string>() : ["--tmpfs", runtime],
             .. readOnly.SelectMany(path => new[] { "--ro-bind", path, path }), "--", .. command]
         : [executable, "-p", FenceProfile(writable, readOnly), .. command];
@@ -134,7 +136,9 @@ sealed class HarnessServer : IAsyncDisposable
     {
         var output = new OpenCodeServerOutput();
         var command = Command(context.Executable);
-        OpenCodeServer server;
+        OpenCodeServer? server = null;
+        string? temporary = null, runfileSource = null;
+        bool temporaryCreated = false, runfileCreated = false;
         var environment = WorkerEnvironment.Copy(context.Passthrough);
         if (launch is not null && Ready.Fenced(modes))
             foreach (var (name, value) in launch.Environment) environment[name] = value;
@@ -152,44 +156,52 @@ sealed class HarnessServer : IAsyncDisposable
             environment["OPENCODE_CONFIG_PROJECT_DISABLE"] = "1";
             environment["OPENCODE_DISABLE_PROJECT_CONFIG"] = "1";
         }
-        if (launch is not null && Ready.Fenced(modes))
-        {
-            if (await Ready.FenceAsync(ct) is { } refusal) throw new HarnessException(refusal);
-            environment["XDG_CACHE_HOME"] = Path.Combine(launch.Environment["TEMP"], "cache");
-            // macOS caps a Unix socket path near 104 bytes; a tool whose socket does not fit under a long TMPDIR falls back
-            // to /tmp, which the fence denies. A short private folder keeps those sockets inside the fence.
-            var temporary = OperatingSystem.IsMacOS()
-                ? "/private/tmp/dispatch-" + Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(6)).ToLowerInvariant()
-                : Path.Combine(launch.Environment["TEMP"], "tmp");
-            foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
-                environment[name] = temporary;
-            var inherited = WorkerEnvironment.Snapshot();
-            foreach (var (name, value) in environment) inherited[name] = value;
-            string? common = null;
-            var git = await new Git(Executables.Resolve("git"), profileRoot, launch.Environment)
-                .RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
-            if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
-            var writable = Ready.WritableSet(launch, profileRoot, inherited.GetValueOrDefault("HOME")
-                ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), inherited, common);
-            foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
-            Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
-            if (OperatingSystem.IsMacOS())
-            {
-                Directory.CreateDirectory(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-                writable = [.. writable, temporary];
-            }
-            else Directory.CreateDirectory(temporary);
-            var readOnly = new List<string> { Path.Combine(writable[0], "bin") };
-            if (Ready.FenceKind == "bwrap" && modes.Access == "read-only" && common is not null && Worktree.IsInside(common, "/tmp"))
-                readOnly.Add(common);
-            if (common is not null) readOnly.AddRange(new[] { Path.Combine(common, "hooks"), Path.Combine(common, "config") }.Where(Path.Exists));
-            if (Ready.FenceKind == "bwrap") readOnly.RemoveAll(path => !Path.Exists(path));
-            var runtime = inherited.GetValueOrDefault("XDG_RUNTIME_DIR");
-            command = Ready.FenceCommand(Ready.FenceKind!, Ready.FenceExecutable, command, writable, readOnly,
-                modes.Access == "read-only" ? launch.Directory : null, Directory.Exists(runtime) ? runtime : null);
-        }
         try
         {
+            if (launch is not null && Ready.Fenced(modes))
+            {
+                if (await Ready.FenceAsync(ct) is { } refusal) throw new HarnessException(refusal);
+                environment["XDG_CACHE_HOME"] = Path.Combine(launch.Environment["TEMP"], "cache");
+                // Unix socket paths are capped near 108 bytes (104 on macOS); keep tool sockets inside the fence.
+                temporary = (OperatingSystem.IsMacOS() ? "/private/tmp" : "/var/tmp") + "/dispatch-"
+                    + Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(6)).ToLowerInvariant();
+                foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
+                    environment[name] = temporary;
+                var inherited = WorkerEnvironment.Snapshot();
+                foreach (var (name, value) in environment) inherited[name] = value;
+                string? common = null;
+                var git = await new Git(Executables.Resolve("git"), profileRoot, launch.Environment)
+                    .RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
+                if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
+                var home = inherited.GetValueOrDefault("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                var writable = Ready.WritableSet(launch, profileRoot, home, inherited, common);
+                foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
+                Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
+                if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
+                {
+                    Directory.CreateDirectory(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                    temporaryCreated = true;
+                    writable = [.. writable, temporary];
+                }
+                (string Source, string Target)? runfile = null;
+                if (OperatingSystem.IsLinux())
+                {
+                    var target = Path.Combine(inherited.GetValueOrDefault("XDG_DATA_HOME") is { Length: > 0 } data && data.StartsWith('/')
+                        ? data : Path.Combine(home, ".local/share"), "dotnet", "runfile");
+                    runfileSource = temporary + "-runfile";
+                    CreateRunfileFolder(launch.TaskId, runfileSource);
+                    runfileCreated = true;
+                    runfile = (runfileSource, Directory.CreateDirectory(target).FullName);
+                }
+                var readOnly = new List<string> { Path.Combine(writable[0], "bin") };
+                if (Ready.FenceKind == "bwrap" && modes.Access == "read-only" && common is not null && Worktree.IsInside(common, "/tmp"))
+                    readOnly.Add(common);
+                if (common is not null) readOnly.AddRange(new[] { Path.Combine(common, "hooks"), Path.Combine(common, "config") }.Where(Path.Exists));
+                if (Ready.FenceKind == "bwrap") readOnly.RemoveAll(path => !Path.Exists(path));
+                var runtime = inherited.GetValueOrDefault("XDG_RUNTIME_DIR");
+                command = Ready.FenceCommand(Ready.FenceKind!, Ready.FenceExecutable, command, writable, readOnly,
+                    modes.Access == "read-only" ? launch.Directory : null, Directory.Exists(runtime) ? runtime : null, runfile);
+            }
             server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
             {
                 Command = command,
@@ -204,14 +216,20 @@ sealed class HarnessServer : IAsyncDisposable
             var tail = output.GetSnapshot().StandardError.TakeLast(20);
             throw new HarnessException($"server start failed: {ex.Message}\n{string.Join('\n', tail)}");
         }
+        finally
+        {
+            if (server is null)
+                foreach (var (folder, created) in new[] { (temporary, temporaryCreated), (runfileSource, runfileCreated) })
+                    try { if (created) Directory.Delete(folder!, recursive: true); }
+                    catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
+        }
 
         var description = command[0].EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ? "opencode.exe (shim resolved)" : command[0];
         var host = new HarnessServer(server, server.CreateClient(), output, description);
         if (launch is not null && Ready.Fenced(modes))
         {
-            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"]];
-            if (OperatingSystem.IsMacOS())
-                host.SessionOverrides = new[] { "TEMP", "TMP", "TMPDIR" }.ToDictionary(name => name, _ => environment["TMPDIR"]);
+            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"], .. runfileSource is null ? Array.Empty<string>() : [runfileSource]];
+            host.SessionOverrides = new[] { "TEMP", "TMP", "TMPDIR" }.ToDictionary(name => name, _ => environment["TMPDIR"]);
         }
         try
         {
@@ -230,6 +248,13 @@ sealed class HarnessServer : IAsyncDisposable
             await host.DisposeAsync();
             throw;
         }
+    }
+
+    static void CreateRunfileFolder(string taskId, string source)
+    {
+        if (Directory.Exists(source))
+            throw new HarnessException($"{taskId}: refused an existing private runfile folder: {source}");
+        if (OperatingSystem.IsLinux()) Directory.CreateDirectory(source, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
     }
 
     // On Windows the npm shim runs through cmd.exe and leaves the real server outside the job

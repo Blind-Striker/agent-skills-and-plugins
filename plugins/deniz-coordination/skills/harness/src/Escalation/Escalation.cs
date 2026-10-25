@@ -164,6 +164,7 @@ sealed class Escalation(IReadOnlyDictionary<string, IWorkerBackend> backends, Le
                 if (request.Run != ledger.RunId || task is null || task.IsFinal)
                     throw new JsonException("cancel must name a non-final task of this run");
                 task.CancelRequested = true;
+                task.PrepareCancellation?.Cancel();
                 ledger.Write(task.Id, "cancel", new JsonObject { ["time"] = request.Time, ["state"] = task.State.ToString().ToLowerInvariant() });
             }
             catch (JsonException ex)

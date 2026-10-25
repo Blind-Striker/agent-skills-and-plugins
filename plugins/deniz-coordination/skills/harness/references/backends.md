@@ -102,11 +102,20 @@ Sessions inherit harness denies on the edit tool for the control folder and that
 Fenced servers allow writes to opencode's data and state folders (`XDG_DATA_HOME/opencode` and
 `XDG_STATE_HOME/opencode`, otherwise the usual home fallbacks), task temp and `/dev`. The user's
 opencode cache and config folders and the server's profile root are not granted write access.
-Each fenced server gets a private `XDG_CACHE_HOME` and `TMPDIR`/`TEMP`/`TMP` under task temp. On
-macOS the temp variables, the server's and its session shells', instead name a short private folder
-`/private/tmp/dispatch-<random>`, writable and removed with the server: macOS caps a Unix socket path near 104 bytes, and a tool whose
-socket does not fit under a long `TMPDIR` (the .NET test host's named pipe, for one) falls back to
-`/tmp`, which the fence denies. On Linux, a worker whose environment has no existing `XDG_RUNTIME_DIR`
+Each fenced server gets a private `XDG_CACHE_HOME` under task temp. On Linux and macOS,
+`TMPDIR`/`TEMP`/`TMP`, for the server and its session shells, name a short private folder:
+`/var/tmp/dispatch-<12 hex>` on Linux, `/private/tmp/dispatch-<12 hex>` on macOS, created with mode 0700,
+writable and removed with the server. A harness killed before disposal leaves `/var/tmp/dispatch-*`
+folders, which survive a reboot and may be removed by hand when no run is active. A writable root that
+contains `/var/tmp` lets that task's worker reach these folders; grant it only on purpose.
+Unix socket paths are capped near 108 bytes (104 on macOS);
+long temp paths break the .NET test host's named pipe, and tools falling back to global `/tmp` on
+macOS are denied by the fence. Linux also binds a fresh mode-0700 `<private temp>-runfile` folder,
+removed with the server, over
+`<XDG_DATA_HOME>/dotnet/runfile` (using `$HOME/.local/share` unless `XDG_DATA_HOME` starts with `/`),
+so each task reads and writes only its private file-based app cache: the shared folder holds the
+harness's own `dispatch.cs` build, which a worker must not change before the harness runs it unfenced.
+On Linux, a worker whose environment has no existing `XDG_RUNTIME_DIR`
 (the harness started from cron or a service, say) gets a private one, `<task temp>/runtime`:
 without it, .NET keeps named-mutex memory under the home, which the fence makes read-only.
 Workspace access also allows the workspace, Git common folder and configured writable roots.
@@ -154,16 +163,20 @@ The `workspace-write` sandbox lets a task write inside its workspace, its task t
 configured `writableRoots`. A task that must write elsewhere (another cache folder, for example) or start
 `wsl.exe` fails there.
 
-**Known limit: .NET and MSYS tools in the Windows sandbox.** In both of the sandbox's Windows modes,
-measured and reported upstream, `dotnet build` and `dotnet test` fail on the NuGet cache, MSBuild
-temp files, named pipes and project-reference evaluation, often with no diagnostic, and MSYS-based
-tools (Git Bash, `git submodule`) fail on shared memory (openai/codex#13183, #39927, #15295,
-#21715). Several of these failures exit 0: a submodule stays empty and the step still passes. Read
-a sandboxed command's output, never its exit code alone. A Windows task that must build or test
-.NET runs with `access: full`, chosen explicitly; the ledger records that it ran without the
-sandbox. On Windows, opencode's `workspace` is already unfenced, so the same task runs there without
-`access: full` and with the same exposure. On Linux/macOS, use fenced workspace access and the
-[build-cache recipe](config.md#writable-roots) instead of removing the fence for build caches.
+**Windows .NET and MSYS limits.** With `[windows] sandbox = "elevated"`, an outside restore enables
+inside-sandbox .NET builds and tests, including project references and Microsoft.Testing.Platform
+(measured once; the `dispatch-prepare-windows-elevated` record in this repository's
+`experiments/harness-invocation/records/`).
+A restore inside the sandbox that has to download packages fails with NU1301 (an SChannel error).
+Use [prepare dependency recipes](guide.md#dependencies-and-the-sandbox), not blanket full access.
+Unelevated mode retains the recorded NuGet-cache, MSBuild-temp, named-pipe and project-reference
+failures, often without diagnostics. MSYS tools (Git Bash, `git submodule`) retain shared-memory
+failures (openai/codex#13183, #39927, #15295, #21715). Several failures exit 0: a submodule may stay
+empty while the step passes. Read output, never just exit codes. If these limits require
+`access: full`, choose it explicitly; the ledger records the missing sandbox. On Windows, opencode's
+`workspace` is already unfenced, so the same task runs there without `access: full` and with the same
+exposure. On Linux/macOS, use fenced workspace access and the [build-cache recipe](config.md#writable-roots)
+instead of removing the fence for build caches.
 
 On Linux and macOS, sandbox prerequisites depend on the installed runtime and host. A fake protocol
 test or build does not prove enforcement; a Functional test that tries an outside write must pass
@@ -201,6 +214,7 @@ recorded with its outcome. On Windows the denied attempt is recorded as a failed
 upstream report is openai/codex#56396; check it before a Codex pin moves.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
+On Windows, a process created before its recorded parent is a parent-PID reuse and is never adopted.
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
 timeout, either resume mode settles a started non-final Codex task as failed with outcome `lost`;
 recorded stop requests retain their cancelled or timeout outcome. Use a new run id for a retry. An

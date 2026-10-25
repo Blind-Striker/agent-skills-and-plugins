@@ -27,6 +27,7 @@ sealed class TaskRun
     public bool TimedOut { get; set; }
 
     public bool CancelRequested { get; set; }
+    public CancellationTokenSource? PrepareCancellation { get; set; }
 
     public bool CancelSent { get; set; }
 

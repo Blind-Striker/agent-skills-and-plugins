@@ -29,20 +29,10 @@ static class Verifier
             environment["UseSharedCompilation"] = "false";
             foreach (var (command, advisory) in commands)
             {
-                var started = Stopwatch.StartNew();
-                string[] args = (run.Record.Spec.Shell ?? (OperatingSystem.IsWindows() ? "pwsh" : "bash")) == "pwsh"
-                    ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command]
-                    : ["--noprofile", "--norc", "-c", command];
-                var executable = shell;
-                if (!OperatingSystem.IsWindows())
-                {
-                    executable = Executables.Resolve("nice");
-                    args = ["-n", "10", shell, .. args];
-                }
-                var outcome = await Proc.RunAsync(executable, args, run.Record.Workspace.Path!, ct, Constants.VerifyTimeout, belowNormal: true, environment: environment);
-                result.Verify.Add(new VerifyResult { Command = command, ExitCode = outcome.ExitCode, Seconds = Math.Round(started.Elapsed.TotalSeconds, 1), TimedOut = outcome.TimedOut, Advisory = advisory ? true : null });
-                log.AppendLine(advisory ? $"$ (advisory) {command}" : $"$ {command}").AppendLine("[stdout]").AppendLine(outcome.Output)
-                    .AppendLine("[stderr]").AppendLine(outcome.Stderr).AppendLine($"[exit {outcome.ExitCode} after {started.Elapsed.TotalSeconds:0.0}s]").AppendLine();
+                var executed = await RunCommandAsync(run.Record.Spec, shell, run.Record.Workspace.Path!, environment, command, advisory, ct);
+                if (executed.Error is { } error) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+                result.Verify.Add(executed.Result);
+                log.Append(executed.Log);
             }
         }
         else if (commands.Count > 0) log.AppendLine($"verification skipped: outcome {result.Outcome}");
@@ -53,4 +43,57 @@ static class Verifier
     }
 
     public static bool Failed(VerifyResult result) => result.NotRun is null && (result.ExitCode != 0 || result.TimedOut);
+
+    public static async Task<(VerifyResult Result, string Log, Exception? Error)> RunCommandAsync(TaskSpec spec, string? shell,
+        string cwd, IReadOnlyDictionary<string, string> environment, string command, bool advisory, CancellationToken ct,
+        CancellationToken cancelReason = default, TimeSpan? timeout = null)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, cancelReason);
+        linked.Token.ThrowIfCancellationRequested();
+        var started = Stopwatch.StartNew();
+        ProcessResult outcome;
+        Exception? error = null;
+        try
+        {
+            shell ??= ResolveShell(spec);
+            string[] args = (spec.Shell ?? (OperatingSystem.IsWindows() ? "pwsh" : "bash")) == "pwsh"
+                ? ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command]
+                : ["--noprofile", "--norc", "-c", command];
+            var executable = shell;
+            if (!OperatingSystem.IsWindows())
+            {
+                executable = Executables.Resolve("nice");
+                args = ["-n", "10", shell, .. args];
+            }
+            outcome = await Proc.RunAsync(executable, args, cwd, linked.Token, timeout ?? Constants.VerifyTimeout, belowNormal: true, environment: environment);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            error = ex;
+            outcome = new(-1, [], ex.Message, false);
+        }
+        if (outcome.TimedOut && cancelReason.CanBeCanceled && !cancelReason.IsCancellationRequested)
+        {
+            var limit = timeout ?? Constants.VerifyTimeout;
+            var amount = limit.TotalMinutes >= 1 ? limit.TotalMinutes : limit.TotalSeconds;
+            var unit = limit.TotalMinutes >= 1 ? "minute" : "second";
+            error = new TimeoutException(FormattableString.Invariant($"timed out after {amount:g} {unit}{(amount == 1 ? "" : "s")}"));
+        }
+        var result = new VerifyResult { Command = command, ExitCode = outcome.ExitCode, Seconds = Math.Round(started.Elapsed.TotalSeconds, 1),
+            TimedOut = outcome.TimedOut, Advisory = advisory ? true : null };
+        var log = new StringBuilder().AppendLine(advisory ? $"$ (advisory) {command}" : $"$ {command}").AppendLine("[stdout]").AppendLine(outcome.Output)
+            .AppendLine("[stderr]").AppendLine(outcome.Stderr).AppendLine($"[exit {outcome.ExitCode} after {started.Elapsed.TotalSeconds:0.0}s]").AppendLine().ToString();
+        return outcome.TimedOut && cancelReason.IsCancellationRequested ? CancelledCommand((result, log, error)) : (result, log, error);
+    }
+
+    public static (VerifyResult Result, string Log, Exception? Error) CancelledCommand((VerifyResult Result, string Log, Exception? Error) executed)
+    {
+        if (!executed.Result.TimedOut) return executed;
+        executed.Result.ExitCode = -1;
+        executed.Result.TimedOut = false;
+        const string annotation = "\n[harness] timed out";
+        var at = executed.Log.LastIndexOf(annotation + Environment.NewLine + "[exit ", StringComparison.Ordinal);
+        if (at >= 0) executed.Log = executed.Log.Remove(at, annotation.Length);
+        return executed;
+    }
 }
