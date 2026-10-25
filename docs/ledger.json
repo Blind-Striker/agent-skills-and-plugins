@@ -1366,6 +1366,50 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/blazing-fast-dotnet": {
+    "source": "blazing-fast-dotnet",
+    "invocation": "both",
+    "description": "Tune a running .NET 10/11 workload at the runtime level: profile with dotnet-counters, dotnet-trace, and Linux perf; inspect JIT codegen; set runtime, GC, and ThreadPool knobs; fix lock contention and false sharing; tune ASP.NET Core throughput and NativeAOT publish settings; plus quick high-performance C# tips. USE FOR: making a measured app, service, or benchmark workload faster when the cost sits in the runtime, GC, threading, or configuration, or when asked to profile it or read its JIT disassembly. DO NOT USE FOR: scanning code for performance anti-patterns (analyzing-dotnet-performance), designing or running BenchmarkDotNet benchmarks (microbenchmarking), or writing or reviewing SIMD code (vectorization).",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.blazing-fast-dotnet",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:blazing-fast-dotnet",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/build-parallelism": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-parallelism",
     "invocation": "auto",
@@ -4510,6 +4554,7 @@
       "aspire-integration-testing",
       "aspire-project-v2-migration",
       "aspire-service-defaults",
+      "blazing-fast-dotnet",
       "build-parallelism",
       "check-bin-obj-clash",
       "code-testing",
@@ -4597,6 +4642,7 @@
           "deniz-dotnet-general:analyzing-dotnet-performance",
           "deniz-dotnet-general:aot-trimming",
           "deniz-dotnet-general:api-design",
+          "deniz-dotnet-general:blazing-fast-dotnet",
           "deniz-dotnet-general:build-parallelism",
           "deniz-dotnet-general:check-bin-obj-clash",
           "deniz-dotnet-general:coverage-analysis",
@@ -4723,6 +4769,7 @@
           "deniz-dotnet-general.analyzing-dotnet-performance",
           "deniz-dotnet-general.aot-trimming",
           "deniz-dotnet-general.api-design",
+          "deniz-dotnet-general.blazing-fast-dotnet",
           "deniz-dotnet-general.build-parallelism",
           "deniz-dotnet-general.check-bin-obj-clash",
           "deniz-dotnet-general.coverage-analysis",
@@ -4857,6 +4904,7 @@
           "$deniz-dotnet-general:analyzing-dotnet-performance",
           "$deniz-dotnet-general:aot-trimming",
           "$deniz-dotnet-general:api-design",
+          "$deniz-dotnet-general:blazing-fast-dotnet",
           "$deniz-dotnet-general:build-parallelism",
           "$deniz-dotnet-general:check-bin-obj-clash",
           "$deniz-dotnet-general:coverage-analysis",

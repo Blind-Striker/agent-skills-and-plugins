@@ -16,6 +16,7 @@ Module Bundles.
 | ASD-STE100 skill | Copyright (c) 2026 Dustin Yuchen Teng | <https://github.com/danyuchn/asd-ste100-skill> |
 | HumanLayer skills | Copyright (c) 2026 HumanLayer | <https://github.com/humanlayer/skills> |
 | Ponytail | Copyright (c) 2026 DietrichGebert | <https://github.com/DietrichGebert/ponytail> |
+| Blazing Fast .NET | Copyright (c) 2026 EgorBo | <https://github.com/EgorBo/BlazingFastDotnet> |
 
 The root [LICENSE](LICENSE) applies to this repository's original code, documentation, overlays, and
 modifications. It does not replace the upstream notices above. See each generated distribution's

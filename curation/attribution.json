@@ -13,6 +13,13 @@
     "copyright": "Copyright (c) Microsoft Corporation.",
     "licenseFile": "LICENSE"
   },
+  "blazing-fast-dotnet": {
+    "name": "Blazing Fast .NET",
+    "repository": "https://github.com/EgorBo/BlazingFastDotnet",
+    "license": "MIT",
+    "copyright": "Copyright (c) 2026 EgorBo",
+    "licenseFile": "LICENSE"
+  },
   "dotnet-agent-skills": {
     "name": ".NET agent skills",
     "repository": "https://github.com/dotnet/skills",

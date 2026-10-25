@@ -22,3 +22,6 @@
 [submodule "external/ponytail"]
 	path = external/ponytail
 	url = https://github.com/DietrichGebert/ponytail.git
+[submodule "external/blazing-fast-dotnet"]
+	path = external/blazing-fast-dotnet
+	url = https://github.com/EgorBo/BlazingFastDotnet.git

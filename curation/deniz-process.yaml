@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.14.0
+  version: 0.14.1
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -527,6 +527,7 @@ items:
       - aspire-integration-testing
       - aspire-project-v2-migration
       - aspire-service-defaults
+      - blazing-fast-dotnet
       - build-parallelism
       - check-bin-obj-clash
       - code-testing

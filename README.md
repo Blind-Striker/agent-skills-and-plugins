@@ -116,9 +116,10 @@ The collection currently draws from [Superpowers](https://github.com/obra/superp
 Vincent, [Matt Pocock's skills](https://github.com/mattpocock/skills),
 [dotnet-skills](https://github.com/Aaronontheweb/dotnet-skills) by Aaron Stannard,
 [Microsoft's Aspire skills](https://github.com/microsoft/aspire-skills),
-[the .NET agent skills](https://github.com/dotnet/skills), and
-[ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng, and
-[Ponytail](https://github.com/DietrichGebert/ponytail) by Dietrich Gebert. `pr`'s
+[the .NET agent skills](https://github.com/dotnet/skills),
+[ASD-STE100 skill](https://github.com/danyuchn/asd-ste100-skill) by Dustin Yuchen Teng,
+[Ponytail](https://github.com/DietrichGebert/ponytail) by Dietrich Gebert, and
+[Blazing Fast .NET](https://github.com/EgorBo/BlazingFastDotnet) by Egor Bogatov. `pr`'s
 Summary guidance comes from [HumanLayer's `show-me`](https://github.com/humanlayer/skills).
 
 This repository's original work is MIT licensed. Each generated Claude Plugin, OpenCode Bundle, and

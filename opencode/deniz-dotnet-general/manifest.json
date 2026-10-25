@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.14.1",
-  "digest": "sha256:8468448b7e72cfe7237c0578aac3cfe003b837e1ffcda3627187e2a481c4cdad",
+  "version": "0.15.0",
+  "digest": "sha256:19fe79c7721e0b2be019cbefb5a38807c8b9140e78b9b53dc97b42522cb31bc6",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -13,7 +13,7 @@
       "mode": "100644"
     },
     "THIRD_PARTY_NOTICES.md": {
-      "sha256": "sha256:8ee59d89bd176d262589a76d81a06cd7fc33721a993c60afde77cd893048fa3c",
+      "sha256": "sha256:a2c3579cddbd29d53ec54332190d89b09f7e936f855fa87a9ce2e36da890d3d9",
       "mode": "100644"
     },
     "agents/deniz-dotnet-general.roslyn-incremental-generator-specialist.md": {
@@ -66,6 +66,14 @@
     },
     "skills/deniz-dotnet-general.api-design/SKILL.md": {
       "sha256": "sha256:f3c8f5bf13dc4788d516180c00c590b366572572f71aed9231b982b12ba98378",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.blazing-fast-dotnet/LICENSE": {
+      "sha256": "sha256:f24e3a6fe84b3bbf8d4e7a82acbb55e0ea8c2c884789d8badff17e6fcadf5fc3",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.blazing-fast-dotnet/SKILL.md": {
+      "sha256": "sha256:653d232909090e4cd7f9f9ada30af850833e128c71240d07d8cc999a54ff4c15",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.build-parallelism/SKILL.md": {
@@ -642,6 +650,10 @@
     },
     "skills/deniz-dotnet-general.writing-tunit-tests/references/oracle-rules.md": {
       "sha256": "sha256:e2506dc9ed2366273708ca27f64bbf74ee4770482abf42c40c50719a81097d73",
+      "mode": "100644"
+    },
+    "third_party/blazing-fast-dotnet/LICENSE": {
+      "sha256": "sha256:f24e3a6fe84b3bbf8d4e7a82acbb55e0ea8c2c884789d8badff17e6fcadf5fc3",
       "mode": "100644"
     },
     "third_party/dotnet-agent-skills/LICENSE": {

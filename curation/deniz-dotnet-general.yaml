@@ -1,5 +1,5 @@
-# Sources: dotnet-skills (Aaronontheweb) + dotnet-agent-skills (dotnet/skills) —
-# language/API design, application architecture, persistence/configuration,
+# Sources: dotnet-skills (Aaronontheweb) + dotnet-agent-skills (dotnet/skills) +
+# blazing-fast-dotnet (EgorBo) — language/API design, application architecture, persistence/configuration,
 # project/package/build, testing, diagnostics/performance.
 #
 # Corpus-first curation: every product-facing item in general's scope has an
@@ -11,7 +11,8 @@
 # audits are `auto` — their descriptions honestly name the work, so model selection
 # is permitted. Repo/system-mutating ceremonies are `manual`:
 # the curator starts them by name, the model never does. `both` is reserved for
-# report-only items the curator also types by habit (slopwatch, the perf audit) and
+# report-only items the curator also types by habit (slopwatch, the perf audit), the
+# on-demand runtime tuning guide (blazing-fast-dotnet), and
 # the one repair flow the model should reach on its exact error (dotnet-devcert-trust).
 # The one agent kept is a genuine specialist.
 #
@@ -31,7 +32,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.14.1
+  version: 0.15.0
 original_skills:
   writing-tunit-tests:
     invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
@@ -428,6 +429,24 @@ items:
     # it in Claude Code and stop offering it to the model in OpenCode 2 and Codex. `as: agent` was
     # considered and rejected: a 43KB full-file overlay is the wrong price when posture alone
     # contains the risk.
+  - source: blazing-fast-dotnet
+    invocation: both # curator's call: the curator types it, and the model may reach it on its lane.
+    # Its author writes it as a guide to "consult on demand when you need to optimize a .NET
+    # workload", not an always-on skill, so upstream's broad "make .NET code faster" trigger is
+    # narrowed. This single root-skill repo stays a submodule so pin drift reaches the normal sync
+    # review, as asd-ste100 does
+    frontmatter:
+      description: "Tune a running .NET 10/11 workload at the runtime level: profile with dotnet-counters, dotnet-trace, and Linux perf; inspect JIT codegen; set runtime, GC, and ThreadPool knobs; fix lock contention and false sharing; tune ASP.NET Core throughput and NativeAOT publish settings; plus quick high-performance C# tips. USE FOR: making a measured app, service, or benchmark workload faster when the cost sits in the runtime, GC, threading, or configuration, or when asked to profile it or read its JIT disassembly. DO NOT USE FOR: scanning code for performance anti-patterns (analyzing-dotnet-performance), designing or running BenchmarkDotNet benchmarks (microbenchmarking), or writing or reviewing SIMD code (vectorization)."
+    # the boundary, curator's call: the code scan, BenchmarkDotNet, and SIMD stay with those three
+    # neighbours, and this item owns profiling, JIT codegen, runtime and GC knobs, ThreadPool and
+    # contention, and ASP.NET and NativeAOT settings. Its body overlaps them in places (quick tips, a
+    # SIMD loop-shape section) and flows as shipped; only the trigger is drawn. Its dotnet-trace link
+    # is an external URL to upstream's dotnet-trace-collect, which stays the manual collection
+    # ceremony here
+    omit:
+      - README.md # the usage prose and contribution rules are not a runtime asset; the description
+      # carries its on-demand note
+      - dummy.cs # an empty class that only marks the repository as C# on GitHub
   - source: dotnet-agent-skills/plugins/dotnet-diag/skills/dotnet-trace-collect
     invocation: manual # production artifact-collection ceremony — the curator decides when
     body: patch # user invokes the dump-collection ceremony separately where applicable

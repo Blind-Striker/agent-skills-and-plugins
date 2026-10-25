@@ -88,6 +88,13 @@
       "aot-trimming-playbook-reference.md": "1d1ed9d4d4235fff4ef1d0df3ad053e91e8ca327"
     }
   },
+  "deniz-dotnet-general/blazing-fast-dotnet": {
+    "source": "blazing-fast-dotnet",
+    "files": {
+      "SKILL.md": "f27fa5b6c2a794538407bfb99fa0e0cacf33f4c3"
+    },
+    "frontmatter": true
+  },
   "deniz-dotnet-general/check-bin-obj-clash": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash",
     "files": {

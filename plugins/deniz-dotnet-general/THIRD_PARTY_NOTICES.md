@@ -3,6 +3,13 @@
 This distribution includes transformed material from the projects below.
 The exact license text for each project is included at the listed path.
 
+## Blazing Fast .NET
+
+- Source: <https://github.com/EgorBo/BlazingFastDotnet>
+- License: MIT
+- Copyright: Copyright (c) 2026 EgorBo
+- License text: `third_party/blazing-fast-dotnet/LICENSE`
+
 ## .NET agent skills
 
 - Source: <https://github.com/dotnet/skills>
