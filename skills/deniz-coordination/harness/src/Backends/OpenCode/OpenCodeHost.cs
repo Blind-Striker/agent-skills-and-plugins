@@ -153,8 +153,13 @@ sealed class HarnessServer : IAsyncDisposable
         {
             if (await Ready.FenceAsync(ct) is { } refusal) throw new HarnessException(refusal);
             environment["XDG_CACHE_HOME"] = Path.Combine(launch.Environment["TEMP"], "cache");
+            // macOS caps a Unix socket path near 104 bytes; a tool whose socket does not fit under a long TMPDIR falls back
+            // to /tmp, which the fence denies. A short private folder keeps those sockets inside the fence.
+            var temporary = OperatingSystem.IsMacOS()
+                ? "/private/tmp/dispatch-" + Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(6)).ToLowerInvariant()
+                : Path.Combine(launch.Environment["TEMP"], "tmp");
             foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
-                environment[name] = Path.Combine(launch.Environment["TEMP"], "tmp");
+                environment[name] = temporary;
             var inherited = WorkerEnvironment.Snapshot();
             foreach (var (name, value) in environment) inherited[name] = value;
             string? common = null;
@@ -165,7 +170,12 @@ sealed class HarnessServer : IAsyncDisposable
                 ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), inherited, common);
             foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
             Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
-            Directory.CreateDirectory(environment["TMPDIR"]);
+            if (OperatingSystem.IsMacOS())
+            {
+                Directory.CreateDirectory(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                writable = [.. writable, temporary];
+            }
+            else Directory.CreateDirectory(temporary);
             var readOnly = new List<string> { Path.Combine(writable[0], "bin") };
             if (Ready.FenceKind == "bwrap" && modes.Access == "read-only" && common is not null && Worktree.IsInside(common, "/tmp"))
                 readOnly.Add(common);

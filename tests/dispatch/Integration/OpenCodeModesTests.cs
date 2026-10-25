@@ -239,9 +239,10 @@ public sealed class OpenCodeModesTests
         while (!File.Exists(arrived) && !creating.IsCompleted) await Task.Delay(10, ct);
         var host = lab.Hosts().Single();
         var process = ObservedProcess.Capture(host["pid"]!.GetValue<int>());
+        var temporary = PrivateTemp(host, launch);
         // Guard: both private folders must exist while the server is live.
         await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsTrue();
-        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "tmp"))).IsTrue();
+        await Assert.That(Directory.Exists(temporary)).IsTrue();
         await File.WriteAllTextAsync(release, "release", ct);
         HarnessException? failure = null;
         try { await creating; }
@@ -249,10 +250,24 @@ public sealed class OpenCodeModesTests
         await Assert.That(failure?.Message).IsEqualTo("the server call failed: OpenCodeApiException: The opencode API returned status 500 ('InternalError').");
         await Assert.That(process.IsAlive()).IsFalse();
         foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
-            await Assert.That(host["environment"]![name]!.GetValue<string>()).IsEqualTo(Path.Combine(launch.Environment["TEMP"], "tmp"));
+            await Assert.That(host["environment"]![name]!.GetValue<string>()).IsEqualTo(temporary);
         await Assert.That(host["environment"]!["XDG_CACHE_HOME"]!.GetValue<string>()).IsEqualTo(Path.Combine(launch.Environment["TEMP"], "cache"));
         await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsFalse();
-        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "tmp"))).IsFalse();
+        await Assert.That(Directory.Exists(temporary)).IsFalse();
+    }
+
+    // macOS gives a fenced server a short private TMPDIR, for Unix sockets; Linux keeps it in the task's temp.
+    static string PrivateTemp(JsonNode host, WorkerLaunch launch)
+    {
+        var temporary = host["environment"]!["TMPDIR"]!.GetValue<string>();
+        if (OperatingSystem.IsMacOS())
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(temporary, "^/private/tmp/dispatch-[0-9a-f]{12}$"))
+                throw new InvalidOperationException($"unexpected macOS private temp: {temporary}");
+        }
+        else if (temporary != Path.Combine(launch.Environment["TEMP"], "tmp"))
+            throw new InvalidOperationException($"unexpected private temp: {temporary}");
+        return temporary;
     }
 
     [Test]
@@ -277,21 +292,26 @@ public sealed class OpenCodeModesTests
         var peerLaunch = TaskLaunch("peer");
         var worker = (await lab.Backend.CreateAsync(launch, ct)).Worker;
         var peer = (await lab.Backend.CreateAsync(peerLaunch, ct)).Worker;
-        foreach (var task in new[] { launch, peerLaunch })
+        // Each server's record names its own cache, and with it its private temp.
+        string[] Private(WorkerLaunch task)
+        {
+            var cache = Path.Combine(task.Environment["TEMP"], "cache");
+            return [cache, PrivateTemp(lab.Hosts().Single(x => x["environment"]!["XDG_CACHE_HOME"]!.GetValue<string>() == cache), task)];
+        }
+        var (own, peers) = (Private(launch), Private(peerLaunch));
+        await Assert.That(own[1]).IsNotEqualTo(peers[1]);
+        foreach (var (task, folders) in new[] { (launch, own), (peerLaunch, peers) })
         {
             File.WriteAllText(Path.Combine(task.Environment["TEMP"], "keep"), task.TaskId);
-            foreach (var name in new[] { "cache", "tmp" })
-                File.WriteAllText(Path.Combine(task.Environment["TEMP"], name, "server-file"), name);
+            foreach (var folder in folders) File.WriteAllText(Path.Combine(folder, "server-file"), Path.GetFileName(folder));
         }
         await lab.Backend.ReleaseAsync(worker, ct);
-        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "cache"))).IsFalse();
-        await Assert.That(Directory.Exists(Path.Combine(launch.Environment["TEMP"], "tmp"))).IsFalse();
+        foreach (var folder in own) await Assert.That(Directory.Exists(folder)).IsFalse();
         await Assert.That(File.ReadAllText(Path.Combine(launch.Environment["TEMP"], "keep"))).IsEqualTo("worker");
-        foreach (var name in new[] { "cache", "tmp" })
-            await Assert.That(File.ReadAllText(Path.Combine(peerLaunch.Environment["TEMP"], name, "server-file"))).IsEqualTo(name);
+        foreach (var folder in peers)
+            await Assert.That(File.ReadAllText(Path.Combine(folder, "server-file"))).IsEqualTo(Path.GetFileName(folder));
         await Hosts(lab.Backend)[peer.State["host"]!.GetValue<string>()].DisposeAsync();
-        await Assert.That(Directory.Exists(Path.Combine(peerLaunch.Environment["TEMP"], "cache"))).IsFalse();
-        await Assert.That(Directory.Exists(Path.Combine(peerLaunch.Environment["TEMP"], "tmp"))).IsFalse();
+        foreach (var folder in peers) await Assert.That(Directory.Exists(folder)).IsFalse();
         await Assert.That(File.ReadAllText(Path.Combine(peerLaunch.Environment["TEMP"], "keep"))).IsEqualTo("peer");
     }
 
