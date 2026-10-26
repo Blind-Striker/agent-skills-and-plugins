@@ -550,6 +550,7 @@ items:
       - dotnet-pinvoke
       - dotnet-project-structure
       - dotnet-slopwatch
+      - dotnet-walls
       - dotnet-trace-collect
       - dotnet-webapi
       - dump-collect

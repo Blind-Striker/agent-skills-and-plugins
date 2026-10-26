@@ -13,9 +13,9 @@ Read before you brief a lane that runs in a session of its own.
   when it reaches a reserved action, or when it meets a contradiction. You hold three gates: spec
   approval for a change to behaviour, a public surface or a canon rule; merge, after you read the diff
   and its evidence, and after the merge commit's own CI ran, before you report it done or build on it
-  (a green change is not a green main branch); and the actions the repository reserves.
+  (a green change is not a green main branch); and every reserved action.
 - You are the one session that talks to the user. Lanes take their decisions from you, within any
-  approval the user delegated to you. An action the repository reserves (a push to a shared branch,
+  approval the user delegated to you. A reserved action (a push to a shared branch,
   a release, a machine change, a public action such as filing issues) runs only in the session the
   user told directly. A relayed approval does not cover it, and a peer session's go is not the
   user's go.

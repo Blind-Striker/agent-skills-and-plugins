@@ -17,17 +17,16 @@ Each section says when to use a setting, why, and what it costs. Field details l
 
 ## Backend and route
 
-- Choose the backend for the route you need: the model, its effort, its context window, and its
-  family. A review counts as a second family only when its route's family differs from the author's,
-  and only when the result shows `routeVerified: true` for both tasks.
+- Choose the backend for the route you need: the model, its effort and its context window.
+  `routeVerified: true` in the result is the record of the model that ran.
 - Codex runs its tools in an OS sandbox; opencode's Linux/macOS fence for read-only and workspace
   tasks is an [accident guard](backends.md#opencode-accident-guard), not a security boundary, and
-  opencode on Windows is unfenced. In Codex's elevated Windows sandbox, .NET builds and tests work
-  after an outside restore (`prepare`); unelevated mode and MSYS git (Git Bash, `git submodule`) still
-  fail there ([backends](backends.md#codex-process-and-sandbox)). A task that hits those limits needs
+  opencode on Windows is unfenced. Codex's elevated Windows sandbox failed a package download (TLS)
+  and fails MSYS git (Git Bash, `git submodule`); its unelevated mode fails more
+  ([backends](backends.md#codex-process-and-sandbox)). A task that hits those limits needs
   `access: full` on Codex, chosen on purpose, while on opencode its `workspace` access is already
-  unfenced. Either Windows choice runs without a fence; choose the backend for its route. Prefer the
-  [dependency recipes](#dependencies-and-the-sandbox) below. On Linux/macOS, for build-time cache
+  unfenced. Either Windows choice runs without a fence; choose the backend for its route. Prefer
+  [`prepare`](#dependencies-and-the-sandbox) below. On Linux/macOS, for build-time cache
   writes, prefer workspace access with [writable roots](config.md#writable-roots) rather than removing
   the fence.
 - Both backends refuse a server or CLI off the harness's pin: install the version the error names.
@@ -49,44 +48,19 @@ Each section says when to use a setting, why, and what it costs. Field details l
 `prepare` is a list of shell commands and names no ecosystem. Use it for dependency steps outside
 the sandbox before the worker starts; [task files](task-file.md#preparation) own execution rules,
 workspace protection and lifecycle. Name concrete offline build/test commands in the worker prompt
-and forbid adding dependencies: the harness does not amend that prompt automatically.
+and put adding dependencies out of its scope: the harness does not amend that prompt.
 
 `prepare` runs the task's base content as you, outside any sandbox: package install scripts and
 build-system hooks run with your rights. On a `reviewOf` task or a base a worker wrote, that is
 worker-authored code; review it first or use script-free forms such as `npm ci --ignore-scripts`.
 
-```json
-"prepare": ["dotnet restore", "dotnet tool restore"]
-```
-
 Each entry is one command; the list stops at the first failure.
 
-| Ecosystem | `prepare` | The worker inside the sandbox |
-|---|---|---|
-| .NET | `dotnet restore`; `dotnet tool restore` | `dotnet build --no-restore`; `dotnet test --no-build` |
-| Node | `npm ci` (or `pnpm install --frozen-lockfile`); set `cache=.npm-cache` in workspace `.npmrc` | `npm test --offline` (same workspace-local cache) |
-| Python | `uv sync --frozen` | `uv run --offline pytest` |
-| Go | `go mod download` | `GOCACHE=$TMPDIR/go-build go test ./...` (the build cache must be writable; the default is the user cache) (POSIX shell; in PowerShell use `$env:GOCACHE="$env:TEMP\go-build"; go test ./...`) |
-| Rust | `cargo fetch` | `cargo test --offline` |
-
-Only the .NET row has dated evidence (Codex elevated Windows,
-[backends](backends.md#codex-process-and-sandbox)); the live tests FN11 (.NET) and FN12 (Node, with a
-workspace-local npm cache) cover `prepare` itself. The Python, Go and Rust rows are untested starting
-points: run them once in your sandbox before relying on them.
-
-Prepare uses the worker environment, but not its sandbox: fenced opencode has private
-`XDG_CACHE_HOME` and temp, and the harness removes `NUGET_*` variables from both `prepare`
-and the worker, so a `NUGET_PACKAGES` set in your shell has no effect; use `RestorePackagesPath`.
-Default `~/.nuget/packages` packages restored
-outside are readable inside both sandboxes; `--no-restore` builds read them and write workspace
-`obj/` and `bin/`. A project-local `RestorePackagesPath` in `Directory.Build.props` makes restore
-and build agree without an environment variable. Everything `prepare` writes inside the workspace
-must be git-ignored first (`node_modules/`, `.venv/`, `obj/`, a project-local package folder such as
-`.pkgs/`); a non-ignored write fails the task with `prepare-changed-workspace`.
-A tool that writes a user-wide cache during build/test (some analyzers or `dotnet tool` first runs)
-still needs a workspace-local path or [writable root](config.md#writable-roots). The opencode fence
-does not isolate network; cache-write denial is separate from Codex elevated Windows TLS failure.
-Container tests run in `verify`, outside the sandbox.
+Prepare uses the worker environment, but not its sandbox. Everything `prepare` writes inside the
+workspace must be git-ignored first; a non-ignored write fails the task with
+`prepare-changed-workspace`. A tool that writes a user-wide cache during build or test still needs a
+workspace-local path or a [writable root](config.md#writable-roots). The opencode fence does not
+isolate the network. Container tests run in `verify`, outside the sandbox.
 
 Prepare and verify use the same `Proc.RunAsync`: process-tree kill happens on command timeout or
 cancel only. Background processes left after successful command exit are not tracked; neither are
@@ -94,6 +68,8 @@ processes surviving supervisor exit. There is no job, `setsid` or group kill. Us
 steps (restore/install/download/fetch) that leave no background process; node reuse and the compiler
 server are disabled. Interrupted preparation is never automatically replayed; use the
 [recovery steps](cli.md#resume-run---continue---ledger-dir).
+
+Per-ecosystem configuration, each recipe labelled with where it was tried: [cookbook](cookbook.md).
 
 ## Workspace and commit
 

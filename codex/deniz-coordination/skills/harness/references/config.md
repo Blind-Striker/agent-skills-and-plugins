@@ -103,13 +103,11 @@ and recorded in `task.json`. Recovery, verification and cleanup use the recorded
 preferences. `clean` deletes `<tempRoot>/<run>/<task>` and any legacy default
 `<worktree root>/<run>/.tmp/<task>` folder, leaving sibling folders and the roots.
 
-On Linux and macOS, a .NET test host built on Microsoft.Testing.Platform opens a Unix socket under
-`TMPDIR`, about 55 bytes below it. Unix caps a socket path near 108 bytes (104 on macOS), and the
-default task temp is often longer, so the host fails with `The named pipe path ... is too long`, in
-the worker and in verify alike. The temp is `<tempRoot>/<run>/<task>`, so give such tasks a tiny
-`tempRoot` such as `/var/tmp/d` and keep the run and task ids short; the budget for all three is
-about 50 bytes. A fenced opencode worker on Linux or macOS already gets a short private temp
-([backends](backends.md)); its verify commands still use the task temp.
+Unix caps a socket path near 108 bytes (104 on macOS). A tool that opens a socket under `TMPDIR`
+needs a short `tempRoot` such as `/var/tmp/d`, with short run and task ids: the temp is
+`<tempRoot>/<run>/<task>`, in the worker and in verify alike ([cookbook](cookbook.md)). A fenced
+opencode worker on Linux or macOS already gets a short private temp ([backends](backends.md)); its
+verify commands still use the task temp.
 See [task files](task-file.md#scope-and-workspaces) for layouts and environment semantics, and
 [plan output](cli.md) for the resolved path.
 
@@ -128,29 +126,10 @@ Its fence is an [accident guard](backends.md#opencode-accident-guard), not a sec
 Dependency downloads can run in `prepare` instead of widening writable roots; see
 [Dependencies and the sandbox](guide.md#dependencies-and-the-sandbox).
 
-For .NET and Bun build-time cache writes on Linux/macOS, generate a ready preference fragment from the repository root,
-then copy it into `preferences` in user/repository config, task-file `defaults`, or the task entry:
-
-```sh
-jq -n --arg home "$HOME" --arg repo "$(pwd -P)" '{writableRoots: [
-  ($home + "/.nuget/packages"), ($home + "/.local/share/NuGet"),
-  ($home + "/.nuget/NuGet"), ($home + "/.bun/install/cache"),
-  ($repo + "/tests/dispatch/bin/labs"), ($repo + "/tests/dispatch/bin/dotnet-cli-home")
-]}'
-```
-
-The last two roots are this repository's own test-run folders; other repositories use their own
-documented roots. A writable root is trusted, because code a worker writes there runs unfenced later
-(for example a NuGet package cache restored by the harness). Grant only caches the task needs.
-If the lab or operator already supplies isolated
-`DOTNET_CLI_HOME` or `NUGET_PACKAGES`, use those absolute folders instead of real home caches, plus
-NuGet's config/data folders under that isolated home. `NUGET_*` environment variables are scrubbed;
-pass the isolated package cache explicitly to the worker's build (for example
-`dotnet build -p:RestorePackagesPath='<absolute isolated package cache>'`). If opencode keeps its
-credential `XDG_DATA_HOME` outside the lab, scope `XDG_DATA_HOME="$HOME/.local/share"` to the .NET
-command only, with `HOME` still the lab's isolated home; do not relocate backend credential homes.
-Writable roots do not fix Windows Codex TLS or MSYS limits; elevated .NET builds/tests after an
-outside restore are supported by the bounded [backend evidence](backends.md#codex-process-and-sandbox).
+A writable root is trusted, because code a worker writes there runs unfenced later (for example a
+package cache that `prepare` restores into). Grant only caches the task needs. Ready fragments per
+ecosystem: [cookbook](cookbook.md). Writable roots do not fix the Windows Codex sandbox's
+[download and MSYS limits](backends.md#codex-process-and-sandbox).
 Do not add `dotnet/runfile` to `writableRoots`: the shared folder holds the harness's own `dispatch.cs`
 build, which would let a worker change code the harness later runs unfenced; fenced opencode tasks on
 Linux get a private bind instead ([backends](backends.md)).

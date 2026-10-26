@@ -40,6 +40,11 @@ original_skills:
     depends_on: [filter-syntax, run-tests, test-anti-patterns, test-driven-development, test-gap-analysis]
     # each names the job this guide hands off; all five are auto, so the model can follow every
     # edge. generate-testability-wrappers stays a user pointer: the human starts that ceremony
+  dotnet-walls:
+    invocation: auto # the .NET walls profile (pinned analyzer, format, clone and scanner gates, the
+    # ratchet, the build traps) that the coordination craft's walls preflight loads beside its generic
+    # gates. It moved here from Coordination, which stays language-agnostic; auto, so a coordinator in
+    # a .NET repository reaches it by its description
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards

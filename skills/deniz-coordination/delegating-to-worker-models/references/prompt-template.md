@@ -64,7 +64,7 @@ addendum or a language reference, quoted>
 Mutant proof (when the task requires one): a mutant is a temporary write, so authorize it here. Mutate
 only <files>, one mutant at a time, with a clean rebuild before and after each (a stale binary can pass
 for a kill or a survivor); after each revert, `git diff --exit-code -- <file>` must pass. Keep
-those files out of the task's scope, so settlement still catches a mutant left behind.
+those files out of the task's scope, so the final scope check still catches a mutant left behind.
 
 ## Refactor only                           (changes to existing behaviour-preserving code)
 Re-measure at the actual base before editing. Restore the base behaviour exactly unless the plan lists the
@@ -72,22 +72,18 @@ change. Byte-identical output proves only the pinned inputs.
 
 ## Environment
 <runtime floor and edges, operating systems, long-command timeouts>
-Authorized preparation, each step as its command: <e.g. `dotnet tool restore`; `bun install
---frozen-lockfile`>. Never "prepare as <earlier task>".
+Authorized preparation, each step as its command: <the exact commands>. Never "prepare as <earlier
+task>".
 <If a Read-first document forbids one of these steps:> Coordinator amendment: <document, section> does
 not apply to this task on this point; the steps above are authorized.
-<each runtime or target-framework requirement on its own line, e.g. "Run the tests on BOTH net10.0 and
-net472"; a requirement only implied by the verify list is skipped>
-<For a task with prepare, in place of the Authorized preparation line:> Dependencies were prepared
-before you started. Build only with <concrete offline build command> and test only with
-<concrete offline test command>, inside the sandbox.
-Adding dependencies is out of scope; do not restore/install again or request a sandbox bypass.
+<each runtime or target requirement on its own line, e.g. "Run the tests on BOTH <target A> and
+<target B>"; a requirement only implied by the verify list is skipped>
 
 ## Verify
 The verify step runs: <commands>. <Walls: command and limits, when present.>
 ```
 
 Coordinator checklist before sending (not part of the prompt): the verify commands ran once on the base
-with a meaningful result; every name they reference exists; the base contains every prerequisite; the
-task file was written with an editor tool; no other task in the run shares a scope path; the plan is
-approved where plan-first applies; the no-contradiction pass in SKILL.md is done.
+with a meaningful result; every name they reference exists; the base contains every prerequisite; no
+task running beside it writes the same paths; the plan is approved where plan-first applies; the
+no-contradiction pass in SKILL.md is done.

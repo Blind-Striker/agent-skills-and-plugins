@@ -31,8 +31,8 @@ reads this table as a checklist over-proves and burns the run.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
   after. A mutant is a temporary product edit, so the prompt must authorize it: name every product line
   the mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
-  That authorization is not the task's settlement `scope`, which stays without those files so a leftover
-  mutant fails the task. A blanket "do not edit src/" beside a mutant requirement makes the proof a
+  That authorization is not the task's scope (the paths the change may touch), which stays without those
+  files so the final scope check fails a leftover mutant. A blanket "do not edit src/" beside a mutant requirement makes the proof a
   guaranteed stop.
 - **Order fixtures:** require entries that a wrong key would reorder.
 - **Refusals:** require the full ordered error list unless the plan names a filter; a filter hides

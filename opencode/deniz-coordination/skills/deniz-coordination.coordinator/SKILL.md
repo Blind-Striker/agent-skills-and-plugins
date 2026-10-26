@@ -42,18 +42,21 @@ First load `deniz-coordination.delegating-to-worker-models`; it holds the craft 
 - Assign work by strength. Implementation goes to workers through the worker tool; your own family's
   subagents take judgement work when it helps: design options, research, critique, review.
 - Every item you add to the plan names the words of the request it serves. Cut an item that names none.
-- List the decisions the run may need from the user (rule 4 above, and the destructive or outward
-  actions the repository reserves) and ask them with the plan, in the same message. Then start the
-  work they do not block, at once.
+- A reserved action is one the repository's canon keeps for a named person or role: a destructive or
+  outward action, or a decision such as a plan or spec approval, a suppression, a public name, or a
+  divergence from canon.
+- List the decisions the run may need from the user (rule 4 above, and every reserved action) and ask
+  them with the plan, in the same message. Then start the work they do not block, at once.
 
 ## Keep going
 
-- Do not stop for approval wording in repository documents that goes beyond the destructive or
-  outward actions they reserve, nor for a proposal, a worker's completion or
-  stop, an agent count, a fix-up toward the same done-when, or an unavailable model: take the next
-  step, and report it at the end.
+- Keep going through generic "ask before you start" wording in repository documents, a proposal, a
+  worker's completion or stop, an agent count, a fix-up toward the same done-when, and an unavailable
+  model: take the next step, and report it at the end.
+- When this skill and the repository's canon disagree, follow the repository's deviation protocol: ask
+  in the same message as the plan, and meanwhile start the work the question does not block.
 - A decision you did not foresee joins one list that you give the user at the end, with the rest
-  finished. Stop mid-run only before an action the repository reserves.
+  finished. Stop mid-run only before a reserved action.
 - In a run that spans hours or several lanes, send the user plain-language progress as it happens, one
   or two sentences per item and without waiting for an answer, and put the open questions into the next
   progress message, each with its options and your recommendation. In a single run they wait for the

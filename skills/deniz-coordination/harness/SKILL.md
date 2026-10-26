@@ -16,7 +16,8 @@ that result, and records every step in a ledger. This skill is the harness's con
 - The harness prepends only the contracts you name (`contracts`, `--contract`); `plan` warns on a code or
   mechanical task that names no worker contract.
 - A calling skill that sends `structured` tasks owns their prompt and result schema.
-- Use `prepare` for outside-sandbox dependency steps; recipes and limits: [Dependencies and the sandbox](references/guide.md#dependencies-and-the-sandbox).
+- Use `prepare` for dependency steps outside the sandbox: [Dependencies and the sandbox](references/guide.md#dependencies-and-the-sandbox).
+  When a build, test or tool fails under the fence or sandbox, read `references/cookbook.md`.
 
 ## Invocation
 
@@ -165,4 +166,5 @@ Read on demand: `references/guide.md` (which setting to choose for a task, why, 
 proves), `references/task-file.md` (every field, default, validation error), `references/cli.md`
 (arguments, output and exit codes), `references/ledger.md` (run folder, events, fields),
 `references/config.md` (layers, rules, allow-list, locations), `references/backends.md` (each mode,
-rule and limit on opencode and Codex).
+rule and limit on opencode and Codex), `references/cookbook.md` (configuration recipes per ecosystem,
+each labelled with where it was tried).

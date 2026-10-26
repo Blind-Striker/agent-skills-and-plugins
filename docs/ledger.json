@@ -2565,6 +2565,54 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/dotnet-walls": {
+    "source": "skills/deniz-dotnet-general/dotnet-walls",
+    "original": true,
+    "invocation": "auto",
+    "description": "Walls for a .NET change in a repository without its own quality gates — pinned, ephemeral analyzer, format, clone and scanner commands for the verify step, their identity ratchet, and the build traps. Use during a walls preflight, or when a worker's verify step needs .NET quality gates.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.dotnet-walls",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": []
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-walls",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/dotnet-webapi": {
     "source": "dotnet-agent-skills/plugins/dotnet-aspnetcore/skills/dotnet-webapi",
     "invocation": "auto",
@@ -4578,6 +4626,7 @@
       "dotnet-project-structure",
       "dotnet-slopwatch",
       "dotnet-trace-collect",
+      "dotnet-walls",
       "dotnet-webapi",
       "dump-collect",
       "efcore-patterns",
@@ -4660,6 +4709,7 @@
           "deniz-dotnet-general:dotnet-pinvoke",
           "deniz-dotnet-general:dotnet-project-structure",
           "deniz-dotnet-general:dotnet-slopwatch",
+          "deniz-dotnet-general:dotnet-walls",
           "deniz-dotnet-general:dotnet-webapi",
           "deniz-dotnet-general:efcore-patterns",
           "deniz-dotnet-general:filter-syntax",
@@ -4787,6 +4837,7 @@
           "deniz-dotnet-general.dotnet-pinvoke",
           "deniz-dotnet-general.dotnet-project-structure",
           "deniz-dotnet-general.dotnet-slopwatch",
+          "deniz-dotnet-general.dotnet-walls",
           "deniz-dotnet-general.dotnet-webapi",
           "deniz-dotnet-general.efcore-patterns",
           "deniz-dotnet-general.filter-syntax",
@@ -4922,6 +4973,7 @@
           "$deniz-dotnet-general:dotnet-pinvoke",
           "$deniz-dotnet-general:dotnet-project-structure",
           "$deniz-dotnet-general:dotnet-slopwatch",
+          "$deniz-dotnet-general:dotnet-walls",
           "$deniz-dotnet-general:dotnet-webapi",
           "$deniz-dotnet-general:efcore-patterns",
           "$deniz-dotnet-general:filter-syntax",

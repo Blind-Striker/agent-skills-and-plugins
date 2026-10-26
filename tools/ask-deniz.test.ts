@@ -53,7 +53,7 @@ test("ask-deniz is both-invocable and maps every General item without starting m
   const general = manifests.find((manifest) => manifest.plugin.name === "deniz-dotnet-general");
   assert.ok(general);
   const targets = declaredItems(root, general, components);
-  assert.equal(targets.length, 60);
+  assert.equal(targets.length, 61);
   for (const target of targets) {
     if (target.outType === "agent") {
       assert.ok(routes.includes(`\`${target.outName}\``), `missing delegated specialist ${target.outName}`);

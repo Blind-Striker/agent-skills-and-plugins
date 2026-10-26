@@ -163,19 +163,16 @@ The `workspace-write` sandbox lets a task write inside its workspace, its task t
 configured `writableRoots`. A task that must write elsewhere (another cache folder, for example) or start
 `wsl.exe` fails there.
 
-**Windows .NET and MSYS limits.** With `[windows] sandbox = "elevated"`, an outside restore enables
-inside-sandbox .NET builds and tests, including project references and Microsoft.Testing.Platform
-(measured once; the `dispatch-prepare-windows-elevated` record in this repository's
-`experiments/harness-invocation/records/`).
-A restore inside the sandbox that has to download packages fails with NU1301 (an SChannel error).
-Use [prepare dependency recipes](guide.md#dependencies-and-the-sandbox), not blanket full access.
-Unelevated mode retains the recorded NuGet-cache, MSBuild-temp, named-pipe and project-reference
-failures, often without diagnostics. MSYS tools (Git Bash, `git submodule`) retain shared-memory
-failures (openai/codex#13183, #39927, #15295, #21715). Several failures exit 0: a submodule may stay
+**Windows sandbox limits.** With `[windows] sandbox = "elevated"`, a .NET build and test ran inside
+the sandbox after an outside restore (`prepare`), while the restore's package download inside it
+failed with a TLS (SChannel) error (measured once; [cookbook](cookbook.md#net)). Unelevated mode
+failed on cache, temp, named-pipe and project-reference writes, often without diagnostics. MSYS tools
+(Git Bash, `git submodule`) retain shared-memory failures (openai/codex#13183, #39927, #15295,
+#21715). Several failures exit 0: a submodule may stay
 empty while the step passes. Read output, never just exit codes. If these limits require
 `access: full`, choose it explicitly; the ledger records the missing sandbox. On Windows, opencode's
 `workspace` is already unfenced, so the same task runs there without `access: full` and with the same
-exposure. On Linux/macOS, use fenced workspace access and the [build-cache recipe](config.md#writable-roots)
+exposure. On Linux/macOS, use fenced workspace access and [writable roots](config.md#writable-roots) from the [cookbook](cookbook.md)
 instead of removing the fence for build caches.
 
 On Linux and macOS, sandbox prerequisites depend on the installed runtime and host. A fake protocol

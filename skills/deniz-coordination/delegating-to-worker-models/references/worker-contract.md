@@ -1,4 +1,4 @@
-worker-contract v6
+worker-contract v7
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -83,8 +83,9 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 - A refusal: assert the full ordered error list unless the plan names a filter.
 - An empty result, an unknown id, or a status-only assertion is not coverage.
 - A test fails at its oracle, never by a timeout.
-- Every new rule gets a test that fails on the base or on a true no-op (a valid success shape with no
-  effect) and passes after. A mutant with side effects does not count.
+- Every new rule in executable behaviour gets a test that fails on the base or on a true no-op (a
+  valid success shape with no effect) and passes after. A mutant with side effects does not count. A
+  rule that lives only in documentation or canon text gets no test.
 - An order fixture contains entries that a wrong key would reorder.
 - A randomized race is not an oracle; add a deterministic case.
 - Never compute the expected value with the helper under test.
@@ -96,7 +97,7 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 - Your green run must be the run the verify step repeats. Do not redirect build outputs, do not change
   test helpers to fit your own layout, and do not repoint HOME, USERPROFILE, or a tool's home folder.
   Put the caches and temporary files you create under the system temp folder, never inside or above the
-  workspace; a tool's own default user cache (under HOME, such as the NuGet or bun cache) is fine.
+  workspace; a tool's own default user cache under HOME is fine.
   These rules cover what you add and run. A repository's existing test fixtures, which may isolate
   HOME or place temporary trees for their own tests, are part of its gate: leave them as they are.
 
@@ -120,5 +121,5 @@ Report language: English.
 9. For an evaluation: every FRICTION entry, and every requirement reported FAILED.
 10. The last line of your final message, alone: `Status: done` when the task is done, `Status: stopped` when
     you stopped on a rule above or a contradiction, `Status: blocked` when the environment kept you from the
-    work (a missing tool, access or input). A dispatch harness reads this line; a stop or block fails the task.
+    work (a missing tool, access or input). This line settles the task: a stop or block fails it.
     A structured task (its answer is one JSON document) ends with that document and no status line.

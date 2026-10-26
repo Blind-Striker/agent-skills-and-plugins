@@ -32,9 +32,10 @@ is any subagent tool you have; the rules below hold for all of them.
 
 1. **Walls preflight.** Read the repository addendum's Walls field, then pick one:
    - (a) The repository has walls: put them in the verify step.
-   - (b) It has none: bring ephemeral walls through the verify step from the profile in
-     `references/walls/<language>.md` (pinned tools, a scratch cache, no install, no repository change).
-     Run them on the base first and gate only new findings and touched files; a new file is gated whole.
+   - (b) It has none: bring ephemeral walls through the verify step: the gates in
+     `references/walls/any.md`, plus the walls profile of the language's own skill module when one is
+     installed (pinned tools, a scratch cache, no install, no repository change). Run them on the base
+     first and gate only new findings and touched files; a new file is gated whole.
    - (c) Neither is possible: make plan-first mandatory, tighten the budget, add a reviewer, and tell the
      user that walls would help. Installing walls into a repository for good is the user's decision.
    The thresholds are yours; record them, and any change, with a reason.
@@ -107,8 +108,8 @@ is any subagent tool you have; the rules below hold for all of them.
    - **Who:** your own read follows `deniz-process.requesting-code-review`; low-risk scaffolding and mechanical
      work needs only that. Code and spec work always adds a fresh reviewer from a family other than the
      author's, who gets the request, the requirements and the diff, but not your assessment. The family claim
-     rests on the record of the model that ran, never on the route you asked for: `routeVerified: true` on
-     every dispatch-harness task it rests on; a session writing by hand is identified by its own model.
+     rests on your mechanism's record of the model that ran, for the author and the reviewer alike, never
+     on the model you asked for; a session writing by hand is identified by its own model.
      Code you write by hand to fix a worker's work is authored by your family, so a hand fix that changes
      logic goes to another family as a review of its hunks; a pure deletion, a rename, or a one-line
      change an analyzer mandates needs only your own read.

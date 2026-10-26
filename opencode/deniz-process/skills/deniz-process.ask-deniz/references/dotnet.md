@@ -35,7 +35,7 @@ bold pointers are user-started ceremonies, while the reference skills support au
 | Production diagnostic artifacts | **`@deniz-dotnet-general.dotnet-trace-collect`** selects collection tools and captures performance evidence; **`@deniz-dotnet-general.dump-collect`** collects modern .NET crash dumps. Neither performs analysis of the collected files. |
 | Focused language/runtime work | `deniz-dotnet-general.csharp-scripts` needs an explicit request for C# without a project; `deniz-dotnet-general.dotnet-pinvoke` handles native interop; `deniz-dotnet-general.ilspy-decompile` inspects compiled assemblies. |
 | Linux/WSL HTTPS trust or old thread aborts | `deniz-dotnet-general.dotnet-devcert-trust` repairs the exact dev-cert trust error. **`@deniz-dotnet-general.thread-abort-migration`** replaces owned Thread.Abort patterns when moving to modern .NET, not every Thread API. |
-| LLM change guardrail | `deniz-dotnet-general.dotnet-slopwatch` runs after .NET code changes. Baseline/tool installation still needs the skill's own approval; the audit does not authorize approving its own baseline. |
+| LLM change guardrail | `deniz-dotnet-general.dotnet-slopwatch` runs after .NET code changes. Baseline/tool installation still needs the skill's own approval; the audit does not authorize approving its own baseline. `deniz-dotnet-general.dotnet-walls` supplies pinned, ephemeral analyzer, format and clone gates for a worker's verify step in a repository without its own. |
 
 For delegated Roslyn incremental-generator diagnosis/design, the Module also supplies
 `roslyn-incremental-generator-specialist`: an agent in Claude Code/OpenCode, a skill in Codex.
