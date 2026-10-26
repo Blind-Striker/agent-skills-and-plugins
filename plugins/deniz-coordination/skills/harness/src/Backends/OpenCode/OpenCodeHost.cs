@@ -69,11 +69,11 @@ static partial class Ready
 
     public static IReadOnlyList<string> FenceCommand(string kind, string executable, IReadOnlyList<string> command,
         IReadOnlyList<string> writable, IReadOnlyList<string> readOnly, string? directory, string? runtime,
-        (string Source, string Target)? runfile = null) => kind == "bwrap"
+        IReadOnlyList<(string Source, string Target)>? privateFolders = null) => kind == "bwrap"
         ? [executable, "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
             .. directory is null ? Array.Empty<string>() : ["--ro-bind", directory, directory],
             .. writable.Where(path => path != "/dev").SelectMany(path => new[] { "--bind", path, path }),
-            .. runfile is { } bind ? new[] { "--bind", bind.Source, bind.Target } : Array.Empty<string>(),
+            .. (privateFolders ?? []).SelectMany(bind => new[] { "--bind", bind.Source, bind.Target }),
             .. runtime is null ? Array.Empty<string>() : ["--tmpfs", runtime],
             .. readOnly.SelectMany(path => new[] { "--ro-bind", path, path }), "--", .. command]
         : [executable, "-p", FenceProfile(writable, readOnly), .. command];
@@ -137,11 +137,14 @@ sealed class HarnessServer : IAsyncDisposable
         var output = new OpenCodeServerOutput();
         var command = Command(context.Executable);
         OpenCodeServer? server = null;
-        string? temporary = null, runfileSource = null;
-        bool temporaryCreated = false, runfileCreated = false;
+        string? temporary = null;
+        var privateSources = new List<string>();
+        bool temporaryCreated = false;
+        var original = WorkerEnvironment.Snapshot();
         var environment = WorkerEnvironment.Copy(context.Passthrough);
         if (launch is not null && Ready.Fenced(modes))
             foreach (var (name, value) in launch.Environment) environment[name] = value;
+        foreach (var (name, value) in launch?.ConfiguredEnvironment ?? new Dictionary<string, string>()) environment[name] = value;
         environment["OPENCODE_FILEWATCHER_DISABLE"] = "1";
         environment["OPENCODE_DISABLE_FILEWATCHER"] = "1";
         if (modes.Profile == "clean")
@@ -167,31 +170,45 @@ sealed class HarnessServer : IAsyncDisposable
                     + Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(6)).ToLowerInvariant();
                 foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
                     environment[name] = temporary;
-                var inherited = WorkerEnvironment.Snapshot();
-                foreach (var (name, value) in environment) inherited[name] = value;
+                var inherited = WorkerEnvironment.Copy(original);
+                foreach (var name in new[] { "TEMP", "TMP", "TMPDIR", "XDG_CACHE_HOME" }) inherited[name] = environment[name];
+                if (launch.Environment.TryGetValue("XDG_RUNTIME_DIR", out var taskRuntime)) inherited["XDG_RUNTIME_DIR"] = taskRuntime;
                 string? common = null;
-                var git = await new Git(Executables.Resolve("git"), profileRoot, launch.Environment)
+                var git = await Git.ForTask(launch.TaskId, launch.RunId, profileRoot)
                     .RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
                 if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
+                var privateTargets = (launch.PrivateFolders ?? []).Select(entry => (Entry: entry, Target: Worktree.RealPath(entry)))
+                    .DistinctBy(x => x.Target, StringComparer.Ordinal).ToArray();
                 var home = inherited.GetValueOrDefault("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 var writable = Ready.WritableSet(launch, profileRoot, home, inherited, common);
+                if (OperatingSystem.IsLinux())
+                    foreach (var (entry, target) in privateTargets)
+                        foreach (var (folder, name) in new[] { (launch.Directory, "workspace"), (common, "git common folder") }
+                            .Concat(writable.Append(temporary).Select(folder => ((string?)folder, "writable folder"))))
+                            if (folder is not null && Worktree.IsInside(Worktree.RealPath(folder), target))
+                                throw new HarnessException($"{launch.TaskId}: privateFolders entry {entry} would hide the {name}: {folder}");
                 foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
                 Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
                 if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
                 {
-                    Directory.CreateDirectory(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                    CreatePrivateFolder(launch.TaskId, temporary);
                     temporaryCreated = true;
                     writable = [.. writable, temporary];
                 }
-                (string Source, string Target)? runfile = null;
+                var privateFolders = new List<(string Source, string Target)>();
                 if (OperatingSystem.IsLinux())
                 {
-                    var target = Path.Combine(inherited.GetValueOrDefault("XDG_DATA_HOME") is { Length: > 0 } data && data.StartsWith('/')
-                        ? data : Path.Combine(home, ".local/share"), "dotnet", "runfile");
-                    runfileSource = temporary + "-runfile";
-                    CreateRunfileFolder(launch.TaskId, runfileSource);
-                    runfileCreated = true;
-                    runfile = (runfileSource, Directory.CreateDirectory(target).FullName);
+                    var originalHome = original.GetValueOrDefault("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    // Protect the harness's own file-based build cache, independent of task home overrides.
+                    var self = Path.Combine(original.GetValueOrDefault("XDG_DATA_HOME") is { Length: > 0 } data && data.StartsWith('/')
+                        ? data : Path.Combine(originalHome, ".local/share"), "dotnet", "runfile");
+                    foreach (var target in privateTargets.Select(x => x.Target).Append(Worktree.RealPath(self)))
+                    {
+                        var source = Path.Combine(temporary, "private-" + privateFolders.Count.ToString(CultureInfo.InvariantCulture));
+                        CreatePrivateFolder(launch.TaskId, source);
+                        privateSources.Add(source);
+                        privateFolders.Add((source, Directory.CreateDirectory(target).FullName));
+                    }
                 }
                 var readOnly = new List<string> { Path.Combine(writable[0], "bin") };
                 if (Ready.FenceKind == "bwrap" && modes.Access == "read-only" && common is not null && Worktree.IsInside(common, "/tmp"))
@@ -200,7 +217,7 @@ sealed class HarnessServer : IAsyncDisposable
                 if (Ready.FenceKind == "bwrap") readOnly.RemoveAll(path => !Path.Exists(path));
                 var runtime = inherited.GetValueOrDefault("XDG_RUNTIME_DIR");
                 command = Ready.FenceCommand(Ready.FenceKind!, Ready.FenceExecutable, command, writable, readOnly,
-                    modes.Access == "read-only" ? launch.Directory : null, Directory.Exists(runtime) ? runtime : null, runfile);
+                    modes.Access == "read-only" ? launch.Directory : null, Directory.Exists(runtime) ? runtime : null, privateFolders);
             }
             server = await OpenCodeServer.StartAsync(new OpenCodeServerOptions
             {
@@ -219,8 +236,8 @@ sealed class HarnessServer : IAsyncDisposable
         finally
         {
             if (server is null)
-                foreach (var (folder, created) in new[] { (temporary, temporaryCreated), (runfileSource, runfileCreated) })
-                    try { if (created) Directory.Delete(folder!, recursive: true); }
+                foreach (var folder in privateSources.Concat(temporaryCreated ? [temporary!] : []))
+                    try { Directory.Delete(folder, recursive: true); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { }
         }
 
@@ -228,7 +245,7 @@ sealed class HarnessServer : IAsyncDisposable
         var host = new HarnessServer(server, server.CreateClient(), output, description);
         if (launch is not null && Ready.Fenced(modes))
         {
-            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"], .. runfileSource is null ? Array.Empty<string>() : [runfileSource]];
+            host._privateFolders = [environment["XDG_CACHE_HOME"], environment["TMPDIR"], .. privateSources];
             host.SessionOverrides = new[] { "TEMP", "TMP", "TMPDIR" }.ToDictionary(name => name, _ => environment["TMPDIR"]);
         }
         try
@@ -250,12 +267,22 @@ sealed class HarnessServer : IAsyncDisposable
         }
     }
 
-    static void CreateRunfileFolder(string taskId, string source)
+    static void CreatePrivateFolder(string taskId, string source)
     {
-        if (Directory.Exists(source))
-            throw new HarnessException($"{taskId}: refused an existing private runfile folder: {source}");
-        if (OperatingSystem.IsLinux()) Directory.CreateDirectory(source, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (mkdir(source, 448) != 0)
+            throw new HarnessException(System.Runtime.InteropServices.Marshal.GetLastPInvokeError() == 17
+                ? $"{taskId}: refused an existing private folder: {source}"
+                : $"{taskId}: cannot create private folder: {source}");
+        if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            && File.GetUnixFileMode(source) != (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute))
+        {
+            Directory.Delete(source);
+            throw new HarnessException($"{taskId}: private folder must have mode 0700: {source}");
+        }
     }
+
+    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+    static extern int mkdir(string path, uint mode);
 
     // On Windows the npm shim runs through cmd.exe and leaves the real server outside the job
     // that ends it with its owner; start opencode.exe directly when the shim's layout is found.
@@ -273,12 +300,12 @@ sealed class HarnessServer : IAsyncDisposable
                 if (File.Exists(Path.Combine(dir, "opencode.cmd")))
                 {
                     var exe = Path.Combine(dir, "node_modules", "@opencode", "cli", "bin", "opencode.exe");
-                    return File.Exists(exe) ? [exe, "serve"] : ["opencode", "serve"];
+                    return File.Exists(exe) ? [exe, "serve"] : [Path.Combine(dir, "opencode.cmd"), "serve"];
                 }
             }
         }
 
-        return ["opencode", "serve"];
+        return [Executables.Resolve("opencode"), "serve"];
     }
 
     async Task SubscribeAsync(CancellationToken ct)

@@ -109,6 +109,8 @@ sealed class EffectiveSettings
     public Setting<string>? Workspace { get; set; }
     public Setting<string>? TempRoot { get; set; }
     public Setting<List<string>>? WritableRoots { get; set; }
+    public Setting<List<string>>? PrivateFolders { get; set; }
+    public Dictionary<string, Setting<string>>? Environment { get; set; }
     public Setting<string>? Dir { get; set; }
     public Setting<string>? Commit { get; set; }
     public Setting<bool>? RawPrompt { get; set; }
@@ -137,7 +139,6 @@ sealed class RuleEnforcement
 sealed class ContractRecord
 {
     public string Path { get; set; } = "";
-    public string? Alias { get; set; }
     public string From { get; set; } = "";
     public string Sha256 { get; set; } = "";
     public string Version { get; set; } = "";

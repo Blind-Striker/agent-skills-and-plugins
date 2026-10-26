@@ -39,8 +39,8 @@ Each section says when to use a setting, why, and what it costs. Field details l
 | `access: workspace` | Code that changes only its worktree | The default for `code` and `mechanical`; Codex's sandbox and Linux/macOS opencode's accident guard grant writes to the workspace, temp and configured writable roots; Windows opencode is unfenced |
 | `access: full` | Only when a task must write outside its worktree (build caches, temp) and no sandbox can host it | It removes the fence; the ledger records the choice, so choose it explicitly |
 | `network: off` | A task that must not fetch anything | Codex enforces it; opencode denies its web tools only |
-| `profile: clean` | Reviews, research, mechanical and structured work: their default | A minimal profile: no user MCP servers, plugins or instructions; measured at 13% fewer prompt tokens and 33% fewer uncached prompt tokens per task |
-| `profile: full` | Code tasks (their default), and any task that needs the installed profile's tools or skills (an MCP server, a plugin) | It loads everything installed, about 7–10k tokens on every model call |
+| `profile: clean` | Every task kind: the default | A minimal profile: no user MCP servers, plugins or instructions; measured at 13% fewer prompt tokens and 33% fewer uncached prompt tokens per task |
+| `profile: full` | Opt in for any task that needs the installed profile's tools or skills (an MCP server, a plugin) | It loads everything installed, about 7–10k tokens on every model call |
 | `project: off` | The task must not read the repository's own agent rules | Rarely right for code; the default for structured tasks |
 
 ## Dependencies and the sandbox
@@ -65,8 +65,8 @@ isolate the network. Container tests run in `verify`, outside the sandbox.
 Prepare and verify use the same `Proc.RunAsync`: process-tree kill happens on command timeout or
 cancel only. Background processes left after successful command exit are not tracked; neither are
 processes surviving supervisor exit. There is no job, `setsid` or group kill. Use finite dependency
-steps (restore/install/download/fetch) that leave no background process; node reuse and the compiler
-server are disabled. Interrupted preparation is never automatically replayed; use the
+steps (restore/install/download/fetch) that leave no background process; configure each tool's
+process-lifetime switches through `environment` ([cookbook](cookbook.md)). Interrupted preparation is never automatically replayed; use the
 [recovery steps](cli.md#resume-run---continue---ledger-dir).
 
 Per-ecosystem configuration, each recipe labelled with where it was tried: [cookbook](cookbook.md).
@@ -98,9 +98,9 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 
 ## Contracts and the status line
 
-- `contracts` prepends files to the prompt; the harness adds none by default. Name the bundled ones by alias,
-  `@worker-contract` and `@<model>-worker`, so a plugin update cannot leave a stale path; `plan` prints each
-  task's resolved contracts and warns on a code or mechanical task without the worker contract.
+- `contracts` prepends whole files to the prompt; the harness adds none by default. The caller supplies
+  the file paths and owns contract selection. `plan` prints each task's contract paths and versions
+  in prepend order; it does not advise on which contracts to choose.
 - The harness asks every non-structured task to end with `Status: done`, `Status: stopped` or
   `Status: blocked`. A stopped or blocked worker fails the task (`worker-stopped`) even when the
   session succeeded: read its final text for the reason.

@@ -15,9 +15,8 @@ Build before every command. A nonzero build exit means no harness command ran. C
 can contend on the file-based app cache; retry a failed build before invoking the command. The
 `--` separates application arguments from `dotnet` arguments, including flags such as `--force`.
 
-Command-line file and directory paths must be absolute, except bundled `--contract` aliases
-(`@worker-contract`, `@<model>-worker`). Resolution, worker-block extraction, errors, hashing and
-ordering follow [Contracts](task-file.md#contracts). In PowerShell, form paths from
+Command-line file and directory paths must be absolute, including `--contract` file paths.
+Resolution, errors, hashing and ordering follow [Contracts](task-file.md#contracts). In PowerShell, form paths from
 `$PWD.ProviderPath`. Paths inside a task file follow [task-file rules](task-file.md).
 `DISPATCH_HOME` relocates configuration and state; [configuration](config.md) describes its layout
 and the platform defaults. Backend executable overrides are user config fields, not environment
@@ -35,14 +34,15 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
-| `--contract <path or alias>` | repeatable absolute file or bundled alias | None | Plan/run, prepended to every task after file contracts. Ordinary relative paths: `--contract must be an absolute path`. Alias semantics: [Contracts](task-file.md#contracts). |
+| `--contract <path>` | repeatable absolute file path | None | Plan/run, prepended whole to every task after file contracts. Relative paths: `--contract must be an absolute path`. Validation: [Contracts](task-file.md#contracts). |
 | `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
 | `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` checks every installed backend when the configuration selects none, and names the installed ones it skips otherwise. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
-| `--profile <value>` | enum | Kind/backend/access default | Plan/run; `clean` or `full`. |
+| `--timeout <minutes>` | positive whole number | `60` | Wait only; invalid value: `--timeout needs a positive whole number of minutes`. Other commands refuse it with exit 2: `--timeout is only for wait; use timeoutMinutes in the task file or --timeout-minutes for worker timeouts`. Separate from worker `--timeout-minutes`. |
+| `--profile <value>` | enum | `clean` for every task kind | Plan/run; `clean` or `full`. |
 | `--project <value>` | enum | Kind default | Plan/run; `on` or `off`. |
 | `--access <value>` | enum | Kind default | Plan/run; `read-only`, `workspace`, `full`; cannot exceed policy ceiling. |
 | `--network <value>` | enum | `on`, subject to policy | Plan/run; `on` or `off`; Codex full access with off is refused. |
@@ -59,10 +59,24 @@ arguments produce `missing <argument>`. Invalid preference choices name the valu
 
 ## Commands
 
-Every command that takes `<run>` (`status`, `asks`, `reply`, `cancel`, `collect`, `resume`,
+Every command that takes `<run>` (`status`, `wait`, `asks`, `reply`, `cancel`, `collect`, `resume`,
 `clean`) accepts the full run id or the bare run name. A ledger folder named exactly as given wins;
 otherwise a bare name resolves when exactly one ledger is named `<yyyy-MM-dd>-<name>`. With several
 matches the command refuses with exit 2 and lists their run ids.
+
+### Codex plugin cache warning
+
+When the harness's source folder is under `<CODEX_HOME or ~/.codex>/plugins/cache/`, `selfcheck`,
+`plan` and `run` print this advisory warning to stderr and continue normally:
+
+```text
+this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache
+```
+
+The check resolves filesystem links on both paths, respects directory boundaries and uses Windows
+case-insensitivity, not the compiled assembly's cache location. File-based apps use the runtime's
+entry-file path; other hosts fall back to the source filename captured at compilation. Empty
+`CODEX_HOME` uses `~/.codex`. An unresolvable path skips the advisory check without failing the command.
 
 ### `selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]`
 
@@ -157,7 +171,8 @@ rejected, without falling back to PATH. Both cases report:
 Selfcheck warns when the user PATH in the Windows registry exceeds 8,000 characters. Run refuses
 above 16,000 characters with exit 2. Run records a `warning` event if the user PATH changes.
 Environment isolation does not isolate registry state; avoid assigning a new `DOTNET_CLI_HOME`.
-Workers receive `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` to prevent the SDK's tools-path append.
+Configure SDK tools-path appends and certificate behaviour explicitly through
+[`environment`](config.md#configured-environment); see the [cookbook](cookbook.md#net).
 The warning event carries `reason: user-path-changed`, both lengths, and the added and removed
 entries. Inspect the value with `reg query HKCU\Environment /v Path`.
 
@@ -187,13 +202,24 @@ executable path. Empty/unset prepare adds no line; missing or unsupported shells
 `prepare shell:` when there are no verify or advisory-verify commands, otherwise `verify shell:`.
 
 For each task with contracts, `plan` prints
-`INFO <task>: contracts <alias or path> (<version line>); ...` in prepend order, after path
-deduplication. Bundled contracts use their supplied alias; ordinary files use their resolved path.
-The version is the recorded selected first line described under [Contracts](task-file.md#contracts).
-A `code` or `mechanical` task that is not `rawPrompt` and has no contract file named
-`worker-contract.md` gets
-`WARN <task>: no worker contract; add "@worker-contract" (and "@<model>-worker") to contracts`.
-This is advisory, not a plan refusal; an explicit path to `worker-contract.md` also satisfies it.
+`INFO <task>: contracts <resolved path> (<version line>); ...` in prepend order, after path
+deduplication. The version is the recorded first line described under [Contracts](task-file.md#contracts).
+The caller owns contract selection; planning does not warn about missing contracts.
+
+When no preference layer set a profile and a task's own `prompt` or `promptFile` text contains
+the case-insensitive whole word `skill` or `skills`, or a backticked `<name>:<name>` token whose
+names contain only letters, digits and hyphens, plan prints:
+
+```text
+WARN <task>: the prompt mentions a skill, and the task defaults to profile clean, which loads no plugins or skills; set profile full if the worker needs them
+```
+
+Contracts and standing instructions do not trigger this warning. Explicit `clean` or `full` at any
+layer suppresses it. The warning does not change the profile or refuse the plan.
+
+Same-backend live checks for a `reviewOf` task sharing its author's model lineage print
+`INFO <task>: reviewer and author share lineage <lineage>`. This is never an error or warning;
+review policy belongs to the caller. Cross-backend checks do not compare lineage.
 
 For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
 `INFO <task>: write-fenced (bwrap; accident guard)` or
@@ -279,11 +305,14 @@ Use a new name for a new run rather than editing or deleting recorded input.
 
 With no run, lists directories in the ledger root and counts their task states, or prints `no runs`.
 With a run, prints state, outcome, cost/tokens if known, changed-file and scope counts, asks,
-escalations and verify results. Live task rows also show tool count and the last completed call.
+escalations and verify results. Verify entries retain command order: `not run` when `notRun` is
+present, otherwise `ok` for exit zero or `exit <code>` for nonzero. A stopped or blocked worker's
+commands did not run; their placeholder zero exit codes are not passes.
+Live task rows also show tool count and the last completed call.
 A task whose escalated asks closed without an answer (the worker's call was declined) gets a line
 `asks closed without an answer: <count> (<action>: <reason>; ...)`.
 It reports whether the run lock is held and whether asks are pending: a held lock prints
-`(supervised now)`, and a run with unfinished tasks and no supervisor prints
+`(supervised now)`, and a run with unfinished tasks (or no task states yet) and no supervisor prints
 `` (no supervisor: `resume <run>` settles it) ``, so a watcher can tell a stalled run from a working one.
 It does not wait for success.
 
@@ -291,6 +320,34 @@ It does not wait for success.
 |---|---|---|
 | `0` | integer | Status read successfully, regardless of task outcomes. |
 | `2` | integer | Unknown/unreadable run, newer schema, or corrupt complete event line. |
+
+### `wait <run> [--timeout <minutes>] [--ledger <dir>]`
+
+Waits until every recorded task is final (`done`, `failed`, `cancelled`), then prints the same
+summary as `status <run>`. Polls the ledger every five seconds, shortening the last delay to the
+remaining timeout. The default timeout is 60 minutes; `--timeout` takes a positive whole number.
+This command is read-only: it writes neither ledger nor control state and never resumes a run.
+
+Start `wait <run> --timeout <minutes>` after starting `run`, with a timeout below your waiting shell
+or tool's own timeout. Pass the full dated run id that `run` prints: a bare name can resolve to an
+earlier run with the same name. Call `wait` again after exit 3; it does not stop the supervisor. If the
+ledger does not exist yet (run performs probes before creating it), wait retries for up to two minutes,
+counted inside its timeout, then refuses with exit 2 and the usual `no ledger for run ...` error.
+If the ledger never appears within the timeout, it likewise exits 2 as an unknown run, not 3.
+Bare run names are resolved again during this startup grace, so a newly created dated ledger is found.
+
+A run with no task states yet is not final. If no supervisor holds an unfinished or empty run,
+wait prints status and exits 1 immediately, including the no-supervisor annotation; use `resume`
+to settle it. On timeout it prints `run <run>: wait timed out; unfinished tasks: <ids>` to stderr,
+listing only unfinished tasks in ledger order. A supervised run with no task states yet instead
+prints `run <run>: wait timed out; no tasks recorded yet`.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Every task is `done`. |
+| `1` | integer | Every task is final and at least one is not `done`, or an unfinished/empty run has no supervisor. |
+| `2` | integer | Usage error (including invalid timeout), unknown/unreadable run, or setup/read failure. |
+| `3` | integer | The timeout elapsed while tasks remained unfinished and the run was supervised. |
 
 ### `asks [<run>] [--ledger <dir>]`
 

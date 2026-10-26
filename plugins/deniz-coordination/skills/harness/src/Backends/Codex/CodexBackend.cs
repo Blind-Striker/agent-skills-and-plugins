@@ -118,10 +118,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         }).ToList();
     }
 
-    async Task<Connection> ConnectAsync(string directory, IReadOnlyDictionary<string, string> variables, CodexHome? home, CancellationToken ct)
+    async Task<Connection> ConnectAsync(string directory, IReadOnlyDictionary<string, string> variables, CodexHome? home, CancellationToken ct,
+        IReadOnlyDictionary<string, string>? configuredEnvironment = null)
     {
         CodexProcess process;
-        try { process = CodexProcess.Start(context, directory, variables); }
+        try { process = CodexProcess.Start(context, directory, variables, configuredEnvironment); }
         catch { home?.Dispose(); throw; }
         var connection = new Connection(process, home);
         process.DescendantUnobservable = (pid, message) => signals.Writer.TryWrite(new WorkerSignal.Fault(connection.Launch?.TaskId,
@@ -159,9 +160,15 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         var userHome = UserHome;
         var home = CodexHome.Create(context, launch, userHome, CodexHome.ReadWindowsSandbox(userHome));
         var variables = WorkerEnvironment.Copy(launch.Environment);
+        // Resolve supervisor-launched programs before the configured process overlay applies.
+        foreach (var name in new[] { "PATH", "PATHEXT" })
+        {
+            variables.Remove(name);
+            if (environment.TryGetValue(name, out var value)) variables[name] = value;
+        }
         variables["CODEX_HOME"] = home.Home;
         Connection connection;
-        connection = await ConnectAsync(launch.Directory, variables, home, ct);
+        connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment);
         try
         {
             if (home.Temporary && !home.MatchesReportedHome(connection.ReportedHome))
@@ -170,7 +177,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 await DisposeConnectionAsync(connection);
                 home = fallback;
                 variables["CODEX_HOME"] = home.Home;
-                connection = await ConnectAsync(launch.Directory, variables, home, ct);
+                connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment);
             }
             connection.Launch = launch;
             var model = models.FirstOrDefault(x => x.Id == launch.Route.Model || x.Model == launch.Route.Model);

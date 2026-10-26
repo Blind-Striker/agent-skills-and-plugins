@@ -67,6 +67,15 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     const string DefaultHost = "profile=full;project=on";
     static string HostKey(Modes modes) => $"profile={modes.Profile};project={modes.Project}";
+    static string HostKey(WorkerLaunch launch)
+    {
+        if (Ready.Fenced(launch.Modes)) return $"fence={launch.RunId}/{launch.TaskId}";
+        var key = HostKey(launch.Modes);
+        if (launch.ConfiguredEnvironment is not { Count: > 0 } environment) return key;
+        var ordered = new JsonObject(environment.OrderBy(x => x.Key, WorkerEnvironment.NameComparer)
+            .Select(x => new KeyValuePair<string, JsonNode?>(OperatingSystem.IsWindows() ? x.Key.ToUpperInvariant() : x.Key, JsonValue.Create(x.Value))));
+        return key + ";environment=" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(ordered.ToJsonString())));
+    }
     static string HostKey(WorkerRef worker) => worker.State["host"]?.GetValue<string>() ?? DefaultHost;
     static Modes HostModes(string key) => key switch
     {
@@ -77,7 +86,29 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         _ => throw new HarnessException("invalid opencode host key"),
     };
 
-    Task<HarnessServer> HostAsync(WorkerRef worker, CancellationToken ct) => HostAsync(HostKey(worker), ct);
+    Task<HarnessServer> HostAsync(WorkerRef worker, CancellationToken ct)
+    {
+        var key = HostKey(worker);
+        if (!hosts.ContainsKey(key) && key.Contains(";environment=", StringComparison.Ordinal))
+        {
+            var launch = RecordedLaunch(worker);
+            return HostAsync(ct, launch.Modes, launch.Route, launch.RunId, launch: launch);
+        }
+        return HostAsync(key, ct);
+    }
+
+    WorkerLaunch RecordedLaunch(WorkerRef worker)
+    {
+        var ledger = new Ledger(runId ?? throw new HarnessException("continuing a reattached worker requires its run id"));
+        var record = ledger.LoadRecord(worker.TaskId);
+        RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out var route, out _);
+        var configured = record.Settings.Environment?.ToDictionary(x => x.Key, x => x.Value.Value!, WorkerEnvironment.NameComparer);
+        var modes = TaskStarter.ModesFor(record);
+        return new(ledger.RunId, worker.TaskId, record.Spec.Kind!, route!, record.Spec.Agent, record.Spec.Persona,
+            modes, record.Workspace.Path!, new([], []),
+            configured ?? new Dictionary<string, string>(), null, record.Settings.Profile?.Actual ?? modes.Profile,
+            record.Settings.Profile?.Reason, record.Settings.WritableRoots?.Value, record.Settings.PrivateFolders?.Value, configured);
+    }
 
     Task<HarnessServer> HostAsync(string key, CancellationToken ct) => hosts.TryGetValue(key, out var host)
         ? Task.FromResult(host) : key.StartsWith("fence=", StringComparison.Ordinal)
@@ -109,7 +140,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
             OpenCodeProfile.CreateFolder(backendContext.ProfilesFolder);
             OpenCodeProfile.CreateFolder(profile.Root);
             if (modes.Profile == "clean") profile.Prepare(routes ?? (route is null ? [] : [route]));
-            var key = launch is not null && Ready.Fenced(modes) ? $"fence={launch.RunId}/{launch.TaskId}" : HostKey(modes);
+            var key = launch is not null ? HostKey(launch) : HostKey(modes);
             if (!hosts.TryGetValue(key, out var host))
             {
                 host = await HarnessServer.StartAsync(subscribe, backendContext, profile.Root, modes, ct, launch);
@@ -200,7 +231,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         var worker = new WorkerRef(Name, launch.TaskId, created.Session.Id, null, new JsonObject
         {
             ["projectId"] = created.Session.ProjectId,
-            ["host"] = Ready.Fenced(launch.Modes) ? $"fence={launch.RunId}/{launch.TaskId}" : HostKey(launch.Modes),
+            ["host"] = HostKey(launch),
         });
         lock (eventGate)
         {
@@ -241,8 +272,14 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         if (prompt.IsContinue)
         {
             lock (eventGate) admissions[worker.Id] = [];
-            var variables = launches.TryGetValue(worker.Id, out var launch) ? launch.Environment
-                : WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id"),
+            if (!launches.TryGetValue(worker.Id, out var launch) && HostKey(worker).Contains(";environment=", StringComparison.Ordinal))
+            {
+                var ledger = new Ledger(runId!);
+                var record = ledger.LoadRecord(worker.TaskId);
+                launch = TaskStarter.BuildLaunch(record, ledger.RunId, Name, Policy.From(ConfigLayers.Frozen(ledger.Dir)), record.Settings.TempRoot?.Value).Launch;
+            }
+            var variables = launch?.Environment
+                ?? WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id"),
                     Git.RecordedTempRoot(worker.TaskId, runId)).Variables;
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = SessionVariables(variables, host) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
@@ -267,7 +304,8 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
 
     async Task<AnswerResult> AnswerCoreAsync(BlockerRef blocker, BlockerAnswer answer, CancellationToken ct, HarnessServer? server = null)
     {
-        server ??= await HostAsync(sessionHosts.GetValueOrDefault(blocker.WorkerId, DefaultHost), ct);
+        server ??= workers.TryGetValue(blocker.WorkerId, out var worker)
+            ? await HostAsync(worker, ct) : await HostAsync(sessionHosts.GetValueOrDefault(blocker.WorkerId, DefaultHost), ct);
         var session = server.Client.Sessions.GetSessionClient(blocker.OriginChildId ?? blocker.WorkerId);
         if (answer is BlockerAnswer.Cancel cancel)
         {

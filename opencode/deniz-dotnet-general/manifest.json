@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "digest": "sha256:87c8751a58a9c5571c5acc6becf6a1e9525a8ff776e243d826ef840675c903f1",
   "requiredModules": [
     "deniz-dotnet-aspire",

@@ -1,6 +1,6 @@
 sealed class Args
 {
-    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "profile", "project", "access", "read-only-shell", "network", "workspace", "commit", "raw-prompt", "contract"];
+    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "timeout", "profile", "project", "access", "read-only-shell", "network", "workspace", "commit", "raw-prompt", "contract"];
     public List<string> Original { get; private init; } = [];
     public List<string> Routes { get; } = [];
     public List<string> Contracts { get; } = [];
@@ -18,6 +18,8 @@ sealed class Args
             if (token.StartsWith("--", StringComparison.Ordinal))
             {
                 var name = token[2..];
+                if (name == "timeout" && parsed.Command != "wait")
+                    throw new HarnessException("--timeout is only for wait; use timeoutMinutes in the task file or --timeout-minutes for worker timeouts");
                 if (ValueOptions.Contains(name))
                 {
                     if (i + 1 >= argv.Length)
@@ -49,8 +51,14 @@ sealed class Args
 
     public void ValidatePaths()
     {
+        if (Command == "wait" && Get("timeout") is { } timeout
+            && (!int.TryParse(timeout, NumberStyles.None, CultureInfo.InvariantCulture, out var minutes) || minutes <= 0))
+            throw new HarnessException("--timeout needs a positive whole number of minutes");
         foreach (var path in Contracts)
-            if (!path.StartsWith('@') && !Path.IsPathFullyQualified(path)) throw new HarnessException("--contract must be an absolute path");
+        {
+            if (path.StartsWith('@')) throw new HarnessException($"contract aliases were removed; name the file path: {path}");
+            if (!Path.IsPathFullyQualified(path)) throw new HarnessException("--contract must be an absolute path");
+        }
         foreach (var name in new[] { "repo", "dir", "policy", "ledger" })
         {
             if (Get(name) is { } path && !Path.IsPathFullyQualified(path))

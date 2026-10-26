@@ -26,9 +26,6 @@ static class Proc
             foreach (var (name, value) in environment) psi.Environment[name] = value;
         }
 
-        // Verify builds never join a long-lived MSBuild server (see WorkerEnvironment.Environment).
-        psi.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
-
         using var process = new Process { StartInfo = psi };
         process.Start();
         using var window = CancellationTokenSource.CreateLinkedTokenSource(ct);

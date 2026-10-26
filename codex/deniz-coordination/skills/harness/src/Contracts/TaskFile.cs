@@ -34,6 +34,9 @@ class TaskPreferences : AnnotatedObject
     public string? Workspace { get; set; }
     public string? TempRoot { get; set; }
     public List<string>? WritableRoots { get; set; }
+    public List<string>? PrivateFolders { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public JsonElement Environment { get; set; }
     public string? Commit { get; set; }
     public bool? RawPrompt { get; set; }
 }

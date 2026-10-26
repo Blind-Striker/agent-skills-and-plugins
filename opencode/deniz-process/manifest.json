@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.14.1",
+  "version": "0.14.2",
   "digest": "sha256:690792ff8625fdac8a1034fa063101479f6855e70f03e990de09801195db411f",
   "requiredModules": [],
   "files": {

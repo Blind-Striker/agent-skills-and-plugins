@@ -111,7 +111,7 @@ temporary file and replacement; text artifacts can be incomplete if settlement s
 | `warnings` | string array | `[]` | Config-resolution warnings; separate planner/live warnings are not all copied here. |
 | `tasks` | map keyed by task id | `{}` | Frozen task settings. |
 | `tasks.<id>.settings` | object | Resolved settings | Same setting shape used in `task.json`. |
-| `tasks.<id>.contracts` | contract-record array | Absent without contracts | Same path, optional alias, source, hash and selected version-line metadata as `task.json`. |
+| `tasks.<id>.contracts` | contract-record array | Absent without contracts | Same path, source, file-byte hash and first-line version metadata as `task.json`. |
 | `tasks.<id>.inputSha256` | string | Structured only after freeze | Hash of normalized `input.json` bytes. |
 | `tasks.<id>.resultSchemaSha256` | string | Structured only after freeze | Hash of normalized schema bytes. |
 
@@ -131,7 +131,7 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `route` | string setting | Required effective route or agent | Qualified requested route. |
 | `effort` | string setting | Absent | Explicit effort or route variant. |
 | `timeoutMinutes` | integer setting | `60` | Task timeout. |
-| `profile` | string setting | Kind default | Requested and, when checked, actual profile. |
+| `profile` | string setting | `clean` for every task kind | Requested and, when checked, actual profile; explicit preferences can opt in to `full`. |
 | `project` | string setting | Kind default | Repository-context mode. |
 | `access` | string setting | Kind default | Requested or clamped access. |
 | `network` | string setting | `on` | Requested or clamped network. |
@@ -171,10 +171,9 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `workspace.baseSha` | string | Git tasks with HEAD | Starting commit id. |
 | `contracts` | object array | Absent without contracts | Records below, not copies of text. |
 | `contracts[].path` | string path | Resolved path | Original contract path. |
-| `contracts[].alias` | string | Absent for ordinary file paths | Bundled alias supplied at the first occurrence, such as `@worker-contract` or `@sol-worker`. |
 | `contracts[].from` | string | First occurrence's layer | `task-file`, `task` or `cli`. |
-| `contracts[].sha256` | string | Selected-content hash for aliases; file-byte hash otherwise | Lowercase SHA-256. Alias hashes cover selected UTF-8 text before harness separators, excluding BOM and model coordinator preamble. Ordinary file-byte hashes retain any BOM. See [Contracts](task-file.md#contracts). |
-| `contracts[].version` | string | Selected text's first line | Trimmed and limited to 120 characters; model aliases record the worker marker, not coordinator guidance. |
+| `contracts[].sha256` | string | File-byte hash | Lowercase SHA-256 of the original file bytes, including any BOM. See [Contracts](task-file.md#contracts). |
+| `contracts[].version` | string | File's first line after BOM removal | Trailing whitespace trimmed and limited to 120 characters. |
 | `agent` | string | Absent until backend details | Actual persona or agent detail. |
 | `lineage` | string | Absent until backend details | Catalog lineage. |
 | `routeResolved` | string | opencode `agent` tasks only, after backend details | Qualified route of the model the roster agent pinned at start; settlement compares reported routes with it. |
@@ -383,7 +382,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
 | `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
-| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded | Verify summary; `commands` includes not-run records; `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
+| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded; `notRun` integer when any entry did not run | Verify summary; `commands` includes not-run records; `notRun` counts those records, not passes. `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
 | `prepared` | `commands`/`failed` integers; optional `changed`, `checkFailed`, `cancelled` booleans | Preparation summary; exact payloads and sessionless settlement above. Does not change the task's state: it stays `dispatching` until the worker starts or `final` is written. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |

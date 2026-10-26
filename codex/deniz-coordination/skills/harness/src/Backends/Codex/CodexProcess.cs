@@ -357,7 +357,8 @@ sealed class CodexProcess : IAsyncDisposable
         disposed = true;
     }
 
-    public static CodexProcess Start(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment)
+    public static CodexProcess Start(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment,
+        IReadOnlyDictionary<string, string>? configuredEnvironment = null)
     {
         var executable = ResolveExecutable(context.Executable, environment);
         var sessionLauncher = ResolveSessionLauncher(environment);
@@ -394,6 +395,7 @@ sealed class CodexProcess : IAsyncDisposable
         start.Environment.Clear();
         foreach (var (name, value) in environment) start.Environment[name] = value;
         foreach (var (name, value) in context.Passthrough) start.Environment[name] = value;
+        foreach (var (name, value) in configuredEnvironment ?? new Dictionary<string, string>()) start.Environment[name] = value;
         SafeFileHandle? job = null;
         Process? process = null;
         try

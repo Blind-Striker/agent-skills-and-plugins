@@ -11,7 +11,7 @@ composition and [configuration](config.md) for restrictions.
 
 | Setting | Type and default | opencode | Codex | Validation |
 |---|---|---|---|---|
-| `profile` | Enum; `clean` for mechanical, review, research and structured tasks and for read-only Codex tasks, otherwise `full`; explicit values override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
+| `profile` | Enum; `clean` for every task kind; explicit values at any layer override | Full uses installed context. Clean redirects config and builds a minimal profile. | Full uses user home. Clean uses temporary `CODEX_HOME` when possible. | `clean` or `full`; partial clean fallback is recorded. |
 | `project` | Enum; `off` for structured, otherwise `on` | Off disables project config through environment switches. | Off disables project docs and marks the working directory untrusted. | `on` or `off`. Only structured project-off tasks get projectless scratch. |
 | `access` | Enum; `workspace` for code/mechanical, otherwise `read-only` | Linux/macOS: read-only and workspace use the [accident guard](#opencode-accident-guard), recorded `sandbox`; read-only keeps its shell and denies `edit`. Windows: unfenced; read-only denies `edit` and, with `readOnlyShell: decline`, every shell call (no `git`), recorded `policy`; workspace is `none`. Full is unfenced, recorded `none`, on every OS. | Read-only and workspace use an OS sandbox, recorded `sandbox`; full uses danger-full-access, recorded `none`. | Must respect `maxAccess`. Windows Codex sandboxed tasks require ready setup. Missing opencode fence readiness refuses plan/run, never falls back. |
 | `network` | Enum; `on` | Off denies `webfetch` and `websearch`, recorded `policy`; on is `none`. | Read-only/workspace set `networkAccess` from the resolved value on every turn. Full has no sandbox network field. | `on` or `off`; full plus off is refused on Codex. |
@@ -79,7 +79,11 @@ The harness starts private `opencode serve` processes for the run and subscribes
 streams. Each fenced task has its own server, keyed by run/task; releasing its worker, a failed
 creation, or settlement in any final state disposes that server. An exited fenced server loses only
 its own task immediately; three consecutive failed `/active` polls do the same, with success resetting
-the count. Unfenced tasks share servers keyed by profile/project modes. It disables file watchers.
+the count. Unfenced tasks share servers only when profile/project modes and configured environments
+match. Backend processes receive configured values after passthrough; probe and catalog hosts stay
+configuration-free. Session shells receive the existing per-session environment, including on
+continuation from frozen settings. Separate processes are needed for differing process environments,
+not as a substitute for session delivery. It disables file watchers.
 On Windows it resolves the native
 executable behind a recognized package-manager shim; user config can provide an absolute executable
 path. Planning (`plan`, `run` and selfcheck's clean-profile check) refuses a server whose reported
@@ -109,15 +113,18 @@ writable and removed with the server. A harness killed before disposal leaves `/
 folders, which survive a reboot and may be removed by hand when no run is active. A writable root that
 contains `/var/tmp` lets that task's worker reach these folders; grant it only on purpose.
 Unix socket paths are capped near 108 bytes (104 on macOS);
-long temp paths break the .NET test host's named pipe, and tools falling back to global `/tmp` on
-macOS are denied by the fence. Linux also binds a fresh mode-0700 `<private temp>-runfile` folder,
-removed with the server, over
-`<XDG_DATA_HOME>/dotnet/runfile` (using `$HOME/.local/share` unless `XDG_DATA_HOME` starts with `/`),
-so each task reads and writes only its private file-based app cache: the shared folder holds the
-harness's own `dispatch.cs` build, which a worker must not change before the harness runs it unfenced.
+long temp paths break tools' sockets and named pipes, and tools falling back to global `/tmp` on
+macOS are denied by the fence. Linux binds a fresh mode-0700 source inside the exclusively created private temp
+over each configured `privateFolders` target, creating missing targets. The harness always appends
+without deduplication its own `<XDG_DATA_HOME>/dotnet/runfile` target (using `$HOME/.local/share` unless
+`XDG_DATA_HOME` starts with `/`), using its original environment rather than task home overrides.
+That shared folder holds the harness's own `dispatch.cs` build, which a worker must not change
+before the harness runs it unfenced. Private binds follow writable grants and precede read-only
+overlays. Successfully created sources are tracked for failed-start cleanup and removed on confirmed
+server exit; pre-existing sources are refused and never removed. Target folders remain.
 On Linux, a worker whose environment has no existing `XDG_RUNTIME_DIR`
 (the harness started from cron or a service, say) gets a private one, `<task temp>/runtime`:
-without it, .NET keeps named-mutex memory under the home, which the fence makes read-only.
+it supplies a writable location for IPC without needing writes under the read-only home.
 Workspace access also allows the workspace, Git common folder and configured writable roots.
 The opencode data `bin` path is read-only (on Linux, overlaid when it exists); existing Git common
 `hooks` and `config` paths are also overlaid read-only after the writable grants. Every writable root is checked again at launch using real paths; a root

@@ -28,7 +28,7 @@ static class WorkerEnvironment
 
     public static Scrubbed Scrub(IReadOnlyDictionary<string, string> snapshot, IEnumerable<string>? patterns = null)
     {
-        var secret = new Regex(@"(TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_?KEY|PRIVATE_?KEY|CREDENTIAL|(^|_)AUTH($|_)|(^|_)PAT$|^GH_|^GITHUB_|^NUGET_|^OPENCODE_SERVER|_PWD$|(^|_)PASS$|PASSPHRASE|(^|_)KEY$|(^|_)DSN$|DATABASE_URL|CONNECTION_?STRING|^ConnectionStrings__|COOKIE|^KUBECONFIG$|^NETRC$|^BASH_ENV$|^ENV$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var secret = new Regex(@"(TOKEN|SECRET|PASSWORD|PASSWD|API_?KEY|ACCESS_?KEY|PRIVATE_?KEY|CREDENTIAL|(^|_)AUTH($|_)|(^|_)PAT$|^GH_|^GITHUB_|^OPENCODE_SERVER|_PWD$|(^|_)PASS$|PASSPHRASE|(^|_)KEY$|(^|_)DSN$|DATABASE_URL|CONNECTION_?STRING|^ConnectionStrings__|COOKIE|^KUBECONFIG$|^NETRC$|^BASH_ENV$|^ENV$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         var valuePattern = new Regex(@"[A-Za-z][A-Za-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@");
         var extras = (patterns ?? []).Select(p => new Regex(p, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)).ToArray();
         var proxies = new HashSet<string>(["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY"], StringComparer.OrdinalIgnoreCase);
@@ -42,33 +42,26 @@ static class WorkerEnvironment
         return new(variables, removed);
     }
 
-    // The session's shell environment without credentials, with a per-task TEMP.
-    public static (Dictionary<string, string> Variables, List<string> Removed) Environment(string task, string? run = null, string? tempRoot = null)
+    // Scrub inherited variables, apply configured values, and supply a per-task TEMP.
+    public static (Dictionary<string, string> Variables, List<string> Removed) Environment(string task, string? run = null, string? tempRoot = null,
+        IReadOnlyDictionary<string, Setting<string>>? configured = null)
     {
         var scrubbed = Scrub(Snapshot());
         var variables = scrubbed.Variables;
         var removed = scrubbed.Removed;
+        foreach (var (name, setting) in configured ?? new Dictionary<string, Setting<string>>()) variables[name] = setting.Value!;
         var temp = Locations.TaskTemp(task, run, tempRoot);
         Directory.CreateDirectory(temp);
         variables["TEMP"] = temp;
         variables["TMP"] = temp;
         variables["TMPDIR"] = temp;
-        // Without a runtime dir .NET keeps named-mutex memory under the home, which a fence makes read-only
-        // (NuGet's first restore takes one). A worker started from cron or a service gets a private one.
+        // Give IPC users a private runtime directory when a service or cron supplies none.
         if (OperatingSystem.IsLinux() && !Directory.Exists(variables.GetValueOrDefault("XDG_RUNTIME_DIR")))
         {
             var runtime = Path.Combine(temp, "runtime");
             Directory.CreateDirectory(runtime, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             variables["XDG_RUNTIME_DIR"] = runtime;
         }
-        // A reused MSBuild server keeps the environment of whoever started it, so the per-task
-        // temporary folder would not apply to its NuGet scratch work.
-        variables["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
-        // A worker that points DOTNET_CLI_HOME at a new folder would otherwise make the SDK's first
-        // run append that folder's tools path to the user's PATH in the Windows registry and
-        // install an HTTPS development certificate in the user's certificate store.
-        variables["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = "false";
-        variables["DOTNET_GENERATE_ASPNET_CERTIFICATE"] = "false";
         variables["GIT_TERMINAL_PROMPT"] = "0";
         removed.Sort(StringComparer.Ordinal);
         return (variables, removed);

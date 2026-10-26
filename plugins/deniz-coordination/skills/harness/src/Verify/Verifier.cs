@@ -24,9 +24,7 @@ static class Verifier
         {
             var shell = ResolveShell(run.Record.Spec);
             result.VerifyShell = shell;
-            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId, run.Record.Settings.TempRoot?.Value).Variables;
-            environment["MSBUILDDISABLENODEREUSE"] = "1";
-            environment["UseSharedCompilation"] = "false";
+            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId, run.Record.Settings.TempRoot?.Value, run.Record.Settings.Environment).Variables;
             foreach (var (command, advisory) in commands)
             {
                 var executed = await RunCommandAsync(run.Record.Spec, shell, run.Record.Workspace.Path!, environment, command, advisory, ct);
@@ -39,6 +37,7 @@ static class Verifier
         await ledger.WriteArtifactAsync(run.Id, "verify.log", log.ToString(), ct);
         var data = new JsonObject { ["commands"] = result.Verify.Count, ["failed"] = result.Verify.Count(x => x.Advisory != true && Failed(x)) };
         if (result.Verify.Any(x => x.Advisory == true)) data["advisoryFailed"] = result.Verify.Count(x => x.Advisory == true && Failed(x));
+        if (result.Verify.Any(x => x.NotRun is not null)) data["notRun"] = result.Verify.Count(x => x.NotRun is not null);
         ledger.Write(run.Id, "verified", data);
     }
 

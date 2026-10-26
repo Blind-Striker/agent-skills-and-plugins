@@ -17,8 +17,8 @@ that result, and records every step in a ledger. This skill is the harness's con
 ## Boundary
 
 - This skill says how to run a task. What to hand out and how to judge the result belong to the caller.
-- The harness prepends only the contracts you name (`contracts`, `--contract`); `plan` warns on a code or
-  mechanical task that names no worker contract.
+- The caller selects the contract file paths (`contracts`, `--contract`); the harness prepends only
+  those files, whole, and depends on no other skill.
 - A calling skill that sends `structured` tasks owns their prompt and result schema.
 - Use `prepare` for dependency steps outside the sandbox: [Dependencies and the sandbox](references/guide.md#dependencies-and-the-sandbox).
   When a build, test or tool fails under the fence or sandbox, read `references/cookbook.md`.
@@ -35,14 +35,14 @@ dotnet dispatch.cs -- <command> [arguments]
 - Build before every command. A non-zero build exit means nothing started; fix the error or retry
   when two builds collided. The `--` keeps `dotnet` from taking flags such as `--force`.
 - Paths on the command line are absolute (task file, `--repo`, `--contract`, `--ledger`); paths in a
-  task file are relative to that file, except `dir` (relative to the repository root). `--contract` also accepts bundled aliases
-  `@worker-contract` and `@<model>-worker`; semantics: `references/task-file.md#contracts`.
+  task file are relative to that file, except `dir` (relative to the repository root).
+  Contract semantics: `references/task-file.md#contracts`.
   In PowerShell use `$PWD.ProviderPath`.
 - Run `selfcheck [--repo <path>]` on a new machine, after an update, and in a new repository. It
   checks each backend the configuration selects, or every installed one when none is selected
   (version, sign-in, catalog, a clean profile), Windows readiness and every resolved folder, and sends
   no prompt. Discovery and exit behavior: `references/cli.md`.
-- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `asks`, `reply`, `cancel`, `collect`,
+- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `wait`, `asks`, `reply`, `cancel`, `collect`,
   `resume`, `clean`. Arguments, output and exit codes of each: `references/cli.md`.
 
 ## Backend and modes
@@ -53,12 +53,12 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 
 | Setting | Values | Code, mechanical | Review, research | Structured |
 |---|---|---|---|---|
-| `profile` | `clean` (minimal profile), `full` (installed profile) | code `full`; mechanical `clean` | `clean` | `clean` |
+| `profile` | `clean` (minimal profile), `full` (installed profile) | `clean` | `clean` | `clean` |
 | `project` | `on` (repository context loads), `off` | `on` | `on` | `off` |
 | `access` | `read-only`, `workspace`, `full` | `workspace` | `read-only` | `read-only` |
 | `workspace` | `worktree` (own branch from `base`), `in-place` (`dir`) | `worktree` | `worktree` | scratch folder |
 
-- A read-only Codex task of any kind also defaults to `profile: clean`; explicit profiles win. A task
+- Every task kind defaults to `profile: clean`; explicit profiles at any layer win. A task
   that needs the installed profile's tools (MCP servers, plugins, skills) sets `profile: full`. Codex `access: full` removes
   its sandbox. opencode `read-only` denies edit and keeps the shell inside the fence; on Windows it also
   declines every shell call by default.
@@ -82,7 +82,7 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 ```jsonc
 {
   "schemaVersion": 2,
-  "contracts": ["@worker-contract", "@<model>-worker"],
+  "contracts": ["contracts/common.md", "contracts/model.md"],
   "tasks": [
     { "id": "fix-guide-typo", "kind": "code", "backend": "codex", "route": "<model>#<effort>",
       "base": "<branch>", "promptFile": "fix-guide-typo.md", "scope": ["docs/guide/"],
@@ -106,11 +106,16 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 2. **Run.** `run <tasks.jsonc> [--run <name>]` is the supervisor: it blocks until every task is
    final. To keep working meanwhile, start it from a background shell and watch from another one.
    A background run wakes you only through a waiter you arm in the same step: your tool's
-   completion notice for that shell, or a loop on `status`. When you come back to a run without one,
+   completion notice for that shell, or `wait <run> --timeout <minutes>` from another shell after
+   starting `run` (the waiter allows two minutes for its ledger to appear). Keep this timeout below
+   your waiting shell or tool's timeout, and call `wait` again after exit 3. When you come back to a run without one,
    start with `status <run>`; `(no supervisor: …)` means nothing is driving it.
 3. **Watch.** `status <run>` shows each task's state, tool count and last tool call. States:
    `queued`, `dispatching`, `running`, `waiting` (escalated ask), `settling`, `interrupted`, and the
-   final `done`, `failed`, `cancelled`.
+   final `done`, `failed`, `cancelled`. Use `wait <run> --timeout <minutes>` after starting `run` to wait
+   for those final states and print the status summary; choose a timeout below your shell or tool's
+   timeout and call it again after exit 3. It exits at once if a recorded unfinished run has no
+   supervisor. Startup grace and waiter exits: `references/cli.md`.
 4. **Answer.** `asks [<run>]` lists escalated asks; `reply <run> <askId> once|reject [--message <text>]`
    answers one. Answers are one-shot; the harness never grants a standing approval.
 5. **Stop.** `cancel <run> <task>`. Never kill the supervisor.
@@ -144,11 +149,16 @@ A recorded run is never run again and its ledger is never edited by hand.
 
 ## Traps
 
+- **Background shell timeout.** A background shell's timeout must exceed the run's longest
+  `timeoutMinutes`, or the host kills the supervisor and the run settles `lost`.
+- **Codex plugin cache.** Codex keeps one cached plugin version and may replace it during a run,
+  removing the supervisor's own files. Start the harness from a stable copy outside that cache;
+  `selfcheck`, `plan` and `run` warn when started there ([CLI](references/cli.md#codex-plugin-cache-warning)).
 - **Machine-wide state.** Environment isolation does not cover the Windows registry, scheduled
-  tasks or the credential store. A new `DOTNET_CLI_HOME` makes the .NET SDK append a tools folder
-  to the user PATH in the registry and may install an HTTPS development certificate; the harness
-  switches both off for its workers, `selfcheck` warns on a long user PATH and `run` refuses a very
-  long one. Do not point `DOTNET_CLI_HOME`, `CODEX_HOME` or `XDG_DATA_HOME` at new folders yourself:
+  tasks or the credential store. SDK first-use behaviour, including user PATH appends and HTTPS
+  development certificates, belongs in your `environment` configuration; the harness supplies no
+  ecosystem switches. See the [cookbook](references/cookbook.md). `selfcheck` warns on a long user
+  PATH and `run` refuses a very long one. Do not point `DOTNET_CLI_HOME`, `CODEX_HOME` or `XDG_DATA_HOME` at new folders yourself:
   the backends' sign-in lives in their homes.
 - **Inherited Codex rules.** Codex's app-server loads exec-policy rules it cannot be told to
   ignore: an `allow` rule can run a matching command outside the sandbox without asking. `profile:

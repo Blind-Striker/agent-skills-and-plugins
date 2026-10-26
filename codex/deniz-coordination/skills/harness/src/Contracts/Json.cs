@@ -95,7 +95,10 @@ static class Json
             (!doc.RootElement.TryGetProperty("schemaVersion", out var version) ||
              (version.ValueKind == JsonValueKind.Number && version.TryGetInt32(out var number) && number == 1)))
             throw new JsonException("task file v1 is not read. To convert it: add \"schemaVersion\": 2; add a kind to every task; add \"defaults\": { \"backend\": \"opencode\" }; rename maxMinutes to timeoutMinutes; delete fallback");
-        return JsonSerializer.Deserialize(text, InputJson.Read.TaskFile) ?? throw new JsonException("task file is empty");
+        var file = JsonSerializer.Deserialize(text, InputJson.Read.TaskFile) ?? throw new JsonException("task file is empty");
+        ConfigResolver.ValidateEnvironment(file.Defaults, "task-file-defaults");
+        foreach (var task in file.Tasks!) ConfigResolver.ValidateEnvironment(task, "task");
+        return file;
     }
 
     public static string Timestamp(TimeProvider? time = null) =>

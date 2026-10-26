@@ -1,6 +1,6 @@
-worker-model grok v1
+worker-model grok v2
 
-Review-only profile. As an implementer this model is unprofiled: it gets only the worker contract.
+This block is for review tasks.
 
 ## Review
 

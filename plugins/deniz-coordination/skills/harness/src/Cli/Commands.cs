@@ -307,7 +307,7 @@ static partial class Commands
 
     // A run with unfinished tasks and no supervisor waits for resume; say so, so a watcher stops waiting.
     static string Driver(string run, IEnumerable<string> states) => SupervisorLock.IsHeld(run) ? " (supervised now)"
-        : states.Any(x => x is not ("done" or "failed" or "cancelled")) ? $" (no supervisor: `resume {run}` settles it)" : "";
+        : !states.Any() || states.Any(x => x is not ("done" or "failed" or "cancelled")) ? $" (no supervisor: `resume {run}` settles it)" : "";
 
     public static int Status(Args a)
     {
@@ -330,9 +330,67 @@ static partial class Commands
             return 0;
         }
 
-        var run = new Ledger(RunId(a));
+        return PrintStatus(StatusRun(a));
+    }
+
+    static Ledger StatusRun(Args a) => StatusRun(new Ledger(RunId(a)));
+
+    static Ledger StatusRun(Ledger run)
+    {
         if (File.Exists(Path.Combine(run.Dir, "run.json"))) Locations.ControlDir(run.RunId);
         else run.EnsureExists();
+        return run;
+    }
+
+    public static async Task<int> WaitAsync(Args a, CancellationToken ct, TimeProvider? timeProvider = null,
+        Func<string, bool>? supervisorHeld = null)
+    {
+        a.ValidatePaths();
+        var time = timeProvider ?? TimeProvider.System;
+        var started = time.GetUtcNow();
+        var deadline = started.AddMinutes(int.Parse(a.Get("timeout") ?? "60", CultureInfo.InvariantCulture));
+        var ledgerDeadline = started.AddMinutes(2) < deadline ? started.AddMinutes(2) : deadline;
+        var run = new Ledger(RunId(a));
+        while (!File.Exists(Path.Combine(run.Dir, "run.json")) && !File.Exists(Path.Combine(run.Dir, "events.jsonl")))
+        {
+            ct.ThrowIfCancellationRequested();
+            var remaining = ledgerDeadline - time.GetUtcNow();
+            if (remaining <= TimeSpan.Zero)
+            {
+                run.EnsureExists();
+                break;
+            }
+            await WaitDelayAsync(remaining, time, ct);
+            // A bare name can acquire its dated ledger while run is still probing.
+            run = new Ledger(RunId(a));
+        }
+        StatusRun(run);
+        while (true)
+        {
+            ct.ThrowIfCancellationRequested();
+            var supervised = (supervisorHeld ?? SupervisorLock.IsHeld)(run.RunId);
+            var states = run.TaskStates();
+            var unfinished = states.Where(x => x.Value is not ("done" or "failed" or "cancelled")).Select(x => x.Key).ToList();
+            if (states.Count > 0 && unfinished.Count == 0 || !supervised)
+            {
+                PrintStatus(run);
+                return states.Count > 0 && states.Values.All(x => x == "done") ? 0 : 1;
+            }
+            var remaining = deadline - time.GetUtcNow();
+            if (remaining <= TimeSpan.Zero)
+            {
+                Console.Error.WriteLine($"run {run.RunId}: wait timed out; {(states.Count == 0 ? "no tasks recorded yet" : $"unfinished tasks: {string.Join(", ", unfinished)}")}");
+                return 3;
+            }
+            await WaitDelayAsync(remaining, time, ct);
+        }
+    }
+
+    static Task WaitDelayAsync(TimeSpan remaining, TimeProvider time, CancellationToken ct) =>
+        Task.Delay(remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5), time, ct);
+
+    static int PrintStatus(Ledger run)
+    {
         Console.WriteLine($"run {run.RunId}{Driver(run.RunId, run.TaskStates().Values)}");
         Console.WriteLine($"  {"task",-24} {"state",-10} {"outcome",-12} {"cost",8} {"in/out tokens",-16} {"files",5} {"scope!",6} {"asks",4} {"esc",3} verify");
         var events = run.Read();
@@ -346,7 +404,7 @@ static partial class Commands
             var tokens = result?.Tokens is { } t ? $"{t.Input:0}/{t.Output:0}" : "-";
             var verify = result is null || result.Verify.Count == 0
                 ? "-"
-                : string.Join(' ', result.Verify.Select(v => v.ExitCode == 0 ? "ok" : $"exit {v.ExitCode}"));
+                : string.Join(' ', result.Verify.Select(v => v.NotRun is not null ? "not run" : v.ExitCode == 0 ? "ok" : $"exit {v.ExitCode}"));
             Console.WriteLine($"  {task,-24} {state,-10} {result?.Outcome ?? "-",-12} {result?.Cost?.ToString("0.0000", CultureInfo.InvariantCulture) ?? "-",8} {tokens,-16} {result?.FilesChanged.Count.ToString(CultureInfo.InvariantCulture) ?? "-",5} {result?.OutOfScope.Count.ToString(CultureInfo.InvariantCulture) ?? "-",6} {result?.Asks.ToString(CultureInfo.InvariantCulture) ?? "-",4} {result?.AsksEscalated.ToString(CultureInfo.InvariantCulture) ?? "-",3} {verify}");
             if (unanswered[task].ToList() is { Count: > 0 } dropped)
                 Console.WriteLine($"    asks closed without an answer: {dropped.Count} ({string.Join("; ", dropped.Select(x => $"{x.Data?["action"]}: {x.Data?["reason"]}").Distinct())})");
