@@ -703,6 +703,9 @@ public sealed class OpenCodeModesTests
         if (!OperatingSystem.IsLinux()) Skip.Test("Linux private binds only.");
         if (await Ready.FenceAsync(ct) is { } unavailable) Skip.Test(unavailable);
         await using var lab = new OpenCodeLab();
+        // A lab under /var/tmp puts the workspace inside the entry too, and that refusal comes first.
+        if (kind == "private-temp" && lab.Tree.Root.StartsWith("/var/tmp/", StringComparison.Ordinal))
+            Skip.Test("The lab tree lies under /var/tmp, so /var/tmp also hides the workspace.");
         lab.SetEnvironment("XDG_STATE_HOME", lab.Tree.ChildEnvironment()["XDG_STATE_HOME"]);
         lab.Create("worker");
         lab.Write();
