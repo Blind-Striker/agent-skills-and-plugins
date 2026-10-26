@@ -12,6 +12,38 @@ public sealed class ExitCodeTests
     const string CacheWarning = "this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache";
 
     [Test]
+    [Timeout(180_000)]
+    public async Task Plugin_cache_warning_uses_the_documented_file_app_entry(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = CatalogCommandTests.Configure(lab, both: false);
+        var home = environment["CODEX_HOME"]!;
+        Directory.CreateDirectory(Path.Combine(home, "plugins"));
+        var cache = Path.Combine(home, "plugins", "cache");
+        var target = Path.GetDirectoryName(TestPaths.Harness)!;
+        try
+        {
+            // Make the real harness a cache descendant without copying it or using a real Codex home.
+            if (OperatingSystem.IsWindows())
+            {
+                using var command = new CapturedProcess();
+                (await command.RunAsync("cmd", ["/c", "mklink", "/J", cache, target], lab.Tree.Root,
+                    lab.Tree.ChildEnvironment(), ct)).RequireSuccess("cache junction fixture");
+            }
+            else Directory.CreateSymbolicLink(cache, target);
+            using var process = new HarnessProcess(lab.Tree);
+            var output = await process.RunAsync(["selfcheck", "--backend", "codex"], ct, environment, documentedEntry: true);
+            await Assert.That(output.ExitCode).IsEqualTo(0);
+            await Assert.That(output.Stdout).Contains("PASS  launch:");
+            await Assert.That(output.Stderr.ReplaceLineEndings("\n")).IsEqualTo(CacheWarning + "\n");
+        }
+        finally
+        {
+            if (Directory.Exists(cache)) Directory.Delete(cache);
+        }
+    }
+
+    [Test]
     [NotInParallel]
     public async Task Plugin_cache_source_without_injection_is_under_the_harness()
     {
@@ -195,7 +227,7 @@ public sealed class ExitCodeTests
         await Assert.That(output.ExitCode).IsEqualTo(2);
         await Assert.That(output.Stdout).IsEqualTo("");
         await Assert.That(output.Stderr.ReplaceLineEndings("\n")).IsEqualTo(
-            "dispatch: --timeout is only for wait; use timeoutMinutes in the task file for worker timeouts\n");
+            "dispatch: --timeout is only for wait; use timeoutMinutes in the task file or --timeout-minutes for worker timeouts\n");
     }
 
     [Test]

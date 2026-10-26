@@ -19,7 +19,7 @@ sealed class Args
             {
                 var name = token[2..];
                 if (name == "timeout" && parsed.Command != "wait")
-                    throw new HarnessException("--timeout is only for wait; use timeoutMinutes in the task file for worker timeouts");
+                    throw new HarnessException("--timeout is only for wait; use timeoutMinutes in the task file or --timeout-minutes for worker timeouts");
                 if (ValueOptions.Contains(name))
                 {
                     if (i + 1 >= argv.Length)

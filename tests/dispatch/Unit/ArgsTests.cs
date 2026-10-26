@@ -17,7 +17,7 @@ public sealed class ArgsTests
     public async Task Timeout_is_only_for_wait_and_names_the_task_file_field(string command, bool hasValue)
     {
         await Assert.That(() => Args.Parse(hasValue ? [command, "--timeout", "7"] : [command, "--timeout"]).ValidatePaths())
-            .ThrowsExactly<HarnessException>().WithMessage("--timeout is only for wait; use timeoutMinutes in the task file for worker timeouts");
+            .ThrowsExactly<HarnessException>().WithMessage("--timeout is only for wait; use timeoutMinutes in the task file or --timeout-minutes for worker timeouts");
     }
 
     [Test]
