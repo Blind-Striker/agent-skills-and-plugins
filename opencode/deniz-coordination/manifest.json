@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.1.5",
-  "digest": "sha256:902b0f1f06f8b67ff169a78d7552c65962e2b04c3f3c4f4bb374199168a45d64",
+  "digest": "sha256:9c114c0cfe084d1e5ee225c565e8a8b09c545abaadcf42f8c1433575a5a2ce23",
   "requiredModules": [
     "deniz-process"
   ],
@@ -24,11 +24,11 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.coordinator/references/sessions.md": {
-      "sha256": "sha256:5b556baedc76a343e33120d1dc2b2fa6e61d4c603a854f1c30a6c76c3976f9ac",
+      "sha256": "sha256:e362099b0fc49239ff78a72b5b1975b8ab3a8b8de9de2ff7e82e004666ec66fd",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:a0099c72a8050408ed571d59b0b8a0759d93c72cc71e49a5d1a8c813e30f6e7b",
+      "sha256": "sha256:59051c904d1c5008e569e921bb4632d31b563daf75516dea4fe18d3b2633c82b",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
@@ -60,7 +60,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/test-oracles.md": {
-      "sha256": "sha256:b77ffa7cae75ec0d2458e7c034a9946c2999737dc4d96bbee018848fad19e14b",
+      "sha256": "sha256:29ff5be921a06a7c4b5fc768d2fa4d27ac4e002966b911a32df2daff83e129af",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/walls/README.md": {

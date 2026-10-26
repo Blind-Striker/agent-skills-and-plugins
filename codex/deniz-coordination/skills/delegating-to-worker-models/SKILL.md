@@ -82,6 +82,8 @@ is any subagent tool you have; the rules below hold for all of them.
      exemption beside a binding rule is a contradiction, not an override.
    - Every figure is measured: budget caps from a projection, the base as a SHA, a detector's exemptions
      checked against its own positive tests.
+   - Code the prompt pins for the worker to use compiles under the repository's analyzers before you
+     send it.
 
    A stop on any of these is cheap, but it is your defect, not the worker's.
 

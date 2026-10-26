@@ -28,6 +28,7 @@ reads this table as a checklist over-proves and burns the run.
   than the test: a mutant is killed when the test fails within its bound, at the operation or at the
   oracle. A hang guard that fires and names the awaited event is reported as "detected by a bounded
   wait", apart from kills, and never counts as a mutation proof. A run that never finishes is neither.
+  Run mutants on a host with no other heavy job: under load, a timeout reads as a kill.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
   after. A mutant is a temporary product edit, so the prompt must authorize it: name every product line
   the mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
