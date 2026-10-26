@@ -374,6 +374,36 @@ public sealed class CatalogCommandTests
 
     [Test]
     [Timeout(180_000)]
+    public async Task Selfcheck_discovers_OpenCode_as_installed_but_unusable(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        var environment = Discoverable(lab, opencode: false, codex: false);
+        var shim = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "unusable-opencode")).FullName;
+        var executable = Path.Combine(shim, OperatingSystem.IsWindows() ? "opencode.ps1" : "opencode");
+        File.WriteAllText(executable, "must not run");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+        environment["PATH"] = shim + Path.PathSeparator + environment["PATH"];
+        if (OperatingSystem.IsWindows()) environment["PATHEXT"] = ".PS1;" + environment["PATHEXT"];
+        using var harness = new HarnessProcess(lab.Tree);
+
+        var result = await harness.RunAsync(["selfcheck"], ct, environment);
+
+        await Assert.That(result.Stdout.Split('\n').Select(line => line.TrimEnd('\r'))
+            .Where(line => line.StartsWith("SKIP  ", StringComparison.Ordinal) || line.StartsWith("backend ", StringComparison.Ordinal)
+                || line.StartsWith("FAIL  ", StringComparison.Ordinal)).ToArray())
+            .IsEquivalentTo(new[] {
+                "SKIP  backend codex: not installed (codex on PATH)",
+                "backend opencode",
+                "FAIL  live: opencode: HarnessException: required executable is not on PATH: opencode",
+            }, CollectionOrdering.Matching);
+        await Assert.That(result.Stdout.TrimEnd().Split('\n').Last().TrimEnd('\r')).IsEqualTo("selfcheck: 1 check(s) failed");
+        await Assert.That(result.Stderr.Trim()).IsEqualTo("");
+        await Assert.That(result.ExitCode).IsEqualTo(1);
+        await DiscoveryCleanedUp(lab);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Selfcheck_launch_finds_Codex_on_Windows_Path(CancellationToken ct)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows environment names are case-insensitive.");

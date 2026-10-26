@@ -179,13 +179,14 @@ sealed class HarnessServer : IAsyncDisposable
                 if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
                 var privateTargets = (launch.PrivateFolders ?? []).Select(entry => (Entry: entry, Target: Worktree.RealPath(entry)))
                     .DistinctBy(x => x.Target, StringComparer.Ordinal).ToArray();
-                if (OperatingSystem.IsLinux())
-                    foreach (var (entry, target) in privateTargets)
-                        foreach (var (folder, name) in new[] { (launch.Directory, "workspace"), (common, "git common folder") })
-                            if (folder is not null && Worktree.IsInside(Worktree.RealPath(folder), target))
-                                throw new HarnessException($"{launch.TaskId}: privateFolders entry {entry} would hide the {name}: {folder}");
                 var home = inherited.GetValueOrDefault("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 var writable = Ready.WritableSet(launch, profileRoot, home, inherited, common);
+                if (OperatingSystem.IsLinux())
+                    foreach (var (entry, target) in privateTargets)
+                        foreach (var (folder, name) in new[] { (launch.Directory, "workspace"), (common, "git common folder") }
+                            .Concat(writable.Append(temporary).Select(folder => ((string?)folder, "writable folder"))))
+                            if (folder is not null && Worktree.IsInside(Worktree.RealPath(folder), target))
+                                throw new HarnessException($"{launch.TaskId}: privateFolders entry {entry} would hide the {name}: {folder}");
                 foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
                 Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
                 if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())

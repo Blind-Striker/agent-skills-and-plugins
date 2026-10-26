@@ -268,7 +268,8 @@ static partial class Commands
         catch (HarnessException ex)
         {
             // A resolved but unusable executable must reach the live check for its diagnostic.
-            return name == "codex" && !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
+            return name == "opencode" ? OpenCodeInstalled("opencode")
+                : !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
         }
     }
 

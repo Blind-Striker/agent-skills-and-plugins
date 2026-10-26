@@ -164,6 +164,61 @@ public sealed class OpenCodeModesTests
     }
 
     [Test]
+    [Arguments("collect")]
+    [Arguments("release")]
+    public async Task Configured_recovery_without_frozen_config_keeps_recorded_environment(string operation, CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Create("worker");
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "failed"));
+        lab.Add("GET /api/session/worker/message", new JsonObject
+        {
+            ["data"] = new JsonArray(JsonNode.Parse("""
+                {"id":"answer","type":"assistant","time":{"created":2,"completed":3},"agent":"build",
+                 "model":{"id":"model","providerID":"fixture"},"content":[{"type":"text","text":"Recorded answer."}],
+                 "tokens":{"input":7,"output":3,"reasoning":0,"cache":{"read":0,"write":0}}}
+                """)), ["cursor"] = new JsonObject(),
+        });
+        lab.Add("DELETE /api/session/worker", status: 204);
+        lab.Write();
+        var recordedCalls = Path.Combine(lab.Tree.Root, "configured-calls.jsonl");
+        var spec = new TaskSpec { Id = "worker", Kind = "research", Backend = "opencode", Route = "fixture/model", Access = "full",
+            Environment = JsonSerializer.SerializeToElement(new Dictionary<string, string> { ["FAKE_OPENCODE_RECORD"] = recordedCalls }) };
+        var config = ConfigResolver.Resolve(new() { Tasks = [spec] });
+        var record = new TaskRecord { Spec = spec, Settings = config.Tasks["worker"].Settings, Workspace = new() { Path = lab.Tree.Repository } };
+        var ledger = new Ledger("run");
+        new ConfigLayers { Effective = config }.Freeze(ledger.Dir);
+        ledger.SaveRecord(record);
+        var context = new BackendContext(Path.Combine(lab.Tree.Root, "recovery-profiles"), ConfigLayers.User!.Backends!.Opencode!.Executable, new Dictionary<string, string>());
+        WorkerRef worker;
+        await using (var first = new OpenCodeBackend(context: context, runId: "run"))
+            worker = (await first.CreateAsync(TaskStarter.BuildLaunch(record, "run", "opencode", Policy.From(config), null).Launch, ct)).Worker;
+        File.Delete(Path.Combine(ledger.Dir, "config.json"));
+        await using var recovered = new OpenCodeBackend(context: context, runId: "run");
+        Exception? failure = null;
+        WorkerReport? report = null;
+        try
+        {
+            if (operation == "collect") report = await recovered.CollectAsync(worker, ct);
+            else await recovered.ReleaseAsync(worker, ct);
+        }
+        catch (Exception ex) { failure = ex; }
+        await Assert.That(failure).IsNull();
+        if (operation == "collect")
+        {
+            await Assert.That(report!.Outcome).IsEqualTo("failed");
+            await Assert.That(report.FinalText).IsEqualTo("Recorded answer.");
+            await Assert.That(report.Usage.Input).IsEqualTo(0);
+            await Assert.That(report.Calls!.Single().Input).IsEqualTo(7);
+        }
+        var calls = File.ReadLines(recordedCalls).Select(x => JsonNode.Parse(x)!).ToArray();
+        await Assert.That(calls.Where(x => x["path"]!.GetValue<string>().StartsWith("/api/session", StringComparison.Ordinal)).Select(x => $"{x["method"]} {x["path"]}"))
+            .IsEquivalentTo(operation == "collect" ? new[] { "POST /api/session", "PUT /api/session/worker/environment", "GET /api/session/worker", "GET /api/session/worker/message" }
+                : ["POST /api/session", "PUT /api/session/worker/environment", "DELETE /api/session/worker"], TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(calls.Where(x => x["unexpected"]!.GetValue<bool>())).IsEmpty();
+    }
+
+    [Test]
     [Arguments(204)]
     [Arguments(500)]
     public async Task Lost_fence_release_deletes_through_shared_host_and_reports_failure(int status, CancellationToken ct)
@@ -540,7 +595,9 @@ public sealed class OpenCodeModesTests
                 "--tmpfs", runtime, "--ro-bind", Path.Combine(data, "bin"), Path.Combine(data, "bin"),
                 "--ro-bind", Path.Combine(common, "hooks"), Path.Combine(common, "hooks"),
                 "--ro-bind", Path.Combine(common, "config"), Path.Combine(common, "config"),
-                "--", ConfigLayers.User!.Backends!.Opencode!.Executable!, "serve",
+                "--", .. HarnessServer.Command(ConfigLayers.User!.Backends!.Opencode!.Executable),
+                .. (string[])typeof(OpenCode.Sdk.OpenCodeServer).GetField("LauncherArguments",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.GetValue(null)!,
             ], TUnit.Assertions.Enums.CollectionOrdering.Matching);
             var bind = Array.IndexOf(arguments, source);
             await Assert.That(bind).IsGreaterThan(0);
@@ -618,13 +675,66 @@ public sealed class OpenCodeModesTests
         var entry = kind switch { "ancestor" => Path.GetDirectoryName(repo.Root)!, "common" => common,
             "inside" => Path.Combine(repo.Root, "private-cache"), "alias" => Path.Combine(lab.Tree.Root, "workspace-alias"), _ => repo.Root };
         if (kind == "alias") Directory.CreateSymbolicLink(entry, repo.Root);
+        var existingTemps = Directory.GetDirectories("/var/tmp", "dispatch-*").ToHashSet(StringComparer.Ordinal);
         HarnessException? failure = null;
         try { await lab.Backend.CreateAsync(Launch(lab, "worker") with { PrivateFolders = [entry] }, ct); }
         catch (HarnessException ex) { failure = ex; }
         await Assert.That(failure?.Message).IsEqualTo(kind == "inside" ? null
             : $"worker: privateFolders entry {entry} would hide the {(kind == "common" ? "git common folder" : "workspace")}: {(kind == "common" ? common : repo.Root)}");
         if (kind == "inside") await Assert.That(Directory.Exists(entry)).IsTrue();
-        else await Assert.That(lab.Hosts()).IsEmpty();
+        else
+        {
+            await Assert.That(lab.Hosts()).IsEmpty();
+            await Assert.That(Directory.GetDirectories("/var/tmp", "dispatch-*").Except(existingTemps)).IsEmpty();
+        }
+    }
+
+    [Test]
+    [Arguments("private-temp")]
+    [Arguments("data")]
+    [Arguments("data-ancestor")]
+    [Arguments("state")]
+    [Arguments("task-temp")]
+    [Arguments("writable-root")]
+    [Arguments("writable-alias")]
+    [Arguments("dev")]
+    public async Task Linux_private_folders_cannot_hide_any_launch_writable_grant(string kind, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux private binds only.");
+        if (await Ready.FenceAsync(ct) is { } unavailable) Skip.Test(unavailable);
+        await using var lab = new OpenCodeLab();
+        lab.SetEnvironment("XDG_STATE_HOME", lab.Tree.ChildEnvironment()["XDG_STATE_HOME"]);
+        lab.Create("worker");
+        lab.Write();
+        var writableRoot = Path.Combine(lab.Tree.Root, "extra-writable");
+        var launch = Launch(lab, "worker") with { WritableRoots = [writableRoot] };
+        var folder = kind switch
+        {
+            "private-temp" => "/var/tmp", "data" or "data-ancestor" => Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME")!, "opencode"),
+            "state" => Path.Combine(Environment.GetEnvironmentVariable("XDG_STATE_HOME")!, "opencode"),
+            "task-temp" => launch.Environment["TEMP"], "dev" => "/dev", _ => writableRoot,
+        };
+        var entry = kind == "data-ancestor" ? Path.GetDirectoryName(folder)! : folder;
+        if (kind == "writable-alias")
+        {
+            Directory.CreateDirectory(folder);
+            entry = Path.Combine(lab.Tree.Root, "writable-alias");
+            Directory.CreateSymbolicLink(entry, folder);
+        }
+        var existingTemps = Directory.GetDirectories("/var/tmp", "dispatch-*").ToHashSet(StringComparer.Ordinal);
+        HarnessException? failure = null;
+        try { await lab.Backend.CreateAsync(launch with { PrivateFolders = [entry] }, ct); }
+        catch (HarnessException ex) { failure = ex; }
+        if (kind == "private-temp")
+        {
+            var prefix = $"worker: privateFolders entry {entry} would hide the writable folder: ";
+            await Assert.That(failure?.Message).StartsWith(prefix);
+            folder = failure!.Message[prefix.Length..];
+            await Assert.That(System.Text.RegularExpressions.Regex.IsMatch(folder, "^/var/tmp/dispatch-[0-9a-f]{12}$")).IsTrue();
+        }
+        await Assert.That(failure?.Message).IsEqualTo($"worker: privateFolders entry {entry} would hide the writable folder: {folder}");
+        await Assert.That(lab.Hosts()).IsEmpty();
+        await Assert.That(Directory.GetDirectories("/var/tmp", "dispatch-*").Except(existingTemps)).IsEmpty();
     }
 
     [Test]

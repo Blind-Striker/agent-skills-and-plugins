@@ -105,7 +105,7 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         var configured = record.Settings.Environment?.ToDictionary(x => x.Key, x => x.Value.Value!, WorkerEnvironment.NameComparer);
         var modes = TaskStarter.ModesFor(record);
         return new(ledger.RunId, worker.TaskId, record.Spec.Kind!, route!, record.Spec.Agent, record.Spec.Persona,
-            modes, record.Workspace.Path!, TaskStarter.RulesFor(Policy.From(ConfigLayers.Frozen(ledger.Dir))),
+            modes, record.Workspace.Path!, new([], []),
             configured ?? new Dictionary<string, string>(), null, record.Settings.Profile?.Actual ?? modes.Profile,
             record.Settings.Profile?.Reason, record.Settings.WritableRoots?.Value, record.Settings.PrivateFolders?.Value, configured);
     }
