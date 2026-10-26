@@ -5,9 +5,9 @@ public sealed class WorkerEnvironmentTests
 {
     public static IEnumerable<(string Name, string Value, bool Removed)> Cases()
     {
-        foreach (var name in new[] { "FAKE_TOKEN", "CLIENT_SECRET", "DB_PASSWORD", "DB_PASSWD", "API_KEY", "APIKEY", "ACCESS_KEY", "PRIVATE_KEY", "CREDENTIAL_FILE", "AUTH", "SSH_AUTH_SOCK", "PAT", "GH_TEST", "GITHUB_TEST", "NUGET_TEST", "OPENCODE_SERVER_TEST", "DB_PWD", "SMTP_PASS", "PASS", "GPG_PASSPHRASE", "SIGNING_KEY", "SSH_KEY", "KEY", "SENTRY_DSN", "DSN", "DATABASE_URL", "CONNECTION_STRING", "CONNECTIONSTRING", "ConnectionStrings__Main", "SESSION_COOKIE", "KUBECONFIG", "NETRC", "BASH_ENV", "ENV" })
+        foreach (var name in new[] { "FAKE_TOKEN", "CLIENT_SECRET", "DB_PASSWORD", "DB_PASSWD", "API_KEY", "APIKEY", "ACCESS_KEY", "PRIVATE_KEY", "CREDENTIAL_FILE", "AUTH", "SSH_AUTH_SOCK", "PAT", "GH_TEST", "GITHUB_TEST", "OPENCODE_SERVER_TEST", "DB_PWD", "SMTP_PASS", "PASS", "GPG_PASSPHRASE", "SIGNING_KEY", "SSH_KEY", "KEY", "SENTRY_DSN", "DSN", "DATABASE_URL", "CONNECTION_STRING", "CONNECTIONSTRING", "ConnectionStrings__Main", "SESSION_COOKIE", "KUBECONFIG", "NETRC", "BASH_ENV", "ENV" })
             yield return (name, "synthetic", true);
-        foreach (var name in new[] { "PWD", "OLDPWD", "PASSTHROUGH_MODE", "KEYBOARD_LAYOUT", "PATH", "HOME", "USERPROFILE", "DBUS_SESSION_BUS_ADDRESS" })
+        foreach (var name in new[] { "PWD", "OLDPWD", "PASSTHROUGH_MODE", "KEYBOARD_LAYOUT", "PATH", "HOME", "USERPROFILE", "DBUS_SESSION_BUS_ADDRESS", "NUGET_TEST" })
             yield return (name, "synthetic", false);
         yield return ("DATABASE_REPLICA", "postgres://user:pass@host", true);
         yield return ("OTHER", "prefix custom+scheme://user:pass@host/path", true);
@@ -40,6 +40,19 @@ public sealed class WorkerEnvironmentTests
         var result = WorkerEnvironment.Scrub(new Dictionary<string, string> { ["EXTRA_NAME"] = "synthetic", ["HTTPS_PROXY"] = "http://user:pass@host" }, ["^extra_", "^HTTPS_PROXY$"]);
         await Assert.That(result.Variables).IsEmpty();
         await Assert.That(result.Removed.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Nuget_is_kept_unless_configured_scrub_matches()
+    {
+        var snapshot = new Dictionary<string, string> { ["NUGET_TEST"] = "synthetic-cache", ["Z_TOKEN"] = "synthetic-token", ["A_KEY"] = "synthetic-key" };
+        var kept = WorkerEnvironment.Scrub(snapshot);
+        await Assert.That(kept.Variables.Keys).Contains("NUGET_TEST");
+        await Assert.That(kept.Variables["NUGET_TEST"]).IsEqualTo("synthetic-cache");
+        await Assert.That(kept.Removed).IsEquivalentTo(new[] { "A_KEY", "Z_TOKEN" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var scrubbed = WorkerEnvironment.Scrub(snapshot, ["^NUGET_"]);
+        await Assert.That(scrubbed.Removed).IsEquivalentTo(new[] { "A_KEY", "NUGET_TEST", "Z_TOKEN" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(scrubbed.Variables.ContainsKey("NUGET_TEST")).IsFalse();
     }
 
     [Test]

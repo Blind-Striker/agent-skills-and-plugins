@@ -57,6 +57,8 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `preferences.defaultRoutes` | map of backend to string | No default routes | Keys must be `opencode` or `codex`: `<layer>: defaultRoutes keys must be opencode or codex`. Values use backend notation without a qualification prefix. |
 | `preferences.tempRoot` | string, absolute path | Unset | Root for private worker and verify temporary folders; see [temporary folders](#temporary-folders). |
 | `preferences.writableRoots` | string array of absolute paths | `[]` | Additional writable folders for workspace sandboxes; layers join, not replace. See [writable roots](#writable-roots). |
+| `preferences.environment` | object of variable names to strings | `{}` | Merge by name, retaining each name's source layer. See [configured environment](#configured-environment). |
+| `preferences.privateFolders` | string array of absolute paths | `[]` | Join in layer order; private Linux opencode binds. See [private folders](#private-folders). |
 | `locations.ledgerRoot` | string path | `<state root>/ledgers` | Absolute or starts with `~`; otherwise `locations.ledgerRoot must be an absolute path (or ~ in user locations)`. |
 | `locations.worktreeRoot` | string path | `<state root>/worktrees` | Same expansion and validation as ledger root. |
 | `backends.opencode.executable` | string path | Discover `opencode` | Absolute: `<layer>: backends executable must be an absolute path`. |
@@ -131,13 +133,52 @@ package cache that `prepare` restores into). Grant only caches the task needs. R
 ecosystem: [cookbook](cookbook.md). Writable roots do not fix the Windows Codex sandbox's
 [download and MSYS limits](backends.md#codex-process-and-sandbox).
 Do not add `dotnet/runfile` to `writableRoots`: the shared folder holds the harness's own `dispatch.cs`
-build, which would let a worker change code the harness later runs unfenced; fenced opencode tasks on
-Linux get a private bind instead ([backends](backends.md)).
+build, which would let a worker change code the harness later runs unfenced. Linux fenced opencode
+always protects the harness's original runfile folder with a private bind, independently of task home
+overrides; configure any other private caches through `privateFolders` ([backends](backends.md)).
+
+### Configured environment
+
+`environment` is an object whose names match `^[A-Za-z_][A-Za-z0-9_]*$` and whose values are strings
+(including empty strings). Null, nonobjects, invalid names and nonstring values refuse planning with
+the offending layer, even if a later layer overrides them. User preferences, committed repository
+preferences, task-file defaults and task entries merge by name in that order; names compare
+case-insensitively on Windows and case-sensitively elsewhere. There is no CLI flag, variable expansion
+or implicit ecosystem configuration. Each resolved value and its source layer are frozen in
+`config.json` and `task.json`; recovery uses those settings, not current configuration.
+
+The map reaches prepare, the backend worker process and its shells, and ordinary and advisory verify.
+It does not change the supervisor, Git runner or backend probes/catalog hosts. Values apply after
+scrubbing and after backend `env` passthrough, so a configured name is delivered even when a scrub
+pattern matches it. The ledger records the values: keep secrets out of `environment`.
+
+Harness-owned names refuse with `<layer>: environment may not set <name>: the harness owns it`:
+`TEMP`, `TMP`, `TMPDIR`, `XDG_RUNTIME_DIR`, `XDG_CACHE_HOME`, `GIT_TERMINAL_PROMPT`, `GIT_INDEX_FILE`,
+`GIT_OPTIONAL_LOCKS`, `CODEX_HOME`, `OPENCODE_CONFIG_DIR`, `OPENCODE_CONFIG`, `OPENCODE_CONFIG_CONTENT`,
+`OPENCODE_DISABLE_CLAUDE_CODE`, `OPENCODE_CONFIG_PROJECT_DISABLE`, `OPENCODE_DISABLE_PROJECT_CONFIG`,
+`OPENCODE_FILEWATCHER_DISABLE` and `OPENCODE_DISABLE_FILEWATCHER`. Other home variables are not an
+isolation boundary; keep backend credential homes stable.
+
+### Private folders
+
+`privateFolders` joins preference layers in the same order as `writableRoots`, preserving first
+occurrence and contributing layers. Each path must be absolute; tilde and variables are not expanded.
+A path containing, equal to or inside the control or ledger root refuses planning, including through
+links. A private path equal to a configured writable root, including aliases, also refuses.
+The list and sources are frozen in task settings; there is no CLI flag.
+
+Only the Linux opencode fence enforces these folders. Each target gets a fresh mode-0700 empty
+source bind, after writable grants and before read-only overlays; sources are removed after failed
+startup or confirmed server exit, while target folders remain. The harness's own original runfile
+folder is always appended and deduplicated, even with no configured folders. Elsewhere, nonempty
+configuration warns exactly `<task>: privateFolders is enforced only by the opencode fence on Linux`;
+empty configuration adds no warning. This is still an accident guard, not a security boundary.
 
 ## Layering
 
 Preferences replace earlier values in this order: tool defaults, user config, committed repository
-config, task-file defaults, task entry, CLI; `writableRoots` is the additive exception. Parallelism uses the task file's top-level
+config, task-file defaults, task entry, CLI; `writableRoots` and `privateFolders` join, while
+`environment` merges by variable name. Parallelism uses the task file's top-level
 `maxParallel`, not `defaults.maxParallel`. Route model and effort have separate provenance.
 
 The layer-0 `profile` default is `clean` for `structured`, `review`, `research` and `mechanical` tasks,
@@ -233,11 +274,12 @@ The harness scrubs secret-like variable names, configured name patterns and cred
 from its root environment. Proxy variables are exempt from URL-value scrubbing, so proxy credentials
 can remain readable. It logs removed names, never values. Backend `env` passthrough deliberately
 restores named values to that backend process; backend child commands may inherit them. Git and
-verify do not receive this passthrough. No backend executable environment override exists.
+prepare and verify do not receive this passthrough. Executable selection stays in user backend config.
 
-Task commands receive private temp variables, `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` and disabled
-MSBuild server reuse. Verify also disables node reuse and shared compilation. Git's private runner
-receives the root-scrubbed environment, whose name pattern removes `SSH_AUTH_SOCK` too. Tasks cannot
+Task commands receive private temp variables and the configured environment above; SDK/process-lifetime
+switches belong in configuration ([cookbook](cookbook.md)). `NUGET_*` names are not scrubbed by default;
+add a `restrictions.scrub` pattern if needed. Git's private runner receives the root-scrubbed
+environment without task configuration, whose name pattern removes `SSH_AUTH_SOCK` too. Tasks cannot
 rely on an inherited SSH agent socket. `HOME`, `USERPROFILE`, installed tools and other
 machine state are not isolation boundaries.
 

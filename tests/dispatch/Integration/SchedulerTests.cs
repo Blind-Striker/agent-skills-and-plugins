@@ -12,6 +12,40 @@ public sealed class SchedulerTests
 {
     [Test]
     [Timeout(30_000)]
+    public async Task Configured_environment_reaches_prepare_and_worker(CancellationToken ct)
+    {
+        using var lab = new CoreLab("configured-environment");
+        var run = await PrepareTaskAsync(lab, ct);
+        run.Record.Settings.Environment = new()
+        {
+            ["DISPATCH_SAMPLE"] = new() { Value = "configured-value", From = "repo" },
+            ["DISPATCH_SAMPLE_TOKEN"] = new() { Value = "synthetic-override", From = "task" },
+            ["GIT_CONFIG_COUNT"] = new() { Value = "not-a-number", From = "task" },
+        };
+        var privateFolder = Path.Combine(lab.Tree.Root, "private-cache");
+        run.Record.Settings.PrivateFolders = new() { Value = [privateFolder], From = "task" };
+        run.Record.Spec.Prepare = [OperatingSystem.IsWindows() ? "$env:DISPATCH_SAMPLE; $env:DISPATCH_SAMPLE_TOKEN"
+            : "printf '%s\\n' \"$DISPATCH_SAMPLE\" \"$DISPATCH_SAMPLE_TOKEN\""];
+        WorkerLaunch? launch = null;
+        var create = lab.Backend.OnCreate!;
+        lab.Backend.OnCreate = (input, token) => { launch = input; return create(input, token); };
+        EndOnPoll(lab, run);
+        await Assert.That(await lab.Scheduler(ct).RunAsync([run])).IsEqualTo(0);
+        var log = File.ReadAllText(Path.Combine(lab.Ledger.TaskDir(run.Id), "prepare.log")).ReplaceLineEndings("\n");
+        await Assert.That(log.Split("[stdout]\n")[1].Split("[stderr]")[0].TrimEnd()).IsEqualTo("configured-value\nsynthetic-override");
+        await Assert.That(launch!.Environment.Keys).Contains("DISPATCH_SAMPLE");
+        await Assert.That(launch.Environment.Keys).Contains("DISPATCH_SAMPLE_TOKEN");
+        await Assert.That(launch!.Environment["DISPATCH_SAMPLE"]).IsEqualTo("configured-value");
+        await Assert.That(launch.Environment["DISPATCH_SAMPLE_TOKEN"]).IsEqualTo("synthetic-override");
+        await Assert.That(launch.Environment["GIT_CONFIG_COUNT"]).IsEqualTo("not-a-number");
+        await Assert.That(launch.ConfiguredEnvironment!["DISPATCH_SAMPLE_TOKEN"]).IsEqualTo("synthetic-override");
+        await Assert.That(launch.PrivateFolders).IsEquivalentTo(new[] { privateFolder }, CollectionOrdering.Matching);
+        await Assert.That(Environment.GetEnvironmentVariable("DISPATCH_SAMPLE")).IsNull();
+        await Assert.That(Environment.GetEnvironmentVariable("DISPATCH_SAMPLE_TOKEN")).IsNull();
+    }
+
+    [Test]
+    [Timeout(30_000)]
     public async Task Prepare_precedes_worker_creation(CancellationToken ct)
     {
         using var lab = new CoreLab("prepare-order");

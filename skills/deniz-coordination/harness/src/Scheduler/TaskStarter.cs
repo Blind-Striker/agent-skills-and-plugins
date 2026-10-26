@@ -25,12 +25,13 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         RouteRef? route;
         if (backendName == "codex") route = CodexBackend.ParseRoute(record.Spec.Route!);
         else RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out route, out _);
-        var (variables, removed) = WorkerEnvironment.Environment(record.Spec.Id!, runId, tempRoot);
+        var (variables, removed) = WorkerEnvironment.Environment(record.Spec.Id!, runId, tempRoot, record.Settings.Environment);
         return (new(runId, record.Spec.Id!, record.Spec.Kind!, route!, record.Spec.Agent,
             record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
             record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
             record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason,
-            record.Settings.WritableRoots?.Value), removed);
+            record.Settings.WritableRoots?.Value, record.Settings.PrivateFolders?.Value,
+            record.Settings.Environment?.ToDictionary(x => x.Key, x => x.Value.Value!, WorkerEnvironment.NameComparer)), removed);
     }
 
     public void CheckAllowed(TaskRun run)
@@ -144,9 +145,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
             var before = await Check(() => snapshot(runner, record.Workspace.Path!, indexTask, true, ct));
             if (Cancelled()) return End();
             var head = await Check(() => prepareHead?.Invoke(runner, record.Workspace.Path!, indexTask, true, ct) ?? ReadHeadAsync(runner, record.Workspace.Path!, ct));
-            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId, record.Settings.TempRoot?.Value).Variables;
-            environment["MSBUILDDISABLENODEREUSE"] = "1";
-            environment["UseSharedCompilation"] = "false";
+            var environment = WorkerEnvironment.Environment(run.Id, ledger.RunId, record.Settings.TempRoot?.Value, record.Settings.Environment).Variables;
             foreach (var command in commands)
             {
                 ct.ThrowIfCancellationRequested();

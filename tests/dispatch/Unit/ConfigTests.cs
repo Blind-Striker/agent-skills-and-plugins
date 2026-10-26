@@ -10,6 +10,156 @@ public sealed class ConfigTests
     static TaskFile Tasks() => new() { Tasks = [new TaskSpec { Id = "inspect", Kind = "research", Route = "fixture/model" }] };
 
     [Test]
+    public async Task Environment_merges_names_with_sources()
+    {
+        var file = Tasks();
+        file.Defaults = new() { Backend = "opencode", Environment = JsonSerializer.SerializeToElement(new { SHARED = "defaults", DEFAULT_ONLY = "d" }) };
+        file.Tasks![0].Environment = JsonSerializer.SerializeToElement(new { SHARED = "task", TASK_ONLY = "t" });
+        var settings = ConfigResolver.Resolve(file,
+            new() { Preferences = new() { Environment = JsonSerializer.SerializeToElement(new { SHARED = "user", USER_ONLY = "u", REPO_WINS = "old" }) } },
+            new() { Preferences = new() { Environment = JsonSerializer.SerializeToElement(new { SHARED = "repo", REPO_ONLY = "r", REPO_WINS = "new" }) } }).Tasks["inspect"].Settings;
+        await Assert.That(settings.Environment!.Select(x => (x.Key, x.Value.Value!, x.Value.From))).IsEquivalentTo(new[]
+        {
+            ("SHARED", "task", "task"), ("USER_ONLY", "u", "user"), ("REPO_WINS", "new", "repo"),
+            ("REPO_ONLY", "r", "repo"), ("DEFAULT_ONLY", "d", "task-file-defaults"), ("TASK_ONLY", "t", "task"),
+        }, CollectionOrdering.Matching);
+        file.Defaults.Environment = JsonSerializer.SerializeToElement(new { _name9 = "lower", EMPTY = "" });
+        file.Tasks[0].Environment = JsonSerializer.SerializeToElement(new { _NAME9 = "upper" });
+        var names = ConfigResolver.Resolve(file).Tasks["inspect"].Settings.Environment!;
+        await Assert.That(names["_NAME9"].Value).IsEqualTo("upper");
+        await Assert.That(names["_NAME9"].From).IsEqualTo("task");
+        await Assert.That(names["_name9"].Value).IsEqualTo(OperatingSystem.IsWindows() ? "upper" : "lower");
+        await Assert.That(names["EMPTY"].Value).IsEqualTo("");
+    }
+
+    [Test]
+    public async Task Environment_rejects_invalid_layers_and_owned_names()
+    {
+        var invalid = new List<(string Json, string Error)>
+        {
+            ("null", "environment must be an object of variable names to strings"),
+            ("[]", "environment must be an object of variable names to strings"),
+            ("17", "environment must be an object of variable names to strings"),
+            ("true", "environment must be an object of variable names to strings"),
+            ("\"text\"", "environment must be an object of variable names to strings"),
+            ("{\"VALID\":null}", "environment value for VALID must be a string"),
+            ("{\"VALID\":1}", "environment value for VALID must be a string"),
+            ("{\"VALID\":false}", "environment value for VALID must be a string"),
+            ("{\"VALID\":[]}", "environment value for VALID must be a string"),
+            ("{\"VALID\":{}}", "environment value for VALID must be a string"),
+        };
+        foreach (var name in new[] { "", "9NAME", "BAD-NAME", "BAD NAME", "é", "NAME\n" })
+            invalid.Add((JsonSerializer.Serialize(new Dictionary<string, string> { [name] = "value" }), $"environment has an invalid variable name: {name}"));
+        foreach (var name in new[] { "TEMP", "TMP", "TMPDIR", "XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "GIT_TERMINAL_PROMPT", "GIT_INDEX_FILE", "GIT_OPTIONAL_LOCKS",
+            "CODEX_HOME", "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG", "OPENCODE_CONFIG_CONTENT", "OPENCODE_DISABLE_CLAUDE_CODE",
+            "OPENCODE_CONFIG_PROJECT_DISABLE", "OPENCODE_DISABLE_PROJECT_CONFIG", "OPENCODE_FILEWATCHER_DISABLE", "OPENCODE_DISABLE_FILEWATCHER" })
+            invalid.Add((JsonSerializer.Serialize(new Dictionary<string, string> { [name] = "value" }), $"environment may not set {name}: the harness owns it"));
+        if (OperatingSystem.IsWindows()) invalid.Add(("{\"temp\":\"value\"}", "environment may not set temp: the harness owns it"));
+        foreach (var layer in new[] { "user", "repo", "task-file-defaults", "task" })
+            foreach (var (input, diagnostic) in invalid)
+            {
+                var file = Tasks();
+                file.Defaults = new() { Backend = "opencode" };
+                var user = new ConfigFile { Preferences = new() };
+                var repo = new ConfigFile { Preferences = new() };
+                var preferences = layer switch { "user" => user.Preferences, "repo" => repo.Preferences, "task-file-defaults" => file.Defaults, _ => (TaskPreferences)file.Tasks![0] };
+                // Invalid lower-layer entries must refuse even when every name is overridden later.
+                file.Tasks![0].Environment = JsonSerializer.SerializeToElement(new { VALID = "override", TEMP = "override" });
+                preferences.Environment = JsonSerializer.Deserialize<JsonElement>(input);
+                var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file, user, repo)));
+                await Assert.That(error!.Message).IsEqualTo($"{layer}: {diagnostic}");
+                if (layer is "task-file-defaults" or "task")
+                {
+                    error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(Json.ReadTaskFile(JsonSerializer.Serialize(file, InputJson.Read.TaskFile))));
+                    await Assert.That(error!.Message).IsEqualTo($"{layer}: {diagnostic}");
+                }
+                else
+                {
+                    var config = layer == "user" ? user : repo;
+                    error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigLayers.Read(
+                        System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(config, InputJson.Read.ConfigFile)), layer, "input.jsonc")));
+                    await Assert.That(error!.Message).IsEqualTo($"input.jsonc ({layer}): {layer}: {diagnostic}");
+                }
+            }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task PrivateFolders_join_validate_and_warn(CancellationToken ct)
+    {
+        using var lab = new CoreLab("private-folders");
+        var paths = new[] { "z-user", "a-repo", "y-defaults", "b-task" }.Select(x => Path.Combine(lab.Tree.Root, x)).ToList();
+        var file = Tasks();
+        file.Defaults = new() { Backend = "opencode", PrivateFolders = [paths[2], paths[0]] };
+        file.Tasks![0].PrivateFolders = [paths[3]];
+        var settings = ConfigResolver.Resolve(file, new() { Preferences = new() { PrivateFolders = [paths[0]] } },
+            new() { Preferences = new() { PrivateFolders = [paths[1]] } }).Tasks["inspect"].Settings;
+        await Assert.That(settings.PrivateFolders!.Value).IsEquivalentTo(paths, CollectionOrdering.Matching);
+        await Assert.That(settings.PrivateFolders.From).IsEqualTo("user,repo,task-file-defaults,task");
+        file.Defaults.PrivateFolders = null;
+        foreach (var backend in new[] { "opencode", "codex" })
+            foreach (var access in new[] { "read-only", "workspace", "full" })
+                foreach (var nonempty in new[] { false, true })
+                {
+                    file.Defaults.Backend = backend;
+                    file.Tasks[0].Access = access;
+                    file.Tasks[0].PrivateFolders = nonempty ? [paths[0]] : [];
+                    var config = ConfigResolver.Resolve(file);
+                    var expected = new List<string>();
+                    if (nonempty && !(OperatingSystem.IsLinux() && backend == "opencode" && access != "full"))
+                        expected.Add("inspect: privateFolders is enforced only by the opencode fence on Linux");
+                    if (backend == "codex" && access == "read-only")
+                        expected.Add("inspect: The pinned Codex app-server cannot disable inherited exec-policy rules; with this profile, only system-level explicit allow rules can bypass the read-only sandbox without approval.");
+                    await Assert.That(config.Warnings).IsEquivalentTo(expected, CollectionOrdering.Matching);
+                }
+        file.Defaults.Backend = "opencode";
+        file.Tasks[0].PrivateFolders = ["relative"];
+        var error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+        await Assert.That(error!.Message).IsEqualTo("inspect: privateFolders from task must hold absolute paths: relative");
+        foreach (var (folder, name) in new[] { (Locations.ControlRoot, "control root"), (Locations.LedgerRoot, "ledger root") })
+            foreach (var path in new[] { Path.GetDirectoryName(folder)!, folder, Path.Combine(folder, "child") })
+            {
+                file.Tasks[0].PrivateFolders = [path];
+                error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+                var refused = path == Path.GetDirectoryName(folder) ? "control root" : name;
+                await Assert.That(error!.Message).IsEqualTo($"inspect: privateFolders from task must not contain or lie inside the {refused}: {path}");
+            }
+        var link = Path.Combine(lab.Tree.Root, "private-alias");
+        Directory.CreateDirectory(Locations.ControlRoot);
+        if (OperatingSystem.IsWindows())
+        {
+            using var command = new CapturedProcess();
+            (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, Locations.ControlRoot], lab.Tree.Root, lab.Tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+        }
+        else Directory.CreateSymbolicLink(link, Locations.ControlRoot);
+        try
+        {
+            file.Tasks[0].PrivateFolders = [link];
+            error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+            await Assert.That(error!.Message).IsEqualTo($"inspect: privateFolders from task must not contain or lie inside the control root: {link}");
+        }
+        finally { Directory.Delete(link); }
+        var cache = Directory.CreateDirectory(paths[0]).FullName;
+        if (OperatingSystem.IsWindows())
+        {
+            using var command = new CapturedProcess();
+            (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, cache], lab.Tree.Root, lab.Tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+        }
+        else Directory.CreateSymbolicLink(link, cache);
+        try
+        {
+            file.Tasks[0].WritableRoots = [cache];
+            foreach (var path in new[] { cache, link })
+            {
+                file.Tasks[0].PrivateFolders = [path];
+                error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
+                await Assert.That(error!.Message).IsEqualTo($"inspect: privateFolders must not equal writableRoots: {path}");
+            }
+        }
+        finally { Directory.Delete(link); }
+    }
+
+    [Test]
     public async Task WritableRoots_guard_joins_all_layers_in_order()
     {
         var root = Path.Combine(Path.GetTempPath(), "writable-roots");

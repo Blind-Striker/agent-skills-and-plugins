@@ -156,7 +156,8 @@ rejected, without falling back to PATH. Both cases report:
 Selfcheck warns when the user PATH in the Windows registry exceeds 8,000 characters. Run refuses
 above 16,000 characters with exit 2. Run records a `warning` event if the user PATH changes.
 Environment isolation does not isolate registry state; avoid assigning a new `DOTNET_CLI_HOME`.
-Workers receive `DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false` to prevent the SDK's tools-path append.
+Configure SDK tools-path appends and certificate behaviour explicitly through
+[`environment`](config.md#configured-environment); see the [cookbook](cookbook.md#net).
 The warning event carries `reason: user-path-changed`, both lengths, and the added and removed
 entries. Inspect the value with `reg query HKCU\Environment /v Path`.
 

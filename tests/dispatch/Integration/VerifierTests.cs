@@ -8,6 +8,56 @@ namespace Dispatch.Tests.Integration;
 public sealed class VerifierTests
 {
     [Test]
+    [Timeout(30_000)]
+    public async Task Configured_environment_reaches_verify_and_advisory(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var (run, ledger) = VerifyFixture(tree);
+        run.Record.Settings.Environment = new()
+        {
+            ["DISPATCH_SAMPLE"] = new() { Value = "configured-value", From = "repo" },
+            ["DISPATCH_SAMPLE_TOKEN"] = new() { Value = "synthetic-override", From = "task" },
+        };
+        var command = OperatingSystem.IsWindows() ? "$env:DISPATCH_SAMPLE; $env:DISPATCH_SAMPLE_TOKEN"
+            : "printf '%s\\n' \"$DISPATCH_SAMPLE\" \"$DISPATCH_SAMPLE_TOKEN\"";
+        run.Record.Spec.Verify = [command];
+        run.Record.Spec.AdvisoryVerify = [command];
+        var result = new TaskResult { Outcome = "succeeded" };
+        await Verifier.VerifyAsync(ledger, run, result, ct);
+        var log = File.ReadAllText(Path.Combine(ledger.TaskDir(run.Id), "verify.log")).ReplaceLineEndings("\n");
+        await Assert.That(log.Split("[stdout]\n").Skip(1).Select(part => part.Split("[stderr]")[0].TrimEnd()))
+            .IsEquivalentTo(new[] { "configured-value\nsynthetic-override", "configured-value\nsynthetic-override" }, CollectionOrdering.Matching);
+        await Assert.That(result.Verify.Select(x => x.ExitCode)).IsEquivalentTo(new[] { 0, 0 }, CollectionOrdering.Matching);
+        await Assert.That(result.Verify.Select(x => x.Advisory)).IsEquivalentTo(new bool?[] { null, true }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Timeout(30_000)]
+    public async Task Verify_preserves_unconfigured_ecosystem_values(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var (run, ledger) = VerifyFixture(tree);
+        var command = OperatingSystem.IsWindows() ? "$env:DOTNET_CLI_USE_MSBUILD_SERVER; $env:MSBUILDDISABLENODEREUSE; $env:UseSharedCompilation"
+            : "printf '%s\\n' \"$DOTNET_CLI_USE_MSBUILD_SERVER\" \"$MSBUILDDISABLENODEREUSE\" \"$UseSharedCompilation\"";
+        var values = new Dictionary<string, string>
+        {
+            ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "inherited-server", ["MSBUILDDISABLENODEREUSE"] = "inherited-nodes", ["UseSharedCompilation"] = "inherited-compiler",
+        };
+        var saved = values.Keys.ToDictionary(name => name, Environment.GetEnvironmentVariable);
+        try
+        {
+            foreach (var (name, value) in values) Environment.SetEnvironmentVariable(name, value);
+            run.Record.Spec.Verify = [command];
+            await Verifier.VerifyAsync(ledger, run, new() { Outcome = "succeeded" }, ct);
+            var log = File.ReadAllText(Path.Combine(ledger.TaskDir(run.Id), "verify.log"));
+            await Assert.That(log.ReplaceLineEndings("\n").Split("[stdout]\n")[1].Split("[stderr]")[0].TrimEnd())
+                .IsEqualTo("inherited-server\ninherited-nodes\ninherited-compiler");
+        }
+        finally { foreach (var (name, value) in saved) Environment.SetEnvironmentVariable(name, value); }
+    }
+
+    [Test]
     public async Task Prepare_cancel_preserves_completed_command_exit(CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -231,7 +281,7 @@ public sealed class VerifierTests
         var (result, log, workspace) = await RunAsync(tree, command, ct, environment: new()
         {
             ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "1", ["MSBUILDDISABLENODEREUSE"] = "0", ["UseSharedCompilation"] = "true",
-        });
+        }, configured: new JsonObject { ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0", ["MSBUILDDISABLENODEREUSE"] = "1", ["UseSharedCompilation"] = "false" });
         var ledger = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
         var taskTemp = Path.Combine(tree.DispatchHome, "state", "worktrees", Path.GetFileName(ledger), ".tmp", "inspect");
         await Assert.That(log.Replace("\r\n", "\n")).Contains($"[stdout]\n{taskTemp}\n{taskTemp}\n{taskTemp}\n0\n1\nfalse\n");
@@ -240,7 +290,7 @@ public sealed class VerifierTests
     }
 
     static async Task<(JsonNode Result, string Log, string Workspace)> RunAsync(TempTree tree, string command, CancellationToken ct,
-        string? shell = null, Dictionary<string, string?>? environment = null)
+        string? shell = null, Dictionary<string, string?>? environment = null, JsonObject? configured = null)
     {
         var repo = await LabRepo.CreateAsync(tree, ct);
         var config = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "config")).FullName;
@@ -251,6 +301,7 @@ public sealed class VerifierTests
             ["verify"] = new JsonArray(command),
         };
         if (shell is not null) spec["shell"] = shell;
+        if (configured is not null) spec["environment"] = configured;
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
         await File.WriteAllTextAsync(tasks, new JsonObject
         {

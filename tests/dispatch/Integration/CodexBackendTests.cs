@@ -9,6 +9,51 @@ public sealed class CodexBackendTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Configured_environments_reach_process_and_children_without_changing_probes(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Split('\n')[0] + "\n{\"spawnChild\":true}\n{\"notify\":\"warning\",\"params\":{\"message\":\"child-ready\"}}\n");
+        await using var backend = lab.Backend();
+        await backend.ProbeAsync(new(lab.Tree.Repository), ct);
+        var probes = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!).ToArray();
+        foreach (var probe in probes) await Assert.That(probe["environmentNames"]!.AsArray().Select(x => x!.GetValue<string>())).DoesNotContain("TASK_ONLY");
+        foreach (var id in new[] { "z-first", "a-second" })
+        {
+            var record = Path.Combine(lab.Tree.Root, id + "-record");
+            var configured = new Dictionary<string, string>
+            {
+                ["FAKE_CODEX_RECORD"] = record, ["FAKE_CODEX_AUTH_MARK"] = id + "-synthetic-value", ["TASK_ONLY"] = "synthetic-child-value",
+            };
+            var variables = WorkerEnvironment.Copy(lab.Environment);
+            foreach (var (name, value) in configured) variables[name] = value;
+            var created = await backend.CreateAsync(new("run", id, "code", new("codex", "model-y", "high"), null, null,
+                new("clean", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), variables, null, "clean", null,
+                ConfiguredEnvironment: configured), ct);
+            var process = backend.WorkerProcesses.Single(x => x.Worker.Id == created.Worker.Id).Process;
+            var workers = (System.Collections.IEnumerable)typeof(CodexBackend).GetField("workers", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(backend)!;
+            var connection = workers.Cast<object>().Select(x => x.GetType().GetProperty("Value")!.GetValue(x)!).Single(x =>
+                ((CodexProcess)x.GetType().GetProperty("Process")!.GetValue(x)!).Id == process.Id);
+            var rpc = (CodexRpc)connection.GetType().GetProperty("Rpc")!.GetValue(connection)!;
+            var ready = await rpc.Notifications.ReadAsync(ct);
+            await Assert.That(ready.Method).IsEqualTo("warning");
+            await Assert.That(ready.Params.GetProperty("message").GetString()).IsEqualTo("child-ready");
+            await Assert.That(File.ReadAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"))).IsEqualTo(id + "-synthetic-value");
+            await Assert.That(Directory.Exists(record)).IsTrue();
+            var starts = Directory.GetFiles(record, "start.json", SearchOption.AllDirectories).Select(x => JsonNode.Parse(File.ReadAllText(x))!).ToArray();
+            await Assert.That(starts.Length).IsEqualTo(2);
+            foreach (var start in starts)
+            {
+                await Assert.That(start["environmentNames"]!.AsArray().Select(x => x!.GetValue<string>())).Contains("TASK_ONLY");
+                await Assert.That(start["codexHome"]!.GetValue<string>()).IsEqualTo(created.Worker.State["codexHome"]!.GetValue<string>());
+            }
+            await backend.ReleaseAsync(created.Worker, ct);
+        }
+        await Assert.That(Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Length).IsEqualTo(probes.Length);
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Workspace_writableRoots_guard_sends_worktree_temp_and_configured_roots(CancellationToken ct)
     {
         using var lab = new CodexLab();

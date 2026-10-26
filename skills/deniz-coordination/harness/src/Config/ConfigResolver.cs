@@ -63,6 +63,12 @@ static class ConfigResolver
                 Value = layers.SelectMany(x => x.Preferences?.WritableRoots ?? []).Distinct(StringComparer.Ordinal).ToList(),
                 From = string.Join(",", layers.Where(x => x.Preferences?.WritableRoots is { Count: > 0 }).Select(x => x.Name)) is { Length: > 0 } from ? from : "tool",
             },
+            PrivateFolders = new()
+            {
+                Value = layers.SelectMany(x => x.Preferences?.PrivateFolders ?? []).Distinct(StringComparer.Ordinal).ToList(),
+                From = string.Join(",", layers.Where(x => x.Preferences?.PrivateFolders is { Count: > 0 }).Select(x => x.Name)) is { Length: > 0 } privateFrom ? privateFrom : "tool",
+            },
+            Environment = new(WorkerEnvironment.NameComparer),
             Commit = Pick("none", p => p.Commit),
             Dir = new() { Value = task.Dir ?? defaults?.Dir ?? ".", From = task.Dir is not null ? "task" : defaults?.Dir is not null ? "task-file-defaults" : "tool" },
             RawPrompt = new() { Value = false, From = "tool" },
@@ -71,6 +77,10 @@ static class ConfigResolver
         };
         foreach (var (name, prefs) in layers)
         {
+            ValidateEnvironment(prefs, name);
+            if (prefs?.Environment is { ValueKind: JsonValueKind.Object } environment)
+                foreach (var variable in environment.EnumerateObject())
+                    settings.Environment[variable.Name] = new() { Value = variable.Value.GetString(), From = name };
             if (prefs?.RawPrompt is { } raw) settings.RawPrompt = new() { Value = raw, From = name };
             if (prefs?.TimeoutMinutes is { } timeout) settings.TimeoutMinutes = new() { Value = timeout, From = name };
         }
@@ -98,6 +108,18 @@ static class ConfigResolver
                 if (Worktree.IsInside(Worktree.RealPath(root), Worktree.RealPath(folder)) || Worktree.IsInside(Worktree.RealPath(folder), Worktree.RealPath(root)))
                     throw new HarnessException($"{task.Id}: writableRoots from {settings.WritableRoots.From} must not contain or lie inside the {name}: {root}");
         }
+        foreach (var folder in settings.PrivateFolders.Value!)
+        {
+            if (!Path.IsPathFullyQualified(folder)) throw new HarnessException($"{task.Id}: privateFolders from {settings.PrivateFolders.From} must hold absolute paths: {folder}");
+            var real = Worktree.RealPath(folder);
+            foreach (var (root, name) in new[] { (Locations.ControlRoot, "control root"), (Locations.LedgerRoot, "ledger root") })
+                if (Worktree.IsInside(real, Worktree.RealPath(root)) || Worktree.IsInside(Worktree.RealPath(root), real))
+                    throw new HarnessException($"{task.Id}: privateFolders from {settings.PrivateFolders.From} must not contain or lie inside the {name}: {folder}");
+            if (settings.WritableRoots.Value.Any(root => Locations.Same(real, Worktree.RealPath(root))))
+                throw new HarnessException($"{task.Id}: privateFolders must not equal writableRoots: {folder}");
+        }
+        if (settings.PrivateFolders.Value.Count > 0 && !(OperatingSystem.IsLinux() && settings.Backend.Value == "opencode" && settings.Access.Value is "read-only" or "workspace"))
+            config.Warnings.Add($"{task.Id}: privateFolders is enforced only by the opencode fence on Linux");
         if (settings.TempRoot.Value is { } absoluteTempRoot)
             foreach (var (root, name) in new[] { (Locations.WorktreeRoot, "worktree root"), (Locations.LedgerRoot, "ledger root") })
                 if (Worktree.IsInside(absoluteTempRoot, root))
@@ -235,6 +257,7 @@ static class ConfigResolver
         if (layer == "repo" && file.Preferences?.Access == "full") throw new HarnessException("repo: preferences.access full is forbidden");
         if (layer == "cli" && (file.Preferences is not null || file.Restrictions?.Routes is not null || file.Restrictions?.Scrub is not null))
             throw new HarnessException("cli: --policy refuses preferences, restrictions.routes and restrictions.scrub; only restrictions and instructions are allowed");
+        ValidateEnvironment(file.Preferences, layer);
         foreach (var backend in new[] { file.Backends?.Opencode, file.Backends?.Codex })
         {
             if (backend?.Executable is { } executable && !Path.IsPathFullyQualified(executable))
@@ -249,5 +272,25 @@ static class ConfigResolver
         }
         if (file.Preferences?.DefaultRoutes?.Keys.Any(k => k is not ("opencode" or "codex")) == true)
             throw new HarnessException($"{layer}: defaultRoutes keys must be opencode or codex");
+    }
+
+    public static void ValidateEnvironment(TaskPreferences? preferences, string layer)
+    {
+        if (preferences is null || preferences.Environment.ValueKind == JsonValueKind.Undefined) return;
+        var environment = preferences.Environment;
+        if (environment.ValueKind != JsonValueKind.Object)
+            throw new HarnessException($"{layer}: environment must be an object of variable names to strings");
+        foreach (var variable in environment.EnumerateObject())
+        {
+            if (!Regex.IsMatch(variable.Name, "\\A[A-Za-z_][A-Za-z0-9_]*\\z"))
+                throw new HarnessException($"{layer}: environment has an invalid variable name: {variable.Name}");
+            if (variable.Value.ValueKind != JsonValueKind.String)
+                throw new HarnessException($"{layer}: environment value for {variable.Name} must be a string");
+            if (new[] { "TEMP", "TMP", "TMPDIR", "XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "GIT_TERMINAL_PROMPT", "GIT_INDEX_FILE", "GIT_OPTIONAL_LOCKS",
+                    "CODEX_HOME", "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG", "OPENCODE_CONFIG_CONTENT", "OPENCODE_DISABLE_CLAUDE_CODE",
+                    "OPENCODE_CONFIG_PROJECT_DISABLE", "OPENCODE_DISABLE_PROJECT_CONFIG", "OPENCODE_FILEWATCHER_DISABLE", "OPENCODE_DISABLE_FILEWATCHER" }
+                .Contains(variable.Name, WorkerEnvironment.NameComparer))
+                throw new HarnessException($"{layer}: environment may not set {variable.Name}: the harness owns it");
+        }
     }
 }

@@ -8,6 +8,39 @@ namespace Dispatch.Tests.Integration;
 public sealed class ConfigLayerTests
 {
     [Test]
+    [NotInParallel]
+    public async Task Environment_and_privateFolders_freeze_with_sources(CancellationToken ct)
+    {
+        using var lab = new CoreLab("frozen-environment");
+        var run = await lab.TaskAsync("inspect", ct);
+        var folder = Path.Combine(lab.Tree.Root, "private-cache");
+        var file = new TaskFile { Defaults = new() { Backend = "opencode" }, Tasks = [run.Record.Spec] };
+        var config = ConfigResolver.Resolve(file,
+            new() { Preferences = new() { Environment = JsonSerializer.SerializeToElement(new { USER_VALUE = "user-value", REPLACED = "old" }), PrivateFolders = [folder] } },
+            new() { Preferences = new() { Environment = JsonSerializer.SerializeToElement(new { REPLACED = "repo-value" }) } });
+        run.Record.Settings = config.Tasks["inspect"].Settings;
+        new ConfigLayers { Effective = config }.Freeze(lab.Ledger.Dir);
+        lab.Ledger.SaveRecord(run.Record);
+        var userPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
+        Directory.CreateDirectory(Path.GetDirectoryName(userPath)!);
+        File.WriteAllText(userPath, """{"schemaVersion":2,"preferences":{"environment":{"USER_VALUE":"changed","REPLACED":"changed"},"privateFolders":[]}}""");
+        ConfigLayers.Initialize(Args.Parse([]));
+        var frozen = ConfigLayers.Frozen(lab.Ledger.Dir).Tasks["inspect"].Settings;
+        var saved = lab.Ledger.LoadRecord(run.Id);
+        foreach (var settings in new[] { frozen, saved.Settings })
+        {
+            await Assert.That(settings.Environment!.Select(x => (x.Key, x.Value.Value!, x.Value.From)))
+                .IsEquivalentTo(new[] { ("USER_VALUE", "user-value", "user"), ("REPLACED", "repo-value", "repo") }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(settings.PrivateFolders!.Value).IsEquivalentTo(new[] { folder }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(settings.PrivateFolders.From).IsEqualTo("user");
+        }
+        var launch = TaskStarter.BuildLaunch(saved, lab.Ledger.RunId, "opencode", lab.Policy, saved.Settings.TempRoot?.Value).Launch;
+        await Assert.That(launch.Environment["USER_VALUE"]).IsEqualTo("user-value");
+        await Assert.That(launch.Environment["REPLACED"]).IsEqualTo("repo-value");
+        await Assert.That(launch.PrivateFolders).IsEquivalentTo(new[] { folder }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Missing_policy_is_a_named_refusal_not_a_crash(CancellationToken cancellationToken)
     {

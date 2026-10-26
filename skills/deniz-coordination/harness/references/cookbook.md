@@ -40,8 +40,27 @@ Tried: Codex elevated sandbox on Windows, and the opencode fence on Linux and ma
   NU1301 (an SChannel error); after the restore in `prepare`, builds and tests work, project references
   and Microsoft.Testing.Platform included (measured once). The unelevated sandbox failed on the NuGet
   cache, MSBuild temp, named pipes and project references, often without diagnostics.
-- Package location: the harness removes `NUGET_*` variables from `prepare` and the worker, so a
-  `NUGET_PACKAGES` set in your shell has no effect. Packages restored to the default
+- Configure SDK first-use and process-lifetime behaviour explicitly. This fragment also opts out of
+  inherited `NUGET_*` variables; without the scrub pattern they are retained:
+
+  ```jsonc
+  {
+    "schemaVersion": 2,
+    "preferences": {
+      "environment": {
+        "DOTNET_CLI_USE_MSBUILD_SERVER": "0",
+        "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH": "false",
+        "DOTNET_GENERATE_ASPNET_CERTIFICATE": "false",
+        "MSBUILDDISABLENODEREUSE": "1",
+        "UseSharedCompilation": "false"
+      }
+    },
+    "restrictions": { "scrub": ["^NUGET_"] }
+  }
+  ```
+
+- Package location with that scrub pattern: a `NUGET_PACKAGES` set in your shell has no effect.
+  Packages restored to the default
   `~/.nuget/packages` are readable inside both sandboxes. A project-local `RestorePackagesPath` in
   `Directory.Build.props` (a git-ignored folder such as `.pkgs/`) makes restore and build agree without
   an environment variable.

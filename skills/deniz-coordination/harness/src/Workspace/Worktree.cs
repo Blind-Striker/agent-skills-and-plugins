@@ -231,7 +231,7 @@ static class Worktree
                 {
                     // Without --force a git refusal stands, even after the submodule safety checks.
                     if (!force) throw new HarnessException($"git worktree remove failed: {removal.Stderr.Trim()}");
-                    // Git cannot delete some trees (bun's node_modules on Windows, paths past its own limit): the folder
+                    // Git cannot delete some deep trees with paths past its own limit: the folder
                     // was already judged safe to remove, so delete it here, without following links, then drop its registration.
                     try { DeleteTemp(path); }
                     catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)

@@ -67,6 +67,8 @@ Corresponding command-line flags, where available, win last. A backend has no to
 | `network` | string enum | `on` | `on` or `off`. An explicit `on` forbidden by policy fails; the tool default is clamped. Codex refuses `full` access with network `off`. |
 | `workspace` | string enum | `worktree` | `worktree` or `in-place`. Structured tasks use scratch or a named project folder instead of Git workspace preparation. |
 | `tempRoot` | string, absolute path | Unset | Private temp root; relative or empty values fail with `tempRoot must be an absolute path`. No CLI option; [configuration](config.md#temporary-folders) owns layering and provenance. |
+| `environment` | object of variable names to strings | `{}` | Merge by name with value/source provenance; invalid layers and harness-owned names refuse planning. No CLI flag; [configuration](config.md#configured-environment). |
+| `privateFolders` | string array of absolute paths | `[]` | Layers join; enforced only on Linux fenced opencode, with automatic harness-cache protection. No CLI flag; [configuration](config.md#private-folders). |
 | `commit` | string enum | `none` in-place; forced `harness` for worktrees | `none` or `harness`. A worktree task entry naming it fails: `task commit is only valid in-place`. Structured tasks never commit. |
 | `rawPrompt` | boolean | `false` | Sends only task text with a normalized final newline. Contracts, standing instructions or structured input conflict: `rawPrompt conflicts with contracts, instructions or structured input`. Rules and scope checks still apply. |
 | `defaultRoutes` | map of backend to string, defaults only | No route | In task-file `defaults`, user or repository preferences. Backend-specific routes provide defaults, not a backend's implicit model selection. |
@@ -174,8 +176,8 @@ and temporary index, but leaves the in-place folder, edits and current branch al
 allow-list check, it runs before launch construction or worker creation, while the task remains
 `dispatching` and holds its concurrency slot. Run-level probes and validation are unchanged.
 Commands run sequentially as the operator, outside backend sandboxing, in the workspace, with the
-task's `bash` or `pwsh` shell and no shell profile. They use the worker environment and recorded task
-temp, plus `MSBUILDDISABLENODEREUSE=1` and `UseSharedCompilation=false`, below-normal priority
+task's `bash` or `pwsh` shell and no shell profile. They use the scrubbed worker environment, resolved
+configured `environment` and recorded private task temp, with below-normal priority
 (`nice -n 10` on Unix), and a 30-minute timeout per command. `timeoutMinutes` does not apply;
 the worker's timeout clock still starts after prompting. Unlike verify, prepare stops at the first
 nonzero exit, timeout or start exception. It tells the worker nothing automatically.

@@ -8,6 +8,90 @@ namespace Dispatch.Tests.Integration;
 public sealed class OpenCodeModesTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task Configured_environments_reach_process_and_session_without_changing_probes(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        var originalRecord = FakeOpenCode.Record(lab.Tree);
+        var probeNames = Path.Combine(lab.Tree.Root, "probe-names.json");
+        lab.SetEnvironment("FAKE_ENV_NAMES", probeNames);
+        lab.Create("worker");
+        lab.Steps.Single(x => x["expect"]!.GetValue<string>() == "PUT /api/session/worker/environment")["body"] =
+            new JsonObject { ["variables"] = new JsonObject { ["TASK_ONLY"] = "session-value", ["SYNTHETIC_TOKEN"] = "synthetic-configured" } };
+        foreach (var step in lab.Steps.Where(x => x["expect"]!.GetValue<string>() is "POST /api/session" or "PUT /api/session/worker/environment")) step["repeat"] = true;
+        lab.Write();
+        await using var backend = new OpenCodeBackend(context: new(Path.Combine(lab.Tree.Root, "configured-profiles"), ConfigLayers.User!.Backends!.Opencode!.Executable,
+            new Dictionary<string, string> { ["FAKE_OPENCODE_RECORD"] = originalRecord, ["SYNTHETIC_TOKEN"] = "synthetic-passthrough" }));
+        await backend.ProbeAsync(new(lab.Tree.Repository), ct);
+        var names = JsonNode.Parse(File.ReadAllText(probeNames))!.AsArray().Select(x => x!.GetValue<string>()).ToArray();
+        await Assert.That(names).DoesNotContain("TASK_ONLY");
+        var workers = new List<WorkerRef>();
+        foreach (var id in new[] { "z-first", "a-second", "z-again" })
+        {
+            var record = Path.Combine(lab.Tree.Root, id == "a-second" ? "a-record" : "z-record");
+            var configured = new Dictionary<string, string>
+            {
+                ["FAKE_OPENCODE_RECORD"] = record, ["TASK_ONLY"] = "session-value", ["SYNTHETIC_TOKEN"] = "synthetic-configured",
+            };
+            var variables = WorkerEnvironment.Copy(Launch(lab, id).Environment);
+            foreach (var (name, value) in configured) variables[name] = value;
+            workers.Add((await backend.CreateAsync(Launch(lab, id, access: "full") with { Environment = variables, ConfiguredEnvironment = configured }, ct)).Worker);
+            var hostFiles = Directory.GetFiles(lab.Tree.Root, Path.GetFileName(record) + ".*.host.json");
+            await Assert.That(hostFiles.Length).IsEqualTo(1);
+            var host = JsonNode.Parse(File.ReadAllText(hostFiles.Single()))!;
+            var calls = File.ReadLines(record).Select(x => JsonNode.Parse(x)!).ToArray();
+            var puts = calls.Where(x => x["method"]!.GetValue<string>() == "PUT").ToArray();
+            await Assert.That(puts.Length).IsEqualTo(id == "z-again" ? 2 : 1);
+            var put = puts.Last();
+            await Assert.That(put["body"]!["variables"]!["TASK_ONLY"]!.GetValue<string>()).IsEqualTo("<redacted>");
+            await Assert.That(calls.Where(x => x["unexpected"]!.GetValue<bool>())).IsEmpty();
+            await Assert.That(put["pid"]!.GetValue<int>()).IsEqualTo(host["pid"]!.GetValue<int>());
+        }
+        await Assert.That(workers[0].State["host"]!.GetValue<string>()).IsNotEqualTo(workers[1].State["host"]!.GetValue<string>());
+        await Assert.That(workers[2].State["host"]!.GetValue<string>()).IsEqualTo(workers[0].State["host"]!.GetValue<string>());
+        await Assert.That(Hosts(backend).Count).IsEqualTo(3); // Configuration-free probe plus two environments.
+        var probe = File.ReadLines(originalRecord).Select(x => JsonNode.Parse(x)!).ToArray();
+        await Assert.That(probe.Select(x => x["path"]!.GetValue<string>()).Distinct()).IsEquivalentTo(new[] { "/api/info", "/api/event" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Configured_host_and_continuation_reuse_frozen_environment(CancellationToken ct)
+    {
+        await using var lab = new OpenCodeLab();
+        lab.Create("worker");
+        var put = lab.Steps.Single(x => x["expect"]!.GetValue<string>() == "PUT /api/session/worker/environment");
+        put["repeat"] = true;
+        put["body"] = new JsonObject { ["variables"] = new JsonObject { ["TASK_ONLY"] = "frozen-value" } };
+        lab.Add("GET /api/session/worker", OpenCodeLab.Session("worker", "interrupted"));
+        lab.Prompt("worker");
+        lab.Write();
+        var spec = new TaskSpec { Id = "worker", Kind = "research", Route = "fixture/model", Backend = "opencode", Access = "full",
+            Environment = JsonSerializer.SerializeToElement(new { TASK_ONLY = "frozen-value" }) };
+        var config = ConfigResolver.Resolve(new() { Tasks = [spec] });
+        var record = new TaskRecord { Spec = spec, Settings = config.Tasks["worker"].Settings, Workspace = new() { Path = lab.Tree.Repository } };
+        var ledger = new Ledger("run");
+        new ConfigLayers { Effective = config }.Freeze(ledger.Dir);
+        ledger.SaveRecord(record);
+        var context = new BackendContext(Path.Combine(lab.Tree.Root, "frozen-profiles"), ConfigLayers.User!.Backends!.Opencode!.Executable, new Dictionary<string, string>());
+        WorkerRef worker;
+        await using (var first = new OpenCodeBackend(context: context, runId: "run"))
+            worker = (await first.CreateAsync(TaskStarter.BuildLaunch(record, "run", "opencode", Policy.From(config), null).Launch, ct)).Worker;
+        lab.SetEnvironment("TASK_ONLY", "changed-live-value");
+        await using var recovered = new OpenCodeBackend(context: context, runId: "run");
+        await Assert.That(await recovered.ReattachAsync(worker, ct)).IsTypeOf<ReattachResult.Interrupted>();
+        HarnessException? failure = null;
+        try { worker = await recovered.PromptAsync(worker, new("Continue.", true), ct); }
+        catch (HarnessException ex) { failure = ex; }
+        await Assert.That(failure).IsNull();
+        await Assert.That(worker.Turn).IsEqualTo("turn");
+        var puts = File.ReadLines(FakeOpenCode.Record(lab.Tree)).Select(x => JsonNode.Parse(x)!).Where(x => x["method"]!.GetValue<string>() == "PUT").ToArray();
+        await Assert.That(puts.Length).IsEqualTo(2);
+        await Assert.That(puts[0]["pid"]!.GetValue<int>()).IsNotEqualTo(puts[1]["pid"]!.GetValue<int>());
+        await Assert.That(puts[1]["body"]!["variables"]!["TASK_ONLY"]!.GetValue<string>()).IsEqualTo("<redacted>");
+    }
+
+    [Test]
     public async Task Missing_fenced_host_is_lost_on_reattach_and_collection_without_reconstruction(CancellationToken ct)
     {
         await using var lab = new OpenCodeLab();
@@ -329,11 +413,16 @@ public sealed class OpenCodeModesTests
     }
 
     [Test]
-    public async Task Linux_fenced_launch_has_short_private_temp_and_private_runfile_bind(CancellationToken ct)
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Linux_fenced_launch_has_short_private_temp_and_private_runfile_bind(bool includeSelf, CancellationToken ct)
     {
         if (!OperatingSystem.IsLinux()) Skip.Test("Linux private folders only.");
         if (await Ready.FenceAsync(ct) is { } refusal) Skip.Test(refusal);
         await using var lab = new OpenCodeLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var common = Path.Combine(repo.Root, ".git");
+        Directory.CreateDirectory(Path.Combine(common, "hooks"));
         var argv = Path.Combine(lab.Tree.Root, "bwrap-argv");
         var shim = Path.Combine(lab.Tree.Root, "bwrap");
         File.WriteAllText(shim, $"#!/bin/sh\nprintf '%s\\n' \"$@\" > '{argv}'\nwhile [ \"$1\" != -- ]; do shift; done\nshift\nexec \"$@\"\n");
@@ -347,13 +436,22 @@ public sealed class OpenCodeModesTests
             lab.Write();
             var launch = Launch(lab, "worker");
             var environment = new Dictionary<string, string>(launch.Environment) { ["XDG_DATA_HOME"] = Path.Combine(lab.Tree.Root, "private-data") };
-            launch = launch with { Environment = environment };
-            var target = Path.Combine(environment["XDG_DATA_HOME"], "dotnet", "runfile");
+            var target = Path.Combine(lab.Tree.Root, "z-private");
+            var other = Path.Combine(lab.Tree.Root, "a-private");
+            var self = Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME")!, "dotnet", "runfile");
+            var data = Path.Combine(environment["XDG_DATA_HOME"], "opencode");
+            var state = Path.Combine(environment["XDG_STATE_HOME"], "opencode");
+            Directory.CreateDirectory(Path.Combine(data, "bin"));
+            var runtime = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "runtime")).FullName;
+            environment["XDG_RUNTIME_DIR"] = runtime;
+            launch = launch with { Environment = environment, PrivateFolders = includeSelf ? [target, other, target, self] : [target, other, target] };
             await Assert.That(Directory.Exists(target)).IsFalse();
             var worker = (await lab.Backend.CreateAsync(launch, ct)).Worker;
             var host = lab.Hosts().Single();
             var temporary = host["environment"]!["TMPDIR"]!.GetValue<string>();
-            var source = temporary + "-runfile";
+            var source = temporary + "-private-0";
+            var otherSource = temporary + "-private-1";
+            var selfSource = temporary + "-private-2";
             await Assert.That(temporary).StartsWith("/var/tmp/dispatch-");
             await Assert.That(temporary.Length).IsLessThanOrEqualTo(30);
             await Assert.That(Directory.Exists(temporary)).IsTrue();
@@ -367,6 +465,19 @@ public sealed class OpenCodeModesTests
             foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
                 await Assert.That(puts[0]["body"]!["variables"]![name]!.GetValue<string>()).IsEqualTo(temporary);
             var arguments = File.ReadAllLines(argv);
+            await Assert.That(arguments).IsEquivalentTo(new[]
+            {
+                "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
+                "--bind", data, data, "--bind", state, state,
+                "--bind", environment["TEMP"], environment["TEMP"], "--bind", launch.Directory, launch.Directory,
+                "--bind", common, common,
+                "--bind", temporary, temporary,
+                "--bind", source, target, "--bind", otherSource, other, "--bind", selfSource, self,
+                "--tmpfs", runtime, "--ro-bind", Path.Combine(data, "bin"), Path.Combine(data, "bin"),
+                "--ro-bind", Path.Combine(common, "hooks"), Path.Combine(common, "hooks"),
+                "--ro-bind", Path.Combine(common, "config"), Path.Combine(common, "config"),
+                "--", ConfigLayers.User!.Backends!.Opencode!.Executable!, "serve",
+            }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
             var bind = Array.IndexOf(arguments, source);
             await Assert.That(bind).IsGreaterThan(0);
             await Assert.That(arguments[(bind - 1)..(bind + 2)])
@@ -375,9 +486,21 @@ public sealed class OpenCodeModesTests
             if (!OperatingSystem.IsWindows()) await Assert.That(File.GetUnixFileMode(source))
                 .IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             await Assert.That(Directory.Exists(target)).IsTrue();
+            foreach (var folder in new[] { otherSource, selfSource })
+            {
+                await Assert.That(Directory.Exists(folder)).IsTrue();
+                if (!OperatingSystem.IsWindows()) await Assert.That(File.GetUnixFileMode(folder))
+                    .IsEqualTo(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+            await Assert.That(Directory.Exists(other)).IsTrue();
+            await Assert.That(Directory.Exists(self)).IsTrue();
             await Hosts(lab.Backend)[worker.State["host"]!.GetValue<string>()].DisposeAsync();
             await Assert.That(Directory.Exists(temporary)).IsFalse();
             await Assert.That(Directory.Exists(source)).IsFalse();
+            await Assert.That(Directory.Exists(otherSource)).IsFalse();
+            await Assert.That(Directory.Exists(selfSource)).IsFalse();
+            await Assert.That(Directory.Exists(target)).IsTrue();
+            await Assert.That(Directory.Exists(other)).IsTrue();
         }
         finally { field.SetValue(null, original); }
     }
@@ -394,12 +517,82 @@ public sealed class OpenCodeModesTests
         HarnessException? failure = null;
         try
         {
-            try { typeof(HarnessServer).GetMethod("CreateRunfileFolder", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, ["worker", source]); }
+            try { typeof(HarnessServer).GetMethod("CreatePrivateFolder", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!.Invoke(null, ["worker", source]); }
             catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is HarnessException refusal) { failure = refusal; }
-            await Assert.That(failure?.Message).IsEqualTo($"worker: refused an existing private runfile folder: {source}");
+            await Assert.That(failure?.Message).IsEqualTo($"worker: refused an existing private folder: {source}");
             await Assert.That(File.ReadAllText(keep)).IsEqualTo("pre-existing");
         }
         finally { Directory.Delete(source, recursive: true); }
+    }
+
+    [Test]
+    public async Task Linux_private_folders_are_fresh_and_cleaned_after_failed_start(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux private binds only.");
+        if (await Ready.FenceAsync(ct) is { } unavailable) Skip.Test(unavailable);
+        await using var lab = new OpenCodeLab();
+        var argv = Path.Combine(lab.Tree.Root, "failed-bwrap-argv");
+        var shim = Path.Combine(lab.Tree.Root, "failed-bwrap");
+        File.WriteAllText(shim, $"#!/bin/sh\nprintf '%s\\n' \"$@\" > '{argv}'\nexit 7\n");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(shim, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var field = typeof(Ready).GetField("fenceExecutable", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var original = field.GetValue(null);
+        field.SetValue(null, shim);
+        try
+        {
+            var target = Path.Combine(lab.Tree.Root, "private-cache");
+            var sources = new List<string>();
+            for (var attempt = 0; attempt < 2; attempt++)
+            {
+                var launch = Launch(lab, "worker") with { PrivateFolders = [target] };
+                await Assert.That(async () => await lab.Backend.CreateAsync(launch, ct)).Throws<HarnessException>();
+                var arguments = File.ReadAllLines(argv);
+                var bind = Array.IndexOf(arguments, target);
+                await Assert.That(bind).IsGreaterThan(0);
+                await Assert.That(arguments[bind - 2]).IsEqualTo("--bind");
+                var source = arguments[bind - 1];
+                sources.Add(source);
+                await Assert.That(source).EndsWith("-private-0");
+                await Assert.That(Directory.Exists(source)).IsFalse();
+                await Assert.That(Directory.Exists(source[..^10] + "-private-1")).IsFalse();
+                await Assert.That(Directory.Exists(source[..^10])).IsFalse();
+                await Assert.That(Directory.Exists(target)).IsTrue();
+            }
+            await Assert.That(sources[0]).IsNotEqualTo(sources[1]);
+        }
+        finally { field.SetValue(null, original); }
+    }
+
+    [Test]
+    public async Task Linux_fence_git_lookup_does_not_receive_task_configuration(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsLinux()) Skip.Test("Linux fence Git lookup only.");
+        if (await Ready.FenceAsync(ct) is { } unavailable) Skip.Test(unavailable);
+        await using var lab = new OpenCodeLab();
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        lab.Create("worker");
+        lab.Write();
+        var variables = WorkerEnvironment.Copy(Launch(lab, "worker").Environment);
+        variables["GIT_CONFIG_COUNT"] = "not-a-number";
+        var launch = Launch(lab, "worker") with { Environment = variables, ConfiguredEnvironment = new Dictionary<string, string> { ["GIT_CONFIG_COUNT"] = "not-a-number" } };
+        var argv = Path.Combine(lab.Tree.Root, "git-bwrap-argv");
+        var shim = Path.Combine(lab.Tree.Root, "git-bwrap");
+        File.WriteAllText(shim, $"#!/bin/sh\nprintf '%s\\n' \"$@\" > '{argv}'\nwhile [ \"$1\" != -- ]; do shift; done\nshift\nexec \"$@\"\n");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(shim, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var field = typeof(Ready).GetField("fenceExecutable", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var original = field.GetValue(null);
+        field.SetValue(null, shim);
+        try
+        {
+            await lab.Backend.CreateAsync(launch, ct);
+            // Only a configuration-free Git lookup discovers and grants the real common folder.
+            var arguments = File.ReadAllLines(argv);
+            var common = Path.Combine(repo.Root, ".git");
+            var bind = Array.IndexOf(arguments, common);
+            await Assert.That(bind).IsGreaterThan(0);
+            await Assert.That(arguments[(bind - 1)..(bind + 2)]).IsEquivalentTo(new[] { "--bind", common, common }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+        finally { field.SetValue(null, original); }
     }
 
     [Test]

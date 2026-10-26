@@ -141,10 +141,10 @@ A recorded run is never run again and its ledger is never edited by hand.
 ## Traps
 
 - **Machine-wide state.** Environment isolation does not cover the Windows registry, scheduled
-  tasks or the credential store. A new `DOTNET_CLI_HOME` makes the .NET SDK append a tools folder
-  to the user PATH in the registry and may install an HTTPS development certificate; the harness
-  switches both off for its workers, `selfcheck` warns on a long user PATH and `run` refuses a very
-  long one. Do not point `DOTNET_CLI_HOME`, `CODEX_HOME` or `XDG_DATA_HOME` at new folders yourself:
+  tasks or the credential store. SDK first-use behaviour, including user PATH appends and HTTPS
+  development certificates, belongs in your `environment` configuration; the harness supplies no
+  ecosystem switches. See the [cookbook](references/cookbook.md). `selfcheck` warns on a long user
+  PATH and `run` refuses a very long one. Do not point `DOTNET_CLI_HOME`, `CODEX_HOME` or `XDG_DATA_HOME` at new folders yourself:
   the backends' sign-in lives in their homes.
 - **Inherited Codex rules.** Codex's app-server loads exec-policy rules it cannot be told to
   ignore: an `allow` rule can run a matching command outside the sandbox without asking. `profile:

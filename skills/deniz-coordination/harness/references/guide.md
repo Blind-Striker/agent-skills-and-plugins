@@ -65,8 +65,8 @@ isolate the network. Container tests run in `verify`, outside the sandbox.
 Prepare and verify use the same `Proc.RunAsync`: process-tree kill happens on command timeout or
 cancel only. Background processes left after successful command exit are not tracked; neither are
 processes surviving supervisor exit. There is no job, `setsid` or group kill. Use finite dependency
-steps (restore/install/download/fetch) that leave no background process; node reuse and the compiler
-server are disabled. Interrupted preparation is never automatically replayed; use the
+steps (restore/install/download/fetch) that leave no background process; configure each tool's
+process-lifetime switches through `environment` ([cookbook](cookbook.md)). Interrupted preparation is never automatically replayed; use the
 [recovery steps](cli.md#resume-run---continue---ledger-dir).
 
 Per-ecosystem configuration, each recipe labelled with where it was tried: [cookbook](cookbook.md).

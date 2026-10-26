@@ -276,7 +276,7 @@ public sealed class RealBackendTests
         var repo = new LabRepo(lab.Tree);
         await repo.GitAsync(["add", "."], ct);
         await repo.GitAsync(["commit", "-m", "Add tiny dotnet test project"], ct);
-        // NUGET_* is scrubbed at dispatch's boundary; use the same lab-local cache explicitly for restore.
+        // This test opts into NUGET_* scrubbing; use the same lab-local cache explicitly for restore.
         // opencode keeps its real credential data root; only dotnet uses the lab's NuGet data home.
         // No shared MSBuild node or compiler server: on a shared host other builds use those, and the test kills its own tree.
         const string prefix = "XDG_DATA_HOME=\"$HOME/.local/share\" MSBUILDDISABLENODEREUSE=1 DOTNET_CLI_USE_MSBUILD_SERVER=0 ";
@@ -288,6 +288,12 @@ public sealed class RealBackendTests
             + "It must succeed and the test output must show FN10 passed. Do not change the project or tests, and do not "
             + "create inside.txt any other way: if the call fails, finish without it. Finish with Status: done.", "workspace");
         task["writableRoots"] = new JsonArray(cliHome, packages, nugetConfig, nugetData);
+        task["environment"] = DotnetEnvironment();
+        var userPath = Path.Combine(lab.Tree.DispatchHome, "config", "config.jsonc");
+        var user = JsonNode.Parse(File.ReadAllText(userPath))!;
+        user["restrictions"] ??= new JsonObject();
+        user["restrictions"]!["scrub"] = new JsonArray("^NUGET_");
+        File.WriteAllText(userPath, user.ToJsonString());
         task["verify"] = new JsonArray(build, test, "test \"$(cat inside.txt)\" = dotnet-ok");
         // As a user runs it: the test host's Unix socket goes under TMPDIR, which must be short (references/config.md).
         // The test tree sets it for every child; null unsets it, as a user's environment has it.
@@ -362,7 +368,7 @@ public sealed class RealBackendTests
             + (prepared ? "if ($buildExit -eq 0) { dotnet test --no-build --output Detailed *> test.log; "
                 + "$testExit = $LASTEXITCODE; [System.IO.File]::WriteAllText('test.exit', [string]$testExit); "
                 + "if ($testExit -eq 0) { [System.IO.File]::WriteAllText('inside.txt','dotnet-ok') } }" : "");
-        await RunDependencyWorkerAsync(lab, command, prepared ? "dotnet restore" : null, ct);
+        await RunDependencyWorkerAsync(lab, command, prepared ? "dotnet restore" : null, ct, DotnetEnvironment());
         await Assert.That(CodexHome.ReadWindowsSandbox(lab.Record["backendState"]!["codexHome"]!.GetValue<string>())).IsEqualTo("elevated");
         var buildLog = File.ReadAllText(Path.Combine(lab.Workspace, "build.log"));
         TestContext.Current!.Output.WriteLine(buildLog);
@@ -458,7 +464,13 @@ public sealed class RealBackendTests
         await repo.GitAsync(["commit", "-m", "Add dependency probe"], ct);
     }
 
-    static async Task RunDependencyWorkerAsync(FunctionalLab lab, string command, string? prepare, CancellationToken ct)
+    static JsonObject DotnetEnvironment() => new()
+    {
+        ["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0", ["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = "false",
+        ["DOTNET_GENERATE_ASPNET_CERTIFICATE"] = "false", ["MSBUILDDISABLENODEREUSE"] = "1", ["UseSharedCompilation"] = "false",
+    };
+
+    static async Task RunDependencyWorkerAsync(FunctionalLab lab, string command, string? prepare, CancellationToken ct, JsonObject? environment = null)
     {
         var task = lab.CodeTask($"Run exactly `{command}` once in one shell call in your worktree. "
             + "Do not change source, project, lockfile, configuration or tests. Do not add dependencies, install/restore "
@@ -466,6 +478,7 @@ public sealed class RealBackendTests
             + "Do not fabricate logs, exit files or inside.txt. Leave the command's evidence as written even if it fails. "
             + "Then finish with Status: done whether the command succeeded or failed.", "workspace");
         if (prepare is not null) task["prepare"] = new JsonArray(prepare);
+        if (environment is not null) task["environment"] = environment;
         lab.WriteTask(task);
         using var process = new HarnessProcess(lab.Tree);
         await lab.AssertDoneAsync(await lab.CompleteAsync(lab.StartAsync(process, ct)));

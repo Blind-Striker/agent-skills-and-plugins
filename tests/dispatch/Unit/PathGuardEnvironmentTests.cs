@@ -17,7 +17,14 @@ public sealed class PathGuardEnvironmentTests
         {
             Environment.SetEnvironmentVariable("DOTNET_ADD_GLOBAL_TOOLS_TO_PATH", "true");
             Environment.SetEnvironmentVariable("DOTNET_GENERATE_ASPNET_CERTIFICATE", "true");
-            var variables = WorkerEnvironment.Environment("inspect").Variables;
+            var inherited = WorkerEnvironment.Environment("inspect").Variables;
+            await Assert.That(inherited["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"]).IsEqualTo("true");
+            await Assert.That(inherited["DOTNET_GENERATE_ASPNET_CERTIFICATE"]).IsEqualTo("true");
+            var variables = WorkerEnvironment.Environment("inspect", configured: new Dictionary<string, Setting<string>>
+            {
+                ["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"] = new() { Value = "false", From = "task" },
+                ["DOTNET_GENERATE_ASPNET_CERTIFICATE"] = new() { Value = "false", From = "task" },
+            }).Variables;
             await Assert.That(variables["DOTNET_ADD_GLOBAL_TOOLS_TO_PATH"]).IsEqualTo("false");
             await Assert.That(variables["DOTNET_GENERATE_ASPNET_CERTIFICATE"]).IsEqualTo("false");
         }

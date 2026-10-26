@@ -14,7 +14,7 @@ public sealed class OpenCodeGoldenTests
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, cancellationToken);
         var config = Directory.CreateDirectory(Path.Combine(tree.DispatchHome, "config")).FullName;
-        await File.WriteAllTextAsync(Path.Combine(config, "config.jsonc"), """{"schemaVersion":2,"preferences":{"backend":"opencode"},"restrictions":{"routes":["opencode:fixture/model"],"deny":[{"name":"no-edits","action":"edit","resources":["*"]}]},"instructions":["Report findings only."]}""", cancellationToken);
+        await File.WriteAllTextAsync(Path.Combine(config, "config.jsonc"), """{"schemaVersion":2,"preferences":{"backend":"opencode"},"restrictions":{"scrub":["^NUGET_"],"routes":["opencode:fixture/model"],"deny":[{"name":"no-edits","action":"edit","resources":["*"]}]},"instructions":["Report findings only."]}""", cancellationToken);
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
         await File.WriteAllTextAsync(tasks, """{"schemaVersion":2,"run":"golden","tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect the lab repository."}]}""", cancellationToken);
         using var harness = new HarnessProcess(tree);

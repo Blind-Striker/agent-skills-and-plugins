@@ -99,7 +99,8 @@ static class Cli
               run refuses above {UserPathGuard.RefusalLength:N0} characters (exit 2).
               Inspect with: reg query HKCU\Environment /v Path
               At run end, a changed value prints a warning and records added/removed entries
-              in the ledger. Child .NET commands disable global tools PATH appends.
+              in the ledger. Configure tool first-use behaviour through preferences.environment;
+              see references/config.md and references/cookbook.md.
             """);
         // Nothing started: an unknown or missing command is a refusal.
         return 2;

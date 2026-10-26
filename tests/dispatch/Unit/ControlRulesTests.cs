@@ -59,11 +59,12 @@ public sealed class ControlRulesTests
     {
         await Assert.That(Ready.FenceCommand("bwrap", "/usr/bin/bwrap", ["opencode", "serve"],
             ["/task-temp", "/workspace"], ["/data/opencode/bin"], null, "/run/user/1000",
-            ("/task-temp/runfile", "/data/dotnet/runfile"))).IsEquivalentTo(new[]
+            [("/private-z", "/cache/z"), ("/private-a", "/cache/a"), ("/private-self", "/data/dotnet/runfile")])).IsEquivalentTo(new[]
         {
             "/usr/bin/bwrap", "--ro-bind", "/", "/", "--dev", "/dev", "--ro-bind", "/proc", "/proc", "--tmpfs", "/tmp",
             "--bind", "/task-temp", "/task-temp", "--bind", "/workspace", "/workspace",
-            "--bind", "/task-temp/runfile", "/data/dotnet/runfile", "--tmpfs", "/run/user/1000",
+            "--bind", "/private-z", "/cache/z", "--bind", "/private-a", "/cache/a",
+            "--bind", "/private-self", "/data/dotnet/runfile", "--tmpfs", "/run/user/1000",
             "--ro-bind", "/data/opencode/bin", "/data/opencode/bin", "--", "opencode", "serve",
         }, CollectionOrdering.Matching);
     }
