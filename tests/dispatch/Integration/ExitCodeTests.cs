@@ -13,6 +13,193 @@ public sealed class ExitCodeTests
 
     [Test]
     [NotInParallel]
+    public async Task Plugin_cache_source_without_injection_is_under_the_harness()
+    {
+        using var lab = new CoreLab("source-location");
+        var sourceMethod = typeof(Cli).GetMethod("SourceFile", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        var source = (string)sourceMethod.Invoke(null, sourceMethod.GetParameters().Length == 0 ? null : [Type.Missing])!;
+        await Assert.That(source.Replace('\\', '/')).EndsWith("/harness/src/Cli/Cli.cs");
+        await Assert.That(Path.GetFullPath(source)).IsEqualTo(Path.Combine(TestPaths.Harness, "src", "Cli", "Cli.cs"));
+        await Assert.That(await Cli.MainAsync(["status"])).IsEqualTo(0);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task Plugin_cache_warning_prefers_the_file_app_entry_path()
+    {
+        using var lab = new CoreLab("entry-location");
+        var saved = WorkerEnvironment.Snapshot();
+        var previous = AppContext.GetData("EntryPointFilePath");
+        try
+        {
+            var home = Path.Combine(lab.Tree.Root, "codex");
+            Environment.SetEnvironmentVariable("CODEX_HOME", home);
+            var harness = Path.Combine(home, "plugins", "cache", "pkg", "harness");
+            AppContext.SetData("EntryPointFilePath", Path.Combine(harness, "dispatch.cs"));
+            var output = TestContext.Current!.Output;
+            var start = output.GetErrorOutput().Length;
+            await Assert.That(await Cli.MainAsync(["plan"])).IsEqualTo(2);
+            await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(CacheWarning + "\ndispatch: missing task file\n");
+        }
+        finally
+        {
+            AppContext.SetData("EntryPointFilePath", previous);
+            RestoreEnvironment(saved);
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("empty-home")]
+    [Arguments("invalid-source")]
+    [Arguments("source-link")]
+    [Arguments("home-link")]
+    [Arguments("escape-link")]
+    public async Task Plugin_cache_warning_resolves_links_and_tolerates_bad_paths(string placement, CancellationToken ct)
+    {
+        using var lab = new CoreLab("cache-paths");
+        var saved = WorkerEnvironment.Snapshot();
+        var home = Path.Combine(lab.Tree.Root, "codex");
+        var cache = Directory.CreateDirectory(Path.Combine(home, "plugins", "cache")).FullName;
+        var source = Path.Combine(cache, "pkg", "harness", "src", "Cli", "Cli.cs");
+        var link = Path.Combine(lab.Tree.Root, "alias");
+        try
+        {
+            if (placement == "empty-home")
+            {
+                home = "";
+                source = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex", "plugins", "cache", "pkg", "harness", "src", "Cli", "Cli.cs");
+            }
+            else if (placement == "invalid-source") source = Path.Combine("bad\0path", "src", "Cli", "Cli.cs");
+            else
+            {
+                var target = placement == "home-link" ? home : placement == "source-link" ? cache
+                    : Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "outside")).FullName;
+                if (placement == "escape-link") link = Path.Combine(cache, "escape");
+                if (OperatingSystem.IsWindows())
+                {
+                    using var command = new CapturedProcess();
+                    (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, target], lab.Tree.Root, lab.Tree.ChildEnvironment(), ct)).RequireSuccess("cache junction fixture");
+                }
+                else Directory.CreateSymbolicLink(link, target);
+                if (placement == "home-link") home = link;
+                else source = Path.Combine(link, "pkg", "harness", "src", "Cli", "Cli.cs");
+            }
+            Environment.SetEnvironmentVariable("CODEX_HOME", home);
+            var output = TestContext.Current!.Output;
+            var start = output.GetErrorOutput().Length;
+            await Assert.That(await Cli.MainAsync(["plan"], source)).IsEqualTo(2);
+            await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
+                (placement is "invalid-source" or "escape-link" ? "" : CacheWarning + "\n") + "dispatch: missing task file\n");
+        }
+        finally
+        {
+            RestoreEnvironment(saved);
+            if (Directory.Exists(link)) Directory.Delete(link);
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task Wait_reads_final_events_after_the_supervisor_exits(CancellationToken ct)
+    {
+        using var lab = new CoreLab("wait-race");
+        lab.Ledger.Write("zulu", "queued");
+        lab.Ledger.Write("alpha", "queued");
+        using var held = SupervisorLock.Acquire(lab.Ledger.RunId);
+        var checkedLock = false;
+        bool SupervisorHeld(string run)
+        {
+            checkedLock = true;
+            // One deterministic supervisor step at the lock observation, not a randomized race.
+            File.AppendAllText(Path.Combine(lab.Ledger.Dir, "events.jsonl"),
+                "{\"task\":\"zulu\",\"type\":\"final\",\"data\":{\"state\":\"done\"}}\n{\"task\":\"alpha\",\"type\":\"final\",\"data\":{\"state\":\"done\"}}\n");
+            held.Dispose();
+            return SupervisorLock.IsHeld(run);
+        }
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        var exit = await Commands.WaitAsync(Args.Parse(["wait", lab.Ledger.RunId]), ct, new FakeTimeProvider(), SupervisorHeld);
+        await Assert.That(checkedLock).IsTrue();
+        await Assert.That(exit).IsEqualTo(0);
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
+            ExpectedStatus(lab.Ledger.RunId, new[] { ("zulu", "done"), ("alpha", "done") }, ""));
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("arrives")]
+    [Arguments("missing")]
+    [Arguments("timeout")]
+    public async Task Wait_gives_a_missing_ledger_two_minutes_inside_its_timeout(string condition, CancellationToken ct)
+    {
+        using var lab = new CoreLab("2026-01-01-wait-grace", recorded: false);
+        var time = new FakeTimeProvider();
+        var scheduler = new ConcurrentExclusiveSchedulerPair(TaskScheduler.Default, 1).ExclusiveScheduler;
+        var before = Snapshot(lab.Tree.Root);
+        var args = Args.Parse(condition == "timeout" ? ["wait", "wait-grace", "--timeout", "1"] : ["wait", "wait-grace"]);
+        var waiting = await StartWaitAsync(args, time, scheduler, ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        await AdvanceAsync(time, scheduler, TimeSpan.FromSeconds(condition == "timeout" ? 59 : 119), ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        await Assert.That(Snapshot(lab.Tree.Root)).IsEquivalentTo(before, CollectionOrdering.Matching);
+        if (condition == "arrives")
+        {
+            lab.Ledger.Write("zulu", "final", new JsonObject { ["state"] = "done" });
+            lab.Ledger.Write("alpha", "final", new JsonObject { ["state"] = "done" });
+        }
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        await AdvanceAsync(time, scheduler, TimeSpan.FromSeconds(1), ct);
+        await Assert.That(waiting.IsCompleted).IsTrue();
+        if (condition == "arrives")
+        {
+            await Assert.That(await waiting).IsEqualTo(0);
+            await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
+                ExpectedStatus(lab.Ledger.RunId, new[] { ("zulu", "done"), ("alpha", "done") }, ""));
+        }
+        else
+        {
+            await Assert.That(async () => await waiting).ThrowsExactly<HarnessException>()
+                .WithMessage($"no ledger for run wait-grace under {Locations.LedgerRoot}");
+            await Assert.That(output.GetStandardOutput()[start..]).IsEqualTo("");
+            await Assert.That(Snapshot(lab.Tree.Root)).IsEquivalentTo(before, CollectionOrdering.Matching);
+        }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task Wait_timeout_with_no_states_names_the_cause(CancellationToken ct)
+    {
+        using var lab = new CoreLab("wait-empty");
+        using var held = SupervisorLock.Acquire(lab.Ledger.RunId);
+        var time = new FakeTimeProvider();
+        var scheduler = new ConcurrentExclusiveSchedulerPair(TaskScheduler.Default, 1).ExclusiveScheduler;
+        var output = TestContext.Current!.Output;
+        var start = output.GetErrorOutput().Length;
+        var waiting = await StartWaitAsync(Args.Parse(["wait", lab.Ledger.RunId, "--timeout", "1"]), time, scheduler, ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        await AdvanceAsync(time, scheduler, TimeSpan.FromMinutes(1), ct);
+        await Assert.That(waiting.IsCompleted).IsTrue();
+        await Assert.That(await waiting).IsEqualTo(3);
+        await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
+            $"run {lab.Ledger.RunId}: wait timed out; no tasks recorded yet\n");
+    }
+
+    [Test]
+    public async Task Timeout_outside_wait_is_a_usage_error(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        using var process = new HarnessProcess(tree);
+        var output = await process.RunAsync(["run", "--timeout", "7"], ct);
+        await Assert.That(output.ExitCode).IsEqualTo(2);
+        await Assert.That(output.Stdout).IsEqualTo("");
+        await Assert.That(output.Stderr.ReplaceLineEndings("\n")).IsEqualTo(
+            "dispatch: --timeout is only for wait; use timeoutMinutes in the task file for worker timeouts\n");
+    }
+
+    [Test]
+    [NotInParallel]
     [Arguments("selfcheck")]
     [Arguments("plan")]
     [Arguments("run")]

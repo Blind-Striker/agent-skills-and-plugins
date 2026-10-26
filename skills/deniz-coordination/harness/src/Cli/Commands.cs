@@ -333,26 +333,45 @@ static partial class Commands
         return PrintStatus(StatusRun(a));
     }
 
-    static Ledger StatusRun(Args a)
+    static Ledger StatusRun(Args a) => StatusRun(new Ledger(RunId(a)));
+
+    static Ledger StatusRun(Ledger run)
     {
-        var run = new Ledger(RunId(a));
         if (File.Exists(Path.Combine(run.Dir, "run.json"))) Locations.ControlDir(run.RunId);
         else run.EnsureExists();
         return run;
     }
 
-    public static async Task<int> WaitAsync(Args a, CancellationToken ct, TimeProvider? timeProvider = null)
+    public static async Task<int> WaitAsync(Args a, CancellationToken ct, TimeProvider? timeProvider = null,
+        Func<string, bool>? supervisorHeld = null)
     {
         a.ValidatePaths();
-        var run = StatusRun(a);
         var time = timeProvider ?? TimeProvider.System;
-        var deadline = time.GetUtcNow().AddMinutes(int.Parse(a.Get("timeout") ?? "60", CultureInfo.InvariantCulture));
+        var started = time.GetUtcNow();
+        var deadline = started.AddMinutes(int.Parse(a.Get("timeout") ?? "60", CultureInfo.InvariantCulture));
+        var ledgerDeadline = started.AddMinutes(2) < deadline ? started.AddMinutes(2) : deadline;
+        var run = new Ledger(RunId(a));
+        while (!File.Exists(Path.Combine(run.Dir, "run.json")) && !File.Exists(Path.Combine(run.Dir, "events.jsonl")))
+        {
+            ct.ThrowIfCancellationRequested();
+            var remaining = ledgerDeadline - time.GetUtcNow();
+            if (remaining <= TimeSpan.Zero)
+            {
+                run.EnsureExists();
+                break;
+            }
+            await WaitDelayAsync(remaining, time, ct);
+            // A bare name can acquire its dated ledger while run is still probing.
+            run = new Ledger(RunId(a));
+        }
+        StatusRun(run);
         while (true)
         {
             ct.ThrowIfCancellationRequested();
+            var supervised = (supervisorHeld ?? SupervisorLock.IsHeld)(run.RunId);
             var states = run.TaskStates();
             var unfinished = states.Where(x => x.Value is not ("done" or "failed" or "cancelled")).Select(x => x.Key).ToList();
-            if (states.Count > 0 && unfinished.Count == 0 || !SupervisorLock.IsHeld(run.RunId))
+            if (states.Count > 0 && unfinished.Count == 0 || !supervised)
             {
                 PrintStatus(run);
                 return states.Count > 0 && states.Values.All(x => x == "done") ? 0 : 1;
@@ -360,12 +379,15 @@ static partial class Commands
             var remaining = deadline - time.GetUtcNow();
             if (remaining <= TimeSpan.Zero)
             {
-                Console.Error.WriteLine($"run {run.RunId}: wait timed out; unfinished tasks: {string.Join(", ", unfinished)}");
+                Console.Error.WriteLine($"run {run.RunId}: wait timed out; {(states.Count == 0 ? "no tasks recorded yet" : $"unfinished tasks: {string.Join(", ", unfinished)}")}");
                 return 3;
             }
-            await Task.Delay(remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5), time, ct);
+            await WaitDelayAsync(remaining, time, ct);
         }
     }
+
+    static Task WaitDelayAsync(TimeSpan remaining, TimeProvider time, CancellationToken ct) =>
+        Task.Delay(remaining < TimeSpan.FromSeconds(5) ? remaining : TimeSpan.FromSeconds(5), time, ct);
 
     static int PrintStatus(Ledger run)
     {

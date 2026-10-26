@@ -41,7 +41,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
-| `--timeout <minutes>` | positive whole number | `60` | Wait only; invalid value: `--timeout needs a positive whole number of minutes`. Separate from worker `--timeout-minutes`. |
+| `--timeout <minutes>` | positive whole number | `60` | Wait only; invalid value: `--timeout needs a positive whole number of minutes`. Other commands refuse it with exit 2: `--timeout is only for wait; use timeoutMinutes in the task file for worker timeouts`. Separate from worker `--timeout-minutes`. |
 | `--profile <value>` | enum | `clean` for every task kind | Plan/run; `clean` or `full`. |
 | `--project <value>` | enum | Kind default | Plan/run; `on` or `off`. |
 | `--access <value>` | enum | Kind default | Plan/run; `read-only`, `workspace`, `full`; cannot exceed policy ceiling. |
@@ -73,8 +73,10 @@ When the harness's source folder is under `<CODEX_HOME or ~/.codex>/plugins/cach
 this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache
 ```
 
-The check uses the normalized full source path, directory boundaries and Windows case-insensitivity,
-not the compiled assembly's cache location.
+The check resolves filesystem links on both paths, respects directory boundaries and uses Windows
+case-insensitivity, not the compiled assembly's cache location. File-based apps use the runtime's
+entry-file path; other hosts fall back to the source filename captured at compilation. Empty
+`CODEX_HOME` uses `~/.codex`. An unresolvable path skips the advisory check without failing the command.
 
 ### `selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]`
 
@@ -326,10 +328,17 @@ summary as `status <run>`. Polls the ledger every five seconds, shortening the l
 remaining timeout. The default timeout is 60 minutes; `--timeout` takes a positive whole number.
 This command is read-only: it writes neither ledger nor control state and never resumes a run.
 
+Start `wait <run> --timeout <minutes>` after starting `run`, with a timeout below your waiting shell
+or tool's own timeout. Call `wait` again after exit 3; it does not stop the supervisor. If the ledger
+does not exist yet (run performs probes before creating it), wait retries for up to two minutes,
+counted inside its timeout, then refuses with exit 2 and the usual `no ledger for run ...` error.
+Bare run names are resolved again during this startup grace, so a newly created dated ledger is found.
+
 A run with no task states yet is not final. If no supervisor holds an unfinished or empty run,
 wait prints status and exits 1 immediately, including the no-supervisor annotation; use `resume`
 to settle it. On timeout it prints `run <run>: wait timed out; unfinished tasks: <ids>` to stderr,
-listing only unfinished tasks in ledger order.
+listing only unfinished tasks in ledger order. A supervised run with no task states yet instead
+prints `run <run>: wait timed out; no tasks recorded yet`.
 
 | Exit | Type | Meaning |
 |---|---|---|

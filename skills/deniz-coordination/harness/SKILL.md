@@ -102,12 +102,16 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 2. **Run.** `run <tasks.jsonc> [--run <name>]` is the supervisor: it blocks until every task is
    final. To keep working meanwhile, start it from a background shell and watch from another one.
    A background run wakes you only through a waiter you arm in the same step: your tool's
-   completion notice for that shell, or `wait <run>` from another shell. When you come back to a run without one,
+   completion notice for that shell, or `wait <run> --timeout <minutes>` from another shell after
+   starting `run` (the waiter allows two minutes for its ledger to appear). Keep this timeout below
+   your waiting shell or tool's timeout, and call `wait` again after exit 3. When you come back to a run without one,
    start with `status <run>`; `(no supervisor: …)` means nothing is driving it.
 3. **Watch.** `status <run>` shows each task's state, tool count and last tool call. States:
    `queued`, `dispatching`, `running`, `waiting` (escalated ask), `settling`, `interrupted`, and the
-   final `done`, `failed`, `cancelled`. Use `wait <run>` to wait for those final states and print the
-   status summary; it exits at once if unfinished work has no supervisor. Waiter exits: `references/cli.md`.
+   final `done`, `failed`, `cancelled`. Use `wait <run> --timeout <minutes>` after starting `run` to wait
+   for those final states and print the status summary; choose a timeout below your shell or tool's
+   timeout and call it again after exit 3. It exits at once if a recorded unfinished run has no
+   supervisor. Startup grace and waiter exits: `references/cli.md`.
 4. **Answer.** `asks [<run>]` lists escalated asks; `reply <run> <askId> once|reject [--message <text>]`
    answers one. Answers are one-shot; the harness never grants a standing approval.
 5. **Stop.** `cancel <run> <task>`. Never kill the supervisor.

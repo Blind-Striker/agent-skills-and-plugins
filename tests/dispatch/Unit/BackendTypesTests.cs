@@ -4,10 +4,11 @@ namespace Dispatch.Tests.Unit;
 public sealed class BackendTypesTests
 {
     [Test]
-    [Arguments(null, null, null, "clean")]
+    [Arguments(null, null, null, "full")]
     [Arguments("clean", null, null, "clean")]
     [Arguments("full", null, null, "full")]
     [Arguments(null, "full", null, "full")]
+    [Arguments(null, "clean", null, "clean")]
     [Arguments(null, "clean", "clean-partial", "clean-partial")]
     public async Task BuildLaunch_preserves_actual_or_uses_effective_profile(string? specProfile, string? resolved, string? actual, string expected)
     {
@@ -18,8 +19,35 @@ public sealed class BackendTypesTests
             Workspace = new() { Path = Path.GetTempPath() },
         };
         var launch = TaskStarter.BuildLaunch(record, "run", "codex", new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] }, null).Launch;
-        await Assert.That(launch.Modes.Profile).IsEqualTo(resolved ?? specProfile ?? "clean");
+        await Assert.That(launch.Modes.Profile).IsEqualTo(resolved ?? specProfile ?? "full");
         await Assert.That(launch.ProfileActual).IsEqualTo(expected);
+        await Assert.That(launch.ProfileReason).IsEqualTo(actual is null ? null : "probe unavailable");
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("structured", null, null, null, "clean", "clean")]
+    [Arguments("code", null, "clean", null, "clean", "clean")]
+    [Arguments("code", "clean", null, null, "clean", "clean")]
+    [Arguments("code", null, null, null, "full", "full")]
+    [Arguments("code", null, "clean", "clean-partial", "clean", "clean-partial")]
+    public async Task RecordedLaunch_uses_the_same_profile_as_modes(string kind, string? specProfile, string? resolved,
+        string? actual, string expectedMode, string expectedActual)
+    {
+        using var lab = new Dispatch.Tests.Support.CoreLab("recorded-profile");
+        lab.Ledger.SaveRecord(new TaskRecord
+        {
+            Spec = new() { Id = "inspect", Kind = kind, Backend = "opencode", Route = "fixture/model", Profile = specProfile },
+            Settings = new() { Profile = resolved is null ? null : new() { Value = resolved, Actual = actual, Reason = actual is null ? null : "probe unavailable" } },
+            Workspace = new() { Path = lab.Tree.Repository },
+        });
+        Json.WriteFile(Path.Combine(lab.Ledger.Dir, "config.json"), new EffectiveConfig(), LedgerJson.Files.EffectiveConfig);
+        await using var backend = new OpenCodeBackend(runId: lab.Ledger.RunId);
+        var launch = (WorkerLaunch)typeof(OpenCodeBackend).GetMethod("RecordedLaunch",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.Invoke(backend,
+                [new WorkerRef("opencode", "inspect", "worker", null, new())])!;
+        await Assert.That(launch.Modes.Profile).IsEqualTo(expectedMode);
+        await Assert.That(launch.ProfileActual).IsEqualTo(expectedActual);
         await Assert.That(launch.ProfileReason).IsEqualTo(actual is null ? null : "probe unavailable");
     }
 

@@ -31,7 +31,7 @@ static class Cli
             RootEnvironment = WorkerEnvironment.Scrub(WorkerEnvironment.Snapshot(), ConfigLayers.User?.Restrictions?.Scrub);
             foreach (var name in RootEnvironment.Removed) Environment.SetEnvironmentVariable(name, null);
             using var gitControl = Git.Initialize();
-            WarnPluginCache(a, sourceFile ?? SourceFile());
+            WarnPluginCache(a, sourceFile);
             return a.Command switch
             {
                 "routes" => await Commands.RoutesAsync(a, cts.Token),
@@ -66,17 +66,27 @@ static class Cli
         }
     }
 
-    static string SourceFile([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
+    static string SourceFile() => AppContext.GetData("EntryPointFilePath") is string { Length: > 0 } entry
+        ? Path.Combine(Path.GetDirectoryName(entry)!, "src", "Cli", "Cli.cs") : CallerSourceFile();
 
-    static void WarnPluginCache(Args a, string sourceFile)
+    static string CallerSourceFile([System.Runtime.CompilerServices.CallerFilePath] string path = "") => path;
+
+    static void WarnPluginCache(Args a, string? sourceFile)
     {
         if (a.Command is not ("selfcheck" or "plan" or "run")) return;
-        var home = Environment.GetEnvironmentVariable("CODEX_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
-        var cache = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(home, "plugins", "cache"))) + Path.DirectorySeparatorChar;
-        var source = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(sourceFile)!, "..", ".."));
-        if (source.StartsWith(cache, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
-            Console.Error.WriteLine("this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache");
+        try
+        {
+            var home = Environment.GetEnvironmentVariable("CODEX_HOME");
+            if (string.IsNullOrEmpty(home)) home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+            var cache = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Worktree.RealPath(Path.Combine(home, "plugins", "cache")))) + Path.DirectorySeparatorChar;
+            var source = Path.GetFullPath(Worktree.RealPath(Path.Combine(Path.GetDirectoryName(sourceFile ?? SourceFile())!, "..", "..")));
+            if (source.StartsWith(cache, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                Console.Error.WriteLine("this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache");
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException or NotSupportedException or System.Security.SecurityException)
+        {
+            // An advisory path check must never prevent the command from running.
+        }
     }
 
     static int Usage()

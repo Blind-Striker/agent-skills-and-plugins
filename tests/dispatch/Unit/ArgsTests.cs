@@ -6,6 +6,21 @@ namespace Dispatch.Tests.Unit;
 public sealed class ArgsTests
 {
     [Test]
+    [Arguments("run", true)]
+    [Arguments("plan", true)]
+    [Arguments("status", true)]
+    [Arguments("selfcheck", true)]
+    [Arguments("run", false)]
+    [Arguments("plan", false)]
+    [Arguments("status", false)]
+    [Arguments("selfcheck", false)]
+    public async Task Timeout_is_only_for_wait_and_names_the_task_file_field(string command, bool hasValue)
+    {
+        await Assert.That(() => Args.Parse(hasValue ? [command, "--timeout", "7"] : [command, "--timeout"]).ValidatePaths())
+            .ThrowsExactly<HarnessException>().WithMessage("--timeout is only for wait; use timeoutMinutes in the task file for worker timeouts");
+    }
+
+    [Test]
     public async Task Wait_timeout_consumes_one_value()
     {
         var args = Args.Parse(["wait", "z-run", "--timeout", "7", "--ledger", Path.GetTempPath()]);
