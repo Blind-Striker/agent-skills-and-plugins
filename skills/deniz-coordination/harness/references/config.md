@@ -151,12 +151,15 @@ The map reaches prepare, the backend worker process and its shells, and ordinary
 It does not change the supervisor, Git runner or backend probes/catalog hosts. Values apply after
 scrubbing and after backend `env` passthrough, so a configured name is delivered even when a scrub
 pattern matches it. The ledger records the values: keep secrets out of `environment`.
+Configured values cannot select harness-launched executables or change the fence's writable grants,
+home or automatic self-protection target; those decisions use the harness's own environment.
 
 Harness-owned names refuse with `<layer>: environment may not set <name>: the harness owns it`:
 `TEMP`, `TMP`, `TMPDIR`, `XDG_RUNTIME_DIR`, `XDG_CACHE_HOME`, `GIT_TERMINAL_PROMPT`, `GIT_INDEX_FILE`,
 `GIT_OPTIONAL_LOCKS`, `CODEX_HOME`, `OPENCODE_CONFIG_DIR`, `OPENCODE_CONFIG`, `OPENCODE_CONFIG_CONTENT`,
 `OPENCODE_DISABLE_CLAUDE_CODE`, `OPENCODE_CONFIG_PROJECT_DISABLE`, `OPENCODE_DISABLE_PROJECT_CONFIG`,
-`OPENCODE_FILEWATCHER_DISABLE` and `OPENCODE_DISABLE_FILEWATCHER`. Other home variables are not an
+`OPENCODE_FILEWATCHER_DISABLE` and `OPENCODE_DISABLE_FILEWATCHER`, plus every name starting with
+`OPENCODE_` or `CODEX_` (case-insensitive on Windows). Other home variables are not an
 isolation boundary; keep backend credential homes stable.
 
 ### Private folders
@@ -165,12 +168,18 @@ isolation boundary; keep backend credential homes stable.
 occurrence and contributing layers. Each path must be absolute; tilde and variables are not expanded.
 A path containing, equal to or inside the control or ledger root refuses planning, including through
 links. A private path equal to a configured writable root, including aliases, also refuses.
+Planning also refuses entries containing or equal to the worktree root or temp root, naming the
+layer. At launch, real-path checks refuse entries containing or equal to the workspace or Git common
+folder before any private source is created. Entries strictly inside the workspace remain allowed
+unless they hide its Git common folder.
 The list and sources are frozen in task settings; there is no CLI flag.
 
 Only the Linux opencode fence enforces these folders. Each target gets a fresh mode-0700 empty
-source bind, after writable grants and before read-only overlays; sources are removed after failed
+source bind by real target path, after writable grants and before read-only overlays. Sources live
+inside the launch's exclusively created mode-0700 private temp; an existing private source or temp is
+refused rather than reused. Sources are removed after failed
 startup or confirmed server exit, while target folders remain. The harness's own original runfile
-folder is always appended and deduplicated, even with no configured folders. Elsewhere, nonempty
+folder is always appended without deduplication, even with no configured folders. Elsewhere, nonempty
 configuration warns exactly `<task>: privateFolders is enforced only by the opencode fence on Linux`;
 empty configuration adds no warning. This is still an accident guard, not a security boundary.
 

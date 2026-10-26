@@ -84,6 +84,21 @@ public sealed class ConfigTests
     }
 
     [Test]
+    public async Task Environment_rejects_backend_prefixes_with_exact_diagnostic()
+    {
+        foreach (var layer in new[] { "user", "repo", "task-file-defaults", "task" })
+            foreach (var name in new[] { "OPENCODE_PASSWORD", "OPENCODE_FUTURE_SWITCH", "CODEX_FUTURE_SWITCH", "OPENCODE_", "CODEX_", "opencode_password", "codex_future_switch" })
+            {
+                var preferences = new TaskPreferences { Environment = JsonSerializer.SerializeToElement(new Dictionary<string, string> { [name] = "synthetic" }) };
+                HarnessException? failure = null;
+                try { ConfigResolver.ValidateEnvironment(preferences, layer); }
+                catch (HarnessException ex) { failure = ex; }
+                await Assert.That(failure?.Message).IsEqualTo(char.IsUpper(name[0]) || OperatingSystem.IsWindows()
+                    ? $"{layer}: environment may not set {name}: the harness owns it" : null);
+            }
+    }
+
+    [Test]
     [NotInParallel]
     public async Task PrivateFolders_join_validate_and_warn(CancellationToken ct)
     {
@@ -153,10 +168,33 @@ public sealed class ConfigTests
             {
                 file.Tasks[0].PrivateFolders = [path];
                 error = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file)));
-                await Assert.That(error!.Message).IsEqualTo($"inspect: privateFolders must not equal writableRoots: {path}");
+                await Assert.That(error!.Message).IsEqualTo($"inspect: privateFolders from task must not equal writableRoots: {path}");
             }
         }
         finally { Directory.Delete(link); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task PrivateFolders_refuse_worktree_and_temp_ancestors_with_layer()
+    {
+        using var lab = new CoreLab("private-roots");
+        Locations.Configure(new() { WorktreeRoot = Path.Combine(lab.Tree.WorktreeRoot, "nested") }, null);
+        var temp = Path.Combine(lab.Tree.Root, "separate-temp", "tasks");
+        foreach (var layer in new[] { "user", "repo", "task-file-defaults", "task" })
+            foreach (var (root, name) in new[] { (Locations.WorktreeRoot, "worktree root"), (temp, "temp root") })
+                foreach (var path in new[] { root, Path.GetDirectoryName(root)! })
+                {
+                    var file = Tasks();
+                    file.Defaults = new() { Backend = "opencode", TempRoot = temp };
+                    var user = new ConfigFile { Preferences = new() };
+                    var repo = new ConfigFile { Preferences = new() };
+                    var prefs = layer switch { "user" => user.Preferences, "repo" => repo.Preferences,
+                        "task-file-defaults" => file.Defaults, _ => (TaskPreferences)file.Tasks![0] };
+                    prefs.PrivateFolders = [path];
+                    var failure = await Assert.ThrowsAsync<HarnessException>(() => Task.FromResult(ConfigResolver.Resolve(file, user, repo)));
+                    await Assert.That(failure!.Message).IsEqualTo($"inspect: privateFolders from {layer} must not contain or equal the {name}: {path}");
+                }
     }
 
     [Test]

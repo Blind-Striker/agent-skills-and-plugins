@@ -13,6 +13,7 @@ public sealed class CodexBackendTests
     {
         using var lab = new CodexLab();
         File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        lab.Environment["FAKE_CODEX_AUTH_MARK"] = "synthetic-passthrough";
         lab.Write("task", CodexLab.Handshake + CodexLab.Thread.Split('\n')[0] + "\n{\"spawnChild\":true}\n{\"notify\":\"warning\",\"params\":{\"message\":\"child-ready\"}}\n");
         await using var backend = lab.Backend();
         await backend.ProbeAsync(new(lab.Tree.Repository), ct);
@@ -50,6 +51,35 @@ public sealed class CodexBackendTests
             await backend.ReleaseAsync(created.Worker, ct);
         }
         await Assert.That(Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories).Length).IsEqualTo(probes.Length);
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Configured_PATH_cannot_select_backend_or_session_launcher(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Split('\n')[0] + "\n");
+        var trusted = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "trusted-tools")).FullName;
+        var shim = Path.Combine(trusted, OperatingSystem.IsWindows() ? "codex.cmd" : "codex");
+        File.WriteAllText(shim, OperatingSystem.IsWindows() ? $"@echo off\r\n\"{CodexLab.Executable}\" %*\r\n"
+            : $"#!/bin/sh\nexec '{CodexLab.Executable}' \"$@\"\n");
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(shim, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        lab.Environment["PATH"] = trusted + Path.PathSeparator + lab.Environment["PATH"];
+        var configured = new Dictionary<string, string> { ["PATH"] = Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "task-tools")).FullName };
+        var variables = WorkerEnvironment.Copy(lab.Environment);
+        variables["PATH"] = configured["PATH"];
+        await using var backend = new CodexBackend(new(Path.Combine(lab.Tree.Root, "profiles"), null, new Dictionary<string, string>()), lab.Environment);
+        CreateResult? created = null;
+        HarnessException? failure = null;
+        try { created = await backend.CreateAsync(new("run", "worker", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), variables, null, "full", null,
+            ConfiguredEnvironment: configured), ct); }
+        catch (HarnessException ex) { failure = ex; }
+        await Assert.That(failure).IsNull();
+        await Assert.That(created!.Details!.Route).IsEqualTo("codex:model-y#high");
+        if (OperatingSystem.IsLinux())
+            await Assert.That(backend.WorkerProcesses.Single().Process.ProcessGroup).IsEqualTo(backend.WorkerProcesses.Single().Process.Id);
+        await backend.ReleaseAsync(created.Worker, ct);
     }
 
     [Test]

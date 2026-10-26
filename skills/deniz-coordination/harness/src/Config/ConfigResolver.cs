@@ -116,7 +116,10 @@ static class ConfigResolver
                 if (Worktree.IsInside(real, Worktree.RealPath(root)) || Worktree.IsInside(Worktree.RealPath(root), real))
                     throw new HarnessException($"{task.Id}: privateFolders from {settings.PrivateFolders.From} must not contain or lie inside the {name}: {folder}");
             if (settings.WritableRoots.Value.Any(root => Locations.Same(real, Worktree.RealPath(root))))
-                throw new HarnessException($"{task.Id}: privateFolders must not equal writableRoots: {folder}");
+                throw new HarnessException($"{task.Id}: privateFolders from {settings.PrivateFolders.From} must not equal writableRoots: {folder}");
+            foreach (var (root, name) in new[] { (Locations.WorktreeRoot, "worktree root"), (settings.TempRoot.Value ?? Locations.WorktreeRoot, "temp root") })
+                if (Worktree.IsInside(Worktree.RealPath(root), real))
+                    throw new HarnessException($"{task.Id}: privateFolders from {settings.PrivateFolders.From} must not contain or equal the {name}: {folder}");
         }
         if (settings.PrivateFolders.Value.Count > 0 && !(OperatingSystem.IsLinux() && settings.Backend.Value == "opencode" && settings.Access.Value is "read-only" or "workspace"))
             config.Warnings.Add($"{task.Id}: privateFolders is enforced only by the opencode fence on Linux");
@@ -286,7 +289,9 @@ static class ConfigResolver
             if (new[] { "TEMP", "TMP", "TMPDIR", "XDG_RUNTIME_DIR", "XDG_CACHE_HOME", "GIT_TERMINAL_PROMPT", "GIT_INDEX_FILE", "GIT_OPTIONAL_LOCKS",
                     "CODEX_HOME", "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG", "OPENCODE_CONFIG_CONTENT", "OPENCODE_DISABLE_CLAUDE_CODE",
                     "OPENCODE_CONFIG_PROJECT_DISABLE", "OPENCODE_DISABLE_PROJECT_CONFIG", "OPENCODE_FILEWATCHER_DISABLE", "OPENCODE_DISABLE_FILEWATCHER" }
-                .Contains(variable.Name, WorkerEnvironment.NameComparer))
+                .Contains(variable.Name, WorkerEnvironment.NameComparer)
+                || new[] { "OPENCODE_", "CODEX_" }.Any(prefix => variable.Name.StartsWith(prefix,
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)))
                 throw new HarnessException($"{layer}: environment may not set {variable.Name}: the harness owns it");
         }
     }

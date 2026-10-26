@@ -171,18 +171,26 @@ sealed class HarnessServer : IAsyncDisposable
                 foreach (var name in new[] { "TMPDIR", "TEMP", "TMP" })
                     environment[name] = temporary;
                 var inherited = WorkerEnvironment.Copy(original);
-                foreach (var (name, value) in environment) inherited[name] = value;
+                foreach (var name in new[] { "TEMP", "TMP", "TMPDIR", "XDG_CACHE_HOME" }) inherited[name] = environment[name];
+                if (launch.Environment.TryGetValue("XDG_RUNTIME_DIR", out var taskRuntime)) inherited["XDG_RUNTIME_DIR"] = taskRuntime;
                 string? common = null;
                 var git = await Git.ForTask(launch.TaskId, launch.RunId, profileRoot)
                     .RunAsync(launch.Directory, ct, "rev-parse", "--git-common-dir");
                 if (git.ExitCode == 0) common = Path.GetFullPath(git.Output.Trim(), launch.Directory);
+                var privateTargets = (launch.PrivateFolders ?? []).Select(entry => (Entry: entry, Target: Worktree.RealPath(entry)))
+                    .DistinctBy(x => x.Target, StringComparer.Ordinal).ToArray();
+                if (OperatingSystem.IsLinux())
+                    foreach (var (entry, target) in privateTargets)
+                        foreach (var (folder, name) in new[] { (launch.Directory, "workspace"), (common, "git common folder") })
+                            if (folder is not null && Worktree.IsInside(Worktree.RealPath(folder), target))
+                                throw new HarnessException($"{launch.TaskId}: privateFolders entry {entry} would hide the {name}: {folder}");
                 var home = inherited.GetValueOrDefault("HOME") ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
                 var writable = Ready.WritableSet(launch, profileRoot, home, inherited, common);
                 foreach (var path in writable.Where(path => path != "/dev")) Directory.CreateDirectory(path);
                 Directory.CreateDirectory(environment["XDG_CACHE_HOME"]);
                 if (OperatingSystem.IsMacOS() || OperatingSystem.IsLinux())
                 {
-                    Directory.CreateDirectory(temporary, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+                    CreatePrivateFolder(launch.TaskId, temporary);
                     temporaryCreated = true;
                     writable = [.. writable, temporary];
                 }
@@ -193,11 +201,9 @@ sealed class HarnessServer : IAsyncDisposable
                     // Protect the harness's own file-based build cache, independent of task home overrides.
                     var self = Path.Combine(original.GetValueOrDefault("XDG_DATA_HOME") is { Length: > 0 } data && data.StartsWith('/')
                         ? data : Path.Combine(originalHome, ".local/share"), "dotnet", "runfile");
-                    var targets = new HashSet<string>(StringComparer.Ordinal);
-                    foreach (var target in (launch.PrivateFolders ?? []).Append(self))
+                    foreach (var target in privateTargets.Select(x => x.Target).Append(Worktree.RealPath(self)))
                     {
-                        if (!targets.Add(Worktree.RealPath(target))) continue;
-                        var source = temporary + "-private-" + privateFolders.Count.ToString(CultureInfo.InvariantCulture);
+                        var source = Path.Combine(temporary, "private-" + privateFolders.Count.ToString(CultureInfo.InvariantCulture));
                         CreatePrivateFolder(launch.TaskId, source);
                         privateSources.Add(source);
                         privateFolders.Add((source, Directory.CreateDirectory(target).FullName));
@@ -262,10 +268,20 @@ sealed class HarnessServer : IAsyncDisposable
 
     static void CreatePrivateFolder(string taskId, string source)
     {
-        if (Path.Exists(source))
-            throw new HarnessException($"{taskId}: refused an existing private folder: {source}");
-        if (OperatingSystem.IsLinux()) Directory.CreateDirectory(source, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (mkdir(source, 448) != 0)
+            throw new HarnessException(System.Runtime.InteropServices.Marshal.GetLastPInvokeError() == 17
+                ? $"{taskId}: refused an existing private folder: {source}"
+                : $"{taskId}: cannot create private folder: {source}");
+        if ((OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            && File.GetUnixFileMode(source) != (UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute))
+        {
+            Directory.Delete(source);
+            throw new HarnessException($"{taskId}: private folder must have mode 0700: {source}");
+        }
     }
+
+    [System.Runtime.InteropServices.DllImport("libc", SetLastError = true)]
+    static extern int mkdir(string path, uint mode);
 
     // On Windows the npm shim runs through cmd.exe and leaves the real server outside the job
     // that ends it with its owner; start opencode.exe directly when the shim's layout is found.
@@ -283,12 +299,12 @@ sealed class HarnessServer : IAsyncDisposable
                 if (File.Exists(Path.Combine(dir, "opencode.cmd")))
                 {
                     var exe = Path.Combine(dir, "node_modules", "@opencode", "cli", "bin", "opencode.exe");
-                    return File.Exists(exe) ? [exe, "serve"] : ["opencode", "serve"];
+                    return File.Exists(exe) ? [exe, "serve"] : [Path.Combine(dir, "opencode.cmd"), "serve"];
                 }
             }
         }
 
-        return ["opencode", "serve"];
+        return [Executables.Resolve("opencode"), "serve"];
     }
 
     async Task SubscribeAsync(CancellationToken ct)

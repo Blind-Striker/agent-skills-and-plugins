@@ -160,6 +160,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         var userHome = UserHome;
         var home = CodexHome.Create(context, launch, userHome, CodexHome.ReadWindowsSandbox(userHome));
         var variables = WorkerEnvironment.Copy(launch.Environment);
+        // Resolve supervisor-launched programs before the configured process overlay applies.
+        foreach (var name in new[] { "PATH", "PATHEXT" })
+        {
+            variables.Remove(name);
+            if (environment.TryGetValue(name, out var value)) variables[name] = value;
+        }
         variables["CODEX_HOME"] = home.Home;
         Connection connection;
         connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment);

@@ -114,9 +114,9 @@ folders, which survive a reboot and may be removed by hand when no run is active
 contains `/var/tmp` lets that task's worker reach these folders; grant it only on purpose.
 Unix socket paths are capped near 108 bytes (104 on macOS);
 long temp paths break tools' sockets and named pipes, and tools falling back to global `/tmp` on
-macOS are denied by the fence. Linux binds a fresh mode-0700 sibling source beside private temp
+macOS are denied by the fence. Linux binds a fresh mode-0700 source inside the exclusively created private temp
 over each configured `privateFolders` target, creating missing targets. The harness always appends
-and deduplicates its own `<XDG_DATA_HOME>/dotnet/runfile` target (using `$HOME/.local/share` unless
+without deduplication its own `<XDG_DATA_HOME>/dotnet/runfile` target (using `$HOME/.local/share` unless
 `XDG_DATA_HOME` starts with `/`), using its original environment rather than task home overrides.
 That shared folder holds the harness's own `dispatch.cs` build, which a worker must not change
 before the harness runs it unfenced. Private binds follow writable grants and precede read-only
