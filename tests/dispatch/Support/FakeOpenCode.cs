@@ -15,12 +15,16 @@ internal static class FakeOpenCode
         File.WriteAllLines(path, steps.Select(step => step.ToJsonString()));
         environment["FAKE_OPENCODE_SCENARIO"] = path;
         if (Ready.FenceKind is null) return;
-        // A fenced full/on launch has a fresh process, not the probe host's consumed cursor.
-        // Clean/project-off already used a different host from the full/on probe before fencing.
+        // A fenced clean/on launch has a fresh process, like the unfenced clean host on Windows.
+        // Reuse its first session id, with environment setup but no probe requests or prompt.
         var launch = path + ".launch";
-        File.WriteAllLines(launch, steps.Take(4).Concat(steps.Skip(launchStart)).Select(step => step.ToJsonString()));
+        var launchSteps = steps.Take(4)
+            .Append(steps.First(step => step["expect"]!.GetValue<string>() == "POST /api/session"))
+            .Append(steps.Skip(launchStart).First(step => step["expect"]!.GetValue<string>() == "PUT /api/session/ses_fixture/environment"))
+            .Append(steps.First(step => step["expect"]!.GetValue<string>() == "DELETE /api/session/ses_fixture"));
+        File.WriteAllLines(launch, launchSteps.Select(step => step.ToJsonString()));
         var executable = Path.Combine(Directory.CreateDirectory(path + ".bin").FullName, "opencode");
-        File.WriteAllText(executable, $"#!/bin/sh\nif [ \"${{XDG_CACHE_HOME%/cache}}\" != \"$XDG_CACHE_HOME\" ] && [ \"$OPENCODE_DISABLE_CLAUDE_CODE\" != 1 ] && [ \"$OPENCODE_DISABLE_PROJECT_CONFIG\" != 1 ]; then\nexport FAKE_OPENCODE_SCENARIO='{launch}'\nfi\nexec '{Executable}' \"$@\"\n");
+        File.WriteAllText(executable, $"#!/bin/sh\nif [ \"${{XDG_CACHE_HOME%/cache}}\" != \"$XDG_CACHE_HOME\" ] && [ \"$OPENCODE_DISABLE_CLAUDE_CODE\" = 1 ] && [ \"$OPENCODE_DISABLE_PROJECT_CONFIG\" != 1 ]; then\nexport FAKE_OPENCODE_SCENARIO='{launch}'\nfi\nexec '{Executable}' \"$@\"\n");
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var configPath = Path.Combine(tree.DispatchHome, "config", "config.jsonc");
         var config = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(configPath))!;

@@ -1,6 +1,7 @@
 using Dispatch.Tests.Support;
 using System.Text.Json.Nodes;
 using TUnit.Assertions.Enums;
+using Microsoft.Extensions.Time.Testing;
 
 namespace Dispatch.Tests.Integration;
 
@@ -8,6 +9,269 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel("processes")]
 public sealed class ExitCodeTests
 {
+    const string CacheWarning = "this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache";
+
+    [Test]
+    [NotInParallel]
+    [Arguments("selfcheck")]
+    [Arguments("plan")]
+    [Arguments("run")]
+    [Arguments("status")]
+    [Arguments("wait")]
+    [Arguments("routes")]
+    [Arguments("clean")]
+    public async Task Plugin_cache_warning_matches_source_and_command(string command)
+    {
+        using var lab = new CoreLab("cache-warning");
+        var saved = WorkerEnvironment.Snapshot();
+        try
+        {
+            foreach (var explicitHome in new[] { false, true })
+                foreach (var placement in new[] { "inside", "lookalike", "unrelated", "case" })
+                {
+                    var home = explicitHome ? Path.Combine(lab.Tree.Root, "codex-home")
+                        : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+                    Environment.SetEnvironmentVariable("CODEX_HOME", explicitHome ? home : null);
+                    var source = placement switch
+                    {
+                        "lookalike" => Path.Combine(home, "plugins", "cache-other", "pkg", "harness", "src", "Cli", "Cli.cs"),
+                        "unrelated" => Path.Combine(lab.Tree.Root, "other", "plugins", "cache", "pkg", "harness", "src", "Cli", "Cli.cs"),
+                        _ => Path.Combine(home, "plugins", "cache", "old", "..", "pkg", "harness", "src", "Cli", "Cli.cs"),
+                    };
+                    if (placement == "case") source = source.ToUpperInvariant();
+                    var output = TestContext.Current!.Output;
+                    var start = output.GetErrorOutput().Length;
+                    var exit = await Cli.MainAsync(command == "selfcheck" ? [command, Path.Combine(lab.Tree.Root, "missing.jsonc")] : [command], source);
+                    await Assert.That(exit).IsEqualTo(command == "status" ? 0 : 2);
+                    var warnings = output.GetErrorOutput()[start..].ReplaceLineEndings("\n").Split('\n').Where(line => line == CacheWarning);
+                    var expected = command is "selfcheck" or "plan" or "run"
+                        && (placement == "inside" || placement == "case" && OperatingSystem.IsWindows());
+                    await Assert.That(warnings).IsEquivalentTo(expected ? new[] { CacheWarning } : [], CollectionOrdering.Matching);
+                }
+        }
+        finally { RestoreEnvironment(saved); }
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task Plugin_cache_warning_still_allows_run_settlement(CancellationToken ct)
+    {
+        using var lab = new CoreLab("cache-run");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var tasks = Path.Combine(lab.Tree.Root, "tasks.jsonc");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"run":"cache-run","defaults":{"backend":"opencode"},"tasks":[{"id":"inspect","kind":"research","base":"main","route":"fixture/model","prompt":"Inspect."}]}""");
+        var environment = lab.Tree.ChildEnvironment();
+        foreach (var (name, value) in FakeOpenCode.Environment(lab.Tree, "one-task.jsonl")) environment[name] = value;
+        var saved = WorkerEnvironment.Snapshot();
+        try
+        {
+            RestoreEnvironment(environment.Where(x => x.Value is not null).ToDictionary(x => x.Key, x => x.Value!));
+            var source = Path.Combine(environment["CODEX_HOME"]!, "plugins", "cache", "pkg", "harness", "src", "Cli", "Cli.cs");
+            var output = TestContext.Current!.Output;
+            var start = output.GetErrorOutput().Length;
+            var exit = await Cli.MainAsync(["run", tasks, "--repo", repo.Root], source);
+            await Assert.That(exit).IsEqualTo(0);
+            await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(CacheWarning + "\n");
+            var run = Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "ledgers")).Single();
+            var result = JsonNode.Parse(File.ReadAllText(Path.Combine(run, "inspect", "result.json")))!;
+            await Assert.That(result["state"]!.GetValue<string>()).IsEqualTo("done");
+            await Assert.That(result["failures"]!.AsArray()).IsEmpty();
+        }
+        finally { RestoreEnvironment(saved); }
+    }
+
+    static void RestoreEnvironment(IReadOnlyDictionary<string, string> values)
+    {
+        foreach (var name in WorkerEnvironment.Snapshot().Keys.Except(values.Keys, WorkerEnvironment.NameComparer)) Environment.SetEnvironmentVariable(name, null);
+        foreach (var (name, value) in values) Environment.SetEnvironmentVariable(name, value);
+    }
+
+    [Test]
+    [Arguments("done", 0)]
+    [Arguments("failed", 1)]
+    [Arguments("cancelled", 1)]
+    [Arguments("queued", 1)]
+    [Arguments("empty", 1)]
+    public async Task Wait_returns_status_and_final_verdict(string state, int expected, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var ledger = Seed(tree, state == "empty" ? "queued" : state);
+        if (state == "empty") File.WriteAllText(Path.Combine(ledger, "events.jsonl"), "{\"schemaVersion\":2,\"run\":\"recorded\",\"type\":\"run\"}\n");
+        else File.AppendAllText(Path.Combine(ledger, "events.jsonl"), "{\"run\":\"recorded\",\"task\":\"alpha\",\"type\":\"final\",\"data\":{\"state\":\"done\"}}\n");
+        var rows = state == "empty" ? Array.Empty<(string, string)>() : new[] { ("inspect", state), ("alpha", "done") };
+        var status = ExpectedStatus("recorded", rows, state is "empty" or "queued" ? " (no supervisor: `resume recorded` settles it)" : "");
+        using var process = new HarnessProcess(tree);
+        var output = await process.RunAsync(["wait", "recorded"], ct);
+        await Assert.That(output.ExitCode).IsEqualTo(expected);
+        await Assert.That(output.Stdout.ReplaceLineEndings("\n")).IsEqualTo(status);
+        await Assert.That(output.Stderr).IsEqualTo("");
+        using var statusProcess = new HarnessProcess(tree);
+        var statusOutput = await statusProcess.RunAsync(["status", "recorded"], ct);
+        await Assert.That(statusOutput.ExitCode).IsEqualTo(0);
+        await Assert.That(statusOutput.Stdout.ReplaceLineEndings("\n")).IsEqualTo(status);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Wait_observes_completion_or_supervisor_loss(bool loseSupervisor, CancellationToken ct)
+    {
+        using var lab = new CoreLab("wait-live");
+        lab.Ledger.Write("zulu", "queued");
+        lab.Ledger.Write("alpha", "queued");
+        using var held = SupervisorLock.Acquire(lab.Ledger.RunId);
+        var time = new FakeTimeProvider();
+        var scheduler = new ConcurrentExclusiveSchedulerPair(TaskScheduler.Default, 1).ExclusiveScheduler;
+        var waiting = await StartWaitAsync(Args.Parse(["wait", lab.Ledger.RunId]), time, scheduler, ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        await AdvanceAsync(time, scheduler, TimeSpan.FromSeconds(4), ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        if (loseSupervisor) held.Dispose();
+        else
+        {
+            lab.Ledger.Write("zulu", "final", new JsonObject { ["state"] = "done" });
+            lab.Ledger.Write("alpha", "final", new JsonObject { ["state"] = "done" });
+        }
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        await AdvanceAsync(time, scheduler, TimeSpan.FromSeconds(1), ct);
+        await Assert.That(waiting.IsCompleted).IsTrue();
+        await Assert.That(await waiting).IsEqualTo(loseSupervisor ? 1 : 0);
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(ExpectedStatus(lab.Ledger.RunId,
+            new[] { ("zulu", loseSupervisor ? "queued" : "done"), ("alpha", loseSupervisor ? "queued" : "done") },
+            loseSupervisor ? $" (no supervisor: `resume {lab.Ledger.RunId}` settles it)" : " (supervised now)"));
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(true, true)]
+    public async Task Wait_timeout_names_unfinished_tasks(bool explicitTimeout, bool deadlineCompletion, CancellationToken ct)
+    {
+        using var lab = new CoreLab("wait-timeout");
+        lab.Ledger.Write("zulu", "queued");
+        lab.Ledger.Write("finished", "final", new JsonObject { ["state"] = "failed" });
+        lab.Ledger.Write("alpha", "queued");
+        using var held = SupervisorLock.Acquire(lab.Ledger.RunId);
+        // Jump the wall clock between deadline creation and its first remaining-time calculation.
+        var time = new FakeTimeProvider { AutoAdvanceAmount = TimeSpan.FromMinutes(explicitTimeout ? 2 : 60) - TimeSpan.FromSeconds(1) };
+        var scheduler = new ConcurrentExclusiveSchedulerPair(TaskScheduler.Default, 1).ExclusiveScheduler;
+        var args = Args.Parse(explicitTimeout ? ["wait", lab.Ledger.RunId, "--timeout", "2"] : ["wait", lab.Ledger.RunId]);
+        var output = TestContext.Current!.Output;
+        var errorStart = output.GetErrorOutput().Length;
+        var waiting = await StartWaitAsync(args, time, scheduler, ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        await AdvanceAsync(time, scheduler, TimeSpan.FromMilliseconds(500), ct);
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        if (deadlineCompletion)
+            foreach (var id in new[] { "zulu", "alpha" }) lab.Ledger.Write(id, "final", new JsonObject { ["state"] = "done" });
+        var start = output.GetStandardOutput().Length;
+        await AdvanceAsync(time, scheduler, TimeSpan.FromMilliseconds(500), ct);
+        await Assert.That(waiting.IsCompleted).IsTrue();
+        await Assert.That(await waiting).IsEqualTo(deadlineCompletion ? 1 : 3);
+        await Assert.That(output.GetErrorOutput()[errorStart..].ReplaceLineEndings("\n")).IsEqualTo(deadlineCompletion ? ""
+            : $"run {lab.Ledger.RunId}: wait timed out; unfinished tasks: zulu, alpha\n");
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(deadlineCompletion
+            ? ExpectedStatus(lab.Ledger.RunId, new[] { ("zulu", "done"), ("finished", "failed"), ("alpha", "done") }, " (supervised now)") : "");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task Wait_cancellation_ends_the_delay_without_writes(CancellationToken ct)
+    {
+        using var lab = new CoreLab("wait-cancel");
+        lab.Ledger.Write("inspect", "queued");
+        using var held = SupervisorLock.Acquire(lab.Ledger.RunId);
+        var before = Snapshot(lab.Ledger.Dir);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var waiting = Commands.WaitAsync(Args.Parse(["wait", lab.Ledger.RunId]), cancel.Token, new FakeTimeProvider());
+        await Assert.That(waiting.IsCompleted).IsFalse();
+        cancel.Cancel();
+        await Assert.That(async () => await waiting).Throws<OperationCanceledException>();
+        await Assert.That(Snapshot(lab.Ledger.Dir)).IsEquivalentTo(before, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Arguments("0")]
+    [Arguments("-1")]
+    [Arguments("1.5")]
+    [Arguments("text")]
+    [Arguments("missing")]
+    public async Task Wait_rejects_invalid_timeout(string timeout, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        Seed(tree, "done");
+        using var process = new HarnessProcess(tree);
+        var output = await process.RunAsync(timeout == "missing" ? ["wait", "recorded", "--timeout"] : ["wait", "recorded", "--timeout", timeout], ct);
+        await Assert.That(output.ExitCode).IsEqualTo(2);
+        await Assert.That(output.Stdout).IsEqualTo("");
+        await Assert.That(output.Stderr.ReplaceLineEndings("\n")).IsEqualTo(timeout == "missing"
+            ? "dispatch: --timeout needs a value\n" : "dispatch: --timeout needs a positive whole number of minutes\n");
+    }
+
+    [Test]
+    public async Task Wait_leaves_ledger_unchanged(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var folder = Seed(tree, "queued");
+        File.AppendAllText(Path.Combine(folder, "events.jsonl"), "torn tail");
+        var before = Snapshot(Path.Combine(tree.DispatchHome, "state"));
+        using var process = new HarnessProcess(tree);
+        var output = await process.RunAsync(["wait", "recorded", "--ledger", Path.GetDirectoryName(folder)!], ct);
+        await Assert.That(output.ExitCode).IsEqualTo(1);
+        await Assert.That(output.Stdout.ReplaceLineEndings("\n")).IsEqualTo(ExpectedStatus("recorded", new[] { ("inspect", "queued") }, " (no supervisor: `resume recorded` settles it)"));
+        await Assert.That(Snapshot(Path.Combine(tree.DispatchHome, "state"))).IsEquivalentTo(before, CollectionOrdering.Matching);
+        using var unknown = new HarnessProcess(tree);
+        var refusal = await unknown.RunAsync(["wait", "unknown"], ct);
+        await Assert.That(refusal.ExitCode).IsEqualTo(2);
+        await Assert.That(refusal.Stdout).IsEqualTo("");
+        await Assert.That(refusal.Stderr.ReplaceLineEndings("\n")).IsEqualTo($"dispatch: no ledger for run unknown under {Path.GetDirectoryName(folder)}\n");
+    }
+
+    static async Task<Task<int>> StartWaitAsync(Args args, FakeTimeProvider time, TaskScheduler scheduler, CancellationToken ct)
+    {
+        var waiting = Task.Factory.StartNew(() => Commands.WaitAsync(args, ct, time), ct, TaskCreationOptions.None, scheduler).Unwrap();
+        await Task.Factory.StartNew(() => { }, ct, TaskCreationOptions.None, scheduler);
+        return waiting;
+    }
+
+    static async Task AdvanceAsync(FakeTimeProvider time, TaskScheduler scheduler, TimeSpan amount, CancellationToken ct)
+    {
+        time.Advance(amount);
+        // FIFO barrier: the delay continuation has run and either finished or registered its next timer.
+        await Task.Factory.StartNew(() => { }, ct, TaskCreationOptions.None, scheduler);
+    }
+
+    static (string Path, string? Bytes)[] Snapshot(string root) => Directory.GetFileSystemEntries(root, "*", SearchOption.AllDirectories)
+        .Order(StringComparer.Ordinal).Select(path => (Path.GetRelativePath(root, path), File.Exists(path) ? Convert.ToBase64String(File.ReadAllBytes(path)) : null)).ToArray();
+
+    static string ExpectedStatus(string run, IEnumerable<(string Id, string State)> rows, string driver) => $"run {run}{driver}\n"
+        + $"  {"task",-24} {"state",-10} {"outcome",-12} {"cost",8} {"in/out tokens",-16} {"files",5} {"scope!",6} {"asks",4} {"esc",3} verify\n"
+        + string.Concat(rows.Select(row => $"  {row.Id,-24} {row.State,-10} {"-",-12} {"-",8} {"-",-16} {"-",5} {"-",6} {"-",4} {"-",3} -\n"
+            + (row.State is "running" or "waiting" or "dispatching" or "settling" ? "    tools: 0; last: -\n" : "")));
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Status_preserves_verify_order_and_not_run(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var ledger = Seed(tree, "failed");
+        Json.WriteFile(Path.Combine(ledger, "inspect", "result.json"), new TaskResult
+        {
+            Task = "inspect", Run = "recorded", State = "failed", Verify = [
+                new() { Command = "first", NotRun = "worker stopped" }, new() { Command = "second" },
+                new() { Command = "third", ExitCode = 7 }, new() { Command = "fourth", ExitCode = 9, NotRun = "worker stopped" }],
+        }, LedgerJson.Files.TaskResult);
+        using var process = new HarnessProcess(tree);
+        var output = await process.RunAsync(["status", "recorded"], ct);
+        await Assert.That(output.ExitCode).IsEqualTo(0);
+        await Assert.That(output.Stderr).IsEqualTo("");
+        await Assert.That(output.Stdout.ReplaceLineEndings("\n").Split('\n').Where(line => line.StartsWith("  inspect ", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { $"  {"inspect",-24} {"failed",-10} {"-",-12} {"-",8} {"-",-16} {0,5} {0,6} {0,4} {0,3} not run ok exit 7 not run" }, CollectionOrdering.Matching);
+    }
+
     [Test]
     [Timeout(180_000)]
     public async Task Selfcheck_launch_create_failure_exits_1_and_checks_other_backend(CancellationToken ct)
@@ -28,7 +292,7 @@ public sealed class ExitCodeTests
         await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.StartsWith("FAIL  ", StringComparison.Ordinal)).ToArray())
             .IsEquivalentTo(new[] { "FAIL  launch: synthetic launch rejected" }, CollectionOrdering.Matching);
         await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r')).Where(x => x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
-            .IsEquivalentTo(new[] { "FAIL  launch: synthetic launch rejected", "PASS  launch: ses_launch" }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new[] { "FAIL  launch: synthetic launch rejected", "PASS  launch: ses_fixture" }, CollectionOrdering.Matching);
         await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
         await Assert.That(Directory.GetFileSystemEntries(lab.Tree.WorktreeRoot)).IsEmpty();
     }
@@ -73,9 +337,9 @@ public sealed class ExitCodeTests
             steps.Add(new JsonObject { ["expect"] = "GET /api/session/ses_fixture", ["status"] = 404,
                 ["reply"] = new JsonObject { ["_tag"] = "SessionNotFoundError", ["sessionID"] = "ses_fixture", ["message"] = "removed" } });
             var launchStart = steps.Count;
-            steps.Add(new JsonObject { ["expect"] = "POST /api/session", ["reply"] = OpenCodeLab.Session("ses_launch") });
-            steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_launch/environment", ["status"] = 204 });
-            steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_launch", ["status"] = 204 });
+            steps.Add(new JsonObject { ["expect"] = "POST /api/session", ["reply"] = OpenCodeLab.Session("ses_fixture") });
+            steps.Add(new JsonObject { ["expect"] = "PUT /api/session/ses_fixture/environment", ["status"] = 204 });
+            steps.Add(new JsonObject { ["expect"] = "DELETE /api/session/ses_fixture", ["status"] = 204 });
             var scenario = Path.Combine(tree.Root, "selfcheck.jsonl");
             FakeOpenCode.SelfcheckScenario(tree, scenario, steps, launchStart, env);
         }

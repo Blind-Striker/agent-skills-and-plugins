@@ -4,6 +4,26 @@ namespace Dispatch.Tests.Unit;
 public sealed class BackendTypesTests
 {
     [Test]
+    [Arguments(null, null, null, "clean")]
+    [Arguments("clean", null, null, "clean")]
+    [Arguments("full", null, null, "full")]
+    [Arguments(null, "full", null, "full")]
+    [Arguments(null, "clean", "clean-partial", "clean-partial")]
+    public async Task BuildLaunch_preserves_actual_or_uses_effective_profile(string? specProfile, string? resolved, string? actual, string expected)
+    {
+        var record = new TaskRecord
+        {
+            Spec = new() { Id = "edit", Kind = "code", Backend = "codex", Route = "model", Profile = specProfile },
+            Settings = new() { Profile = resolved is null ? null : new() { Value = resolved, Actual = actual, Reason = actual is null ? null : "probe unavailable" } },
+            Workspace = new() { Path = Path.GetTempPath() },
+        };
+        var launch = TaskStarter.BuildLaunch(record, "run", "codex", new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] }, null).Launch;
+        await Assert.That(launch.Modes.Profile).IsEqualTo(resolved ?? specProfile ?? "clean");
+        await Assert.That(launch.ProfileActual).IsEqualTo(expected);
+        await Assert.That(launch.ProfileReason).IsEqualTo(actual is null ? null : "probe unavailable");
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     public async Task Worker_prompt_is_one_unchanged_user_text(bool isContinue)

@@ -38,7 +38,7 @@ dotnet dispatch.cs -- <command> [arguments]
   checks each backend the configuration selects, or every installed one when none is selected
   (version, sign-in, catalog, a clean profile), Windows readiness and every resolved folder, and sends
   no prompt. Discovery and exit behavior: `references/cli.md`.
-- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `asks`, `reply`, `cancel`, `collect`,
+- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `wait`, `asks`, `reply`, `cancel`, `collect`,
   `resume`, `clean`. Arguments, output and exit codes of each: `references/cli.md`.
 
 ## Backend and modes
@@ -49,12 +49,12 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 
 | Setting | Values | Code, mechanical | Review, research | Structured |
 |---|---|---|---|---|
-| `profile` | `clean` (minimal profile), `full` (installed profile) | code `full`; mechanical `clean` | `clean` | `clean` |
+| `profile` | `clean` (minimal profile), `full` (installed profile) | `clean` | `clean` | `clean` |
 | `project` | `on` (repository context loads), `off` | `on` | `on` | `off` |
 | `access` | `read-only`, `workspace`, `full` | `workspace` | `read-only` | `read-only` |
 | `workspace` | `worktree` (own branch from `base`), `in-place` (`dir`) | `worktree` | `worktree` | scratch folder |
 
-- A read-only Codex task of any kind also defaults to `profile: clean`; explicit profiles win. A task
+- Every task kind defaults to `profile: clean`; explicit profiles at any layer win. A task
   that needs the installed profile's tools (MCP servers, plugins, skills) sets `profile: full`. Codex `access: full` removes
   its sandbox. opencode `read-only` denies edit and keeps the shell inside the fence; on Windows it also
   declines every shell call by default.
@@ -102,11 +102,12 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 2. **Run.** `run <tasks.jsonc> [--run <name>]` is the supervisor: it blocks until every task is
    final. To keep working meanwhile, start it from a background shell and watch from another one.
    A background run wakes you only through a waiter you arm in the same step: your tool's
-   completion notice for that shell, or a loop on `status`. When you come back to a run without one,
+   completion notice for that shell, or `wait <run>` from another shell. When you come back to a run without one,
    start with `status <run>`; `(no supervisor: …)` means nothing is driving it.
 3. **Watch.** `status <run>` shows each task's state, tool count and last tool call. States:
    `queued`, `dispatching`, `running`, `waiting` (escalated ask), `settling`, `interrupted`, and the
-   final `done`, `failed`, `cancelled`.
+   final `done`, `failed`, `cancelled`. Use `wait <run>` to wait for those final states and print the
+   status summary; it exits at once if unfinished work has no supervisor. Waiter exits: `references/cli.md`.
 4. **Answer.** `asks [<run>]` lists escalated asks; `reply <run> <askId> once|reject [--message <text>]`
    answers one. Answers are one-shot; the harness never grants a standing approval.
 5. **Stop.** `cancel <run> <task>`. Never kill the supervisor.
@@ -140,6 +141,11 @@ A recorded run is never run again and its ledger is never edited by hand.
 
 ## Traps
 
+- **Background shell timeout.** A background shell's timeout must exceed the run's longest
+  `timeoutMinutes`, or the host kills the supervisor and the run settles `lost`.
+- **Codex plugin cache.** Codex keeps one cached plugin version and may replace it during a run,
+  removing the supervisor's own files. Start the harness from a stable copy outside that cache;
+  `selfcheck`, `plan` and `run` warn when started there ([CLI](references/cli.md#codex-plugin-cache-warning)).
 - **Machine-wide state.** Environment isolation does not cover the Windows registry, scheduled
   tasks or the credential store. SDK first-use behaviour, including user PATH appends and HTTPS
   development certificates, belongs in your `environment` configuration; the harness supplies no

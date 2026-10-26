@@ -113,6 +113,9 @@ static class Planner
             }
 
             if (prompt is not null && string.IsNullOrWhiteSpace(prompt)) e.Add("prompt is empty");
+            if (plan.Config?.Effective.Tasks[spec.Id!].Settings.Profile is { Value: "clean", From: "tool" }
+                && prompt is not null && Regex.IsMatch(prompt, @"\bskills?\b|`[A-Za-z0-9-]+:[A-Za-z0-9-]+`", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                plan.Warnings.Add($"{spec.Id}: the prompt mentions a skill, and the task defaults to profile clean, which loads no plugins or skills; set profile full if the worker needs them");
             if (spec.TimeoutMinutes is < 1 or > 720) e.Add("timeoutMinutes must be between 1 and 720");
             if (Scratch.Required(spec))
             {
@@ -248,7 +251,7 @@ static class Planner
         allow.IsRestricted && allow.Count == 0 ? " (the effective allow-list allows no opencode routes)" : "";
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,
-    // has its variant, is not manual-class; review lineage differs from the author's.
+    // has its variant, is not manual-class; report shared review lineage as information only.
     public static async Task CheckLiveAsync(Plan plan, IWorkerBackend backend, AllowList allow, CancellationToken ct)
     {
         var checks = await backend.ValidateAsync(plan.Tasks.Where(task => (task.Spec.Backend ?? "opencode") == backend.Name).Select(task => new WorkerPlan(task.Spec.Id!, task.Spec.Kind!,
@@ -296,7 +299,7 @@ static class Planner
             var author = checks.FirstOrDefault(x => x.TaskId == task.Spec.ReviewOf);
             if (reviewer is not null && author is not null && reviewer.Lineage == author.Lineage)
             {
-                plan.Errors.Add($"{task.Spec.Id}: reviewer and author share lineage {author.Lineage}");
+                plan.Info.Add($"{task.Spec.Id}: reviewer and author share lineage {author.Lineage}");
             }
         }
 

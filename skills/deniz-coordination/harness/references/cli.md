@@ -41,7 +41,8 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
 | `--effort <value>` | non-empty string | Layered effort | Plan/run; same-layer suffix disagreement is an error. Must exist in the live catalog. |
 | `--timeout-minutes <n>` | integer | Layered timeout, tool default `60` | Plan/run; 1 through 720. Non-integer: `--timeout-minutes needs an integer`. |
-| `--profile <value>` | enum | Kind/backend/access default | Plan/run; `clean` or `full`. |
+| `--timeout <minutes>` | positive whole number | `60` | Wait only; invalid value: `--timeout needs a positive whole number of minutes`. Separate from worker `--timeout-minutes`. |
+| `--profile <value>` | enum | `clean` for every task kind | Plan/run; `clean` or `full`. |
 | `--project <value>` | enum | Kind default | Plan/run; `on` or `off`. |
 | `--access <value>` | enum | Kind default | Plan/run; `read-only`, `workspace`, `full`; cannot exceed policy ceiling. |
 | `--network <value>` | enum | `on`, subject to policy | Plan/run; `on` or `off`; Codex full access with off is refused. |
@@ -58,10 +59,22 @@ arguments produce `missing <argument>`. Invalid preference choices name the valu
 
 ## Commands
 
-Every command that takes `<run>` (`status`, `asks`, `reply`, `cancel`, `collect`, `resume`,
+Every command that takes `<run>` (`status`, `wait`, `asks`, `reply`, `cancel`, `collect`, `resume`,
 `clean`) accepts the full run id or the bare run name. A ledger folder named exactly as given wins;
 otherwise a bare name resolves when exactly one ledger is named `<yyyy-MM-dd>-<name>`. With several
 matches the command refuses with exit 2 and lists their run ids.
+
+### Codex plugin cache warning
+
+When the harness's source folder is under `<CODEX_HOME or ~/.codex>/plugins/cache/`, `selfcheck`,
+`plan` and `run` print this advisory warning to stderr and continue normally:
+
+```text
+this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache
+```
+
+The check uses the normalized full source path, directory boundaries and Windows case-insensitivity,
+not the compiled assembly's cache location.
 
 ### `selfcheck [<tasks.jsonc>] [--repo <path>] [--backend <name>] [--policy <file>]`
 
@@ -191,6 +204,21 @@ For each task with contracts, `plan` prints
 deduplication. The version is the recorded first line described under [Contracts](task-file.md#contracts).
 The caller owns contract selection; planning does not warn about missing contracts.
 
+When no preference layer set a profile and a task's own `prompt` or `promptFile` text contains
+the case-insensitive whole word `skill` or `skills`, or a backticked `<name>:<name>` token whose
+names contain only letters, digits and hyphens, plan prints:
+
+```text
+WARN <task>: the prompt mentions a skill, and the task defaults to profile clean, which loads no plugins or skills; set profile full if the worker needs them
+```
+
+Contracts and standing instructions do not trigger this warning. Explicit `clean` or `full` at any
+layer suppresses it. The warning does not change the profile or refuse the plan.
+
+Same-backend live checks for a `reviewOf` task sharing its author's model lineage print
+`INFO <task>: reviewer and author share lineage <lineage>`. This is never an error or warning;
+review policy belongs to the caller. Cross-backend checks do not compare lineage.
+
 For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
 `INFO <task>: write-fenced (bwrap; accident guard)` or
 `INFO <task>: write-fenced (sandbox-exec; accident guard)` and records access enforcement
@@ -275,11 +303,14 @@ Use a new name for a new run rather than editing or deleting recorded input.
 
 With no run, lists directories in the ledger root and counts their task states, or prints `no runs`.
 With a run, prints state, outcome, cost/tokens if known, changed-file and scope counts, asks,
-escalations and verify results. Live task rows also show tool count and the last completed call.
+escalations and verify results. Verify entries retain command order: `not run` when `notRun` is
+present, otherwise `ok` for exit zero or `exit <code>` for nonzero. A stopped or blocked worker's
+commands did not run; their placeholder zero exit codes are not passes.
+Live task rows also show tool count and the last completed call.
 A task whose escalated asks closed without an answer (the worker's call was declined) gets a line
 `asks closed without an answer: <count> (<action>: <reason>; ...)`.
 It reports whether the run lock is held and whether asks are pending: a held lock prints
-`(supervised now)`, and a run with unfinished tasks and no supervisor prints
+`(supervised now)`, and a run with unfinished tasks (or no task states yet) and no supervisor prints
 `` (no supervisor: `resume <run>` settles it) ``, so a watcher can tell a stalled run from a working one.
 It does not wait for success.
 
@@ -287,6 +318,25 @@ It does not wait for success.
 |---|---|---|
 | `0` | integer | Status read successfully, regardless of task outcomes. |
 | `2` | integer | Unknown/unreadable run, newer schema, or corrupt complete event line. |
+
+### `wait <run> [--timeout <minutes>] [--ledger <dir>]`
+
+Waits until every recorded task is final (`done`, `failed`, `cancelled`), then prints the same
+summary as `status <run>`. Polls the ledger every five seconds, shortening the last delay to the
+remaining timeout. The default timeout is 60 minutes; `--timeout` takes a positive whole number.
+This command is read-only: it writes neither ledger nor control state and never resumes a run.
+
+A run with no task states yet is not final. If no supervisor holds an unfinished or empty run,
+wait prints status and exits 1 immediately, including the no-supervisor annotation; use `resume`
+to settle it. On timeout it prints `run <run>: wait timed out; unfinished tasks: <ids>` to stderr,
+listing only unfinished tasks in ledger order.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Every task is `done`. |
+| `1` | integer | Every task is final and at least one is not `done`, or an unfinished/empty run has no supervisor. |
+| `2` | integer | Usage error (including invalid timeout), unknown/unreadable run, or setup/read failure. |
+| `3` | integer | The timeout elapsed while tasks remained unfinished and the run was supervised. |
 
 ### `asks [<run>] [--ledger <dir>]`
 

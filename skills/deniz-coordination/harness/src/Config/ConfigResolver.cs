@@ -144,10 +144,7 @@ static class ConfigResolver
             settings.Network.Value = "off";
             settings.Network.From = $"tool, clamped by {config.Restrictions.NetworkAllowed.From}";
         }
-        // Kinds that rarely need the installed profile's tools default to the minimal one: each call costs fewer tokens.
-        var lean = structured || task.Kind is "review" or "research" or "mechanical"
-            || settings.Backend.Value == "codex" && settings.Access.Value == "read-only";
-        settings.Profile = Pick(lean ? "clean" : "full", p => p.Profile);
+        settings.Profile = Pick("clean", p => p.Profile);
         Choice(settings.Profile, "clean", "full");
         if (settings.Backend.Value == "codex" && (task.Agent is not null || task.Persona is not null))
             throw new HarnessException($"{task.Id}: codex refuses agent and persona");

@@ -181,10 +181,9 @@ config, task-file defaults, task entry, CLI; `writableRoots` and `privateFolders
 `environment` merges by variable name. Parallelism uses the task file's top-level
 `maxParallel`, not `defaults.maxParallel`. Route model and effort have separate provenance.
 
-The layer-0 `profile` default is `clean` for `structured`, `review`, `research` and `mechanical` tasks,
-and for Codex tasks whose resolved `access` is `read-only`, including access clamped by restrictions;
-otherwise (a `code` task) it is `full`. Its
-provenance is `tool`. Any explicit profile in the preference layers overrides that default.
+The layer-0 `profile` default is `clean` for every task kind, backend and access mode. Its
+provenance is `tool`. Any explicit profile in the preference layers overrides that default;
+set `full` when the worker needs the installed profile's tools or skills.
 
 Restrictions accumulate from user, repository, task-file `policy`, then CLI `--policy`. Deny and
 escalate lists append; each scope is another ceiling; maximum access takes the most restrictive

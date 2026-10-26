@@ -58,7 +58,7 @@ public sealed class ConfigRestrictionsTests
     }
 
     [Test]
-    [Arguments("code", "full", "on", "workspace")]
+    [Arguments("code", "clean", "on", "workspace")]
     [Arguments("mechanical", "clean", "on", "workspace")]
     [Arguments("review", "clean", "on", "read-only")]
     [Arguments("research", "clean", "on", "read-only")]

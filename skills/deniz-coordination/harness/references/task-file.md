@@ -36,7 +36,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `kind` | string enum | Required | `code`, `review`, `research`, `mechanical`, `structured`; otherwise `kind must be one of code, review, research, mechanical, structured`. |
 | `route` | string | Effective backend's `defaultRoutes` entry | Exactly one effective route or `agent`: `name exactly one of route or agent after merging`. The catalog must offer the model and variant or effort. |
 | `agent` | string | None | opencode roster agent with a pinned model. Codex: `codex refuses agent and persona`. An inherited default route also counts against the exactly-one rule. Manual-class agents are refused. |
-| `persona` | string | `build` for an opencode route | `persona goes with route, not with agent`. Must exist and must not be manual-class. Codex refuses it. A user-defined persona needs `profile: full`: `clean` (the default for review, research and mechanical tasks) loads no user agents, and plan refuses with `persona <x> not found: profile clean loads no user agents`. |
+| `persona` | string | `build` for an opencode route | `persona goes with route, not with agent`. Must exist and must not be manual-class. Codex refuses it. A user-defined persona needs `profile: full`: `clean` (the default for every task kind) loads no user agents, and plan refuses with `persona <x> not found: profile clean loads no user agents`. |
 | `prompt` | string | None | Exactly one of `prompt` and `promptFile`; otherwise `name exactly one of prompt or promptFile`. Whitespace-only text: `prompt is empty`. |
 | `promptFile` | string path | None | Same exclusivity as `prompt`; missing file: `promptFile not found: <path>`. |
 | `contracts` | string array | `[]` | File paths added after top-level contracts and before CLI contracts. Same resolution and validation as top-level [Contracts](#contracts). |
@@ -61,7 +61,7 @@ Corresponding command-line flags, where available, win last. A backend has no to
 | `backend` | string enum | Required after layering | `opencode` or `codex`; invalid choices name the value, layer and allowed values. |
 | `effort` | string | Route suffix or catalog default | Non-empty. A suffix and a different `effort` in the same layer fail: `route variant and effort disagree in <layer>`. A later layer wins. |
 | `timeoutMinutes` | integer | `60` | Range 1 through 720: `timeoutMinutes from <layer> must be between 1 and 720`. Each verify command separately has a 30-minute timeout. |
-| `profile` | string enum | `clean` for mechanical, review, research and structured tasks and for read-only Codex tasks, otherwise `full` | `clean` or `full`; explicit values override. Actual clean isolation may be partial; see [backends](backends.md). |
+| `profile` | string enum | `clean` for every task kind | `clean` or `full`; explicit values at any layer override. Actual clean isolation may be partial; see [backends](backends.md). |
 | `project` | string enum | `off` for structured, otherwise `on` | `on` or `off`. Controls backend repository context. Non-structured tasks still need a repository and workspace. |
 | `access` | string enum | `workspace` for code and mechanical, otherwise `read-only` | `read-only`, `workspace`, `full`. An explicit value above `maxAccess` fails and names both layers; the tool default is clamped. |
 | `network` | string enum | `on` | `on` or `off`. An explicit `on` forbidden by policy fails; the tool default is clamped. Codex refuses `full` access with network `off`. |
@@ -88,7 +88,7 @@ without a suffix does not clear an earlier effort. Do not combine a default rout
 
 | Kind | Profile | Project | Access | Working folder | Reason |
 |---|---|---|---|---|---|
-| `code` | `full` | `on` | `workspace` | Worktree | Needs repository context and writes. |
+| `code` | `clean` | `on` | `workspace` | Worktree | Needs repository context and writes. |
 | `mechanical` | `clean` | `on` | `workspace` | Worktree | Makes bounded repository edits. |
 | `review` | `clean` | `on` | `read-only` | Worktree | Reads repository context; every change fails scope. |
 | `research` | `clean` | `on` | `read-only` | Worktree | Reads repository context; every change fails scope. |
@@ -343,4 +343,4 @@ Choose a listed route or prepare the backend, then plan again.
 | `in-place workspace refuses a worktree root inside the repository` | Snapshot would capture generated workspaces. | Move the configured worktree root outside the repository. |
 | `in-place workspace refuses a ledger root inside the repository` | Snapshot would capture ledger writes. | Select an external ledger root. |
 | `structured scratch needs a projectless folder` | Every candidate has a `.git` ancestor. | Make the system temp or state location projectless. |
-| `reviewer and author share lineage <lineage>` | Same-backend live checks identify the same model lineage. | Select a different reviewer lineage. Cross-backend checks do not compare lineage. |
+| `reviewer and author share lineage <lineage>` | Same-backend live checks identify the same model lineage; this is information, not a refusal. | The caller owns review policy and may select a different reviewer lineage. Cross-backend checks do not compare lineage. |

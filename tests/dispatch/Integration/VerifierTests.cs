@@ -8,6 +8,23 @@ namespace Dispatch.Tests.Integration;
 public sealed class VerifierTests
 {
     [Test]
+    [Arguments("stopped")]
+    [Arguments("blocked")]
+    public async Task Verified_event_counts_not_run_entries(string status, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var (run, ledger) = VerifyFixture(tree);
+        run.Record.Spec.Verify = ["exit 7", "exit 8"];
+        run.Record.Spec.AdvisoryVerify = ["exit 9"];
+        var result = new TaskResult { Outcome = "succeeded", WorkerStatus = status };
+        await Verifier.VerifyAsync(ledger, run, result, ct);
+        await Assert.That(result.Verify.Select(x => x.Command)).IsEquivalentTo(new[] { "exit 7", "exit 8", "exit 9" }, CollectionOrdering.Matching);
+        await Assert.That(result.Verify.Select(x => x.NotRun)).IsEquivalentTo(new string?[] { "worker stopped", "worker stopped", "worker stopped" }, CollectionOrdering.Matching);
+        await Assert.That(ledger.Read().Single(x => x.Type == "verified").Data!.ToJsonString())
+            .IsEqualTo("{\"commands\":3,\"failed\":0,\"advisoryFailed\":0,\"notRun\":3}");
+    }
+
+    [Test]
     [Timeout(30_000)]
     public async Task Configured_environment_reaches_verify_and_advisory(CancellationToken ct)
     {

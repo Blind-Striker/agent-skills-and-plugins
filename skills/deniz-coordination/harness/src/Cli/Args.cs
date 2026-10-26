@@ -1,6 +1,6 @@
 sealed class Args
 {
-    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "profile", "project", "access", "read-only-shell", "network", "workspace", "commit", "raw-prompt", "contract"];
+    static readonly HashSet<string> ValueOptions = ["dir", "repo", "max", "run", "policy", "message", "ledger", "backend", "route", "effort", "timeout-minutes", "timeout", "profile", "project", "access", "read-only-shell", "network", "workspace", "commit", "raw-prompt", "contract"];
     public List<string> Original { get; private init; } = [];
     public List<string> Routes { get; } = [];
     public List<string> Contracts { get; } = [];
@@ -49,6 +49,9 @@ sealed class Args
 
     public void ValidatePaths()
     {
+        if (Command == "wait" && Get("timeout") is { } timeout
+            && (!int.TryParse(timeout, NumberStyles.None, CultureInfo.InvariantCulture, out var minutes) || minutes <= 0))
+            throw new HarnessException("--timeout needs a positive whole number of minutes");
         foreach (var path in Contracts)
         {
             if (path.StartsWith('@')) throw new HarnessException($"contract aliases were removed; name the file path: {path}");

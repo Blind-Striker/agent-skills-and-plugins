@@ -8,6 +8,93 @@ namespace Dispatch.Tests.Integration;
 public sealed class PlanOutputTests
 {
     [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Plan_warns_only_for_default_clean_own_prompt(bool fromFile, CancellationToken ct)
+    {
+        using var lab = new CoreLab("migration");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var path = Path.Combine(lab.Tree.Root, "tasks.jsonc");
+        var prompts = new[] { "Use a SkIlL.", "Load SKILLS!", "Invoke `a-1:B2-c`.", "skilled skillset skills2", "Use a:b, `a_b:c`, `a:b:c`, `a:`, or `:b`.", "Inspect." };
+        var ids = new[] { "z-word", "a-plural", "m-token", "substring", "invalid-token", "plain" };
+        var tasks = new System.Text.Json.Nodes.JsonArray();
+        for (var i = 0; i < prompts.Length; i++)
+        {
+            var task = System.Text.Json.Nodes.JsonNode.Parse($$"""{"id":"{{ids[i]}}","kind":"code","workspace":"in-place","access":"full","route":"fixture/model","scope":["{{i}}.txt"]}""")!;
+            if (fromFile)
+            {
+                File.WriteAllText(Path.Combine(lab.Tree.Root, $"prompt-{i}.md"), prompts[i]);
+                task["promptFile"] = $"prompt-{i}.md";
+            }
+            else task["prompt"] = prompts[i];
+            tasks.Add(task);
+        }
+        // Only one writer can be in-place; research keeps the own-prompt cases free of writer overlap.
+        foreach (var task in tasks) task!["kind"] = "research";
+        var document = new System.Text.Json.Nodes.JsonObject { ["schemaVersion"] = 2,
+            ["defaults"] = new System.Text.Json.Nodes.JsonObject { ["backend"] = "opencode" }, ["tasks"] = tasks,
+            ["contracts"] = new System.Text.Json.Nodes.JsonArray("contract.md"),
+            ["policy"] = new System.Text.Json.Nodes.JsonObject { ["instructions"] = new System.Text.Json.Nodes.JsonArray("Load skills and `standing:tool`.") } };
+        File.WriteAllText(Path.Combine(lab.Tree.Root, "contract.md"), "Contract v1\nUse a skill and `contract:tool`.");
+        File.WriteAllText(path, document.ToJsonString());
+        ConfigLayers.Initialize(Args.Parse(["plan"]));
+        var plan = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, lab.Git, Args.Parse(["plan", path]));
+        await Assert.That(plan.Errors).IsEmpty();
+        await Assert.That(plan.Tasks.Select(x => x.Spec.Id!)).IsEquivalentTo(new[] { "z-word", "a-plural", "m-token", "substring", "invalid-token", "plain" }, CollectionOrdering.Matching);
+        await Assert.That(plan.Warnings).IsEquivalentTo(new[] { "z-word", "a-plural", "m-token" }.Select(id =>
+            $"{id}: the prompt mentions a skill, and the task defaults to profile clean, which loads no plugins or skills; set profile full if the worker needs them"), CollectionOrdering.Matching);
+        foreach (var layer in new[] { "user", "repo", "task-file-defaults", "task", "cli" })
+            foreach (var profile in new[] { "clean", "full" })
+            {
+                var copy = document.DeepClone();
+                var config = $$$"""{"schemaVersion":2,"preferences":{"profile":"{{{profile}}}"}}""";
+                Directory.CreateDirectory(Path.GetDirectoryName(Locations.UserConfigFile)!);
+                File.WriteAllText(Locations.UserConfigFile, layer == "user" ? config : "{\"schemaVersion\":2}");
+                Directory.CreateDirectory(Path.Combine(repo.Root, ".dispatch"));
+                File.WriteAllText(Path.Combine(repo.Root, ".dispatch", "config.jsonc"), layer == "repo" ? config : "{\"schemaVersion\":2}");
+                await repo.GitAsync(["add", ".dispatch/config.jsonc"], ct);
+                await repo.GitAsync(["commit", "--allow-empty", "-m", "Profile fixture"], ct);
+                if (layer == "task-file-defaults") copy["defaults"]!["profile"] = profile;
+                if (layer == "task") foreach (var task in copy["tasks"]!.AsArray()) task!["profile"] = profile;
+                File.WriteAllText(path, copy.ToJsonString());
+                var args = Args.Parse(layer == "cli" ? ["plan", path, "--profile", profile] : ["plan", path]);
+                ConfigLayers.Initialize(args);
+                var explicitPlan = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, lab.Git, args);
+                await Assert.That(explicitPlan.Errors).IsEmpty();
+                await Assert.That(explicitPlan.Warnings).IsEmpty();
+                await Assert.That(explicitPlan.Config!.Effective.Tasks["z-word"].Settings.Profile!.From).IsEqualTo(layer);
+            }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Shared_review_lineage_is_info_only(bool backendRefusal, CancellationToken ct)
+    {
+        var plan = new Plan { File = new(), TasksPath = "tasks.jsonc", Repo = "repository" };
+        foreach (var (id, reviewOf) in new (string, string?)[] { ("author", null), ("z-review", "author"), ("a-review", "author"), ("different", "author") })
+            plan.Tasks.Add(new() { Spec = new() { Id = id, Kind = reviewOf is null ? "code" : "review", Backend = "opencode", Access = "full", ReviewOf = reviewOf }, PromptText = "Inspect." });
+        await using var backend = new FakeBackend("opencode", new("policy", "policy", "text", true))
+        {
+            OnValidate = (_, _) => Task.FromResult<IReadOnlyList<LiveCheck>>([
+                new("author", backendRefusal ? ["unavailable"] : [], backendRefusal ? ["caution"] : [], "shared", "clean", null),
+                new("a-review", [], [], "shared", "clean", null), new("z-review", [], [], "shared", "clean", null),
+                new("different", [], [], "other", "clean", null)]),
+        };
+        await Planner.CheckLiveAsync(plan, backend, AllowList.From(null), ct);
+        var info = new[] { "z-review: reviewer and author share lineage shared", "a-review: reviewer and author share lineage shared" };
+        await Assert.That(plan.Info).IsEquivalentTo(info, CollectionOrdering.Matching);
+        await Assert.That(plan.Errors).IsEquivalentTo(backendRefusal ? new[] { "author: unavailable" } : [], CollectionOrdering.Matching);
+        await Assert.That(plan.Warnings).IsEquivalentTo(backendRefusal ? new[] { "author: caution" } : [], CollectionOrdering.Matching);
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        await Assert.That(plan.Report()).IsEqualTo(backendRefusal ? 2 : 0);
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(string.Join('\n', info.Select(x => "INFO " + x)) + "\n"
+            + (backendRefusal ? "WARN author: caution\nERROR author: unavailable\nplan refused: 1 error(s)\n" : "plan ok: 4 task(s) against repository\n"));
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Plan_reports_and_validates_prepare(CancellationToken ct)
     {

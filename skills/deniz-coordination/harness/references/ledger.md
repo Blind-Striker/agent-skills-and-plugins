@@ -131,7 +131,7 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `route` | string setting | Required effective route or agent | Qualified requested route. |
 | `effort` | string setting | Absent | Explicit effort or route variant. |
 | `timeoutMinutes` | integer setting | `60` | Task timeout. |
-| `profile` | string setting | Kind default | Requested and, when checked, actual profile. |
+| `profile` | string setting | `clean` for every task kind | Requested and, when checked, actual profile; explicit preferences can opt in to `full`. |
 | `project` | string setting | Kind default | Repository-context mode. |
 | `access` | string setting | Kind default | Requested or clamped access. |
 | `network` | string setting | `on` | Requested or clamped network. |
@@ -382,7 +382,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
 | `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
-| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded | Verify summary; `commands` includes not-run records; `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
+| `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded; `notRun` integer when any entry did not run | Verify summary; `commands` includes not-run records; `notRun` counts those records, not passes. `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
 | `prepared` | `commands`/`failed` integers; optional `changed`, `checkFailed`, `cancelled` booleans | Preparation summary; exact payloads and sessionless settlement above. Does not change the task's state: it stays `dispatching` until the worker starts or `final` is written. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |

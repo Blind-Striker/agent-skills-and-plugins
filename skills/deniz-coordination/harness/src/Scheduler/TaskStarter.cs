@@ -7,9 +7,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
     {
         var access = record.Settings.Access?.Value ?? record.Spec.Access
             ?? (record.Spec.Kind is "review" or "research" or "structured" ? "read-only" : "workspace");
-        var clean = record.Spec.Kind == "structured"
-            || (record.Settings.Backend?.Value ?? record.Spec.Backend) == "codex" && access == "read-only";
-        return new(record.Settings.Profile?.Value ?? record.Spec.Profile ?? (clean ? "clean" : "full"),
+        return new(record.Settings.Profile?.Value ?? record.Spec.Profile ?? "clean",
             record.Settings.Project?.Value ?? record.Spec.Project ?? (record.Spec.Kind == "structured" ? "off" : "on"),
             access, record.Settings.Network?.Value ?? "on", record.Settings.Workspace?.Value ?? "worktree",
             record.Settings.ReadOnlyShell?.Value ?? record.Spec.ReadOnlyShell ?? "decline");
@@ -26,10 +24,11 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         if (backendName == "codex") route = CodexBackend.ParseRoute(record.Spec.Route!);
         else RouteRef.TryParse(record.Spec.Route ?? "agent/placeholder", out route, out _);
         var (variables, removed) = WorkerEnvironment.Environment(record.Spec.Id!, runId, tempRoot, record.Settings.Environment);
+        var modes = ModesFor(record);
         return (new(runId, record.Spec.Id!, record.Spec.Kind!, route!, record.Spec.Agent,
-            record.Spec.Persona, ModesFor(record), record.Workspace.Path!, RulesFor(policy), variables,
+            record.Spec.Persona, modes, record.Workspace.Path!, RulesFor(policy), variables,
             record.Spec.Kind == "structured" ? record.PromptInputs?.Schema as JsonObject : null,
-            record.Settings.Profile?.Actual ?? record.Settings.Profile?.Value ?? "full", record.Settings.Profile?.Reason,
+            record.Settings.Profile?.Actual ?? modes.Profile, record.Settings.Profile?.Reason,
             record.Settings.WritableRoots?.Value, record.Settings.PrivateFolders?.Value,
             record.Settings.Environment?.ToDictionary(x => x.Key, x => x.Value.Value!, WorkerEnvironment.NameComparer)), removed);
     }

@@ -6,6 +6,18 @@ namespace Dispatch.Tests.Unit;
 public sealed class ArgsTests
 {
     [Test]
+    public async Task Wait_timeout_consumes_one_value()
+    {
+        var args = Args.Parse(["wait", "z-run", "--timeout", "7", "--ledger", Path.GetTempPath()]);
+        await Assert.That(args.Command).IsEqualTo("wait");
+        await Assert.That(args.Positional).IsEquivalentTo(new[] { "z-run" }, CollectionOrdering.Matching);
+        await Assert.That(args.Get("timeout")).IsEqualTo("7");
+        await Assert.That(args.Get("ledger")).IsEqualTo(Path.GetTempPath());
+        await Assert.That(() => Args.Parse(["wait", "z-run", "--timeout"]))
+            .ThrowsExactly<HarnessException>().WithMessage("--timeout needs a value");
+    }
+
+    [Test]
     public async Task No_arguments_yields_an_empty_command_and_collections()
     {
         var args = Args.Parse([]);
