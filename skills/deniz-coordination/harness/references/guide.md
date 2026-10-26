@@ -98,9 +98,9 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 
 ## Contracts and the status line
 
-- `contracts` prepends files to the prompt; the harness adds none by default. Name the bundled ones by alias,
-  `@worker-contract` and `@<model>-worker`, so a plugin update cannot leave a stale path; `plan` prints each
-  task's resolved contracts and warns on a code or mechanical task without the worker contract.
+- `contracts` prepends whole files to the prompt; the harness adds none by default. The caller supplies
+  the file paths and owns contract selection. `plan` prints each task's contract paths and versions
+  in prepend order; it does not advise on which contracts to choose.
 - The harness asks every non-structured task to end with `Status: done`, `Status: stopped` or
   `Status: blocked`. A stopped or blocked worker fails the task (`worker-stopped`) even when the
   session succeeded: read its final text for the reason.

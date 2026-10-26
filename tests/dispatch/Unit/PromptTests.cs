@@ -18,95 +18,73 @@ public sealed class PromptTests
     }
 
     [Test]
-    public async Task Aliases_resolve_from_the_harness_for_every_layer()
+    public async Task Contract_paths_preserve_layer_order_and_first_occurrence()
     {
         using var tree = new TempTree();
-        var references = ContractReferences(tree);
-        var worker = Path.Combine(references, "worker-contract.md");
-        var model = Path.Combine(references, "models", "zeta.md");
-        File.WriteAllText(worker, "worker-contract v4\nRules.");
-        File.WriteAllText(model, "Coordinator only.\nworker-model zeta v1\nWork.");
+        var paths = new[] { "zulu.md", "middle.md", "alpha.md" }.Select(name => Path.Combine(tree.Root, name)).ToArray();
+        var texts = new[] { "Contract Z\nLast alphabetically.", "Contract M\nMiddle.", "Contract A\nFirst alphabetically." };
+        for (var i = 0; i < paths.Length; i++) File.WriteAllText(paths[i], texts[i]);
         var cache = new Dictionary<string, Prompt.Contract>();
-        foreach (var layer in new[] { "task-file", "task", "cli" })
-        {
-            List<string> aliases = ["@zeta-worker", "@worker-contract", model, "@zeta-worker"];
-            var file = new TaskFile { Contracts = layer == "task-file" ? aliases : [] };
-            var task = new TaskSpec { Id = "inspect", Contracts = layer == "task" ? aliases : [] };
-            var args = Args.Parse(layer == "cli" ? ["plan", .. aliases.SelectMany(a => new[] { "--contract", a })] : ["plan"]);
-            var inputs = Prompt.Load(file, task, Path.Combine(tree.Root, "elsewhere", "tasks.jsonc"), args, [], cache, Path.Combine(tree.Root, "harness"));
-            await Assert.That(inputs.Contracts.Select(c => c.Record.Alias)).IsEquivalentTo(new string?[] { "@zeta-worker", "@worker-contract" }, CollectionOrdering.Matching);
-            await Assert.That(inputs.Contracts.Select(c => c.Record.Path)).IsEquivalentTo(new[] { model, worker }, CollectionOrdering.Matching);
-            await Assert.That(inputs.Contracts.Select(c => c.Record.From)).IsEquivalentTo(new[] { layer, layer }, CollectionOrdering.Matching);
-            await Assert.That(inputs.Contracts.Select(c => c.Text)).IsEquivalentTo(new[] { "worker-model zeta v1\nWork.", "worker-contract v4\nRules." }, CollectionOrdering.Matching);
-        }
+        var file = new TaskFile { Contracts = ["zulu.md"] };
+        var task = new TaskSpec { Id = "inspect", Contracts = [paths[0], "middle.md"] };
+        var args = Args.Parse(["plan", "--contract", paths[1], "--contract", paths[2], "--contract", paths[0]]);
+        var inputs = Prompt.Load(file, task, Path.Combine(tree.Root, "tasks.jsonc"), args, [], cache);
+        await Assert.That(inputs.Contracts.Select(c => c.Record.Path)).IsEquivalentTo(paths, CollectionOrdering.Matching);
+        await Assert.That(inputs.Contracts.Select(c => c.Record.From)).IsEquivalentTo(new[] { "task-file", "task", "cli" }, CollectionOrdering.Matching);
+        await Assert.That(inputs.Contracts.Select(c => c.Text)).IsEquivalentTo(texts, CollectionOrdering.Matching);
+        File.WriteAllText(paths[0], "Changed after first load.");
+        var cached = Prompt.Load(new(), new() { Contracts = paths.ToList() }, Path.Combine(tree.Root, "tasks.jsonc"), null, [], cache);
+        await Assert.That(cached.Contracts.Select(c => c.Record.Path)).IsEquivalentTo(paths, CollectionOrdering.Matching);
+        await Assert.That(cached.Contracts.Select(c => c.Record.From)).IsEquivalentTo(new[] { "task", "task", "task" }, CollectionOrdering.Matching);
+        await Assert.That(cached.Contracts.Select(c => c.Text)).IsEquivalentTo(texts, CollectionOrdering.Matching);
     }
 
     [Test]
     [Arguments("\n")]
     [Arguments("\r\n")]
-    public async Task Model_alias_prepends_and_hashes_only_the_worker_block(string newline)
+    public async Task Contract_prepends_the_whole_file_and_hashes_original_bytes(string newline)
     {
         using var tree = new TempTree();
-        var references = ContractReferences(tree);
-        var selected = "worker-model zeta v1" + newline + "İyi günler 世界";
-        var path = Path.Combine(references, "models", "zeta.md");
-        File.WriteAllBytes(path, [0xef, 0xbb, 0xbf, .. Encoding.UTF8.GetBytes("Coordinator preamble" + newline + "inline worker-model decoy" + newline + selected)]);
-        var task = new TaskSpec { Id = "inspect", Kind = "research", Contracts = ["@zeta-worker"] };
-        var inputs = Prompt.Load(new(), task, Path.Combine(tree.Root, "tasks.jsonc"), null, [], harnessRoot: Path.Combine(tree.Root, "harness"));
+        var text = "Coordinator preamble \t" + newline + "inline worker-model decoy" + newline + "worker-model zeta v1" + newline + "İyi günler 世界";
+        var path = Path.Combine(tree.Root, "contract.md");
+        byte[] bytes = [0xef, 0xbb, 0xbf, .. Encoding.UTF8.GetBytes(text)];
+        File.WriteAllBytes(path, bytes);
+        var task = new TaskSpec { Id = "inspect", Kind = "research", Contracts = [path] };
+        var inputs = Prompt.Load(new(), task, Path.Combine(tree.Root, "tasks.jsonc"), null, []);
         await Assert.That(inputs.Contracts.Count).IsEqualTo(1);
-        await Assert.That(inputs.Contracts[0].Text).IsEqualTo(selected);
-        await Assert.That(inputs.Contracts[0].Record.Version).IsEqualTo("worker-model zeta v1");
-        await Assert.That(inputs.Contracts[0].Record.Sha256).IsEqualTo(Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(selected))).ToLowerInvariant());
+        await Assert.That(inputs.Contracts[0].Text).IsEqualTo(text);
+        await Assert.That(inputs.Contracts[0].Record.Version).IsEqualTo("Coordinator preamble");
+        await Assert.That(inputs.Contracts[0].Record.Sha256).IsEqualTo(Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant());
         var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
-        await Assert.That(policy.Render(new(task, "Inspect."), "<workspace>", inputs)).StartsWith(selected + "\n\nStanding instructions");
+        await Assert.That(policy.Render(new(task, "Inspect."), "<workspace>", inputs)).StartsWith(text + "\n\nStanding instructions");
+        File.WriteAllText(path, new string('V', 125) + " \t" + newline + "Body.");
+        var capped = Prompt.Load(new(), task, Path.Combine(tree.Root, "tasks.jsonc"), null, []);
+        await Assert.That(capped.Contracts[0].Record.Version).IsEqualTo(new string('V', 120));
     }
 
     [Test]
-    public async Task Unknown_model_alias_lists_sorted_existing_aliases_without_README()
+    public async Task At_contract_entries_refuse_before_file_or_cache_lookup()
     {
         using var tree = new TempTree();
-        var references = ContractReferences(tree);
-        File.WriteAllText(Path.Combine(references, "models", "zeta.md"), "worker-model zeta v1\nWork.");
-        File.WriteAllText(Path.Combine(references, "models", "alpha.md"), "worker-model alpha v2\nWork.");
-        File.WriteAllText(Path.Combine(references, "models", "README.md"), "Model index.");
-        await Assert.That(() => Prompt.Load(new(), new() { Id = "inspect", Contracts = ["@missing-worker"] },
-            Path.Combine(tree.Root, "tasks.jsonc"), null, [], harnessRoot: Path.Combine(tree.Root, "harness")))
-            .ThrowsExactly<HarnessException>().WithMessage($"unknown contract alias @missing-worker; known: @worker-contract, @alpha-worker, @zeta-worker (looked in {references})");
-    }
-
-    [Test]
-    public async Task Invalid_aliases_refuse_planning_with_alias_and_lookup_path()
-    {
-        using var tree = new TempTree();
-        var references = ContractReferences(tree);
-        var harness = Path.Combine(tree.Root, "harness");
-        var absentHarness = Path.Combine(tree.Root, "absent", "harness");
-        var absent = Path.Combine(tree.Root, "absent", "delegating-to-worker-models", "references", "worker-contract.md");
-        File.WriteAllText(Path.Combine(tree.Root, "@unknown"), "Must not fall back to this file.");
-        File.WriteAllText(Path.Combine(references, "models", "unmarked.md"), "inline worker-model decoy\n worker-model indented");
-        var cases = new[]
-        {
-            ("@unknown", harness, $"unknown contract alias @unknown; known: @worker-contract, @unmarked-worker (looked in {references})"),
-            ("@../worker", harness, $"unknown contract alias @../worker; known: @worker-contract, @unmarked-worker (looked in {references})"),
-            ("@worker-contract", absentHarness, $"inspect: contract task @worker-contract {absent}: file not found"),
-            ("@worker-contract", harness, $"inspect: contract task @worker-contract {Path.Combine(references, "worker-contract.md")}: file not found"),
-            ("@missing-worker", harness, $"unknown contract alias @missing-worker; known: @worker-contract, @unmarked-worker (looked in {references})"),
-            ("@unmarked-worker", harness, $"inspect: contract task @unmarked-worker {Path.Combine(references, "models", "unmarked.md")}: missing column-one worker-model marker"),
-        };
         var errors = new List<string>();
-        foreach (var (alias, root, _) in cases)
+        foreach (var layer in new[] { "task-file", "task", "cli" })
         {
-            try { Prompt.Load(new(), new() { Id = "inspect", Contracts = [alias] }, Path.Combine(tree.Root, "tasks.jsonc"), null, [], harnessRoot: root); }
-            catch (HarnessException ex) { errors.Add(ex.Message); }
+            foreach (var entry in new[] { "@worker-contract", "@zeta-worker", "@unknown" })
+            {
+                var path = Path.Combine(tree.Root, entry);
+                File.WriteAllText(path, "Must not fall back to this file.");
+                var cache = new Dictionary<string, Prompt.Contract> { [path] = new(new() { Path = path }, "Cached content.") };
+                var file = new TaskFile { Contracts = layer == "task-file" ? [entry] : [] };
+                var task = new TaskSpec { Id = "inspect", Contracts = layer == "task" ? [entry] : [] };
+                var args = Args.Parse(layer == "cli" ? ["plan", "--contract", entry] : ["plan"]);
+                try { Prompt.Load(file, task, Path.Combine(tree.Root, "tasks.jsonc"), args, [], cache); }
+                catch (HarnessException ex) { errors.Add(ex.Message); }
+            }
         }
-        await Assert.That(errors).IsEquivalentTo(cases.Select(c => c.Item3), CollectionOrdering.Matching);
-    }
-
-    static string ContractReferences(TempTree tree)
-    {
-        var references = Path.Combine(tree.Root, "delegating-to-worker-models", "references");
-        Directory.CreateDirectory(Path.Combine(references, "models"));
-        return references;
+        await Assert.That(errors).IsEquivalentTo(Enumerable.Repeat(new[] {
+            "contract aliases were removed; name the file path: @worker-contract",
+            "contract aliases were removed; name the file path: @zeta-worker",
+            "contract aliases were removed; name the file path: @unknown" }, 3).SelectMany(x => x), CollectionOrdering.Matching);
     }
 
     [Test]

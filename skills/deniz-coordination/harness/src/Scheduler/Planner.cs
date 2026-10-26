@@ -72,10 +72,7 @@ static class Planner
             if (promptInputs is { Contracts: var loaded })
             {
                 if (loaded.Count > 0)
-                    plan.Info.Add($"{spec.Id}: contracts {string.Join("; ", loaded.Select(x => $"{x.Record.Alias ?? x.Record.Path} ({x.Record.Version})"))}");
-                if (spec.Kind is "code" or "mechanical" && spec.RawPrompt != true
-                    && !loaded.Any(x => Path.GetFileName(x.Record.Path) == "worker-contract.md"))
-                    plan.Warnings.Add($"{spec.Id}: no worker contract; add \"@worker-contract\" (and \"@<model>-worker\") to contracts");
+                    plan.Info.Add($"{spec.Id}: contracts {string.Join("; ", loaded.Select(x => $"{x.Record.Path} ({x.Record.Version})"))}");
             }
             if (!Regex.IsMatch(spec.Id ?? "", "^[a-z0-9][a-z0-9-]{0,39}$")) e.Add("id must match ^[a-z0-9][a-z0-9-]{0,39}$");
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");

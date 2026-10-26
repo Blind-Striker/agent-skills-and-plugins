@@ -111,7 +111,7 @@ temporary file and replacement; text artifacts can be incomplete if settlement s
 | `warnings` | string array | `[]` | Config-resolution warnings; separate planner/live warnings are not all copied here. |
 | `tasks` | map keyed by task id | `{}` | Frozen task settings. |
 | `tasks.<id>.settings` | object | Resolved settings | Same setting shape used in `task.json`. |
-| `tasks.<id>.contracts` | contract-record array | Absent without contracts | Same path, optional alias, source, hash and selected version-line metadata as `task.json`. |
+| `tasks.<id>.contracts` | contract-record array | Absent without contracts | Same path, source, file-byte hash and first-line version metadata as `task.json`. |
 | `tasks.<id>.inputSha256` | string | Structured only after freeze | Hash of normalized `input.json` bytes. |
 | `tasks.<id>.resultSchemaSha256` | string | Structured only after freeze | Hash of normalized schema bytes. |
 
@@ -171,10 +171,9 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `workspace.baseSha` | string | Git tasks with HEAD | Starting commit id. |
 | `contracts` | object array | Absent without contracts | Records below, not copies of text. |
 | `contracts[].path` | string path | Resolved path | Original contract path. |
-| `contracts[].alias` | string | Absent for ordinary file paths | Bundled alias supplied at the first occurrence, such as `@worker-contract` or `@sol-worker`. |
 | `contracts[].from` | string | First occurrence's layer | `task-file`, `task` or `cli`. |
-| `contracts[].sha256` | string | Selected-content hash for aliases; file-byte hash otherwise | Lowercase SHA-256. Alias hashes cover selected UTF-8 text before harness separators, excluding BOM and model coordinator preamble. Ordinary file-byte hashes retain any BOM. See [Contracts](task-file.md#contracts). |
-| `contracts[].version` | string | Selected text's first line | Trimmed and limited to 120 characters; model aliases record the worker marker, not coordinator guidance. |
+| `contracts[].sha256` | string | File-byte hash | Lowercase SHA-256 of the original file bytes, including any BOM. See [Contracts](task-file.md#contracts). |
+| `contracts[].version` | string | File's first line after BOM removal | Trailing whitespace trimmed and limited to 120 characters. |
 | `agent` | string | Absent until backend details | Actual persona or agent detail. |
 | `lineage` | string | Absent until backend details | Catalog lineage. |
 | `routeResolved` | string | opencode `agent` tasks only, after backend details | Qualified route of the model the roster agent pinned at start; settlement compares reported routes with it. |

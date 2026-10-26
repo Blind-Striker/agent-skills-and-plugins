@@ -4,7 +4,7 @@ static class Prompt
     public sealed record Inputs(IReadOnlyList<Contract> Contracts, JsonArray? Items = null, JsonNode? Schema = null);
 
     public static Inputs Load(TaskFile file, TaskSpec task, string tasksPath, Args? args,
-        IReadOnlyList<string> instructions, Dictionary<string, Contract>? cache = null, string? harnessRoot = null)
+        IReadOnlyList<string> instructions, Dictionary<string, Contract>? cache = null)
     {
         var directory = Path.GetDirectoryName(tasksPath)!;
         cache ??= new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
@@ -14,13 +14,12 @@ static class Prompt
         {
             foreach (var relative in paths ?? [])
             {
-                var alias = relative.StartsWith('@') ? relative : null;
-                var path = alias is null ? Path.GetFullPath(Path.Combine(directory, relative)) : AliasPath(alias, harnessRoot ?? HarnessRoot());
+                if (relative.StartsWith('@')) throw new HarnessException($"contract aliases were removed; name the file path: {relative}");
+                var path = Path.GetFullPath(Path.Combine(directory, relative));
                 if (!seen.Add(path)) continue;
-                var label = $"{task.Id}: contract {source} {(alias is null ? "" : alias + " ")}{path}";
+                var label = $"{task.Id}: contract {source} {path}";
                 if (!cache.TryGetValue(path, out var contract))
                 {
-                    if (alias is not null && !File.Exists(path)) throw new HarnessException($"{label}: file not found");
                     try
                     {
                         var bytes = File.ReadAllBytes(path);
@@ -34,17 +33,8 @@ static class Prompt
                         throw new HarnessException($"{label}: cannot read UTF-8 text: {ex.Message}");
                     }
                 }
-                var selected = contract.Text;
-                if (alias is not null && alias != "@worker-contract")
-                {
-                    var marker = Regex.Match(selected, "^worker-model ", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-                    if (!marker.Success) throw new HarnessException($"{label}: missing column-one worker-model marker");
-                    selected = selected[marker.Index..];
-                }
-                var versionLine = selected.Split('\n')[0].TrimEnd();
-                contracts.Add(new(new() { Path = path, Alias = alias, From = source,
-                    Sha256 = alias is null ? contract.Record.Sha256 : Hash(Encoding.UTF8.GetBytes(selected)),
-                    Version = versionLine[..Math.Min(120, versionLine.Length)] }, selected));
+                contracts.Add(new(new() { Path = path, From = source,
+                    Sha256 = contract.Record.Sha256, Version = contract.Record.Version }, contract.Text));
             }
         }
         CheckRaw(task.RawPrompt == true, task, contracts.Count, instructions.Count);
@@ -70,23 +60,6 @@ static class Prompt
             schema = JsonNode.Parse(schemaText, documentOptions: new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true, AllowDuplicateProperties = false });
         }
         return new(contracts, items, schema);
-    }
-
-    static string HarnessRoot([System.Runtime.CompilerServices.CallerFilePath] string source = "") =>
-        Path.GetFullPath(Path.Combine(Path.GetDirectoryName(source)!, "..", ".."));
-
-    static string AliasPath(string alias, string harnessRoot)
-    {
-        var references = Path.GetFullPath(Path.Combine(harnessRoot, "..", "delegating-to-worker-models", "references"));
-        if (alias == "@worker-contract") return Path.Combine(references, "worker-contract.md");
-        var model = Regex.Match(alias, @"\A@([^/\\]+)-worker\z", RegexOptions.CultureInvariant);
-        if (model.Success && model.Groups[1].Value.IndexOfAny(Path.GetInvalidFileNameChars()) < 0
-            && Path.Combine(references, "models", model.Groups[1].Value + ".md") is var path && File.Exists(path))
-            return path;
-        var models = Directory.Exists(Path.Combine(references, "models"))
-            ? Directory.GetFiles(Path.Combine(references, "models"), "*.md").Select(Path.GetFileNameWithoutExtension)
-                .Where(name => name != "README").Order(StringComparer.Ordinal).Select(name => $"@{name}-worker") : [];
-        throw new HarnessException($"unknown contract alias {alias}; known: {string.Join(", ", models.Prepend("@worker-contract"))} (looked in {references})");
     }
 
     static void CheckRaw(bool raw, TaskSpec task, int contracts, int instructions)

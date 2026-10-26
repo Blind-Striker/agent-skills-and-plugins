@@ -13,8 +13,8 @@ that result, and records every step in a ledger. This skill is the harness's con
 ## Boundary
 
 - This skill says how to run a task. What to hand out and how to judge the result belong to the caller.
-- The harness prepends only the contracts you name (`contracts`, `--contract`); `plan` warns on a code or
-  mechanical task that names no worker contract.
+- The caller selects the contract file paths (`contracts`, `--contract`); the harness prepends only
+  those files, whole, and depends on no other skill.
 - A calling skill that sends `structured` tasks owns their prompt and result schema.
 - Use `prepare` for dependency steps outside the sandbox: [Dependencies and the sandbox](references/guide.md#dependencies-and-the-sandbox).
   When a build, test or tool fails under the fence or sandbox, read `references/cookbook.md`.
@@ -31,8 +31,8 @@ dotnet dispatch.cs -- <command> [arguments]
 - Build before every command. A non-zero build exit means nothing started; fix the error or retry
   when two builds collided. The `--` keeps `dotnet` from taking flags such as `--force`.
 - Paths on the command line are absolute (task file, `--repo`, `--contract`, `--ledger`); paths in a
-  task file are relative to that file, except `dir` (relative to the repository root). `--contract` also accepts bundled aliases
-  `@worker-contract` and `@<model>-worker`; semantics: `references/task-file.md#contracts`.
+  task file are relative to that file, except `dir` (relative to the repository root).
+  Contract semantics: `references/task-file.md#contracts`.
   In PowerShell use `$PWD.ProviderPath`.
 - Run `selfcheck [--repo <path>]` on a new machine, after an update, and in a new repository. It
   checks each backend the configuration selects, or every installed one when none is selected
@@ -78,7 +78,7 @@ Windows runs unfenced. Both support structured output. Modes and defaults:
 ```jsonc
 {
   "schemaVersion": 2,
-  "contracts": ["@worker-contract", "@<model>-worker"],
+  "contracts": ["contracts/common.md", "contracts/model.md"],
   "tasks": [
     { "id": "fix-guide-typo", "kind": "code", "backend": "codex", "route": "<model>#<effort>",
       "base": "<branch>", "promptFile": "fix-guide-typo.md", "scope": ["docs/guide/"],

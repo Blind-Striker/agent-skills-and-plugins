@@ -107,25 +107,34 @@ public sealed class ContractTests
     }
 
     [Test]
-    public async Task Alias_metadata_survives_task_and_frozen_config_roundtrips()
+    public async Task Previous_contract_records_read_and_rewrite_without_the_removed_member()
     {
-        const string text = """
-            {"schemaVersion":2,"contracts":[{"alias":"@sol-worker","path":"/models/sol.md","from":"task",
-              "sha256":"selected-hash","version":"worker-model sol v3"}]}
+        const string taskText = """
+            {"schemaVersion":2,"contracts":[
+              {"alias":"@sol-worker","path":"/models/sol.md","from":"task","sha256":"selected-hash","version":"worker-model sol v3"},
+              {"alias":"@worker-contract","path":"/worker-contract.md","from":"task-file","sha256":"worker-hash","version":"worker-contract v7"}]}
             """;
-        var record = JsonSerializer.Deserialize(text, LedgerJson.Files.TaskRecord)!;
+        const string configText = """
+            {"schemaVersion":2,"tasks":{"inspect":{"contracts":[
+              {"alias":"@sol-worker","path":"/models/sol.md","from":"task","sha256":"selected-hash","version":"worker-model sol v3"},
+              {"alias":"@worker-contract","path":"/worker-contract.md","from":"task-file","sha256":"worker-hash","version":"worker-contract v7"}]}}}
+            """;
+        var record = JsonSerializer.Deserialize(taskText, LedgerJson.Files.TaskRecord)!;
         var task = JsonSerializer.SerializeToNode(record, LedgerJson.Files.TaskRecord)!;
-        var frozen = new EffectiveConfig { Tasks = new() { ["inspect"] = new() { Contracts = record.Contracts } } };
-        var copy = JsonSerializer.Deserialize(JsonSerializer.Serialize(frozen, LedgerJson.Files.EffectiveConfig), LedgerJson.Files.EffectiveConfig)!;
+        var copy = JsonSerializer.Deserialize(configText, LedgerJson.Files.EffectiveConfig)!;
         var config = JsonSerializer.SerializeToNode(copy, LedgerJson.Files.EffectiveConfig)!;
+        foreach (var contracts in new[] { record.Contracts!, copy.Tasks["inspect"].Contracts! })
+        {
+            await Assert.That(contracts.Select(c => c.Path)).IsEquivalentTo(new[] { "/models/sol.md", "/worker-contract.md" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(contracts.Select(c => c.From)).IsEquivalentTo(new[] { "task", "task-file" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(contracts.Select(c => c.Sha256)).IsEquivalentTo(new[] { "selected-hash", "worker-hash" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(contracts.Select(c => c.Version)).IsEquivalentTo(new[] { "worker-model sol v3", "worker-contract v7" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
         foreach (var contracts in new[] { task["contracts"]!, config["tasks"]!["inspect"]!["contracts"]! })
         {
-            await Assert.That(contracts.AsArray().Count).IsEqualTo(1);
-            await Assert.That(contracts[0]!["alias"]?.GetValue<string>()).IsEqualTo("@sol-worker");
-            await Assert.That(contracts[0]!["path"]!.GetValue<string>()).IsEqualTo("/models/sol.md");
-            await Assert.That(contracts[0]!["from"]!.GetValue<string>()).IsEqualTo("task");
-            await Assert.That(contracts[0]!["sha256"]!.GetValue<string>()).IsEqualTo("selected-hash");
-            await Assert.That(contracts[0]!["version"]!.GetValue<string>()).IsEqualTo("worker-model sol v3");
+            await Assert.That(contracts.AsArray().Count).IsEqualTo(2);
+            foreach (var contract in contracts.AsArray())
+                await Assert.That(contract!.AsObject().ContainsKey("alias")).IsFalse();
         }
     }
 

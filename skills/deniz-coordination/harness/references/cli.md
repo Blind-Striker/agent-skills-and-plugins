@@ -15,9 +15,8 @@ Build before every command. A nonzero build exit means no harness command ran. C
 can contend on the file-based app cache; retry a failed build before invoking the command. The
 `--` separates application arguments from `dotnet` arguments, including flags such as `--force`.
 
-Command-line file and directory paths must be absolute, except bundled `--contract` aliases
-(`@worker-contract`, `@<model>-worker`). Resolution, worker-block extraction, errors, hashing and
-ordering follow [Contracts](task-file.md#contracts). In PowerShell, form paths from
+Command-line file and directory paths must be absolute, including `--contract` file paths.
+Resolution, errors, hashing and ordering follow [Contracts](task-file.md#contracts). In PowerShell, form paths from
 `$PWD.ProviderPath`. Paths inside a task file follow [task-file rules](task-file.md).
 `DISPATCH_HOME` relocates configuration and state; [configuration](config.md) describes its layout
 and the platform defaults. Backend executable overrides are user config fields, not environment
@@ -35,7 +34,7 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 | `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
-| `--contract <path or alias>` | repeatable absolute file or bundled alias | None | Plan/run, prepended to every task after file contracts. Ordinary relative paths: `--contract must be an absolute path`. Alias semantics: [Contracts](task-file.md#contracts). |
+| `--contract <path>` | repeatable absolute file path | None | Plan/run, prepended whole to every task after file contracts. Relative paths: `--contract must be an absolute path`. Validation: [Contracts](task-file.md#contracts). |
 | `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
 | `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` checks every installed backend when the configuration selects none, and names the installed ones it skips otherwise. `opencode` or `codex`. |
@@ -187,13 +186,9 @@ executable path. Empty/unset prepare adds no line; missing or unsupported shells
 `prepare shell:` when there are no verify or advisory-verify commands, otherwise `verify shell:`.
 
 For each task with contracts, `plan` prints
-`INFO <task>: contracts <alias or path> (<version line>); ...` in prepend order, after path
-deduplication. Bundled contracts use their supplied alias; ordinary files use their resolved path.
-The version is the recorded selected first line described under [Contracts](task-file.md#contracts).
-A `code` or `mechanical` task that is not `rawPrompt` and has no contract file named
-`worker-contract.md` gets
-`WARN <task>: no worker contract; add "@worker-contract" (and "@<model>-worker") to contracts`.
-This is advisory, not a plan refusal; an explicit path to `worker-contract.md` also satisfies it.
+`INFO <task>: contracts <resolved path> (<version line>); ...` in prepend order, after path
+deduplication. The version is the recorded first line described under [Contracts](task-file.md#contracts).
+The caller owns contract selection; planning does not warn about missing contracts.
 
 For each read-only or workspace opencode task on ready Linux/macOS, live planning prints
 `INFO <task>: write-fenced (bwrap; accident guard)` or
