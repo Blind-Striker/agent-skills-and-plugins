@@ -176,16 +176,60 @@ static class Worktree
                         && (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", headLine[5..], headBase)).ExitCode == 0;
                 if (!force && (dirty || !merged))
                 {
-                    Console.WriteLine($"{task}: refused (dirty or unmerged worktree); --force removes it anyway");
+                    var reason = dirty && merged && (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all")).Length == 0
+                        ? "submodule has changes" : "dirty or unmerged worktree";
+                    Console.WriteLine($"{task}: refused ({reason}); --force removes it anyway");
                     return false;
+                }
+                var removeSubmodules = false;
+                List<string> admins = [];
+                if (!force && registration is not null)
+                {
+                    var common = Path.GetFullPath((await git.CheckAsync(repo, ct, "rev-parse", "--git-common-dir")).Trim(), repo);
+                    var root = Path.Combine(common, "worktrees");
+                    var registeredLink = Path.Combine(registration.Split('\0').First(x => x.StartsWith("worktree ", StringComparison.Ordinal))[9..], ".git");
+                    if (Directory.Exists(root))
+                        admins = Directory.EnumerateDirectories(root).Where(dir =>
+                        {
+                            var file = Path.Combine(dir, "gitdir");
+                            if (!File.Exists(file)) return false;
+                            var target = Path.GetFullPath(File.ReadAllText(file).Trim(), dir);
+                            return Locations.Same(target, registeredLink)
+                                || Locations.Same(RealPath(target), RealPath(link));
+                        }).ToList();
+                    if (admins.Count == 0)
+                    {
+                        Console.WriteLine($"{task}: refused (worktree admin folder not found); --force removes it anyway");
+                        return false;
+                    }
+                }
+                foreach (var modules in admins.Select(admin => Path.Combine(admin, "modules")).Where(Directory.Exists))
+                {
+                    var reason = intact && (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")).Length > 0
+                        ? "has changes" : null;
+                    if (reason is null)
+                        foreach (var dir in Directory.EnumerateDirectories(modules, "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+                            .Where(dir => File.Exists(Path.Combine(dir, "HEAD")) && Directory.Exists(Path.Combine(dir, "objects"))))
+                        {
+                            // rev-list needs no working files; the configured submodule worktree may be gone.
+                            if ((await git.CheckAsync(repo, ct, $"--git-dir={dir}", $"--work-tree={repo}", "rev-list", "--count", "--all", "--not", "--remotes")).Trim() == "0") continue;
+                            reason = "holds commits no remote has";
+                            break;
+                        }
+                    if (reason is not null)
+                    {
+                        Console.WriteLine($"{task}: refused (submodule {reason}); --force removes it anyway");
+                        return false;
+                    }
+                    removeSubmodules = true;
                 }
                 if (registration?.Split('\0').Any(x => x == "locked" || x.StartsWith("locked ", StringComparison.Ordinal)) == true)
                     throw new HarnessException($"worktree is locked: {path}");
                 if (force && !intact) DeleteTemp(path);
                 if ((registration is not null || intact)
-                    && await git.RunAsync(repo, ct, force || !exists ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]) is { ExitCode: not 0 } removal)
+                    && await git.RunAsync(repo, ct, force || !exists || removeSubmodules ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]) is { ExitCode: not 0 } removal)
                 {
-                    // Without --force a git refusal stands: it protects data the dirty check cannot see (submodules).
+                    // Without --force a git refusal stands, even after the submodule safety checks.
                     if (!force) throw new HarnessException($"git worktree remove failed: {removal.Stderr.Trim()}");
                     // Git cannot delete some trees (bun's node_modules on Windows, paths past its own limit): the folder
                     // was already judged safe to remove, so delete it here, without following links, then drop its registration.
@@ -197,7 +241,7 @@ static class Worktree
                 }
                 if (Path.Exists(path) || await Registration() is not null) throw new HarnessException($"worktree removal did not remove {path}");
                 step = "branch";
-                if (branchExists) await git.CheckAsync(repo, ct, "branch", force ? "-D" : "-d", branch);
+                if (branchExists) await git.CheckAsync(repo, ct, "branch", force || merged ? "-D" : "-d", branch);
                 if ((await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0)
                     throw new HarnessException($"branch removal did not remove {branch}");
             }

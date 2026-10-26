@@ -7,6 +7,283 @@ namespace Dispatch.Tests.Integration;
 public sealed class WorkspaceTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Clean_uses_the_recorded_feature_base_not_main(bool taskCommit, CancellationToken ct)
+    {
+        using var lab = new CoreLab("feature-base");
+        var run = await lab.TaskAsync("inspect", ct);
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["checkout", "-b", "feature"], ct);
+        File.WriteAllText(Path.Combine(repo.Root, "feature.txt"), "feature work\n");
+        await repo.GitAsync(["add", "feature.txt"], ct);
+        await repo.GitAsync(["commit", "-m", "Feature work"], ct);
+        var feature = await repo.GitAsync(["rev-parse", "feature"], ct);
+        await repo.GitAsync(["checkout", "main"], ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "feature";
+        await Worktree.PrepareAsync(run, lab.Ledger, repo.Root, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        if (taskCommit)
+        {
+            File.WriteAllText(Path.Combine(path, "task.txt"), "task work\n");
+            await repo.GitAsync(["-C", path, "add", "task.txt"], ct);
+            await repo.GitAsync(["-C", path, "commit", "-m", "Task work"], ct);
+        }
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsEqualTo(!taskCommit);
+        await Assert.That(Directory.Exists(path)).IsEqualTo(taskCommit);
+        await Assert.That(await repo.GitAsync(["branch", "--format=%(refname:short)"], ct))
+            .IsEqualTo(taskCommit ? $"{run.Record.Workspace.Branch}\nfeature\nmain" : "feature\nmain");
+        await Assert.That(await repo.GitAsync(["rev-parse", "feature"], ct)).IsEqualTo(feature);
+        await Assert.That(await repo.GitAsync(["branch", "--show-current"], ct)).IsEqualTo("main");
+        if (taskCommit)
+            await Assert.That(output).IsEqualTo("inspect: refused (dirty or unmerged worktree); --force removes it anyway" + Environment.NewLine);
+        else await Assert.That(output).DoesNotContain("refused");
+    }
+
+    [Test]
+    [Arguments("clean", false)]
+    [Arguments("changes", false)]
+    [Arguments("local commits", false)]
+    [Arguments("local commits", true)]
+    [Timeout(60_000)]
+    public async Task Clean_checks_initialized_submodules(string state, bool force, CancellationToken ct)
+    {
+        using var lab = new CoreLab("submodule");
+        using var source = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        var run = await lab.TaskAsync("inspect", ct);
+        var repo = new LabRepo(lab.Tree);
+        await repo.GitAsync(["-c", "protocol.file.allow=always", "submodule", "add", upstream.Root, "sub"], ct);
+        await repo.GitAsync(["commit", "-am", "Add submodule"], ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, repo.Root, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        await repo.GitAsync(["-c", "protocol.file.allow=always", "-C", path, "submodule", "update", "--init"], ct);
+        var sub = Path.Combine(path, "sub");
+        var file = Path.Combine(sub, "local.txt");
+        if (state != "clean") File.WriteAllText(file, "local work\n");
+        if (state == "local commits")
+        {
+            var recorded = await repo.GitAsync(["-C", sub, "rev-parse", "HEAD"], ct);
+            await repo.GitAsync(["-C", sub, "checkout", "-b", "local-work"], ct);
+            await repo.GitAsync(["-C", sub, "add", "local.txt"], ct);
+            await repo.GitAsync(["-C", sub, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "Local work"], ct);
+            await repo.GitAsync(["-C", sub, "checkout", "--detach", recorded], ct);
+            await Assert.That(await repo.GitAsync(["-C", path, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none"], ct)).IsEqualTo("");
+        }
+        var (removed, output) = await CaptureCleanAsync(lab, run, force, ct);
+        var expectedRemoval = force || state == "clean";
+        await Assert.That(removed).IsEqualTo(expectedRemoval);
+        await Assert.That(Directory.Exists(path)).IsEqualTo(!expectedRemoval);
+        await Assert.That(await repo.GitAsync(["branch", "--format=%(refname:short)"], ct))
+            .IsEqualTo(expectedRemoval ? "main" : $"{run.Record.Workspace.Branch}\nmain");
+        var entries = (await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).ReplaceLineEndings("\n").Split("\n\n");
+        await Assert.That(entries.Length).IsEqualTo(expectedRemoval ? 1 : 2);
+        for (var i = 0; i < entries.Length; i++)
+        {
+            var lines = entries[i].Split('\n');
+            await Assert.That(lines[0]).StartsWith("worktree ");
+            await Assert.That(Locations.Same(lines[0][9..], i == 0 ? repo.Root : path)).IsTrue();
+            await Assert.That(string.Join('\n', lines.Skip(1))).IsEqualTo($"HEAD {run.Record.Workspace.BaseSha}\nbranch refs/heads/{(i == 0 ? "main" : run.Record.Workspace.Branch)}");
+        }
+        if (expectedRemoval) await Assert.That(output).DoesNotContain("refused");
+        else
+        {
+            var reason = state == "changes" ? "has changes" : "holds commits no remote has";
+            await Assert.That(output).IsEqualTo($"inspect: refused (submodule {reason}); --force removes it anyway" + Environment.NewLine);
+            if (state == "changes") await Assert.That(File.ReadAllText(file)).IsEqualTo("local work\n");
+            else await Assert.That(await repo.GitAsync(["-C", sub, "branch", "--list", "local-work", "--format=%(refname:short)"], ct)).IsEqualTo("local-work");
+        }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_deinitialized_submodule_git_data_with_local_commits(bool nested, CancellationToken ct)
+    {
+        using var lab = new CoreLab("deinit");
+        using var source = new TempTree();
+        using var nestedSource = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        if (nested)
+        {
+            var nestedUpstream = await LabRepo.CreateAsync(nestedSource, ct);
+            await upstream.GitAsync(["-c", "protocol.file.allow=always", "submodule", "add", nestedUpstream.Root, "subB"], ct);
+            await upstream.GitAsync(["commit", "-am", "Add nested submodule"], ct);
+        }
+        var (repo, run, path) = await SubmoduleWorktreeAsync(lab, upstream, ct);
+        var sub = nested ? Path.Combine(path, "subA", "subB") : Path.Combine(path, "subB");
+        await repo.GitAsync(["-C", sub, "checkout", "-b", "local-work"], ct);
+        File.WriteAllText(Path.Combine(sub, "local.txt"), "local work\n");
+        await repo.GitAsync(["-C", sub, "add", "local.txt"], ct);
+        await repo.GitAsync(["-C", sub, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "Local work"], ct);
+        var gitDir = await repo.GitAsync(["-C", sub, "rev-parse", "--absolute-git-dir"], ct);
+        await repo.GitAsync(["-C", nested ? Path.Combine(path, "subA") : path, "submodule", "deinit", "-f", "subB"], ct);
+        await Assert.That(await repo.GitAsync(["-C", path, "status", "--porcelain=v1", "--ignore-submodules=none"], ct)).IsEqualTo("");
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsFalse();
+        await Assert.That(output).IsEqualTo("inspect: refused (submodule holds commits no remote has); --force removes it anyway" + Environment.NewLine);
+        await Assert.That(Directory.Exists(gitDir)).IsTrue();
+        await Assert.That(await repo.GitAsync([$"--git-dir={gitDir}", "branch", "--list", "local-work", "--format=%(refname:short)"], ct)).IsEqualTo("local-work");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_refuses_a_registration_without_a_matching_admin_folder(CancellationToken ct)
+    {
+        using var lab = new CoreLab("unmatched-admin");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var repo = new LabRepo(lab.Tree);
+        var admin = Path.GetFullPath(File.ReadAllText(Path.Combine(path, ".git"))[8..].Trim(), path);
+        File.WriteAllText(Path.Combine(admin, "gitdir"), Path.Combine(lab.Tree.Root, "unmatched"));
+        var registration = await repo.GitAsync(["worktree", "list", "--porcelain"], ct);
+        var result = (Removed: true, Output: "");
+        await Assert.That(async () => { result = await CaptureCleanAsync(lab, run, false, ct); }).ThrowsNothing();
+        await Assert.That(result.Output).IsEqualTo("inspect: refused (worktree admin folder not found); --force removes it anyway" + Environment.NewLine);
+        await Assert.That(result.Removed).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(path, "README.md"))).IsEqualTo("# Lab repository\n");
+        await Assert.That(Directory.Exists(admin)).IsTrue();
+        await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).IsEqualTo(registration);
+        await Assert.That(await repo.GitAsync(["branch", "--format=%(refname:short)"], ct))
+            .IsEqualTo($"{run.Record.Workspace.Branch}\nmain");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_reports_superproject_dirt_before_submodule_checks(CancellationToken ct)
+    {
+        using var lab = new CoreLab("superproject-dirt");
+        using var source = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        var (_, run, path) = await SubmoduleWorktreeAsync(lab, upstream, ct);
+        File.AppendAllText(Path.Combine(path, "README.md"), "keep changes\n");
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsFalse();
+        await Assert.That(output).IsEqualTo("inspect: refused (dirty or unmerged worktree); --force removes it anyway" + Environment.NewLine);
+        await Assert.That(File.ReadAllText(Path.Combine(path, "README.md"))).IsEqualTo("# Lab repository\nkeep changes\n");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_refuses_remote_tag_commits_outside_remote_branches(CancellationToken ct)
+    {
+        using var lab = new CoreLab("remote-tag");
+        using var source = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        var (repo, run, path) = await SubmoduleWorktreeAsync(lab, upstream, ct);
+        await upstream.GitAsync(["checkout", "--detach"], ct);
+        File.WriteAllText(Path.Combine(upstream.Root, "tag-only.txt"), "tagged work\n");
+        await upstream.GitAsync(["add", "tag-only.txt"], ct);
+        await upstream.GitAsync(["commit", "-m", "Tag-only work"], ct);
+        await upstream.GitAsync(["tag", "kept"], ct);
+        await upstream.GitAsync(["checkout", "main"], ct);
+        var sub = Path.Combine(path, "subA");
+        await repo.GitAsync(["-C", sub, "fetch", "--tags"], ct);
+        await Assert.That(await repo.GitAsync(["-C", sub, "rev-list", "--count", "--all", "--not", "--remotes"], ct)).IsEqualTo("1");
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsFalse();
+        await Assert.That(Directory.Exists(path)).IsTrue();
+        await Assert.That(output).IsEqualTo("inspect: refused (submodule holds commits no remote has); --force removes it anyway" + Environment.NewLine);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_refuses_local_tag_commits(CancellationToken ct)
+    {
+        using var lab = new CoreLab("local-tag");
+        using var source = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        var (repo, run, path) = await SubmoduleWorktreeAsync(lab, upstream, ct);
+        var sub = Path.Combine(path, "subA");
+        var recorded = await repo.GitAsync(["-C", sub, "rev-parse", "HEAD"], ct);
+        File.WriteAllText(Path.Combine(sub, "local.txt"), "local work\n");
+        await repo.GitAsync(["-C", sub, "add", "local.txt"], ct);
+        await repo.GitAsync(["-C", sub, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "Local work"], ct);
+        await repo.GitAsync(["-C", sub, "tag", "mywork"], ct);
+        await repo.GitAsync(["-C", sub, "checkout", "--detach", recorded], ct);
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsFalse();
+        await Assert.That(Directory.Exists(path)).IsTrue();
+        await Assert.That(output).IsEqualTo("inspect: refused (submodule holds commits no remote has); --force removes it anyway" + Environment.NewLine);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Clean_checks_submodule_commits_when_worktree_folder_is_gone(bool localCommits, CancellationToken ct)
+    {
+        using var lab = new CoreLab("missing-submodule-tree");
+        using var source = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        var (repo, run, path) = await SubmoduleWorktreeAsync(lab, upstream, ct);
+        var sub = Path.Combine(path, "subA");
+        var modules = Path.Combine(await repo.GitAsync(["-C", path, "rev-parse", "--absolute-git-dir"], ct), "modules");
+        if (localCommits)
+        {
+            File.WriteAllText(Path.Combine(sub, "local.txt"), "local work\n");
+            await repo.GitAsync(["-C", sub, "add", "local.txt"], ct);
+            await repo.GitAsync(["-C", sub, "-c", "user.name=Test", "-c", "user.email=test@example.invalid", "commit", "-m", "Local work"], ct);
+        }
+        Directory.Delete(path, recursive: true);
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsEqualTo(!localCommits);
+        await Assert.That(Directory.Exists(modules)).IsEqualTo(localCommits);
+        await Assert.That(output).IsEqualTo(localCommits
+            ? "inspect: refused (submodule holds commits no remote has); --force removes it anyway" + Environment.NewLine : "");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_reports_unmerged_work_before_submodule_dirt(CancellationToken ct)
+    {
+        using var lab = new CoreLab("unmerged-submodule-dirt");
+        using var source = new TempTree();
+        var upstream = await LabRepo.CreateAsync(source, ct);
+        var (repo, run, path) = await SubmoduleWorktreeAsync(lab, upstream, ct);
+        File.WriteAllText(Path.Combine(path, "task.txt"), "task work\n");
+        await repo.GitAsync(["-C", path, "add", "task.txt"], ct);
+        await repo.GitAsync(["-C", path, "commit", "-m", "Task work"], ct);
+        File.WriteAllText(Path.Combine(path, "subA", "untracked.txt"), "submodule work\n");
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsFalse();
+        await Assert.That(Directory.Exists(path)).IsTrue();
+        await Assert.That(output).IsEqualTo("inspect: refused (dirty or unmerged worktree); --force removes it anyway" + Environment.NewLine);
+    }
+
+    static async Task<(LabRepo Repo, TaskRun Run, string Path)> SubmoduleWorktreeAsync(CoreLab lab, LabRepo upstream, CancellationToken ct)
+    {
+        var run = await lab.TaskAsync("inspect", ct);
+        var repo = new LabRepo(lab.Tree);
+        foreach (var name in new[] { "subA", "subB" })
+            await repo.GitAsync(["-c", "protocol.file.allow=always", "submodule", "add", upstream.Root, name], ct);
+        await repo.GitAsync(["commit", "-am", "Add submodules"], ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, repo.Root, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        await repo.GitAsync(["-c", "protocol.file.allow=always", "-C", path, "submodule", "update", "--init", "--recursive"], ct);
+        return (repo, run, path);
+    }
+
+    static async Task<(bool Removed, string Output)> CaptureCleanAsync(CoreLab lab, TaskRun run, bool force, CancellationToken ct)
+    {
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        var removed = await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, force, ct, lab.Git);
+        return (removed, output.GetStandardOutput()[start..]);
+    }
+
+    [Test]
     [Arguments(false, false)]
     [Arguments(false, true)]
     [Arguments(true, false)]
