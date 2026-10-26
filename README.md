@@ -272,6 +272,12 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.14.0 is being prepared with Process 0.14.2, General 0.16.0, Akka 0.4.1, Aspire 0.6.0, and
+Coordination 0.1.6. General gains the `dotnet-walls` skill. The verified recipe below remains on the
+last published Release until the new asset passes publication checks. For the current recipe after
+publication, use the
+[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.13.0`, targeting commit `904dc68`.
 It carries OpenCode 2 Bundles: Process 0.14.0, General 0.14.1, Akka 0.4.1, Aspire 0.6.0, and
 Coordination 0.1.0. `delegating-to-worker-models` and `verified-waves` moved from Process into
