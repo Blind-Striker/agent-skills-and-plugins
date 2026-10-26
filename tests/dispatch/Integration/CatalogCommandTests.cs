@@ -191,7 +191,7 @@ public sealed class CatalogCommandTests
 
         await Assert.That(result.Stdout.Split('\n').Select(x => x.TrimEnd('\r'))
             .Where(x => x.StartsWith("backend ", StringComparison.Ordinal) || x.Contains("  launch:", StringComparison.Ordinal)).ToArray())
-            .IsEquivalentTo(new[] { "backend opencode", "PASS  launch: ses_launch", "backend codex", "PASS  launch: thread-main" }, CollectionOrdering.Matching);
+            .IsEquivalentTo(new[] { "backend opencode", "PASS  launch: ses_fixture", "backend codex", "PASS  launch: thread-main" }, CollectionOrdering.Matching);
         result.RequireSuccess("installed-backend selfcheck");
         await Assert.That(result.Stdout).DoesNotContain("SKIP  ");
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
@@ -201,7 +201,7 @@ public sealed class CatalogCommandTests
         await Assert.That(requests.Where(x => x["method"]!.GetValue<string>() != "GET")
             .Select(x => $"{x["method"]} {x["path"]}").ToArray()).IsEquivalentTo(new[] {
                 "POST /api/session", "DELETE /api/session/ses_fixture", "POST /api/session",
-                "PUT /api/session/ses_launch/environment", "DELETE /api/session/ses_launch",
+                "PUT /api/session/ses_fixture/environment", "DELETE /api/session/ses_fixture",
             }, CollectionOrdering.Matching);
         await Assert.That(requests.Where(x => x["unexpected"]!.GetValue<bool>()).ToArray()).IsEmpty();
         await DiscoveryCleanedUp(lab);

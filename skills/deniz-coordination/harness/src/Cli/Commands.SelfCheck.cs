@@ -259,16 +259,16 @@ static partial class Commands
     // The configured backends in their order, then every other installed one (opencode, then codex).
     static bool Installed(string name)
     {
-        if (name == "opencode") return OpenCodeInstalled(HarnessServer.Command(null)[0]);
         try
         {
+            if (name == "opencode") return OpenCodeInstalled(HarnessServer.Command(null)[0]);
             _ = CodexProcess.ResolveExecutable(null, WorkerEnvironment.Snapshot());
             return true;
         }
         catch (HarnessException ex)
         {
             // A resolved but unusable executable must reach the live check for its diagnostic.
-            return !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
+            return name == "codex" && !ex.Message.StartsWith("cannot start codex: required executable is not on PATH: codex.", StringComparison.Ordinal);
         }
     }
 

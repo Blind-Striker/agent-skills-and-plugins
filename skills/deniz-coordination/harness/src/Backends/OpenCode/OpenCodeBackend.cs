@@ -271,13 +271,15 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
         if (prompt.IsContinue)
         {
             lock (eventGate) admissions[worker.Id] = [];
-            if (!launches.TryGetValue(worker.Id, out var launch))
+            if (!launches.TryGetValue(worker.Id, out var launch) && HostKey(worker).Contains(";environment=", StringComparison.Ordinal))
             {
                 var ledger = new Ledger(runId!);
                 var record = ledger.LoadRecord(worker.TaskId);
                 launch = TaskStarter.BuildLaunch(record, ledger.RunId, Name, Policy.From(ConfigLayers.Frozen(ledger.Dir)), record.Settings.TempRoot?.Value).Launch;
             }
-            var variables = launch.Environment;
+            var variables = launch?.Environment
+                ?? WorkerEnvironment.Environment(worker.TaskId, runId ?? throw new HarnessException("continuing a reattached worker requires its run id"),
+                    Git.RecordedTempRoot(worker.TaskId, runId)).Variables;
             await session.SetEnvironmentAsync(new SessionEnvironmentRequest { Variables = SessionVariables(variables, host) }, cancellationToken: ct);
             interrupts.TryRemove(worker.Id, out _);
         }
