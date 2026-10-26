@@ -403,6 +403,36 @@ the task's folder that is on another branch is never the task's: clean refuses i
 Without force, a worktree whose registered HEAD (detached or not, folder present or not) is not merged into the recorded base is
 kept. Only the task's registration is removed, never repository-wide pruning.
 
+Without force, clean finds the registered worktree's administrative folder under
+`<common git dir>/worktrees/*` by matching its `gitdir` file to the registration's `.git` path or the
+recorded worktree's real `.git` path, even when the worktree folder is gone. A registration with no matching administrative folder refuses cleanup with `<task>: refused (worktree admin folder not found); --force removes it anyway`.
+Every matching folder's `modules` folder permits `git worktree remove --force` only when these
+three conditions hold:
+
+1. If the worktree is intact, its `git status --porcelain=v1 -z --untracked-files=all --ignore-submodules=none` is empty.
+2. The existing dirty, recorded-base merge and lock checks pass.
+3. Every folder recursively under `modules` holding a `HEAD` file and an `objects` folder reports `0`
+   from `git --git-dir=<dir> rev-list --count --all --not --remotes`. This covers deinited and
+   nested submodules' git data, not their `logs` folders, and skips filesystem links when recursing.
+   A commit reachable only from a tag is refused; `--force` removes it.
+
+The read-only commit probe uses `--work-tree=<repo>` so Git can inspect the git data even when
+the submodule's configured working folder no longer exists.
+
+Submodule changes refuse cleanup with
+`<task>: refused (submodule has changes); --force removes it anyway`.
+Commits no remote has refuse it with
+`<task>: refused (submodule holds commits no remote has); --force removes it anyway`.
+A dirty superproject or unmerged task keeps the existing `dirty or unmerged worktree` refusal; dirt only
+inside submodules uses the `submodule has changes` refusal only when the task is merged.
+A failure of these git probes follows the normal git error path. Removal deletes the submodule's
+git directory and reflog, normally kept under the linked worktree's administrative folder
+at `<common git dir>/worktrees/<id>/modules/<name>`. These checks do not preserve reflog-only history.
+A remote-tracking ref inside the deleted git data is the only evidence that a remote has a commit.
+After the harness's recorded-base merge check passes, branch deletion uses `git branch -D`, not
+Git's separate `-d` check against the repository's current HEAD or the branch's upstream. Force
+continues to bypass dirtiness and merge checks, including these submodule refusals.
+
 After all tasks succeed, clean removes empty run/temp containers bottom-up, including an empty
 `.dispatch-tmp/git` and its empty parent. Nonempty containers and links remain and are printed as
 `retained: <path>`; the worktree root remains. A task failure prints task, cleanup step and error,
