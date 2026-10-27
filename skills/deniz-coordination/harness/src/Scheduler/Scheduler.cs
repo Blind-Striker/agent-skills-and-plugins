@@ -13,6 +13,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     List<TaskRun> runs = [];
     readonly Dictionary<string, int> watchdogFailures = new(StringComparer.Ordinal);
     volatile bool ledgerFailed;
+    internal Func<Task>? AfterAdmission { get; set; }
 
     void Error(TaskRun? run, string operation, Exception ex)
     {
@@ -127,7 +128,9 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 ct.ThrowIfCancellationRequested();
                 foreach (var failed in work.Where(x => x.IsFaulted).ToList()) await failed;
                 StartReady();
-                if (!runs.Any(x => !x.ReleaseUnconfirmed && x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling)) break;
+                if (AfterAdmission is { } afterAdmission) await afterAdmission();
+                if (!runs.Any(x => !x.ReleaseUnconfirmed && x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling)
+                    && !runs.Any(CanStart)) break;
                 escalation.CheckCancelRequests(runs);
                 await escalation.CheckDecisionsAsync(ct);
                 var received = false;
@@ -236,14 +239,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     {
         foreach (var run in runs.Where(x => x.State == TaskState.Pending).ToList())
         {
-            if (runs.Count(x => x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling) >= max) return;
+            if (!CanStart(run)) continue;
             if (run.CancelRequested) { Finish(run, TaskState.Cancelled, null, "cancelled before dispatch"); continue; }
-            if (Worktree.InPlace(run.Record) && runs.TakeWhile(x => x != run).Any(x => Worktree.InPlace(x.Record) && !x.IsFinal)) continue;
             if (run.Record.Spec.ReviewOf is { } authorId)
             {
-                var author = runs.FirstOrDefault(x => x.Id == authorId);
-                var state = author?.State ?? StateFromLedger(authorId);
-                if (state is TaskState.Pending or TaskState.Dispatching or TaskState.Running or TaskState.Settling or TaskState.Interrupted) continue;
+                var state = ReviewState(authorId);
                 var result = ledger.LoadResult(authorId);
                 if (state != TaskState.Done || result?.Outcome != "succeeded" || result.Commit is null)
                 {
@@ -255,6 +255,15 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             Track(run, StartAsync(run));
         }
     }
+
+    bool CanStart(TaskRun run) => run.State == TaskState.Pending
+        && runs.Count(x => x.State is TaskState.Dispatching or TaskState.Running or TaskState.Settling) < max
+        && (run.CancelRequested || ((!Worktree.InPlace(run.Record)
+            || !runs.TakeWhile(x => x != run).Any(x => Worktree.InPlace(x.Record) && !x.IsFinal))
+            && (run.Record.Spec.ReviewOf is not { } authorId
+                || ReviewState(authorId) is not (TaskState.Pending or TaskState.Dispatching or TaskState.Running or TaskState.Settling or TaskState.Interrupted))));
+
+    TaskState ReviewState(string authorId) => runs.FirstOrDefault(x => x.Id == authorId)?.State ?? StateFromLedger(authorId);
 
     void Track(TaskRun run, Task task) { run.Work = task; work.Enqueue(task); }
 

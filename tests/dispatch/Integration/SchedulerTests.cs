@@ -478,11 +478,30 @@ public sealed class SchedulerTests
         using var lab = new CoreLab();
         var run = await PrepareTaskAsync(lab, ct);
         var entered = Path.Combine(lab.Tree.Root, "pid");
-        run.Record.Spec.Prepare = [GateCommand(entered, Path.Combine(lab.Tree.Root, "release"))];
-        var scheduler = lab.Scheduler(ct, prepareCommand: (task, command, environment, token) =>
-            Verifier.RunCommandAsync(task.Record.Spec, null, task.Record.Workspace.Path!, environment, command, false, token,
-                task.PrepareCancellation!.Token, TimeSpan.FromSeconds(2)));
-        await Assert.That(await scheduler.RunAsync([run])).IsEqualTo(1);
+        var starting = Path.Combine(lab.Tree.Root, "starting");
+        var start = Path.Combine(lab.Tree.Root, "start");
+        run.Record.Spec.Prepare = [GateCommand(starting, start) + "; " + GateCommand(entered, Path.Combine(lab.Tree.Root, "release"))];
+        var scheduler = lab.Scheduler(ct, prepareCommand: async (task, command, environment, token) =>
+        {
+            Proc.BeforeTimeout.Value = async (process, cancellation) =>
+                await Assert.That(await WaitFileAsync(entered, process.WaitForExitAsync(CancellationToken.None), cancellation)).IsTrue();
+            try
+            {
+                return await Verifier.RunCommandAsync(task.Record.Spec, null, task.Record.Workspace.Path!, environment, command, false, token,
+                    task.PrepareCancellation!.Token, TimeSpan.FromSeconds(2));
+            }
+            finally { Proc.BeforeTimeout.Value = null; }
+        });
+        var running = scheduler.RunAsync([run]);
+        var reached = await WaitFileAsync(starting, running, ct);
+        // Deterministically hold startup beyond the real two-second command timeout.
+        await Task.WhenAny(running, Task.Delay(TimeSpan.FromSeconds(3), ct));
+        var returnedBeforeSignal = running.IsCompleted;
+        File.WriteAllText(start, "go");
+        var exit = await running;
+        await Assert.That(reached).IsTrue();
+        await Assert.That(returnedBeforeSignal).IsFalse();
+        await Assert.That(exit).IsEqualTo(1);
         var result = lab.Ledger.LoadResult(run.Id)!;
         await Assert.That(result.Failures).IsEquivalentTo(new[] { "prepare-failed" }, CollectionOrdering.Matching);
         await Assert.That(result.Prepare!.Count).IsEqualTo(1);
@@ -1393,6 +1412,46 @@ public sealed class SchedulerTests
         await Assert.That(result.WorkerStatus).IsEqualTo("done");
         await Assert.That(lab.Ledger.Read().Count(x => x.Type == "stop-unconfirmed")).IsEqualTo(1);
         await Assert.That(lab.Backend.Calls.Count(x => x.Member == "CollectAsync")).IsEqualTo(1);
+    }
+
+    [Test]
+    [Timeout(30_000)]
+    public async Task Settlement_between_admission_and_exit_does_not_strand_a_pending_task(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var first = await lab.TaskAsync("first", ct);
+        var second = await lab.TaskAsync("second", ct);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        lab.Backend.OnCollect = async (worker, _) =>
+        {
+            if (worker.TaskId == first.Id) await release.Task.WaitAsync(ct);
+            return new("succeeded", "Report", new(), null, true, [], null, true);
+        };
+        lab.Backend.OnPoll = (live, _) =>
+        {
+            foreach (var worker in live) lab.Backend.Emit(new WorkerSignal.Ended(worker.TaskId, worker.Turn!, "succeeded", null));
+            return Task.FromResult(new PollResult([]));
+        };
+        var scheduler = lab.Scheduler(ct);
+        TaskState[]? before = null;
+        TaskState[]? after = null;
+        scheduler.AfterAdmission = async () =>
+        {
+            if (first.State != TaskState.Settling) return;
+            before = [first.State, second.State];
+            release.SetResult();
+            await first.Work!;
+            after = [first.State, second.State];
+        };
+        var exit = await scheduler.RunAsync([first, second]);
+        await Assert.That(before).IsEquivalentTo(new[] { TaskState.Settling, TaskState.Pending }, CollectionOrdering.Matching);
+        await Assert.That(after).IsEquivalentTo(new[] { TaskState.Done, TaskState.Pending }, CollectionOrdering.Matching);
+        await Assert.That(lab.Backend.Calls.Where(x => x.Member == "CreateAsync").Select(x => ((WorkerLaunch)x.Input!).TaskId))
+            .IsEquivalentTo(new[] { "first", "second" }, CollectionOrdering.Matching);
+        await Assert.That(new[] { first.State, second.State }).IsEquivalentTo(new[] { TaskState.Done, TaskState.Done }, CollectionOrdering.Matching);
+        await Assert.That(lab.Ledger.Read().Where(x => x.Type == "final").Select(x => x.Task!))
+            .IsEquivalentTo(new[] { "first", "second" }, CollectionOrdering.Matching);
+        await Assert.That(exit).IsEqualTo(0);
     }
 
     [Test]
