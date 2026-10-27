@@ -42,11 +42,13 @@ public sealed class SchedulerTests
             catch (Exception error) { started.SetException(error); }
         });
         string[] before;
+        bool blockedWhileAlive;
         lock (run)
         {
             thread.Start();
             // Both versions block on this monitor: the base writes the contradictory evidence first.
             while (thread.IsAlive && (thread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) == 0) Thread.Yield();
+            blockedWhileAlive = thread.IsAlive && (thread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) != 0;
             before = lab.Ledger.Read().Select(line => line.Type).ToArray();
         }
         thread.Join();
@@ -57,6 +59,7 @@ public sealed class SchedulerTests
             await Task.Yield();
         }
         await running;
+        await Assert.That(blockedWhileAlive).IsTrue();
         await Assert.That(before).IsEmpty();
         var result = lab.Ledger.LoadResult(run.Id)!;
         await Assert.That(result.Failures).IsEquivalentTo(deadline ? new[] { "zombie" } : new[] { "zombie", "outcome:lost", "no-final-text" }, CollectionOrdering.Matching);

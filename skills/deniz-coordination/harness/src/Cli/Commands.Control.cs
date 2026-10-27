@@ -84,6 +84,7 @@ static partial class Commands
                 return await UsingPreservingAsync(scope, async () =>
                 {
                     var backend = scope.Backends[name];
+                    if (backend is CodexBackend codex) codex.RunId = ledger.RunId;
                     var run = TaskRun.FromLedger(record, ledger);
                     runs.Add(run);
                     var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
@@ -187,6 +188,7 @@ static partial class Commands
             {
                 await using var scope = new BackendScope(["codex"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
                 var run = TaskRun.FromLedger(record, ledger);
+                ((CodexBackend)scope.Backends["codex"]).RunId = ledger.RunId;
                 var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
                 Settlement.RecordStop(ledger, run, stop);
                 if (stop is { Stopped: false })

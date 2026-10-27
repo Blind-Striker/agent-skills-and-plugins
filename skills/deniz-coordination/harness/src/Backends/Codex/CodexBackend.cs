@@ -16,6 +16,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public BackendCapabilities Capabilities { get; } = new("sandbox", "approval-gate", "native", false);
     public ChannelReader<WorkerSignal> Signals => signals.Reader;
     public string? WindowsSandboxReadiness => probe?.Readiness;
+    internal string? RunId { get; set; }
     internal Func<int, Process>? OpenProcess { get; set; }
     internal Func<int, DateTime?>? QueryLimitedStartTime { get; set; }
     internal Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? ReadSnapshot { get; set; }
@@ -615,7 +616,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
-            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker);
+            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker, RunId);
             recovered[worker.Id] = stopped;
         }
         return new ReattachResult.Ended("lost", recovered[worker.Id]);
@@ -633,7 +634,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         else
         {
             stopped = recovered.TryGetValue(worker.Id, out var previous) && previous.Stopped ? previous : await StopRecordedAsync(worker, ct);
-            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker);
+            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker, RunId);
         }
         recovered[worker.Id] = stopped;
         if (stopped.Stopped) released[worker.Id] = 0;

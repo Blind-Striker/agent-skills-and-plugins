@@ -11,6 +11,86 @@ public sealed class ControlCommandTests
     const string ControlId = "abcdefghijklmnopqrstuvwxyz";
 
     [Test]
+    [Timeout(60_000)]
+    public async Task Clean_cannot_claim_another_runs_recorded_home(CancellationToken ct)
+    {
+        using var core = new CoreLab("crafted-home-clean");
+        using var codex = new CodexLab(core.Tree);
+        ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        core.Ledger.Write(run.Id, "queued", new());
+        var other = new Ledger("other-run");
+        Json.WriteFile(Path.Combine(other.Dir, "run.json"), new RunInfo { Run = other.RunId, ControlId = Locations.NewControlId() }, LedgerJson.Files.RunInfo);
+        File.WriteAllText(Path.Combine(codex.Environment["CODEX_HOME"], "auth.json"), "{}");
+        using var home = CodexHome.Create(new(Path.Combine(Locations.ControlDir(other.RunId), "profiles"), CodexLab.Executable, new Dictionary<string, string>()),
+            new(other.RunId, run.Id, "research", new("codex", "model-y", "high"), null, null,
+                new("clean", "on", "workspace", "on", "in-place"), core.Tree.Repository, new([], []), codex.Environment, null, "clean", null),
+            codex.Environment["CODEX_HOME"]);
+        run.SaveWorker(new("codex", run.Id, "partial", null, new()
+        {
+            ["pid"] = int.MaxValue, ["codexHome"] = home.Home, ["codexHomeTemporary"] = true,
+            ["codexHomeMarkerName"] = home.MarkerName, ["codexHomeMarkerText"] = home.MarkerText,
+        }), core.Ledger);
+        var output = TestContext.Current!.Output;
+        var start = output.GetErrorOutput().Length;
+
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(1);
+        await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
+            "inspect: session: temporary Codex home ownership is not recognized\n");
+        await Assert.That(Directory.Exists(home.Home)).IsTrue();
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, home.MarkerName!))).IsEqualTo(home.MarkerText);
+    }
+
+    [Test]
+    [Arguments("clean", "{")]
+    [Arguments("clean", "{\"run\":42}")]
+    [Arguments("collect", "{")]
+    [Arguments("collect", "{\"run\":42}")]
+    [Arguments("resume", "{")]
+    [Arguments("resume", "{\"run\":42}")]
+    [Timeout(60_000)]
+    public async Task Recovery_commands_refuse_invalid_home_markers_with_the_marker_path(string command, string text, CancellationToken ct)
+    {
+        using var core = new CoreLab("invalid-home-marker");
+        using var codex = new CodexLab(core.Tree);
+        ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        core.Ledger.Write(run.Id, "queued", new());
+        using var home = RecordedHome(core, codex, run, int.MaxValue);
+        var marker = Path.Combine(home.Home, home.MarkerName!);
+        File.WriteAllText(marker, text);
+        run.Worker!.State["codexHomeMarkerText"] = text;
+        run.SaveWorker(run.Worker, core.Ledger);
+        File.WriteAllText(Path.Combine(Locations.ControlDir(core.Ledger.RunId), "setup.done"), "");
+        Json.WriteFile(Path.Combine(core.Ledger.Dir, "config.json"), new EffectiveConfig
+        { Tasks = new() { [run.Id] = new() { Settings = run.Record.Settings } } }, LedgerJson.Files.EffectiveConfig);
+        var error = $"temporary Codex home ownership marker is invalid: {marker}";
+        var output = TestContext.Current!.Output;
+        var start = output.GetErrorOutput().Length;
+        try
+        {
+            var args = Args.Parse([command, core.Ledger.RunId, run.Id]);
+            var exit = command == "clean" ? await Commands.CleanAsync(args, ct)
+                : command == "collect" ? await Commands.CollectAsync(args, ct) : await Commands.ResumeAsync(args, ct);
+            await Assert.That(exit).IsEqualTo(1);
+            await Assert.That(Directory.Exists(home.Home)).IsTrue();
+            await Assert.That(File.ReadAllText(marker)).IsEqualTo(text);
+            await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(command == "clean"
+                ? $"inspect: session: {error}\n" : command == "collect" ? $"dispatch: HarnessException: {error}\n" : "");
+            await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(command == "clean"
+                ? new[] { "queued", "clean-failed" } : command == "collect" ? new[] { "queued", "aborted" } : new[] { "queued", "resume", "error", "error" },
+                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(core.Ledger.Read().Where(line => line.Data?["message"] is not null || line.Data?["error"] is not null)
+                .Select(line => (line.Data!["message"] ?? line.Data["error"])!.GetValue<string>())).IsEquivalentTo(command == "resume"
+                ? new[] { error, $"resume failed; worker release unconfirmed: {error}" } : new[] { error },
+                TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+        finally { if (Directory.Exists(home.Home)) File.WriteAllText(marker, home.MarkerText); }
+    }
+
+    [Test]
     [Arguments("done")]
     [Arguments("failed")]
     [Arguments("cancelled")]

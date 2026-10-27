@@ -523,6 +523,7 @@ static partial class Commands
 
             async Task<int> ResumeOwnedAsync()
             {
+                if (scope!.Backends.TryGetValue("codex", out var backend)) ((CodexBackend)backend).RunId = ledger.RunId;
                 var states = ledger.TaskStates();
                 foreach (var (task, state) in states)
                 {
