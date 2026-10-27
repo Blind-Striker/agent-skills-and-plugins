@@ -271,7 +271,9 @@ public sealed class CodexBackendTests
         var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
             new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), variables, null, "full", null,
             [first, second]), ct);
-        await backend.PromptAsync(created.Worker, new("Perform the task.", false), ct);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), ct);
+        // The fake records turn/start when it reads it, which can be after the prompt returns.
+        await backend.CollectAsync(worker, ct);
         var turn = lab.Input().Single(x => x["method"]?.GetValue<string>() == "turn/start")["params"]!;
         await Assert.That(turn["sandboxPolicy"]!["writableRoots"]!.AsArray().Select(x => x!.GetValue<string>()))
             .IsEquivalentTo(new[] { lab.Tree.Repository, temp, first, second }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
