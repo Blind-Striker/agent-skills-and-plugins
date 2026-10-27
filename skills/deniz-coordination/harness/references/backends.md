@@ -260,7 +260,7 @@ can clear restored uncertainty without removing historical ledger evidence. Open
 cancellation semantics are unchanged. Zombie workspace retention during clean is described in
 [the CLI](cli.md#clean-run---force---ledger-dir).
 
-Collection after an unconfirmed live stop waits at most ten seconds for the pump, even if the turn
-never ended, then uses the evidence available. A turn id alone does not prove a report ready. Recorded
+Collection without a recorded confirmed live stop waits at most ten seconds for the unfinished pump,
+even if stopping faulted or the turn never ended, then uses the evidence available. A turn id alone does not prove a report ready. Recorded
 recovery needs no turn id, including after failed creation. Late hard-stop replies cannot change a
 settlement already begun; scope cleanup records later stop confirmation without repeating its final.

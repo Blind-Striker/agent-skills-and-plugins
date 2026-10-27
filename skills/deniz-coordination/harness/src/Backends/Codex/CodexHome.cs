@@ -90,7 +90,7 @@ sealed class CodexHome : IDisposable
     {
         if (File.Exists(Path.Combine(userHome, "auth.json")))
         {
-            var owner = Owner(context);
+            var owner = Owner(context.ProfilesFolder);
             var candidates = new[]
             {
                 (Kind: "temp", Root: Path.Combine(Path.GetTempPath(), "deniz-dispatch-codex")),
@@ -231,15 +231,24 @@ sealed class CodexHome : IDisposable
     {
         if (worker.State["codexHomeTemporary"]?.GetValue<bool>() != true) return;
         var folder = worker.State["codexHome"]?.GetValue<string>();
+        if (folder is not null && !Path.Exists(folder)) return;
         if (folder is null || !Path.IsPathFullyQualified(folder)
             || Path.GetFileName(folder) != "codex-" + worker.TaskId
-            || Directory.GetParent(folder)?.Name != Owner(context))
+            || Directory.GetParent(folder)?.Name is not { } owner
+            || owner != Owner(context.ProfilesFolder) && owner != RecordedOwner(worker))
             throw new HarnessException("temporary Codex home ownership is not recognized");
         DeleteOwned(folder, worker.State["codexHomeMarkerName"]?.GetValue<string>(), worker.State["codexHomeMarkerText"]?.GetValue<string>());
     }
 
-    static string Owner(BackendContext context) => Convert.ToHexString(SHA256.HashData(
-        Encoding.UTF8.GetBytes(Path.GetFullPath(context.ProfilesFolder)))).ToLowerInvariant();
+    static string? RecordedOwner(WorkerRef worker)
+    {
+        var text = worker.State["codexHomeMarkerText"]?.GetValue<string>();
+        var run = text is null ? null : JsonNode.Parse(text)?["run"]?.GetValue<string>();
+        return run is null ? null : Owner(Path.Combine(Locations.ControlDir(run), "profiles"));
+    }
+
+    static string Owner(string profilesFolder) => Convert.ToHexString(SHA256.HashData(
+        Encoding.UTF8.GetBytes(Path.GetFullPath(profilesFolder)))).ToLowerInvariant();
 
     static void DeleteOwned(string folder, string? name, string? text)
     {

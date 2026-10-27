@@ -80,13 +80,16 @@ static partial class Commands
             await CleanupPreservingAsync(async () =>
             {
                 var name = record.Settings.Backend?.Value ?? "opencode";
-                await using var ownedScope = scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
-                var backend = scope.Backends[name];
-                var run = TaskRun.FromLedger(record, ledger);
-                runs.Add(run);
-                var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
-                ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
-                return result.State == "done" ? 0 : 1;
+                scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
+                return await UsingPreservingAsync(scope, async () =>
+                {
+                    var backend = scope.Backends[name];
+                    var run = TaskRun.FromLedger(record, ledger);
+                    runs.Add(run);
+                    var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
+                    ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
+                    return result.State == "done" ? 0 : 1;
+                });
             }, () => scope is null ? Task.CompletedTask : SettleCleanupAsync(ledger, runs, scope.Backends, scope.CleanupResults));
             return ledger.LoadResult(task)?.State == "done" ? 0 : 1;
         }
@@ -178,6 +181,8 @@ static partial class Commands
         var failures = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var record in records.Where(record => record.Settings.Backend?.Value == "codex" && record.Session.Id is not null))
         {
+            if (states[record.Spec.Id!] is "done" or "failed" or "cancelled"
+                && ledger.LoadResult(record.Spec.Id!)?.Failures.Contains("zombie") != true) continue;
             try
             {
                 await using var scope = new BackendScope(["codex"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);

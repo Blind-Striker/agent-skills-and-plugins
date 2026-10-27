@@ -165,9 +165,14 @@ static partial class Commands
         CodexBackend? injectedCodex = null;
         IReadOnlyDictionary<string, IWorkerBackend> backends = new Dictionary<string, IWorkerBackend>();
         var runs = new List<TaskRun>();
+        IWorkerBackend? injectedBackend = null;
         async Task<int> RunOwnedAsync()
         {
-            await using var injectedBackend = backendFactory?.Invoke();
+            injectedBackend = backendFactory?.Invoke();
+            return await UsingPreservingAsync(injectedBackend, RunWithBackendAsync);
+        }
+        async Task<int> RunWithBackendAsync()
+        {
             injectedCodex = injectedBackend as CodexBackend;
             var versions = new Dictionary<string, BackendInfo>();
             if (injectedBackend is not null)
@@ -178,13 +183,17 @@ static partial class Commands
             }
             else
             {
-                await using var preflight = new BackendScope(plan.Tasks.Select(t => t.Spec.Backend ?? "opencode"));
-                foreach (var backend in preflight.Backends.Values)
+                var preflight = new BackendScope(plan.Tasks.Select(t => t.Spec.Backend ?? "opencode"));
+                await UsingPreservingAsync(preflight, async () =>
                 {
-                    var probe = await backend.ProbeAsync(new(plan.Repo), ct);
-                    versions[backend.Name] = new() { Version = probe.Version! };
-                    await Planner.CheckLiveAsync(plan, backend, allow, ct);
-                }
+                    foreach (var backend in preflight.Backends.Values)
+                    {
+                        var probe = await backend.ProbeAsync(new(plan.Repo), ct);
+                        versions[backend.Name] = new() { Version = probe.Version! };
+                        await Planner.CheckLiveAsync(plan, backend, allow, ct);
+                    }
+                    return 0;
+                });
             }
             if (plan.Errors.Count > 0)
             {
@@ -265,10 +274,13 @@ static partial class Commands
             StructuredOutput.Freeze(ledger, runs, beforeFrozenConfigMove);
             using (var done = new FileStream(Path.Combine(control, "setup.done"), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                 done.Flush(flushToDisk: true);
-            await using var ownedScope = scope = injectedBackend is null ? new BackendScope(versions.Keys, control, runId: runId) : null;
-            backends = scope?.Backends ?? new Dictionary<string, IWorkerBackend> { [injectedBackend!.Name] = injectedBackend };
-            var supervisor = new Supervisor(backends, ledger, plan.Repo, allow, policy, max, ct);
-            return await supervisor.RunAsync(runs);
+            scope = injectedBackend is null ? new BackendScope(versions.Keys, control, runId: runId) : null;
+            return await UsingPreservingAsync(scope, async () =>
+            {
+                backends = scope?.Backends ?? new Dictionary<string, IWorkerBackend> { [injectedBackend!.Name] = injectedBackend };
+                var supervisor = new Supervisor(backends, ledger, plan.Repo, allow, policy, max, ct);
+                return await supervisor.RunAsync(runs);
+            });
         }
         try
         {
@@ -299,6 +311,21 @@ static partial class Commands
     }
 
     static HarnessException RecordedRun(string run) => new($"run {run} is already recorded; a rerun takes a new run id; `collect` or `resume` recovers it");
+
+    static async Task<int> UsingPreservingAsync(IAsyncDisposable? resource, Func<Task<int>> body)
+    {
+        Exception? original = null;
+        try
+        {
+            await using (resource)
+            {
+                try { return await body(); }
+                catch (Exception error) { original = error; throw; }
+            }
+        }
+        catch (Exception error) when (original is not null && !ReferenceEquals(original, error))
+        { throw new AggregateException(original, error); }
+    }
 
     static async Task<int> CleanupPreservingAsync(Func<Task<int>> body, Func<Task> cleanup)
     {
@@ -489,7 +516,13 @@ static partial class Commands
         {
             var exit = await CleanupPreservingAsync(async () =>
             {
-                await using var ownedScope = scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
+                scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
+                return await UsingPreservingAsync(scope, ResumeOwnedAsync);
+            }, () => scope is null ? Task.CompletedTask : SettleCleanupAsync(ledger, runs, scope.Backends, scope.CleanupResults));
+            return exit == 0 && ledger.TaskStates().Values.All(x => x == "done") ? 0 : 1;
+
+            async Task<int> ResumeOwnedAsync()
+            {
                 var states = ledger.TaskStates();
                 foreach (var (task, state) in states)
                 {
@@ -526,10 +559,9 @@ static partial class Commands
                 }
 
                 ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count });
-                var supervisor = new Supervisor(scope.Backends, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
+                var supervisor = new Supervisor(scope!.Backends, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
                 return await supervisor.ResumeAsync(runs, proceed);
-            }, () => scope is null ? Task.CompletedTask : SettleCleanupAsync(ledger, runs, scope.Backends, scope.CleanupResults));
-            return exit == 0 && ledger.TaskStates().Values.All(x => x == "done") ? 0 : 1;
+            }
         }
         catch (Exception ex)
         {

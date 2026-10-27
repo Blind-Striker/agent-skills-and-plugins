@@ -11,6 +11,76 @@ public sealed class ControlCommandTests
     const string ControlId = "abcdefghijklmnopqrstuvwxyz";
 
     [Test]
+    [Arguments("done")]
+    [Arguments("failed")]
+    [Arguments("cancelled")]
+    [Timeout(60_000)]
+    public async Task Clean_does_not_recheck_a_final_non_zombies_recorded_pid(string state, CancellationToken ct)
+    {
+        using var core = new CoreLab("final-clean");
+        ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        await LabRepo.CreateAsync(core.Tree, ct);
+        var run = new TaskRun { Record = new()
+        {
+            Spec = new() { Id = "inspect", Kind = "research", Base = "main" },
+            Settings = new() { Backend = new() { Value = "codex" } },
+        } };
+        await Worktree.PrepareAsync(run, core.Ledger, core.Tree.Repository, ct);
+        run.SaveWorker(new("codex", run.Id, "old-worker", "old-turn", new() { ["pid"] = Environment.ProcessId }), core.Ledger);
+        var failures = state == "failed" ? new List<string> { "no-final-text" } : [];
+        core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = state, WorkerStopped = true, Failures = failures });
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = state });
+        var info = core.Ledger.LoadRunInfo();
+        info.Repo = core.Tree.Repository;
+        Json.WriteFile(Path.Combine(core.Ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+        var before = File.ReadAllText(Path.Combine(core.Ledger.TaskDir(run.Id), "result.json"));
+
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+        await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "worktree", "final", "cleaned" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(core.Ledger.TaskDir(run.Id), "result.json"))).IsEqualTo(before);
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
+        await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Clean_reclaims_a_recorded_zombie_home_without_its_control_folder(bool homeMissing, CancellationToken ct)
+    {
+        using var core = new CoreLab("missing-control-clean");
+        using var codex = new CodexLab(core.Tree);
+        ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, core.Ledger, core.Tree.Repository, ct, core.Git);
+        using var home = RecordedHome(core, codex, run, int.MaxValue);
+        if (homeMissing) home.Dispose();
+        core.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["detail"] = "old stop uncertainty" });
+        core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = "failed", WorkerStopped = false, Failures = ["zombie"] });
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = "failed" });
+        var info = core.Ledger.LoadRunInfo();
+        info.Repo = core.Tree.Repository;
+        Json.WriteFile(Path.Combine(core.Ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+        var control = Locations.ControlDir(core.Ledger.RunId);
+        var saved = Path.Combine(core.Tree.Root, "saved-control");
+        Directory.Move(control, saved);
+        try
+        {
+            await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+            await Assert.That(Directory.Exists(home.Home)).IsFalse();
+            await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
+            await Assert.That(Directory.Exists(control)).IsFalse();
+            await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(
+                new[] { "worktree", "stop-unconfirmed", "final", "hard-stop", "cleaned" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsFalse();
+        }
+        finally { Directory.Move(saved, control); }
+    }
+
+    [Test]
     [Arguments("collect", false)]
     [Arguments("resume", false)]
     [Arguments("clean", false)]

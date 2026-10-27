@@ -11,6 +11,60 @@ namespace Dispatch.Tests.Integration;
 public sealed class SchedulerTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(30_000)]
+    public async Task Zombie_admission_records_stop_evidence_under_the_run_lock(bool deadline, CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.SaveWorker(new("codex", run.Id, "worker", "turn", new()), lab.Ledger);
+        run.State = TaskState.Running;
+        var time = new FakeTimeProvider();
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false));
+        backend.OnPoll = (_, _) => Task.FromResult(new PollResult([]));
+        backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("lost", null, new(), null, false, [], null, false));
+        if (deadline)
+        {
+            run.CancelRequested = true;
+            run.StopKind = InterruptKind.Cancel;
+            run.StopStarted = time.GetUtcNow().AddMinutes(-4);
+            run.HardStopSent = true;
+        }
+        else backend.Emit(new WorkerSignal.StopUnconfirmed(run.Id, "turn", "lost", "process survives"));
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { [backend.Name] = backend }, lab.Ledger,
+            lab.Tree.Repository, AllowList.From(null), lab.Policy, 1, ct, lab.Git, time);
+        var started = new TaskCompletionSource<Task<int>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() =>
+        {
+            try { started.SetResult(scheduler.RunAsync([run])); }
+            catch (Exception error) { started.SetException(error); }
+        });
+        string[] before;
+        lock (run)
+        {
+            thread.Start();
+            // Both versions block on this monitor: the base writes the contradictory evidence first.
+            while (thread.IsAlive && (thread.ThreadState & System.Threading.ThreadState.WaitSleepJoin) == 0) Thread.Yield();
+            before = lab.Ledger.Read().Select(line => line.Type).ToArray();
+        }
+        thread.Join();
+        var running = await started.Task;
+        while (!running.IsCompleted)
+        {
+            time.Advance(TimeSpan.FromMilliseconds(20));
+            await Task.Yield();
+        }
+        await running;
+        await Assert.That(before).IsEmpty();
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Failures).IsEquivalentTo(deadline ? new[] { "zombie" } : new[] { "zombie", "outcome:lost", "no-final-text" }, CollectionOrdering.Matching);
+        await Assert.That(result.WorkerStopped).IsFalse();
+        await Assert.That(lab.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Timeout(30_000)]
     public async Task Late_hard_stop_cannot_change_a_settlement_already_in_progress(CancellationToken ct)
     {

@@ -10,6 +10,61 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexLifecycleTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task A_faulting_hard_stop_still_bounds_mid_turn_zombie_collection(CancellationToken ct)
+    {
+        using var core = new CoreLab("faulting-stop");
+        using var codex = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Settings.Route = new() { Value = "codex:model-y#high" };
+        codex.Write("preflight", CodexLab.Handshake + CodexLab.Thread + "{\"hang\":true}");
+        await using var backend = codex.Backend();
+        var worker = (await backend.CreateAsync(new(core.Ledger.RunId, run.Id, "research", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "in-place"), core.Tree.Repository, new([], []), codex.Environment, null, "full", null), ct)).Worker;
+        run.SaveWorker(await backend.PromptAsync(worker, new("Inspect.", false), ct), core.Ledger);
+        var process = backend.WorkerProcesses.Single().Process;
+        var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.SetPendingStop(stop.Task);
+        var stopping = backend.InterruptAsync(run.SavedWorker(), InterruptKind.Hard, ct);
+        stop.SetException(new IOException("stop failed"));
+        var failure = await Assert.ThrowsAsync<IOException>(() => stopping);
+        await Assert.That(failure!.Message).IsEqualTo("stop failed");
+        run.State = TaskState.Running;
+        run.CancelRequested = true;
+        run.StopKind = InterruptKind.Cancel;
+        run.HardStopSent = true;
+        var time = new FakeTimeProvider();
+        run.StopStarted = time.GetUtcNow().AddMinutes(-4);
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { [backend.Name] = backend }, core.Ledger,
+            core.Tree.Repository, AllowList.From(null), core.Policy, 1, ct, core.Git, time);
+        var running = scheduler.RunAsync([run]);
+        bool bounded;
+        bool survived;
+        try
+        {
+            await UntilAsync(() => run.State == TaskState.Settling || running.IsCompleted, ct);
+            bounded = await Task.WhenAny(run.Work!, Task.Delay(TimeSpan.FromSeconds(15), ct)) == run.Work;
+            survived = IsAlive(process.Id);
+        }
+        finally
+        {
+            using var holder = Process.GetProcessById(process.Id);
+            holder.Kill(entireProcessTree: true);
+            await holder.WaitForExitAsync(ct);
+            await DriveUntilAsync(() => running.IsCompleted, time, ct);
+            await running;
+        }
+        await Assert.That(bounded).IsTrue();
+        await Assert.That(survived).IsTrue();
+        var result = core.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(result.State).IsEqualTo("failed");
+        await Assert.That(result.WorkerStopped).IsFalse();
+        await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]

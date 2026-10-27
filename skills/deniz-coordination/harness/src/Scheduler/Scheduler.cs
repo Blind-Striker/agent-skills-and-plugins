@@ -179,16 +179,19 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                         if (run.State == TaskState.Running && elapsed >= TimeSpan.FromMinutes(4))
                         {
                             if (run.InterruptWork is { } interrupt) await interrupt;
-                            if (run.State != TaskState.Running) continue;
-                            if (Backend(run).Name == "codex")
-                                Settlement.RecordStop(ledger, run, new(false, ledger.Read().LastOrDefault(line => line.Task == run.Id && line.Type == "hard-stop")
-                                    ?.Data?["detail"]?.GetValue<string>() ?? "stop confirmation deadline passed"), StopOutcome(run));
-                            else
+                            lock (run)
                             {
-                                run.Zombie = true;
-                                run.WorkerStopped = false;
+                                if (run.State != TaskState.Running) continue;
+                                if (Backend(run).Name == "codex")
+                                    Settlement.RecordStop(ledger, run, new(false, ledger.Read().LastOrDefault(line => line.Task == run.Id && line.Type == "hard-stop")
+                                        ?.Data?["detail"]?.GetValue<string>() ?? "stop confirmation deadline passed"), StopOutcome(run));
+                                else
+                                {
+                                    run.Zombie = true;
+                                    run.WorkerStopped = false;
+                                }
+                                BeginSettle(run, StopOutcome(run));
                             }
-                            BeginSettle(run, StopOutcome(run));
                         }
                     }
                     if (run.State != TaskState.Running) continue;
@@ -431,11 +434,15 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 break;
             // OpenCode's stop ladder keeps its existing cancellation semantics.
             case WorkerSignal.StopUnconfirmed unconfirmed when run.State == TaskState.Running && (run.StopStarted is null || Backend(run).Name == "codex"):
-                Settlement.RecordStop(ledger, run, new(false, unconfirmed.Detail), unconfirmed.Outcome);
-                escalation.Drop(run.Id, "worker stop unconfirmed");
-                run.ReportReady = true;
-                BeginSettle(run, Backend(run).Name != "codex" ? unconfirmed.Outcome
-                    : run.StopKind is not null ? StopOutcome(run) : run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : unconfirmed.Outcome);
+                lock (run)
+                {
+                    if (run.State != TaskState.Running) break;
+                    Settlement.RecordStop(ledger, run, new(false, unconfirmed.Detail), unconfirmed.Outcome);
+                    escalation.Drop(run.Id, "worker stop unconfirmed");
+                    run.ReportReady = true;
+                    BeginSettle(run, Backend(run).Name != "codex" ? unconfirmed.Outcome
+                        : run.StopKind is not null ? StopOutcome(run) : run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : unconfirmed.Outcome);
+                }
                 break;
             case WorkerSignal.Ended ended when !run.IsFinal && run.State != TaskState.Settling:
                 run.WorkerEnded = true;

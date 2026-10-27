@@ -449,7 +449,8 @@ before a backend starts. Do not alter any ledger inputs by hand.
 
 ### `clean <run> [--force] [--ledger <dir>]`
 
-Refuses while supervised. Releases opencode sessions and each Codex task's recorded worker, then removes recognized worktrees and task
+Refuses while supervised. Releases opencode sessions and recorded Codex workers of non-final tasks
+or tasks settled with a `zombie` failure, then removes recognized worktrees and task
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
@@ -459,6 +460,9 @@ even when clean and merged, printing
 With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
 Git-configuration, lock and in-place protections still apply.
 Codex release checks the recorded stop and deletes its owned temporary home only after confirmation.
+It does not recheck final non-zombies or add stop evidence to them. Cleanup also works when the run's
+control folder is gone: a missing home needs no deletion, and a present home's owner is checked
+against the run's recorded control path as well as its ownership marker.
 An unconfirmed stop retains the home even with `--force`, prints
 `<task>: retained Codex home: <path>` and returns 1. Confirmation clears restored zombie uncertainty,
 including after scope cleanup, so a historical `zombie` result alone no longer refuses ordinary clean.

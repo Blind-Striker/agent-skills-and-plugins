@@ -14,6 +14,32 @@ public sealed class ExitCodeTests
     [Test]
     [NotInParallel]
     [Timeout(60_000)]
+    public async Task Run_preserves_body_and_dispose_failures_in_order(CancellationToken ct)
+    {
+        using var core = new CoreLab("dispose-failure", recorded: false);
+        using var codex = new CodexLab(core.Tree);
+        await LabRepo.CreateAsync(core.Tree, ct);
+        codex.CodeTask();
+        ConfigLayers.Initialize(Args.Parse([]));
+        var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false))
+        {
+            OnProbe = (_, _) => Task.FromResult(new BackendProbe(true, "fixture", [], [])),
+            OnValidate = (plans, _) => Task.FromResult<IReadOnlyList<LiveCheck>>(plans.Select(plan => new LiveCheck(plan.TaskId, [], [], "model-y", "full", null)).ToArray()),
+            OnDispose = () => ValueTask.FromException(new IOException("dispose failure")),
+        };
+        var exit = await Commands.RunAsync(Args.Parse(["run", codex.Tasks, "--repo", core.Tree.Repository]), ct,
+            setupCheckpoint: (_, _) => throw new HarnessException("body failure"), backendFactory: () => backend, userPathReader: () => null);
+        var ledger = new Ledger(Commands.CreateRunId("codex-run"));
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "aborted" }, CollectionOrdering.Matching);
+        await Assert.That(ledger.Read().Single().Data!["message"]!.GetValue<string>()).IsEqualTo(
+            "One or more errors occurred. (body failure) (dispose failure)");
+        await Assert.That(backend.Calls.Select(call => call.Member)).IsEquivalentTo(new[] { "ProbeAsync", "ValidateAsync", "DisposeAsync" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Timeout(60_000)]
     public async Task Run_zombie_is_task_failure_not_abort_and_clean_force_keeps_the_unconfirmed_home(CancellationToken ct)
     {
         using var core = new CoreLab("run-zombie", recorded: false);

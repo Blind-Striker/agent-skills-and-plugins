@@ -583,10 +583,10 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             return new("lost", null, new(), null, false, [], recovery.Detail, recovery.Stopped, StopResult: recovery);
         }
         // Prefer the pump's end, which records the stop. A process that survives the stop can keep the
-        // pump open after the turn ended: then the turn's report is complete without it. After an
-        // unconfirmed stop, even a mid-turn abort must settle from the evidence available by the deadline.
+        // pump open after the turn ended: then the turn's report is complete without it. Without a
+        // confirmed stop, even a mid-turn abort must settle from the evidence available by the deadline.
         var deadline = Task.Delay(TimeSpan.FromSeconds(10), ct);
-        await Task.WhenAny(connection.Pump, connection.StopResult is { Stopped: false } ? deadline
+        await Task.WhenAny(connection.Pump, connection.StopResult is not { Stopped: true } ? deadline
             : Task.WhenAll(connection.TurnEnded.Task, deadline)).WaitAsync(ct);
         SaveState(connection, worker);
         lock (connection.StateGate)
