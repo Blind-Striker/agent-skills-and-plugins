@@ -73,7 +73,7 @@ public sealed class CodexLifecycleTests
             await Assert.That(run.State).IsEqualTo(TaskState.Running);
             await Assert.That(run.Worker!.State["descendants"]!.AsArray().Select(node => node!["pid"]!.GetValue<int>())).Contains(child);
             var identity = run.Worker.State["descendants"]!.AsArray().Single(node => node!["pid"]!.GetValue<int>() == child)!;
-            var unknown = unobservable || !OperatingSystem.IsWindows();
+            var unknown = !OperatingSystem.IsWindows();
             if (unknown)
             {
                 await Assert.That(identity["startTime"]).IsNull();
@@ -92,8 +92,8 @@ public sealed class CodexLifecycleTests
             await Assert.That(core.Ledger.LoadResult(run.Id)!.State).IsEqualTo("done");
             await Assert.That(core.Ledger.Read().Where(item => item.Type == "aborted")).IsEmpty();
             var errors = core.Ledger.Read().Where(item => item.Type == "error").ToArray();
-            await Assert.That(errors.Length).IsEqualTo(unknown ? 1 : 0);
-            if (unknown)
+            await Assert.That(errors.Length).IsEqualTo(unobservable || unknown ? 1 : 0);
+            if (unobservable || unknown)
             {
                 await Assert.That(errors.Single().Task).IsEqualTo(run.Id);
                 await Assert.That(errors.Single().Data!["while"]!.GetValue<string>()).IsEqualTo("descendant-unobservable");

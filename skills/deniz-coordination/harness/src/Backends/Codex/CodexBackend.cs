@@ -16,6 +16,9 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public BackendCapabilities Capabilities { get; } = new("sandbox", "approval-gate", "native", false);
     public ChannelReader<WorkerSignal> Signals => signals.Reader;
     public string? WindowsSandboxReadiness => probe?.Readiness;
+    internal Func<int, Process>? OpenProcess { get; set; }
+    internal Func<int, DateTime?>? QueryLimitedStartTime { get; set; }
+    internal Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? ReadSnapshot { get; set; }
     internal IEnumerable<(WorkerRef Worker, CodexProcess Process)> WorkerProcesses => connections.Keys
         .Where(connection => connection.Worker is not null).Select(connection => (connection.Worker!, connection.Process));
 
@@ -512,7 +515,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public async Task<InterruptResult> InterruptAsync(WorkerRef worker, InterruptKind kind, CancellationToken ct)
     {
         if (!workers.TryGetValue(worker.Id, out var connection))
-            return kind is InterruptKind.Hard or InterruptKind.Shutdown ? await CodexProcess.StopRecordedAsync(worker.State, ct)
+            return kind is InterruptKind.Hard or InterruptKind.Shutdown ? await StopRecordedAsync(worker, ct)
                 : new(false, "no live connection: a recorded worker stops only by a hard stop");
         if (kind is InterruptKind.Hard or InterruptKind.Shutdown) return await connection.Process.StopAsync();
         await connection.Rpc.RequestAsync("turn/interrupt", new CodexTurnInterruptParams(worker.Id, worker.Turn!), CodexJson.Wire.CodexTurnInterruptParams, cancellationToken: ct);
@@ -563,7 +566,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         if (!recovered.ContainsKey(worker.Id))
         {
             var stopped = workers.TryGetValue(worker.Id, out var connection) ? await connection.Process.StopAsync()
-                : await CodexProcess.StopRecordedAsync(worker.State, ct);
+                : await StopRecordedAsync(worker, ct);
             if (!stopped.Stopped) return new ReattachResult.Unreadable($"Codex stop unconfirmed: {stopped.Detail}");
             if (connection is not null)
             {
@@ -584,13 +587,15 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         }
         else
         {
-            var stopped = await CodexProcess.StopRecordedAsync(worker.State, ct);
+            var stopped = await StopRecordedAsync(worker, ct);
             if (!stopped.Stopped) throw new HarnessException($"Codex release unconfirmed: {stopped.Detail}");
             CodexHome.DeleteRecorded(context, worker);
         }
         released[worker.Id] = 0;
     }
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) => Task.FromResult<IReadOnlyList<WorkerRef>>([]);
+    Task<InterruptResult> StopRecordedAsync(WorkerRef worker, CancellationToken ct) =>
+        CodexProcess.StopRecordedAsync(worker.State, ct, OpenProcess, QueryLimitedStartTime, readSnapshot: ReadSnapshot);
     public async Task<RouteListing> ListRoutesAsync(string directory, CancellationToken ct)
     {
         await ProbeConnectionAsync(directory, ct);

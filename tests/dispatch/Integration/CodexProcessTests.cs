@@ -12,6 +12,155 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Reused_windows_pid_is_not_terminated(bool recovery, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identities only");
+        using var tree = new TempTree();
+        using var otherTree = new TempTree();
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, Scenario(tree, "{\"notify\":\"ready\",\"params\":{}}"));
+        await using var unrelated = CodexProcess.Start(Context(otherTree), otherTree.Repository,
+            Scenario(otherTree, "{\"notify\":\"ready\",\"params\":{}}\n{\"hang\":true}"));
+        using var reader = new StreamReader(process.Stdout);
+        using var otherReader = new StreamReader(unrelated.Stdout);
+        await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+        await Assert.That(await otherReader.ReadLineAsync(ct)).Contains("ready");
+        var recorded = unrelated.StartTime.AddDays(1);
+        var snapshot = process.ReadSnapshot;
+        var limited = process.QueryLimitedStartTime;
+        var trace = new List<string>();
+        process.ReadSnapshot = _ => new()
+        {
+            [process.Id] = (Environment.ProcessId, process.StartTime),
+            [unrelated.Id] = (process.Id, recorded),
+        };
+        process.OpenProcess = pid => pid == unrelated.Id ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        process.QueryLimitedStartTime = pid => pid == unrelated.Id ? recorded : limited(pid);
+        process.RefreshDescendants();
+        process.ReadSnapshot = _ => new() { [unrelated.Id] = (0, unrelated.StartTime) };
+        Process Denied(int pid)
+        {
+            if (pid != unrelated.Id) return Process.GetProcessById(pid);
+            trace.Add("open");
+            throw new System.ComponentModel.Win32Exception(5);
+        }
+        DateTime? Limited(int pid)
+        {
+            trace.Add("limited");
+            throw new System.ComponentModel.Win32Exception(5);
+        }
+        process.OpenProcess = Denied;
+        process.QueryLimitedStartTime = Limited;
+        try
+        {
+            var result = recovery ? await CodexProcess.StopRecordedAsync(new JsonObject
+            {
+                ["descendants"] = new JsonArray(new JsonObject { ["pid"] = unrelated.Id, ["startTime"] = recorded.ToString("O") }),
+            }, ct, Denied, Limited, readSnapshot: process.ReadSnapshot) : await process.StopAsync();
+            await Assert.That(result.Stopped).IsTrue();
+            await Assert.That(unrelated.HasExited).IsFalse();
+            using var holder = Process.GetProcessById(unrelated.Id);
+            await Assert.That(holder.StartTime.ToUniversalTime()).IsEqualTo(unrelated.StartTime);
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == unrelated.Id).StartTime).IsEqualTo(recorded);
+            await Assert.That(trace.Count).IsGreaterThan(0);
+            // Every open must be a liveness query, never an extra termination open.
+            foreach (var pair in trace.Chunk(2))
+                await Assert.That(pair).IsEquivalentTo(new[] { "open", "limited" }, CollectionOrdering.Matching);
+            if (recovery) await Assert.That(trace).IsEquivalentTo(new[] { "open", "limited", "open", "limited", "open", "limited" }, CollectionOrdering.Matching);
+            await Assert.That(result.Detail).Contains($"pid={unrelated.Id}; recordedStartTime={recorded:O}; currentStartTime={unrelated.StartTime:O}; snapshot=reused");
+        }
+        finally
+        {
+            process.OpenProcess = Process.GetProcessById;
+            process.QueryLimitedStartTime = limited;
+            process.ReadSnapshot = snapshot;
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Denied_termination_then_snapshot_absence_confirms_stop(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identities only");
+        const int pid = int.MaxValue;
+        var start = DateTime.UnixEpoch;
+        var trace = new List<string>();
+        var vanished = false;
+        Process Denied(int _)
+        {
+            trace.Add("open");
+            if (trace.Count > 3) vanished = true;
+            throw new System.ComponentModel.Win32Exception(5, "injected open denial");
+        }
+        DateTime? Limited(int _)
+        {
+            trace.Add("limited");
+            throw new System.ComponentModel.Win32Exception(5, "injected query denial");
+        }
+        var result = await CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = pid, ["processStartTime"] = start.ToString("O") },
+            ct, Denied, Limited, readSnapshot: _ =>
+            {
+                trace.Add("snapshot");
+                return vanished ? new() : new() { [pid] = (0, start) };
+            });
+        await Assert.That(result.Stopped).IsTrue();
+        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; observe pid={pid}: injected query denial; pid={pid}; recordedStartTime={start:O}; currentStartTime={start:O}; snapshot=alive; kill descendant pid={pid}: injected open denial; pid={pid}; recordedStartTime={start:O}; currentStartTime=unknown; snapshot=absent");
+        await Assert.That(trace).IsEquivalentTo(new[] { "open", "limited", "snapshot", "open", "open", "limited", "snapshot", "open", "limited", "snapshot" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Unreadable_handle_records_snapshot_identity(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identities only");
+        using var tree = new TempTree();
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, Scenario(tree, "{\"notify\":\"ready\",\"params\":{}}\n{\"hang\":true}"));
+        using var reader = new StreamReader(process.Stdout);
+        await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+        const int child = int.MaxValue, grandchild = int.MaxValue - 1, replacementChild = int.MaxValue - 2;
+        var start = process.StartTime.AddSeconds(1);
+        var snapshot = process.ReadSnapshot;
+        var limited = process.QueryLimitedStartTime;
+        var diagnostics = new List<string>();
+        var reused = false;
+        process.OpenProcess = pid => pid == process.Id ? Process.GetProcessById(pid) : throw new System.ComponentModel.Win32Exception(5, "injected open denial");
+        process.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5, "injected query denial");
+        process.DescendantUnobservable = (pid, detail) => diagnostics.Add($"{pid}: {detail}");
+        process.ReadSnapshot = _ => new()
+        {
+            [grandchild] = (child, start.AddSeconds(1)), // Child must prove ancestry before this entry is adopted.
+            [child] = (process.Id, reused ? start.AddSeconds(2) : start),
+            [process.Id] = (Environment.ProcessId, process.StartTime),
+            [replacementChild] = (reused ? child : 0, start.AddSeconds(3)),
+        };
+        try
+        {
+            process.RefreshDescendants();
+            await Assert.That(process.Descendants.Select(identity => identity.Pid)).IsEquivalentTo(new[] { child, grandchild }, CollectionOrdering.Matching);
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == child).StartTime).IsEqualTo(start);
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == child).Confirmable).IsTrue();
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == grandchild).StartTime).IsEqualTo(start.AddSeconds(1));
+            await Assert.That(diagnostics).IsEquivalentTo(new[]
+            {
+                $"{child}: injected query denial; snapshot identity recordedStartTime={start:O}",
+                $"{grandchild}: injected query denial; snapshot identity recordedStartTime={start.AddSeconds(1):O}",
+            }, CollectionOrdering.Matching);
+            reused = true;
+            process.RefreshDescendants();
+            await Assert.That(process.Descendants.Select(identity => identity.Pid)).IsEquivalentTo(new[] { child, grandchild }, CollectionOrdering.Matching);
+            await Assert.That(process.Descendants.Single(identity => identity.Pid == child).StartTime).IsEqualTo(start);
+        }
+        finally
+        {
+            process.OpenProcess = Process.GetProcessById;
+            process.QueryLimitedStartTime = limited;
+            process.ReadSnapshot = snapshot;
+        }
+    }
+
+    [Test]
     [Arguments(-3600)]
     [Arguments(0)]
     [Arguments(1)]
@@ -44,7 +193,8 @@ public sealed class CodexProcessTests
                 .IsEquivalentTo(secondsAfterParent >= 0 ? [candidate] : Array.Empty<int>(), CollectionOrdering.Matching);
             await Assert.That(unobservable).IsEquivalentTo(secondsAfterParent >= 0 ? [candidate] : Array.Empty<int>(), CollectionOrdering.Matching);
             if (secondsAfterParent >= 0)
-                await Assert.That(process.Descendants.Single(identity => identity.Pid == candidate).StartTime).IsNull();
+                await Assert.That(process.Descendants.Single(identity => identity.Pid == candidate).StartTime)
+                    .IsEqualTo(OperatingSystem.IsWindows() ? process.StartTime.AddSeconds(secondsAfterParent) : (DateTime?)null);
         }
         finally
         {
@@ -223,6 +373,9 @@ public sealed class CodexProcessTests
             return Process.GetProcessById(pid);
         };
         process.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5);
+        var snapshot = process.ReadSnapshot;
+        process.ReadSnapshot = read => snapshot(read).ToDictionary(pair => pair.Key,
+            pair => (pair.Value.Parent, children.Any(child => child.Pid == pair.Key) ? null : pair.Value.CreationTime));
         try
         {
             process.RefreshDescendants();
@@ -255,6 +408,7 @@ public sealed class CodexProcessTests
         finally
         {
             process.OpenProcess = Process.GetProcessById;
+            process.ReadSnapshot = snapshot;
             await CleanupAsync(identities);
         }
     }

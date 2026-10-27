@@ -219,8 +219,28 @@ upstream report is openai/codex#56396; check it before a Codex pin moves.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
 On Windows, a process created before its recorded parent is a parent-PID reuse and is never adopted.
+When both process-handle creation-time queries are denied, a fresh system snapshot decides identity:
+an absent PID or a different creation time means the recorded process ended; an equal creation time
+means it remains alive. Descendants first observed with denied handle queries record the snapshot's
+creation time and can supply ancestry proof; the denial diagnostic states that snapshot identity was
+recorded. A later occupant never replaces an already recorded identity.
+
+An identity can still lack a timestamp in an older ledger or when snapshot metadata is unavailable.
+If its PID is present, it stays unconfirmed, supplies no ancestry proof and is never killed. An
+unreadable snapshot likewise proves neither exit nor ownership. Termination requires an affirmative
+identity match, and the Windows native fallback checks creation time again through the same handle
+used to terminate, guarding against reuse between observation and termination. Failed attempts stay
+in stop detail even if that handle finds the process gone. The existing wait and subsequent identity
+checks decide confirmation independently of kill success, with job accounting, snapshot reliability
+and stream-drain checks still required. Linux keeps boot-ID/start-tick identity and zombie checks;
+macOS keeps its existing process start-time rules. Neither platform adopts Windows snapshot timestamps.
+
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
 timeout, either resume mode settles a started non-final Codex task as failed with outcome `lost`;
 recorded stop requests retain their cancelled or timeout outcome. Use a new run id for a retry. An
 unconfirmed hard stop produces `zombie`, and the harness skips commit and verify while the worker
 may still write.
+Unconfirmed disposal, release and recorded recovery still refuse cleanup: resources and temporary
+homes are retained for retry, and cleanup/recovery can still abort the command. Identity-based
+confirmation also applies to these recorded checks after a supervisor restart, including resume and
+collect; it does not change the unconfirmed-stop exception paths.

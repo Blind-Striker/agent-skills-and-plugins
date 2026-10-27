@@ -195,7 +195,7 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `processGroup` | boolean | Codex when known | Whether a private process group was created. |
 | `processStartTime` | string timestamp | Codex when known | Guards against recycled process ids. |
 | `linuxBootId`, `linuxStartTicks` | string, integer | Codex on Linux | Kernel process identity; a recorded stop checks it before it signals. |
-| `descendants` | object array | Codex when known | Each has `pid` integer and `startTime` timestamp, and on Linux the same kernel identity. |
+| `descendants` | object array | Codex when known | Each has `pid` integer and nullable `startTime` timestamp, and on Linux the same kernel identity. Windows uses snapshot creation time when handle queries are denied. |
 | `codexHome` | string path | Codex when known | Selected home. |
 | `codexHomeTemporary` | boolean | Codex when known | Whether that home is temporary. |
 | `codexHomeMarkerName`, `codexHomeMarkerText` | strings | Codex temporary home | The random marker that proves a later process owns the home it deletes. |
@@ -203,6 +203,10 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 
 These fields support this version's recovery. They are not instructions for a caller to start,
 stop or attach processes independently.
+An absent `startTime` can come from an older record, unavailable snapshot metadata or a Unix
+observation failure. A timestamp-less identity whose PID is present stays unconfirmed: a later
+occupant cannot supply its missing original identity, authorize termination or prove ancestry. See
+[Codex stop and recovery](backends.md#codex-process-and-sandbox) for platform identity checks.
 
 ## `result.json`
 
@@ -397,6 +401,14 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `git-config-changed` | `keys` string array, `blocking` boolean | Git guard finding. Non-blocking changes may populate warnings. |
 | `index-lock-removed` | `path` string | Lock created by a timed-out killed Git call was removed. |
 | `ledger-repaired` | `file` string, `bytes` integer | Torn tail archived before append. |
+
+Codex stop detail records PIDs, recorded/current creation times, observation failures and surviving
+or uncertain identities. Failed termination attempts remain evidence even when the subsequent
+identity check confirms exit; a denial alone does not make that stop unconfirmed. Windows
+snapshot-backed recording still emits the `error` diagnostic with `while: descendant-unobservable`,
+stating when snapshot identity supplied the recorded timestamp. `stop-unconfirmed` remains the
+turn-ended signal above; disposal/release/recovery uncertainty still follows the existing exception
+paths rather than expanding this event's coverage or changing failure precedence.
 
 The pending `warning` event for Windows user PATH changes is described under the
 [Windows user PATH guard](cli.md#windows-user-path-guard).

@@ -8,6 +8,106 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexBackendTests
 {
     [Test]
+    [Arguments("reattach")]
+    [Arguments("release")]
+    [Arguments("resume")]
+    [Arguments("collect")]
+    [NotInParallel]
+    [Timeout(180_000)]
+    public async Task Restart_recovery_rejects_reused_recorded_identities(string operation, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identities only");
+        using var core = new CoreLab();
+        using var lab = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Settings.Route = new() { Value = "codex:model-y#high" };
+        lab.Write("preflight", CodexLab.Handshake + "{\"spawnChild\":true}\n" + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0] + "{\"hang\":true}");
+        await using var original = lab.Backend();
+        var worker = (await original.CreateAsync(new("run", run.Id, "research", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "in-place"), core.Tree.Repository, new([], []), lab.Environment, null, "full", null), ct)).Worker;
+        await original.PollAsync([worker], ct);
+        var root = original.WorkerProcesses.Single().Process;
+        var childPid = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories)
+            .Select(path => JsonNode.Parse(File.ReadAllText(path))!)
+            .Single(record => record["argv"]![0]!.GetValue<string>() == "--child")["pid"]!.GetValue<int>();
+        var child = root.Descendants.Single(identity => identity.Pid == childPid);
+        var current = new Dictionary<int, (int Parent, DateTime? CreationTime)>
+        {
+            [root.Id] = (Environment.ProcessId, root.StartTime), [child.Pid] = (root.Id, child.StartTime),
+        };
+        worker.State["processStartTime"] = root.StartTime.AddDays(-1).ToString("O");
+        worker.State["descendants"] = new JsonArray(new JsonObject { ["pid"] = child.Pid, ["startTime"] = child.StartTime!.Value.AddDays(-1).ToString("O") });
+        run.SaveWorker(worker, core.Ledger);
+        var restored = TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger);
+        await Assert.That(restored.SavedWorker().State["processStartTime"]!.GetValue<string>()).IsEqualTo(root.StartTime.AddDays(-1).ToString("O"));
+        await Assert.That(restored.SavedWorker().State["descendants"]![0]!["startTime"]!.GetValue<string>()).IsEqualTo(child.StartTime.Value.AddDays(-1).ToString("O"));
+        var trace = new List<string>();
+        await using var backend = lab.Backend();
+        backend.OpenProcess = pid =>
+        {
+            trace.Add($"open {pid}");
+            throw new System.ComponentModel.Win32Exception(5);
+        };
+        backend.QueryLimitedStartTime = pid =>
+        {
+            trace.Add($"limited {pid}");
+            throw new System.ComponentModel.Win32Exception(5);
+        };
+        backend.ReadSnapshot = _ => current;
+        if (operation == "release")
+        {
+            HarnessException? failure = null;
+            try { await backend.ReleaseAsync(restored.SavedWorker(), ct); }
+            catch (HarnessException exception) { failure = exception; }
+            await Assert.That(failure).IsNull();
+        }
+        else if (operation == "reattach")
+        {
+            var ended = await backend.ReattachAsync(restored.SavedWorker(), ct);
+            await Assert.That(ended).IsTypeOf<ReattachResult.Ended>();
+            await Assert.That(((ReattachResult.Ended)ended).Outcome).IsEqualTo("lost");
+        }
+        else
+        {
+            if (operation == "resume")
+            {
+                var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["codex"] = backend }, core.Ledger,
+                    core.Tree.Repository, AllowList.From(null), core.Policy, 1, ct, core.Git);
+                await Assert.That(await scheduler.ResumeAsync([restored], false)).IsEqualTo(1);
+            }
+            else
+            {
+                HarnessException? failure = null;
+                TaskResult? result = null;
+                try { result = await Settlement.SettleAsync(backend, core.Ledger, restored, null, ct, core.Git); }
+                catch (HarnessException exception) { failure = exception; }
+                await Assert.That(failure).IsNull();
+                core.Ledger.Write(run.Id, "final", new JsonObject { ["state"] = result!.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
+            }
+            var saved = core.Ledger.LoadResult(run.Id)!;
+            await Assert.That(saved).IsNotNull();
+            await Assert.That(saved.State).IsEqualTo("failed");
+            await Assert.That(saved.Outcome).IsEqualTo("lost");
+            await Assert.That(saved.Failures).IsEquivalentTo(new[] { "outcome:lost", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
+            await Assert.That(core.Ledger.Read().Select(item => item.Type)).IsEquivalentTo(new[] { "collected", "verified", "outcome", "final" }, CollectionOrdering.Matching);
+            await Assert.That(core.Ledger.Read().Last().Data!["state"]!.GetValue<string>()).IsEqualTo("failed");
+        }
+        await backend.DisposeAsync();
+        await Assert.That(root.HasExited).IsFalse();
+        using var holder = Process.GetProcessById(child.Pid);
+        await Assert.That(holder.HasExited).IsFalse();
+        await Assert.That(holder.StartTime.ToUniversalTime()).IsEqualTo(child.StartTime);
+        await Assert.That(trace).IsEquivalentTo(new[]
+        {
+            $"open {child.Pid}", $"limited {child.Pid}", $"open {root.Id}", $"limited {root.Id}",
+            $"open {root.Id}", $"limited {root.Id}", $"open {child.Pid}", $"limited {child.Pid}",
+            $"open {root.Id}", $"limited {root.Id}", $"open {child.Pid}", $"limited {child.Pid}",
+        }, CollectionOrdering.Matching);
+        await Assert.That(core.Ledger.Read().Where(item => item.Type is "aborted" or "error")).IsEmpty();
+    }
+
+    [Test]
     public async Task Wire_records_publish_complete_snapshots_while_a_reader_is_open()
     {
         using var lab = new CodexLab();
