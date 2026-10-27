@@ -85,6 +85,7 @@ sealed class CodexProcess : IAsyncDisposable
                         || IsAlive(recorded, OpenProcess, QueryLimitedStartTime, ReadProcStat, snapshot))) continue;
                     if (entry.CreationTime is { } created && parents.TryGetValue(parent, out var owner)
                         && owner.CreationTime is { } parentCreated && created < parentCreated) continue;
+                    unobservable.Remove(pid); // A proven-ended occupant's diagnostic does not cover its replacement.
                     try
                     {
                         var start = ReadStartTime(pid, OpenProcess, QueryLimitedStartTime);
@@ -156,7 +157,7 @@ sealed class CodexProcess : IAsyncDisposable
         {
             if (!IsAlive(identity, OpenProcess, QueryLimitedStartTime, ReadProcStat, snapshot,
                 confirmedOnly: OperatingSystem.IsWindows(), detail: RecordObservation)) continue;
-            if (KillRecorded(identity, OpenProcess, RecordError, ReadProcStat, NativeOpenProcess, TerminateProcess)) killed++;
+            if (KillRecorded(identity, OpenProcess, RecordError, ReadProcStat, NativeOpenProcess, TerminateProcess, ReadSnapshot)) killed++;
         }
         if (!process.HasExited)
         {
@@ -170,9 +171,8 @@ sealed class CodexProcess : IAsyncDisposable
         // An escaped process holding stderr must not make an unconfirmed stop hang forever.
         if (stopped && !await DrainFinishedAsync()) stopped = false;
         // Recheck after the drain too: Stopped must not outlive its identity-based evidence.
-        snapshot = SnapshotPass(ReadSnapshot, ReadProcStat);
-        TryRefreshDescendants(snapshot);
-        stopped = stopped && trackingReliable && TreeStopped(snapshot);
+        TryRefreshDescendants();
+        stopped = stopped && trackingReliable && TreeStopped();
         var exit = process.HasExited ? process.ExitCode.ToString(CultureInfo.InvariantCulture) : "running";
         return new(stopped, $"exit={exit}; processGroup={ProcessGroup?.ToString(CultureInfo.InvariantCulture) ?? "false"}; groupKill={groupKill}; treeKill={treeKill}; descendantsKilled={killed}; stderrDroppedLines={StderrDroppedLines}; {string.Join("; ", errors.Concat(observations))}\nstderr:\n{StderrTail}");
     }
@@ -196,17 +196,16 @@ sealed class CodexProcess : IAsyncDisposable
         var clock = Stopwatch.StartNew();
         do
         {
-            var snapshot = SnapshotPass(ReadSnapshot, ReadProcStat);
-            TryRefreshDescendants(snapshot);
-            if (rootOnly ? process.HasExited : TreeStopped(snapshot)) return true;
+            TryRefreshDescendants();
+            if (rootOnly ? process.HasExited : TreeStopped()) return true;
             await Task.Delay(100);
         } while (clock.Elapsed < timeout);
         return rootOnly ? process.HasExited : TreeStopped();
     }
 
-    void TryRefreshDescendants(Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? snapshot = null)
+    void TryRefreshDescendants()
     {
-        try { RefreshDescendants(snapshot ?? SnapshotPass(ReadSnapshot, ReadProcStat)); }
+        try { RefreshDescendants(); }
         catch (Exception exception) when (exception is IOException or Win32Exception or UnauthorizedAccessException)
         {
             trackingReliable = false;
@@ -214,9 +213,9 @@ sealed class CodexProcess : IAsyncDisposable
         }
     }
 
-    bool TreeStopped(Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? snapshot = null)
+    bool TreeStopped()
     {
-        snapshot ??= SnapshotPass(ReadSnapshot, ReadProcStat);
+        var snapshot = SnapshotPass(ReadSnapshot, ReadProcStat);
         if (!process.HasExited || Descendants.Any(identity => IsAlive(identity, OpenProcess, QueryLimitedStartTime, ReadProcStat, snapshot, detail: RecordObservation))) return false;
         if (job is null || job.IsClosed) return true;
         if (!Native.QueryInformationJobObject(job, 1, out var accounting, (uint)Marshal.SizeOf<Native.JobAccounting>(), IntPtr.Zero))
@@ -339,7 +338,8 @@ sealed class CodexProcess : IAsyncDisposable
 
     static bool KillRecorded(CodexProcessIdentity identity, Func<int, Process> openProcess, Action<string, Exception> recordError,
         Func<string, string>? readProcStat = null, Func<uint, bool, int, SafeProcessHandle>? nativeOpenProcess = null,
-        Func<SafeProcessHandle, uint, bool>? terminateProcess = null)
+        Func<SafeProcessHandle, uint, bool>? terminateProcess = null,
+        Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? readSnapshot = null)
     {
         try
         {
@@ -356,6 +356,10 @@ sealed class CodexProcess : IAsyncDisposable
                     throw new Win32Exception(error);
                 }
                 if (ReadHandleStartTime(handle) != identity.StartTime) return false;
+                // Keep the parent PID pinned while discovering and terminating each child's own identity.
+                foreach (var (pid, entry) in (readSnapshot ?? ReadParents)(readProcStat))
+                    if (entry.Parent == identity.Pid && entry.CreationTime is { } created && created >= identity.StartTime)
+                        KillRecorded(new(pid, created), openProcess, recordError, readProcStat, nativeOpenProcess, terminateProcess, readSnapshot);
                 if (!(terminateProcess ?? Native.TerminateProcess)(handle, 1)) throw new Win32Exception(Marshal.GetLastWin32Error());
             }
             else
@@ -377,7 +381,7 @@ sealed class CodexProcess : IAsyncDisposable
         catch (FileNotFoundException) { return false; }
         catch (DirectoryNotFoundException) { return false; }
         catch (IOException exception) when (OperatingSystem.IsLinux() && exception.HResult is 2 or 3) { return false; }
-        catch (IOException exception) when (OperatingSystem.IsLinux())
+        catch (IOException exception) when (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
         { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
         catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or AggregateException)
         { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
@@ -695,7 +699,7 @@ sealed class CodexProcess : IAsyncDisposable
             ct.ThrowIfCancellationRequested();
             if (!IsAlive(identity, openProcess, limitedStartTime, readProcStat, snapshot,
                 confirmedOnly: OperatingSystem.IsWindows(), detail: Detail)) continue;
-            KillRecorded(identity, openProcess, (operation, exception) => errors.Add($"{operation}: {exception.Message}"), readProcStat, nativeOpenProcess, terminateProcess);
+            KillRecorded(identity, openProcess, (operation, exception) => errors.Add($"{operation}: {exception.Message}"), readProcStat, nativeOpenProcess, terminateProcess, readSnapshot);
         }
         var deadline = Stopwatch.StartNew();
         while (AnyAlive() && deadline.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(50, ct);
