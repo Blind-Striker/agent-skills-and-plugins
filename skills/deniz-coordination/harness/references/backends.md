@@ -223,12 +223,19 @@ When both process-handle creation-time queries are denied, a fresh system snapsh
 an absent PID or a different creation time means the recorded process ended; an equal creation time
 means it remains alive. Descendants first observed with denied handle queries record the snapshot's
 creation time and can supply ancestry proof; the denial diagnostic states that snapshot identity was
-recorded. A later occupant never replaces an already recorded identity.
+recorded. An already recorded identity is retained while it is unknown, alive or uncertain. Once a
+confirmable identity is proven absent or reused, a new child of a confirmed owner can replace it.
+On Windows, an observable handle start time must equal the snapshot creation time before adoption;
+a mismatch is skipped for that pass. Each observation pass shares one system snapshot, including
+snapshot failures, across denied identities.
 
 An identity can still lack a timestamp in an older ledger or when snapshot metadata is unavailable.
 If its PID is present, it stays unconfirmed, supplies no ancestry proof and is never killed. An
+unrelated process that keeps holding a recorded descendant's timestamp-less PID therefore keeps
+release, resume and collect unconfirmed: the operator sees task-scoped stop evidence and a failed
+task with `zombie`, with resources retained until a later check can confirm absence. An
 unreadable snapshot likewise proves neither exit nor ownership. Termination requires an affirmative
-identity match, and the Windows native fallback checks creation time again through the same handle
+identity match, and the Windows native termination path checks creation time again through the same handle
 used to terminate, guarding against reuse between observation and termination. Failed attempts stay
 in stop detail even if that handle finds the process gone. The existing wait and subsequent identity
 checks decide confirmation independently of kill success, with job accounting, snapshot reliability

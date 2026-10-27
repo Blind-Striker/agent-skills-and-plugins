@@ -76,11 +76,19 @@ public sealed class CodexLifecycleTests
             await new TaskStarter(backend, core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, core.Git).StartAsync(run, ct);
         }
         var process = backend.WorkerProcesses.Single(x => x.Worker.TaskId == bad.Id).Process;
-        const int survivor = int.MaxValue;
-        var start = process.StartTime.AddSeconds(1);
+        using var self = Process.GetCurrentProcess();
+        var survivor = self.Id;
+        var start = self.StartTime.ToUniversalTime();
         var snapshot = process.ReadSnapshot;
         var limited = process.QueryLimitedStartTime;
-        process.ReadSnapshot = _ => new() { [process.Id] = (Environment.ProcessId, process.StartTime), [survivor] = (process.Id, start) };
+        var nativeOpen = process.NativeOpenProcess;
+        var nativeAttempts = new List<int>();
+        process.NativeOpenProcess = (_, _, pid) =>
+        {
+            nativeAttempts.Add(pid);
+            throw new System.ComponentModel.Win32Exception(5, "native open denied");
+        };
+        process.ReadSnapshot = _ => new() { [survivor] = (process.Id, start) };
         process.OpenProcess = pid => pid == survivor ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
         process.QueryLimitedStartTime = pid => pid == survivor ? start : limited(pid);
         process.RefreshDescendants();
@@ -111,13 +119,23 @@ public sealed class CodexLifecycleTests
             await Assert.That(core.Ledger.LoadResult(good.Id)!.Failures).IsEmpty();
             await Assert.That(core.Ledger.LoadResult(good.Id)!.State).IsEqualTo("done");
             await Assert.That(core.Ledger.Read().Where(x => x.Type == "aborted")).IsEmpty();
+            await Assert.That(nativeAttempts).Contains(survivor);
+            foreach (var pid in nativeAttempts) await Assert.That(pid).IsEqualTo(survivor);
+            await Assert.That(self.HasExited).IsFalse();
+            await Assert.That(self.StartTime.ToUniversalTime()).IsEqualTo(start);
         }
         finally
         {
+            // The synthetic ancestry ends here, not the test runner. Keep native termination denied
+            // until a denied-handle/absent-snapshot pass releases the recorded identity safely.
+            process.OpenProcess = pid => pid == survivor ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+            process.QueryLimitedStartTime = pid => pid == survivor ? throw new System.ComponentModel.Win32Exception(5) : limited(pid);
+            process.ReadSnapshot = _ => new();
+            await scope.DisposeAsync();
             process.OpenProcess = Process.GetProcessById;
             process.QueryLimitedStartTime = limited;
             process.ReadSnapshot = snapshot;
-            await scope.DisposeAsync();
+            process.NativeOpenProcess = nativeOpen;
         }
     }
 

@@ -48,7 +48,7 @@ public sealed class CodexBackendTests
         await Assert.That(saved.Verify).IsEmpty();
         await Assert.That(core.Ledger.Read().Select(x => x.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, CollectionOrdering.Matching);
         await Assert.That(core.Ledger.Read().Single(x => x.Type == "stop-unconfirmed").Data!["detail"]!.GetValue<string>()).IsEqualTo(
-            $"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={DateTime.UnixEpoch:O}; currentStartTime={DateTime.UnixEpoch:O}; snapshot=alive; kill descendant pid={int.MaxValue}: open denied");
+            $"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={DateTime.UnixEpoch:O}; currentStartTime={DateTime.UnixEpoch:O}; snapshot=alive");
     }
 
     [Test]

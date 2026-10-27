@@ -27,7 +27,7 @@ public sealed class CodexCleanupTests
         var result = await recovered.ReleaseAsync(worker, ct);
         await Assert.That(result).IsNotNull();
         await Assert.That(result!.Stopped).IsFalse();
-        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={DateTime.UnixEpoch:O}; currentStartTime={DateTime.UnixEpoch:O}; snapshot=alive; kill descendant pid={int.MaxValue}: open denied");
+        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={DateTime.UnixEpoch:O}; currentStartTime={DateTime.UnixEpoch:O}; snapshot=alive");
         await Assert.That(Directory.Exists(home)).IsTrue();
         var ended = (ReattachResult.Ended)await recovered.ReattachAsync(worker, ct);
         await Assert.That(ended.Outcome).IsEqualTo("lost");
