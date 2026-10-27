@@ -20,7 +20,7 @@ interface IWorkerBackend : IAsyncDisposable
     Task<PollResult> PollAsync(IReadOnlyList<WorkerRef> live, CancellationToken ct);
     Task<WorkerReport> CollectAsync(WorkerRef worker, CancellationToken ct);
     Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct);
-    Task ReleaseAsync(WorkerRef worker, CancellationToken ct);
+    Task<InterruptResult?> ReleaseAsync(WorkerRef worker, CancellationToken ct);
     Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct);
     Task<RouteListing> ListRoutesAsync(string directory, CancellationToken ct);
 }

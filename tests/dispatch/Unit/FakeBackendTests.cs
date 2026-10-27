@@ -57,7 +57,7 @@ public sealed class FakeBackendTests
             OnPoll = (_, _) => Task.FromResult(new PollResult([new WorkerSignal.Host("profile=full;project=on", "connected", "ready", 1)])),
             OnCollect = (_, _) => Task.FromResult(report),
             OnReattach = (_, _) => Task.FromResult<ReattachResult>(new ReattachResult.Interrupted()),
-            OnRelease = (_, _) => Task.CompletedTask,
+            OnRelease = (_, _) => Task.FromResult<InterruptResult?>(null),
             OnFindOrphans = (_, _) => Task.FromResult<IReadOnlyList<WorkerRef>>([worker with { Id = "orphan" }]),
             OnListRoutes = (_, _) => Task.FromResult(new RouteListing([], [], [new RouteAllowance("provider/model", "enabled", null)])),
         };

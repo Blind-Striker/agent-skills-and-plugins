@@ -3,6 +3,8 @@ sealed class BackendScope : IAsyncDisposable
     readonly string? ownedFolder;
     internal string? OwnedFolder => ownedFolder;
     public IReadOnlyDictionary<string, IWorkerBackend> Backends { get; }
+    readonly HashSet<IWorkerBackend> disposed = [];
+    public List<(WorkerRef Worker, InterruptResult Stop)> CleanupResults { get; } = [];
 
     public BackendScope(IEnumerable<string> names, string? controlFolder = null, bool subscribe = true, string? runId = null)
     {
@@ -54,15 +56,28 @@ sealed class BackendScope : IAsyncDisposable
             if (name is not ("opencode" or "codex")) throw new HarnessException($"unknown backend: {name}");
         return names.Order(StringComparer.Ordinal).ToArray();
     }
-    public async ValueTask DisposeAsync()
+    public async Task<IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)>> CleanupAsync()
     {
         var failures = new List<Exception>();
+        CleanupResults.Clear();
         foreach (var backend in Backends.Values)
         {
-            try { await backend.DisposeAsync(); }
+            if (disposed.Contains(backend)) continue;
+            try
+            {
+                if (backend is CodexBackend codex)
+                {
+                    CleanupResults.AddRange(await codex.CleanupAsync());
+                    if (codex.HasResources) continue;
+                }
+                else await backend.DisposeAsync();
+                disposed.Add(backend);
+            }
             catch (Exception ex) { failures.Add(ex); }
         }
         if (failures.Count > 0) throw new AggregateException("Backend cleanup unconfirmed", failures);
-        if (ownedFolder is not null && Directory.Exists(ownedFolder)) Directory.Delete(ownedFolder, recursive: true);
+        if (disposed.Count == Backends.Count && ownedFolder is not null && Directory.Exists(ownedFolder)) Directory.Delete(ownedFolder, recursive: true);
+        return CleanupResults;
     }
+    public async ValueTask DisposeAsync() => await CleanupAsync();
 }

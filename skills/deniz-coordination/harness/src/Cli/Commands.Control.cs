@@ -76,12 +76,16 @@ static partial class Commands
         try
         {
             var name = record.Settings.Backend?.Value ?? "opencode";
-            await using var scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
+            var scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
             var backend = scope.Backends[name];
             var run = TaskRun.FromLedger(record, ledger);
-            var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
-            ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
-            return result.State == "done" ? 0 : 1;
+            try
+            {
+                var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
+                ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
+            }
+            finally { await SettleCleanupAsync(ledger, [run], scope.Backends, await scope.CleanupAsync()); }
+            return ledger.LoadResult(task)?.State == "done" ? 0 : 1;
         }
         catch (OpenCodeBackend.SessionReleasedException) when (ledger.TaskStates().GetValueOrDefault(task) == "done") { throw; }
         catch (Exception ex) { return Aborted(ledger, ex); }

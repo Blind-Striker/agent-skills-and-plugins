@@ -379,15 +379,18 @@ sealed class CodexProcess : IAsyncDisposable
         lock (gate) if (!observations.Contains(detail)) observations.Add(detail);
     }
 
-    public async ValueTask DisposeAsync()
+    public async Task<InterruptResult> CleanupAsync()
     {
-        if (disposed) return;
+        if (disposed) return stopping!.Result;
         var stopped = await StopAsync();
-        if (!stopped.Stopped) throw new HarnessException($"Codex stop unconfirmed: {stopped.Detail}");
+        if (!stopped.Stopped) return stopped;
         job?.Dispose();
         process.Dispose();
         disposed = true;
+        return stopped;
     }
+
+    public async ValueTask DisposeAsync() => await CleanupAsync();
 
     public static CodexProcess Start(BackendContext context, string directory, IReadOnlyDictionary<string, string> environment,
         IReadOnlyDictionary<string, string>? configuredEnvironment = null)

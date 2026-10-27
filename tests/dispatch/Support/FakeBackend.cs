@@ -20,7 +20,7 @@ internal sealed class FakeBackend(string name, BackendCapabilities capabilities)
     public Func<IReadOnlyList<WorkerRef>, CancellationToken, Task<PollResult>>? OnPoll { get; set; }
     public Func<WorkerRef, CancellationToken, Task<WorkerReport>>? OnCollect { get; set; }
     public Func<WorkerRef, CancellationToken, Task<ReattachResult>>? OnReattach { get; set; }
-    public Func<WorkerRef, CancellationToken, Task>? OnRelease { get; set; }
+    public Func<WorkerRef, CancellationToken, Task<InterruptResult?>>? OnRelease { get; set; }
     public Func<OrphanQuery, CancellationToken, Task<IReadOnlyList<WorkerRef>>>? OnFindOrphans { get; set; }
     public Func<string, CancellationToken, Task<RouteListing>>? OnListRoutes { get; set; }
     public Func<ValueTask>? OnDispose { get; set; }
@@ -60,7 +60,7 @@ internal sealed class FakeBackend(string name, BackendCapabilities capabilities)
     public Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct) =>
         Call(nameof(ReattachAsync), worker, OnReattach, ct);
 
-    public Task ReleaseAsync(WorkerRef worker, CancellationToken ct)
+    public Task<InterruptResult?> ReleaseAsync(WorkerRef worker, CancellationToken ct)
     {
         Record(nameof(ReleaseAsync), worker, ct);
         return (OnRelease ?? throw Unscripted(nameof(ReleaseAsync)))(worker, ct);

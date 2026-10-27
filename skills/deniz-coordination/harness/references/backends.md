@@ -238,9 +238,15 @@ macOS keeps its existing process start-time rules. Neither platform adopts Windo
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
 timeout, either resume mode settles a started non-final Codex task as failed with outcome `lost`;
 recorded stop requests retain their cancelled or timeout outcome. Use a new run id for a retry. An
-unconfirmed hard stop produces `zombie`, and the harness skips commit and verify while the worker
-may still write.
-Unconfirmed disposal, release and recorded recovery still refuse cleanup: resources and temporary
-homes are retained for retry, and cleanup/recovery can still abort the command. Identity-based
-confirmation also applies to these recorded checks after a supervisor restart, including resume and
-collect; it does not change the unconfirmed-stop exception paths.
+unconfirmed Codex stop produces a failed task with `zombie`, including when its outcome is
+cancelled. The harness records task-scoped stop evidence and skips workspace collection, commit,
+verify and scratch deletion while the worker may still write; sibling tasks continue normally.
+This applies at settlement, release, scope cleanup and recorded recovery, including resume and
+collect after a supervisor restart, on every platform. Stop uncertainty alone never aborts the run;
+genuine supervisor, ledger and cleanup errors still follow their error paths.
+Process/job resources, connections, temporary homes and their owning command folders remain owned
+for a later cleanup attempt until stop is confirmed. A completed turn retains its final text and
+usage even when its stop remains uncertain. A later affirmative identity check during recollection
+can clear restored uncertainty without removing historical ledger evidence. OpenCode's existing
+cancellation semantics are unchanged. Zombie workspace retention during clean is described in
+[the CLI](cli.md#clean-run---force---ledger-dir).

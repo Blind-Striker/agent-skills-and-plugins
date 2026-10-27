@@ -63,6 +63,11 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             if (run.Record.Spec.Kind == "structured") StructuredOutput.Load(ledger, run);
             if (Scratch.Required(run.Record.Spec)) Scratch.Prepare(run, ledger);
             var result = await backend.ReattachAsync(run.SavedWorker(), ct);
+            if (backend.Name == "codex" && result is ReattachResult.Ended recovered)
+            {
+                Settlement.RecordStop(ledger, run, recovered.StopResult, recovered.Outcome);
+                run.ReportReady = true;
+            }
             if (result is ReattachResult.Interrupted && proceed && !run.CancelRequested && !run.TimedOut)
             {
                 Starter(run).CheckAllowed(run);
@@ -85,9 +90,10 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             else if (result is ReattachResult.Live) run.State = TaskState.Running;
             else if (result is ReattachResult.Unreadable unreadable)
             {
-                await backend.ReleaseAsync(run.SavedWorker(), ct);
+                Settlement.RecordStop(ledger, run, await backend.ReleaseAsync(run.SavedWorker(), ct), "unknown");
                 run.WorkerEnded = true;
-                Finish(run, TaskState.Failed, "unknown", unreadable.Reason);
+                if (run.Zombie && backend.Name == "codex") BeginSettle(run, "unknown");
+                else Finish(run, TaskState.Failed, "unknown", unreadable.Reason);
             }
             else
             {
@@ -172,8 +178,14 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                         {
                             if (run.InterruptWork is { } interrupt) await interrupt;
                             if (run.State != TaskState.Running) continue;
-                            run.Zombie = true;
-                            run.WorkerStopped = false;
+                            if (Backend(run).Name == "codex")
+                                Settlement.RecordStop(ledger, run, new(false, ledger.Read().LastOrDefault(line => line.Task == run.Id && line.Type == "hard-stop")
+                                    ?.Data?["detail"]?.GetValue<string>() ?? "stop confirmation deadline passed"), StopOutcome(run));
+                            else
+                            {
+                                run.Zombie = true;
+                                run.WorkerStopped = false;
+                            }
                             BeginSettle(run, StopOutcome(run));
                         }
                     }
@@ -307,7 +319,17 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             try { await Backend(run).InterruptAsync(worker, InterruptKind.Cancel, CancellationToken.None); }
             catch (Exception interruptError)
             { ledger.Write(run.Id, "error", new JsonObject { ["while"] = "interrupt", ["message"] = interruptError.Message }); }
-            try { await Backend(run).ReleaseAsync(worker, CancellationToken.None); }
+            try
+            {
+                var stop = await Backend(run).ReleaseAsync(worker, CancellationToken.None);
+                Settlement.RecordStop(ledger, run, stop, "unknown");
+                if (Backend(run).Name == "codex" && run.Zombie)
+                {
+                    run.StartFailure = $"{operation} failed: {ex.GetType().Name}: {ex.Message}";
+                    BeginSettle(run, "unknown");
+                    return;
+                }
+            }
             catch (Exception releaseError)
             {
                 ledger.Write(run.Id, "error", new JsonObject { ["while"] = "release", ["message"] = releaseError.Message });
@@ -399,14 +421,13 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
                 ledger.Write(run.Id, "status", data);
                 run.NextCheck = time.GetUtcNow().AddSeconds(2);
                 break;
-            // A stop already under way (cancel, timeout) owns its own zombie decision.
-            case WorkerSignal.StopUnconfirmed unconfirmed when run.State == TaskState.Running && run.StopStarted is null:
-                ledger.Write(run.Id, "stop-unconfirmed", new JsonObject { ["outcome"] = unconfirmed.Outcome, ["detail"] = unconfirmed.Detail });
+            // OpenCode's stop ladder keeps its existing cancellation semantics.
+            case WorkerSignal.StopUnconfirmed unconfirmed when run.State == TaskState.Running && (run.StopStarted is null || Backend(run).Name == "codex"):
+                Settlement.RecordStop(ledger, run, new(false, unconfirmed.Detail), unconfirmed.Outcome);
                 escalation.Drop(run.Id, "worker stop unconfirmed");
-                run.Zombie = true;
-                run.WorkerStopped = false;
                 run.ReportReady = true;
-                BeginSettle(run, unconfirmed.Outcome);
+                BeginSettle(run, Backend(run).Name != "codex" ? unconfirmed.Outcome
+                    : run.StopKind is not null ? StopOutcome(run) : run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : unconfirmed.Outcome);
                 break;
             case WorkerSignal.Ended ended when !run.IsFinal && run.State != TaskState.Settling:
                 run.WorkerEnded = true;
@@ -529,7 +550,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
         {
             var result = await Settlement.SettleAsync(Backend(run), ledger, run, outcome, CancellationToken.None, git);
             Finish(run, result.State switch { "done" => TaskState.Done, "cancelled" => TaskState.Cancelled, _ => TaskState.Failed }, result.Outcome, null);
-            if (run.State == TaskState.Done)
+            if (run.State == TaskState.Done && Backend(run).Name != "codex")
             {
                 try { await Backend(run).ReleaseAsync(run.SavedWorker(), CancellationToken.None); }
                 catch (Exception ex) { Error(run, "release", ex); }

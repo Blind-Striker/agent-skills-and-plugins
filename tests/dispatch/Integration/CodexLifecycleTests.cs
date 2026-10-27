@@ -10,6 +10,118 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexLifecycleTests
 {
     [Test]
+    [Timeout(180_000)]
+    public async Task Scope_cleanup_settles_uncertainty_while_the_command_owns_its_ledger(CancellationToken ct)
+    {
+        using var core = new CoreLab();
+        using var codex = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("edit", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        codex.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0]);
+        await using var scope = new BackendScope([]);
+        var backend = codex.Backend();
+        ((IDictionary<string, IWorkerBackend>)scope.Backends).Add("codex", backend);
+        var worker = (await backend.CreateAsync(new(core.Ledger.RunId, run.Id, "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), core.Tree.Repository, new([], []), codex.Environment, null, "full", null), ct)).Worker;
+        var process = backend.WorkerProcesses.Single().Process;
+        var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.SetPendingStop(stop.Task);
+        var cleaning = scope.CleanupAsync();
+        stop.SetResult(new(false, $"pid={process.Id} survives"));
+        var cleanup = await cleaning;
+        var consume = typeof(Commands).GetMethod("SettleCleanupAsync", System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        await (Task)consume.Invoke(null, [core.Ledger, new List<TaskRun> { run }, scope.Backends, cleanup])!;
+        var result = core.Ledger.LoadResult(run.Id);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.State).IsEqualTo("failed");
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "no-final-text" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(result.WorkerStopped).IsFalse();
+        await Assert.That(core.Ledger.LoadRecord(run.Id).Session.Id).IsEqualTo(worker.Id);
+        await Assert.That(core.Ledger.Read().Select(x => x.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(core.Ledger.Read().Single(x => x.Type == "stop-unconfirmed").Data!["detail"]!.GetValue<string>()).IsEqualTo($"pid={process.Id} survives");
+        await Assert.That(Directory.Exists(scope.OwnedFolder)).IsTrue();
+        await scope.DisposeAsync();
+        await Assert.That(Directory.Exists(scope.OwnedFolder)).IsFalse();
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Surviving_identity_fails_only_its_task(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identity seam");
+        using var core = new CoreLab("surviving-identity");
+        using var codex = new CodexLab(core.Tree);
+        File.WriteAllText(Path.Combine(codex.Environment["CODEX_HOME"], "auth.json"), "{}");
+        await using var scope = new BackendScope([]);
+        var backend = codex.Backend();
+        ((IDictionary<string, IWorkerBackend>)scope.Backends).Add("codex", backend);
+        var bad = await core.TaskAsync("bad", ct);
+        var good = await core.TaskAsync("good", ct);
+        foreach (var run in new[] { bad, good })
+        {
+            run.Record.Spec.Kind = "code";
+            run.Record.Spec.Base = "main";
+            run.Record.Spec.Scope = ["a.txt"];
+            run.Record.Spec.Route = "model-y#high";
+            run.Record.Settings.Backend = new() { Value = "codex" };
+            run.Record.Settings.Route = new() { Value = "codex:model-y#high" };
+            run.Record.Settings.Access = new() { Value = "workspace" };
+            run.Record.Settings.Profile = new() { Value = "clean" };
+            run.Record.Workspace = new();
+            await Worktree.PrepareAsync(run, core.Ledger, core.Tree.Repository, ct, core.Git);
+            codex.Write("task-" + run.Id, (CodexLab.Handshake + CodexLab.Thread
+                + "{\"expect\":\"turn/interrupt\",\"reply\":{}}\n"
+                + "{\"notify\":\"thread/tokenUsage/updated\",\"params\":{\"threadId\":\"$threadId\",\"turnId\":\"$turnId\",\"tokenUsage\":{\"total\":{\"inputTokens\":17,\"outputTokens\":3}}}}\n"
+                + CodexLab.Final).Replace("$threadId", "thread-" + run.Id));
+            await new TaskStarter(backend, core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, core.Git).StartAsync(run, ct);
+        }
+        var process = backend.WorkerProcesses.Single(x => x.Worker.TaskId == bad.Id).Process;
+        const int survivor = int.MaxValue;
+        var start = process.StartTime.AddSeconds(1);
+        var snapshot = process.ReadSnapshot;
+        var limited = process.QueryLimitedStartTime;
+        process.ReadSnapshot = _ => new() { [process.Id] = (Environment.ProcessId, process.StartTime), [survivor] = (process.Id, start) };
+        process.OpenProcess = pid => pid == survivor ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        process.QueryLimitedStartTime = pid => pid == survivor ? start : limited(pid);
+        process.RefreshDescendants();
+        File.WriteAllBytes(Path.Combine(bad.Record.Workspace.Path!, "a.txt"), [0, 255, 10, 42]);
+        var marker = Path.Combine(core.Tree.Root, "verify-ran");
+        bad.Record.Spec.Verify = [OperatingSystem.IsWindows() ? $"Set-Content -LiteralPath '{marker}' -Value ran" : $"touch '{marker}'"];
+        var before = await core.Git.CheckAsync(bad.Record.Workspace.Path!, ct, "rev-parse", "HEAD");
+        try
+        {
+            foreach (var run in new[] { bad, good }) await backend.InterruptAsync(run.SavedWorker(), InterruptKind.Cancel, ct);
+            var scheduler = new Scheduler(scope.Backends, core.Ledger, core.Tree.Repository, AllowList.From(null), core.Policy, 2, ct, core.Git);
+            await Assert.That(await scheduler.RunAsync([bad, good])).IsEqualTo(1);
+            Exception? cleanup = null;
+            try { await scope.DisposeAsync(); }
+            catch (Exception exception) { cleanup = exception; }
+            await Assert.That(cleanup).IsNull();
+            var result = core.Ledger.LoadResult(bad.Id)!;
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(result.WorkerStopped).IsFalse();
+            await Assert.That(result.Commit).IsNull();
+            await Assert.That(result.Tokens!.Input).IsEqualTo(17);
+            await Assert.That(result.Tokens.Output).IsEqualTo(3);
+            await Assert.That(File.ReadAllText(Path.Combine(core.Ledger.TaskDir(bad.Id), "final.md"))).Contains("Completed.");
+            await Assert.That(result.Verify).IsEmpty();
+            await Assert.That(File.ReadAllBytes(Path.Combine(bad.Record.Workspace.Path!, "a.txt"))).IsEquivalentTo(new byte[] { 0, 255, 10, 42 }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            await Assert.That(await core.Git.CheckAsync(bad.Record.Workspace.Path!, ct, "rev-parse", "HEAD")).IsEqualTo(before);
+            await Assert.That(File.Exists(marker)).IsFalse();
+            await Assert.That(core.Ledger.LoadResult(good.Id)!.Failures).IsEmpty();
+            await Assert.That(core.Ledger.LoadResult(good.Id)!.State).IsEqualTo("done");
+            await Assert.That(core.Ledger.Read().Where(x => x.Type == "aborted")).IsEmpty();
+        }
+        finally
+        {
+            process.OpenProcess = Process.GetProcessById;
+            process.QueryLimitedStartTime = limited;
+            process.ReadSnapshot = snapshot;
+            await scope.DisposeAsync();
+        }
+    }
+
+    [Test]
     [Timeout(60_000)]
     public async Task Linux_backend_persists_kernel_identity_for_root_and_descendants(CancellationToken cancellationToken)
     {

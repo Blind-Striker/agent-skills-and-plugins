@@ -30,7 +30,7 @@ internal sealed class CoreLab : IDisposable
         Backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Report", new(), null, true, [], null, true));
         Backend.OnAnswer = (_, _) => Task.FromResult(new AnswerResult(true, null));
         Backend.OnInterrupt = (_, _) => Task.FromResult(new InterruptResult(false, "interrupt"));
-        Backend.OnRelease = (_, _) => Task.CompletedTask;
+        Backend.OnRelease = (_, _) => Task.FromResult<InterruptResult?>(null);
     }
 
     public async Task<TaskRun> TaskAsync(string id, CancellationToken ct)

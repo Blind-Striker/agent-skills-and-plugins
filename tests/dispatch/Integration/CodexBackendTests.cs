@@ -8,6 +8,50 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexBackendTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [NotInParallel]
+    [Timeout(180_000)]
+    public async Task Restart_stop_uncertainty_is_typed_and_settles_only_its_task(bool resume, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identity seam");
+        using var core = new CoreLab();
+        using var lab = new CodexLab(core.Tree);
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.SaveWorker(new("codex", run.Id, "thread", "turn", new()
+        {
+            ["pid"] = int.MaxValue, ["processStartTime"] = DateTime.UnixEpoch.ToString("O"),
+        }), core.Ledger);
+        var restored = TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger);
+        await using var backend = lab.Backend();
+        backend.OpenProcess = _ => throw new System.ComponentModel.Win32Exception(5, "open denied");
+        backend.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5, "query denied");
+        backend.ReadSnapshot = _ => new() { [int.MaxValue] = (0, DateTime.UnixEpoch) };
+        if (resume)
+        {
+            var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["codex"] = backend }, core.Ledger,
+                core.Tree.Repository, AllowList.From(null), core.Policy, 1, ct, core.Git);
+            await Assert.That(await scheduler.ResumeAsync([restored], false)).IsEqualTo(1);
+        }
+        else
+        {
+            var result = await Settlement.SettleAsync(backend, core.Ledger, restored, null, ct, core.Git);
+            core.Ledger.Write(run.Id, "final", new() { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
+        }
+        await backend.DisposeAsync();
+        var saved = core.Ledger.LoadResult(run.Id)!;
+        await Assert.That(saved.State).IsEqualTo("failed");
+        await Assert.That(saved.Outcome).IsEqualTo("lost");
+        await Assert.That(saved.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
+        await Assert.That(saved.WorkerStopped).IsFalse();
+        await Assert.That(saved.Verify).IsEmpty();
+        await Assert.That(core.Ledger.Read().Select(x => x.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, CollectionOrdering.Matching);
+        await Assert.That(core.Ledger.Read().Single(x => x.Type == "stop-unconfirmed").Data!["detail"]!.GetValue<string>()).IsEqualTo(
+            $"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={DateTime.UnixEpoch:O}; currentStartTime={DateTime.UnixEpoch:O}; snapshot=alive; kill descendant pid={int.MaxValue}: open denied");
+    }
+
+    [Test]
     [Arguments("reattach")]
     [Arguments("release")]
     [Arguments("resume")]

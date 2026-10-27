@@ -21,6 +21,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     internal Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? ReadSnapshot { get; set; }
     internal IEnumerable<(WorkerRef Worker, CodexProcess Process)> WorkerProcesses => connections.Keys
         .Where(connection => connection.Worker is not null).Select(connection => (connection.Worker!, connection.Process));
+    internal bool HasResources => !connections.IsEmpty;
+    public List<(WorkerRef Worker, InterruptResult Stop)> CleanupResults { get; } = [];
 
     public static RouteRef ParseRoute(string text)
     {
@@ -122,12 +124,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     }
 
     async Task<Connection> ConnectAsync(string directory, IReadOnlyDictionary<string, string> variables, CodexHome? home, CancellationToken ct,
-        IReadOnlyDictionary<string, string>? configuredEnvironment = null)
+        IReadOnlyDictionary<string, string>? configuredEnvironment = null, WorkerLaunch? launch = null)
     {
         CodexProcess process;
         try { process = CodexProcess.Start(context, directory, variables, configuredEnvironment); }
         catch { home?.Dispose(); throw; }
-        var connection = new Connection(process, home);
+        var connection = new Connection(process, home) { Launch = launch };
         process.DescendantUnobservable = (pid, message) => signals.Writer.TryWrite(new WorkerSignal.Fault(connection.Launch?.TaskId,
             "descendant-unobservable", $"pid={pid}; {message}"));
         connections[connection] = 0;
@@ -150,7 +152,26 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             await connection.Rpc.NotifyAsync("initialized", ct);
             return connection;
         }
-        catch { await DisposeConnectionAsync(connection); throw; }
+        catch (Exception exception)
+        {
+            await FailedCreationAsync(connection, exception);
+            throw;
+        }
+    }
+
+    WorkerRef Reference(Connection connection) => (connection.Worker ?? new(Name, connection.Launch!.TaskId,
+        connection.Process.Id.ToString(CultureInfo.InvariantCulture), null, new())) with { State = State(connection) };
+
+    async Task FailedCreationAsync(Connection connection, Exception exception)
+    {
+        var stopped = await DisposeConnectionAsync(connection);
+        if (!stopped.Stopped && connection.Launch is not null)
+        {
+            var worker = Reference(connection);
+            connection.Worker = worker;
+            workers[worker.Id] = connection;
+            throw new WorkerCreationException(worker, exception.Message);
+        }
     }
 
     public async Task<CreateResult> CreateAsync(WorkerLaunch launch, CancellationToken ct)
@@ -171,16 +192,17 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         }
         variables["CODEX_HOME"] = home.Home;
         Connection connection;
-        connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment);
+        connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment, launch);
         try
         {
             if (home.Temporary && !home.MatchesReportedHome(connection.ReportedHome))
             {
                 var fallback = home.Fallback(userHome, "temporary Codex home marker missing from reported home");
-                await DisposeConnectionAsync(connection);
+                if (!(await DisposeConnectionAsync(connection)).Stopped)
+                    throw new WorkerCreationException(Reference(connection), "Codex home fallback stop unconfirmed");
                 home = fallback;
                 variables["CODEX_HOME"] = home.Home;
-                connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment);
+                connection = await ConnectAsync(launch.Directory, variables, home, ct, launch.ConfiguredEnvironment, launch);
             }
             connection.Launch = launch;
             var model = models.FirstOrDefault(x => x.Id == launch.Route.Model || x.Model == launch.Route.Model);
@@ -209,7 +231,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 launch.Modes.Access == "full" ? "none" : "sandbox", "approval-gate"),
                 new($"codex:{thread.Model}#{connection.Effort}", "", thread.Model, "", []));
         }
-        catch { await DisposeConnectionAsync(connection); throw; }
+        catch (Exception exception)
+        {
+            await FailedCreationAsync(connection, exception);
+            throw;
+        }
     }
 
     static JsonObject SandboxPolicy(WorkerLaunch launch) => launch.Modes.Access switch
@@ -239,6 +265,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             ["linuxBootId"] = identity.LinuxBootId, ["linuxStartTicks"] = identity.LinuxStartTicks,
         }).ToArray()),
     };
+
+    static void SaveState(Connection connection, WorkerRef worker)
+    {
+        lock (connection.StateGate)
+            foreach (var (name, value) in State(connection)) worker.State[name] = value?.DeepClone();
+    }
 
     public async Task<WorkerRef> PromptAsync(WorkerRef worker, WorkerPrompt prompt, CancellationToken ct)
     {
@@ -341,6 +373,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                                 // A process that survives the stop can hold stdout open, so this loop may never
                                 // reach its finally: report the unconfirmed stop here.
                                 var stop = await connection.Process.StopAsync();
+                                connection.StopResult = stop;
                                 if (!stop.Stopped) signals.Writer.TryWrite(new WorkerSignal.StopUnconfirmed(worker.TaskId, worker.Turn!, execution, stop.Detail));
                             }
                             else if (!taskThread)
@@ -363,6 +396,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         finally
         {
             var stopped = await connection.Process.StopAsync();
+            connection.StopResult = stopped;
             connection.Stopped = stopped.Stopped;
             if (connection.Outcome is null)
             {
@@ -528,8 +562,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             ct.ThrowIfCancellationRequested();
             if (!workers.TryGetValue(worker.Id, out var connection)) continue;
             connection.Process.RefreshDescendants();
-            lock (connection.StateGate)
-                foreach (var (name, value) in State(connection)) worker.State[name] = value?.DeepClone();
+            SaveState(connection, worker);
             if (connection.Ended is { } ended) signals.Writer.TryWrite(ended);
         }
         return Task.FromResult(new PollResult([]));
@@ -541,11 +574,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         {
             if (await ReattachAsync(worker, ct) is ReattachResult.Unreadable unreadable) throw new HarnessException(unreadable.Reason);
             var recovery = recovered[worker.Id];
-            return new("lost", null, new(), null, false, [], recovery.Detail, recovery.Stopped);
+            return new("lost", null, new(), null, false, [], recovery.Detail, recovery.Stopped, StopResult: recovery);
         }
         // Prefer the pump's end, which records the stop. A process that survives the stop can keep the
         // pump open after the turn ended: then the turn's report is complete without it.
         await Task.WhenAny(connection.Pump, Task.WhenAll(connection.TurnEnded.Task, Task.Delay(TimeSpan.FromSeconds(10), ct))).WaitAsync(ct);
+        SaveState(connection, worker);
         lock (connection.StateGate)
         {
             var error = connection.ExecutionError;
@@ -558,7 +592,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                 CacheRead = usage.Sum(x => x.CachedInputTokens), CacheWrite = usage.Sum(x => x.CacheWriteInputTokens),
             };
             return new(connection.Outcome ?? "lost", connection.FinalText ?? connection.LastText, totals, null, connection.UsageComplete,
-                connection.Routes.ToArray(), error, connection.Stopped, ContextWindow: connection.ContextWindow, Calls: connection.Calls.ToArray());
+                connection.Routes.ToArray(), error, connection.Stopped, ContextWindow: connection.ContextWindow, Calls: connection.Calls.ToArray(), StopResult: connection.StopResult);
         }
     }
     public async Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct)
@@ -567,31 +601,34 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         {
             var stopped = workers.TryGetValue(worker.Id, out var connection) ? await connection.Process.StopAsync()
                 : await StopRecordedAsync(worker, ct);
-            if (!stopped.Stopped) return new ReattachResult.Unreadable($"Codex stop unconfirmed: {stopped.Detail}");
-            if (connection is not null)
+            if (stopped.Stopped && connection is not null)
             {
                 await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
-            CodexHome.DeleteRecorded(context, worker);
+            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker);
             recovered[worker.Id] = stopped;
         }
-        return new ReattachResult.Ended("lost");
+        return new ReattachResult.Ended("lost", recovered[worker.Id]);
     }
-    public async Task ReleaseAsync(WorkerRef worker, CancellationToken ct)
+    public async Task<InterruptResult?> ReleaseAsync(WorkerRef worker, CancellationToken ct)
     {
+        if (released.ContainsKey(worker.Id)) return recovered[worker.Id];
+        InterruptResult stopped;
         if (workers.TryGetValue(worker.Id, out var connection))
         {
-            await DisposeConnectionAsync(connection);
-            workers.TryRemove(worker.Id, out _);
+            stopped = await DisposeConnectionAsync(connection);
+            SaveState(connection, worker);
+            if (stopped.Stopped) workers.TryRemove(worker.Id, out _);
         }
         else
         {
-            var stopped = await StopRecordedAsync(worker, ct);
-            if (!stopped.Stopped) throw new HarnessException($"Codex release unconfirmed: {stopped.Detail}");
-            CodexHome.DeleteRecorded(context, worker);
+            stopped = recovered.TryGetValue(worker.Id, out var previous) && previous.Stopped ? previous : await StopRecordedAsync(worker, ct);
+            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker);
         }
-        released[worker.Id] = 0;
+        recovered[worker.Id] = stopped;
+        if (stopped.Stopped) released[worker.Id] = 0;
+        return stopped;
     }
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) => Task.FromResult<IReadOnlyList<WorkerRef>>([]);
     Task<InterruptResult> StopRecordedAsync(WorkerRef worker, CancellationToken ct) =>
@@ -602,27 +639,35 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         return new(models.Select(model => new RouteEntry(new("codex", model.Model, null), true,
             model.SupportedReasoningEfforts.Select(x => x.ReasoningEffort).ToList(), model.Model)).ToList(), [], []);
     }
-    public async ValueTask DisposeAsync()
+    public async Task<IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)>> CleanupAsync()
     {
         var failures = new List<Exception>();
+        CleanupResults.Clear();
         foreach (var connection in connections.Keys)
         {
             try
             {
-                await DisposeConnectionAsync(connection);
-                if (connection.Worker is { } worker) workers.TryRemove(worker.Id, out _);
+                var stopped = await DisposeConnectionAsync(connection);
+                var worker = connection.Launch is null ? null : Reference(connection);
+                if (worker is not null) CleanupResults.Add((worker, stopped));
+                if (!stopped.Stopped) continue;
+                if (connection.Worker is { } releasedWorker) workers.TryRemove(releasedWorker.Id, out _);
                 if (ReferenceEquals(probe, connection)) probe = null;
             }
             catch (Exception ex) { failures.Add(ex); }
         }
         if (failures.Count > 0) throw new AggregateException("Codex cleanup unconfirmed", failures);
-        signals.Writer.TryComplete();
+        if (!HasResources) signals.Writer.TryComplete();
+        return CleanupResults;
     }
 
-    async ValueTask DisposeConnectionAsync(Connection connection)
+    public async ValueTask DisposeAsync() => await CleanupAsync();
+
+    async Task<InterruptResult> DisposeConnectionAsync(Connection connection)
     {
-        await connection.DisposeAsync();
-        connections.TryRemove(connection, out _);
+        var stopped = await connection.CleanupAsync();
+        if (stopped.Stopped) connections.TryRemove(connection, out _);
+        return stopped;
     }
 
     sealed class Connection(CodexProcess process, CodexHome? home) : IAsyncDisposable
@@ -645,6 +690,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public string? LastText { get; set; }
         public string? ExecutionError { get; set; }
         public bool Stopped { get; set; }
+        public InterruptResult? StopResult { get; set; }
         public WorkerSignal.Ended? Ended { get; set; }
         public int Retries { get; set; }
         public Dictionary<string, CodexTokenUsageBreakdown> Usage { get; } = new(StringComparer.Ordinal);
@@ -656,17 +702,20 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         public Task Pump { get; set; } = Task.CompletedTask;
         public TaskCompletionSource TurnEnded { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         bool disposed;
-        public async ValueTask DisposeAsync()
+        public async Task<InterruptResult> CleanupAsync()
         {
-            if (disposed) return;
+            if (disposed) return StopResult!;
             var stopped = await Process.StopAsync();
-            if (!stopped.Stopped) throw new HarnessException($"Codex stop unconfirmed: {stopped.Detail}");
+            StopResult = stopped;
+            if (!stopped.Stopped) return stopped;
             await Rpc.DisposeAsync();
             await Pump;
             Home?.Dispose();
-            await Process.DisposeAsync();
+            await Process.CleanupAsync();
             disposed = true;
+            return stopped;
         }
+        public async ValueTask DisposeAsync() => await CleanupAsync();
     }
 
     sealed record HeldRequest(CodexServerRequest Request, BlockerRef Blocker)

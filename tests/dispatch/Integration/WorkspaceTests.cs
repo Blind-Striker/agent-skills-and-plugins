@@ -7,6 +7,35 @@ namespace Dispatch.Tests.Integration;
 public sealed class WorkspaceTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_a_clean_merged_zombies_worktree_and_scratch_until_forced(CancellationToken ct)
+    {
+        using var lab = new CoreLab("zombie-clean");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = run.Record.Workspace.Path!;
+        var temp = Locations.TaskTemp(run.Id, lab.Ledger.RunId);
+        File.WriteAllText(Path.Combine(temp, "keep"), "scratch bytes");
+        var other = Path.Combine(Directory.CreateDirectory(Path.Combine(lab.Tree.Root, "unrelated")).FullName, "keep");
+        File.WriteAllText(other, "unrelated bytes");
+        lab.Ledger.SaveResult(new() { Run = lab.Ledger.RunId, Task = run.Id, State = "failed", WorkerStopped = false, Failures = ["zombie"] });
+        lab.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["outcome"] = "succeeded", ["detail"] = "pid=1972 survives" });
+        var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
+        await Assert.That(removed).IsFalse();
+        await Assert.That(output).IsEqualTo("inspect: retained zombie worktree and scratch; --force removes them anyway" + Environment.NewLine);
+        await Assert.That(File.ReadAllText(Path.Combine(path, "README.md"))).IsEqualTo("# Lab repository\n");
+        await Assert.That(File.ReadAllText(Path.Combine(temp, "keep"))).IsEqualTo("scratch bytes");
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, true, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(path)).IsFalse();
+        await Assert.That(Directory.Exists(temp)).IsFalse();
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["branch", "--format=%(refname:short)"], ct)).IsEqualTo("main");
+        await Assert.That(File.ReadAllText(other)).IsEqualTo("unrelated bytes");
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(60_000)]

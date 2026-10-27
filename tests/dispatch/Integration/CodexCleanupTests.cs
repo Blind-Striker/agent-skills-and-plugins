@@ -7,6 +7,77 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexCleanupTests
 {
     [Test]
+    [Timeout(180_000)]
+    public async Task Recorded_unconfirmed_release_returns_evidence_and_retains_home_until_retry(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identity seam");
+        using var lab = new CodexLab();
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        lab.Write("task-edit", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0]);
+        await using var original = lab.Backend();
+        var worker = (await original.CreateAsync(Launch(lab, "edit"), ct)).Worker;
+        await original.InterruptAsync(worker, InterruptKind.Hard, ct);
+        var home = worker.State["codexHome"]!.GetValue<string>();
+        worker.State["pid"] = null;
+        worker.State["descendants"] = new JsonArray(new JsonObject { ["pid"] = int.MaxValue, ["startTime"] = DateTime.UnixEpoch.ToString("O") });
+        await using var recovered = lab.Backend();
+        recovered.OpenProcess = _ => throw new System.ComponentModel.Win32Exception(5, "open denied");
+        recovered.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5, "query denied");
+        recovered.ReadSnapshot = _ => new() { [int.MaxValue] = (0, DateTime.UnixEpoch) };
+        var result = await recovered.ReleaseAsync(worker, ct);
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Stopped).IsFalse();
+        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={DateTime.UnixEpoch:O}; currentStartTime={DateTime.UnixEpoch:O}; snapshot=alive; kill descendant pid={int.MaxValue}: open denied");
+        await Assert.That(Directory.Exists(home)).IsTrue();
+        var ended = (ReattachResult.Ended)await recovered.ReattachAsync(worker, ct);
+        await Assert.That(ended.Outcome).IsEqualTo("lost");
+        await Assert.That(ended.StopResult).IsEqualTo(result);
+        recovered.ReadSnapshot = _ => new();
+        await Assert.That((await recovered.ReleaseAsync(worker, ct))!.Stopped).IsTrue();
+        await Assert.That(Directory.Exists(home)).IsFalse();
+    }
+
+    [Test]
+    [Timeout(180_000)]
+    public async Task Initialization_cleanup_keeps_task_identity_before_a_thread_exists(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        lab.Write("task-edit", "{\"hang\":true}");
+        await using var backend = lab.Backend();
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var creating = backend.CreateAsync(Launch(lab, "edit"), cancel.Token);
+        var connections = (System.Collections.IEnumerable)typeof(CodexBackend).GetField("connections",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(backend)!;
+        var entry = connections.Cast<object>().Single();
+        var connection = entry.GetType().GetProperty("Key")!.GetValue(entry)!;
+        var process = (CodexProcess)connection.GetType().GetProperty("Process")!.GetValue(connection)!;
+        var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.SetPendingStop(stop.Task);
+        cancel.Cancel();
+        stop.SetResult(new(false, "initialization stop uncertain"));
+        var error = await Assert.ThrowsAsync<WorkerCreationException>(() => creating);
+        await Assert.That(error!.Worker.TaskId).IsEqualTo("edit");
+        await Assert.That(error.Worker.Turn).IsNull();
+        await Assert.That(error.Worker.State["pid"]!.GetValue<int>()).IsEqualTo(process.Id);
+        var home = error.Worker.State["codexHome"]!.GetValue<string>();
+        await Assert.That(Directory.Exists(home)).IsTrue();
+        var cleanupStop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.SetPendingStop(cleanupStop.Task);
+        var cleaning = backend.CleanupAsync();
+        cleanupStop.SetResult(new(false, "initialization stop uncertain"));
+        var results = await cleaning;
+        await Assert.That(results.Select(item => item.Worker.TaskId)).IsEquivalentTo(new[] { "edit" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        var result = results.Single();
+        await Assert.That(result.Worker.TaskId).IsEqualTo("edit");
+        await Assert.That(result.Worker.State["pid"]!.GetValue<int>()).IsEqualTo(process.Id);
+        await Assert.That(result.Stop).IsEqualTo(new InterruptResult(false, "initialization stop uncertain"));
+        await Assert.That(Directory.Exists(home)).IsTrue();
+        await Assert.That((await backend.ReleaseAsync(error.Worker, ct))!.Stopped).IsTrue();
+        await Assert.That(Directory.Exists(home)).IsFalse();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]
@@ -76,8 +147,8 @@ public sealed class CodexCleanupTests
         var release = backend.ReleaseAsync(created.Worker, cancellationToken);
         stop.SetResult(new(false, "process stop not confirmed"));
 
-        var failure = await Assert.ThrowsAsync<HarnessException>(() => release);
-        await Assert.That(failure!.Message).Contains("unconfirmed");
+        var result = await release;
+        await Assert.That(result).IsEqualTo(new InterruptResult(false, "process stop not confirmed"));
         await Assert.That(Directory.Exists(home)).IsTrue();
         await Assert.That((await backend.InterruptAsync(created.Worker, InterruptKind.Hard, cancellationToken)).Stopped).IsTrue();
         await backend.ReleaseAsync(created.Worker, cancellationToken);
@@ -110,8 +181,11 @@ public sealed class CodexCleanupTests
         var disposing = scope.DisposeAsync().AsTask();
         stop.SetResult(new(false, "process stop not confirmed"));
 
-        var failures = await Assert.ThrowsAsync<AggregateException>(() => disposing);
-        await Assert.That(failures!.Flatten().InnerExceptions.Count).IsEqualTo(1);
+        await disposing;
+        await Assert.That(scope.CleanupResults.Select(item => item.Worker.Id)).Contains(failedWorker.Id);
+        await Assert.That(scope.CleanupResults.Select(item => item.Worker.Id)).Contains(otherWorker.Id);
+        var result = scope.CleanupResults.Single(item => item.Worker.Id == failedWorker.Id);
+        await Assert.That(result.Stop).IsEqualTo(new InterruptResult(false, "process stop not confirmed"));
         await Assert.That(Directory.Exists(folder)).IsTrue();
         await Assert.That(Directory.Exists(failedWorker.State["codexHome"]!.GetValue<string>())).IsTrue();
         await Assert.That(Directory.Exists(otherWorker.State["codexHome"]!.GetValue<string>())).IsFalse();

@@ -12,6 +12,24 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task Unconfirmed_disposal_retains_process_resources_for_confirmed_retry(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository,
+            Scenario(tree, "{\"notify\":\"ready\",\"params\":{}}\n{\"hang\":true}"));
+        using var reader = new StreamReader(process.Stdout);
+        await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+        var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.SetPendingStop(stop.Task);
+        var disposing = process.DisposeAsync().AsTask();
+        stop.SetResult(new(false, "pid survives"));
+        await Assert.That(async () => await disposing).ThrowsNothing();
+        await Assert.That(process.HasExited).IsFalse();
+        await Assert.That((await process.CleanupAsync()).Stopped).IsTrue();
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(60_000)]

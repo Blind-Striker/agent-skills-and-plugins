@@ -115,7 +115,7 @@ public sealed class UserPathGuardTests
         OnCreate = (launch, _) => Task.FromResult(new CreateResult(new("opencode", launch.TaskId, "worker", null, new()), new("none", "none", "policy"))),
         OnPoll = (_, _) => Task.FromResult(new PollResult([])),
         OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Report", new(), null, true, [], null, true)),
-        OnRelease = (_, _) => Task.CompletedTask,
+        OnRelease = (_, _) => Task.FromResult<InterruptResult?>(null),
         OnFindOrphans = (_, _) => Task.FromResult<IReadOnlyList<WorkerRef>>([]),
     };
 }

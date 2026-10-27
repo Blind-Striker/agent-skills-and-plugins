@@ -397,6 +397,10 @@ Takes the run lock and requires completed setup. Reloads the task and frozen eff
 collects backend evidence and repeats settlement: final text, commit/diff, verification or structured
 validation. Prints events and writes a final event. A task needs a recorded session and workspace.
 It does not re-prompt. A released done opencode session is not collectible.
+For Codex, stop is checked before collecting workspace bytes, committing or verifying. Unconfirmed
+stop writes task-scoped evidence and a failed final event with `zombie` and `workerStopped: false`,
+returns 1 without `aborted`, and retains worktree and scratch. A later confirmed check can clear
+restored uncertainty for recollection; historical stop evidence remains.
 
 | Exit | Type | Meaning |
 |---|---|---|
@@ -412,6 +416,10 @@ sessions settle as failed. With it, queued tasks start and interrupted opencode 
 fixed continuation line when their server is recoverable. Fenced opencode tasks whose server is gone
 cannot continue and settle as `lost`, without starting a replacement. Started Codex tasks cannot continue; either form recovers their backend
 outcome as `lost`, with recorded cancellation or timeout taking precedence in settlement.
+An unconfirmed Codex stop overrides cancelled state: that task fails with `zombie`, preserving its
+outcome and work, while other tasks reconcile normally. Release and scope-cleanup uncertainty also
+settle only the affected task; they do not abort recovery. Genuine supervisor or ledger failures
+still abort the command. OpenCode cancellation semantics are unchanged.
 Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
 status summary. Recovery is backend-specific; see [backends](backends.md).
 
@@ -444,6 +452,10 @@ Refuses while supervised. Releases opencode sessions, removes recognized worktre
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
+It also retains a recorded zombie task's worktree and scratch, even when clean and merged, printing
+`<task>: retained zombie worktree and scratch; --force removes them anyway` and returning 1.
+With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
+Git-configuration, lock and in-place protections still apply.
 
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
