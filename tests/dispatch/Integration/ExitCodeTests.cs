@@ -12,6 +12,67 @@ public sealed class ExitCodeTests
     const string CacheWarning = "this harness runs from Codex's plugin cache, which keeps one version and may replace it during a run; start it from a stable copy outside that cache";
 
     [Test]
+    [NotInParallel]
+    [Timeout(60_000)]
+    public async Task Run_zombie_is_task_failure_not_abort_and_clean_force_keeps_the_unconfirmed_home(CancellationToken ct)
+    {
+        using var core = new CoreLab("run-zombie", recorded: false);
+        using var codex = new CodexLab(core.Tree);
+        await LabRepo.CreateAsync(core.Tree, ct);
+        codex.CodeTask();
+        ConfigLayers.Initialize(Args.Parse([]));
+        File.WriteAllText(Path.Combine(codex.Environment["CODEX_HOME"], "auth.json"), "{}");
+        CodexHome? home = null;
+        var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false))
+        {
+            OnProbe = (_, _) => Task.FromResult(new BackendProbe(true, "fixture", [], [])),
+            OnValidate = (plans, _) => Task.FromResult<IReadOnlyList<LiveCheck>>(plans.Select(plan => new LiveCheck(plan.TaskId, [], [], "model-y", "clean", null)).ToArray()),
+            OnPoll = (_, _) => Task.FromResult(new PollResult([])),
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Completed.", new(), null, true, [], null, true)),
+            OnRelease = (_, _) => Task.FromResult<InterruptResult?>(new(false, "recorded identity uncertain")),
+        };
+        backend.OnCreate = (launch, _) =>
+        {
+            home = CodexHome.Create(new(Path.Combine(Locations.ControlDir(launch.RunId), "profiles"), CodexLab.Executable, new Dictionary<string, string>()),
+                launch, codex.Environment["CODEX_HOME"]);
+            return Task.FromResult(new CreateResult(new("codex", launch.TaskId, "worker", null, new()
+            {
+                ["pid"] = Environment.ProcessId, ["codexHome"] = home.Home, ["codexHomeTemporary"] = true,
+                ["codexHomeMarkerName"] = home.MarkerName, ["codexHomeMarkerText"] = home.MarkerText,
+            }), new("sandbox", "sandbox", "approval-gate")));
+        };
+        backend.OnPrompt = (input, _) =>
+        {
+            backend.Emit(new WorkerSignal.Ended(input.Worker.TaskId, "turn", "succeeded", null));
+            return Task.FromResult(input.Worker with { Turn = "turn" });
+        };
+        try
+        {
+            await Assert.That(await Commands.RunAsync(Args.Parse(["run", codex.Tasks, "--repo", core.Tree.Repository]), ct,
+                backendFactory: () => backend, userPathReader: () => null)).IsEqualTo(1);
+            var ledger = new Ledger(Commands.CreateRunId("codex-run"));
+            var result = ledger.LoadResult("edit")!;
+            await Assert.That(result.State).IsEqualTo("failed");
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie" }, CollectionOrdering.Matching);
+            await Assert.That(result.WorkerStopped).IsFalse();
+            await Assert.That(ledger.Read().Where(line => line.Type == "aborted")).IsEmpty();
+            await Assert.That(ledger.Read().Count(line => line.Task == "edit" && line.Type == "final")).IsEqualTo(1);
+            var record = ledger.LoadRecord("edit");
+            await Assert.That(Directory.Exists(record.Workspace.Path)).IsTrue();
+            await Assert.That(Directory.Exists(home!.Home)).IsTrue();
+            await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", ledger.RunId, "--force"]), ct)).IsEqualTo(1);
+            await Assert.That(Directory.Exists(record.Workspace.Path)).IsFalse();
+            await Assert.That(Directory.Exists(home.Home)).IsTrue();
+            record.BackendState.Pid = int.MaxValue;
+            ledger.SaveRecord(record);
+            await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", ledger.RunId]), ct)).IsEqualTo(0);
+            await Assert.That(Directory.Exists(home.Home)).IsFalse();
+            await Assert.That(ledger.Read().Where(line => line.Type == "aborted")).IsEmpty();
+        }
+        finally { home?.Dispose(); }
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Plugin_cache_warning_uses_the_documented_file_app_entry(CancellationToken ct)
     {

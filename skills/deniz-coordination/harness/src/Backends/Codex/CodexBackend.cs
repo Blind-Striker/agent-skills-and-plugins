@@ -22,7 +22,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     internal IEnumerable<(WorkerRef Worker, CodexProcess Process)> WorkerProcesses => connections.Keys
         .Where(connection => connection.Worker is not null).Select(connection => (connection.Worker!, connection.Process));
     internal bool HasResources => !connections.IsEmpty;
-    public List<(WorkerRef Worker, InterruptResult Stop)> CleanupResults { get; } = [];
+    readonly List<(WorkerRef Worker, InterruptResult Stop)> cleanupResults = [];
+    public IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)> CleanupResults => cleanupResults.AsReadOnly();
 
     public static RouteRef ParseRoute(string text)
     {
@@ -551,7 +552,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         if (!workers.TryGetValue(worker.Id, out var connection))
             return kind is InterruptKind.Hard or InterruptKind.Shutdown ? await StopRecordedAsync(worker, ct)
                 : new(false, "no live connection: a recorded worker stops only by a hard stop");
-        if (kind is InterruptKind.Hard or InterruptKind.Shutdown) return await connection.Process.StopAsync();
+        if (kind is InterruptKind.Hard or InterruptKind.Shutdown)
+        {
+            var stopped = await connection.Process.StopAsync();
+            if (!stopped.Stopped) connection.StopResult = stopped;
+            return stopped;
+        }
         await connection.Rpc.RequestAsync("turn/interrupt", new CodexTurnInterruptParams(worker.Id, worker.Turn!), CodexJson.Wire.CodexTurnInterruptParams, cancellationToken: ct);
         return new(false, "turn/interrupt sent");
     }
@@ -577,8 +583,11 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             return new("lost", null, new(), null, false, [], recovery.Detail, recovery.Stopped, StopResult: recovery);
         }
         // Prefer the pump's end, which records the stop. A process that survives the stop can keep the
-        // pump open after the turn ended: then the turn's report is complete without it.
-        await Task.WhenAny(connection.Pump, Task.WhenAll(connection.TurnEnded.Task, Task.Delay(TimeSpan.FromSeconds(10), ct))).WaitAsync(ct);
+        // pump open after the turn ended: then the turn's report is complete without it. After an
+        // unconfirmed stop, even a mid-turn abort must settle from the evidence available by the deadline.
+        var deadline = Task.Delay(TimeSpan.FromSeconds(10), ct);
+        await Task.WhenAny(connection.Pump, connection.StopResult is { Stopped: false } ? deadline
+            : Task.WhenAll(connection.TurnEnded.Task, deadline)).WaitAsync(ct);
         SaveState(connection, worker);
         lock (connection.StateGate)
         {
@@ -642,14 +651,14 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     public async Task<IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)>> CleanupAsync()
     {
         var failures = new List<Exception>();
-        CleanupResults.Clear();
+        cleanupResults.Clear();
         foreach (var connection in connections.Keys)
         {
             try
             {
                 var stopped = await DisposeConnectionAsync(connection);
                 var worker = connection.Launch is null ? null : Reference(connection);
-                if (worker is not null) CleanupResults.Add((worker, stopped));
+                if (worker is not null) cleanupResults.Add((worker, stopped));
                 if (!stopped.Stopped) continue;
                 if (connection.Worker is { } releasedWorker) workers.TryRemove(releasedWorker.Id, out _);
                 if (ReferenceEquals(probe, connection)) probe = null;
@@ -667,6 +676,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     {
         var stopped = await connection.CleanupAsync();
         if (stopped.Stopped) connections.TryRemove(connection, out _);
+        else if (connection.Launch is null) Console.Error.WriteLine($"codex: probe stop unconfirmed: {stopped.Detail}");
         return stopped;
     }
 

@@ -10,6 +10,102 @@ public sealed class ControlCommandTests
     const string Run = "recorded";
     const string ControlId = "abcdefghijklmnopqrstuvwxyz";
 
+    [Test]
+    [Arguments("collect", false)]
+    [Arguments("resume", false)]
+    [Arguments("clean", false)]
+    [Arguments("clean", true)]
+    [Timeout(60_000)]
+    public async Task Codex_zombie_commands_keep_owned_work_and_home_until_stop_is_confirmed(string command, bool force, CancellationToken ct)
+    {
+        using var core = new CoreLab("zombie-commands");
+        using var codex = new CodexLab(core.Tree);
+        ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Workspace = new();
+        run.Record.Spec.Base = "main";
+        await Worktree.PrepareAsync(run, core.Ledger, core.Tree.Repository, ct, core.Git);
+        var control = Locations.ControlDir(core.Ledger.RunId);
+        File.WriteAllText(Path.Combine(control, "setup.done"), "");
+        var info = core.Ledger.LoadRunInfo();
+        info.Repo = core.Tree.Repository;
+        Json.WriteFile(Path.Combine(core.Ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+        Json.WriteFile(Path.Combine(core.Ledger.Dir, "config.json"), new EffectiveConfig
+        { Tasks = new() { [run.Id] = new() { Settings = run.Record.Settings } } }, LedgerJson.Files.EffectiveConfig);
+        // A present PID without its original identity cannot authorize a kill, even of this test host.
+        using var home = RecordedHome(core, codex, run, Environment.ProcessId);
+        core.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["detail"] = "failed creation stop uncertain" });
+        if (command == "clean")
+        {
+            core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = "failed", WorkerStopped = false, Failures = ["zombie"] });
+            core.Ledger.Write(run.Id, "final", new() { ["state"] = "failed" });
+        }
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        var args = Args.Parse(force ? [command, core.Ledger.RunId, "--force"] : [command, core.Ledger.RunId, run.Id]);
+        var exit = command == "collect" ? await Commands.CollectAsync(args, ct)
+            : command == "resume" ? await Commands.ResumeAsync(args, ct) : await Commands.CleanAsync(args, ct);
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(Directory.Exists(home.Home)).IsTrue();
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsEqualTo(!force);
+        await Assert.That(core.Ledger.Read().Where(line => line.Type == "aborted")).IsEmpty();
+        if (command == "clean")
+            await Assert.That(output.GetStandardOutput()[start..]).Contains($"{run.Id}: retained Codex home: {home.Home}");
+        else
+        {
+            var result = core.Ledger.LoadResult(run.Id)!;
+            await Assert.That(result.State).IsEqualTo("failed");
+            await Assert.That(result.WorkerStopped).IsFalse();
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "settle-error", "no-final-text" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+        // A later recorded check needs no turn, and can reclaim the home without a resume or retry run.
+        run.Worker!.State["pid"] = int.MaxValue;
+        run.SaveWorker(run.Worker, core.Ledger);
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
+        await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsFalse();
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Collect_rechecks_a_turnless_failed_start_and_deletes_its_confirmed_home(CancellationToken ct)
+    {
+        using var core = new CoreLab("turnless-collect");
+        using var codex = new CodexLab(core.Tree);
+        ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        using var home = RecordedHome(core, codex, run, int.MaxValue);
+        core.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["detail"] = "failed start" });
+        var control = Locations.ControlDir(core.Ledger.RunId);
+        File.WriteAllText(Path.Combine(control, "setup.done"), "");
+        Json.WriteFile(Path.Combine(core.Ledger.Dir, "config.json"), new EffectiveConfig
+        { Tasks = new() { [run.Id] = new() { Settings = run.Record.Settings } } }, LedgerJson.Files.EffectiveConfig);
+        await Assert.That(await Commands.CollectAsync(Args.Parse(["collect", core.Ledger.RunId, run.Id]), ct)).IsEqualTo(1);
+        var result = core.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "outcome:lost", "settle-error", "no-final-text" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(result.WorkerStopped).IsTrue();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+        await Assert.That(core.Ledger.Read().Where(line => line.Type == "aborted")).IsEmpty();
+    }
+
+    static CodexHome RecordedHome(CoreLab core, CodexLab codex, TaskRun run, int pid)
+    {
+        File.WriteAllText(Path.Combine(codex.Environment["CODEX_HOME"], "auth.json"), "{}");
+        var home = CodexHome.Create(new(Path.Combine(Locations.ControlDir(core.Ledger.RunId), "profiles"), CodexLab.Executable, new Dictionary<string, string>()),
+            new(core.Ledger.RunId, run.Id, "research", new("codex", "model-y", "high"), null, null,
+                new("clean", "on", "workspace", "on", "worktree"), run.Record.Workspace.Path!, new([], []), codex.Environment, null, "clean", null),
+            codex.Environment["CODEX_HOME"]);
+        run.SaveWorker(new("codex", run.Id, "partial", null, new()
+        {
+            ["pid"] = pid, ["codexHome"] = home.Home, ["codexHomeTemporary"] = true,
+            ["codexHomeMarkerName"] = home.MarkerName, ["codexHomeMarkerText"] = home.MarkerText,
+        }), core.Ledger);
+        return home;
+    }
+
     static TaskRecord CleanRecord(TempTree tree, string task = "inspect")
     {
         var record = new TaskRecord { Spec = new() { Id = task, Kind = "research" }, Settings = new() { Backend = new() { Value = "codex" } },

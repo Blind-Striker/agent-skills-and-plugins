@@ -129,7 +129,9 @@ static class Worktree
         var step = "workspace";
         try
         {
-            if (!force && (ledger.LoadResult(task)?.Failures.Contains("zombie") == true || TaskRun.FromLedger(record, ledger).Zombie))
+            var restored = TaskRun.FromLedger(record, ledger);
+            if (!force && (restored.Zombie || (record.Settings.Backend?.Value != "codex" || restored.WorkerStopped != true)
+                && ledger.LoadResult(task)?.Failures.Contains("zombie") == true))
             {
                 Console.WriteLine($"{task}: retained zombie worktree and scratch; --force removes them anyway");
                 return false;

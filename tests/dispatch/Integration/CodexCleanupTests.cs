@@ -8,6 +8,31 @@ public sealed class CodexCleanupTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Unconfirmed_probe_cleanup_reports_its_evidence_and_exposes_read_only_results(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        await using var backend = lab.Backend();
+        await backend.ProbeAsync(new(lab.Tree.Repository), ct);
+        var connections = (System.Collections.IEnumerable)typeof(CodexBackend).GetField("connections",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(backend)!;
+        var connection = connections.Cast<object>().Single().GetType().GetProperty("Key")!.GetValue(connections.Cast<object>().Single())!;
+        var process = (CodexProcess)connection.GetType().GetProperty("Process")!.GetValue(connection)!;
+        var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        process.SetPendingStop(stop.Task);
+        var output = TestContext.Current!.Output;
+        var start = output.GetErrorOutput().Length;
+        var cleanup = backend.CleanupAsync();
+        stop.SetResult(new(false, "probe pid survives"));
+        await cleanup;
+        await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo("codex: probe stop unconfirmed: probe pid survives\n");
+        await Assert.That(((ICollection<(WorkerRef Worker, InterruptResult Stop)>)backend.CleanupResults).IsReadOnly).IsTrue();
+        await using var scope = new BackendScope([]);
+        await Assert.That(((ICollection<(WorkerRef Worker, InterruptResult Stop)>)scope.CleanupResults).IsReadOnly).IsTrue();
+        await Assert.That(process.HasExited).IsFalse();
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task Recorded_unconfirmed_release_returns_evidence_and_retains_home_until_retry(CancellationToken ct)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows snapshot identity seam");

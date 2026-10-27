@@ -252,8 +252,15 @@ This applies at settlement, release, scope cleanup and recorded recovery, includ
 collect after a supervisor restart, on every platform. Stop uncertainty alone never aborts the run;
 genuine supervisor, ledger and cleanup errors still follow their error paths.
 Process/job resources, connections, temporary homes and their owning command folders remain owned
-for a later cleanup attempt until stop is confirmed. A completed turn retains its final text and
+for a later cleanup attempt until stop is confirmed. On Windows the job closes with the supervisor
+(`KILL_ON_JOB_CLOSE`), so a later `resume` normally finds the retained processes ended. An unconfirmed
+probe connection with no task reports its stop evidence on stderr. A completed turn retains its final text and
 usage even when its stop remains uncertain. A later affirmative identity check during recollection
 can clear restored uncertainty without removing historical ledger evidence. OpenCode's existing
 cancellation semantics are unchanged. Zombie workspace retention during clean is described in
 [the CLI](cli.md#clean-run---force---ledger-dir).
+
+Collection after an unconfirmed live stop waits at most ten seconds for the pump, even if the turn
+never ended, then uses the evidence available. A turn id alone does not prove a report ready. Recorded
+recovery needs no turn id, including after failed creation. Late hard-stop replies cannot change a
+settlement already begun; scope cleanup records later stop confirmation without repeating its final.

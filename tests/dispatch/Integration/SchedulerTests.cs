@@ -12,6 +12,62 @@ public sealed class SchedulerTests
 {
     [Test]
     [Timeout(30_000)]
+    public async Task Late_hard_stop_cannot_change_a_settlement_already_in_progress(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.SaveWorker(new("codex", run.Id, "worker", "turn", new()), lab.Ledger);
+        run.State = TaskState.Running;
+        run.CancelRequested = true;
+        run.StopKind = InterruptKind.Cancel;
+        var time = new FakeTimeProvider();
+        run.StopStarted = time.GetUtcNow().AddMinutes(-2);
+        var hardStop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var collecting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var report = new TaskCompletionSource<WorkerReport>(TaskCreationOptions.RunContinuationsAsynchronously);
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false));
+        backend.OnPoll = (_, _) => Task.FromResult(new PollResult([]));
+        backend.OnInterrupt = (_, _) =>
+        {
+            backend.Emit(new WorkerSignal.StopUnconfirmed(run.Id, "turn", "interrupted", "turn ended; process survives"));
+            return hardStop.Task;
+        };
+        backend.OnCollect = (_, _) => { collecting.SetResult(); return report.Task; };
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { [backend.Name] = backend }, lab.Ledger,
+            lab.Tree.Repository, AllowList.From(null), lab.Policy, 1, ct, lab.Git, time);
+        var running = scheduler.RunAsync([run]);
+        try
+        {
+            while (!collecting.Task.IsCompleted)
+            {
+                time.Advance(TimeSpan.FromMilliseconds(20));
+                await Task.Yield();
+            }
+            await Assert.That(run.State).IsEqualTo(TaskState.Settling);
+            hardStop.SetResult(new(true, "late hard stop confirmed"));
+            await run.InterruptWork!;
+            await Assert.That(run.WorkerStopped).IsFalse();
+        }
+        finally
+        {
+            hardStop.TrySetResult(new(true, "late hard stop confirmed"));
+            report.SetResult(new("interrupted", "Partial report", new(), null, true, [], null, true, StopResult: new(true, "late stop reached the report")));
+            while (!running.IsCompleted)
+            {
+                time.Advance(TimeSpan.FromMilliseconds(20));
+                await Task.Yield();
+            }
+            await running;
+        }
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie" }, CollectionOrdering.Matching);
+        await Assert.That(result.WorkerStopped).IsFalse();
+        await Assert.That(lab.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(30_000)]
     public async Task Unconfirmed_normal_release_prevents_commit_and_verify_before_final_success(CancellationToken ct)
     {
         using var lab = new CoreLab("release-before-settle");
@@ -67,7 +123,9 @@ public sealed class SchedulerTests
         };
         backend.OnInterrupt = (_, _) => Task.FromResult(new InterruptResult(false, "interrupt sent"));
         backend.OnRelease = (worker, _) => Task.FromResult<InterruptResult?>(new(worker.TaskId == good.Id, "pid=1972; still alive"));
-        backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Completed.", new(), null, true, [], null, true));
+        backend.OnCollect = (worker, _) => Task.FromResult(worker.TaskId == good.Id
+            ? new WorkerReport("succeeded", "Completed.", new(), null, true, [], null, true)
+            : new WorkerReport("lost", null, new(), null, false, [], null, false, StopResult: new(false, "pid=1972; still alive")));
         var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { ["codex"] = backend }, lab.Ledger,
             lab.Tree.Repository, AllowList.From(null), lab.Policy, 2, ct, lab.Git);
         await Assert.That(await scheduler.RunAsync([bad, good])).IsEqualTo(1);
@@ -131,6 +189,7 @@ public sealed class SchedulerTests
         await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie" }, CollectionOrdering.Matching);
         await Assert.That(result.Outcome).IsEqualTo("cancelled");
         await Assert.That(result.State).IsEqualTo("failed");
+        await Assert.That(bad.ReportReady).IsEqualTo(!recovery);
         await Assert.That(lab.Ledger.Read().Where(x => x.Task == bad.Id).Select(x => x.Type)).IsEquivalentTo(recovery
             ? new[] { "cancel", "stop-unconfirmed", "outcome", "final" }
             : new[] { "cancel", "stop-unconfirmed", "stop-unconfirmed", "outcome", "final" }, CollectionOrdering.Matching);
@@ -152,16 +211,17 @@ public sealed class SchedulerTests
         lab.Ledger.Write(original.Id, "stop-unconfirmed", new() { ["outcome"] = "succeeded", ["detail"] = "old uncertainty" });
         var run = TaskRun.FromLedger(lab.Ledger.LoadRecord(original.Id), lab.Ledger);
         await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false));
-        backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Completed.", new(), null, true, [], null, true,
+        backend.OnCollect = (_, _) => Task.FromResult(new WorkerReport("lost", null, new(), null, false, [], "current identity check", confirmed,
             StopResult: new(confirmed, "current identity check")));
         backend.OnRelease = (_, _) => Task.FromResult<InterruptResult?>(new(true, "confirmed exit"));
         var result = await Settlement.SettleAsync(backend, lab.Ledger, run, null, ct, lab.Git);
-        await Assert.That(result.State).IsEqualTo(confirmed ? "done" : "failed");
-        await Assert.That(result.Failures).IsEquivalentTo(confirmed ? [] : new[] { "zombie" }, CollectionOrdering.Matching);
+        await Assert.That(result.State).IsEqualTo("failed");
+        await Assert.That(result.Failures).IsEquivalentTo(confirmed ? new[] { "outcome:lost", "settle-error", "no-final-text" }
+            : new[] { "zombie", "outcome:lost", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
         await Assert.That(result.WorkerStopped).IsEqualTo(confirmed);
         await Assert.That(TaskRun.FromLedger(lab.Ledger.LoadRecord(run.Id), lab.Ledger).Zombie).IsEqualTo(!confirmed);
         await Assert.That(lab.Ledger.Read().Select(x => x.Type)).IsEquivalentTo(confirmed
-            ? new[] { "stop-unconfirmed", "collected", "verified", "outcome" }
+            ? new[] { "stop-unconfirmed", "hard-stop", "collected", "verified", "outcome" }
             : new[] { "stop-unconfirmed", "outcome" }, CollectionOrdering.Matching);
     }
 

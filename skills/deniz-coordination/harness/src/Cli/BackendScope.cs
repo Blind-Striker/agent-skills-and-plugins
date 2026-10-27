@@ -4,7 +4,8 @@ sealed class BackendScope : IAsyncDisposable
     internal string? OwnedFolder => ownedFolder;
     public IReadOnlyDictionary<string, IWorkerBackend> Backends { get; }
     readonly HashSet<IWorkerBackend> disposed = [];
-    public List<(WorkerRef Worker, InterruptResult Stop)> CleanupResults { get; } = [];
+    readonly List<(WorkerRef Worker, InterruptResult Stop)> cleanupResults = [];
+    public IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)> CleanupResults => cleanupResults.AsReadOnly();
 
     public BackendScope(IEnumerable<string> names, string? controlFolder = null, bool subscribe = true, string? runId = null)
     {
@@ -59,7 +60,7 @@ sealed class BackendScope : IAsyncDisposable
     public async Task<IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)>> CleanupAsync()
     {
         var failures = new List<Exception>();
-        CleanupResults.Clear();
+        cleanupResults.Clear();
         foreach (var backend in Backends.Values)
         {
             if (disposed.Contains(backend)) continue;
@@ -67,7 +68,7 @@ sealed class BackendScope : IAsyncDisposable
             {
                 if (backend is CodexBackend codex)
                 {
-                    CleanupResults.AddRange(await codex.CleanupAsync());
+                    cleanupResults.AddRange(await codex.CleanupAsync());
                     if (codex.HasResources) continue;
                 }
                 else await backend.DisposeAsync();

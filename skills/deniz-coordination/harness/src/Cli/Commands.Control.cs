@@ -73,18 +73,21 @@ static partial class Commands
             throw new HarnessException($"{task} has no session or worktree to collect");
         }
 
+        BackendScope? scope = null;
+        var runs = new List<TaskRun>();
         try
         {
-            var name = record.Settings.Backend?.Value ?? "opencode";
-            var scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
-            var backend = scope.Backends[name];
-            var run = TaskRun.FromLedger(record, ledger);
-            try
+            await CleanupPreservingAsync(async () =>
             {
+                var name = record.Settings.Backend?.Value ?? "opencode";
+                await using var ownedScope = scope = new BackendScope([name], control, subscribe: false, runId: ledger.RunId);
+                var backend = scope.Backends[name];
+                var run = TaskRun.FromLedger(record, ledger);
+                runs.Add(run);
                 var result = await Settlement.SettleAsync(backend, ledger, run, outcomeOverride: null, ct);
                 ledger.Write(task, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome, ["via"] = "collect" });
-            }
-            finally { await SettleCleanupAsync(ledger, [run], scope.Backends, await scope.CleanupAsync()); }
+                return result.State == "done" ? 0 : 1;
+            }, () => scope is null ? Task.CompletedTask : SettleCleanupAsync(ledger, runs, scope.Backends, scope.CleanupResults));
             return ledger.LoadResult(task)?.State == "done" ? 0 : 1;
         }
         catch (OpenCodeBackend.SessionReleasedException) when (ledger.TaskStates().GetValueOrDefault(task) == "done") { throw; }
@@ -110,7 +113,7 @@ static partial class Commands
             try
             {
                 // A session that could not be released keeps the task from counting as cleaned,
-                // but its worktree, branch and temp folders are still removed.
+                // but workspace cleanup is still attempted, subject to zombie retention.
                 if (sessionFailures.TryGetValue(task, out var error))
                 {
                     refused++;
@@ -172,11 +175,28 @@ static partial class Commands
     static async Task<Dictionary<string, string>> CleanSessionsAsync(Ledger ledger, IReadOnlyList<TaskRecord> records,
         IReadOnlyDictionary<string, string> states, string control, CancellationToken ct)
     {
+        var failures = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var record in records.Where(record => record.Settings.Backend?.Value == "codex" && record.Session.Id is not null))
+        {
+            try
+            {
+                await using var scope = new BackendScope(["codex"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
+                var run = TaskRun.FromLedger(record, ledger);
+                var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
+                Settlement.RecordStop(ledger, run, stop);
+                if (stop is { Stopped: false })
+                {
+                    failures[run.Id] = $"Codex stop unconfirmed: {stop.Detail}";
+                    Console.WriteLine($"{run.Id}: retained Codex home: {record.BackendState.CodexHome}");
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)
+            { failures[record.Spec.Id!] = ex.Message; }
+        }
         var tasks = records.Where(x => (x.Settings.Backend?.Value ?? "opencode") == "opencode"
             // Code tasks record worktree progress before creating a session; structured tasks do not.
             && (x.Session.Id is not null || x.Workspace.Path is not null
                 && (states[x.Spec.Id!] != "queued" || x.Spec.Kind == "structured"))).ToList();
-        var failures = new Dictionary<string, string>(StringComparer.Ordinal);
         if (tasks.Count == 0) return failures;
         try
         {

@@ -67,7 +67,6 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             if (backend.Name == "codex" && result is ReattachResult.Ended recovered)
             {
                 Settlement.RecordStop(ledger, run, recovered.StopResult, recovered.Outcome);
-                run.ReportReady = true;
             }
             if (result is ReattachResult.Interrupted && proceed && !run.CancelRequested && !run.TimedOut)
             {
@@ -530,27 +529,34 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             request.Cancel();
             if (run.InterruptCancellation == request) run.InterruptCancellation = null;
         }
-        if (kind == InterruptKind.Hard)
+        lock (run)
         {
-            run.WorkerStopped = response.Stopped;
-            ledger.Write(run.Id, "hard-stop", new JsonObject { ["kind"] = run.StopKind == InterruptKind.Timeout ? "timeout" : "cancel", ["stopped"] = response.Stopped, ["detail"] = response.Detail });
-        }
-        else if (!repeat && !logged)
-            ledger.Write(run.Id, kind == InterruptKind.Cancel ? "cancel" : "timeout", new JsonObject { ["interrupted"] = response.Interrupted, ["status"] = response.Status });
-        run.NextInterrupt = time.GetUtcNow() + Constants.Watchdog;
-        run.NextCheck = time.GetUtcNow().AddSeconds(2);
-        if (response.Stopped && !run.WorkerEnded && !run.IsFinal)
-        {
-            run.WorkerEnded = true;
-            BeginSettle(run, StopOutcome(run));
+            if (run.State == TaskState.Settling || run.IsFinal) return;
+            if (kind == InterruptKind.Hard)
+            {
+                run.WorkerStopped = response.Stopped;
+                ledger.Write(run.Id, "hard-stop", new JsonObject { ["kind"] = run.StopKind == InterruptKind.Timeout ? "timeout" : "cancel", ["stopped"] = response.Stopped, ["detail"] = response.Detail });
+            }
+            else if (!repeat && !logged)
+                ledger.Write(run.Id, kind == InterruptKind.Cancel ? "cancel" : "timeout", new JsonObject { ["interrupted"] = response.Interrupted, ["status"] = response.Status });
+            run.NextInterrupt = time.GetUtcNow() + Constants.Watchdog;
+            run.NextCheck = time.GetUtcNow().AddSeconds(2);
+            if (response.Stopped && !run.WorkerEnded && !run.IsFinal)
+            {
+                run.WorkerEnded = true;
+                BeginSettle(run, StopOutcome(run));
+            }
         }
     }
 
     void BeginSettle(TaskRun run, string? outcome)
     {
-        if (run.State == TaskState.Settling || run.IsFinal) return;
-        run.State = TaskState.Settling;
-        Track(run, SettleAsync(run, outcome));
+        lock (run)
+        {
+            if (run.State == TaskState.Settling || run.IsFinal) return;
+            run.State = TaskState.Settling;
+            Track(run, SettleAsync(run, outcome));
+        }
     }
 
     async Task SettleAsync(TaskRun run, string? outcome)

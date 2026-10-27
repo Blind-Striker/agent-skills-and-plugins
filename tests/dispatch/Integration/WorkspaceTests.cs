@@ -7,12 +7,14 @@ namespace Dispatch.Tests.Integration;
 public sealed class WorkspaceTests
 {
     [Test]
+    [Arguments("codex")]
+    [Arguments("opencode")]
     [Timeout(60_000)]
-    public async Task Clean_keeps_a_clean_merged_zombies_worktree_and_scratch_until_forced(CancellationToken ct)
+    public async Task Clean_keeps_a_clean_merged_zombies_worktree_and_scratch_until_forced(string backend, CancellationToken ct)
     {
         using var lab = new CoreLab("zombie-clean");
         var run = await lab.TaskAsync("inspect", ct);
-        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.Record.Settings.Backend = new() { Value = backend };
         run.Record.Workspace = new();
         run.Record.Spec.Base = "main";
         await Worktree.PrepareAsync(run, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
@@ -23,6 +25,12 @@ public sealed class WorkspaceTests
         File.WriteAllText(other, "unrelated bytes");
         lab.Ledger.SaveResult(new() { Run = lab.Ledger.RunId, Task = run.Id, State = "failed", WorkerStopped = false, Failures = ["zombie"] });
         lab.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["outcome"] = "succeeded", ["detail"] = "pid=1972 survives" });
+        if (backend == "opencode")
+        {
+            // OpenCode's historical zombie result still retains work; Codex cleanup evidence is backend-specific.
+            lab.Ledger.Write(run.Id, "cancel", new());
+            lab.Ledger.Write(run.Id, "hard-stop", new() { ["stopped"] = true, ["detail"] = "old hard-stop reply" });
+        }
         var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
         await Assert.That(removed).IsFalse();
         await Assert.That(output).IsEqualTo("inspect: retained zombie worktree and scratch; --force removes them anyway" + Environment.NewLine);

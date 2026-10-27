@@ -10,6 +10,91 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexLifecycleTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(180_000)]
+    public async Task Run_abort_with_a_surviving_mid_turn_process_has_bounded_cleanup(bool cleanupFails, CancellationToken ct)
+    {
+        using var core = new CoreLab("abort-cleanup", recorded: false);
+        using var codex = new CodexLab(core.Tree);
+        await LabRepo.CreateAsync(core.Tree, ct);
+        File.WriteAllText(Path.Combine(codex.Environment["CODEX_HOME"], "auth.json"), "{}");
+        codex.CodeTask();
+        ConfigLayers.Initialize(Args.Parse([]));
+        codex.Write("task-edit", CodexLab.Handshake + CodexLab.Thread + "{\"hang\":true}");
+        var backend = codex.Backend();
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var serial = new ConcurrentExclusiveSchedulerPair(TaskScheduler.Default, 1).ExclusiveScheduler;
+        var ledger = new Ledger(Commands.CreateRunId("codex-run"));
+        var command = Task.Factory.StartNew(() => Commands.RunAsync(Args.Parse(["run", codex.Tasks, "--repo", core.Tree.Repository]), cancel.Token,
+            backendFactory: () => backend, userPathReader: () => null), ct, TaskCreationOptions.None, serial).Unwrap();
+        CodexProcess? process = null;
+        string? home = null;
+        bool bounded;
+        bool homeRetained;
+        bool workspaceRetained;
+        bool survived;
+        int exit;
+        var output = TestContext.Current!.Output;
+        var start = output.GetErrorOutput().Length;
+        try
+        {
+            await UntilAsync(() => command.IsCompleted || ledger.Read().Any(line => line.Type == "prompt"), ct);
+            process = backend.WorkerProcesses.Single(item => item.Worker.Turn is not null).Process;
+            home = backend.WorkerProcesses.Single(item => item.Worker.Turn is not null).Worker.State["codexHome"]!.GetValue<string>();
+            if (cleanupFails) Directory.CreateDirectory(Path.Combine(ledger.TaskDir("edit"), "final.md"));
+            var probe = Directory.GetFiles(codex.Records, "start.json", SearchOption.AllDirectories)
+                .Select(path => JsonNode.Parse(File.ReadAllText(path))!)
+                .Single(item => item["scenario"]!.GetValue<string>() == "preflight.jsonl")["pid"]!.GetValue<int>();
+            using (var holder = Process.GetProcessById(probe))
+            {
+                holder.Kill();
+                await holder.WaitForExitAsync(ct);
+            }
+            var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            process.SetPendingStop(stop.Task);
+            await Task.Factory.StartNew(cancel.Cancel, ct, TaskCreationOptions.None, serial);
+            await UntilAsync(() => ledger.Read().Any(line => line.Type == "aborted"), ct);
+            await Task.Factory.StartNew(() => { }, ct, TaskCreationOptions.None, serial);
+            stop.SetResult(new(false, "mid-turn process survives"));
+            bounded = await Task.WhenAny(command, Task.Delay(TimeSpan.FromSeconds(15), ct)) == command;
+            homeRetained = Directory.Exists(home);
+            workspaceRetained = Directory.Exists(ledger.LoadRecord("edit").Workspace.Path);
+            survived = IsAlive(process.Id);
+        }
+        finally
+        {
+            // Release the producer even on the base: failure is the bound assertion, never the test timeout.
+            if (process is not null && IsAlive(process.Id))
+            {
+                using var holder = Process.GetProcessById(process.Id);
+                holder.Kill(entireProcessTree: true);
+                await holder.WaitForExitAsync(ct);
+            }
+            exit = await command;
+            await backend.DisposeAsync();
+        }
+        await Assert.That(bounded).IsTrue();
+        await Assert.That(homeRetained).IsTrue();
+        await Assert.That(workspaceRetained).IsTrue();
+        await Assert.That(survived).IsTrue();
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(ledger.Read().Where(line => line.Type == "aborted").Select(line => line.Type)).IsNotEmpty();
+        if (cleanupFails)
+        {
+            var error = output.GetErrorOutput()[start..];
+            await Assert.That(error).Contains("AggregateException");
+            await Assert.That(error.ToLowerInvariant()).Contains("canceled");
+            await Assert.That(error).Contains("final.md");
+        }
+        else
+        {
+            await Assert.That(ledger.Read().Count(line => line.Task == "edit" && line.Type == "final")).IsEqualTo(1);
+            await Assert.That(ledger.LoadResult("edit")!.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "no-final-text" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        }
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Scope_cleanup_settles_uncertainty_while_the_command_owns_its_ledger(CancellationToken ct)
     {
@@ -34,14 +119,23 @@ public sealed class CodexLifecycleTests
         var result = core.Ledger.LoadResult(run.Id);
         await Assert.That(result).IsNotNull();
         await Assert.That(result!.State).IsEqualTo("failed");
-        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "no-final-text" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "no-final-text", "route-drift" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(result.WorkerStopped).IsFalse();
         await Assert.That(core.Ledger.LoadRecord(run.Id).Session.Id).IsEqualTo(worker.Id);
         await Assert.That(core.Ledger.Read().Select(x => x.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(core.Ledger.Read().Single(x => x.Type == "stop-unconfirmed").Data!["detail"]!.GetValue<string>()).IsEqualTo($"pid={process.Id} survives");
         await Assert.That(Directory.Exists(scope.OwnedFolder)).IsTrue();
+        result.WorkerStopped = true; // An old ledger can carry the late-hard-stop inconsistency.
+        core.Ledger.SaveResult(result);
+        await (Task)consume.Invoke(null, [core.Ledger, new List<TaskRun> { run }, scope.Backends, cleanup])!;
+        await Assert.That(core.Ledger.Read().Count(line => line.Type == "final")).IsEqualTo(1);
         await scope.DisposeAsync();
         await Assert.That(Directory.Exists(scope.OwnedFolder)).IsFalse();
+        await (Task)consume.Invoke(null, [core.Ledger, new List<TaskRun> { run }, scope.Backends, scope.CleanupResults])!;
+        await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsFalse();
+        await Assert.That(core.Ledger.Read().Last().Data!["detail"]!.GetValue<string>()).Contains("exit=");
+        await Assert.That(core.Ledger.Read().Count(line => line.Type == "final")).IsEqualTo(1);
+        await Assert.That(await Worktree.CleanAsync(core.Ledger, run.Record, core.Tree.Repository, false, ct, core.Git)).IsTrue();
     }
 
     [Test]

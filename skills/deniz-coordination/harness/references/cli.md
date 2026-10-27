@@ -399,7 +399,8 @@ validation. Prints events and writes a final event. A task needs a recorded sess
 It does not re-prompt. A released done opencode session is not collectible.
 For Codex, stop is checked before collecting workspace bytes, committing or verifying. Unconfirmed
 stop writes task-scoped evidence and a failed final event with `zombie` and `workerStopped: false`,
-returns 1 without `aborted`, and retains worktree and scratch. A later confirmed check can clear
+returns 1 without `aborted`, and retains worktree, scratch and the temporary home. Recovery also checks
+a failed creation's recorded worker when it has no turn. A later confirmed check can clear
 restored uncertainty for recollection; historical stop evidence remains.
 
 | Exit | Type | Meaning |
@@ -448,14 +449,19 @@ before a backend starts. Do not alter any ledger inputs by hand.
 
 ### `clean <run> [--force] [--ledger <dir>]`
 
-Refuses while supervised. Releases opencode sessions, removes recognized worktrees and task
+Refuses while supervised. Releases opencode sessions and each Codex task's recorded worker, then removes recognized worktrees and task
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
-It also retains a recorded zombie task's worktree and scratch, even when clean and merged, printing
+It also retains a recorded zombie task's worktree and scratch on either backend, including opencode,
+even when clean and merged, printing
 `<task>: retained zombie worktree and scratch; --force removes them anyway` and returning 1.
 With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
 Git-configuration, lock and in-place protections still apply.
+Codex release checks the recorded stop and deletes its owned temporary home only after confirmation.
+An unconfirmed stop retains the home even with `--force`, prints
+`<task>: retained Codex home: <path>` and returns 1. Confirmation clears restored zombie uncertainty,
+including after scope cleanup, so a historical `zombie` result alone no longer refuses ordinary clean.
 
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
@@ -506,8 +512,8 @@ After all tasks succeed, clean removes empty run/temp containers bottom-up, incl
 `.dispatch-tmp/git` and its empty parent. Nonempty containers and links remain and are printed as
 `retained: <path>`; the worktree root remains. A task failure prints task, cleanup step and error,
 records `clean-failed` rather than `cleaned`, continues other tasks, and returns exit 1. A session
-that cannot be released records `clean-failed` at `session`, and clean still removes that task's
-worktree, branch and temporary folders.
+that cannot be released records `clean-failed` at `session`, and clean still attempts workspace cleanup,
+subject to the zombie retention rule above.
 
 | Exit | Type | Meaning |
 |---|---|---|

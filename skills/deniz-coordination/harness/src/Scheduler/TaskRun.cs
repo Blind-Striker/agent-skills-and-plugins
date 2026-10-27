@@ -106,7 +106,6 @@ sealed class TaskRun
             run.WorkerStopped = evidence.Type == "stop-unconfirmed" ? false
                 : evidence.Data?[evidence.Type == "hard-stop" ? "stopped" : "workerStopped"]?.GetValue<bool>() ?? false;
             run.Zombie = run.WorkerStopped != true;
-            run.ReportReady = record.Session.Turn is not null;
         }
         return run;
     }

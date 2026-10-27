@@ -385,7 +385,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `interrupted` | Optional `reason` string | Task left interrupted without a harness stop request. |
 | `timeout` | Optional `interrupted` boolean and `status` integer | Timeout interrupt attempt. |
 | `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
-| `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
+| `hard-stop` | Optional `kind` string, `stopped` boolean, `detail` string | Hard-stop report; kind is cancel or timeout. A later affirmative Codex stop check clearing recorded uncertainty also writes this evidence, without kind. Stopped value feeds restored `workerStopped`; late interrupt replies after settlement begins are ignored. |
 | `stop-unconfirmed` | Optional `outcome` string, `detail` string | Task-local stop uncertainty at turn end or Codex settlement, release, recovery or scope cleanup, including failed initialization before a thread exists. Records stop evidence; a completed turn retains its final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded; `notRun` integer when any entry did not run | Verify summary; `commands` includes not-run records; `notRun` counts those records, not passes. `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
@@ -412,7 +412,9 @@ stating when snapshot identity supplied the recorded timestamp. Stop evidence is
 execution errors: a failed kill followed by confirmed exit does not create an execution failure.
 Recovery restores uncertainty from the latest applicable `hard-stop`, `stop-unconfirmed` or Codex
 `outcome.workerStopped` evidence after the latest prompt. A later confirmed check can clear it for
-recollection; earlier evidence remains intact. Unconfirmed Codex cleanup retains owned resources
+recollection or clean, including confirmation during scope cleanup; earlier evidence and the settled
+result remain intact. Scope cleanup does not write a second `final` for an already-final task;
+explicit `collect` still repeats settlement. Unconfirmed Codex cleanup retains owned resources
 and fails only its task, not the run; genuine supervisor or ledger errors can still abort it.
 
 The pending `warning` event for Windows user PATH changes is described under the
