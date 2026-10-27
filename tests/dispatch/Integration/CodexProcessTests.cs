@@ -13,6 +13,274 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexProcessTests
 {
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Windows_walk_discovers_a_child_born_between_the_old_snapshot_and_parent_termination(bool recovery, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        await WithWindowsWalkAsync(async (process, owner) =>
+        {
+            using var childTree = new TempTree();
+            CodexProcess? child = null;
+            var nativeOpen = process.NativeOpenProcess;
+            var terminate = process.TerminateProcess;
+            var handles = new Dictionary<SafeProcessHandle, int>();
+            var trace = new List<string>();
+            process.ReadSnapshot = _ => child is null ? new() : new() { [child.Id] = (owner.Id, child.StartTime) };
+            process.NativeOpenProcess = (access, inherit, pid) =>
+            {
+                trace.Add($"open {pid}");
+                var handle = nativeOpen(access, inherit, pid);
+                handles.Add(handle, pid);
+                return handle;
+            };
+            process.TerminateProcess = (handle, exit) =>
+            {
+                var pid = handles[handle];
+                trace.Add($"terminate {pid}");
+                if (pid == owner.Id)
+                    // Birth is real; ancestry is scripted by ReadSnapshot, without a pipe-read wait in this callback.
+                    child = CodexProcess.Start(Context(childTree), childTree.Repository, Scenario(childTree, "{\"hang\":true}"));
+                using var holder = Process.GetProcessById(pid);
+                var killed = terminate(handle, exit);
+                holder.WaitForExit(5000);
+                return killed;
+            };
+            try
+            {
+                var result = await StopWalkAsync(process, owner, recovery, ct);
+                await Assert.That(child).IsNotNull();
+                await Assert.That(trace).IsEquivalentTo(new[] { $"open {owner.Id}", $"terminate {owner.Id}", $"open {child!.Id}", $"terminate {child.Id}" }, CollectionOrdering.Matching);
+                await Assert.That(child.HasExited).IsTrue();
+                await Assert.That(result.Stopped).IsTrue();
+                foreach (var handle in handles.Keys) await Assert.That(handle.IsClosed).IsTrue();
+            }
+            finally { if (child is not null) await child.DisposeAsync(); }
+        }, ct);
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(false, true)]
+    [Arguments(true, true)]
+    [Timeout(60_000)]
+    public async Task Windows_walk_records_children_that_cannot_be_terminated(bool recovery, bool denyOpen, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        await WithWindowsWalkAsync(async (process, owner) =>
+        {
+            using var childTree = new TempTree();
+            await using var child = CodexProcess.Start(Context(childTree), childTree.Repository, Scenario(childTree, "{\"notify\":\"ready\",\"params\":{}}\n{\"hang\":true}"));
+            using var reader = new StreamReader(child.Stdout);
+            await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+            var nativeOpen = process.NativeOpenProcess;
+            var terminate = process.TerminateProcess;
+            var walking = false;
+            var trace = new List<string>();
+            process.ReadSnapshot = _ => walking ? new() { [child.Id] = (owner.Id, child.StartTime) } : new();
+            process.NativeOpenProcess = (access, inherit, pid) =>
+            {
+                trace.Add($"open {pid}");
+                if (pid == child.Id && denyOpen) throw new System.ComponentModel.Win32Exception(5, "injected child denial");
+                return nativeOpen(access, inherit, pid);
+            };
+            process.TerminateProcess = (handle, exit) =>
+            {
+                if (!walking)
+                {
+                    walking = true;
+                    trace.Add($"terminate {owner.Id}");
+                    using var holder = Process.GetProcessById(owner.Id);
+                    var killed = terminate(handle, exit);
+                    holder.WaitForExit(5000);
+                    return killed;
+                }
+                trace.Add($"terminate {child.Id}");
+                Marshal.SetLastPInvokeError(5);
+                return false;
+            };
+            var result = await StopWalkAsync(process, owner, recovery, ct);
+            await Assert.That(result.Stopped).IsFalse();
+            await Assert.That(child.HasExited).IsFalse();
+            await Assert.That(owner.HasExited).IsTrue();
+            await Assert.That(trace).IsEquivalentTo(denyOpen
+                ? new[] { $"open {owner.Id}", $"terminate {owner.Id}", $"open {child.Id}" }
+                : new[] { $"open {owner.Id}", $"terminate {owner.Id}", $"open {child.Id}", $"terminate {child.Id}" }, CollectionOrdering.Matching);
+            var error = $"kill descendant pid={child.Id}: " + (denyOpen ? "injected child denial" : new System.ComponentModel.Win32Exception(5).Message);
+            if (recovery)
+                await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={owner.Id}; recordedStartTime={owner.StartTime:O}; currentStartTime={owner.StartTime:O}; handle=alive; {error}; pid={child.Id}; recordedStartTime={child.StartTime:O}; currentStartTime={child.StartTime:O}; handle=alive");
+            else
+            {
+                await Assert.That(process.Descendants.Select(identity => identity.Pid)).IsEquivalentTo(new[] { owner.Id, child.Id }, CollectionOrdering.Matching);
+                await Assert.That(process.Descendants.Single(identity => identity.Pid == child.Id).StartTime).IsEqualTo(child.StartTime);
+                await Assert.That(result.Detail).IsEqualTo($"exit={process.ExitCode}; processGroup=false; groupKill=True; treeKill=False; descendantsKilled=1; stderrDroppedLines=0; {error}; pid={owner.Id}; recordedStartTime={owner.StartTime:O}; currentStartTime={owner.StartTime:O}; handle=alive; pid={child.Id}; recordedStartTime={child.StartTime:O}; currentStartTime={child.StartTime:O}; handle=alive\nstderr:\n");
+            }
+        }, ct);
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(false, true)]
+    [Arguments(true, true)]
+    [Timeout(60_000)]
+    public async Task Windows_failed_walk_snapshot_still_terminates_the_verified_process(bool recovery, bool nativeFailure, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        await WithWindowsWalkAsync(async (process, owner) =>
+        {
+            var walking = false;
+            var terminate = process.TerminateProcess;
+            var trace = new List<string>();
+            process.TerminateProcess = (handle, exit) =>
+            {
+                trace.Add("terminate");
+                walking = true;
+                using var holder = Process.GetProcessById(owner.Id);
+                var killed = terminate(handle, exit);
+                holder.WaitForExit(5000);
+                return killed;
+            };
+            process.ReadSnapshot = _ =>
+            {
+                // Refreshes succeed, but every snapshot within the walk fails, regardless of order.
+                if (!walking && trace.Count == 0 && !owner.HasExited) return new();
+                trace.Add("snapshot failed");
+                if (nativeFailure) throw new System.ComponentModel.Win32Exception(unchecked((int)0xC0000001), "NtQuerySystemInformation injected failure");
+                throw new IOException("injected walk snapshot failure");
+            };
+            var nativeOpen = process.NativeOpenProcess;
+            process.NativeOpenProcess = (access, inherit, pid) =>
+            {
+                var handle = nativeOpen(access, inherit, pid);
+                walking = true;
+                return handle;
+            };
+            var result = await StopWalkAsync(process, owner, recovery, ct);
+            await Assert.That(owner.HasExited).IsTrue();
+            await Assert.That(result.Stopped).IsFalse();
+            await Assert.That(trace.Take(2)).IsEquivalentTo(new[] { "terminate", "snapshot failed" }, CollectionOrdering.Matching);
+            var error = $"walk descendant pid={owner.Id}: " + (nativeFailure ? "NtQuerySystemInformation injected failure" : "injected walk snapshot failure");
+            if (recovery)
+                await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={owner.Id}; recordedStartTime={owner.StartTime:O}; currentStartTime={owner.StartTime:O}; handle=alive; {error}");
+            else
+            {
+                var message = nativeFailure ? "NtQuerySystemInformation injected failure" : "injected walk snapshot failure";
+                await Assert.That(result.Detail).IsEqualTo($"exit={process.ExitCode}; processGroup=false; groupKill=True; treeKill=False; descendantsKilled=1; stderrDroppedLines=0; {error}; descendant snapshot: {message}; descendant snapshot: {message}; pid={owner.Id}; recordedStartTime={owner.StartTime:O}; currentStartTime={owner.StartTime:O}; handle=alive\nstderr:\n");
+            }
+        }, ct);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Windows_walk_visits_each_pid_creation_pair_once_even_with_equal_time_cycles(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        using var self = Process.GetCurrentProcess();
+        var start = self.StartTime.ToUniversalTime();
+        const int first = int.MaxValue, second = int.MaxValue - 1;
+        var trace = new List<string>();
+        var handles = new Dictionary<SafeProcessHandle, int>();
+        var current = 0;
+        var result = await CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = self.Id, ["processStartTime"] = start.ToString("O") }, ct,
+            nativeOpenProcess: (access, inherit, pid) =>
+            {
+                trace.Add($"open {pid}");
+                // A regression must fail at the trace oracle rather than overflow the runner's stack.
+                if (handles.Count == 8) throw new InvalidOperationException("walk exceeded deterministic fixture bound");
+                var handle = OpenNativeProcess(access, inherit, self.Id);
+                handles.Add(handle, pid);
+                current = pid;
+                return handle;
+            }, terminateProcess: (handle, _) =>
+            {
+                trace.Add($"terminate {handles[handle]}");
+                return true; // Valid native success with no effect: never terminate the runner.
+            }, readSnapshot: _ =>
+            {
+                trace.Add($"snapshot {current}");
+                return current == self.Id ? new() { [first] = (self.Id, start), [second] = (self.Id, start) }
+                    : current == first ? new() { [self.Id] = (first, start) }
+                    : new() { [first] = (second, start.AddTicks(1)) };
+            });
+        await Assert.That(trace).IsEquivalentTo(new[]
+        {
+            $"open {self.Id}", $"terminate {self.Id}", $"snapshot {self.Id}",
+            $"open {first}", $"terminate {first}", $"snapshot {first}",
+            $"open {second}", $"terminate {second}", $"snapshot {second}", $"open {first}",
+        }, CollectionOrdering.Matching);
+        await Assert.That(result.Stopped).IsFalse();
+        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive");
+        foreach (var handle in handles.Keys) await Assert.That(handle.IsClosed).IsTrue();
+        await Assert.That(self.HasExited).IsFalse();
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Windows_walk_depth_cap_records_the_unwalked_identity_and_unknown_subtree(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        using var self = Process.GetCurrentProcess();
+        var start = self.StartTime.ToUniversalTime();
+        var opened = new List<int>();
+        var current = self.Id;
+        var result = await CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = self.Id, ["processStartTime"] = start.ToString("O") }, ct,
+            openProcess: pid => opened.Count >= 64 ? throw new ArgumentException("fixture identities have exited after the walk") : Process.GetProcessById(pid),
+            nativeOpenProcess: (access, inherit, pid) =>
+            {
+                opened.Add(pid);
+                current = pid;
+                return OpenNativeProcess(access, inherit, self.Id);
+            }, terminateProcess: (_, _) => true,
+            readSnapshot: _ => current == self.Id ? new() { [int.MaxValue] = (self.Id, start) }
+                : current > int.MaxValue - 65 ? new() { [current - 1] = (current, start) } : new());
+        await Assert.That(opened).IsEquivalentTo(new[] { self.Id }.Concat(Enumerable.Range(0, 63).Select(index => int.MaxValue - index)), CollectionOrdering.Matching);
+        await Assert.That(result.Stopped).IsFalse();
+        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive; walk descendant pid={int.MaxValue - 63}: child walk depth limit 64 reached; remaining descendants unknown");
+        await Assert.That(self.HasExited).IsFalse();
+    }
+
+    static async Task WithWindowsWalkAsync(Func<CodexProcess, CodexProcess, Task> test, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        using var ownerTree = new TempTree();
+        const string scenario = "{\"notify\":\"ready\",\"params\":{}}\n{\"hang\":true}";
+        await using var process = CodexProcess.Start(Context(tree), tree.Repository, Scenario(tree, scenario));
+        await using var owner = CodexProcess.Start(Context(ownerTree), ownerTree.Repository, Scenario(ownerTree, scenario));
+        using var reader = new StreamReader(process.Stdout);
+        using var ownerReader = new StreamReader(owner.Stdout);
+        await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+        await Assert.That(await ownerReader.ReadLineAsync(ct)).Contains("ready");
+        var snapshot = process.ReadSnapshot;
+        var limited = process.QueryLimitedStartTime;
+        var nativeOpen = process.NativeOpenProcess;
+        var terminate = process.TerminateProcess;
+        process.ReadSnapshot = _ => new() { [owner.Id] = (process.Id, owner.StartTime) };
+        process.RefreshDescendants();
+        using (var root = Process.GetProcessById(process.Id))
+        {
+            root.Kill();
+            await root.WaitForExitAsync(ct);
+        }
+        try { await test(process, owner); }
+        finally
+        {
+            process.ReadSnapshot = snapshot;
+            process.OpenProcess = Process.GetProcessById;
+            process.QueryLimitedStartTime = limited;
+            process.NativeOpenProcess = nativeOpen;
+            process.TerminateProcess = terminate;
+        }
+    }
+
+    static Task<InterruptResult> StopWalkAsync(CodexProcess process, CodexProcess owner, bool recovery, CancellationToken ct) => recovery
+        ? CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = owner.Id, ["processStartTime"] = owner.StartTime.ToString("O") }, ct,
+            readSnapshot: process.ReadSnapshot, nativeOpenProcess: process.NativeOpenProcess, terminateProcess: process.TerminateProcess)
+        : process.StopAsync();
+
+    [Test]
     [Timeout(60_000)]
     public async Task Stop_check_does_not_reuse_a_snapshot_older_than_an_adopted_identity(CancellationToken ct)
     {
@@ -156,8 +424,8 @@ public sealed class CodexProcessTests
                 : await process.StopAsync();
             await Assert.That(trace).IsEquivalentTo(new[]
             {
-                $"open {descendant.Id}", $"open {childPid}", $"open {grandchildPid}",
-                $"terminate {grandchildPid}", $"terminate {childPid}", $"open {unrelated.Id}", $"terminate {descendant.Id}",
+                $"open {descendant.Id}", $"terminate {descendant.Id}", $"open {childPid}", $"terminate {childPid}",
+                $"open {grandchildPid}", $"terminate {grandchildPid}", $"open {unrelated.Id}",
             }, CollectionOrdering.Matching);
             await Assert.That(result.Stopped).IsTrue();
             foreach (var identity in born) await Assert.That(IsAlive(identity)).IsFalse();
@@ -173,6 +441,55 @@ public sealed class CodexProcessTests
             process.ReadSnapshot = snapshot;
             await CleanupAsync(born);
         }
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Windows_walk_still_discovers_children_when_their_parent_exits_during_open(bool recovery, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows pinned process identity only");
+        await WithWindowsWalkAsync(async (process, owner) =>
+        {
+            using var childTree = new TempTree();
+            var environment = Scenario(childTree, "{\"spawnChild\":true}\n{\"notify\":\"ready\",\"params\":{}}\n{\"hang\":true}");
+            await using var child = CodexProcess.Start(Context(childTree), childTree.Repository, environment);
+            using var reader = new StreamReader(child.Stdout);
+            await Assert.That(await reader.ReadLineAsync(ct)).Contains("ready");
+            var grandchild = ObserveRecordedProcesses(environment).Single(identity => identity.Pid != child.Id);
+            var nativeOpen = process.NativeOpenProcess;
+            var walking = false;
+            var opened = new List<int>();
+            process.ReadSnapshot = _ => walking ? new()
+            {
+                [grandchild.Pid] = (child.Id, grandchild.StartTime),
+                [child.Id] = (owner.Id, child.StartTime),
+            } : new();
+            process.NativeOpenProcess = (access, inherit, pid) =>
+            {
+                opened.Add(pid);
+                var handle = nativeOpen(access, inherit, pid);
+                walking = true;
+                if (pid == child.Id)
+                {
+                    using var holder = Process.GetProcessById(pid);
+                    holder.Kill();
+                    holder.WaitForExit(5000);
+                }
+                return handle;
+            };
+            try
+            {
+                var result = await StopWalkAsync(process, owner, recovery, ct);
+                await Assert.That(opened).IsEquivalentTo(new[] { owner.Id, child.Id, grandchild.Pid }, CollectionOrdering.Matching);
+                await Assert.That(result.Stopped).IsTrue();
+                await Assert.That(IsAlive(grandchild)).IsFalse();
+                if (!recovery)
+                    await Assert.That(process.Descendants.Select(identity => identity.Pid)).IsEquivalentTo(new[] { owner.Id, child.Id, grandchild.Pid }, CollectionOrdering.Matching);
+            }
+            finally { await CleanupAsync([grandchild]); }
+        }, ct);
     }
 
     [Test]
@@ -536,8 +853,8 @@ public sealed class CodexProcessTests
         var expected = new List<string> { "open", "limited", "snapshot", $"native-open 1001 False {pid}" };
         if (!denyOpen)
         {
-            expected.Add("snapshot"); // L2: discover children while the matching termination handle pins the PID.
             expected.Add("terminate 1");
+            expected.Add("snapshot"); // N1: discover children after terminating their pinned parent.
             await Assert.That(terminated).IsSameReferenceAs(opened);
             await Assert.That(opened!.IsClosed).IsTrue();
         }

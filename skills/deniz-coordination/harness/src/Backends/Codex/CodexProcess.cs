@@ -157,7 +157,10 @@ sealed class CodexProcess : IAsyncDisposable
         {
             if (!IsAlive(identity, OpenProcess, QueryLimitedStartTime, ReadProcStat, snapshot,
                 confirmedOnly: OperatingSystem.IsWindows(), detail: RecordObservation)) continue;
-            if (KillRecorded(identity, OpenProcess, RecordError, ReadProcStat, NativeOpenProcess, TerminateProcess, ReadSnapshot)) killed++;
+            var walk = KillRecorded(identity, OpenProcess, RecordError, ReadProcStat, NativeOpenProcess, TerminateProcess, ReadSnapshot);
+            if (walk.Killed) killed++;
+            lock (gate) foreach (var child in walk.Descendants) descendants[child.Pid] = child;
+            trackingReliable &= walk.Complete;
         }
         if (!process.HasExited)
         {
@@ -336,55 +339,95 @@ sealed class CodexProcess : IAsyncDisposable
         return DateTime.FromFileTimeUtc(creation);
     }
 
-    static bool KillRecorded(CodexProcessIdentity identity, Func<int, Process> openProcess, Action<string, Exception> recordError,
+    static (bool Killed, List<CodexProcessIdentity> Descendants, bool Complete) KillRecorded(CodexProcessIdentity identity, Func<int, Process> openProcess, Action<string, Exception> recordError,
         Func<string, string>? readProcStat = null, Func<uint, bool, int, SafeProcessHandle>? nativeOpenProcess = null,
         Func<SafeProcessHandle, uint, bool>? terminateProcess = null,
         Func<Func<string, string>?, Dictionary<int, (int Parent, DateTime? CreationTime)>>? readSnapshot = null)
     {
-        try
+        var discovered = new List<CodexProcessIdentity>();
+        var visited = new HashSet<(int Pid, DateTime? StartTime)>();
+        var complete = true;
+        var killed = Kill(identity, 0);
+        return (killed, discovered, complete);
+
+        bool Kill(CodexProcessIdentity identity, int depth)
         {
-            // Never terminate a recycled PID when no creation time was observable.
-            if (!identity.Confirmable) throw new UnauthorizedAccessException("process identity unavailable; cannot safely terminate by PID");
-            if (OperatingSystem.IsWindows())
+            if (!visited.Add((identity.Pid, identity.StartTime))) return false;
+            if (depth > 0) discovered.Add(identity);
+            // Bound recursion and simultaneously held PID-pinning handles, even with corrupt snapshots.
+            if (depth == 64)
             {
-                // Query and terminate through the same owned handle to avoid a PID reuse race.
-                using var handle = (nativeOpenProcess ?? Native.OpenProcess)(0x1001, false, identity.Pid); // QUERY_LIMITED_INFORMATION | TERMINATE
-                if (handle.IsInvalid)
-                {
-                    var error = Marshal.GetLastWin32Error();
-                    if (error == 87) return false;
-                    throw new Win32Exception(error);
-                }
-                if (ReadHandleStartTime(handle) != identity.StartTime) return false;
-                // Keep the parent PID pinned while discovering and terminating each child's own identity.
-                foreach (var (pid, entry) in (readSnapshot ?? ReadParents)(readProcStat))
-                    if (entry.Parent == identity.Pid && entry.CreationTime is { } created && created >= identity.StartTime)
-                        KillRecorded(new(pid, created), openProcess, recordError, readProcStat, nativeOpenProcess, terminateProcess, readSnapshot);
-                if (!(terminateProcess ?? Native.TerminateProcess)(handle, 1)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                complete = false;
+                recordError($"walk descendant pid={identity.Pid}", new IOException("child walk depth limit 64 reached; remaining descendants unknown"));
+                return false;
             }
-            else
+            try
             {
-                using var child = openProcess(identity.Pid);
-                if (child.HasExited) return false;
-                if (OperatingSystem.IsLinux())
+                // Never terminate a recycled PID when no creation time was observable.
+                if (!identity.Confirmable) throw new UnauthorizedAccessException("process identity unavailable; cannot safely terminate by PID");
+                if (OperatingSystem.IsWindows())
                 {
-                    var read = readProcStat ?? File.ReadAllText;
-                    if (!MatchesLinux(identity, ProcFields(read($"/proc/{identity.Pid}/stat")), read)) return false;
+                    // Query and terminate through the same owned handle to avoid a PID reuse race.
+                    using var handle = (nativeOpenProcess ?? Native.OpenProcess)(0x1001, false, identity.Pid); // QUERY_LIMITED_INFORMATION | TERMINATE
+                    if (handle.IsInvalid)
+                    {
+                        var error = Marshal.GetLastWin32Error();
+                        if (error == 87) return false;
+                        throw new Win32Exception(error);
+                    }
+                    // Creation time remains readable after exit: still walk an exited child's pinned PID.
+                    if (!Native.GetProcessTimes(handle, out var creation, out _, out _, out _)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                    if (DateTime.FromFileTimeUtc(creation) != identity.StartTime) return false;
+                    var terminated = false;
+                    try
+                    {
+                        if (ReadHandleStartTime(handle) is not null)
+                        {
+                            if (!(terminateProcess ?? Native.TerminateProcess)(handle, 1)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                            terminated = true;
+                        }
+                    }
+                    catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or IOException)
+                    { recordError($"kill descendant pid={identity.Pid}", exception); }
+                    // Terminate first so no children can be born after this snapshot. The held handle
+                    // reserves the PID, making the post-termination ancestry evidence safe to use.
+                    try
+                    {
+                        foreach (var (pid, entry) in (readSnapshot ?? ReadParents)(readProcStat))
+                            if (entry.Parent == identity.Pid && entry.CreationTime is { } created && created >= identity.StartTime)
+                                Kill(new(pid, created), depth + 1);
+                    }
+                    catch (Exception exception) when (exception is IOException or Win32Exception or UnauthorizedAccessException)
+                    {
+                        complete = false;
+                        recordError($"walk descendant pid={identity.Pid}", exception);
+                    }
+                    return terminated;
                 }
-                else if (child.StartTime.ToUniversalTime() != identity.StartTime) return false;
-                child.Kill(entireProcessTree: true);
+                else
+                {
+                    using var child = openProcess(identity.Pid);
+                    if (child.HasExited) return false;
+                    if (OperatingSystem.IsLinux())
+                    {
+                        var read = readProcStat ?? File.ReadAllText;
+                        if (!MatchesLinux(identity, ProcFields(read($"/proc/{identity.Pid}/stat")), read)) return false;
+                    }
+                    else if (child.StartTime.ToUniversalTime() != identity.StartTime) return false;
+                    child.Kill(entireProcessTree: true);
+                }
+                return true;
             }
-            return true;
+            catch (ArgumentException) { return false; } // Already gone.
+            catch (InvalidOperationException) { return false; } // Exit raced the kill.
+            catch (FileNotFoundException) { return false; }
+            catch (DirectoryNotFoundException) { return false; }
+            catch (IOException exception) when (OperatingSystem.IsLinux() && exception.HResult is 2 or 3) { return false; }
+            catch (IOException exception) when (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
+            { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
+            catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or AggregateException)
+            { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
         }
-        catch (ArgumentException) { return false; } // Already gone.
-        catch (InvalidOperationException) { return false; } // Exit raced the kill.
-        catch (FileNotFoundException) { return false; }
-        catch (DirectoryNotFoundException) { return false; }
-        catch (IOException exception) when (OperatingSystem.IsLinux() && exception.HResult is 2 or 3) { return false; }
-        catch (IOException exception) when (OperatingSystem.IsLinux() || OperatingSystem.IsWindows())
-        { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
-        catch (Exception exception) when (exception is Win32Exception or UnauthorizedAccessException or AggregateException)
-        { recordError($"kill descendant pid={identity.Pid}", exception); return false; }
     }
 
     void Signal(int pid, int signal)
@@ -694,16 +737,19 @@ sealed class CodexProcess : IAsyncDisposable
                 if (Native.kill(-group, 9) != 0 && Marshal.GetLastPInvokeError() != 3)
                     errors.Add($"kill recorded group: OS error {Marshal.GetLastPInvokeError()}");
         }
-        foreach (var identity in identities.AsEnumerable().Reverse())
+        var walkComplete = true;
+        foreach (var identity in identities.AsEnumerable().Reverse().ToArray())
         {
             ct.ThrowIfCancellationRequested();
             if (!IsAlive(identity, openProcess, limitedStartTime, readProcStat, snapshot,
                 confirmedOnly: OperatingSystem.IsWindows(), detail: Detail)) continue;
-            KillRecorded(identity, openProcess, (operation, exception) => errors.Add($"{operation}: {exception.Message}"), readProcStat, nativeOpenProcess, terminateProcess, readSnapshot);
+            var walk = KillRecorded(identity, openProcess, (operation, exception) => errors.Add($"{operation}: {exception.Message}"), readProcStat, nativeOpenProcess, terminateProcess, readSnapshot);
+            identities.AddRange(walk.Descendants.Where(child => !identities.Contains(child)));
+            walkComplete &= walk.Complete;
         }
         var deadline = Stopwatch.StartNew();
         while (AnyAlive() && deadline.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(50, ct);
-        return new(!AnyAlive(), $"recorded process recovery; {string.Join("; ", errors)}");
+        return new(!AnyAlive() && walkComplete, $"recorded process recovery; {string.Join("; ", errors)}");
     }
 
     sealed class ErrorTail
