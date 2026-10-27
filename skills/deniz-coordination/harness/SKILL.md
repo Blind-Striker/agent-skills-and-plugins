@@ -145,8 +145,10 @@ A recorded run is never run again and its ledger is never edited by hand.
 
 ## Traps
 
-- **Background shell timeout.** A background shell's timeout must exceed the run's longest
-  `timeoutMinutes`, or the host kills the supervisor and the run settles `lost`.
+- **Host kills.** A background shell's timeout must exceed the run's longest `timeoutMinutes`, and the
+  host's memory must hold `maxParallel` measured task peaks ([config](references/config.md#file-fields)).
+  Otherwise the host kills the supervisor: `resume` settles what it left, and Codex tasks that were
+  running settle `lost`.
 - **Codex plugin cache.** Codex keeps one cached plugin version and may replace it during a run,
   removing the supervisor's own files. Start the harness from a stable copy outside that cache;
   `selfcheck`, `plan` and `run` warn when started there ([CLI](references/cli.md#codex-plugin-cache-warning)).

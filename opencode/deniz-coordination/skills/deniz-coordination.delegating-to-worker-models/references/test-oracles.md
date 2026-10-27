@@ -29,13 +29,19 @@ reads this table as a checklist over-proves and burns the run.
   oracle. A hang guard that fires and names the awaited event is reported as "detected by a bounded
   wait", apart from kills, and never counts as a mutation proof. A run that never finishes is neither.
   Run mutants on a host with no other heavy job: under load, a timeout reads as a kill.
+- **Inputs:** every concrete input the prompt names (a seed, a start value, an expected value, a
+  mutant's target) changes what the oracle reads on the base. Check each once, through a read-only
+  probe task or one run of an existing test, and paste the observed result into the prompt. A value
+  with no effect on its path is a prompt defect.
 - **Assertion-strengthening tasks:** require proof that the mutant survives on the base and is killed
   after. A mutant is a temporary product edit, so the prompt must authorize it: name every product line
   the mutants touch as a pre-approved, revert-after edit, and require an empty product diff at the end.
   That authorization is not the task's scope (the paths the change may touch), which stays without those
   files so the final scope check fails a leftover mutant. A blanket "do not edit src/" beside a mutant requirement makes the proof a
   guaranteed stop.
-- **Order fixtures:** require entries that a wrong key would reorder.
+- **Order fixtures:** require entries that a wrong key, or no sort at all, would reorder: a test of a
+  selection (a sort, a tie-breaker, "latest", "first verified") never inserts the expected winner first.
+  Name one mutant per sort and per tie-breaker that removes it.
 - **Refusals:** require the full ordered error list unless the plan names a filter; a filter hides
   cascades.
 - **Expected values:** never computed with the helper under test.

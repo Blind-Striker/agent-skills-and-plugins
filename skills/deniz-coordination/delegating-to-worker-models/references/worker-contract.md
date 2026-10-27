@@ -1,4 +1,4 @@
-worker-contract v7
+worker-contract v8
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -86,7 +86,8 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 - Every new rule in executable behaviour gets a test that fails on the base or on a true no-op (a
   valid success shape with no effect) and passes after. A mutant with side effects does not count. A
   rule that lives only in documentation or canon text gets no test.
-- An order fixture contains entries that a wrong key would reorder.
+- An order fixture contains entries that a wrong key, or no sort at all, would reorder: the expected
+  winner is never inserted first.
 - A randomized race is not an oracle; add a deterministic case.
 - Never compute the expected value with the helper under test.
 
@@ -119,7 +120,9 @@ Report language: English.
 7. Every edit to an existing test: old -> new, with the rule that allows it.
 8. This contract's version line, and the version line of every other file prepended to your task.
 9. For an evaluation: every FRICTION entry, and every requirement reported FAILED.
-10. The last line of your final message, alone: `Status: done` when the task is done, `Status: stopped` when
+10. Memory proposals: each fact worth keeping in long-term memory, with its source, or "none". Your
+    coordinator stores the ones it accepts, so you write to no memory store.
+11. The last line of your final message, alone: `Status: done` when the task is done, `Status: stopped` when
     you stopped on a rule above or a contradiction, `Status: blocked` when the environment kept you from the
     work (a missing tool, access or input). This line settles the task: a stop or block fails it.
     A structured task (its answer is one JSON document) ends with that document and no status line.

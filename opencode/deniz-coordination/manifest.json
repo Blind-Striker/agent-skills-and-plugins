@@ -2,7 +2,7 @@
   "schemaVersion": 2,
   "module": "deniz-coordination",
   "version": "0.1.6",
-  "digest": "sha256:62ef00db0de3dd319b1a211644edde11c236c40f07cfa319f88323736135634b",
+  "digest": "sha256:874c5778c17cef61f35c1dbf769f705bed804c1d293b698f315ecc176406ea7e",
   "requiredModules": [
     "deniz-process"
   ],
@@ -28,7 +28,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/SKILL.md": {
-      "sha256": "sha256:59051c904d1c5008e569e921bb4632d31b563daf75516dea4fe18d3b2633c82b",
+      "sha256": "sha256:456dfcda402f7d3a7f80d3d178367ec4f99904303bf3b828e2b6e86628a04280",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/failure-modes.md": {
@@ -64,7 +64,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/test-oracles.md": {
-      "sha256": "sha256:29ff5be921a06a7c4b5fc768d2fa4d27ac4e002966b911a32df2daff83e129af",
+      "sha256": "sha256:7827a9c90edead7094b13dc57eae95eb5b372fcf85e1f1b5af24d91edee2044b",
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/walls/README.md": {
@@ -80,7 +80,7 @@
       "mode": "100644"
     },
     "skills/deniz-coordination.delegating-to-worker-models/references/worker-contract.md": {
-      "sha256": "sha256:e0217731a809f2ff5ae4e21074ef02fc82517dc3d4bb6f870b869bf96e44f3e1",
+      "sha256": "sha256:4a94df904e50a107200bd289c3472c1c522f1c014a386cfcf03e309d162fe135",
       "mode": "100644"
     },
     "skills/deniz-coordination.verified-waves/SKILL.md": {

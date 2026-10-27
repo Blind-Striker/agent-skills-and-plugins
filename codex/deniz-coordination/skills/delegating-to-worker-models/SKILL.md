@@ -62,7 +62,8 @@ is any subagent tool you have; the rules below hold for all of them.
 5. **Fill the prompt** from `references/prompt-template.md`. Write only the per-task fill-in. Every
    worker gets `references/worker-contract.md` and its model's worker block verbatim (the contract's
    status-line rule exempts a structured task): when your
-   mechanism prepends files, name them; otherwise paste them in yourself. Every value the repository
+   mechanism prepends files, name them; otherwise paste them in yourself. An agent you start without the
+   contract (a reviewer, a researcher) gets its memory rule, Report item 10, in the prompt. Every value the repository
    owns elsewhere comes in as an input, never as an anchor to a document. Every term gets an in-scope
    and an out-of-scope example.
 6. **No contradiction leaves your desk.** Read what the worker will read as one text: the contract, the

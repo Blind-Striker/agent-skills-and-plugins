@@ -53,7 +53,7 @@ lives there; the harness gives each worker a clean profile itself when `profile:
 | `instructions` | string array | `[]` | Accumulate in layer order; identical text appears once. Blank text: `<layer>: instructions must be non-empty`. |
 | `locations` | object | Default roots | User only: `<layer>: locations is user-layer-only`. |
 | `backends` | object | Built-in executable discovery | User only: `<layer>: backends is user-layer-only`. Only `opencode` and `codex` members exist. |
-| `preferences.maxParallel` | integer | `3` | Last configured value, task-file top level, then `--max`; must be 1 through 8. Set it by the host's memory, not by the task count: each task whose verify runs a test suite starts many processes. |
+| `preferences.maxParallel` | integer | `3` | Last configured value, task-file top level, then `--max`; must be 1 through 8. Set it by the host's memory, not by the task count: measure one task's peak, counting the containers and services its verify starts, and divide the memory you can spare by it. |
 | `preferences.defaultRoutes` | map of backend to string | No default routes | Keys must be `opencode` or `codex`: `<layer>: defaultRoutes keys must be opencode or codex`. Values use backend notation without a qualification prefix. |
 | `preferences.tempRoot` | string, absolute path | Unset | Root for private worker and verify temporary folders; see [temporary folders](#temporary-folders). |
 | `preferences.writableRoots` | string array of absolute paths | `[]` | Additional writable folders for workspace sandboxes; layers join, not replace. See [writable roots](#writable-roots). |
