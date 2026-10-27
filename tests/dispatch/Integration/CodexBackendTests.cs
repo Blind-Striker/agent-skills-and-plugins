@@ -8,6 +8,36 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexBackendTests
 {
     [Test]
+    public async Task Wire_records_publish_complete_snapshots_while_a_reader_is_open()
+    {
+        using var lab = new CodexLab();
+        var directory = Directory.CreateDirectory(Path.Combine(lab.Records, "000001-preflight.jsonl")).FullName;
+        var assembly = System.Reflection.Assembly.LoadFrom(Path.ChangeExtension(CodexLab.Executable, ".dll"));
+        var type = assembly.GetType("Wire", throwOnError: true)!;
+        var wire = Activator.CreateInstance(type, directory)!;
+        var record = type.GetMethod("Record")!;
+        void Publish(string method)
+        {
+            var message = new JsonObject { ["method"] = method };
+            record.Invoke(wire, ["in", System.Text.Encoding.UTF8.GetBytes(message.ToJsonString() + "\n"), message]);
+        }
+        Publish("initialize");
+        // Match AppendAllText's sharing: readers may open, but must also share the writer's access.
+        using (var writing = new FileStream(Path.Combine(directory, "wire.jsonl"), FileMode.Open, FileAccess.Write, FileShare.Read))
+            await Assert.That(lab.Input().Select(x => x["method"]!.GetValue<string>()))
+                .IsEquivalentTo(new[] { "initialize" }, CollectionOrdering.Matching);
+        using var snapshot = new FileStream(Path.Combine(directory, "wire.jsonl"), FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        Publish("turn/start");
+        using var reader = new StreamReader(snapshot);
+        var previous = (await reader.ReadToEndAsync()).Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => JsonNode.Parse(x)!["message"]!["method"]!.GetValue<string>()).ToArray();
+        await Assert.That(previous).IsEquivalentTo(new[] { "initialize" }, CollectionOrdering.Matching);
+        await Assert.That(lab.Input().Select(x => x["method"]!.GetValue<string>()))
+            .IsEquivalentTo(new[] { "initialize", "turn/start" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Configured_environments_reach_process_and_children_without_changing_probes(CancellationToken ct)
     {

@@ -376,13 +376,14 @@ public sealed class SchedulerTests
                 await running;
             }
             await Assert.That(reached).IsTrue();
-            await Assert.That(await WaitFileAsync(completed, Task.Delay(1000, ct), ct)).IsTrue();
             var pid = int.Parse(File.ReadAllText(entered).Trim());
+            // The orphan's exit, not a one-second grace period, proves its final command finished.
             if (!ProcessStopped(pid))
             {
                 using var process = System.Diagnostics.Process.GetProcessById(pid);
                 await process.WaitForExitAsync(ct);
             }
+            await Assert.That(File.Exists(completed)).IsTrue();
             await Assert.That(File.Exists(second)).IsFalse();
             var lines = File.ReadAllLines(Path.Combine(folder, "events.jsonl")).Select(x => JsonSerializer.Deserialize(x, LedgerJson.Events.LedgerLine)!).ToList();
             var record = JsonSerializer.Deserialize(File.ReadAllText(Path.Combine(folder, "inspect", "task.json")), LedgerJson.Files.TaskRecord)!;
@@ -636,10 +637,37 @@ public sealed class SchedulerTests
         ? $"Set-Content -LiteralPath {Quote(entered)} -Value $PID; while (!(Test-Path -LiteralPath {Quote(release)})) {{ Start-Sleep -Milliseconds 20 }}"
         : $"printf '%s\\n' $$ > {Quote(entered)}; while [ ! -f {Quote(release)} ]; do sleep 0.02; done";
 
+    [Test]
+    [Timeout(30_000)]
+    public async Task Prepare_readiness_waits_for_the_fixture_signal_not_a_startup_budget(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var entered = Path.Combine(tree.Root, "entered");
+        var running = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var waiting = WaitFileAsync(entered, running.Task, ct);
+        // Hold readiness beyond the old five-second cutoff, without allowing the producer to exit.
+        await Task.WhenAny(waiting, Task.Delay(TimeSpan.FromSeconds(6), ct));
+        var returnedBeforeSignal = waiting.IsCompleted;
+        File.WriteAllText(entered, "ready");
+        var reached = await waiting;
+        await Assert.That(returnedBeforeSignal).IsFalse();
+        await Assert.That(reached).IsTrue();
+        await Assert.That(await WaitFileAsync(entered, Task.CompletedTask, ct)).IsTrue();
+        await Assert.That(await WaitFileAsync(Path.Combine(tree.Root, "missing"), Task.CompletedTask, ct)).IsFalse();
+    }
+
     static async Task<bool> WaitFileAsync(string path, Task running, CancellationToken ct)
     {
-        var clock = System.Diagnostics.Stopwatch.StartNew();
-        while (!File.Exists(path) && !running.IsCompleted && clock.Elapsed < TimeSpan.FromSeconds(5)) await Task.Delay(10, ct);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var watcher = new FileSystemWatcher(Path.GetDirectoryName(path)!, Path.GetFileName(path));
+        watcher.Created += (_, _) => entered.TrySetResult();
+        watcher.Error += (_, error) => entered.TrySetException(error.GetException());
+        watcher.EnableRaisingEvents = true;
+        // Subscribe before checking, so creation between the check and the wait cannot be missed.
+        if (!File.Exists(path))
+        {
+            if (await Task.WhenAny(entered.Task, running).WaitAsync(ct) == entered.Task) await entered.Task;
+        }
         return File.Exists(path);
     }
 

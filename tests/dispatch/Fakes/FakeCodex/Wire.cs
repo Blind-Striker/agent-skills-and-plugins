@@ -8,12 +8,13 @@ internal sealed class Wire
 {
     readonly object gate = new();
     readonly string path;
+    readonly StringBuilder contents = new();
     internal static readonly JsonSerializerOptions Json = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
     public Wire(string directory)
     {
         path = Path.Combine(directory, "wire.jsonl");
-        File.WriteAllBytes(path, []);
+        Publish("");
     }
 
     public void Record(string direction, byte[] raw, JsonNode? message)
@@ -37,7 +38,21 @@ internal sealed class Wire
 
     void Append(JsonObject entry)
     {
-        lock (gate) File.AppendAllText(path, entry.ToJsonString(Json) + "\n", new UTF8Encoding(false));
+        lock (gate)
+        {
+            contents.Append(entry.ToJsonString(Json)).Append('\n');
+            Publish(contents.ToString());
+        }
+    }
+
+    void Publish(string text)
+    {
+        // Close the staged snapshot before exposing it: readers never race an append or a partial frame.
+        var temporary = path + ".tmp";
+        File.WriteAllText(temporary, text, new UTF8Encoding(false));
+        // Like Json.WriteBytes, use ReplaceFile on Windows: MoveFileEx cannot overwrite an open target.
+        if (OperatingSystem.IsWindows() && File.Exists(path)) File.Replace(temporary, path, destinationBackupFileName: null);
+        else File.Move(temporary, path, overwrite: true);
     }
 
     public static async IAsyncEnumerable<byte[]> Lines(Stream stream)

@@ -52,7 +52,16 @@ internal sealed class CodexLab : IDisposable
         """);
 
     public JsonObject[] Wire() => Directory.GetFiles(Records, "wire.jsonl", SearchOption.AllDirectories)
-        .SelectMany(File.ReadLines).Select(x => JsonNode.Parse(x)!.AsObject()).ToArray();
+        .SelectMany(ReadWire).ToArray();
+
+    static JsonObject[] ReadWire(string path)
+    {
+        // Each published log is immutable. Share deletion so the fake can replace its name while we read.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd().Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(x => JsonNode.Parse(x)!.AsObject()).ToArray();
+    }
     public JsonObject[] Input() => Wire().Where(x => x["direction"]!.GetValue<string>() == "in")
         .Select(x => x["message"]!.AsObject()).ToArray();
     public string RunFolder => Directory.GetDirectories(Path.Combine(Tree.DispatchHome, "state", "ledgers")).Single();
