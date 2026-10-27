@@ -92,12 +92,20 @@ sealed class TaskRun
             run.StopKind = stop.Type == "timeout" ? InterruptKind.Timeout : InterruptKind.Cancel;
             run.StopStarted = DateTimeOffset.Parse(stop.Ts, CultureInfo.InvariantCulture);
             run.CancelSent = run.StopKind == InterruptKind.Cancel;
-            if (lines.LastOrDefault(x => x.Type == "hard-stop") is { } hard)
+            run.HardStopSent = lines.Any(x => x.Type == "hard-stop");
+            if ((record.Settings.Backend?.Value ?? "opencode") != "codex" && lines.LastOrDefault(x => x.Type == "hard-stop") is { } hard)
             {
-                run.HardStopSent = true;
                 run.WorkerStopped = hard.Data?["stopped"]?.GetValue<bool>() ?? false;
                 run.Zombie = run.WorkerStopped != true;
             }
+        }
+        var current = lines.Skip(lines.FindLastIndex(x => x.Type == "prompt") + 1);
+        if (record.Settings.Backend?.Value == "codex" && current.LastOrDefault(x => x.Type is "hard-stop" or "stop-unconfirmed"
+            || x.Type == "outcome" && x.Data?["workerStopped"] is not null) is { } evidence)
+        {
+            run.WorkerStopped = evidence.Type == "stop-unconfirmed" ? false
+                : evidence.Data?[evidence.Type == "hard-stop" ? "stopped" : "workerStopped"]?.GetValue<bool>() ?? false;
+            run.Zombie = run.WorkerStopped != true;
         }
         return run;
     }

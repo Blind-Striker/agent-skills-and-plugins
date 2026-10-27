@@ -129,6 +129,13 @@ static class Worktree
         var step = "workspace";
         try
         {
+            var restored = TaskRun.FromLedger(record, ledger);
+            if (!force && (restored.Zombie || (record.Settings.Backend?.Value != "codex" || restored.WorkerStopped != true)
+                && ledger.LoadResult(task)?.Failures.Contains("zombie") == true))
+            {
+                Console.WriteLine($"{task}: retained zombie worktree and scratch; --force removes them anyway");
+                return false;
+            }
             Scratch.Delete(record, ledger);
             var git = runner ?? Runner(ledger, task);
             if (!InPlace(record) && record.Workspace is { Path: { } path, Branch: { } branch })

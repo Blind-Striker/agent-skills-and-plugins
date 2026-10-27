@@ -178,7 +178,7 @@ sealed record WorkerStartDetails(string Route, string Agent, string Lineage, str
 sealed record WorkerReport(
     string Outcome, string? FinalText, TokenTotals Usage, double? Cost, bool UsageComplete,
     IReadOnlyList<string> RoutesUsed, string? ExecutionError, bool Complete, long? ContextWindow = null,
-    IReadOnlyList<TokenTotals>? Calls = null, IReadOnlyList<string>? RecoveredErrors = null)
+    IReadOnlyList<TokenTotals>? Calls = null, IReadOnlyList<string>? RecoveredErrors = null, InterruptResult? StopResult = null)
 {
     public string Outcome { get; } = BackendValues.Outcome(Outcome);
 }
@@ -187,7 +187,7 @@ abstract record ReattachResult
 {
     private ReattachResult() { }
 
-    public sealed record Ended(string Outcome) : ReattachResult
+    public sealed record Ended(string Outcome, InterruptResult? StopResult = null) : ReattachResult
     {
         public string Outcome { get; } = BackendValues.Outcome(Outcome);
     }

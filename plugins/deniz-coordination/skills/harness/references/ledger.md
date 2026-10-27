@@ -195,7 +195,7 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `processGroup` | boolean | Codex when known | Whether a private process group was created. |
 | `processStartTime` | string timestamp | Codex when known | Guards against recycled process ids. |
 | `linuxBootId`, `linuxStartTicks` | string, integer | Codex on Linux | Kernel process identity; a recorded stop checks it before it signals. |
-| `descendants` | object array | Codex when known | Each has `pid` integer and `startTime` timestamp, and on Linux the same kernel identity. |
+| `descendants` | object array | Codex when known | Each has `pid` integer and nullable `startTime` timestamp, and on Linux the same kernel identity. Windows uses snapshot creation time when handle queries are denied. |
 | `codexHome` | string path | Codex when known | Selected home. |
 | `codexHomeTemporary` | boolean | Codex when known | Whether that home is temporary. |
 | `codexHomeMarkerName`, `codexHomeMarkerText` | strings | Codex temporary home | The random marker that proves a later process owns the home it deletes. |
@@ -203,14 +203,20 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 
 These fields support this version's recovery. They are not instructions for a caller to start,
 stop or attach processes independently.
+An absent `startTime` can come from an older record, unavailable snapshot metadata or a Unix
+observation failure. A timestamp-less identity whose PID is present stays unconfirmed: a later
+occupant cannot supply its missing original identity, authorize termination or prove ancestry. See
+[Codex stop and recovery](backends.md#codex-process-and-sandbox) for platform identity checks.
 
 ## `result.json`
 
 Ordinary settlement is done only when outcome is succeeded, final text is non-blank, no execution
 or settlement error exists, every verify command passed without timeout, scope is valid, no
 reported route drifts from the requested one, the worker did not report itself stopped or blocked,
-and a structured deliverable validates. Cancelled outcome produces cancelled state and may retain a
-`zombie` failure. Some pre-dispatch errors produce only a final event; inspect events as well.
+and a structured deliverable validates. Cancelled outcome produces cancelled state, except an
+unconfirmed Codex stop always produces failed state with `zombie`, even for a cancelled outcome.
+OpenCode cancellation retains its existing cancelled state and may retain a `zombie` failure.
+Some pre-dispatch errors produce only a final event; inspect events as well.
 
 For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked
 files without staging in the real index or committing. WIP compares against `workspace.baseSha` in a
@@ -256,7 +262,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `retries` | integer | `0` | Observed retry count. |
 | `timedOut` | boolean | `false` | Harness timeout occurred. |
 | `cancelRequested` | boolean | `false` | Cancellation requested. |
-| `workerStopped` | boolean | Absent unless hard-stop result recorded | Whether stop was confirmed. |
+| `workerStopped` | boolean | Absent without stop evidence | Whether stop was confirmed, including Codex release, recovery and cleanup checks. |
 | `baseSha` | string | Absent for structured/no starting HEAD | Starting Git commit. |
 | `commitMode` | string | Absent for structured | `harness` or `none`. |
 | `commit` | string | Absent for none or unchanged HEAD | Resulting commit id. |
@@ -308,7 +314,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |
-| `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or a Codex turn that ended while a worker process could not be observed): a process may still write, so commit and verify were skipped. The worktree keeps the work. |
+| `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or Codex settlement, release, recovery or cleanup): a process may still write, so workspace collection, commit, verify and scratch deletion were skipped. Codex settles failed even for cancelled outcome; siblings continue. The worktree keeps the work. |
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |
 
 The `workspace-dirty` start failure writes a minimal result before its error and final events.
@@ -379,14 +385,14 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `interrupted` | Optional `reason` string | Task left interrupted without a harness stop request. |
 | `timeout` | Optional `interrupted` boolean and `status` integer | Timeout interrupt attempt. |
 | `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
-| `hard-stop` | `kind` string, `stopped` boolean, `detail` string | One hard-stop report; kind is cancel or timeout. Stopped value feeds result `workerStopped`. |
-| `stop-unconfirmed` | `outcome` string, `detail` string | The turn ended but the backend could not confirm its processes stopped; the task settles at once as a `zombie`, with the worker's final report. |
+| `hard-stop` | Optional `kind` string, `stopped` boolean, `detail` string | Hard-stop report; kind is cancel or timeout. A later affirmative Codex stop check clearing recorded uncertainty also writes this evidence, without kind. Stopped value feeds restored `workerStopped`; late interrupt replies after settlement begins are ignored. |
+| `stop-unconfirmed` | Optional `outcome` string, `detail` string | Task-local stop uncertainty at turn end or Codex settlement, release, recovery or scope cleanup, including failed initialization before a thread exists. Records stop evidence; a completed turn retains its final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded; `notRun` integer when any entry did not run | Verify summary; `commands` includes not-run records; `notRun` counts those records, not passes. `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |
 | `prepared` | `commands`/`failed` integers; optional `changed`, `checkFailed`, `cancelled` booleans | Preparation summary; exact payloads and sessionless settlement above. Does not change the task's state: it stays `dispatching` until the worker starts or `final` is written. |
 | `validated` | `ok` boolean, `errors` array of `{at, message}` strings | Structured validation result. |
 | `usage` | Optional `input`, `cacheRead`, `output`, `reasoning` numbers | One task-scoped event per reported model call, in call order, before `outcome` on every settlement that writes a result, including failed and structured tasks. Unavailable fields are omitted; reported zeros are kept. `input` includes cache reads and writes, as in `tokens.input`; cache-write has no separate event field (it is retained in result totals). Codex uses a current-turn own-thread token notification's `last` breakdown only when that thread's cumulative `total` changed (not child usage); opencode uses token-bearing assistant messages across the task session, including continuations. Settlement counts the task's existing `usage` events and skips that already-written prefix of calls, so continuation and collect append only unwritten calls. Timestamps are settlement write times, not model-call times. No calls means no events, even when task totals exist. |
-| `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string | Settlement outcome summary. `tokensIn` and `tokensOut` are `result.json`'s `tokens.input` and `tokens.output`, respectively. |
+| `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string; Codex `workerStopped` boolean when known | Settlement outcome summary. `tokensIn` and `tokensOut` are `result.json`'s `tokens.input` and `tokens.output`, respectively. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
 | `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |
 | `cleaned` | Optional `worktree`/`branch` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. |
@@ -397,6 +403,19 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `git-config-changed` | `keys` string array, `blocking` boolean | Git guard finding. Non-blocking changes may populate warnings. |
 | `index-lock-removed` | `path` string | Lock created by a timed-out killed Git call was removed. |
 | `ledger-repaired` | `file` string, `bytes` integer | Torn tail archived before append. |
+
+Codex stop detail records PIDs, recorded/current creation times, observation failures and surviving
+or uncertain identities. Failed termination attempts remain evidence even when the subsequent
+identity check confirms exit; a denial alone does not make that stop unconfirmed. Windows
+snapshot-backed recording still emits the `error` diagnostic with `while: descendant-unobservable`,
+stating when snapshot identity supplied the recorded timestamp. Stop evidence is separate from
+execution errors: a failed kill followed by confirmed exit does not create an execution failure.
+Recovery restores uncertainty from the latest applicable `hard-stop`, `stop-unconfirmed` or Codex
+`outcome.workerStopped` evidence after the latest prompt. A later confirmed check can clear it for
+recollection or clean, including confirmation during scope cleanup; earlier evidence and the settled
+result remain intact. Scope cleanup does not write a second `final` for an already-final task;
+explicit `collect` still repeats settlement. Unconfirmed Codex cleanup retains owned resources
+and fails only its task, not the run; genuine supervisor or ledger errors can still abort it.
 
 The pending `warning` event for Windows user PATH changes is described under the
 [Windows user PATH guard](cli.md#windows-user-path-guard).

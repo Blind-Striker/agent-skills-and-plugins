@@ -6,6 +6,8 @@ sealed record ProcessResult(int ExitCode, byte[] Stdout, string Stderr, bool Tim
 
 static class Proc
 {
+    internal static readonly AsyncLocal<Func<Process, CancellationToken, Task>?> BeforeTimeout = new();
+
     public static async Task<ProcessResult> RunAsync(string file, IReadOnlyList<string> args, string cwd, CancellationToken ct, TimeSpan? timeout = null, bool belowNormal = false, IReadOnlyDictionary<string, string>? environment = null)
     {
         if (!Path.IsPathFullyQualified(cwd)) throw new HarnessException("child working directory must be absolute");
@@ -29,7 +31,8 @@ static class Proc
         using var process = new Process { StartInfo = psi };
         process.Start();
         using var window = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        if (timeout is { } t) window.CancelAfter(t);
+        var beforeTimeout = BeforeTimeout.Value;
+        if (timeout is { } t && beforeTimeout is null) window.CancelAfter(t);
         using var drain = new CancellationTokenSource();
         using var output = new MemoryStream();
         using var error = new MemoryStream();
@@ -55,6 +58,11 @@ static class Proc
         var killed = false;
         try
         {
+            if (timeout is { } limit && beforeTimeout is not null)
+            {
+                await beforeTimeout(process, window.Token);
+                window.CancelAfter(limit);
+            }
             await completion.WaitAsync(window.Token);
         }
         catch (OperationCanceledException)

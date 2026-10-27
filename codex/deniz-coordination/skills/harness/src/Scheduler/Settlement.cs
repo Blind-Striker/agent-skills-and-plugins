@@ -3,8 +3,15 @@ static class Settlement
     public static async Task<TaskResult> SettleAsync(IWorkerBackend backend, Ledger ledger, TaskRun run, string? outcomeOverride, CancellationToken ct, Git? git = null)
     {
         var record = run.Record;
-        var report = run.Zombie && !run.ReportReady ? new WorkerReport("lost", null, new(), null, false, [], null, false)
+        var report = run.Zombie && !run.ReportReady && backend.Name != "codex" ? new WorkerReport("lost", null, new(), null, false, [], null, false)
             : await backend.CollectAsync(run.SavedWorker(), ct);
+        // Live zombie settlement is fixed at admission; only a later recovery/collect may clear it.
+        if (run.State != TaskState.Settling || !run.Zombie || report.StopResult is not { Stopped: true })
+            RecordStop(ledger, run, report.StopResult, outcomeOverride ?? report.Outcome);
+        if (backend.Name == "codex") run.SaveWorker(run.SavedWorker(), ledger);
+        // Codex release owns process/home cleanup; confirm it before touching worker-owned bytes.
+        if (backend.Name == "codex" && !run.Zombie)
+            RecordStop(ledger, run, await backend.ReleaseAsync(run.SavedWorker(), ct), outcomeOverride ?? report.Outcome);
         var outcome = outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
         var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
         await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
@@ -55,7 +62,7 @@ static class Settlement
         if (outcome == "cancelled")
         {
             result.Failures = result.Failures.Where(x => x == "zombie").Distinct().ToList();
-            result.State = "cancelled";
+            result.State = run.Zombie && backend.Name == "codex" ? "failed" : "cancelled";
         }
         else
         {
@@ -98,12 +105,30 @@ static class Settlement
             if (call.Reasoning is { } reasoning) data["reasoning"] = reasoning;
             ledger.Write(run.Id, "usage", data);
         }
-        ledger.Write(run.Id, "outcome", new JsonObject
+        var outcomeData = new JsonObject
         {
             ["outcome"] = outcome, ["cost"] = result.Cost, ["tokensIn"] = result.Tokens?.Input,
             ["tokensOut"] = result.Tokens?.Output, ["tokensComplete"] = result.TokensComplete, ["error"] = result.ExecutionError ?? result.Error,
-        });
+        };
+        if (backend.Name == "codex") outcomeData["workerStopped"] = run.WorkerStopped;
+        ledger.Write(run.Id, "outcome", outcomeData);
         return result;
+    }
+
+    public static void RecordStop(Ledger ledger, TaskRun run, InterruptResult? stop, string? outcome = null)
+    {
+        if (stop is null) return;
+        var wasZombie = run.Zombie;
+        run.WorkerStopped = stop.Stopped;
+        run.Zombie = !stop.Stopped;
+        if (stop.Stopped)
+        {
+            run.WorkerEnded = true;
+            if (wasZombie)
+                ledger.Write(run.Id, "hard-stop", new JsonObject { ["stopped"] = true, ["detail"] = stop.Detail });
+        }
+        else if (!wasZombie)
+            ledger.Write(run.Id, "stop-unconfirmed", new JsonObject { ["outcome"] = outcome, ["detail"] = stop.Detail });
     }
 
     public const string StatusPrefix = "Status:";

@@ -128,7 +128,9 @@ is any subagent tool you have; the rules below hold for all of them.
    The merge queue and CI stay the last net for cross-change effects.
 5. **Fix-up loop.** Turn findings into a per-file cut list with line ranges and the replacement. A worker
    fix pass reports each item done or rejected with figures. Spot-check the blockers yourself. A fix pass
-   toward the same done-when is not new scope.
+   toward the same done-when is not new scope. Its prompt names every existing expectation the fixes
+   change, or authorizes, within named test classes, the changes that follow necessarily from its items,
+   each reported old -> new; a fix that needs an unnamed oracle change otherwise costs a stop.
 6. **Land.** When parallel tasks from one base conflict, a land task cherry-picks them onto the current
    tip, says which side wins, resolves toward the newer behaviour, and reruns the suite.
 

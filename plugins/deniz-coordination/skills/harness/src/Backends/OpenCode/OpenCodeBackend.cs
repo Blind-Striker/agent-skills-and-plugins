@@ -52,11 +52,12 @@ sealed partial class OpenCodeBackend(bool subscribe = true, BackendContext? cont
     public Task<WorkerReport> CollectAsync(WorkerRef worker, CancellationToken ct) => GuardAsync(() => CollectCoreAsync(worker, ct));
     public Task<ReattachResult> ReattachAsync(WorkerRef worker, CancellationToken ct) => GuardAsync(() => ReattachCoreAsync(worker, ct));
     public Task<RouteListing> ListRoutesAsync(string directory, CancellationToken ct) => GuardAsync(() => ListRoutesCoreAsync(directory, ct));
-    public async Task ReleaseAsync(WorkerRef worker, CancellationToken ct)
+    public async Task<InterruptResult?> ReleaseAsync(WorkerRef worker, CancellationToken ct)
     {
         try { await ReleaseCoreAsync(worker, ct); }
         catch (OpenCodeException ex) { throw Failure(ex); }
         finally { await DisposeFenceAsync(HostKey(worker)); }
+        return null;
     }
 
     static async Task<T> GuardAsync<T>(Func<Task<T>> call)

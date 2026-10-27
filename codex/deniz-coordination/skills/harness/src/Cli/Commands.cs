@@ -161,9 +161,19 @@ static partial class Commands
         SupervisorLock? supervisorLock = null;
         string? control = null;
         var claimed = false;
-        try
+        BackendScope? scope = null;
+        CodexBackend? injectedCodex = null;
+        IReadOnlyDictionary<string, IWorkerBackend> backends = new Dictionary<string, IWorkerBackend>();
+        var runs = new List<TaskRun>();
+        IWorkerBackend? injectedBackend = null;
+        async Task<int> RunOwnedAsync()
         {
-            await using var injectedBackend = backendFactory?.Invoke();
+            injectedBackend = backendFactory?.Invoke();
+            return await UsingPreservingAsync(injectedBackend, RunWithBackendAsync);
+        }
+        async Task<int> RunWithBackendAsync()
+        {
+            injectedCodex = injectedBackend as CodexBackend;
             var versions = new Dictionary<string, BackendInfo>();
             if (injectedBackend is not null)
             {
@@ -173,13 +183,17 @@ static partial class Commands
             }
             else
             {
-                await using var preflight = new BackendScope(plan.Tasks.Select(t => t.Spec.Backend ?? "opencode"));
-                foreach (var backend in preflight.Backends.Values)
+                var preflight = new BackendScope(plan.Tasks.Select(t => t.Spec.Backend ?? "opencode"));
+                await UsingPreservingAsync(preflight, async () =>
                 {
-                    var probe = await backend.ProbeAsync(new(plan.Repo), ct);
-                    versions[backend.Name] = new() { Version = probe.Version! };
-                    await Planner.CheckLiveAsync(plan, backend, allow, ct);
-                }
+                    foreach (var backend in preflight.Backends.Values)
+                    {
+                        var probe = await backend.ProbeAsync(new(plan.Repo), ct);
+                        versions[backend.Name] = new() { Version = probe.Version! };
+                        await Planner.CheckLiveAsync(plan, backend, allow, ct);
+                    }
+                    return 0;
+                });
             }
             if (plan.Errors.Count > 0)
             {
@@ -235,7 +249,6 @@ static partial class Commands
 
             ledger.Write(null, "run", started);
 
-            var runs = new List<TaskRun>();
             foreach (var task in plan.Tasks)
             {
                 var record = new TaskRecord
@@ -261,10 +274,19 @@ static partial class Commands
             StructuredOutput.Freeze(ledger, runs, beforeFrozenConfigMove);
             using (var done = new FileStream(Path.Combine(control, "setup.done"), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
                 done.Flush(flushToDisk: true);
-            await using var scope = injectedBackend is null ? new BackendScope(versions.Keys, control, runId: runId) : null;
-            var backends = scope?.Backends ?? new Dictionary<string, IWorkerBackend> { [injectedBackend!.Name] = injectedBackend };
-            var supervisor = new Supervisor(backends, ledger, plan.Repo, allow, policy, max, ct);
-            return await supervisor.RunAsync(runs);
+            scope = injectedBackend is null ? new BackendScope(versions.Keys, control, runId: runId) : null;
+            return await UsingPreservingAsync(scope, async () =>
+            {
+                backends = scope?.Backends ?? new Dictionary<string, IWorkerBackend> { [injectedBackend!.Name] = injectedBackend };
+                var supervisor = new Supervisor(backends, ledger, plan.Repo, allow, policy, max, ct);
+                return await supervisor.RunAsync(runs);
+            });
+        }
+        try
+        {
+            var exit = await CleanupPreservingAsync(RunOwnedAsync,
+                () => SettleCleanupAsync(ledger, runs, backends, scope?.CleanupResults ?? injectedCodex?.CleanupResults ?? []));
+            return !claimed ? exit : exit == 0 && ledger.TaskStates().Values.All(state => state == "done") ? 0 : 1;
         }
         catch (Exception ex) when (claimed)
         {
@@ -289,6 +311,49 @@ static partial class Commands
     }
 
     static HarnessException RecordedRun(string run) => new($"run {run} is already recorded; a rerun takes a new run id; `collect` or `resume` recovers it");
+
+    static async Task<int> UsingPreservingAsync(IAsyncDisposable? resource, Func<Task<int>> body)
+    {
+        Exception? original = null;
+        try
+        {
+            await using (resource)
+            {
+                try { return await body(); }
+                catch (Exception error) { original = error; throw; }
+            }
+        }
+        catch (Exception error) when (original is not null && !ReferenceEquals(original, error))
+        { throw new AggregateException(original, error); }
+    }
+
+    static async Task<int> CleanupPreservingAsync(Func<Task<int>> body, Func<Task> cleanup)
+    {
+        Exception? original = null;
+        try { return await body(); }
+        catch (Exception error) { original = error; throw; }
+        finally
+        {
+            try { await cleanup(); }
+            catch (Exception error) when (original is not null) { throw new AggregateException(original, error); }
+        }
+    }
+
+    static async Task SettleCleanupAsync(Ledger ledger, IReadOnlyList<TaskRun> runs, IReadOnlyDictionary<string, IWorkerBackend> backends,
+        IReadOnlyList<(WorkerRef Worker, InterruptResult Stop)> cleanup)
+    {
+        foreach (var (worker, stop) in cleanup)
+        {
+            var run = runs.FirstOrDefault(item => item.Id == worker.TaskId) ?? TaskRun.FromLedger(ledger.LoadRecord(worker.TaskId), ledger);
+            run.SaveWorker(worker, ledger);
+            Settlement.RecordStop(ledger, run, stop, ledger.LoadResult(run.Id)?.Outcome);
+            if (stop.Stopped || ledger.LoadResult(run.Id)?.Failures.Contains("zombie") == true
+                || ledger.Read().Any(line => line.Task == run.Id && line.Type == "final")) continue;
+            var result = await Settlement.SettleAsync(backends[worker.Backend], ledger, run, null, CancellationToken.None);
+            ledger.Write(run.Id, "final", new JsonObject { ["state"] = result.State, ["outcome"] = result.Outcome });
+            run.State = TaskState.Failed;
+        }
+    }
 
     static int Aborted(Ledger ledger, Exception error)
     {
@@ -445,49 +510,59 @@ static partial class Commands
         var policy = Policy.From(frozen);
         Console.WriteLine(policy.Describe());
         AskQueue.Reset(ledger.RunId);
+        BackendScope? scope = null;
+        var runs = new List<TaskRun>();
         try
         {
-            await using var scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
-            var states = ledger.TaskStates();
-            var runs = new List<TaskRun>();
-            foreach (var (task, state) in states)
+            var exit = await CleanupPreservingAsync(async () =>
             {
-                if (state is "done" or "failed" or "cancelled")
-                {
-                    continue;
-                }
-
-                var record = ledger.LoadRecord(task);
-                if (record.Spec.Kind == "structured" || frozen.Tasks[task].InputSha256 is not null)
-                    record.Spec = ledger.FrozenSpec(task);
-                record.Settings = frozen.Tasks[task].Settings;
-                ConfigLayers.Apply(record.Spec, record.Settings);
-                var run = TaskRun.FromLedger(record, ledger);
-                if (record.PrepareRunning == true)
-                {
-                    ledger.Write(task, "queued", new JsonObject { ["kind"] = record.Spec.Kind });
-                    ledger.Write(task, "error", new JsonObject { ["message"] = $"{task}: prepare was interrupted by a supervisor exit; a command may still run on this host. Check for it, then clean the task and start it under a new run id." });
-                    continue;
-                }
-                if (record.Session.Id is null && !proceed)
-                {
-                    Console.WriteLine($"{task}: never prompted; `resume --continue` dispatches it");
-                    continue;
-                }
-
-                runs.Add(run);
-            }
-
-            if (runs.Count == 0)
-            {
-                Console.WriteLine("nothing to resume");
-                return states.Values.All(x => x == "done") ? 0 : 1;
-            }
-
-            ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count });
-            var supervisor = new Supervisor(scope.Backends, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
-            var exit = await supervisor.ResumeAsync(runs, proceed);
+                scope = new BackendScope(frozen.Tasks.Values.Select(t => t.Settings.Backend?.Value ?? "opencode"), control, runId: ledger.RunId);
+                return await UsingPreservingAsync(scope, ResumeOwnedAsync);
+            }, () => scope is null ? Task.CompletedTask : SettleCleanupAsync(ledger, runs, scope.Backends, scope.CleanupResults));
             return exit == 0 && ledger.TaskStates().Values.All(x => x == "done") ? 0 : 1;
+
+            async Task<int> ResumeOwnedAsync()
+            {
+                if (scope!.Backends.TryGetValue("codex", out var backend)) ((CodexBackend)backend).RunId = ledger.RunId;
+                var states = ledger.TaskStates();
+                foreach (var (task, state) in states)
+                {
+                    if (state is "done" or "failed" or "cancelled")
+                    {
+                        continue;
+                    }
+
+                    var record = ledger.LoadRecord(task);
+                    if (record.Spec.Kind == "structured" || frozen.Tasks[task].InputSha256 is not null)
+                        record.Spec = ledger.FrozenSpec(task);
+                    record.Settings = frozen.Tasks[task].Settings;
+                    ConfigLayers.Apply(record.Spec, record.Settings);
+                    var run = TaskRun.FromLedger(record, ledger);
+                    if (record.PrepareRunning == true)
+                    {
+                        ledger.Write(task, "queued", new JsonObject { ["kind"] = record.Spec.Kind });
+                        ledger.Write(task, "error", new JsonObject { ["message"] = $"{task}: prepare was interrupted by a supervisor exit; a command may still run on this host. Check for it, then clean the task and start it under a new run id." });
+                        continue;
+                    }
+                    if (record.Session.Id is null && !proceed)
+                    {
+                        Console.WriteLine($"{task}: never prompted; `resume --continue` dispatches it");
+                        continue;
+                    }
+
+                    runs.Add(run);
+                }
+
+                if (runs.Count == 0)
+                {
+                    Console.WriteLine("nothing to resume");
+                    return states.Values.All(x => x == "done") ? 0 : 1;
+                }
+
+                ledger.Write(null, "resume", new JsonObject { ["continue"] = proceed, ["tasks"] = runs.Count });
+                var supervisor = new Supervisor(scope!.Backends, ledger, info.Repo!, allow, policy, info.MaxParallel, ct);
+                return await supervisor.ResumeAsync(runs, proceed);
+            }
         }
         catch (Exception ex)
         {

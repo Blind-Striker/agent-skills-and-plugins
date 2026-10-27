@@ -219,8 +219,48 @@ upstream report is openai/codex#56396; check it before a Codex pin moves.
 
 Codex records process identity and descendants so recovery can stop the recorded process tree.
 On Windows, a process created before its recorded parent is a parent-PID reuse and is never adopted.
+When both process-handle creation-time queries are denied, a fresh system snapshot decides identity:
+an absent PID or a different creation time means the recorded process ended; an equal creation time
+means it remains alive. Descendants first observed with denied handle queries record the snapshot's
+creation time and can supply ancestry proof; the denial diagnostic states that snapshot identity was
+recorded. An already recorded identity is retained while it is unknown, alive or uncertain. Once a
+confirmable identity is proven absent or reused, a new child of a confirmed owner can replace it.
+On Windows, an observable handle start time must equal the snapshot creation time before adoption;
+a mismatch is skipped for that pass. Each observation pass shares one system snapshot, including
+snapshot failures, across denied identities.
+
+An identity can still lack a timestamp in an older ledger or when snapshot metadata is unavailable.
+If its PID is present, it stays unconfirmed, supplies no ancestry proof and is never killed. An
+unrelated process that keeps holding a recorded descendant's timestamp-less PID therefore keeps
+release, resume and collect unconfirmed: the operator sees task-scoped stop evidence and a failed
+task with `zombie`, with resources retained until a later check can confirm absence. An
+unreadable snapshot likewise proves neither exit nor ownership. Termination requires an affirmative
+identity match, and the Windows native termination path checks creation time again through the same handle
+used to terminate, guarding against reuse between observation and termination. Failed attempts stay
+in stop detail even if that handle finds the process gone. The existing wait and subsequent identity
+checks decide confirmation independently of kill success, with job accounting, snapshot reliability
+and stream-drain checks still required. Linux keeps boot-ID/start-tick identity and zombie checks;
+macOS keeps its existing process start-time rules. Neither platform adopts Windows snapshot timestamps.
+
 It does not attach to an old active thread for more prompts. Without a recorded cancellation or
 timeout, either resume mode settles a started non-final Codex task as failed with outcome `lost`;
 recorded stop requests retain their cancelled or timeout outcome. Use a new run id for a retry. An
-unconfirmed hard stop produces `zombie`, and the harness skips commit and verify while the worker
-may still write.
+unconfirmed Codex stop produces a failed task with `zombie`, including when its outcome is
+cancelled. The harness records task-scoped stop evidence and skips workspace collection, commit,
+verify and scratch deletion while the worker may still write; sibling tasks continue normally.
+This applies at settlement, release, scope cleanup and recorded recovery, including resume and
+collect after a supervisor restart, on every platform. Stop uncertainty alone never aborts the run;
+genuine supervisor, ledger and cleanup errors still follow their error paths.
+Process/job resources, connections, temporary homes and their owning command folders remain owned
+for a later cleanup attempt until stop is confirmed. On Windows the job closes with the supervisor
+(`KILL_ON_JOB_CLOSE`), so a later `resume` normally finds the retained processes ended. An unconfirmed
+probe connection with no task reports its stop evidence on stderr. A completed turn retains its final text and
+usage even when its stop remains uncertain. A later affirmative identity check during recollection
+can clear restored uncertainty without removing historical ledger evidence. OpenCode's existing
+cancellation semantics are unchanged. Zombie workspace retention during clean is described in
+[the CLI](cli.md#clean-run---force---ledger-dir).
+
+Collection without a recorded confirmed live stop waits at most ten seconds for the unfinished pump,
+even if stopping faulted or the turn never ended, then uses the evidence available. A turn id alone does not prove a report ready. Recorded
+recovery needs no turn id, including after failed creation. Late hard-stop replies cannot change a
+settlement already begun; scope cleanup records later stop confirmation without repeating its final.
