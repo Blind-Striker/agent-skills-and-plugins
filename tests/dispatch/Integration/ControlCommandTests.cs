@@ -198,7 +198,10 @@ public sealed class ControlCommandTests
             : command == "resume" ? await Commands.ResumeAsync(args, ct) : await Commands.CleanAsync(args, ct);
         await Assert.That(exit).IsEqualTo(1);
         await Assert.That(Directory.Exists(home.Home)).IsTrue();
-        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsEqualTo(!force);
+        if (Directory.Exists(run.Record.Workspace.Path) != !force)
+            throw new InvalidOperationException(string.Join(Environment.NewLine,
+                "DIAG workspace " + run.Record.Workspace.Path + " exists=" + Directory.Exists(run.Record.Workspace.Path),
+                "stdout:", output.GetStandardOutput()[start..], "stderr:", output.GetErrorOutput()));
         await Assert.That(core.Ledger.Read().Where(line => line.Type == "aborted")).IsEmpty();
         if (command == "clean")
             await Assert.That(output.GetStandardOutput()[start..]).Contains($"{run.Id}: retained Codex home: {home.Home}");
@@ -212,7 +215,12 @@ public sealed class ControlCommandTests
         // A later recorded check needs no turn, and can reclaim the home without a resume or retry run.
         run.Worker!.State["pid"] = int.MaxValue;
         run.SaveWorker(run.Worker, core.Ledger);
-        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+        var (outMark, errMark) = (output.GetStandardOutput().Length, output.GetErrorOutput().Length);
+        var cleaned = await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct);
+        if (cleaned != 0)
+            throw new InvalidOperationException(string.Join(Environment.NewLine,
+                "DIAG clean exit " + cleaned, "stdout:", output.GetStandardOutput()[outMark..], "stderr:", output.GetErrorOutput()[errMark..],
+                "events:", string.Join(Environment.NewLine, core.Ledger.Read().Select(x => $"{x.Type} {x.Task} {x.Data?.ToJsonString()}"))));
         await Assert.That(Directory.Exists(home.Home)).IsFalse();
         await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
         await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsFalse();
