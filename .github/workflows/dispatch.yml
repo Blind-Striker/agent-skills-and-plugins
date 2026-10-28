@@ -16,8 +16,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
-    # A run takes about 20 minutes; a hung test otherwise holds the runner for six hours.
-    timeout-minutes: 45
+    # A run takes about 25 minutes on Windows; a hung test otherwise holds the runner for six hours.
+    timeout-minutes: 60
     env:
       DOTNET_NOLOGO: "1"
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
@@ -83,8 +83,8 @@ jobs:
         if: runner.os != 'Windows'
         working-directory: tests/dispatch
         # Inside the job's limit, so a hung test still leaves its dump, results and log behind:
-        # the session ends at 25 minutes, and a test stuck for 15 is dumped first.
-        timeout-minutes: 35
+        # the session ends at 40 minutes, and a test stuck for 15 is dumped first.
+        timeout-minutes: 50
         shell: bash
         env:
           DISPATCH_CONTRACT: ${{ runner.os == 'Linux' && '1' || '' }}
@@ -94,19 +94,19 @@ jobs:
         run: |
           set +e
           dotnet run -c Release --no-build -- --treenode-filter "/*/*/*/*[Category!=Functional]" --results-directory "$GITHUB_WORKSPACE/test-results" \
-            --timeout 25m --hangdump --hangdump-timeout 15m --hangdump-type Mini > "$RUNNER_TEMP/tests.log" 2>&1
+            --timeout 40m --hangdump --hangdump-timeout 15m --hangdump-type Mini > "$RUNNER_TEMP/tests.log" 2>&1
           code=$?
           # TUnit colors its lines; strip the codes so the failed tests and the totals are found.
           sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E -A6 "^failed " | tail -n 300
           sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/tests.log" | grep -E "^  (failed|succeeded|skipped|duration):"
           exit $code
-      # Windows step timeouts did not end a hung run: the step waited past 35 minutes. A watchdog in the
+      # Windows step timeouts did not end a hung run: the step waited past its limit. A watchdog in the
       # step ends it instead. The tests start through ShellExecute in a hidden window, so they inherit
-      # none of the step's handles; at 30 minutes the watchdog prints what still runs and kills the tree.
+      # none of the step's handles; at 45 minutes the watchdog prints what still runs and kills the tree.
       - name: Unit and Integration tests (Windows, with a watchdog)
         if: runner.os == 'Windows'
         working-directory: tests/dispatch
-        timeout-minutes: 40
+        timeout-minutes: 55
         shell: pwsh
         run: |
           $log = Join-Path $env:RUNNER_TEMP 'tests.log'
@@ -114,13 +114,13 @@ jobs:
           $script = Join-Path $env:RUNNER_TEMP 'run-tests.cmd'
           @(
             '@echo off'
-            "dotnet run -c Release --no-build -- --treenode-filter ""/*/*/*/*[Category!=Functional]"" --results-directory ""$results"" --timeout 25m --hangdump --hangdump-timeout 15m --hangdump-type Mini > ""$log"" 2>&1"
+            "dotnet run -c Release --no-build -- --treenode-filter ""/*/*/*/*[Category!=Functional]"" --results-directory ""$results"" --timeout 40m --hangdump --hangdump-timeout 15m --hangdump-type Mini > ""$log"" 2>&1"
           ) | Set-Content -LiteralPath $script -Encoding ascii
           $started = Get-Date
           $run = Start-Process -FilePath $script -WindowStyle Hidden -PassThru
           $null = $run.Handle
-          if (-not $run.WaitForExit(30 * 60 * 1000)) {
-            'WATCHDOG: the tests still run after 30 minutes; processes started since the tests began:'
+          if (-not $run.WaitForExit(45 * 60 * 1000)) {
+            'WATCHDOG: the tests still run after 45 minutes; processes started since the tests began:'
             Get-CimInstance Win32_Process | Where-Object { $_.CreationDate -ge $started.AddSeconds(-5) } |
               Select-Object ProcessId, ParentProcessId, Name, CreationDate, CommandLine | Format-List | Out-String -Width 400
             'WATCHDOG: the last 150 lines of the test log:'
