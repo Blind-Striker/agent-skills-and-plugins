@@ -352,7 +352,12 @@ sealed class CodexProcess : IAsyncDisposable
 
         bool Kill(CodexProcessIdentity identity, int depth)
         {
-            if (!visited.Add((identity.Pid, identity.StartTime))) return false;
+            if (!visited.Add((identity.Pid, identity.StartTime)))
+            {
+                complete = false;
+                recordError($"walk descendant pid={identity.Pid}", new IOException("child walk repeated identity; remaining descendants unknown"));
+                return false;
+            }
             if (depth > 0) discovered.Add(identity);
             // Bound recursion and simultaneously held PID-pinning handles, even with corrupt snapshots.
             if (depth == 64)
@@ -744,7 +749,16 @@ sealed class CodexProcess : IAsyncDisposable
             if (!IsAlive(identity, openProcess, limitedStartTime, readProcStat, snapshot,
                 confirmedOnly: OperatingSystem.IsWindows(), detail: Detail)) continue;
             var walk = KillRecorded(identity, openProcess, (operation, exception) => errors.Add($"{operation}: {exception.Message}"), readProcStat, nativeOpenProcess, terminateProcess, readSnapshot);
-            identities.AddRange(walk.Descendants.Where(child => !identities.Contains(child)));
+            foreach (var child in walk.Descendants)
+            {
+                if (identities.Any(recorded => recorded.Pid == child.Pid && recorded.StartTime == child.StartTime)) continue;
+                identities.Add(child);
+                (state["descendants"] ??= new JsonArray()).AsArray().Add((JsonNode)new JsonObject
+                {
+                    ["pid"] = child.Pid, ["startTime"] = child.StartTime?.ToString("O", CultureInfo.InvariantCulture),
+                    ["linuxBootId"] = child.LinuxBootId, ["linuxStartTicks"] = child.LinuxStartTicks,
+                });
+            }
             walkComplete &= walk.Complete;
         }
         var deadline = Stopwatch.StartNew();
