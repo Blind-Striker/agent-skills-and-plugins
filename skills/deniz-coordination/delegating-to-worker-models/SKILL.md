@@ -1,14 +1,20 @@
 ---
 name: delegating-to-worker-models
-description: Use when you hand a piece of work (implementation, a plan, research, or a review) to another agent, write its prompt, check its output, or review it. Covers what stays with you, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.
+description: Use when you hand off implementation, a plan, research a decision will rely on, or a review, and you brief the worker and check what comes back. A subagent that searches, reads in parallel, or keeps your context small is ordinary tool use. Covers what stays with you, the mechanism, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.
 ---
 
 # Delegating to worker models
 
-You keep the judgement; other agents do the work. Assign work by strength: judgement goes to the
-strongest reasoner you have, implementation to the strongest implementer. `references/models/` says
-which model is strong at what, how to brief it, and where to look when you review it. The mechanism
-is any subagent tool you have; the rules below hold for all of them.
+You keep the judgement; other agents do the work.
+
+**Mechanism.** Use the first that applies: the mechanism the user names for this work; a calling skill
+that pins one; the repository addendum's Worker mechanism; otherwise your host's own subagents. Another
+harness's workers or a dispatch tool run only when one of the first three names them.
+
+Within that mechanism, assign work by strength: judgement to the strongest reasoner it reaches,
+implementation to the strongest implementer it reaches. `references/models/` says which model is strong
+at what, how to brief it, and where to look when you review it; it ranks models, the mechanism decides
+which ones a task can use. The rules below hold for every mechanism.
 
 ## What stays with you
 
@@ -22,7 +28,7 @@ is any subagent tool you have; the rules below hold for all of them.
 - Anything where "verified" rests on the worker's own report.
 - Research you rely on. Delegate it like code: a read-only worker task that cites file and line for each
   claim. Check every claim you use, and give research that feeds a spec, a decision or an upstream report
-  a review by another family.
+  a review as for code (Review, below).
 
 ## Before every hand-off
 
@@ -105,12 +111,14 @@ is any subagent tool you have; the rules below hold for all of them.
    - **When:** send a head to review only after its build, analyzers included, and the task's verify passed:
      a static review is not a build.
    - **Who:** your own read follows `superpowers:requesting-code-review`; low-risk scaffolding and mechanical
-     work needs only that. Code and spec work always adds a fresh reviewer from a family other than the
-     author's, who gets the request, the requirements and the diff, but not your assessment. The family claim
+     work needs only that. Code and spec work adds a fresh reviewer from a family other than the author's
+     when your mechanism reaches one, and otherwise a fresh reviewer of the author's family, with the gap
+     named in your report. The reviewer gets the request, the requirements and the diff, but not your
+     assessment. The family claim
      rests on your mechanism's record of the model that ran, for the author and the reviewer alike, never
      on the model you asked for; a session writing by hand is identified by its own model.
      Code you write by hand to fix a worker's work is authored by your family, so a hand fix that changes
-     logic goes to another family as a review of its hunks; a pure deletion, a rename, or a one-line
+     logic goes to a fresh reviewer, of another family where one is reachable, as a review of its hunks; a pure deletion, a rename, or a one-line
      change an analyzer mandates needs only your own read.
    - **More readers:** new lock, race, or cancellation-lifetime code adds a third family if one is available.
      A change to infrastructure another lane or team owns adds a review by that owner, even when the other

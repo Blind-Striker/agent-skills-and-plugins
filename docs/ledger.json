@@ -76,7 +76,7 @@
       "delegating-to-worker-models",
       "requesting-code-review"
     ],
-    "description": "Use when you hand a piece of work (implementation, a plan, research, or a review) to another agent, write its prompt, check its output, or review it. Covers what stays with you, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.",
+    "description": "Use when you hand off implementation, a plan, research a decision will rely on, or a review, and you brief the worker and check what comes back. A subagent that searches, reads in parallel, or keeps your context small is ordinary tool use. Covers what stays with you, the mechanism, assigning work by strength, the walls preflight, prompts without contradictions, the worker contract and model profiles, evidence from your own run, review, and the fix-up loop.",
     "claude": {
       "artifacts": [
         "skill"

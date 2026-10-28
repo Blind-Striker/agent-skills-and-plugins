@@ -6,7 +6,7 @@
 # guarded optional pointers.
 plugin:
   name: deniz-coordination
-  description: "Deniz's coordination skills (delegate to worker models of other families, dispatch harness, verified waves)"
+  description: "Deniz's coordination skills (the delegation craft on any mechanism, the coordinator mode with the dispatch harness, verified waves)"
   version: 0.1.7
 original_skills:
   coordinator:
