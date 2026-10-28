@@ -466,18 +466,9 @@ public sealed class CodexBackendTests
         // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
             .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
-        if (command == "selfcheck")
-        {
-            var ledgers = Path.Combine(lab.Tree.DispatchHome, "state", "ledgers");
-            var records = Directory.Exists(ledgers) ? Directory.GetFiles(ledgers, "task.json", SearchOption.AllDirectories) : [];
-            await Assert.That(records.Select(path => Path.GetFileName(Path.GetDirectoryName(path))!))
-                .IsEquivalentTo(new[] { "selfcheck" }, CollectionOrdering.Matching);
-            var saved = JsonNode.Parse(File.ReadAllText(records.Single()))!;
-            var launched = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories)
-                .Select(path => JsonNode.Parse(File.ReadAllText(path))!).Single(start => start["scenario"]!.GetValue<string>() == "task.jsonl");
-            await Assert.That(saved["backendState"]!["pid"]!.GetValue<int>()).IsEqualTo(launched["pid"]!.GetValue<int>());
-            await Assert.That(saved["settings"]!["backend"]!["value"]!.GetValue<string>()).IsEqualTo("codex");
-        }
+        // Neither command owns a run, so neither writes into the shared ledger root.
+        var ledgers = Path.Combine(lab.Tree.DispatchHome, "state", "ledgers");
+        await Assert.That(Directory.Exists(ledgers) ? Directory.GetFileSystemEntries(ledgers) : []).IsEmpty();
     }
 
     [Test]
