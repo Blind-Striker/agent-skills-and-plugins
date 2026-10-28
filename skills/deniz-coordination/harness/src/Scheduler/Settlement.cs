@@ -11,7 +11,10 @@ static class Settlement
         if (backend.Name == "codex") run.SaveWorker(run.SavedWorker(), ledger);
         // Codex release owns process/home cleanup; confirm it before touching worker-owned bytes.
         if (backend.Name == "codex" && !run.Zombie)
+        {
             RecordStop(ledger, run, await backend.ReleaseAsync(run.SavedWorker(), ct), outcomeOverride ?? report.Outcome);
+            run.SaveWorker(run.SavedWorker(), ledger);
+        }
         var outcome = outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
         var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
         await ledger.WriteArtifactAsync(run.Id, "final.md", $"""

@@ -11,6 +11,38 @@ namespace Dispatch.Tests.Integration;
 public sealed class SchedulerTests
 {
     [Test]
+    [Timeout(30_000)]
+    public async Task Codex_reattach_persists_discovered_identities_before_collection(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
+        run.SaveWorker(new("codex", run.Id, "worker", "turn", new()), lab.Ledger);
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false));
+        backend.OnReattach = (worker, _) =>
+        {
+            worker.State["descendants"] = new JsonArray(new JsonObject { ["pid"] = 1972, ["startTime"] = DateTime.UnixEpoch.ToString("O") });
+            return Task.FromResult<ReattachResult>(new ReattachResult.Ended("lost", new(false, "child survives")));
+        };
+        BackendState? beforeCollection = null;
+        backend.OnCollect = (_, _) =>
+        {
+            beforeCollection = new Ledger(lab.Ledger.RunId).LoadRecord(run.Id).BackendState;
+            return Task.FromResult(new WorkerReport("lost", null, new(), null, false, [], null, false, StopResult: new(false, "child survives")));
+        };
+        var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { [backend.Name] = backend }, lab.Ledger,
+            lab.Tree.Repository, AllowList.From(null), lab.Policy, 1, ct, lab.Git);
+        await Assert.That(await scheduler.ResumeAsync([TaskRun.FromLedger(lab.Ledger.LoadRecord(run.Id), lab.Ledger)], false)).IsEqualTo(1);
+        await Assert.That(beforeCollection!.Descendants?.Select(identity => identity.Pid).ToArray() ?? [])
+            .IsEquivalentTo(new[] { 1972 }, CollectionOrdering.Matching);
+        await Assert.That(beforeCollection.Descendants![0].StartTime).IsEqualTo(DateTime.UnixEpoch.ToString("O"));
+        var result = lab.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "no-final-text" }, CollectionOrdering.Matching);
+        await Assert.That(result.WorkerStopped).IsFalse();
+        await Assert.That(lab.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "stop-unconfirmed", "outcome", "final" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(30_000)]

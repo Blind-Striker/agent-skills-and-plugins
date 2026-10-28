@@ -8,19 +8,24 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexBackendTests
 {
     [Test]
+    [Arguments("release")]
+    [Arguments("collect")]
+    [Arguments("resume")]
     [NotInParallel]
     [Timeout(180_000)]
-    public async Task Recorded_release_retry_retains_a_walk_discovered_survivor_and_its_home(CancellationToken ct)
+    public async Task Recorded_release_retry_retains_a_walk_discovered_survivor_and_its_home(string operation, CancellationToken ct)
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
         using var core = new CoreLab();
         using var lab = new CodexLab(core.Tree);
         File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
         var run = await core.TaskAsync("inspect", ct);
+        run.Record.Settings.Backend = new() { Value = "codex" };
         lab.Write("task-inspect", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0] + "{\"hang\":true}");
         await using var original = lab.Backend();
         var worker = (await original.CreateAsync(new(core.Ledger.RunId, run.Id, "research", new("codex", "model-y", "high"), null, null,
             new("clean", "on", "workspace", "on", "in-place"), core.Tree.Repository, new([], []), lab.Environment, null, "clean", null), ct)).Worker;
+        run.SaveWorker(worker, core.Ledger);
         var root = original.WorkerProcesses.Single().Process;
         var home = worker.State["codexHome"]!.GetValue<string>();
         await using var recovered = lab.Backend();
@@ -29,20 +34,53 @@ public sealed class CodexBackendTests
         recovered.OpenProcess = pid => pid == int.MaxValue ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
         recovered.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5, "query denied");
         recovered.ReadSnapshot = _ => new() { [int.MaxValue] = (root.Id, root.StartTime) };
-        var first = await recovered.ReleaseAsync(worker, ct);
+        InterruptResult? first = null;
+        await using var caller = new FakeBackend("codex", recovered.Capabilities)
+        {
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Completed.", new(), null, true, [], null, true)),
+            OnRelease = async (reference, token) => first = await recovered.ReleaseAsync(reference, token),
+        };
+        var initial = await Settlement.SettleAsync(caller, core.Ledger, run, null, ct, core.Git);
+        await Assert.That(initial.Failures).IsEquivalentTo(new[] { "zombie" }, CollectionOrdering.Matching);
         await Assert.That(first!.Stopped).IsFalse();
         await Assert.That(first.Detail).IsEqualTo($"recorded process recovery; pid={root.Id}; recordedStartTime={root.StartTime:O}; currentStartTime={root.StartTime:O}; handle=alive; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={root.StartTime:O}; currentStartTime={root.StartTime:O}; snapshot=alive");
-        run.SaveWorker(worker, core.Ledger);
-        var restored = TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).SavedWorker();
-        var retry = await recovered.ReleaseAsync(restored, ct);
+        // A fresh command gets only the ledger, not the worker object the first release mutated.
+        var ledger = new Ledger(core.Ledger.RunId);
+        var retryRun = TaskRun.FromLedger(ledger.LoadRecord(run.Id), ledger);
+        var restored = retryRun.SavedWorker();
+        await using var fresh = lab.Backend();
+        fresh.OpenProcess = recovered.OpenProcess;
+        fresh.QueryLimitedStartTime = recovered.QueryLimitedStartTime;
+        fresh.ReadSnapshot = recovered.ReadSnapshot;
+        InterruptResult? retry;
+        if (operation == "release") retry = await fresh.ReleaseAsync(restored, ct);
+        else
+        {
+            if (operation == "resume")
+            {
+                var scheduler = new Scheduler(new Dictionary<string, IWorkerBackend> { [fresh.Name] = fresh }, ledger,
+                    core.Tree.Repository, AllowList.From(null), core.Policy, 1, ct, core.Git);
+                await Assert.That(await scheduler.ResumeAsync([retryRun], false)).IsEqualTo(1);
+            }
+            else await Settlement.SettleAsync(fresh, ledger, retryRun, null, ct, core.Git);
+            var result = ledger.LoadResult(run.Id)!;
+            await Assert.That(result.State).IsEqualTo("failed");
+            await Assert.That(result.WorkerStopped).IsFalse();
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
+            await Assert.That(result.Verify).IsEmpty();
+            await Assert.That(ledger.Read().Select(line => line.Type)).IsEquivalentTo(operation == "resume"
+                ? new[] { "stop-unconfirmed", "outcome", "outcome", "final" }
+                : new[] { "stop-unconfirmed", "outcome", "outcome" }, CollectionOrdering.Matching);
+            retry = ((ReattachResult.Ended)await fresh.ReattachAsync(restored, ct)).StopResult;
+        }
         await Assert.That(retry!.Stopped).IsFalse();
         await Assert.That(retry.Detail).IsEqualTo($"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={root.StartTime:O}; currentStartTime={root.StartTime:O}; snapshot=alive");
         await Assert.That(root.HasExited).IsTrue();
         await Assert.That(Directory.Exists(home)).IsTrue();
         await Assert.That(restored.State["descendants"]!.AsArray().Select(record => record!["pid"]!.GetValue<int>())).IsEquivalentTo(new[] { int.MaxValue }, CollectionOrdering.Matching);
         await Assert.That(restored.State["descendants"]![0]!["startTime"]!.GetValue<string>()).IsEqualTo(root.StartTime.ToString("O"));
-        recovered.ReadSnapshot = _ => new();
-        await Assert.That((await recovered.ReleaseAsync(restored, ct))!.Stopped).IsTrue();
+        fresh.ReadSnapshot = _ => new();
+        await Assert.That((await fresh.ReleaseAsync(restored, ct))!.Stopped).IsTrue();
         await Assert.That(Directory.Exists(home)).IsFalse();
     }
 
@@ -428,6 +466,18 @@ public sealed class CodexBackendTests
         // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
             .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
+        if (command == "selfcheck")
+        {
+            var ledgers = Path.Combine(lab.Tree.DispatchHome, "state", "ledgers");
+            var records = Directory.Exists(ledgers) ? Directory.GetFiles(ledgers, "task.json", SearchOption.AllDirectories) : [];
+            await Assert.That(records.Select(path => Path.GetFileName(Path.GetDirectoryName(path))!))
+                .IsEquivalentTo(new[] { "selfcheck" }, CollectionOrdering.Matching);
+            var saved = JsonNode.Parse(File.ReadAllText(records.Single()))!;
+            var launched = Directory.GetFiles(lab.Records, "start.json", SearchOption.AllDirectories)
+                .Select(path => JsonNode.Parse(File.ReadAllText(path))!).Single(start => start["scenario"]!.GetValue<string>() == "task.jsonl");
+            await Assert.That(saved["backendState"]!["pid"]!.GetValue<int>()).IsEqualTo(launched["pid"]!.GetValue<int>());
+            await Assert.That(saved["settings"]!["backend"]!["value"]!.GetValue<string>()).IsEqualTo("codex");
+        }
     }
 
     [Test]

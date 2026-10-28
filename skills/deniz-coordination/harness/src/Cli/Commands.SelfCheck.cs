@@ -179,8 +179,12 @@ static partial class Commands
                         {
                             try
                             {
-                                if (worker is not null && await backend.ReleaseAsync(worker, CancellationToken.None) is { Stopped: false } stop)
-                                    throw new HarnessException($"Codex stop unconfirmed: {stop.Detail}");
+                                if (worker is not null)
+                                {
+                                    var stop = await backend.ReleaseAsync(worker, CancellationToken.None);
+                                    if (selected == "codex") new TaskRun { Record = record }.SaveWorker(worker, new Ledger(runId));
+                                    if (stop is { Stopped: false }) throw new HarnessException($"Codex stop unconfirmed: {stop.Detail}");
+                                }
                             }
                             finally
                             {
