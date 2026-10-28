@@ -179,6 +179,7 @@ static partial class Commands
                         {
                             try
                             {
+                                // Selfcheck owns no run in the shared ledger root, so its stop evidence goes to the console only.
                                 if (worker is not null && await backend.ReleaseAsync(worker, CancellationToken.None) is { Stopped: false } stop)
                                     throw new HarnessException($"Codex stop unconfirmed: {stop.Detail}");
                             }

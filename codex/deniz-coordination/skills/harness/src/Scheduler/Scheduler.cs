@@ -64,6 +64,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             if (run.Record.Spec.Kind == "structured") StructuredOutput.Load(ledger, run);
             if (Scratch.Required(run.Record.Spec)) Scratch.Prepare(run, ledger);
             var result = await backend.ReattachAsync(run.SavedWorker(), ct);
+            if (backend.Name == "codex") run.SaveWorker(run.SavedWorker(), ledger);
             if (backend.Name == "codex" && result is ReattachResult.Ended recovered)
             {
                 Settlement.RecordStop(ledger, run, recovered.StopResult, recovered.Outcome);
@@ -91,6 +92,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             else if (result is ReattachResult.Unreadable unreadable)
             {
                 Settlement.RecordStop(ledger, run, await backend.ReleaseAsync(run.SavedWorker(), ct), "unknown");
+                if (backend.Name == "codex") run.SaveWorker(run.SavedWorker(), ledger);
                 run.WorkerEnded = true;
                 if (run.Zombie && backend.Name == "codex") BeginSettle(run, "unknown");
                 else Finish(run, TaskState.Failed, "unknown", unreadable.Reason);
@@ -333,6 +335,7 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
             try
             {
                 var stop = await Backend(run).ReleaseAsync(worker, CancellationToken.None);
+                if (Backend(run).Name == "codex") run.SaveWorker(worker, ledger);
                 Settlement.RecordStop(ledger, run, stop, "unknown");
                 if (Backend(run).Name == "codex" && run.Zombie)
                 {

@@ -190,6 +190,7 @@ static partial class Commands
                 var run = TaskRun.FromLedger(record, ledger);
                 ((CodexBackend)scope.Backends["codex"]).RunId = ledger.RunId;
                 var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
+                run.SaveWorker(run.SavedWorker(), ledger);
                 Settlement.RecordStop(ledger, run, stop);
                 if (stop is { Stopped: false })
                 {
