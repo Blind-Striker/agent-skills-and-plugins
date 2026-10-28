@@ -171,11 +171,13 @@ public sealed class ControlCommandTests
         using var core = new CoreLab("zombie-commands");
         using var codex = new CodexLab(core.Tree);
         ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        await LabRepo.CreateAsync(core.Tree, ct);
+        await Worktree.Runner(core.Ledger, "inspect").InitializeBaselineAsync(core.Tree.Repository, ct);
         var run = await core.TaskAsync("inspect", ct);
         run.Record.Settings.Backend = new() { Value = "codex" };
         run.Record.Workspace = new();
         run.Record.Spec.Base = "main";
-        await Worktree.PrepareAsync(run, core.Ledger, core.Tree.Repository, ct, core.Git);
+        await Worktree.PrepareAsync(run, core.Ledger, core.Tree.Repository, ct);
         var control = Locations.ControlDir(core.Ledger.RunId);
         File.WriteAllText(Path.Combine(control, "setup.done"), "");
         var info = core.Ledger.LoadRunInfo();
@@ -225,6 +227,8 @@ public sealed class ControlCommandTests
         using var core = new CoreLab("turnless-collect");
         using var codex = new CodexLab(core.Tree);
         ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        await LabRepo.CreateAsync(core.Tree, ct);
+        await Worktree.Runner(core.Ledger, "inspect").InitializeBaselineAsync(core.Tree.Repository, ct);
         var run = await core.TaskAsync("inspect", ct);
         run.Record.Settings.Backend = new() { Value = "codex" };
         using var home = RecordedHome(core, codex, run, int.MaxValue);
