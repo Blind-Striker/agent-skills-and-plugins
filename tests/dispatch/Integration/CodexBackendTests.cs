@@ -8,6 +8,110 @@ namespace Dispatch.Tests.Integration;
 public sealed class CodexBackendTests
 {
     [Test]
+    [NotInParallel]
+    [Timeout(180_000)]
+    public async Task Recorded_release_retry_retains_a_walk_discovered_survivor_and_its_home(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        using var core = new CoreLab();
+        using var lab = new CodexLab(core.Tree);
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        var run = await core.TaskAsync("inspect", ct);
+        lab.Write("task-inspect", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0] + "{\"hang\":true}");
+        await using var original = lab.Backend();
+        var worker = (await original.CreateAsync(new(core.Ledger.RunId, run.Id, "research", new("codex", "model-y", "high"), null, null,
+            new("clean", "on", "workspace", "on", "in-place"), core.Tree.Repository, new([], []), lab.Environment, null, "clean", null), ct)).Worker;
+        var root = original.WorkerProcesses.Single().Process;
+        var home = worker.State["codexHome"]!.GetValue<string>();
+        await using var recovered = lab.Backend();
+        // Script a matching, unkillable child through the existing observation seams. Its PID has
+        // no native process, so recovery cannot accidentally terminate an unrelated real process.
+        recovered.OpenProcess = pid => pid == int.MaxValue ? throw new System.ComponentModel.Win32Exception(5) : Process.GetProcessById(pid);
+        recovered.QueryLimitedStartTime = _ => throw new System.ComponentModel.Win32Exception(5, "query denied");
+        recovered.ReadSnapshot = _ => new() { [int.MaxValue] = (root.Id, root.StartTime) };
+        var first = await recovered.ReleaseAsync(worker, ct);
+        await Assert.That(first!.Stopped).IsFalse();
+        await Assert.That(first.Detail).IsEqualTo($"recorded process recovery; pid={root.Id}; recordedStartTime={root.StartTime:O}; currentStartTime={root.StartTime:O}; handle=alive; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={root.StartTime:O}; currentStartTime={root.StartTime:O}; snapshot=alive");
+        run.SaveWorker(worker, core.Ledger);
+        var restored = TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).SavedWorker();
+        var retry = await recovered.ReleaseAsync(restored, ct);
+        await Assert.That(retry!.Stopped).IsFalse();
+        await Assert.That(retry.Detail).IsEqualTo($"recorded process recovery; observe pid={int.MaxValue}: query denied; pid={int.MaxValue}; recordedStartTime={root.StartTime:O}; currentStartTime={root.StartTime:O}; snapshot=alive");
+        await Assert.That(root.HasExited).IsTrue();
+        await Assert.That(Directory.Exists(home)).IsTrue();
+        await Assert.That(restored.State["descendants"]!.AsArray().Select(record => record!["pid"]!.GetValue<int>())).IsEquivalentTo(new[] { int.MaxValue }, CollectionOrdering.Matching);
+        await Assert.That(restored.State["descendants"]![0]!["startTime"]!.GetValue<string>()).IsEqualTo(root.StartTime.ToString("O"));
+        recovered.ReadSnapshot = _ => new();
+        await Assert.That((await recovered.ReleaseAsync(restored, ct))!.Stopped).IsTrue();
+        await Assert.That(Directory.Exists(home)).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [NotInParallel]
+    [Timeout(180_000)]
+    public async Task Live_unconfirmed_stop_saves_walk_discovered_identities_before_returning(bool reattach, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        using var lab = new CodexLab();
+        using var ownerLab = new CodexLab();
+        using var childLab = new CodexLab();
+        foreach (var fixture in new[] { lab, ownerLab, childLab })
+            fixture.Write("preflight", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0] + "{\"hang\":true}");
+        await using var backend = lab.Backend();
+        await using var ownerBackend = ownerLab.Backend();
+        await using var childBackend = childLab.Backend();
+        async Task<WorkerRef> Create(CodexLab fixture, CodexBackend target) => (await target.CreateAsync(new("run", "inspect", "research", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "in-place"), fixture.Tree.Repository, new([], []), fixture.Environment, null, "full", null), ct)).Worker;
+        var worker = await Create(lab, backend);
+        await Create(ownerLab, ownerBackend);
+        await Create(childLab, childBackend);
+        var process = backend.WorkerProcesses.Single().Process;
+        var owner = ownerBackend.WorkerProcesses.Single().Process;
+        var child = childBackend.WorkerProcesses.Single().Process;
+        var snapshot = process.ReadSnapshot;
+        var nativeOpen = process.NativeOpenProcess;
+        var terminate = process.TerminateProcess;
+        process.ReadSnapshot = _ => new() { [owner.Id] = (process.Id, owner.StartTime) };
+        process.RefreshDescendants();
+        using (var holder = Process.GetProcessById(process.Id))
+        {
+            holder.Kill();
+            await holder.WaitForExitAsync(ct);
+        }
+        var walking = false;
+        process.ReadSnapshot = _ => walking ? new() { [child.Id] = (owner.Id, child.StartTime) } : new();
+        process.NativeOpenProcess = (access, inherit, pid) => pid == child.Id
+            ? throw new System.ComponentModel.Win32Exception(5, "child denied") : nativeOpen(access, inherit, pid);
+        process.TerminateProcess = (handle, exit) =>
+        {
+            using var holder = Process.GetProcessById(owner.Id);
+            var killed = terminate(handle, exit);
+            holder.WaitForExit(5000);
+            walking = true;
+            return killed;
+        };
+        try
+        {
+            var stopped = reattach ? ((ReattachResult.Ended)await backend.ReattachAsync(worker, ct)).StopResult!
+                : await backend.InterruptAsync(worker, InterruptKind.Hard, ct);
+            await Assert.That(stopped.Stopped).IsFalse();
+            await Assert.That(stopped.Detail).IsEqualTo($"exit={process.ExitCode}; processGroup=false; groupKill=True; treeKill=False; descendantsKilled=1; stderrDroppedLines=0; kill descendant pid={child.Id}: child denied; pid={owner.Id}; recordedStartTime={owner.StartTime:O}; currentStartTime={owner.StartTime:O}; handle=alive; pid={child.Id}; recordedStartTime={child.StartTime:O}; currentStartTime={child.StartTime:O}; handle=alive\nstderr:\n");
+            await Assert.That(worker.State["descendants"]!.AsArray().Select(record => record!["pid"]!.GetValue<int>())).IsEquivalentTo(new[] { owner.Id, child.Id }, CollectionOrdering.Matching);
+            await Assert.That(worker.State["descendants"]![1]!["startTime"]!.GetValue<string>()).IsEqualTo(child.StartTime.ToString("O"));
+            await Assert.That(owner.HasExited).IsTrue();
+            await Assert.That(child.HasExited).IsFalse();
+        }
+        finally
+        {
+            process.ReadSnapshot = snapshot;
+            process.NativeOpenProcess = nativeOpen;
+            process.TerminateProcess = terminate;
+        }
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [NotInParallel]

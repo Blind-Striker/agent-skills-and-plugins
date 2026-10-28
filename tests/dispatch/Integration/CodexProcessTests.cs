@@ -61,6 +61,43 @@ public sealed class CodexProcessTests
     }
 
     [Test]
+    [Timeout(60_000)]
+    public async Task Windows_recovery_persists_distinct_creation_times_and_deduplicates_rediscovered_pairs(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows native child walk only");
+        using var self = Process.GetCurrentProcess();
+        var start = self.StartTime.ToUniversalTime();
+        var old = start.AddTicks(-1);
+        var state = new JsonObject
+        {
+            ["pid"] = self.Id, ["processStartTime"] = start.ToString("O"),
+            ["descendants"] = new JsonArray(new JsonObject { ["pid"] = int.MaxValue, ["startTime"] = old.ToString("O") }),
+        };
+        var opened = new List<int>();
+        Task<InterruptResult> Stop() => CodexProcess.StopRecordedAsync(state, ct,
+            openProcess: _ => Process.GetCurrentProcess(), nativeOpenProcess: (access, inherit, pid) =>
+            {
+                opened.Add(pid);
+                return OpenNativeProcess(access, inherit, self.Id);
+            }, terminateProcess: (_, _) => true, // Valid native success with no effect; the runner stays alive.
+            readSnapshot: _ => new() { [int.MaxValue] = (self.Id, start) });
+        var first = await Stop();
+        await Assert.That(first.Stopped).IsFalse();
+        await Assert.That(first.Detail).IsEqualTo($"recorded process recovery; pid={int.MaxValue}; recordedStartTime={old:O}; currentStartTime={start:O}; handle=reused; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive");
+        await Assert.That(state["descendants"]!.AsArray().Select(record => record!["pid"]!.GetValue<int>())).IsEquivalentTo(new[] { int.MaxValue, int.MaxValue }, CollectionOrdering.Matching);
+        await Assert.That(state["descendants"]!.AsArray().Select(record => record!["startTime"]!.GetValue<string>())).IsEquivalentTo(new[] { old.ToString("O"), start.ToString("O") }, CollectionOrdering.Matching);
+        // Windows pair identity must not depend on incidental Linux metadata in a saved record.
+        state["descendants"]![1]!["linuxBootId"] = "recorded-metadata";
+        var retry = await Stop();
+        await Assert.That(retry.Stopped).IsFalse();
+        await Assert.That(retry.Detail).IsEqualTo($"recorded process recovery; pid={int.MaxValue}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive; pid={int.MaxValue}; recordedStartTime={old:O}; currentStartTime={start:O}; handle=reused; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive");
+        await Assert.That(opened).IsEquivalentTo(new[] { self.Id, int.MaxValue, int.MaxValue, self.Id, int.MaxValue }, CollectionOrdering.Matching);
+        await Assert.That(state["descendants"]!.AsArray().Select(record => record!["startTime"]!.GetValue<string>())).IsEquivalentTo(new[] { old.ToString("O"), start.ToString("O") }, CollectionOrdering.Matching);
+        await Assert.That(state["descendants"]![1]!["linuxBootId"]!.GetValue<string>()).IsEqualTo("recorded-metadata");
+        await Assert.That(self.HasExited).IsFalse();
+    }
+
+    [Test]
     [Arguments(false, false)]
     [Arguments(true, false)]
     [Arguments(false, true)]
@@ -101,7 +138,9 @@ public sealed class CodexProcessTests
                 Marshal.SetLastPInvokeError(5);
                 return false;
             };
-            var result = await StopWalkAsync(process, owner, recovery, ct);
+            var state = new JsonObject { ["pid"] = owner.Id, ["processStartTime"] = owner.StartTime.ToString("O") };
+            var result = recovery ? await CodexProcess.StopRecordedAsync(state, ct, readSnapshot: process.ReadSnapshot,
+                nativeOpenProcess: process.NativeOpenProcess, terminateProcess: process.TerminateProcess) : await process.StopAsync();
             await Assert.That(result.Stopped).IsFalse();
             await Assert.That(child.HasExited).IsFalse();
             await Assert.That(owner.HasExited).IsTrue();
@@ -110,7 +149,17 @@ public sealed class CodexProcessTests
                 : new[] { $"open {owner.Id}", $"terminate {owner.Id}", $"open {child.Id}", $"terminate {child.Id}" }, CollectionOrdering.Matching);
             var error = $"kill descendant pid={child.Id}: " + (denyOpen ? "injected child denial" : new System.ComponentModel.Win32Exception(5).Message);
             if (recovery)
+            {
                 await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={owner.Id}; recordedStartTime={owner.StartTime:O}; currentStartTime={owner.StartTime:O}; handle=alive; {error}; pid={child.Id}; recordedStartTime={child.StartTime:O}; currentStartTime={child.StartTime:O}; handle=alive");
+                var restored = JsonNode.Parse(state.ToJsonString())!.AsObject();
+                var retry = await CodexProcess.StopRecordedAsync(restored, ct, readSnapshot: process.ReadSnapshot,
+                    nativeOpenProcess: process.NativeOpenProcess, terminateProcess: process.TerminateProcess);
+                await Assert.That(retry.Stopped).IsFalse();
+                await Assert.That(retry.Detail).IsEqualTo($"recorded process recovery; pid={child.Id}; recordedStartTime={child.StartTime:O}; currentStartTime={child.StartTime:O}; handle=alive; {error}");
+                await Assert.That(restored["descendants"]!.AsArray().Select(record => record!["pid"]!.GetValue<int>())).IsEquivalentTo(new[] { child.Id }, CollectionOrdering.Matching);
+                await Assert.That(restored["descendants"]![0]!["startTime"]!.GetValue<string>()).IsEqualTo(child.StartTime.ToString("O"));
+                await Assert.That(child.HasExited).IsFalse();
+            }
             else
             {
                 await Assert.That(process.Descendants.Select(identity => identity.Pid)).IsEquivalentTo(new[] { owner.Id, child.Id }, CollectionOrdering.Matching);
@@ -184,7 +233,14 @@ public sealed class CodexProcessTests
         var trace = new List<string>();
         var handles = new Dictionary<SafeProcessHandle, int>();
         var current = 0;
+        var gone = new List<int>();
         var result = await CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = self.Id, ["processStartTime"] = start.ToString("O") }, ct,
+            openProcess: pid =>
+            {
+                if (handles.Count == 0) return Process.GetProcessById(pid);
+                gone.Add(pid);
+                throw new ArgumentException("fixture identities have exited after the walk");
+            },
             nativeOpenProcess: (access, inherit, pid) =>
             {
                 trace.Add($"open {pid}");
@@ -211,8 +267,9 @@ public sealed class CodexProcessTests
             $"open {first}", $"terminate {first}", $"snapshot {first}",
             $"open {second}", $"terminate {second}", $"snapshot {second}", $"open {first}",
         }, CollectionOrdering.Matching);
+        await Assert.That(gone).IsEquivalentTo(new[] { self.Id, first, second, first, self.Id, first, second, first }, CollectionOrdering.Matching);
         await Assert.That(result.Stopped).IsFalse();
-        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive");
+        await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive; walk descendant pid={self.Id}: child walk repeated identity; remaining descendants unknown");
         foreach (var handle in handles.Keys) await Assert.That(handle.IsClosed).IsTrue();
         await Assert.That(self.HasExited).IsFalse();
     }
@@ -226,8 +283,14 @@ public sealed class CodexProcessTests
         var start = self.StartTime.ToUniversalTime();
         var opened = new List<int>();
         var current = self.Id;
+        var gone = new List<int>();
         var result = await CodexProcess.StopRecordedAsync(new JsonObject { ["pid"] = self.Id, ["processStartTime"] = start.ToString("O") }, ct,
-            openProcess: pid => opened.Count >= 64 ? throw new ArgumentException("fixture identities have exited after the walk") : Process.GetProcessById(pid),
+            openProcess: pid =>
+            {
+                if (opened.Count < 64) return Process.GetProcessById(pid);
+                gone.Add(pid);
+                throw new ArgumentException("fixture identities have exited after the walk");
+            },
             nativeOpenProcess: (access, inherit, pid) =>
             {
                 opened.Add(pid);
@@ -237,6 +300,7 @@ public sealed class CodexProcessTests
             readSnapshot: _ => current == self.Id ? new() { [int.MaxValue] = (self.Id, start) }
                 : current > int.MaxValue - 65 ? new() { [current - 1] = (current, start) } : new());
         await Assert.That(opened).IsEquivalentTo(new[] { self.Id }.Concat(Enumerable.Range(0, 63).Select(index => int.MaxValue - index)), CollectionOrdering.Matching);
+        await Assert.That(gone).IsEquivalentTo(Enumerable.Repeat(new[] { self.Id }.Concat(Enumerable.Range(0, 64).Select(index => int.MaxValue - index)), 2).SelectMany(pids => pids), CollectionOrdering.Matching);
         await Assert.That(result.Stopped).IsFalse();
         await Assert.That(result.Detail).IsEqualTo($"recorded process recovery; pid={self.Id}; recordedStartTime={start:O}; currentStartTime={start:O}; handle=alive; walk descendant pid={int.MaxValue - 63}: child walk depth limit 64 reached; remaining descendants unknown");
         await Assert.That(self.HasExited).IsFalse();

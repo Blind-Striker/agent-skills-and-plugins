@@ -375,6 +375,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
                                 // A process that survives the stop can hold stdout open, so this loop may never
                                 // reach its finally: report the unconfirmed stop here.
                                 var stop = await connection.Process.StopAsync();
+                                SaveState(connection, worker);
                                 connection.StopResult = stop;
                                 if (!stop.Stopped) signals.Writer.TryWrite(new WorkerSignal.StopUnconfirmed(worker.TaskId, worker.Turn!, execution, stop.Detail));
                             }
@@ -398,6 +399,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         finally
         {
             var stopped = await connection.Process.StopAsync();
+            SaveState(connection, worker);
             connection.StopResult = stopped;
             connection.Stopped = stopped.Stopped;
             if (connection.Outcome is null)
@@ -556,6 +558,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         if (kind is InterruptKind.Hard or InterruptKind.Shutdown)
         {
             var stopped = await connection.Process.StopAsync();
+            SaveState(connection, worker);
             if (!stopped.Stopped) connection.StopResult = stopped;
             return stopped;
         }
@@ -611,6 +614,7 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         {
             var stopped = workers.TryGetValue(worker.Id, out var connection) ? await connection.Process.StopAsync()
                 : await StopRecordedAsync(worker, ct);
+            if (connection is not null) SaveState(connection, worker);
             if (stopped.Stopped && connection is not null)
             {
                 await DisposeConnectionAsync(connection);
