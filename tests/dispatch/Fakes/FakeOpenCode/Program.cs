@@ -127,6 +127,7 @@ foreach (var name in new[] { "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG", "OPENCODE
 await File.WriteAllTextAsync($"{record}.{Environment.ProcessId}.host.json", new JsonObject
 {
     ["pid"] = Environment.ProcessId,
+    ["startTime"] = Process.GetCurrentProcess().StartTime.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
     ["directory"] = Environment.CurrentDirectory,
     ["configRoot"] = Environment.GetEnvironmentVariable("OPENCODE_CONFIG_DIR"),
     ["environment"] = modeEnvironment,

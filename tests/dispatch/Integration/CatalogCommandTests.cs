@@ -332,8 +332,10 @@ public sealed class CatalogCommandTests
         foreach (var start in starts.Concat(hosts))
         {
             var stopped = true;
-            try { using var process = System.Diagnostics.Process.GetProcessById(start["pid"]!.GetValue<int>()); stopped = process.HasExited; }
-            catch (ArgumentException) { }
+            var recorded = DateTime.Parse(start["startTime"]!.GetValue<string>(), null, System.Globalization.DateTimeStyles.RoundtripKind).ToUniversalTime();
+            // A live pid proves nothing: Windows reuses a pid soon after its process ends. Linux StartTime is a per-observer estimate.
+            try { using var process = System.Diagnostics.Process.GetProcessById(start["pid"]!.GetValue<int>()); stopped = process.HasExited || (OperatingSystem.IsWindows() && process.StartTime.ToUniversalTime() != recorded); }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { }
             await Assert.That(stopped).IsTrue();
         }
         await Assert.That(Directory.GetDirectories(Path.Combine(lab.Tree.DispatchHome, "state", "control"))).IsEmpty();
