@@ -157,6 +157,9 @@ static class Planner
                     {
                         var source = await CheckContinuationAsync(spec, plan.Config?.Effective.Tasks[spec.Id!].Settings ?? new(), runId, repo, git, ct);
                         plan.Info.Add($"{spec.Id}: continues {source.Source.RunId}/{source.Task} from {source.CreationSha[..12]}");
+                        var recordedRepo = source.Source.LoadRunInfo().Repo;
+                        if (recordedRepo is not null && !Locations.Same(recordedRepo, repo))
+                            plan.Warnings.Add($"{spec.Id}: continueOf {source.Source.RunId}/{source.Task} was recorded in {recordedRepo}, not this repository; commit ids resolve, but its base ref may mean another commit here");
                     }
                     catch (Exception ex) when (ex is HarnessException or IOException or UnauthorizedAccessException or JsonException)
                     { e.Add(ex.Message); }
@@ -291,7 +294,7 @@ static class Planner
     static string EmptyHint(AllowList allow) =>
         allow.IsRestricted && allow.Count == 0 ? " (the effective allow-list allows no opencode routes)" : "";
 
-    public static async Task<(Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch)> CheckContinuationAsync(
+    public static async Task<(Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch, bool HasChanges)> CheckContinuationAsync(
         TaskSpec spec, EffectiveSettings settings, string currentRun, string repo, Git git, CancellationToken ct)
     {
         var (source, task) = Ledger.OpenContinuation(spec.ContinueOf!, currentRun);
@@ -301,6 +304,8 @@ static class Planner
         if (source.TaskStates().GetValueOrDefault(task) != "failed" || result is not { State: "failed" }
             || result.Run != source.RunId || result.Task != task || record.Spec.Id != task)
             throw new HarnessException("continueOf source must have a consistent final failed result");
+        if (record.Spec.Kind is not ("code" or "mechanical"))
+            throw new HarnessException($"continueOf {source.RunId}/{task}: its kind {record.Spec.Kind} holds no work to continue");
         var restored = TaskRun.FromLedger(record, source);
         if (result.Failures.Contains("zombie") || result.WorkerStopped == false || restored.Zombie || restored.WorkerStopped == false
             || lines.Skip(lines.FindLastIndex(x => x.Type == "prompt") + 1).LastOrDefault(x => x.Type is "stop-unconfirmed" or "hard-stop"
@@ -311,6 +316,9 @@ static class Planner
             || record.Workspace.Path is null || record.Workspace.Branch != $"dispatch/{source.RunId}/{task}" || record.Workspace.BaseRef is null)
             throw new HarnessException("continueOf requires a harness-managed worktree with harness commit mode");
         var stopped = result.WorkerStatus is "stopped" or "blocked";
+        var uncommitted = result.OutOfScope.Except(result.FilesChanged, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        if (!stopped && (result.Failures.Contains("commit-failed") || uncommitted.Count > 0))
+            throw new HarnessException($"continueOf {source.RunId}/{task}: its uncommitted work is not in the ledger: {(uncommitted.Count > 0 ? string.Join(", ", uncommitted) : "commit-failed")}");
         if (!stopped && result.Commit is null)
             throw new HarnessException("continueOf requires a stopped/blocked or committed failed target");
         var finalIndex = lines.FindLastIndex(x => x.Type == "final");
@@ -338,7 +346,7 @@ static class Planner
         var scope = settings.Scope ?? new EffectiveScope { Value = spec.Scope ?? [] };
         var outside = result.FilesChanged.Where(path => Commit.IsDispatch(path) || !Scope.InScope(path, scope, ignoreCase)).Order(StringComparer.Ordinal).ToList();
         if (outside.Count > 0) throw new HarnessException($"continueOf inherited paths outside scope: {string.Join(", ", outside)}");
-        return (source, task, record, creation, final, result.WipPatch is null ? null : patch);
+        return (source, task, record, creation, final, result.WipPatch is null ? null : patch, result.WipPatch is not null || result.Commit is not null);
     }
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,

@@ -91,6 +91,10 @@ version differs from pin `2.2.5`, as the Codex backend refuses a CLI off its pin
 override, because the SDK decodes only the pinned wire contract and another version can lose events.
 Selfcheck also reports the pin as its own check and checks stored session rules without sending a
 prompt. Normal planning validates the catalog at each task's location.
+An SDK `UnknownEvent` whose preserved type starts with `permission.`, `form.` or
+`session.execution.` emits the existing backend fault with operation `unknown-event` and the type
+as its message. The scheduler records it as a run-level ledger `error`; later events still flow.
+Other unknown types are ignored.
 
 Clean mode creates a minimal config under the control folder, retaining required provider/model
 definitions and the configured shell. It redirects `OPENCODE_CONFIG_DIR`, clears direct config

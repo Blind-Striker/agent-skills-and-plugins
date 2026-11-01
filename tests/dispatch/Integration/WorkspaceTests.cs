@@ -9,6 +9,23 @@ public sealed class WorkspaceTests
 {
     [Test]
     [Timeout(60_000)]
+    public async Task ContinueOf_patch_context_is_independent_of_git_configuration(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        File.WriteAllText(Path.Combine(repo.Root, "context.txt"), "first\nbefore\nlast\n");
+        await repo.GitAsync(["add", "context.txt"], ct);
+        await repo.GitAsync(["commit", "-m", "Context fixture"], ct);
+        await repo.GitAsync(["config", "diff.context", "0"], ct);
+        var expected = System.Text.Encoding.UTF8.GetBytes("first\nafter\nlast\n");
+        await lab.SourceAttemptAsync(ct, edit: path => File.WriteAllBytesAsync(Path.Combine(path, "context.txt"), expected, ct));
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, repo.Root, ct, lab.Git);
+        await Assert.That(File.ReadAllBytes(Path.Combine(next.Record.Workspace.Path!, "context.txt")))
+            .IsEquivalentTo(expected, CollectionOrdering.Matching);
+    }
+    [Test]
+    [Timeout(60_000)]
     public async Task ContinueOf_replays_all_patch_file_kinds(CancellationToken ct)
     {
         using var lab = new CoreLab("next-run");
@@ -43,6 +60,42 @@ public sealed class WorkspaceTests
         await Assert.That(next.Record.Workspace.BaseRef).IsEqualTo("main");
         await Assert.That(next.Record.Workspace.Branch).IsEqualTo("dispatch/next-run/next");
         await Assert.That(lab.Ledger.Read().Single(x => x.Type == "worktree").Data!["continueOf"]!.GetValue<string>()).IsEqualTo("2026-10-31-source/source");
+
+        var sourcePath = source.Run.Record.Workspace.Path!;
+        File.Move(Path.Combine(sourcePath, "README.md"), Path.Combine(sourcePath, "renamed.md"));
+        File.WriteAllText(Path.Combine(sourcePath, "spaced café.txt"), "Unicode path content\n");
+        await repo.GitAsync(["-C", sourcePath, "add", "-A"], ct);
+        await repo.GitAsync(["-C", sourcePath, "update-index", "--chmod=+x", "crlf.txt"], ct);
+        await Commit.CollectAsync(source.Ledger, source.Run, source.Result, ct, source.Git);
+        source.Ledger.SaveResult(source.Result);
+        source.Ledger.Write("source", "final", new() { ["state"] = "failed" });
+        var allKinds = lab.Continuation("all-kinds");
+        await Worktree.PrepareAsync(allKinds, lab.Ledger, repo.Root, ct, lab.Git);
+        var replay = allKinds.Record.Workspace.Path!;
+        await Assert.That(File.Exists(Path.Combine(replay, "README.md"))).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(replay, "renamed.md"))).IsEqualTo("# Lab repository\n");
+        await Assert.That(File.ReadAllText(Path.Combine(replay, "spaced café.txt"))).IsEqualTo("Unicode path content\n");
+        await Assert.That(await repo.GitAsync(["-C", replay, "ls-files", "--stage", "crlf.txt"], ct)).StartsWith("100755 ");
+        await Assert.That(await repo.GitAsync(["-C", replay, "diff", "--cached", "--name-status", "--find-renames", "--", "README.md", "renamed.md"], ct))
+            .IsEqualTo("R100\tREADME.md\trenamed.md");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task ReviewOf_a_continuation_starts_from_its_branch(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var result = new TaskResult { WorkerStatus = "done" };
+        await Commit.CollectAsync(lab.Ledger, next, result, ct, lab.Git);
+        var review = new TaskRun { Record = new() { Spec = new() { Id = "review", Kind = "review", ReviewOf = next.Id } } };
+        await Worktree.PrepareAsync(review, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(review.Record.Workspace.BaseRef).IsEqualTo("dispatch/next-run/next");
+        await Assert.That(review.Record.Workspace.StartSha).IsEqualTo(result.Commit);
+        await Assert.That(review.Record.Workspace.ReviewedBaseSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(File.ReadAllText(Path.Combine(review.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
     }
 
     [Test]
@@ -215,6 +268,48 @@ public sealed class WorkspaceTests
         var next = lab.Continuation();
         await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
         lab.Ledger.Write(next.Id, "final", new() { ["state"] = "failed" });
+        next.Record.Session.Id = "new-worker";
+        lab.Ledger.SaveRecord(next.Record);
+        var steps = File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).Take(4)
+            .Select(line => System.Text.Json.Nodes.JsonNode.Parse(line)!.AsObject()).ToList();
+        foreach (var (ledger, run) in new[] { (source.Ledger, source.Run), (lab.Ledger, next) })
+        {
+            Json.WriteFile(Path.Combine(ledger.Dir, "config.json"), new EffectiveConfig
+            { Tasks = new() { [run.Id] = new() { Settings = run.Record.Settings } } }, LedgerJson.Files.EffectiveConfig);
+            var info = ledger.LoadRunInfo();
+            info.Repo = lab.Tree.Repository;
+            Json.WriteFile(Path.Combine(ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+            File.WriteAllText(Path.Combine(Locations.ControlDir(ledger.RunId), "setup.done"), "");
+            var id = run.Record.Session.Id!;
+            steps.Add(new() { ["expect"] = $"GET /api/session/{id}", ["repeat"] = true, ["reply"] = OpenCodeLab.Session(id, "succeeded") });
+            var messages = System.Text.Json.Nodes.JsonNode.Parse(File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).ElementAt(12))!.AsObject();
+            messages["expect"] = $"GET /api/session/{id}/message";
+            messages["reply"]!["data"]![1]!["content"]![0]!["text"] = $"Recollected {id}.\nStatus: stopped";
+            steps.Add(messages);
+            steps.Add(new() { ["expect"] = $"DELETE /api/session/{id}", ["status"] = 204 });
+        }
+        var scenario = Path.Combine(lab.Tree.Root, "collect.jsonl");
+        File.WriteAllLines(scenario, steps.Select(step => step.ToJsonString()));
+        var environment = FakeOpenCode.Environment(lab.Tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        foreach (var (ledger, run, other) in new[] { (source.Ledger, source.Run, lab.Ledger), (lab.Ledger, next, source.Ledger) })
+        {
+            var before = Directory.GetFiles(other.Dir, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+                .Select(file => file + ":" + Convert.ToBase64String(File.ReadAllBytes(file))).ToArray();
+            using var status = new HarnessProcess(lab.Tree);
+            var shown = await status.RunAsync(["status", ledger.RunId, "--ledger", Locations.LedgerRoot], ct, environment);
+            shown.RequireSuccess("status continuation run");
+            await Assert.That(shown.Stdout).Contains($"  {run.Id,-24} failed");
+            await Assert.That(shown.Stdout).DoesNotContain($"  {(run.Id == "source" ? "next" : "source"),-24} ");
+            using var collect = new HarnessProcess(lab.Tree);
+            var collected = await collect.RunAsync(["collect", ledger.RunId, run.Id, "--ledger", Locations.LedgerRoot], ct, environment);
+            await Assert.That(collected.ExitCode).IsEqualTo(1);
+            await Assert.That(ledger.LoadResult(run.Id)!.FilesChanged).IsEquivalentTo(new[] { "source.txt" }, CollectionOrdering.Matching);
+            await Assert.That(File.ReadAllText(Path.Combine(ledger.Dir, run.Id, "final.md"))).Contains($"Recollected {run.Record.Session.Id}.\nStatus: stopped");
+            await Assert.That(Directory.GetFiles(other.Dir, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+                .Select(file => file + ":" + Convert.ToBase64String(File.ReadAllBytes(file))))
+                .IsEquivalentTo(before, CollectionOrdering.Matching);
+        }
         var sourceBytes = File.ReadAllBytes(Path.Combine(source.Ledger.Dir, "source", "result.json"));
         var firstLedger = sourceFirst ? source.Ledger : lab.Ledger;
         var first = sourceFirst ? source.Run : next;

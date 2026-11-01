@@ -217,12 +217,12 @@ sealed class Ledger(string runId)
     }
 
     // A full run id, or a bare run name that exactly one dated ledger carries.
-    public static string Resolve(string run)
+    public static string Resolve(string run, string? currentRun = null)
     {
         if (Directory.Exists(Path.Combine(Locations.LedgerRoot, run)) || !Directory.Exists(Locations.LedgerRoot)) return run;
         var pattern = new Regex($@"\A[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}-{Regex.Escape(run)}\z");
         var matches = Directory.GetDirectories(Locations.LedgerRoot).Select(dir => Path.GetFileName(dir))
-            .Where(id => pattern.IsMatch(id)).Order(StringComparer.Ordinal).ToList();
+            .Where(id => id != currentRun && pattern.IsMatch(id)).Order(StringComparer.Ordinal).ToList();
         return matches.Count switch
         {
             0 => run,
@@ -238,7 +238,7 @@ sealed class Ledger(string runId)
         if (parts.Length != 2 || !Regex.IsMatch(parts[0], "\\A[a-z0-9][a-z0-9-]*\\z")
             || !Regex.IsMatch(parts[1], "\\A[a-z0-9][a-z0-9-]{0,39}\\z"))
             throw new HarnessException("continueOf must name <run>/<task> using safe run and task names");
-        var source = new Ledger(Resolve(parts[0]));
+        var source = new Ledger(Resolve(parts[0], currentRun));
         if (source.RunId == currentRun) throw new HarnessException("continueOf must name an earlier, distinct run");
         source.EnsureExists();
         if (source.LoadRunInfo().Run != source.RunId)

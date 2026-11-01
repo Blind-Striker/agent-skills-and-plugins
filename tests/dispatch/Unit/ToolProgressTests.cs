@@ -4,6 +4,23 @@ namespace Dispatch.Tests.Unit;
 public sealed class ToolProgressTests
 {
     [Test]
+    [NotInParallel]
+    public async Task Tool_resources_replace_only_removed_values_of_at_least_eight_characters()
+    {
+        var property = typeof(Cli).GetProperty(nameof(Cli.RootEnvironment))!;
+        var previous = Cli.RootEnvironment;
+        try
+        {
+            property.SetValue(null, WorkerEnvironment.Scrub(new Dictionary<string, string>
+            { ["API_TOKEN_SINGLE"] = "1", ["API_TOKEN_SEVEN"] = "abcdefg", ["API_TOKEN_EIGHT"] = "abcdefgh" }));
+            await Assert.That(Call("2026-11-01").Resource).IsEqualTo("2026-11-01");
+            await Assert.That(Call("read abcdefg.txt").Resource).IsEqualTo("read abcdefg.txt");
+            await Assert.That(Call("read abcdefgh.txt").Resource).IsEqualTo("read [REDACTED].txt");
+        }
+        finally { property.SetValue(null, previous); }
+    }
+
+    [Test]
     [Arguments("https://example.invalid/?token=synthetic-value")]
     [Arguments("https://example.invalid/?password=synthetic-value")]
     [Arguments("fetch https://example.invalid/?page=1&api-key=synthetic-value")]

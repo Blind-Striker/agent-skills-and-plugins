@@ -86,13 +86,15 @@ static class Prompt
         if (startSha is not null)
             lines.Add(task.Spec.ReviewOf is not null
                 ? $"Your folder starts at commit `{startSha}`, the tip of the reviewed task's branch. That task started from commit `{reviewedBaseSha}`; its change is the diff between the two."
+                : task.Spec.ContinueOf is not null
+                ? $"Your folder starts at commit `{startSha}`. This task continues an earlier attempt: its base commit is `{reviewedBaseSha}`, and your change is judged as the diff from that commit to your final tree. If the task text names another base commit, report the difference as a contradiction and go on."
                 : $"Your folder starts at commit `{startSha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.");
         if (task.Spec.Verify is { Count: > 0 } || task.Spec.AdvisoryVerify is { Count: > 0 })
         {
             var commands = (task.Spec.Verify ?? []).Select(Command)
                 .Concat((task.Spec.AdvisoryVerify ?? []).Select(command => Command(command) + " (advisory)"));
             lines.Add($"When you finish with `{Settlement.StatusPrefix} done`, the harness runs these commands in your folder, in this order"
-                + (task.Spec.Access == "read-only" ? ":\n" : ". You may run them earlier; run the gates among them as you go, not only at the end:\n")
+                + (task.Spec.Access == "read-only" ? ":\n" : ". You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox:\n")
                 + string.Join("\n", commands));
         }
         if (policy.Deny.Count > 0)
@@ -146,9 +148,10 @@ static class Prompt
         text.Append(fence).Append('\n');
     }
 
-    public static string ContinuationText(string reference, string final, string amendment)
+    public static string ContinuationText(string reference, string final, string amendment, bool hasChanges)
     {
-        var text = new StringBuilder($"Continues {reference}; its collected changes are already in this folder.\n\n");
+        var text = new StringBuilder($"Continues {reference}; "
+            + (hasChanges ? "its collected changes are already in this folder." : "the earlier attempt left no changes.") + "\n\n");
         Block(text, final, "");
         return text.Append('\n').Append(amendment).ToString();
     }

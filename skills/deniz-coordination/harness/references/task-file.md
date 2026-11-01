@@ -181,17 +181,24 @@ is required. Absolute paths, traversal, backslashes and extra components refuse 
 `continueOf must name <run>/<task> using safe run and task names`.
 Resolution uses only the currently configured ledger root (including `--ledger`), and the usual
 full-id/unique-bare-name rules. Ambiguous names list matches; missing runs and tasks name the missing
-evidence. The source must be an earlier, distinct recorded run, not another task in the new run.
+evidence. The source must be a distinct recorded run, not another task in the new run. Bare-name
+matching excludes the current run, including when a task-file name is reused on a later day.
 
 Only `code` and `mechanical` accept the field. Local diagnostics are `continueOf requires kind code
 or mechanical`, `continueOf refuses base`, `continueOf refuses reviewOf`, and `continueOf refuses
 in-place workspace`. Mandatory scope, contracts, routes, shells, overlap and workspace-collision
 checks still apply. An invalid continuation does not also require `base`.
 
+The source kind must be `code` or `mechanical`; otherwise the shared plan/preparation check refuses
+with `continueOf <run>/<task>: its kind <kind> holds no work to continue`.
 The source's event-derived state and result must both be failed, with consistent identities. It
 must have a recorded harness-managed worktree and harness commit mode, no `zombie` failure and no
 current unconfirmed-worker evidence. Eligibility is parsed `workerStatus: stopped` or `blocked`,
 or otherwise a recorded `commit` (a committed failed target, commonly a verify failure).
+For a source without stopped/blocked worker status, a `commit-failed` failure or an `outOfScope`
+path absent from `filesChanged` refuses: `continueOf <run>/<task>: its uncommitted work is not in the
+ledger: <sorted paths or commit-failed>`. The paths are ordinal-sorted; `commit-failed` is used only
+when there are no such paths. An ordinary verify failure with no leftovers remains eligible.
 The latest settlement must have a matching `collected` event and readable `final.md`.
 For stopped/blocked work, a nonempty collection must name exactly `wip.patch`, with matching file
 count and an existing artifact; inconsistent metadata, stray or missing WIP, and incomplete
@@ -205,6 +212,9 @@ fetched. Every inherited `filesChanged` path must pass the new task's effective 
 and restriction ceilings, using repository `core.ignorecase`, plus protected `.dispatch` checks.
 One diagnostic lists all offenders in ordinal order: `continueOf inherited paths outside scope: ...`.
 Successful planning prints `INFO <task>: continues <resolved-run>/<task> from <12 hex digits>`.
+If the source `run.json` records a different repository path, plan warns:
+`<task>: continueOf <run>/<task> was recorded in <repo>, not this repository; commit ids resolve, but its base ref may mean another commit here`.
+It remains a warning because worktrees of the same repository have different paths.
 
 Preparation rechecks the source using the new task's frozen settings. A stopped/blocked source starts
 at its original `baseSha` and replays WIP with `git apply --index --whitespace=nowarn -- <patch>`;
@@ -219,10 +229,17 @@ and filters still apply. Binary hunks are replayed without text conversion by th
 pointer blobs and submodules carry gitlink IDs, not payloads, submodule-local edits or object transport;
 normal object/filter availability is required. No submodule initialization is added. Replay uses the
 new run's Git configuration baseline and all ordinary write protections, never the source's baseline.
+A case-only rename on a case-insensitive file system cannot be replayed and fails preparation with
+Git's message. A worker's untracked nested repository arrives as an empty folder and a commit id,
+not its working files or object database.
 
 The new prompt names the resolved source, fences its complete `final.md` safely, then includes the
 amendment. The new task's contracts and standing instructions precede that composed task text;
 `rawPrompt` still omits them. It uses a new worker, branch and worktree, not the source session.
+The first composed line says collected changes are already in the folder only when the source has
+`wip.patch` or a `commit`; otherwise it says the earlier attempt left no changes. The standing start
+line distinguishes the new worker's start commit from the original `workspace.baseSha`, which
+remains the baseline for judging the final tree.
 Source ledgers are read without creating directories, locks or repairing torn tails. No source lock
 is taken: a final target stays readable while sibling tasks remain supervised. A queued task uses
 the latest eligible source evidence when prepared, not a plan-time lease.

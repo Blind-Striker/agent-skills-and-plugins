@@ -9,6 +9,110 @@ public sealed class PlanOutputTests
 {
     [Test]
     [NotInParallel]
+    [Arguments("both")]
+    [Arguments("paths")]
+    [Arguments("failure")]
+    public async Task ContinueOf_refuses_unledgered_work_at_plan_and_preparation(string evidence, CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        string? lockPath = null;
+        var source = await lab.SourceAttemptAsync(ct, "done", edit: async path =>
+        {
+            File.WriteAllText(Path.Combine(path, "committed.txt"), "worker commit\n");
+            await repo.GitAsync(["-C", path, "add", "-A"], ct);
+            await repo.GitAsync(["-C", path, "commit", "-m", "Worker work"], ct);
+            File.WriteAllText(Path.Combine(path, "z-left.txt"), "leftover z\n");
+            File.WriteAllText(Path.Combine(path, "a-left.txt"), "leftover a\n");
+            lockPath = Path.GetFullPath(await repo.GitAsync(["-C", path, "rev-parse", "--git-path", "refs/heads/dispatch/2026-10-31-source/source.lock"], ct), path);
+            File.WriteAllText(lockPath, "owned test lock");
+        });
+        File.Delete(lockPath!);
+        await Assert.That(source.Result.Failures).IsEquivalentTo(new[] { "commit-failed", "out-of-scope" }, CollectionOrdering.Matching);
+        await Assert.That(source.Result.FilesChanged).IsEquivalentTo(new[] { "committed.txt" }, CollectionOrdering.Matching);
+        await Assert.That(source.Result.OutOfScope).IsEquivalentTo(new[] { "a-left.txt", "z-left.txt" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(source.Run.Record.Workspace.Path!, "a-left.txt"))).IsEqualTo("leftover a\n");
+        if (evidence == "paths") source.Result.Failures.Remove("commit-failed");
+        if (evidence == "failure") source.Result.OutOfScope = [];
+        source.Ledger.SaveResult(source.Result);
+        var next = lab.Continuation();
+        var message = "continueOf 2026-10-31-source/source: its uncommitted work is not in the ledger: "
+            + (evidence == "failure" ? "commit-failed" : "a-left.txt, z-left.txt");
+        await Assert.That((await lab.PlanAsync(ct, next.Record.Spec)).Errors).IsEquivalentTo(new[] { "next: " + message }, CollectionOrdering.Matching);
+        await Assert.That(async () => await Worktree.PrepareAsync(next, lab.Ledger, repo.Root, ct, lab.Git))
+            .Throws<HarnessException>().WithMessage(message);
+        await Assert.That(next.Record.Workspace.Path).IsNull();
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ContinueOf_accepts_a_verify_failure_without_leftovers(CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct, "done", failure: "verify-failed");
+        var next = lab.Continuation();
+        await Assert.That(source.Result.OutOfScope).IsEmpty();
+        await Assert.That((await lab.PlanAsync(ct, next.Record.Spec)).Errors).IsEmpty();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ContinueOf_reuses_a_task_file_name_on_a_later_day(CancellationToken ct)
+    {
+        using var lab = new CoreLab(Commands.CreateRunId("source"), recorded: false);
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation(reference: "source/source");
+        var path = Path.Combine(lab.Tree.Root, "source.tasks.jsonc");
+        Json.WriteFile(path, new TaskFile { Tasks = [next.Record.Spec] }, InputJson.Read.TaskFile);
+        var plan = await Planner.LoadAsync(path, lab.Tree.Repository, AllowList.From(null), ct, lab.Git);
+        await Assert.That(plan.Errors).IsEmpty();
+        await Assert.That(plan.Tasks.Select(task => task.Spec.Id!)).IsEquivalentTo(new[] { "next" }, CollectionOrdering.Matching);
+        lab.Ledger.Write(next.Id, "queued");
+        var preparedPlan = await Planner.LoadAsync(path, lab.Tree.Repository, AllowList.From(null), ct, lab.Git);
+        await Assert.That(preparedPlan.Errors).IsEmpty();
+        await Assert.That(preparedPlan.Tasks.Select(task => task.Spec.Id!)).IsEquivalentTo(new[] { "next" }, CollectionOrdering.Matching);
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(lab.Ledger.Read().Last().Data!["continueOf"]!.GetValue<string>()).IsEqualTo(source.Ledger.RunId + "/source");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ContinueOf_refuses_a_non_writer_source(CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct);
+        source.Run.Record.Spec.Kind = "research";
+        source.Ledger.SaveRecord(source.Run.Record);
+        var next = lab.Continuation();
+        const string message = "continueOf 2026-10-31-source/source: its kind research holds no work to continue";
+        await Assert.That((await lab.PlanAsync(ct, next.Record.Spec)).Errors).IsEquivalentTo(new[] { "next: " + message }, CollectionOrdering.Matching);
+        await Assert.That(async () => await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git))
+            .Throws<HarnessException>().WithMessage(message);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ContinueOf_warns_for_a_different_recorded_repository(CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct);
+        var info = source.Ledger.LoadRunInfo();
+        info.Repo = Path.Combine(lab.Tree.Root, "another-worktree");
+        Json.WriteFile(Path.Combine(source.Ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+        var next = lab.Continuation();
+        var plan = await lab.PlanAsync(ct, next.Record.Spec);
+        await Assert.That(plan.Errors).IsEmpty();
+        await Assert.That(plan.Warnings).IsEquivalentTo(new[] {
+            $"next: continueOf 2026-10-31-source/source was recorded in {info.Repo}, not this repository; commit ids resolve, but its base ref may mean another commit here" }, CollectionOrdering.Matching);
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+    }
+
+    [Test]
+    [NotInParallel]
     public async Task ContinueOf_checks_all_local_conflicts(CancellationToken ct)
     {
         using var lab = new CoreLab("new-attempt");

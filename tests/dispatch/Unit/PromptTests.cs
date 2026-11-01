@@ -18,9 +18,11 @@ public sealed class PromptTests
         const string amendment = "New amendment.\r\nKeep café. No final newline";
         var expected = "Continues earlier/source; its collected changes are already in this folder.\n\n"
             + "``````\n" + final + (ending.Length == 0 ? "\n" : "") + "``````\n\n" + amendment;
-        await Assert.That(Prompt.ContinuationText("earlier/source", final, amendment)).IsEqualTo(expected);
-        await Assert.That(Prompt.ContinuationText("earlier/source", "short", "fix"))
+        await Assert.That(Prompt.ContinuationText("earlier/source", final, amendment, true)).IsEqualTo(expected);
+        await Assert.That(Prompt.ContinuationText("earlier/source", "short", "fix", true))
             .IsEqualTo("Continues earlier/source; its collected changes are already in this folder.\n\n```\nshort\n```\n\nfix");
+        await Assert.That(Prompt.ContinuationText("earlier/source", "short", "fix", false))
+            .IsEqualTo("Continues earlier/source; the earlier attempt left no changes.\n\n```\nshort\n```\n\nfix");
     }
 
     [Test]
@@ -33,7 +35,7 @@ public sealed class PromptTests
         var expected = "Standing instructions from the dispatch harness (they apply to the whole task):\n"
             + "- Your working folder: <workspace>\n"
             + $"- Your folder starts at commit `{sha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.\n"
-            + "- When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            + "- When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox:\n"
             + "    `dotnet test zulu`\n"
             + "    `dotnet build alpha`\n"
             + "    `clone-check zulu` (advisory)\n"
@@ -55,14 +57,14 @@ public sealed class PromptTests
         var spec = new TaskSpec { Kind = "research", Verify = advisory ? [] : ["gate"], AdvisoryVerify = advisory ? ["advice"] : [] };
         var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
         await Assert.That(actual).Contains("- Your working folder: <workspace>\n"
-            + "- When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            + "- When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox:\n"
             + (advisory ? "    `advice` (advisory)\n" : "    `gate`\n")
             + "- Declared scope:");
     }
 
     [Test]
     [Arguments("read-only", "")]
-    [Arguments("workspace", ". You may run them earlier; run the gates among them as you go, not only at the end")]
+    [Arguments("workspace", ". You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox")]
     public async Task Verify_header_respects_access(string access, string guidance)
     {
         var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
@@ -88,7 +90,7 @@ public sealed class PromptTests
         var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
         var spec = new TaskSpec { Kind = "research", Verify = [command], AdvisoryVerify = [command] };
         var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
-        await Assert.That(actual).Contains("not only at the end:\n" + rendered + "\n" + rendered + " (advisory)\n- Declared scope:");
+        await Assert.That(actual).Contains("outside your sandbox:\n" + rendered + "\n" + rendered + " (advisory)\n- Declared scope:");
     }
 
     [Test]

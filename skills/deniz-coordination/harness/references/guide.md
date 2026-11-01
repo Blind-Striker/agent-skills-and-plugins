@@ -94,10 +94,12 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
   ``Your folder starts at commit `<full commit id>`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.``
   A `reviewOf` task instead gets:
   ``Your folder starts at commit `<start>`, the tip of the reviewed task's branch. That task started from commit `<reviewed base>`; its change is the diff between the two.``
+  A `continueOf` task instead gets:
+  ``Your folder starts at commit `<start>`. This task continues an earlier attempt: its base commit is `<workspace.baseSha>`, and your change is judged as the diff from that commit to your final tree. If the task text names another base commit, report the difference as a contradiction and go on.``
   The task prompt no longer has to carry the base commit; a `reviewOf` task is told both commits.
   Recording and older-workspace availability: [workspace.startSha](ledger.md#taskjson).
 - When there are verify or advisory-verify commands, the next standing line says:
-  ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:``
+  ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox:``
   For read-only tasks it says only:
   ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order:``
   Each command follows on its own backticked line, indented four spaces under the bullet. Delimiters

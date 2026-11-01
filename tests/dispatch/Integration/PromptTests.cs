@@ -11,6 +11,27 @@ public sealed class PromptTests
 {
     [Test]
     [NotInParallel]
+    [Arguments("stopped", false)]
+    [Arguments("stopped", true)]
+    [Arguments("done", false)]
+    public async Task Continuation_standing_and_composed_lines_describe_the_collected_work(string status, bool empty, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct, status, edit: empty ? _ => Task.CompletedTask : null,
+            failure: status == "done" ? "verify-failed" : null);
+        var next = lab.Continuation();
+        await new TaskStarter(lab.Backend, lab.Ledger, lab.Tree.Repository, AllowList.From(null), lab.Policy, lab.Git).StartAsync(next, ct);
+        var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
+        await Assert.That(input.Prompt.Text.Split('\n').Where(line => line.StartsWith("- Your folder starts at commit", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { $"- Your folder starts at commit `{next.Record.Workspace.StartSha}`. This task continues an earlier attempt: its base commit is `{source.Run.Record.Workspace.BaseSha}`, and your change is judged as the diff from that commit to your final tree. If the task text names another base commit, report the difference as a contradiction and go on." }, CollectionOrdering.Matching);
+        var final = File.ReadAllText(Path.Combine(source.Ledger.Dir, "source", "final.md"));
+        await Assert.That(next.Record.PromptText).IsEqualTo("Continues 2026-10-31-source/source; "
+            + (empty ? "the earlier attempt left no changes." : "its collected changes are already in this folder.")
+            + "\n\n```\n" + final + (final.EndsWith('\n') ? "" : "\n") + "```\n\nAmend the earlier work.");
+    }
+
+    [Test]
+    [NotInParallel]
     [Arguments(false)]
     [Arguments(true)]
     public async Task ContinueOf_uses_a_new_worker_and_records_composed_text(bool raw, CancellationToken ct)
@@ -38,7 +59,7 @@ public sealed class PromptTests
         var expected = raw ? composed + "\n" : "New contract v1\r\nKeep this.\n\n"
             + "Standing instructions from the dispatch harness (they apply to the whole task):\n"
             + $"- Your working folder: {next.Record.Workspace.Path}\n"
-            + $"- Your folder starts at commit `{next.Record.Workspace.StartSha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.\n"
+            + $"- Your folder starts at commit `{next.Record.Workspace.StartSha}`. This task continues an earlier attempt: its base commit is `{next.Record.Workspace.BaseSha}`, and your change is judged as the diff from that commit to your final tree. If the task text names another base commit, report the difference as a contradiction and go on.\n"
             + "- Declared scope: **. Changes outside it are flagged for review.\n"
             + "- Nobody answers questions during this run: a question is cancelled, so continue without the answer.\n"
             + "- End your final message with exactly one status line: `Status: done` when the task is done, `Status: stopped` when you stopped on a rule or a contradiction, `Status: blocked` when the environment kept you from the work (a missing tool, access or input).\n"

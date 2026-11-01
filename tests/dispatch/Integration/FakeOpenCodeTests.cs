@@ -2,6 +2,7 @@ using Dispatch.Tests.Support;
 using OpenCode.Sdk;
 using System.Net;
 using System.Text.Json.Nodes;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -9,6 +10,41 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel("processes")]
 public sealed class FakeOpenCodeTests
 {
+    [Test]
+    [NotInParallel]
+    [Arguments("permission.asked")]
+    [Arguments("form.created")]
+    [Arguments("session.execution.succeeded")]
+    [Timeout(60_000)]
+    public async Task Undecodable_control_events_reach_the_ledger_and_other_unknown_events_are_ignored(string type, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var steps = File.ReadLines(FakeOpenCode.Fixture("one-task.jsonl")).Select(line => JsonNode.Parse(line)!).ToList();
+        steps[6]["events"] = new JsonArray(
+            OpenCodeLab.Event("unrelated.future", new()),
+            OpenCodeLab.Event(type, new() { ["sessionID"] = 1 }));
+        steps[8]["body"] = new JsonObject { ["decision"] = "reject", ["message"] = Policy.LeadDeclined };
+        var scenario = Path.Combine(tree.Root, "unknown-events.jsonl");
+        File.WriteAllLines(scenario, steps.Select(step => step.ToJsonString()));
+        var environment = FakeOpenCode.Environment(tree, "one-task.jsonl").ToDictionary(x => x.Key, x => (string?)x.Value);
+        environment["FAKE_OPENCODE_SCENARIO"] = scenario;
+        var tasks = Path.Combine(tree.Root, "events.tasks.jsonc");
+        File.WriteAllText(tasks, """{"schemaVersion":2,"tasks":[{"id":"inspect","kind":"research","base":"main","backend":"opencode","route":"fixture/model","rawPrompt":true,"prompt":"Inspect."}]}""");
+        using var child = new HarnessProcess(tree);
+        (await child.RunAsync(["run", tasks, "--repo", repo.Root], ct, environment)).RequireSuccess("unknown-event run");
+        var folder = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
+        var events = File.ReadLines(Path.Combine(folder, "events.jsonl")).Select(line => JsonNode.Parse(line)!).ToList();
+        await Assert.That(events.Where(line => line["type"]!.GetValue<string>() == "error")
+            .Select(line => $"{line["task"]}:{line["data"]!["while"]}:{line["data"]!["message"]}"))
+            .IsEquivalentTo(new[] { $":unknown-event:{type}" }, CollectionOrdering.Matching);
+        await Assert.That(events.Where(line => line["type"]!.GetValue<string>() == "tool")
+            .Select(line => $"{line["task"]}:{line["data"]!["tool"]}:{line["data"]!["outcome"]}"))
+            .IsEquivalentTo(new[] { "inspect:read:succeeded" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadLines(FakeOpenCode.Record(tree)).Select(line => JsonNode.Parse(line)!)
+            .Where(line => line["unexpected"]!.GetValue<bool>())).IsEmpty();
+    }
+
     [Test]
     [Timeout(60_000)]
     public async Task The_fake_keeps_quiet_event_streams_alive_without_reconnecting(CancellationToken ct)

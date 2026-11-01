@@ -128,7 +128,7 @@ static class Worktree
     }
 
     static async Task PrepareContinuationAsync(TaskRun run, Ledger ledger, string repo, Git git,
-        (Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch) source, CancellationToken ct)
+        (Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch, bool HasChanges) source, CancellationToken ct)
     {
         var record = run.Record;
         var path = Locations.Worktree(run.Id, ledger.RunId);
@@ -140,7 +140,7 @@ static class Worktree
         record.Workspace.BaseRef = source.Record.Workspace.BaseRef;
         record.Workspace.BaseSha = source.Record.Workspace.BaseSha;
         record.Workspace.StartSha = source.CreationSha;
-        record.PromptText = Prompt.ContinuationText(reference, source.Final, record.PromptText);
+        record.PromptText = Prompt.ContinuationText(reference, source.Final, record.PromptText, source.HasChanges);
         ledger.SaveRecord(record);
         if (source.Patch is { } patch)
             await git.CheckAsync(path, ct, "apply", "--index", "--whitespace=nowarn", "--", patch);
