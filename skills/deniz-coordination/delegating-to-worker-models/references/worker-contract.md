@@ -98,6 +98,8 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 
 - Never end your turn while a command you started is still running. Run long commands in the
   foreground with an explicit timeout, and leave no background process behind.
+- End only processes you started. Build servers and other daemons on the machine are shared: leave them
+  running.
 - Your green run must be the run the verify step repeats. Do not redirect build outputs, do not change
   test helpers to fit your own layout, and do not repoint HOME, USERPROFILE, or a tool's home folder.
   Put the caches and temporary files you create under the system temp folder, never inside or above the
