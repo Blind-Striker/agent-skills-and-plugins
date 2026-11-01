@@ -51,8 +51,8 @@ workspace protection and lifecycle. Name concrete offline build/test commands in
 or `verify`, and put adding dependencies out of its scope.
 
 `prepare` runs the task's base content as you, outside any sandbox: package install scripts and
-build-system hooks run with your rights. On a `reviewOf` task or a base a worker wrote, that is
-worker-authored code; review it first or use script-free forms such as `npm ci --ignore-scripts`.
+build-system hooks run with your rights. On a `reviewOf` or `continueOf` task, or a base a worker wrote,
+that includes worker-authored code; review it first or use script-free forms such as `npm ci --ignore-scripts`.
 
 Each entry is one command; the list stops at the first failure.
 
@@ -83,6 +83,10 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 - `base` takes a branch, a tag or a SHA. A SHA is exact; planning fetches remote-tracking bases before
   resolving them, including revision suffixes and branches without a local tracking ref. Local
   branches and tags use the repository's current refs without fetching. See [plan](cli.md#plan-tasksjsonc---repo-path---contract-path---policy-file).
+- For an eligible failed attempt, [`continueOf`](task-file.md#continuations) keeps its collected work
+  in a new session and independently owned worktree; the new prompt is an amendment. Scope covers
+  the cumulative change from the original baseline, not only the amendment. To deliberately start
+  fresh, omit `continueOf` and supply `base` instead.
 
 ## Verify, advisory verify and review
 
@@ -128,8 +132,11 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 | `failures` | The machine-readable causes | Each cause has a row in [the ledger](ledger.md) |
 | `warnings` | Findings that did not fail the task | `worker-status-missing` means the success rests on the session outcome alone |
 | `routeVerified` | Every route the backend reported is the requested one | Only `true` supports a claim about which model did the work |
-| `workerStatus` | The worker's own verdict | `stopped` or `blocked`: fix the prompt or the environment, then run a new task |
+| `workerStatus` | The worker's own verdict | `stopped` or `blocked`: read the report, then use the continuation advice below |
 | `zombie` (a failure) | A stop could not be confirmed | The worktree keeps the work; commit and verify were skipped |
 | `wipPatch` | A stopped or blocked worker's unfinished changes, as `wip.patch` | Judge the partial state; verify did not run (`verify[].notRun`) |
 | `recoveredErrors` | Model calls that failed while the session still succeeded | Not a failure; read them when a result looks thin |
 | `tokens` | Input summed over every model call | Not a context size; `cacheRead` is the cached part |
+
+**Fix the prompt or the environment, then run a new task with `continueOf` to keep the eligible attempt’s collected work; its prompt is the amendment.**
+Eligibility and recovery boundaries: [Continuations](task-file.md#continuations).

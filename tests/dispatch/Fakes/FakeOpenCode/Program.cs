@@ -65,7 +65,7 @@ if (args.FirstOrDefault() == "-C" && Environment.GetEnvironmentVariable("FAKE_GI
         : null;
     if (directoryHandle is not null)
         await File.WriteAllTextAsync(Environment.GetEnvironmentVariable("FAKE_GIT_READY")!, "held");
-    if (command == "commit")
+    if (command is "commit" or "apply")
     {
         var lockPath = Environment.GetEnvironmentVariable("FAKE_GIT_LOCK")!;
         if (gitMode == "leave-lock" && !File.Exists(lockPath))
@@ -77,7 +77,7 @@ if (args.FirstOrDefault() == "-C" && Environment.GetEnvironmentVariable("FAKE_GI
         }
         await File.WriteAllTextAsync(Environment.GetEnvironmentVariable("FAKE_GIT_READY")!, "ready");
         var release = Environment.GetEnvironmentVariable("FAKE_GIT_RELEASE")!;
-        // The test releases a blocked commit explicitly, or the runner kills it at its timeout.
+        // The test releases a blocked write explicitly, or the runner kills it at its timeout.
         while (!File.Exists(release)) await Task.Delay(10);
     }
     var start = new ProcessStartInfo(Environment.GetEnvironmentVariable("FAKE_GIT_EXECUTABLE")!) { UseShellExecute = false, WorkingDirectory = repo };

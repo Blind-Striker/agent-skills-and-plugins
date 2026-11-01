@@ -9,6 +9,128 @@ namespace Dispatch.Tests.Integration;
 public sealed class GitSafetyTests
 {
     [Test]
+    [Arguments("filter")]
+    [Arguments("cancel")]
+    [Arguments("owned-lock")]
+    [Arguments("foreign-lock")]
+    [Timeout(60_000)]
+    public async Task ContinueOf_apply_keeps_git_write_protections(string protection, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation();
+        var repo = new LabRepo(lab.Tree);
+        if (protection == "cancel")
+        {
+            var environment = WrapperEnvironment(lab, Path.Combine(lab.Tree.Root, "unused.lock"), "block");
+            environment["FAKE_GIT_CALLS"] = Path.Combine(lab.Tree.Root, "apply.calls");
+            var marker = Path.Combine(lab.Tree.Root, "hook.marker");
+            File.WriteAllText(Path.Combine(repo.Root, ".git", "hooks", "post-index-change"), $"#!/bin/sh\nprintf ran > '{marker.Replace('\\', '/')}'\n");
+            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(Path.Combine(repo.Root, ".git", "hooks", "post-index-change"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var git = new Git(FakeOpenCode.Executable, lab.Git.ControlFolder, environment);
+            using var cancel = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var preparing = Worktree.PrepareAsync(next, lab.Ledger, repo.Root, cancel.Token, git);
+            try
+            {
+                while (!File.Exists(environment["FAKE_GIT_READY"])) await Task.Delay(10, ct);
+                cancel.Cancel();
+                File.WriteAllText(environment["FAKE_GIT_RELEASE"], "release");
+                await preparing;
+            }
+            finally
+            {
+                File.WriteAllText(environment["FAKE_GIT_RELEASE"], "release");
+                await preparing;
+            }
+            await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+            await Assert.That(File.Exists(marker)).IsFalse();
+            var apply = File.ReadLines(environment["FAKE_GIT_CALLS"]).Select(line => JsonNode.Parse(line)!.AsArray().Select(x => x!.GetValue<string>()).ToArray())
+                .Single(args => args.Contains("apply"));
+            var hooks = apply[3]["core.hooksPath=".Length..];
+            if (OperatingSystem.IsWindows())
+            {
+                await Assert.That(Path.GetDirectoryName(hooks)).IsEqualTo(lab.Git.ControlFolder);
+                await Assert.That(Directory.Exists(hooks)).IsFalse();
+            }
+            else await Assert.That(hooks).IsEqualTo("/dev/null");
+            await Assert.That(apply).IsEquivalentTo((string[])[ "-C", next.Record.Workspace.Path!, "-c", "core.hooksPath=" + hooks,
+                "-c", "core.fsmonitor=false", "-c", "commit.gpgSign=false", "-c", "gc.auto=0", "-c", "maintenance.auto=false",
+                .. OperatingSystem.IsWindows() ? new[] { "-c", "core.longpaths=true" } : [], "-c", "apply.ignoreWhitespace=false",
+                "apply", "--index", "--whitespace=nowarn", "--", Path.Combine(source.Ledger.Dir, "source", "wip.patch") ], CollectionOrdering.Matching);
+            await Assert.That(lab.Ledger.Read().Single(x => x.Type == "worktree").Data!["continueOf"]!.GetValue<string>()).IsEqualTo("2026-10-31-source/source");
+            return;
+        }
+        await Worktree.PrepareAsync(next, lab.Ledger, repo.Root, ct, lab.Git);
+        var path = next.Record.Workspace.Path!;
+        // Replay the same collected patch into its clean preimage to isolate the apply boundary.
+        await repo.GitAsync(["-C", path, "reset", "--hard", "HEAD"], ct);
+        var patch = Path.Combine(source.Ledger.Dir, "source", "wip.patch");
+        if (protection == "filter")
+        {
+            await repo.GitAsync(["config", "filter.fixture.clean", "cat"], ct);
+            var git = lab.Git.ForWorkspace(lab.Ledger, next.Id);
+            await Assert.That(async () => await git.CheckAsync(path, ct, "apply", "--index", "--whitespace=nowarn", "--", patch))
+                .ThrowsExactly<GitConfigChangedException>().WithMessage("git-config-changed: refusing worker-changed filters");
+            var change = lab.Ledger.Read().Last(x => x.Type == "git-config-changed");
+            await Assert.That(change.Task).IsEqualTo(next.Id);
+            await Assert.That(change.Data!["keys"]!.AsArray().Select(x => x!.GetValue<string>())).IsEquivalentTo(new[] { "filter.fixture.clean" }, CollectionOrdering.Matching);
+            await Assert.That(File.Exists(Path.Combine(path, "source.txt"))).IsFalse();
+            return;
+        }
+        var lockPath = Path.GetFullPath(await repo.GitAsync(["-C", path, "rev-parse", "--git-path", "index.lock"], ct), path);
+        var foreign = protection == "foreign-lock";
+        if (foreign) File.WriteAllText(lockPath, "foreign lock bytes");
+        var wrapper = WrapperEnvironment(lab, lockPath, "leave-lock");
+        var timed = new Git(FakeOpenCode.Executable, lab.Git.ControlFolder, wrapper, TimeSpan.FromSeconds(3)).ForWorkspace(lab.Ledger, next.Id);
+        var result = await timed.RunAsync(path, ct, "apply", "--index", "--whitespace=nowarn", "--", patch);
+        await Assert.That(result.TimedOut).IsTrue();
+        await Assert.That(File.Exists(lockPath)).IsEqualTo(foreign);
+        if (foreign) await Assert.That(File.ReadAllText(lockPath)).IsEqualTo("foreign lock bytes");
+        await Assert.That(lab.Ledger.Read().Where(x => x.Type == "index-lock-removed").Select(x => x.Data!["path"]!.GetValue<string>()))
+            .IsEquivalentTo(foreign ? [] : new[] { lockPath }, CollectionOrdering.Matching);
+        await Assert.That(File.Exists(Path.Combine(path, "source.txt"))).IsFalse();
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task ContinueOf_preserves_git_conversion_semantics(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        var oldLink = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+        await repo.GitAsync(["commit", "--allow-empty", "-m", "New gitlink target"], ct);
+        var newLink = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+        await repo.GitAsync(["config", "filter.fixture.clean", "sed s/WORK/TREE/g"], ct);
+        await repo.GitAsync(["config", "filter.fixture.smudge", "sed s/TREE/WORK/g"], ct);
+        await repo.GitAsync(["config", "filter.fixture.required", "true"], ct);
+        await repo.GitAsync(["config", "apply.whitespace", "fix"], ct);
+        await repo.GitAsync(["config", "apply.ignoreWhitespace", "change"], ct);
+        File.WriteAllText(Path.Combine(repo.Root, ".gitattributes"), "filtered.txt filter=fixture text eol=lf\ncrlf.txt text eol=crlf\n");
+        File.WriteAllText(Path.Combine(repo.Root, "filtered.txt"), "WORK before\n");
+        File.WriteAllText(Path.Combine(repo.Root, "crlf.txt"), "before\r\n");
+        await repo.GitAsync(["add", "-A"], ct);
+        await repo.GitAsync(["update-index", "--add", "--cacheinfo", $"160000,{oldLink},sub"], ct);
+        await repo.GitAsync(["commit", "-m", "Conversions and gitlink"], ct);
+        var source = await lab.SourceAttemptAsync(ct, edit: async path =>
+        {
+            File.WriteAllText(Path.Combine(path, "filtered.txt"), "WORK after \t\n");
+            File.WriteAllText(Path.Combine(path, "crlf.txt"), "after\r\n");
+            await repo.GitAsync(["-C", path, "update-index", "--cacheinfo", $"160000,{newLink},sub"], ct);
+        });
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, repo.Root, ct, lab.Git);
+        var path = next.Record.Workspace.Path!;
+        await Assert.That(source.Result.FilesChanged).IsEquivalentTo(new[] { "crlf.txt", "filtered.txt", "sub" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllBytes(Path.Combine(path, "crlf.txt"))).IsEquivalentTo(System.Text.Encoding.UTF8.GetBytes("after\r\n"), CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(path, "filtered.txt"))).IsEqualTo("WORK after \t\n");
+        await Assert.That(await lab.Git.CheckAsync(path, ct, "show", ":filtered.txt")).IsEqualTo("TREE after \t\n");
+        await Assert.That(await lab.Git.CheckAsync(path, ct, "show", ":crlf.txt")).IsEqualTo("after\n");
+        await Assert.That(await repo.GitAsync(["-C", path, "ls-files", "--stage", "sub"], ct)).IsEqualTo($"160000 {newLink} 0\tsub");
+        await Assert.That(File.Exists(Path.Combine(path, "sub", ".git"))).IsFalse();
+        await Assert.That(await repo.GitAsync(["-C", path, "rev-parse", "HEAD"], ct)).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+    }
+
+    [Test]
     [Timeout(60_000)]
     public async Task ConfigGate_reads_an_older_baseline_without_its_system_entries(CancellationToken ct)
     {

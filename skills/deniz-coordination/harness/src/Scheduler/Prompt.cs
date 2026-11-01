@@ -134,8 +134,23 @@ static class Prompt
     static void Block(StringBuilder text, string label, JsonNode? node)
     {
         var json = node?.ToJsonString(Json.Options(strict: false, indented: true)) ?? "[]";
-        var fence = Backticks(json, 3);
-        text.Append('\n').Append(label).Append('\n').Append(fence).Append("json\n").Append(json).Append('\n').Append(fence).Append('\n');
+        text.Append('\n').Append(label).Append('\n');
+        Block(text, json, "json");
+    }
+
+    static void Block(StringBuilder text, string body, string language)
+    {
+        var fence = Backticks(body, 3);
+        text.Append(fence).Append(language).Append('\n').Append(body);
+        if (!body.EndsWith('\n')) text.Append('\n');
+        text.Append(fence).Append('\n');
+    }
+
+    public static string ContinuationText(string reference, string final, string amendment)
+    {
+        var text = new StringBuilder($"Continues {reference}; its collected changes are already in this folder.\n\n");
+        Block(text, final, "");
+        return text.Append('\n').Append(amendment).ToString();
     }
 
     static string Hash(byte[] bytes) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)).ToLowerInvariant();

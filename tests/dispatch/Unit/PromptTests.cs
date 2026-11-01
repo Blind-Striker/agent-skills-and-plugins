@@ -9,6 +9,21 @@ namespace Dispatch.Tests.Unit;
 public sealed class PromptTests
 {
     [Test]
+    [Arguments("")]
+    [Arguments("\n")]
+    [Arguments("\r\n")]
+    public async Task ContinueOf_prompt_preserves_final_and_fences_it_safely(string ending)
+    {
+        var final = "Earlier 世界\r\n```\r\n````` inline ` text" + ending;
+        const string amendment = "New amendment.\r\nKeep café. No final newline";
+        var expected = "Continues earlier/source; its collected changes are already in this folder.\n\n"
+            + "``````\n" + final + (ending.Length == 0 ? "\n" : "") + "``````\n\n" + amendment;
+        await Assert.That(Prompt.ContinuationText("earlier/source", final, amendment)).IsEqualTo(expected);
+        await Assert.That(Prompt.ContinuationText("earlier/source", "short", "fix"))
+            .IsEqualTo("Continues earlier/source; its collected changes are already in this folder.\n\n```\nshort\n```\n\nfix");
+    }
+
+    [Test]
     public async Task Start_commit_and_verify_commands_follow_working_folder_in_exact_order()
     {
         const string sha = "fedcba98765432100123456789abcdef0123456789";

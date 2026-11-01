@@ -162,14 +162,15 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 |---|---|---|---|
 | `schemaVersion` | integer | `2` | Version. |
 | `spec` | task object | Resolved task | [Task fields](task-file.md); several preferences have been replaced with effective values. |
-| `promptText` | string | Loaded task text | Does not include assembled standing instructions or contract bodies. |
+| `spec.continueOf` | string | Absent for fresh tasks | Source `<run>/<task>` as supplied; [continuation rules](task-file.md#continuations). |
+| `promptText` | string | Loaded task text | Does not include assembled standing instructions or contract bodies. For a continuation, initially the amendment; workspace preparation saves composed source final text and amendment before replay and the ready event. |
 | `settings` | object | Effective settings | Wrapper tables above. |
 | `workspace` | object | Initially empty | Core workspace record. |
 | `workspace.path` | string path | Absent before preparation | Worker directory. |
 | `workspace.branch` | string | Worktree tasks only | Task branch. |
-| `workspace.baseRef` | string | Worktree tasks only | Original base or reviewed task's branch. |
-| `workspace.baseSha` | string | Git tasks with HEAD | Starting commit id. |
-| `workspace.startSha` | string | Absent when unset | Full commit id at worktree creation. Recorded by new workspace preparation, including during `resume --continue`; unset for in-place and scratch tasks. An already-prepared workspace is not backfilled. [Standing instructions](guide.md#verify-advisory-verify-and-review) use it when available. |
+| `workspace.baseRef` | string | Worktree tasks only | Original base or reviewed task's branch; a continuation inherits its source's value, even if that ref is later cleaned. |
+| `workspace.baseSha` | string | Git tasks with HEAD | Cumulative settlement baseline. A continuation inherits the source's original baseline, which may precede its own start commit. |
+| `workspace.startSha` | string | Absent when unset | Worker's checkout/start commit: full commit id at worktree creation. Continuations use the original baseline for stopped/blocked sources, otherwise the failed source's result commit. Recorded by new workspace preparation, including during `resume --continue`; unset for in-place and scratch tasks. An already-prepared workspace is not backfilled. [Standing instructions](guide.md#verify-advisory-verify-and-review) use it when available. |
 | `workspace.reviewedBaseSha` | string | New `reviewOf` worktrees only | Reviewed author's recorded `workspace.baseSha`, the start of the author's work. Together with the reviewer's `workspace.startSha` (the author's branch tip), identifies the diff to review. |
 | `contracts` | object array | Absent without contracts | Records below, not copies of text. |
 | `contracts[].path` | string path | Resolved path | Original contract path. |
@@ -227,6 +228,10 @@ branches. Scope and protected-path checks still apply to the snapshot. `diff.pat
 base-to-HEAD evidence in `harness` mode and start-to-end snapshot evidence in `none` mode; in the latter
 it has the same bytes as WIP. `wip.patch` and its metadata are absent for an empty snapshot diff or
 other statuses, and stale WIP is removed on recollection. An unconfirmed stop collects neither patch.
+For continuations this remains the cumulative diff from the inherited original baseline, not
+`startSha`. WIP preserves the collected Git tree (tracked content, deletions, non-ignored untracked
+files and worker commits), not ignored files or prior staging. LFS carries pointers and submodules
+gitlink IDs only; [continuations](task-file.md#continuations) owns replay and availability limits.
 Neither `verify` nor `advisoryVerify` executes after a parsed stop: every command records
 `notRun: "worker stopped"`; this adds no verify failure or advisory warning. A `done` task still
 verifies even when its diff is empty. Missing status remains `worker-status-missing`, not a stop.
@@ -265,7 +270,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `timedOut` | boolean | `false` | Harness timeout occurred. |
 | `cancelRequested` | boolean | `false` | Cancellation requested. |
 | `workerStopped` | boolean | Absent without stop evidence | Whether stop was confirmed, including Codex release, recovery and cleanup checks. |
-| `baseSha` | string | Absent for structured/no starting HEAD | Starting Git commit. |
+| `baseSha` | string | Absent for structured/no starting HEAD | Cumulative Git settlement baseline, copied from `workspace.baseSha`. |
 | `commitMode` | string | Absent for structured | `harness` or `none`. |
 | `commit` | string | Absent for none or unchanged HEAD | Resulting commit id. |
 | `diffStat` | string | Absent before collection | Git shortstat of collected changes (the snapshot for a parsed stop). |
@@ -320,6 +325,9 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |
 
 The `workspace-dirty` start failure writes a minimal result before its error and final events.
+Continuation apply failure is a workspace-start failure, not shell `prepare-failed`: ownership and
+composed text have been saved, but no successful `worktree` event exists. Error/final events retain
+Git's diagnostic; no worker, collection or verify runs, and no result file is guaranteed.
 
 ## Prepare evidence and outcomes
 
@@ -370,7 +378,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 |---|---|---|
 | `run` | `repo` string, `max` integer, `server` string, `tasks` integer, `policy` string, `deny`/`escalate`/`removed` string arrays; optional `sharedPaths` object, `rawPrompt` boolean | Initial event. Shared paths object has `paths` string array and `mergedBy: coordinator`. |
 | `queued` | `kind` string, `route`/`agent`/`reviewOf` optional strings | One per queued task. |
-| `worktree` | `path` string; worktree `branch`/`base`/`baseSha` strings; in-place `startTree` string | Workspace ready. Structured scratch has no worktree event. |
+| `worktree` | `path` string; worktree `branch`/`base`/`baseSha` strings; in-place `startTree` string; optional `continueOf` string | Workspace ready, after any continuation replay; `continueOf` names the resolved source run/task. Structured scratch has no worktree event. |
 | `scratch` | `path`, `root`, `resolvedRoot` strings | Structured scratch allocated. `root` is the candidate as given (system temp, then state root); `resolvedRoot` is that root with its links resolved, such as macOS `/var` into `/private/var`. The path and every later check use the resolved root. |
 | `route` | `route`/`agent`/`lineage` strings when known | Actual route details recorded. |
 | `session` | `sessionId` string, optional `projectId` string and `rules` string array | Worker created. |

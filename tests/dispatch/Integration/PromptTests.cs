@@ -13,6 +13,96 @@ public sealed class PromptTests
     [NotInParallel]
     [Arguments(false)]
     [Arguments(true)]
+    public async Task ContinueOf_uses_a_new_worker_and_records_composed_text(bool raw, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation(amendment: "Amendment 世界\r\nKeep the collected work.");
+        next.Record.Spec.RawPrompt = raw;
+        if (!raw)
+        {
+            next.Record.PromptInputs = new([new(new() { Path = "new-contract.md", Version = "Contract v1" }, "New contract v1\r\nKeep this.")]);
+            next.Record.Spec.Contracts = ["new-contract.md"];
+            lab.Policy.Instructions.Add("New standing instruction.");
+        }
+        await new TaskStarter(lab.Backend, lab.Ledger, lab.Tree.Repository, AllowList.From(null), lab.Policy, lab.Git).StartAsync(next, ct);
+        var final = File.ReadAllText(Path.Combine(source.Ledger.Dir, "source", "final.md"));
+        var composed = "Continues 2026-10-31-source/source; its collected changes are already in this folder.\n\n```\n"
+            + final + (final.EndsWith('\n') ? "" : "\n") + "```\n\nAmendment 世界\r\nKeep the collected work.";
+        await Assert.That(lab.Ledger.LoadRecord(next.Id).PromptText).IsEqualTo(composed);
+        await Assert.That(lab.Ledger.LoadRecord(next.Id).Spec.ContinueOf).IsEqualTo("2026-10-31-source/source");
+        await Assert.That(next.Record.Session.Id).IsEqualTo("worker-next");
+        await Assert.That(source.Run.Record.Session.Id).IsEqualTo("old-worker");
+        await Assert.That(lab.Backend.Calls.Select(x => x.Member)).IsEquivalentTo(new[] { "CreateAsync", "PromptAsync" }, CollectionOrdering.Matching);
+        var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
+        var expected = raw ? composed + "\n" : "New contract v1\r\nKeep this.\n\n"
+            + "Standing instructions from the dispatch harness (they apply to the whole task):\n"
+            + $"- Your working folder: {next.Record.Workspace.Path}\n"
+            + $"- Your folder starts at commit `{next.Record.Workspace.StartSha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.\n"
+            + "- Declared scope: **. Changes outside it are flagged for review.\n"
+            + "- Nobody answers questions during this run: a question is cancelled, so continue without the answer.\n"
+            + "- End your final message with exactly one status line: `Status: done` when the task is done, `Status: stopped` when you stopped on a rule or a contradiction, `Status: blocked` when the environment kept you from the work (a missing tool, access or input).\n"
+            + "- New standing instruction.\n\n---\nTask:\n\n" + composed + "\n";
+        await Assert.That(input.Prompt.Text).IsEqualTo(expected);
+        await Assert.That(input.Worker.Id).IsEqualTo("worker-next");
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task Prepared_continuation_resume_needs_no_source_replay(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation();
+        next.Record.Spec.RawPrompt = true;
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var composed = next.Record.PromptText;
+        Directory.Move(source.Ledger.Dir, source.Ledger.Dir + "-unavailable");
+        lab.Backend.OnPrompt = (input, _) =>
+        {
+            lab.Backend.Emit(new WorkerSignal.Ended(next.Id, "turn", "succeeded", null));
+            return Task.FromResult(input.Worker with { Turn = "turn" });
+        };
+        var restored = TaskRun.FromLedger(lab.Ledger.LoadRecord(next.Id), lab.Ledger);
+        await Assert.That(await lab.Scheduler(ct).ResumeAsync([restored], true)).IsEqualTo(0);
+        await Assert.That(lab.Ledger.LoadRecord(next.Id).PromptText).IsEqualTo(composed);
+        await Assert.That(lab.Ledger.Read().Where(x => x.Task == next.Id && x.Type == "worktree").Select(x => x.Data!["path"]!.GetValue<string>()))
+            .IsEquivalentTo(new[] { next.Record.Workspace.Path! }, CollectionOrdering.Matching);
+        var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
+        await Assert.That(input.Prompt.Text).IsEqualTo(composed + "\n");
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(lab.Ledger.LoadResult(next.Id)!.FilesChanged).IsEquivalentTo(new[] { "source.txt" }, CollectionOrdering.Matching);
+        await Assert.That(lab.Backend.Calls.Where(x => x.Member == "ReattachAsync")).IsEmpty();
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Incomplete_continuation_preparation_is_not_dispatched(bool mismatched, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var events = Path.Combine(lab.Ledger.Dir, "events.jsonl");
+        File.WriteAllText(events, "");
+        if (mismatched) lab.Ledger.Write(next.Id, "worktree", new() { ["path"] = next.Record.Workspace.Path,
+            ["branch"] = "another-branch", ["baseSha"] = next.Record.Workspace.BaseSha, ["continueOf"] = "2026-10-31-source/source" });
+        var restored = TaskRun.FromLedger(lab.Ledger.LoadRecord(next.Id), lab.Ledger);
+        await Assert.That(await lab.Scheduler(ct).ResumeAsync([restored], true)).IsEqualTo(1);
+        await Assert.That(lab.Backend.Calls).IsEmpty();
+        var lines = lab.Ledger.Read().Where(x => x.Task == next.Id).ToList();
+        await Assert.That(lines.Select(x => x.Type)).IsEquivalentTo(mismatched ? new[] { "worktree", "error", "final" } : new[] { "error", "final" }, CollectionOrdering.Matching);
+        await Assert.That(lines.Single(x => x.Type == "error").Data!["message"]!.GetValue<string>()).IsEqualTo("dispatch failed: HarnessException: continueOf workspace preparation is incomplete; refusing recovery");
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
     public async Task Unprompted_resume_records_a_new_worktree_start_but_does_not_backfill_a_prepared_workspace(bool prepared, CancellationToken ct)
     {
         using var lab = new CoreLab("prompt-resume");

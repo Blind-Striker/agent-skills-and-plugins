@@ -231,6 +231,21 @@ sealed class Ledger(string runId)
         };
     }
 
+    // Resolve a cross-run source without creating or repairing source evidence.
+    public static (Ledger Source, string Task) OpenContinuation(string reference, string currentRun)
+    {
+        var parts = reference.Split('/');
+        if (parts.Length != 2 || !Regex.IsMatch(parts[0], "\\A[a-z0-9][a-z0-9-]*\\z")
+            || !Regex.IsMatch(parts[1], "\\A[a-z0-9][a-z0-9-]{0,39}\\z"))
+            throw new HarnessException("continueOf must name <run>/<task> using safe run and task names");
+        var source = new Ledger(Resolve(parts[0]));
+        if (source.RunId == currentRun) throw new HarnessException("continueOf must name an earlier, distinct run");
+        source.EnsureExists();
+        if (source.LoadRunInfo().Run != source.RunId)
+            throw new HarnessException("continueOf source run record is inconsistent");
+        return (source, parts[1]);
+    }
+
     // The newest run whose ledger knows the task, unless the run is named.
     public static Ledger FindRunFor(string task, string? run)
     {

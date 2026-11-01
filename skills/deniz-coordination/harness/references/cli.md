@@ -209,6 +209,11 @@ For each task with contracts, `plan` prints
 deduplication. The version is the recorded first line described under [Contracts](task-file.md#contracts).
 The caller owns contract selection; planning does not warn about missing contracts.
 
+A valid `continueOf` prints `INFO <task>: continues <resolved-run>/<task> from <12 hex digits>` in
+task-file order. Source checks repeat at workspace preparation using frozen new-task settings;
+planning takes no source lock or lease, and a final target may belong to a still-supervised run.
+Grammar, eligibility, replay and diagnostics: [Continuations](task-file.md#continuations).
+
 When no preference layer set a profile and a task's own `prompt` or `promptFile` text contains
 the case-insensitive whole word `skill` or `skills`, or a backticked `<name>:<name>` token whose
 names contain only letters, digits and hyphens, plan prints:
@@ -255,7 +260,7 @@ Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 he
 base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
 are not fetched.
 
-For a non-`reviewOf` worktree whose base resolves, plan reads the task's own prompt line by line.
+For a worktree using `base` (neither `reviewOf` nor `continueOf`), plan reads the task's own prompt line by line.
 On lines matching case-insensitive `(?<![0-9A-Za-z])base(?:[_-]?(?:sha|commit))?(?![0-9A-Za-z])`
 (including `base_sha` and `baseSha`), it checks tokens matching
 `(?<![0-9A-Za-z./:_-])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])` with at least one digit and at least one
@@ -268,7 +273,7 @@ in first-occurrence order:
 WARN <task>: the prompt names base commit <lower-case token>, but base <base> resolves to <12 hex digits>
 ```
 
-This is advisory, not a plan error. No matching token means no warning; in-place and `reviewOf`
+This is advisory, not a plan error. No matching token means no warning; in-place, `reviewOf` and `continueOf`
 tasks do not get this check.
 
 On Windows, plan measures worktree path depth once per distinct repository and HEAD and reports each
@@ -513,6 +518,12 @@ still abort the command. OpenCode cancellation semantics are unchanged.
 Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
 status summary. Recovery is backend-specific; see [backends](backends.md).
 
+`resume --continue` recovers the same recorded run/session; task-field `continueOf` instead creates
+a new attempt with an amendment. Prepared continuations recover without source replay; never-prepared
+ones revalidate their source, and incomplete workspace preparation refuses dispatch.
+Existing unprompted-contract limitations remain. [Continuations](task-file.md#continuations) owns
+the readiness and recovery boundaries.
+
 Exception in both forms: a non-terminal task with `prepareRunning` stays queued (a `queued` event is
 persisted), is omitted from supervisor candidates and gets this exact `error` event message:
 
@@ -558,6 +569,8 @@ including after scope cleanup, so a historical `zombie` result alone no longer r
 
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
+Clean, collect and status never follow `continueOf` into another run. Independent ownership and
+conservative inherited-base cleanup: [Continuations](task-file.md#continuations).
 
 Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
 its registration, branch, task temp and temporary index independently. A folder with a missing or

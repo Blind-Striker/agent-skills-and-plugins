@@ -7,6 +7,22 @@ namespace Dispatch.Tests.Unit;
 public sealed class ContractTests
 {
     [Test]
+    public async Task ContinueOf_round_trips_only_as_a_task_field()
+    {
+        var file = Json.ReadTaskFile("""{"schemaVersion":2,"tasks":[{"id":"next","kind":"code","continueOf":"earlier/source"}]}""");
+        await Assert.That(file.Tasks![0].ContinueOf).IsEqualTo("earlier/source");
+        var roundTrip = Json.ReadTaskFile(JsonSerializer.Serialize(file, InputJson.Read.TaskFile));
+        await Assert.That(roundTrip.Tasks![0].ContinueOf).IsEqualTo("earlier/source");
+        var record = new TaskRecord { Spec = file.Tasks[0] };
+        var copy = JsonSerializer.Deserialize(JsonSerializer.Serialize(record, LedgerJson.Files.TaskRecord), LedgerJson.Files.TaskRecord)!;
+        await Assert.That(copy.Spec.ContinueOf).IsEqualTo("earlier/source");
+        await Assert.That(copy.SchemaVersion).IsEqualTo(2);
+        await Assert.That(() => Json.ReadTaskFile("""{"schemaVersion":2,"defaults":{"continueOf":"earlier/source"},"tasks":[{"kind":"code"}]}""")).Throws<JsonException>();
+        await Assert.That(() => JsonSerializer.Deserialize("""{"schemaVersion":2,"preferences":{"continueOf":"earlier/source"}}""", InputJson.Read.ConfigFile)).Throws<JsonException>();
+        await Assert.That(() => Json.ReadTaskFile("""{"schemaVersion":2,"continueOf":"earlier/source","tasks":[{"kind":"code"}]}""")).Throws<JsonException>();
+    }
+
+    [Test]
     public async Task Prepare_contracts_round_trip()
     {
         var spec = Json.ReadTaskFile("""{"schemaVersion":2,"tasks":[{"id":"inspect","kind":"research","prepare":["z-command","a-command"]}]}""").Tasks![0];

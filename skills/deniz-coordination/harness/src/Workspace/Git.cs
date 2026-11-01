@@ -55,7 +55,7 @@ sealed class Git
     public async Task<ProcessResult> RunAsync(string repo, CancellationToken ct, params string[] args)
     {
         var command = args.FirstOrDefault();
-        var writesIndex = command is "add" or "commit" or "reset" or "read-tree" or "write-tree" or "update-index";
+        var writesIndex = command is "add" or "commit" or "reset" or "read-tree" or "write-tree" or "update-index" or "apply";
         // Include the checks and path lookup in the uncancellable write, not only the child.
         var callToken = writesIndex || command is "worktree" or "branch" ? CancellationToken.None : ct;
         if (gated && (writesIndex || command is "status" or "worktree" or "branch"))
@@ -89,7 +89,8 @@ sealed class Git
                 ["-C", repo, "-c", $"core.hooksPath={hooks}", "-c", "core.fsmonitor=false", "-c", "commit.gpgSign=false",
                     "-c", "gc.auto=0", "-c", "maintenance.auto=false",
                     // Git for Windows refuses paths past 260 characters without it; config reads keep the repository's own value.
-                    .. OperatingSystem.IsWindows() && commandArgs.FirstOrDefault() != "config" ? ["-c", "core.longpaths=true"] : Array.Empty<string>(), .. commandArgs],
+                    .. OperatingSystem.IsWindows() && commandArgs.FirstOrDefault() != "config" ? ["-c", "core.longpaths=true"] : Array.Empty<string>(),
+                    .. command == "apply" ? ["-c", "apply.ignoreWhitespace=false"] : Array.Empty<string>(), .. commandArgs],
                 repo, callToken, timeout, environment: childEnvironment);
             if (result.TimedOut && result.Killed && !lockExisted && lockPath is not null && File.Exists(lockPath)
                 && File.GetCreationTimeUtc(lockPath) >= started)

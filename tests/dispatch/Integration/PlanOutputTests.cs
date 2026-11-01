@@ -8,6 +8,201 @@ namespace Dispatch.Tests.Integration;
 public sealed class PlanOutputTests
 {
     [Test]
+    [NotInParallel]
+    public async Task ContinueOf_checks_all_local_conflicts(CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        await LabRepo.CreateAsync(lab.Tree, ct);
+        var task = lab.Continuation().Record.Spec;
+        task.Kind = "research";
+        task.Base = "main";
+        task.ReviewOf = "author";
+        task.Workspace = "in-place";
+        var plan = await lab.PlanAsync(ct, task);
+        await Assert.That(plan.Errors).IsEquivalentTo(new[] {
+            "next: continueOf requires kind code or mechanical", "next: continueOf refuses base",
+            "next: continueOf refuses reviewOf", "next: continueOf refuses in-place workspace",
+            "next: in-place workspace refuses base and reviewOf" }, CollectionOrdering.Matching);
+        task.Kind = "code";
+        task.Workspace = "worktree";
+        task.Base = null;
+        task.ReviewOf = null;
+        task.Scope = [];
+        task.ContinueOf = "../source";
+        var scope = await lab.PlanAsync(ct, task);
+        await Assert.That(scope.Errors).IsEquivalentTo(new[] {
+            "next: continueOf must name <run>/<task> using safe run and task names",
+            "next: code and mechanical tasks declare a scope" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ContinueOf_resolves_only_ledger_root_sources(CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct);
+        var task = lab.Continuation().Record.Spec;
+        foreach (var reference in new[] { "../source", "/source/task", "C:/source", "source\\task", "source/../task", "source/task/extra", "source//task", "source/..", "source/.dispatch", "source:/task" })
+        {
+            task.ContinueOf = reference;
+            await Assert.That((await lab.PlanAsync(ct, task)).Errors).IsEquivalentTo(new[] {
+                "next: continueOf must name <run>/<task> using safe run and task names" }, CollectionOrdering.Matching);
+        }
+        task.ContinueOf = Commands.CreateRunId("new-attempt") + "/source";
+        await Assert.That((await lab.PlanAsync(ct, task)).Errors).IsEquivalentTo(new[] {
+            "next: continueOf must name an earlier, distinct run" }, CollectionOrdering.Matching);
+        task.ContinueOf = "absent/source";
+        await Assert.That((await lab.PlanAsync(ct, task)).Errors).IsEquivalentTo(new[] {
+            $"next: no ledger for run absent under {Locations.LedgerRoot}" }, CollectionOrdering.Matching);
+        task.ContinueOf = source.Ledger.RunId + "/missing";
+        await Assert.That((await lab.PlanAsync(ct, task)).Errors).IsEquivalentTo(new[] {
+            $"next: no task record {Path.Combine(source.Ledger.Dir, "missing", "task.json")}" }, CollectionOrdering.Matching);
+        foreach (var reference in new[] { source.Ledger.RunId + "/source", "source/source" })
+        {
+            task.ContinueOf = reference;
+            var accepted = await lab.PlanAsync(ct, task);
+            await Assert.That(accepted.Errors).IsEmpty();
+            await Assert.That(accepted.Tasks.Select(x => x.Spec.Id!)).IsEquivalentTo(new[] { "next" }, CollectionOrdering.Matching);
+            await Assert.That(accepted.Info).IsEquivalentTo(new[] {
+                $"next: continues {source.Ledger.RunId}/source from {source.Run.Record.Workspace.BaseSha![..12]}" }, CollectionOrdering.Matching);
+        }
+        Directory.CreateDirectory(Path.Combine(Locations.LedgerRoot, "2026-10-30-source"));
+        task.ContinueOf = "source/source";
+        await Assert.That((await lab.PlanAsync(ct, task)).Errors).IsEquivalentTo(new[] {
+            "next: run name source matches 2 ledgers: 2026-10-30-source, 2026-10-31-source; name the full run id" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments("done", "source must have a consistent final failed result")]
+    [Arguments("cancelled", "source must have a consistent final failed result")]
+    [Arguments("running", "source must have a consistent final failed result")]
+    [Arguments("result", "source must have a consistent final failed result")]
+    [Arguments("zombie", "refuses a zombie or unconfirmed worker")]
+    [Arguments("unconfirmed", "refuses a zombie or unconfirmed worker")]
+    [Arguments("in-place", "requires a harness-managed worktree with harness commit mode")]
+    [Arguments("foreign", "requires a harness-managed worktree with harness commit mode")]
+    [Arguments("commit-mode", "requires a harness-managed worktree with harness commit mode")]
+    [Arguments("ineligible", "requires a stopped/blocked or committed failed target")]
+    [Arguments("collected", "source collection evidence is incomplete or inconsistent")]
+    [Arguments("old-collected", "source collection evidence is incomplete or inconsistent")]
+    [Arguments("missing-patch", "source collection evidence is incomplete or inconsistent")]
+    [Arguments("unnamed-patch", "source collection evidence is incomplete or inconsistent")]
+    [Arguments("wrong-patch", "source collection evidence is incomplete or inconsistent")]
+    [Arguments("count", "source collection evidence is incomplete or inconsistent")]
+    [Arguments("final", "")]
+    public async Task ContinueOf_requires_an_eligible_complete_failed_attempt(string obstacle, string diagnostic, CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct);
+        switch (obstacle)
+        {
+            case "done": case "cancelled": source.Ledger.Write("source", "final", new() { ["state"] = obstacle }); break;
+            case "running": source.Ledger.Write("source", "prompt"); break;
+            case "result": source.Result.State = "done"; break;
+            case "zombie": source.Result.Failures.Add("zombie"); break;
+            case "unconfirmed": source.Ledger.Write("source", "stop-unconfirmed"); break;
+            case "in-place": source.Run.Record.Spec.Workspace = "in-place"; break;
+            case "foreign": source.Run.Record.Workspace.Branch = "foreign"; break;
+            case "commit-mode": source.Result.CommitMode = "none"; break;
+            case "ineligible": source.Result.WorkerStatus = "done"; break;
+            case "collected":
+                var events = Path.Combine(source.Ledger.Dir, "events.jsonl");
+                File.WriteAllLines(events, File.ReadAllLines(events).Where(x => !x.Contains("\"type\":\"collected\"", StringComparison.Ordinal)).ToArray());
+                break;
+            case "old-collected": source.Ledger.Write("source", "final", new() { ["state"] = "failed" }); break;
+            case "missing-patch": File.Delete(Path.Combine(source.Ledger.Dir, "source", "wip.patch")); break;
+            case "unnamed-patch": source.Result.WipPatch = null; break;
+            case "wrong-patch": source.Result.WipPatch = "../wip.patch"; break;
+            case "count": source.Result.WipFileCount = 42; break;
+            case "final": File.Delete(Path.Combine(source.Ledger.Dir, "source", "final.md")); break;
+        }
+        source.Ledger.SaveResult(source.Result);
+        source.Ledger.SaveRecord(source.Run.Record);
+        var plan = await lab.PlanAsync(ct, lab.Continuation().Record.Spec);
+        await Assert.That(plan.Errors).IsEquivalentTo(new[] { obstacle == "final"
+            ? $"next: Could not find file '{Path.Combine(source.Ledger.Dir, "source", "final.md")}'."
+            : "next: continueOf " + diagnostic }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ContinueOf_checks_both_required_commits(bool creation, CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct, "done", failure: "verify-failed");
+        var missing = new string('f', 40);
+        if (creation)
+        {
+            source.Result.Commit = missing;
+            source.Ledger.Write("source", "collected", new() { ["commit"] = missing, ["files"] = 1 });
+            source.Ledger.Write("source", "final", new() { ["state"] = "failed" });
+        }
+        else source.Run.Record.Workspace.BaseSha = missing;
+        source.Ledger.SaveRecord(source.Run.Record);
+        source.Ledger.SaveResult(source.Result);
+        var plan = await lab.PlanAsync(ct, lab.Continuation().Record.Spec);
+        await Assert.That(plan.Errors).IsEquivalentTo(new[] {
+            $"next: continueOf {(creation ? "commit" : "baseSha")} {missing} does not resolve as a commit in {lab.Tree.Repository}" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task ContinueOf_reports_every_inherited_scope_violation(bool ignoreCase, CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct);
+        await new LabRepo(lab.Tree).GitAsync(["config", "core.ignorecase", ignoreCase.ToString().ToLowerInvariant()], ct);
+        source.Result.FilesChanged = ["z/out.txt", "src/secret.txt", ".dispatch/config.jsonc", "a/out.txt", "src/ceiling.txt", "SRC/ok.txt"];
+        source.Result.WipFileCount = 6;
+        source.Ledger.SaveResult(source.Result);
+        source.Ledger.Write("source", "collected", new() { ["files"] = 6 });
+        source.Ledger.Write("source", "final", new() { ["state"] = "failed" });
+        var run = lab.Continuation();
+        run.Record.Settings.Scope = new() { Value = ["src/**", "!src/secret.txt"], Ceilings = [new() { Globs = ["!src/ceiling.txt"], From = "fixture" }] };
+        var errors = new List<string>();
+        try { await Planner.CheckContinuationAsync(run.Record.Spec, run.Record.Settings, lab.Ledger.RunId, lab.Tree.Repository, lab.Git, ct); }
+        catch (HarnessException ex) { errors.Add(ex.Message); }
+        await Assert.That(errors).IsEquivalentTo(new[] { "continueOf inherited paths outside scope: .dispatch/config.jsonc, "
+            + (ignoreCase ? "" : "SRC/ok.txt, ") + "a/out.txt, src/ceiling.txt, src/secret.txt, z/out.txt" }, CollectionOrdering.Matching);
+        run.Record.Spec.Scope = ["src/**", "!src/secret.txt"];
+        var plan = await lab.PlanAsync(ct, run.Record.Spec);
+        await Assert.That(plan.Errors).IsEquivalentTo(new[] { "next: continueOf inherited paths outside scope: .dispatch/config.jsonc, "
+            + (ignoreCase ? "" : "SRC/ok.txt, ") + "a/out.txt, src/secret.txt, z/out.txt" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ContinueOf_prints_the_creation_commit_in_task_order(CancellationToken ct)
+    {
+        using var lab = new CoreLab("new-attempt");
+        var source = await lab.SourceAttemptAsync(ct, "done", failure: "outcome");
+        var zulu = lab.Continuation("zulu").Record.Spec;
+        zulu.Scope = ["source.txt", "z.txt"];
+        var alpha = lab.Continuation("alpha").Record.Spec;
+        alpha.Kind = "mechanical";
+        alpha.Scope = ["source.txt", "a.txt"];
+        var path = Path.Combine(lab.Tree.Root, "info.tasks.jsonc");
+        Json.WriteFile(path, new TaskFile { Run = "new-attempt", SharedPaths = ["source.txt"], Tasks = [zulu, alpha] }, InputJson.Read.TaskFile);
+        var plan = await Planner.LoadAsync(path, lab.Tree.Repository, AllowList.From(null), ct, lab.Git);
+        await Assert.That(plan.Errors).IsEmpty();
+        await Assert.That(plan.Tasks.Select(x => x.Spec.Id!)).IsEquivalentTo(new[] { "zulu", "alpha" }, CollectionOrdering.Matching);
+        await Assert.That(plan.Info).IsEquivalentTo(new[] { "zulu", "alpha" }.Select(id =>
+            $"{id}: continues {source.Ledger.RunId}/source from {source.Result.Commit![..12]}"), CollectionOrdering.Matching);
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        await Assert.That(plan.Report()).IsEqualTo(0);
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
+            $"INFO zulu: continues {source.Ledger.RunId}/source from {source.Result.Commit![..12]}\n"
+            + $"INFO alpha: continues {source.Ledger.RunId}/source from {source.Result.Commit![..12]}\n"
+            + $"plan ok: 2 task(s) against {lab.Tree.Repository}\n");
+    }
+
+    [Test]
     [Arguments("Base: fedcba98765432100123456789abcdef0123456789.", "fedcba98765432100123456789abcdef0123456789", "worktree")]
     [Arguments("Base: a7654321.", "a7654321", "worktree")]
     [Arguments("bAsE: FEDCBA98765432100123456789ABCDEF0123456789.", "fedcba98765432100123456789abcdef0123456789", "worktree")]

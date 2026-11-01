@@ -78,6 +78,60 @@ internal sealed class CoreLab : IDisposable
     public void End(TaskRun run, string outcome = "succeeded", string? turn = null) =>
         Backend.Emit(new WorkerSignal.Ended(run.Id, turn ?? run.Worker!.Turn!, outcome, null));
 
+    public async Task<(Ledger Ledger, TaskRun Run, TaskResult Result, Git Git)> SourceAttemptAsync(CancellationToken ct,
+        string status = "stopped", Func<string, Task>? edit = null, bool ownCommit = false, string? failure = null)
+    {
+        if (!Directory.Exists(Path.Combine(Tree.Repository, ".git"))) await LabRepo.CreateAsync(Tree, ct);
+        var source = new Ledger("2026-10-31-source");
+        var sourceControl = Locations.NewControlId();
+        var sourceGit = new Git(Executables.Resolve("git"), Locations.CreateControlFolder(sourceControl),
+            Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
+        Json.WriteFile(Path.Combine(source.Dir, "run.json"), new RunInfo { Run = source.RunId, Repo = Tree.Repository, ControlId = sourceControl }, LedgerJson.Files.RunInfo);
+        source.Write(null, "run");
+        var run = Continuation("source");
+        run.Record.Spec.ContinueOf = null;
+        run.Record.Spec.Base = "main";
+        run.Record.Session.Id = "old-worker";
+        source.Write(run.Id, "queued");
+        await Worktree.PrepareAsync(run, source, Tree.Repository, ct, sourceGit);
+        var path = run.Record.Workspace.Path!;
+        if (edit is null) await File.WriteAllTextAsync(Path.Combine(path, "source.txt"), "source work\n", ct);
+        else await edit(path);
+        if (ownCommit)
+        {
+            await sourceGit.CheckAsync(path, ct, "add", "-A");
+            await sourceGit.CheckAsync(path, ct, "commit", "-m", "Worker commit");
+            await File.WriteAllTextAsync(Path.Combine(path, "uncommitted.txt"), "uncommitted work\n", ct);
+        }
+        if (failure == "verify-failed") run.Record.Spec.Verify = ["exit 7"];
+        source.SaveRecord(run.Record);
+        await using var backend = new FakeBackend("opencode", new("policy", "policy", "text", true))
+        {
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport(failure == "outcome" ? "failed" : "succeeded",
+                $"Earlier report.\r\nStatus: {status}", new(), null, true, [], null, true)),
+        };
+        var result = await Settlement.SettleAsync(backend, source, run, null, ct, sourceGit);
+        source.Write(run.Id, "final", new() { ["state"] = result.State });
+        return (source, run, result, sourceGit);
+    }
+
+    public TaskRun Continuation(string id = "next", string reference = "2026-10-31-source/source", string amendment = "Amend the earlier work.") => new()
+    {
+        Record = new()
+        {
+            Spec = new() { Id = id, Kind = "code", Route = "fixture/model", ContinueOf = reference, Scope = ["**"], Prompt = amendment },
+            PromptText = amendment,
+            Settings = new() { Backend = new() { Value = "opencode" }, Route = new() { Value = "opencode:fixture/model" } },
+        },
+    };
+
+    public Task<Plan> PlanAsync(CancellationToken ct, params TaskSpec[] specs)
+    {
+        var path = Path.Combine(Tree.Root, "continuation.tasks.jsonc");
+        Json.WriteFile(path, new TaskFile { Run = Ledger.RunId, Tasks = [.. specs] }, InputJson.Read.TaskFile);
+        return Planner.LoadAsync(path, Tree.Repository, AllowList.From(null), ct, Git);
+    }
+
     public void Dispose()
     {
         try { Directory.Delete(controlFolder, recursive: true); }

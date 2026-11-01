@@ -1,4 +1,5 @@
 using Dispatch.Tests.Support;
+using TUnit.Assertions.Enums;
 
 namespace Dispatch.Tests.Integration;
 
@@ -6,6 +7,230 @@ namespace Dispatch.Tests.Integration;
 [NotInParallel]
 public sealed class WorkspaceTests
 {
+    [Test]
+    [Timeout(60_000)]
+    public async Task ContinueOf_replays_all_patch_file_kinds(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        File.WriteAllText(Path.Combine(repo.Root, ".gitattributes"), "crlf.txt text eol=crlf\n*.bin -text\n");
+        File.WriteAllText(Path.Combine(repo.Root, "crlf.txt"), "before\r\n");
+        File.WriteAllBytes(Path.Combine(repo.Root, "data.bin"), [0, 1, 255]);
+        File.WriteAllText(Path.Combine(repo.Root, "delete.txt"), "delete me\n");
+        File.WriteAllText(Path.Combine(repo.Root, ".gitignore"), "ignored.out\n");
+        await repo.GitAsync(["add", "-A"], ct);
+        await repo.GitAsync(["commit", "-m", "Patch kinds"], ct);
+        var source = await lab.SourceAttemptAsync(ct, edit: path =>
+        {
+            File.WriteAllText(Path.Combine(path, "crlf.txt"), "after\r\nsecond\r\n");
+            File.WriteAllBytes(Path.Combine(path, "data.bin"), [0, 255, 0, 128, 5]);
+            File.WriteAllText(Path.Combine(path, "new.txt"), "untracked content\n");
+            File.WriteAllText(Path.Combine(path, "ignored.out"), "not collected");
+            File.Delete(Path.Combine(path, "delete.txt"));
+            return Task.CompletedTask;
+        });
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, repo.Root, ct, lab.Git);
+        var path = next.Record.Workspace.Path!;
+        await Assert.That(File.ReadAllBytes(Path.Combine(path, "crlf.txt"))).IsEquivalentTo(System.Text.Encoding.UTF8.GetBytes("after\r\nsecond\r\n"), CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllBytes(Path.Combine(path, "data.bin"))).IsEquivalentTo(new byte[] { 0, 255, 0, 128, 5 }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(path, "new.txt"))).IsEqualTo("untracked content\n");
+        await Assert.That(File.Exists(Path.Combine(path, "delete.txt"))).IsFalse();
+        await Assert.That(File.Exists(Path.Combine(path, "ignored.out"))).IsFalse();
+        await Assert.That(await repo.GitAsync(["-C", path, "diff", "--cached", "--name-only"], ct)).IsEqualTo("crlf.txt\ndata.bin\ndelete.txt\nnew.txt");
+        await Assert.That(await repo.GitAsync(["-C", path, "rev-parse", "HEAD"], ct)).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(next.Record.Workspace.StartSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(next.Record.Workspace.BaseRef).IsEqualTo("main");
+        await Assert.That(next.Record.Workspace.Branch).IsEqualTo("dispatch/next-run/next");
+        await Assert.That(lab.Ledger.Read().Single(x => x.Type == "worktree").Data!["continueOf"]!.GetValue<string>()).IsEqualTo("2026-10-31-source/source");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Stopped_target_with_own_commits_replays_from_base(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct, ownCommit: true);
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        var path = next.Record.Workspace.Path!;
+        await Assert.That(source.Result.Commit).IsNotEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(next.Record.Workspace.StartSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(next.Record.Workspace.BaseSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(File.ReadAllText(Path.Combine(path, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(File.ReadAllText(Path.Combine(path, "uncommitted.txt"))).IsEqualTo("uncommitted work\n");
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["-C", path, "diff", "--cached", "--name-only"], ct)).IsEqualTo("source.txt\nuncommitted.txt");
+    }
+
+    [Test]
+    [Arguments("verify-failed")]
+    [Arguments("outcome")]
+    [Timeout(60_000)]
+    public async Task Committed_failed_target_starts_at_commit_without_replay(string failure, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct, "done", failure: failure);
+        await Assert.That(source.Result.Failures).IsEquivalentTo(new[] { failure == "outcome" ? "outcome:failed" : "verify-failed" }, CollectionOrdering.Matching);
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(next.Record.Workspace.StartSha).IsEqualTo(source.Result.Commit);
+        await Assert.That(next.Record.Workspace.BaseSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["-C", next.Record.Workspace.Path!, "status", "--porcelain=v1"], ct)).IsEqualTo("");
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["-C", next.Record.Workspace.Path!, "rev-parse", "HEAD"], ct)).IsEqualTo(source.Result.Commit);
+    }
+
+    [Test]
+    [Arguments("stopped")]
+    [Arguments("verify-failed")]
+    [Timeout(60_000)]
+    public async Task Two_continuations_keep_the_original_diff_base(string initial, CancellationToken ct)
+    {
+        using var lab = new CoreLab("middle-run");
+        var source = await lab.SourceAttemptAsync(ct, initial == "stopped" ? "stopped" : "done", failure: initial == "stopped" ? null : initial);
+        var middle = lab.Continuation("middle");
+        await Worktree.PrepareAsync(middle, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        File.WriteAllText(Path.Combine(middle.Record.Workspace.Path!, "middle.txt"), "middle work\n");
+        var middleResult = new TaskResult { Run = lab.Ledger.RunId, Task = middle.Id, State = "failed", WorkerStatus = "blocked", BaseSha = middle.Record.Workspace.BaseSha };
+        await Commit.CollectAsync(lab.Ledger, middle, middleResult, ct, lab.Git);
+        lab.Ledger.SaveResult(middleResult);
+        await lab.Ledger.WriteArtifactAsync(middle.Id, "final.md", "Middle report.\nStatus: blocked", ct);
+        lab.Ledger.Write(middle.Id, "final", new() { ["state"] = "failed" });
+        await Assert.That(middleResult.FilesChanged).IsEquivalentTo(new[] { "middle.txt", "source.txt" }, CollectionOrdering.Matching);
+        await Assert.That(middleResult.WipPatch).IsEqualTo("wip.patch");
+        await Assert.That(File.ReadAllText(Path.Combine(lab.Ledger.Dir, middle.Id, "wip.patch"))).Contains("+source work");
+        var lastLedger = new Ledger("last-run");
+        var last = lab.Continuation("last", "middle-run/middle");
+        await Worktree.PrepareAsync(last, lastLedger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(last.Record.Workspace.BaseSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(last.Record.Workspace.StartSha).IsEqualTo(source.Run.Record.Workspace.BaseSha);
+        await Assert.That(File.ReadAllText(Path.Combine(last.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(File.ReadAllText(Path.Combine(last.Record.Workspace.Path!, "middle.txt"))).IsEqualTo("middle work\n");
+        File.WriteAllText(Path.Combine(last.Record.Workspace.Path!, "last.txt"), "last work\n");
+        var final = new TaskResult { WorkerStatus = "done" };
+        await Commit.CollectAsync(lastLedger, last, final, ct, lab.Git);
+        await Assert.That(final.FilesChanged).IsEquivalentTo(new[] { "last.txt", "middle.txt", "source.txt" }, CollectionOrdering.Matching);
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["-C", last.Record.Workspace.Path!, "show", "HEAD:source.txt"], ct)).IsEqualTo("source work");
+    }
+
+    [Test]
+    [Arguments("state")]
+    [Arguments("scope")]
+    [Arguments("report")]
+    [Arguments("patch")]
+    [Timeout(60_000)]
+    public async Task ContinueOf_rechecks_the_source_before_start(string change, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation();
+        next.Record.Spec.Scope = ["source.txt"];
+        var plan = await lab.PlanAsync(ct, next.Record.Spec);
+        await Assert.That(plan.Errors).IsEmpty();
+        await Assert.That(plan.Tasks.Select(x => x.Spec.Id!)).IsEquivalentTo(new[] { "next" }, CollectionOrdering.Matching);
+        if (change == "state") source.Ledger.Write("source", "final", new() { ["state"] = "done" });
+        else if (change == "report") File.WriteAllText(Path.Combine(source.Ledger.Dir, "source", "final.md"), "Fresh report 世界");
+        else
+        {
+            File.WriteAllText(Path.Combine(source.Run.Record.Workspace.Path!, change == "scope" ? "outside.txt" : "source.txt"), "fresh collected content\n");
+            await Commit.CollectAsync(source.Ledger, source.Run, source.Result, ct, source.Git);
+            source.Ledger.SaveResult(source.Result);
+            source.Ledger.Write("source", "final", new() { ["state"] = "failed" });
+        }
+        if (change is "state" or "scope")
+        {
+            await Assert.That(async () => await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git))
+                .Throws<HarnessException>().WithMessage(change == "state" ? "continueOf source must have a consistent final failed result" : "continueOf inherited paths outside scope: outside.txt");
+            await Assert.That(next.Record.Workspace.Path).IsNull();
+            await Assert.That(lab.Backend.Calls).IsEmpty();
+        }
+        else
+        {
+            await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+            await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo(change == "patch" ? "fresh collected content\n" : "source work\n");
+            var final = File.ReadAllText(Path.Combine(source.Ledger.Dir, "source", "final.md"));
+            await Assert.That(next.Record.PromptText).IsEqualTo("Continues 2026-10-31-source/source; its collected changes are already in this folder.\n\n```\n"
+                + final + (final.EndsWith('\n') ? "" : "\n") + "```\n\nAmend the earlier work.");
+        }
+    }
+
+    [Test]
+    [Arguments(false, false)]
+    [Arguments(true, false)]
+    [Arguments(false, true)]
+    [Timeout(60_000)]
+    public async Task ContinueOf_can_start_after_source_clean(bool committed, bool empty, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct, committed ? "done" : "blocked", edit: empty ? _ => Task.CompletedTask : null, failure: committed ? "verify-failed" : null);
+        await Assert.That(await Worktree.CleanAsync(source.Ledger, source.Run.Record, lab.Tree.Repository, true, ct, source.Git)).IsTrue();
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "README.md"))).IsEqualTo("# Lab repository\n");
+        if (empty)
+        {
+            await Assert.That(File.Exists(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsFalse();
+            await Assert.That(source.Result.WipPatch).IsNull();
+        }
+        else await Assert.That(File.ReadAllText(Path.Combine(next.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(Directory.Exists(source.Run.Record.Workspace.Path)).IsFalse();
+        await Assert.That(next.Record.Workspace.StartSha).IsEqualTo(committed ? source.Result.Commit : source.Run.Record.Workspace.BaseSha);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task ContinueOf_apply_failure_uses_workspace_start_failure(CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var patch = Path.Combine(source.Ledger.Dir, "source", "wip.patch");
+        File.WriteAllText(patch, "not a patch\n");
+        var next = lab.Continuation();
+        next.Record.Spec.Prepare = ["exit 0"];
+        next.Record.Spec.Verify = ["exit 0"];
+        await Assert.That(await lab.Scheduler(ct).RunAsync([next])).IsEqualTo(1);
+        var path = next.Record.Workspace.Path!;
+        var message = $"dispatch failed: HarnessException: git apply --index --whitespace=nowarn -- {patch} failed in {path}: error: No valid patches in input (allow with \"--allow-empty\")";
+        var events = lab.Ledger.Read().Where(x => x.Task == next.Id).ToList();
+        await Assert.That(events.Select(x => x.Type)).IsEquivalentTo(new[] { "error", "final" }, CollectionOrdering.Matching);
+        await Assert.That(events[0].Data!["message"]!.GetValue<string>()).IsEqualTo(message);
+        await Assert.That(events[1].Data!["state"]!.GetValue<string>()).IsEqualTo("failed");
+        await Assert.That(events[1].Data!["reason"]!.GetValue<string>()).IsEqualTo(message);
+        await Assert.That(lab.Backend.Calls).IsEmpty();
+        await Assert.That(lab.Ledger.LoadResult(next.Id)).IsNull();
+        await Assert.That(lab.Ledger.LoadRecord(next.Id).Workspace.Path).IsEqualTo(path);
+        await Assert.That(next.Record.Prepare).IsNull();
+        await Assert.That(await Worktree.CleanAsync(lab.Ledger, next.Record, lab.Tree.Repository, true, ct, lab.Git)).IsTrue();
+        await Assert.That(Directory.Exists(path)).IsFalse();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Continuation_cleanup_and_status_stay_run_local(bool sourceFirst, CancellationToken ct)
+    {
+        using var lab = new CoreLab("next-run");
+        var source = await lab.SourceAttemptAsync(ct);
+        var next = lab.Continuation();
+        await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
+        lab.Ledger.Write(next.Id, "final", new() { ["state"] = "failed" });
+        var sourceBytes = File.ReadAllBytes(Path.Combine(source.Ledger.Dir, "source", "result.json"));
+        var firstLedger = sourceFirst ? source.Ledger : lab.Ledger;
+        var first = sourceFirst ? source.Run : next;
+        var secondLedger = sourceFirst ? lab.Ledger : source.Ledger;
+        var second = sourceFirst ? next : source.Run;
+        await Assert.That(await Worktree.CleanAsync(firstLedger, first.Record, lab.Tree.Repository, false, ct, sourceFirst ? source.Git : lab.Git)).IsFalse();
+        await Assert.That(await Worktree.CleanAsync(firstLedger, first.Record, lab.Tree.Repository, true, ct, sourceFirst ? source.Git : lab.Git)).IsTrue();
+        await Assert.That(File.ReadAllText(Path.Combine(second.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["rev-parse", second.Record.Workspace.Branch!], ct)).IsEqualTo(second.Record.Workspace.StartSha);
+        await Assert.That(source.Ledger.TaskStates().Select(x => $"{x.Key}:{x.Value}")).IsEquivalentTo(new[] { "source:failed" }, CollectionOrdering.Matching);
+        await Assert.That(lab.Ledger.TaskStates().Select(x => $"{x.Key}:{x.Value}")).IsEquivalentTo(new[] { "next:failed" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllBytes(Path.Combine(source.Ledger.Dir, "source", "result.json"))).IsEquivalentTo(sourceBytes, CollectionOrdering.Matching);
+        await Assert.That(await Worktree.CleanAsync(secondLedger, second.Record, lab.Tree.Repository, true, ct, sourceFirst ? lab.Git : source.Git)).IsTrue();
+        await Assert.That(await new LabRepo(lab.Tree).GitAsync(["branch", "--format=%(refname:short)"], ct)).IsEqualTo("main");
+    }
+
     [Test]
     [Arguments("codex")]
     [Arguments("opencode")]

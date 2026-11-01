@@ -141,7 +141,10 @@ A recorded run is never run again and its ledger is never edited by hand.
   server is gone are also lost, never reconstructed. `resume <run> --continue` re-prompts interrupted
   unfenced opencode tasks and starts the tasks that never started.
 - A task without a result while no supervisor holds the run: `collect <run> <task>`.
-- Only what collect cannot recover goes into a new task file, under a new run id.
+- A new attempt can retain eligible failed work without reusing the recorded run: set task-field
+  [`continueOf`](references/task-file.md#continuations) and make its prompt the amendment.
+- Work that needs a fresh attempt goes into a new task file, under a new run id; use `base` for a
+  deliberate fresh start rather than retaining collected work.
 
 ## Traps
 

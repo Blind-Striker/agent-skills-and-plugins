@@ -70,8 +70,18 @@ static class Worktree
     public static async Task PrepareAsync(TaskRun run, Ledger ledger, string repo, CancellationToken ct, Git? runner = null)
     {
         var record = run.Record;
-        if (record.Workspace.Path is not null) return;
+        if (record.Workspace.Path is not null)
+        {
+            if (record.Spec.ContinueOf is not null && !ledger.Read().Any(x => x.Task == run.Id && x.Type == "worktree"
+                && x.Data?["path"]?.GetValue<string>() == record.Workspace.Path
+                && x.Data?["branch"]?.GetValue<string>() == record.Workspace.Branch
+                && x.Data?["baseSha"]?.GetValue<string>() == record.Workspace.BaseSha
+                && x.Data?["continueOf"]?.GetValue<string>() is { Length: > 0 }))
+                throw new HarnessException("continueOf workspace preparation is incomplete; refusing recovery");
+            return;
+        }
         var git = (runner ?? Runner(ledger, run.Id)).ForWorkspace(ledger, run.Id);
+        var continuation = record.Spec.ContinueOf is null ? default : await Planner.CheckContinuationAsync(record.Spec, record.Settings, ledger.RunId, repo, git, ct);
         await git.InitializeBaselineAsync(repo, ct);
         try { await new GitConfigGate(git).CheckAsync(repo, ct); }
         catch (GitConfigChangedException)
@@ -82,6 +92,11 @@ static class Worktree
         }
         repo = Path.GetFullPath((await git.CheckAsync(repo, ct, "rev-parse", "--show-toplevel")).Trim());
         Directory.CreateDirectory(Locations.TaskTemp(run.Id, ledger.RunId, record.Settings.TempRoot?.Value));
+        if (record.Spec.ContinueOf is not null)
+        {
+            await PrepareContinuationAsync(run, ledger, repo, git, continuation, ct);
+            return;
+        }
         if (InPlace(record))
         {
             var folder = await FolderAsync(git, repo, record.Settings.Dir?.Value ?? record.Spec.Dir, ct);
@@ -110,6 +125,27 @@ static class Worktree
         record.Workspace.ReviewedBaseSha = reviewed?.Workspace.BaseSha;
         ledger.SaveRecord(record);
         ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = path, ["branch"] = branch, ["base"] = baseRef, ["baseSha"] = baseSha });
+    }
+
+    static async Task PrepareContinuationAsync(TaskRun run, Ledger ledger, string repo, Git git,
+        (Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch) source, CancellationToken ct)
+    {
+        var record = run.Record;
+        var path = Locations.Worktree(run.Id, ledger.RunId);
+        var branch = $"dispatch/{ledger.RunId}/{run.Id}";
+        var reference = $"{source.Source.RunId}/{source.Task}";
+        await git.CheckAsync(repo, ct, "worktree", "add", "-b", branch, path, source.CreationSha);
+        record.Workspace.Path = path;
+        record.Workspace.Branch = branch;
+        record.Workspace.BaseRef = source.Record.Workspace.BaseRef;
+        record.Workspace.BaseSha = source.Record.Workspace.BaseSha;
+        record.Workspace.StartSha = source.CreationSha;
+        record.PromptText = Prompt.ContinuationText(reference, source.Final, record.PromptText);
+        ledger.SaveRecord(record);
+        if (source.Patch is { } patch)
+            await git.CheckAsync(path, ct, "apply", "--index", "--whitespace=nowarn", "--", patch);
+        ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = path, ["branch"] = branch,
+            ["base"] = record.Workspace.BaseRef, ["baseSha"] = record.Workspace.BaseSha, ["continueOf"] = reference });
     }
 
     public static async Task<bool> DirtyAsync(Git git, string repo, CancellationToken ct) =>

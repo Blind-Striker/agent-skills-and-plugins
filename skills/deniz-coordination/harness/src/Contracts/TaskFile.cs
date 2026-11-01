@@ -68,6 +68,7 @@ sealed class TaskSpec : TaskPreferences
     // Run after verify and recorded, but never fail the task: a check that fails by design.
     public List<string>? AdvisoryVerify { get; set; }
     public string? ReviewOf { get; set; }
+    public string? ContinueOf { get; set; }
     public List<string>? Contracts { get; set; }
     public string? Shell { get; set; }
     public StructuredInput? Input { get; set; }
