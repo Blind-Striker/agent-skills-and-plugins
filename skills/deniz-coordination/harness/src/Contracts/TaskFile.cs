@@ -50,6 +50,7 @@ sealed class TaskDefaults : TaskPreferences
 sealed class TaskSpec : TaskPreferences
 {
     public string? Id { get; set; }
+    public List<string>? Tags { get; set; }
     public string? Dir { get; set; }
 
     [JsonRequired]

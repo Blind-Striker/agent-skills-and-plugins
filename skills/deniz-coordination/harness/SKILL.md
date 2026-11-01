@@ -38,7 +38,7 @@ dotnet dispatch.cs -- <command> [arguments]
   checks each backend the configuration selects, or every installed one when none is selected
   (version, sign-in, catalog, a clean profile), Windows readiness and every resolved folder, and sends
   no prompt. Discovery and exit behavior: `references/cli.md`.
-- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `wait`, `asks`, `reply`, `cancel`, `collect`,
+- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `usage`, `wait`, `asks`, `reply`, `cancel`, `collect`,
   `resume`, `clean`. Arguments, output and exit codes of each: `references/cli.md`.
 
 ## Backend and modes

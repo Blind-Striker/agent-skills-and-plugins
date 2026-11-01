@@ -30,12 +30,15 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 
 | Flag | Type | Default | Commands and validation |
 |---|---|---|---|
-| `--repo <path>` | absolute directory | Task-file `repo` for plan/run and selfcheck | Target repository. Required by `routes` (`routes needs --repo`); optional for `selfcheck`, which skips repository checks without one. Relative: `--repo must be an absolute path`. |
+| `--repo <path>` | absolute directory | Task-file `repo` for plan/run and selfcheck | Target repository, or recorded-repository filter for `usage`. Required by `routes` (`routes needs --repo`); optional for `selfcheck`, which skips repository checks without one. Relative: `--repo must be an absolute path`. |
 | `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
 | `--contract <path>` | repeatable absolute file path | None | Plan/run, prepended whole to every task after file contracts. Relative paths: `--contract must be an absolute path`. Validation: [Contracts](task-file.md#contracts). |
-| `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
+| `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks`; no filter for `usage` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. For `usage`, a wildcard matching recorded run ids instead. |
+| `--since <yyyy-MM-dd>`, `--until <yyyy-MM-dd>` | UTC calendar date | No boundary | `usage` only; inclusive run-creation date filters. Bad values exit 2 and name the value. |
+| `--by <dimensions>` | comma-separated dimension names | `kind,route` | `usage` only; names and grouping semantics below. Unknown names exit 2 and name the value. |
+| `--json` | switch | Off | `usage` prints one JSON document instead of its text table. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
 | `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` checks every installed backend when the configuration selects none, and names the installed ones it skips otherwise. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
@@ -334,6 +337,67 @@ It does not wait for success.
 |---|---|---|
 | `0` | integer | Status read successfully, regardless of task outcomes. |
 | `2` | integer | Unknown/unreadable run, newer schema, or corrupt complete event line. |
+
+### `usage [--since <yyyy-MM-dd>] [--until <yyyy-MM-dd>] [--repo <path>] [--run <wildcard>] [--by <dimensions>] [--json] [--ledger <dir>]`
+
+Summarizes tasks across the ledger root without starting a backend or writing ledger files, control
+folders or locks. It can read ledgers whose control folders are absent. Tasks are the union of event
+state keys and non-dot task folders holding `task.json`; an event-only task without a readable record
+is skipped, not silently omitted. State always comes from the event-derived `Ledger.TaskStates()`,
+not the result's recorded state; a folder-only task has `unknown` state and counts as unsettled.
+
+Date filters use the UTC calendar date of `run.json`'s `created`, both boundaries inclusive, not the
+run id's date prefix. Missing or unparsable creation dates fail either date filter. `--repo` compares
+the recorded repository with the supplied full path, case-insensitively on Windows; absent repository
+metadata fails that filter. `--run` uses the harness wildcard matcher (`*` and `?`), ignoring case on
+Windows. No filter means all readable tasks are selected.
+
+`--by` defaults to `kind,route`. Each row is one combination of these dimension values, sorted by
+the selected values using ordinal comparison:
+
+| Dimension | Value |
+|---|---|
+| `kind` | Task spec's kind. |
+| `route` | Result's `routeRequested`, else recorded settings' route value, else `unknown`. |
+| `backend` | Result's backend, else recorded settings' backend value, else `unknown`. |
+| `state` | Event-derived task state. |
+| `outcome` | Result's outcome, else `none`. |
+| `status` | Result's `workerStatus`, else `none`. |
+| `repo` | Run's repository, else `unknown`. |
+| `run` | Run id. |
+| `day` | UTC date of run creation, else `unknown`. |
+| `tag` | Each caller-supplied task tag, or `(none)` without tags. |
+
+A task with two tags counts in both tag rows, but only once in the total. Tag-row counts and sums
+can therefore exceed the total; tags describe caller knowledge, such as work item or first scan
+versus re-scan, and do not alter execution.
+
+Each row and the total carry numeric counters `tasks`, `done`, `failed`, `cancelled`, `unsettled`
+(every other state), and `stopped` (`workerStatus` is `stopped` or `blocked`). Measured sums are
+`seconds`, `input`, `cacheRead`, `output`, `reasoning` and `cost`, each paired with a `<sum>Known`
+count of tasks reporting that figure. Token fields are independently nullable. Cost is only the
+reported cost: a Codex task without cost never contributes a synthetic zero or estimate.
+
+Seconds run from the task's first `prompt` event to its first `final` event on every backend,
+including harness settlement and verification, not just model execution. Later `collect` events do
+not extend this duration. Either event missing means duration is unknown.
+
+Text output uses `unknown` when no task reported a measured figure and `<sum> (<known>/<tasks>)`
+when only some did. Numbers use invariant culture; text cost has four decimal places. With no
+selected tasks text prints `no runs`. `--json` prints one document with `rows`, `total` and `skipped`:
+dimension values are under each row's `key` object (the total has an empty key), unknown sums are
+explicit `null`, counters and known counts are always numbers. An empty selection has empty rows,
+zero total counters/known counts and null total sums.
+
+An unreadable, corrupt or newer-schema run becomes a skipped entry `{ "run": "<id>", "task": null,
+"reason": "<text>" }`. An unreadable task record becomes a task-scoped entry; readable siblings
+still count. Skips sort by run, then task. Text prints them to stderr as
+`skipped <n> item(s): <run>[/<task>] (<reason>); ...`; JSON retains them in `skipped`.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Ledger root read or missing, including empty selection and skipped runs/tasks. |
+| `2` | integer | Invalid arguments, configuration failure or inability to enumerate the ledger root. |
 
 ### `wait <run> [--timeout <minutes>] [--ledger <dir>]`
 

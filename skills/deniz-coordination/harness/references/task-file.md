@@ -33,6 +33,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | Field | Type | Default | Validation and meaning |
 |---|---|---|---|
 | `id` | string | Required | `id must match ^[a-z0-9][a-z0-9-]{0,39}$`; duplicate ids fail. Use portable folder names. |
+| `tags` | string array | `[]` | Optional caller-owned labels, such as a work item and `scan-first` or `scan-again`. Each must match `^[a-z0-9][a-z0-9-]{0,39}$`; otherwise `tag <tag> must match ^[a-z0-9][a-z0-9-]{0,39}$`. They do not affect execution and are retained in `task.json`'s spec for `usage --by tag`. |
 | `kind` | string enum | Required | `code`, `review`, `research`, `mechanical`, `structured`; otherwise `kind must be one of code, review, research, mechanical, structured`. |
 | `route` | string | Effective backend's `defaultRoutes` entry | Exactly one effective route or `agent`: `name exactly one of route or agent after merging`. The catalog must offer the model and variant or effort. |
 | `agent` | string | None | opencode roster agent with a pinned model. Codex: `codex refuses agent and persona`. An inherited default route also counts against the exactly-one rule. Manual-class agents are refused. |

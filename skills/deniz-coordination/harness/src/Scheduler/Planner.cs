@@ -76,6 +76,9 @@ static class Planner
             }
             if (!Regex.IsMatch(spec.Id ?? "", "^[a-z0-9][a-z0-9-]{0,39}$")) e.Add("id must match ^[a-z0-9][a-z0-9-]{0,39}$");
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
+            foreach (var tag in spec.Tags ?? [])
+                if (!Regex.IsMatch(tag ?? "", "^[a-z0-9][a-z0-9-]{0,39}$", RegexOptions.CultureInvariant))
+                    e.Add($"tag {tag} must match ^[a-z0-9][a-z0-9-]{{0,39}}$");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
             if (spec.Kind == "structured" && spec.Shell is not null) e.Add("shell is forbidden for structured tasks");
             else if (spec.Shell is not null || spec.Verify is { Count: > 0 } || spec.AdvisoryVerify is { Count: > 0 } || spec.Kind != "structured" && spec.Prepare is { Count: > 0 })

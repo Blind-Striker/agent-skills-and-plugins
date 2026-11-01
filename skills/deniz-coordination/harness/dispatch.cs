@@ -43,6 +43,7 @@
 #:include src/Cli/Cli.cs
 #:include src/Cli/Args.cs
 #:include src/Cli/Commands.cs
+#:include src/Cli/Commands.Usage.cs
 #:include src/Cli/Commands.Control.cs
 #:include src/Cli/Commands.SelfCheck.cs
 #:include src/Cli/BackendScope.cs
