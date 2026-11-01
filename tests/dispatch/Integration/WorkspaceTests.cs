@@ -245,12 +245,13 @@ public sealed class WorkspaceTests
         next.Record.Spec.Verify = ["exit 0"];
         await Assert.That(await lab.Scheduler(ct).RunAsync([next])).IsEqualTo(1);
         var path = next.Record.Workspace.Path!;
-        var message = $"dispatch failed: HarnessException: git apply --index --whitespace=nowarn -- {patch} failed in {path}: error: No valid patches in input (allow with \"--allow-empty\")";
+        // Git words this error differently across versions.
+        var message = $"dispatch failed: HarnessException: git apply --index --whitespace=nowarn -- {patch} failed in {path}: error: ";
         var events = lab.Ledger.Read().Where(x => x.Task == next.Id).ToList();
         await Assert.That(events.Select(x => x.Type)).IsEquivalentTo(new[] { "error", "final" }, CollectionOrdering.Matching);
-        await Assert.That(events[0].Data!["message"]!.GetValue<string>()).IsEqualTo(message);
+        await Assert.That(events[0].Data!["message"]!.GetValue<string>()).StartsWith(message);
         await Assert.That(events[1].Data!["state"]!.GetValue<string>()).IsEqualTo("failed");
-        await Assert.That(events[1].Data!["reason"]!.GetValue<string>()).IsEqualTo(message);
+        await Assert.That(events[1].Data!["reason"]!.GetValue<string>()).IsEqualTo(events[0].Data!["message"]!.GetValue<string>());
         await Assert.That(lab.Backend.Calls).IsEmpty();
         await Assert.That(lab.Ledger.LoadResult(next.Id)).IsNull();
         await Assert.That(lab.Ledger.LoadRecord(next.Id).Workspace.Path).IsEqualTo(path);
