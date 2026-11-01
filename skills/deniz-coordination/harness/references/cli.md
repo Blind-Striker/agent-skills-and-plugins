@@ -387,7 +387,7 @@ Each row and the total carry numeric counters `tasks`, `done`, `failed`, `cancel
 count of tasks reporting that figure. Token fields are independently nullable. Cost is only the
 reported cost: a Codex task without cost never contributes a synthetic zero or estimate.
 
-OpenCode results written before the 2026-10-23 harness store `tokens.input` without cache reads, so
+OpenCode results written by an early harness can store `tokens.input` without cache reads, so
 `input` can be lower than `cacheRead` in old runs.
 `output` includes reasoning on Codex but not on OpenCode, so a row that mixes backends sums unlike figures.
 
