@@ -89,7 +89,7 @@ public sealed class PromptTests
         var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
         var spec = new TaskSpec { Kind = "research", Verify = [command], AdvisoryVerify = [command] };
         var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
-        await Assert.That(actual).Contains("outside your sandbox:\n" + rendered + "\n" + rendered + " (advisory)\n- Declared scope:");
+        await Assert.That(actual).Contains("in this order:\n" + rendered + "\n" + rendered + " (advisory)\n- Declared scope:");
     }
 
     [Test]
