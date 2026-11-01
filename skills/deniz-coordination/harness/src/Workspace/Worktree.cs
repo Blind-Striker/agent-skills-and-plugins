@@ -96,7 +96,8 @@ static class Worktree
             ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = folder, ["startTree"] = start });
             return;
         }
-        var baseRef = record.Spec.ReviewOf is { } author ? ledger.LoadRecord(author).Workspace.Branch! : record.Spec.Base!;
+        var reviewed = record.Spec.ReviewOf is { } author ? ledger.LoadRecord(author) : null;
+        var baseRef = reviewed is not null ? reviewed.Workspace.Branch! : record.Spec.Base!;
         var baseSha = await git.IdAsync(repo, ct, "rev-parse", "--verify", $"{baseRef}^{{commit}}");
         var path = Locations.Worktree(run.Id, ledger.RunId);
         var branch = $"dispatch/{ledger.RunId}/{run.Id}";
@@ -106,6 +107,7 @@ static class Worktree
         record.Workspace.BaseRef = baseRef;
         record.Workspace.BaseSha = baseSha;
         record.Workspace.StartSha = baseSha;
+        record.Workspace.ReviewedBaseSha = reviewed?.Workspace.BaseSha;
         ledger.SaveRecord(record);
         ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = path, ["branch"] = branch, ["base"] = baseRef, ["baseSha"] = baseSha });
     }

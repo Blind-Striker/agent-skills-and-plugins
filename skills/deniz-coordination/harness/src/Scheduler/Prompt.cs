@@ -68,7 +68,7 @@ static class Prompt
             throw new HarnessException($"{task.Id}: rawPrompt conflicts with contracts, instructions or structured input");
     }
 
-    public static string Render(this Policy policy, PlannedOrRecord task, string worktree, Inputs? inputs = null, string? startSha = null)
+    public static string Render(this Policy policy, PlannedOrRecord task, string worktree, Inputs? inputs = null, string? startSha = null, string? reviewedBaseSha = null)
     {
         var raw = policy.RawPrompt || task.Spec.RawPrompt == true;
         CheckRaw(raw, task.Spec, inputs?.Contracts.Count ?? task.Spec.Contracts?.Count ?? 0, policy.Instructions.Count);
@@ -84,12 +84,15 @@ static class Prompt
         }
         var lines = new List<string> { $"Your working folder: {worktree}" };
         if (startSha is not null)
-            lines.Add($"Your folder starts at commit `{startSha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.");
+            lines.Add(task.Spec.ReviewOf is not null
+                ? $"Your folder starts at commit `{startSha}`, the tip of the reviewed task's branch. That task started from commit `{reviewedBaseSha}`; its change is the diff between the two."
+                : $"Your folder starts at commit `{startSha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.");
         if (task.Spec.Verify is { Count: > 0 } || task.Spec.AdvisoryVerify is { Count: > 0 })
         {
-            var commands = (task.Spec.Verify ?? []).Select(command => $"    `{command}`")
-                .Concat((task.Spec.AdvisoryVerify ?? []).Select(command => $"    `{command}` (advisory)"));
-            lines.Add("After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            var commands = (task.Spec.Verify ?? []).Select(Command)
+                .Concat((task.Spec.AdvisoryVerify ?? []).Select(command => Command(command) + " (advisory)"));
+            lines.Add($"When you finish with `{Settlement.StatusPrefix} done`, the harness runs these commands in your folder, in this order"
+                + (task.Spec.Access == "read-only" ? ":\n" : ". You may run them earlier; run the gates among them as you go, not only at the end:\n")
                 + string.Join("\n", commands));
         }
         if (policy.Deny.Count > 0)
@@ -118,11 +121,20 @@ static class Prompt
         return text.ToString();
     }
 
+    static string Backticks(string text, int minimum = 1) =>
+        new('`', Math.Max(minimum, Regex.Matches(text, "`+").Select(m => m.Length).DefaultIfEmpty(0).Max() + 1));
+
+    static string Command(string command)
+    {
+        var fence = Backticks(command);
+        var space = command.StartsWith('`') || command.EndsWith('`') ? " " : "";
+        return "    " + fence + space + command.ReplaceLineEndings("\n    ") + space + fence;
+    }
+
     static void Block(StringBuilder text, string label, JsonNode? node)
     {
         var json = node?.ToJsonString(Json.Options(strict: false, indented: true)) ?? "[]";
-        var longest = Regex.Matches(json, "`+").Select(m => m.Length).DefaultIfEmpty(0).Max();
-        var fence = new string('`', Math.Max(3, longest + 1));
+        var fence = Backticks(json, 3);
         text.Append('\n').Append(label).Append('\n').Append(fence).Append("json\n").Append(json).Append('\n').Append(fence).Append('\n');
     }
 

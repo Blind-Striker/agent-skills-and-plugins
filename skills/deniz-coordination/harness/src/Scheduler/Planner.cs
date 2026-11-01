@@ -185,11 +185,13 @@ static class Planner
                             var seen = new HashSet<string>(StringComparer.Ordinal);
                             while (reader.ReadLine() is { } line)
                             {
-                                if (!Regex.IsMatch(line, @"\bbase\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) continue;
-                                foreach (Match match in Regex.Matches(line, @"(?<![0-9A-Za-z])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])"))
+                                if (!Regex.IsMatch(line, @"(?<![0-9A-Za-z])base(?:[_-]?(?:sha|commit))?(?![0-9A-Za-z])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) continue;
+                                foreach (Match match in Regex.Matches(line, @"(?<![0-9A-Za-z./:_-])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])"))
                                 {
                                     var token = match.Value.ToLowerInvariant();
-                                    if (token.Any(c => c is >= '0' and <= '9') && !sha.StartsWith(token, StringComparison.Ordinal) && seen.Add(token))
+                                    if (token.Any(c => c is >= '0' and <= '9') && token.Any(c => c is >= 'a' and <= 'f')
+                                        && !line.AsSpan(match.Index + match.Length).StartsWith("..", StringComparison.Ordinal)
+                                        && !sha.StartsWith(token, StringComparison.Ordinal) && seen.Add(token))
                                         plan.Warnings.Add($"{spec.Id}: the prompt names base commit {token}, but base {spec.Base} resolves to {sha[..12]}");
                                 }
                             }

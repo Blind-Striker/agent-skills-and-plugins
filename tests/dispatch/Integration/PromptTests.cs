@@ -34,7 +34,7 @@ public sealed class PromptTests
         await Assert.That(record["workspace"]!["startSha"]?.GetValue<string>()).IsEqualTo(prepared ? null : sha);
         var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
         await Assert.That(input.Prompt.Text.Split('\n').Where(line => line.StartsWith("- Your folder starts at commit", StringComparison.Ordinal)))
-            .IsEquivalentTo(prepared ? [] : new[] { $"- Your folder starts at commit `{sha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction." }, CollectionOrdering.Matching);
+            .IsEquivalentTo(prepared ? [] : new[] { $"- Your folder starts at commit `{sha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on." }, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -104,7 +104,7 @@ public sealed class PromptTests
         var workspace = record["workspace"]!["path"]!.GetValue<string>();
         var expected = texts[0] + "\n" + texts[1] + "\n\nStanding instructions from the dispatch harness (they apply to the whole task):\n"
             + $"- Your working folder: {workspace}\n"
-            + $"- Your folder starts at commit `{baseSha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.\n"
+            + $"- Your folder starts at commit `{baseSha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.\n"
             + "- Declared scope: (none declared). Changes outside it are flagged for review.\n"
             + "- This is a read-only task: do not create, change or delete files. Report your findings instead.\n"
             + "- Nobody answers questions during this run: a question is cancelled, so continue without the answer.\n"
@@ -112,6 +112,38 @@ public sealed class PromptTests
             + "`Status: stopped` when you stopped on a rule or a contradiction, "
             + "`Status: blocked` when the environment kept you from the work (a missing tool, access or input).\n\n---\nTask:\n\nInspect.\n";
         await Assert.That(prompt).IsEqualTo(expected);
+    }
+
+    [Test]
+    [NotInParallel]
+    public async Task ReviewOf_prompt_and_record_identify_the_authors_base_and_branch_tip(CancellationToken ct)
+    {
+        using var lab = new CoreLab("prompt-review");
+        var author = await lab.TaskAsync("author", ct);
+        var repo = new LabRepo(lab.Tree);
+        var authorBase = author.Record.Workspace.BaseSha!;
+        await repo.GitAsync(["checkout", "-b", "author-branch"], ct);
+        File.WriteAllText(Path.Combine(repo.Root, "change.txt"), "Authored change.");
+        await repo.GitAsync(["add", "change.txt"], ct);
+        await repo.GitAsync(["commit", "-m", "Author change"], ct);
+        var tip = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+        author.Record.Workspace.Branch = "author-branch";
+        lab.Ledger.SaveRecord(author.Record);
+        var review = await lab.TaskAsync("review", ct);
+        review.Record.Workspace = new();
+        review.Record.Spec.Kind = "review";
+        review.Record.Spec.ReviewOf = author.Id;
+        review.Record.Spec.RawPrompt = false;
+        await new TaskStarter(lab.Backend, lab.Ledger, repo.Root, AllowList.From(null), lab.Policy, lab.Git).StartAsync(review, ct);
+        var record = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.Ledger.Dir, review.Id, "task.json")))!;
+        var start = record["workspace"]!["startSha"]!.GetValue<string>();
+        await Assert.That(start).IsEqualTo(tip);
+        await Assert.That(authorBase).IsNotEqualTo(start);
+        await Assert.That(record["workspace"]!["reviewedBaseSha"]?.GetValue<string>()).IsEqualTo(authorBase);
+        var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
+        await Assert.That(input.Prompt.Text).Contains($"- Your folder starts at commit `{tip}`, the tip of the reviewed task's branch. That task started from commit `{authorBase}`; its change is the diff between the two.\n");
+        await Assert.That(input.Prompt.Text).DoesNotContain("base commit of this task");
+        await Assert.That(await repo.GitAsync(["diff", "--name-only", authorBase, start], ct)).IsEqualTo("change.txt");
     }
 
     [Test]

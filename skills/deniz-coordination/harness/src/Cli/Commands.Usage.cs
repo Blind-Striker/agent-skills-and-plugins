@@ -1,7 +1,7 @@
 static partial class Commands
 {
     static readonly string[] UsageDimensions = ["kind", "route", "backend", "state", "outcome", "status", "repo", "run", "day", "tag"];
-    static readonly string[] UsageCounters = ["tasks", "done", "failed", "cancelled", "unsettled", "stopped"];
+    static readonly string[] UsageCounters = ["tasks", "done", "failed", "cancelled", "unsettled", "stopped", "tokensIncomplete"];
     static readonly string[] UsageSums = ["seconds", "input", "cacheRead", "output", "reasoning", "cost"];
 
     public static int Usage(Args a)
@@ -12,7 +12,7 @@ static partial class Commands
         foreach (var dimension in dimensions)
             if (!UsageDimensions.Contains(dimension, StringComparer.Ordinal))
                 throw new HarnessException($"unknown usage dimension {dimension}");
-        var repo = a.Get("repo") is { } path ? Path.GetFullPath(path) : null;
+        var repo = a.Get("repo") is { } path ? Path.TrimEndingDirectorySeparator(Path.GetFullPath(path)) : null;
         var tasks = new List<(JsonObject Key, List<string> Tags, JsonObject Figures)>();
         var skipped = new List<(string Run, string? Task, string Reason)>();
         if (Directory.Exists(Locations.LedgerRoot))
@@ -28,7 +28,7 @@ static partial class Commands
                     var day = created is { } timestamp ? DateOnly.FromDateTime(timestamp.UtcDateTime) : (DateOnly?)null;
                     if (since is { } lower && (day is null || day < lower)
                         || until is { } upper && (day is null || day > upper)) continue;
-                    if (repo is not null && !string.Equals(info.Repo, repo,
+                    if (repo is not null && !string.Equals(info.Repo is { } recordedRepo ? Path.TrimEndingDirectorySeparator(recordedRepo) : null, repo,
                         OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal)) continue;
                     var states = ledger.TaskStates();
                     var events = ledger.Read().Where(line => line.Task is not null).ToLookup(line => line.Task!);
@@ -56,7 +56,8 @@ static partial class Commands
                                 ["run"] = id,
                                 ["day"] = day?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture) ?? "unknown",
                             };
-                            tasks.Add((key, record.Spec.Tags is { Count: > 0 } tags ? tags : ["(none)"],
+                            var tags = (record.Spec.Tags ?? []).Where(tag => !string.IsNullOrEmpty(tag)).ToList();
+                            tasks.Add((key, tags.Count > 0 ? tags : ["(none)"],
                                 UsageFigures(state, result, events[task])));
                         }
                         catch (Exception ex) when (UsageReadError(ex)) { skipped.Add((id, task, ex.Message)); }
@@ -95,7 +96,7 @@ static partial class Commands
             {
                 Console.WriteLine(string.Join('\t', dimensions.Concat(UsageCounters).Concat(UsageSums)));
                 foreach (var row in rows) PrintUsageRow(row, dimensions.Select(dimension => row["key"]![dimension]!.GetValue<string>()));
-                PrintUsageRow(total, ["total"]);
+                PrintUsageRow(total, dimensions.Select((_, index) => index == 0 ? "total" : ""));
             }
             if (skippedJson.Count > 0)
                 Console.Error.WriteLine($"skipped {skippedJson.Count.ToString(CultureInfo.InvariantCulture)} item(s): " + string.Join("; ", skippedJson.Select(item =>
@@ -128,7 +129,8 @@ static partial class Commands
             ["cancelled"] = state == "cancelled" ? 1 : 0,
             ["unsettled"] = state is not ("done" or "failed" or "cancelled") ? 1 : 0,
             ["stopped"] = result?.WorkerStatus is "stopped" or "blocked" ? 1 : 0,
-            ["seconds"] = prompt is { } start && final is { } end ? (end - start).TotalSeconds : (double?)null,
+            ["tokensIncomplete"] = result?.TokensComplete == false ? 1 : 0,
+            ["seconds"] = prompt is { } start && final is { } end && end >= start ? (end - start).TotalSeconds : (double?)null,
             ["input"] = result?.Tokens?.Input,
             ["cacheRead"] = result?.Tokens?.CacheRead,
             ["output"] = result?.Tokens?.Output,
@@ -167,7 +169,7 @@ static partial class Commands
             .Concat(UsageSums.Select(sum =>
             {
                 if (row[sum] is not { } value) return "unknown";
-                var text = value.GetValue<double>().ToString(sum == "cost" ? "0.0000" : "G", CultureInfo.InvariantCulture);
+                var text = value.GetValue<double>().ToString(sum == "cost" ? "0.0000" : sum == "seconds" ? "0" : "G", CultureInfo.InvariantCulture);
                 var known = row[sum + "Known"]!.GetValue<int>();
                 var count = row["tasks"]!.GetValue<int>();
                 return known == count ? text : $"{text} ({known.ToString(CultureInfo.InvariantCulture)}/{count.ToString(CultureInfo.InvariantCulture)})";

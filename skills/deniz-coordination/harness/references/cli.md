@@ -256,9 +256,11 @@ base, appending ` (fetched from <remote>)` for remote-tracking bases. Local bran
 are not fetched.
 
 For a non-`reviewOf` worktree whose base resolves, plan reads the task's own prompt line by line.
-On lines containing the case-insensitive whole word `base` (`\bbase\b`), it checks tokens matching
-`(?<![0-9A-Za-z])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])` with at least one digit. Hyphens and punctuation
-end tokens; all-letter tokens such as `defaced` do not count. Each token is lowercased and compared
+On lines matching case-insensitive `(?<![0-9A-Za-z])base(?:[_-]?(?:sha|commit))?(?![0-9A-Za-z])`
+(including `base_sha` and `baseSha`), it checks tokens matching
+`(?<![0-9A-Za-z./:_-])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])` with at least one digit and at least one
+letter. Range heads followed by `..`, digest values after `sha256:`, branch suffixes after a hyphen,
+all-digit numbers and all-letter tokens such as `defaced` do not count. Each token is lowercased and compared
 with the start of the resolved full commit id. A mismatch prints, once per distinct lowercased token
 in first-occurrence order:
 
@@ -348,7 +350,8 @@ not the result's recorded state; a folder-only task has `unknown` state and coun
 
 Date filters use the UTC calendar date of `run.json`'s `created`, both boundaries inclusive, not the
 run id's date prefix. Missing or unparsable creation dates fail either date filter. `--repo` compares
-the recorded repository with the supplied full path, case-insensitively on Windows; absent repository
+the recorded repository with the supplied full path, trimming a trailing directory separator from both
+with `Path.TrimEndingDirectorySeparator`, case-insensitively on Windows; absent repository
 metadata fails that filter. `--run` uses the harness wildcard matcher (`*` and `?`), ignoring case on
 Windows. No filter means all readable tasks are selected.
 
@@ -366,24 +369,32 @@ the selected values using ordinal comparison:
 | `repo` | Run's repository, else `unknown`. |
 | `run` | Run id. |
 | `day` | UTC date of run creation, else `unknown`. |
-| `tag` | Each caller-supplied task tag, or `(none)` without tags. |
+| `tag` | Each caller-supplied task tag, ignoring null or empty entries, or `(none)` without remaining tags. |
 
 A task with two tags counts in both tag rows, but only once in the total. Tag-row counts and sums
 can therefore exceed the total; tags describe caller knowledge, such as work item or first scan
 versus re-scan, and do not alter execution.
 
 Each row and the total carry numeric counters `tasks`, `done`, `failed`, `cancelled`, `unsettled`
-(every other state), and `stopped` (`workerStatus` is `stopped` or `blocked`). Measured sums are
+(every other state), `stopped` (`workerStatus` is `stopped` or `blocked`), and `tokensIncomplete`
+(results with `tokensComplete: false`, whose known figures still contribute to sums). Measured sums are
 `seconds`, `input`, `cacheRead`, `output`, `reasoning` and `cost`, each paired with a `<sum>Known`
 count of tasks reporting that figure. Token fields are independently nullable. Cost is only the
 reported cost: a Codex task without cost never contributes a synthetic zero or estimate.
 
+OpenCode results written before the 2026-10-23 harness store `tokens.input` without cache reads, so
+`input` can be lower than `cacheRead` in old runs.
+`output` includes reasoning on Codex but not on OpenCode, so a row that mixes backends sums unlike figures.
+
 Seconds run from the task's first `prompt` event to its first `final` event on every backend,
 including harness settlement and verification, not just model execution. Later `collect` events do
-not extend this duration. Either event missing means duration is unknown.
+not extend this duration. Either event missing, or a first `final` before the first `prompt`, means
+duration is unknown and contributes nothing to `seconds` or `secondsKnown`.
 
 Text output uses `unknown` when no task reported a measured figure and `<sum> (<known>/<tasks>)`
-when only some did. Numbers use invariant culture; text cost has four decimal places. With no
+when only some did. The total row puts `total` in the first dimension column and leaves the remaining
+dimension columns empty, aligning its figures with the header. Numbers use invariant culture; text
+seconds are rounded to whole numbers and text cost has four decimal places. JSON retains fractional seconds. With no
 selected tasks text prints `no runs`. `--json` prints one document with `rows`, `total` and `skipped`:
 dimension values are under each row's `key` object (the total has an empty key), unknown sums are
 explicit `null`, counters and known counts are always numbers. An empty selection has empty rows,

@@ -17,8 +17,8 @@ public sealed class PromptTests
         var actual = policy.Render(new(spec, "Inspect."), "<workspace>", startSha: sha);
         var expected = "Standing instructions from the dispatch harness (they apply to the whole task):\n"
             + "- Your working folder: <workspace>\n"
-            + $"- Your folder starts at commit `{sha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.\n"
-            + "- After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            + $"- Your folder starts at commit `{sha}`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.\n"
+            + "- When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
             + "    `dotnet test zulu`\n"
             + "    `dotnet build alpha`\n"
             + "    `clone-check zulu` (advisory)\n"
@@ -40,9 +40,40 @@ public sealed class PromptTests
         var spec = new TaskSpec { Kind = "research", Verify = advisory ? [] : ["gate"], AdvisoryVerify = advisory ? ["advice"] : [] };
         var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
         await Assert.That(actual).Contains("- Your working folder: <workspace>\n"
-            + "- After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            + "- When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
             + (advisory ? "    `advice` (advisory)\n" : "    `gate`\n")
             + "- Declared scope:");
+    }
+
+    [Test]
+    [Arguments("read-only", "")]
+    [Arguments("workspace", ". You may run them earlier; run the gates among them as you go, not only at the end")]
+    public async Task Verify_header_respects_access(string access, string guidance)
+    {
+        var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
+        var spec = new TaskSpec { Kind = "research", Access = access, Verify = ["gate"] };
+        var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
+        await Assert.That(actual).Contains("- When you finish with `Status: done`, the harness runs these commands in your folder, in this order"
+            + guidance + ":\n    `gate`\n"
+            + "- Declared scope: (none declared). Changes outside it are flagged for review.\n"
+            + (access == "read-only" ? "- This is a read-only task: do not create, change or delete files. Report your findings instead.\n" : "")
+            + "- Nobody answers questions during this run:");
+        if (access == "read-only") await Assert.That(actual).DoesNotContain("You may run them earlier");
+    }
+
+    [Test]
+    [Arguments("echo `value", "    ``echo `value``")]
+    [Arguments("`value", "    `` `value ``")]
+    [Arguments("value`", "    `` value` ``")]
+    [Arguments("echo ``value`", "    ``` echo ``value` ```")]
+    [Arguments("echo first\n- second", "    `echo first\n    - second`")]
+    [Arguments("echo first\r\n- second", "    `echo first\n    - second`")]
+    public async Task Verify_commands_keep_safe_delimiters_and_continuation_indentation(string command, string rendered)
+    {
+        var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
+        var spec = new TaskSpec { Kind = "research", Verify = [command], AdvisoryVerify = [command] };
+        var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
+        await Assert.That(actual).Contains("not only at the end:\n" + rendered + "\n" + rendered + " (advisory)\n- Declared scope:");
     }
 
     [Test]

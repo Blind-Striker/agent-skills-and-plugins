@@ -87,12 +87,18 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 ## Verify, advisory verify and review
 
 - After the working-folder line, standing instructions name the recorded start commit, when known:
-  ``Your folder starts at commit `<full commit id>`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.``
-  The task prompt no longer has to carry the base commit.
+  ``Your folder starts at commit `<full commit id>`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.``
+  A `reviewOf` task instead gets:
+  ``Your folder starts at commit `<start>`, the tip of the reviewed task's branch. That task started from commit `<reviewed base>`; its change is the diff between the two.``
+  The task prompt no longer has to carry the base commit; a `reviewOf` task is told both commits.
   Recording and older-workspace availability: [workspace.startSha](ledger.md#taskjson).
 - When there are verify or advisory-verify commands, the next standing line says:
-  `After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:`
-  Each command follows on its own backticked line, indented four spaces under the bullet: `verify`
+  ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:``
+  For read-only tasks it says only:
+  ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order:``
+  Each command follows on its own backticked line, indented four spaces under the bullet. Delimiters
+  have one more backtick than the command's longest run, with a space inside each delimiter when the
+  command starts or ends with a backtick. Continuation lines retain the item's indentation: `verify`
   first, then `advisoryVerify`, with ` (advisory)` after each advisory command. No commands means no
   command line; structured tasks have none. `rawPrompt` omits both standing lines, like all others.
 - `verify` lists the commands whose failure fails the task. They run after collection, on the task's

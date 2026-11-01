@@ -22,8 +22,8 @@ public sealed class UsageCommandTests
         await Figures(document["rows"]![0]!, [1, 1, 0, 0, 0, 0], [4, 100, 20, 10, 5, null], [1, 1, 1, 1, 1, 0]);
         await Assert.That(document["skipped"]!.AsArray().Count).IsEqualTo(0);
         var text = InvokeUsage();
-        await Assert.That(text).Contains("code\ta-route\t1\t1\t0\t0\t0\t0\t4\t100\t20\t10\t5\tunknown");
-        await Assert.That(text).Contains("total\t6\t1\t2\t1\t2\t2\t11 (2/6)\t300 (2/6)\t20 (2/6)\t47 (3/6)\t5 (2/6)\t0.1250 (1/6)");
+        await Assert.That(text).Contains("code\ta-route\t1\t1\t0\t0\t0\t0\t0\t4\t100\t20\t10\t5\tunknown");
+        await Assert.That(text).Contains("total\t\t6\t1\t2\t1\t2\t2\t0\t11 (2/6)\t300 (2/6)\t20 (2/6)\t47 (3/6)\t5 (2/6)\t0.1250 (1/6)");
     });
 
     [Test]
@@ -227,7 +227,7 @@ public sealed class UsageCommandTests
         var expected = "skipped 4 item(s): " + string.Join("; ", document["skipped"]!.AsArray().Select(item =>
             item!["run"]!.GetValue<string>() + (item["task"] is { } task ? "/" + task.GetValue<string>() : "") + " (" + item["reason"]!.GetValue<string>() + ")"));
         await Assert.That(result.Stderr.Trim()).IsEqualTo(expected);
-        await Assert.That(result.Stdout).Contains("total\t6\t1\t2\t1\t2\t2");
+        await Assert.That(result.Stdout).Contains("total\t\t6\t1\t2\t1\t2\t2");
     });
 
     [Test]
@@ -300,6 +300,104 @@ public sealed class UsageCommandTests
         ledger.SaveRecord(new TaskRecord { Spec = accepted.Tasks.Single().Spec });
         await Assert.That(ledger.LoadRecord("inspect").Spec.Tags!).IsEquivalentTo(new[]
             { "work-item", "scan-first", "1234567890123456789012345678901234567890" }, CollectionOrdering.Matching);
+    });
+
+    [Test]
+    [Arguments("backend,route,kind")]
+    public Task Total_figures_align_with_the_dimension_columns(string dimensions) => InLedger(async root =>
+    {
+        Mixed(root);
+        var lines = InvokeUsage("--by", dimensions).ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        var header = lines[0].Split('\t');
+        var total = lines.Single(line => line.StartsWith("total\t", StringComparison.Ordinal)).Split('\t');
+        await Assert.That(total.Length).IsEqualTo(header.Length);
+        await Assert.That(total.Take(dimensions.Split(',').Length)).IsEquivalentTo(new[] { "total", "", "" }, CollectionOrdering.Matching);
+        await Assert.That(total[Array.IndexOf(header, "tasks")]).IsEqualTo("6");
+        await Assert.That(total[Array.IndexOf(header, "input")]).IsEqualTo("300 (2/6)");
+    });
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public Task Repository_filter_ignores_trailing_separator_on_either_value(bool recordedSeparator) => InLedger(async root =>
+    {
+        var repo = Path.Combine(root, "repo");
+        Run(root, "match", "2026-11-01T00:00:00Z", repo + (recordedSeparator ? Path.DirectorySeparatorChar : ""));
+        Record(root, "match", "inspect", "research");
+        Run(root, "other", "2026-11-01T00:00:00Z", repo + "-other");
+        Record(root, "other", "inspect", "code");
+        var document = ReadUsage("--by", "run", "--repo", repo + (recordedSeparator ? "" : Path.DirectorySeparatorChar));
+        await Assert.That(Keys(document, "run")).IsEquivalentTo(new[] { "match" }, CollectionOrdering.Matching);
+        await Figures(document["total"]!, [1, 0, 0, 0, 1, 0], [null, null, null, null, null, null], [0, 0, 0, 0, 0, 0]);
+    });
+
+    [Test]
+    public Task Incomplete_token_results_count_and_still_contribute_all_known_figures() => InLedger(async root =>
+    {
+        Run(root, "partial", "2026-11-01T00:00:00Z", null);
+        Record(root, "partial", "a", "code");
+        Result(root, "partial", "a", new TaskResult { TokensComplete = false,
+            Tokens = new() { Input = 120, CacheRead = 30, Output = 14, Reasoning = 4 } });
+        Record(root, "partial", "b", "code");
+        Result(root, "partial", "b", new TaskResult { TokensComplete = true,
+            Tokens = new() { Input = 80, CacheRead = 10, Output = 6, Reasoning = 2 } });
+        var document = ReadUsage("--by", "kind");
+        await Assert.That(Keys(document, "kind")).IsEquivalentTo(new[] { "code" }, CollectionOrdering.Matching);
+        foreach (var row in new[] { document["rows"]![0]!, document["total"]! })
+        {
+            await Assert.That(row["tokensIncomplete"]?.GetValue<int>()).IsEqualTo(1);
+            await Figures(row, [2, 0, 0, 0, 2, 0], [null, 200, 40, 20, 6, null], [0, 2, 2, 2, 2, 0]);
+        }
+        await Assert.That(InvokeUsage("--by", "kind").ReplaceLineEndings("\n")).IsEqualTo(
+            "kind\ttasks\tdone\tfailed\tcancelled\tunsettled\tstopped\ttokensIncomplete\tseconds\tinput\tcacheRead\toutput\treasoning\tcost\n"
+            + "code\t2\t0\t0\t0\t2\t0\t1\tunknown\t200\t40\t20\t6\tunknown\n"
+            + "total\t2\t0\t0\t0\t2\t0\t1\tunknown\t200\t40\t20\t6\tunknown\n");
+    });
+
+    [Test]
+    [Arguments(true)]
+    [Arguments(false)]
+    public Task Final_before_prompt_is_unknown_and_text_seconds_are_invariant_whole_numbers(bool earlyFinal) => InLedger(async root =>
+    {
+        Run(root, "duration", "2026-11-01T00:00:00Z", null);
+        Record(root, "duration", "early", "review");
+        if (earlyFinal)
+        {
+            Event(root, "duration", "early", "final", "2026-11-01T00:00:01Z", "done");
+            Event(root, "duration", "early", "prompt", "2026-11-01T00:00:02Z");
+        }
+        Record(root, "duration", "normal", "code");
+        Event(root, "duration", "normal", "prompt", "2026-11-01T00:00:10Z");
+        Event(root, "duration", "normal", "final", "2026-11-01T00:00:12.750Z", "done");
+        var document = ReadUsage("--by", "kind");
+        await Assert.That(Keys(document, "kind")).IsEquivalentTo(new[] { "code", "review" }, CollectionOrdering.Matching);
+        await Figures(document["rows"]![1]!, [1, 0, 0, 0, 1, 0], [null, null, null, null, null, null], [0, 0, 0, 0, 0, 0]);
+        await Figures(document["total"]!, [2, 1, 0, 0, 1, 0], [2.75, null, null, null, null, null], [1, 0, 0, 0, 0, 0]);
+        var previous = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("tr-TR");
+            var lines = InvokeUsage("--by", "kind").ReplaceLineEndings("\n").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+            var column = Array.IndexOf(lines[0].Split('\t'), "seconds");
+            await Assert.That(lines.Single(line => line.StartsWith("code\t", StringComparison.Ordinal)).Split('\t')[column]).IsEqualTo("3");
+            await Assert.That(lines.Single(line => line.StartsWith("total\t", StringComparison.Ordinal)).Split('\t')[column]).IsEqualTo("3 (1/2)");
+        }
+        finally { CultureInfo.CurrentCulture = previous; }
+    });
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    public Task Null_and_empty_tags_are_absent(string? tag) => InLedger(async root =>
+    {
+        Run(root, "tags", "2026-11-01T00:00:00Z", null);
+        Record(root, "tags", "untagged", "research", tags: [tag!]);
+        var document = ReadUsage("--by", "tag");
+        await Assert.That(document["rows"]!.AsArray().Select(row => row!["key"]!["tag"]?.GetValue<string>()))
+            .IsEquivalentTo(new string?[] { "(none)" }, CollectionOrdering.Matching);
+        foreach (var row in document["rows"]!.AsArray())
+            await Figures(row!, [1, 0, 0, 0, 1, 0], [null, null, null, null, null, null], [0, 0, 0, 0, 0, 0]);
+        await Figures(document["total"]!, [1, 0, 0, 0, 1, 0], [null, null, null, null, null, null], [0, 0, 0, 0, 0, 0]);
     });
 
     static async Task InLedger(Func<string, Task> test)

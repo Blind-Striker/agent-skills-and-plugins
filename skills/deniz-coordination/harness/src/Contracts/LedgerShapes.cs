@@ -172,6 +172,7 @@ sealed class WorkspaceRecord
     public string? BaseRef { get; set; }
     public string? BaseSha { get; set; }
     public string? StartSha { get; set; }
+    public string? ReviewedBaseSha { get; set; }
 }
 
 sealed class SessionRecord
