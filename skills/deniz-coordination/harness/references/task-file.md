@@ -236,8 +236,8 @@ not its working files or object database.
 The new prompt names the resolved source, fences its complete `final.md` safely, then includes the
 amendment. The new task's contracts and standing instructions precede that composed task text;
 `rawPrompt` still omits them. It uses a new worker, branch and worktree, not the source session.
-The first composed line says collected changes are already in the folder only when the source has
-`wip.patch` or a `commit`; otherwise it says the earlier attempt left no changes. The standing start
+The first composed line says collected changes are already in the folder only when the source
+changed files; otherwise it says the earlier attempt left no changes. The standing start
 line distinguishes the new worker's start commit from the original `workspace.baseSha`, which
 remains the baseline for judging the final tree.
 Source ledgers are read without creating directories, locks or repairing torn tails. No source lock

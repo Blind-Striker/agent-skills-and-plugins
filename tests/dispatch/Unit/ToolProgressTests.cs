@@ -5,17 +5,18 @@ public sealed class ToolProgressTests
 {
     [Test]
     [NotInParallel]
-    public async Task Tool_resources_replace_only_removed_values_of_at_least_eight_characters()
+    public async Task Tool_resources_replace_only_removed_values_of_at_least_four_characters()
     {
         var property = typeof(Cli).GetProperty(nameof(Cli.RootEnvironment))!;
         var previous = Cli.RootEnvironment;
         try
         {
             property.SetValue(null, WorkerEnvironment.Scrub(new Dictionary<string, string>
-            { ["API_TOKEN_SINGLE"] = "1", ["API_TOKEN_SEVEN"] = "abcdefg", ["API_TOKEN_EIGHT"] = "abcdefgh" }));
+            { ["API_TOKEN_SINGLE"] = "1", ["API_TOKEN_THREE"] = "abc", ["API_TOKEN_FOUR"] = "wxyz", ["DB_PASSWORD"] = "hunter2" }));
             await Assert.That(Call("2026-11-01").Resource).IsEqualTo("2026-11-01");
-            await Assert.That(Call("read abcdefg.txt").Resource).IsEqualTo("read abcdefg.txt");
-            await Assert.That(Call("read abcdefgh.txt").Resource).IsEqualTo("read [REDACTED].txt");
+            await Assert.That(Call("read abc.txt").Resource).IsEqualTo("read abc.txt");
+            await Assert.That(Call("read wxyz.txt").Resource).IsEqualTo("read [REDACTED].txt");
+            await Assert.That(Call("mysql -uroot -phunter2 prod").Resource).IsEqualTo("mysql -uroot -p[REDACTED] prod");
         }
         finally { property.SetValue(null, previous); }
     }

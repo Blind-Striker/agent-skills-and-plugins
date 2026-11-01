@@ -93,8 +93,8 @@ static class Prompt
         {
             var commands = (task.Spec.Verify ?? []).Select(Command)
                 .Concat((task.Spec.AdvisoryVerify ?? []).Select(command => Command(command) + " (advisory)"));
-            lines.Add($"When you finish with `{Settlement.StatusPrefix} done`, the harness runs these commands in your folder, in this order"
-                + (task.Spec.Access == "read-only" ? ":\n" : ". You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox:\n")
+            lines.Add((task.Spec.Access == "read-only" ? "" : "You may run the commands below before you finish; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox. ")
+                + $"When you finish with `{Settlement.StatusPrefix} done`, the harness runs these commands in your folder, in this order:\n"
                 + string.Join("\n", commands));
         }
         if (policy.Deny.Count > 0)

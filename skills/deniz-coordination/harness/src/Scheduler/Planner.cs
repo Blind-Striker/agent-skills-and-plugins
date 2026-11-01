@@ -346,7 +346,7 @@ static class Planner
         var scope = settings.Scope ?? new EffectiveScope { Value = spec.Scope ?? [] };
         var outside = result.FilesChanged.Where(path => Commit.IsDispatch(path) || !Scope.InScope(path, scope, ignoreCase)).Order(StringComparer.Ordinal).ToList();
         if (outside.Count > 0) throw new HarnessException($"continueOf inherited paths outside scope: {string.Join(", ", outside)}");
-        return (source, task, record, creation, final, result.WipPatch is null ? null : patch, result.WipPatch is not null || result.Commit is not null);
+        return (source, task, record, creation, final, result.WipPatch is null ? null : patch, result.FilesChanged.Count > 0);
     }
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,

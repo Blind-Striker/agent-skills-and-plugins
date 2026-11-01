@@ -99,7 +99,7 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
   The task prompt no longer has to carry the base commit; a `reviewOf` task is told both commits.
   Recording and older-workspace availability: [workspace.startSha](ledger.md#taskjson).
 - When there are verify or advisory-verify commands, the next standing line says:
-  ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox:``
+  ``You may run the commands below before you finish; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox. When you finish with `Status: done`, the harness runs these commands in your folder, in this order:``
   For read-only tasks it says only:
   ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order:``
   Each command follows on its own backticked line, indented four spaces under the bullet. Delimiters
