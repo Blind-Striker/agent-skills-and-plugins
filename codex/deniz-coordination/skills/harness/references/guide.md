@@ -48,11 +48,11 @@ Each section says when to use a setting, why, and what it costs. Field details l
 `prepare` is a list of shell commands and names no ecosystem. Use it for dependency steps outside
 the sandbox before the worker starts; [task files](task-file.md#preparation) own execution rules,
 workspace protection and lifecycle. Name concrete offline build/test commands in the worker prompt
-and put adding dependencies out of its scope: the harness does not amend that prompt.
+or `verify`, and put adding dependencies out of its scope.
 
 `prepare` runs the task's base content as you, outside any sandbox: package install scripts and
-build-system hooks run with your rights. On a `reviewOf` task or a base a worker wrote, that is
-worker-authored code; review it first or use script-free forms such as `npm ci --ignore-scripts`.
+build-system hooks run with your rights. On a `reviewOf` or `continueOf` task, or a base a worker wrote,
+that includes worker-authored code; review it first or use script-free forms such as `npm ci --ignore-scripts`.
 
 Each entry is one command; the list stops at the first failure.
 
@@ -83,9 +83,30 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 - `base` takes a branch, a tag or a SHA. A SHA is exact; planning fetches remote-tracking bases before
   resolving them, including revision suffixes and branches without a local tracking ref. Local
   branches and tags use the repository's current refs without fetching. See [plan](cli.md#plan-tasksjsonc---repo-path---contract-path---policy-file).
+- For an eligible failed attempt, [`continueOf`](task-file.md#continuations) keeps its collected work
+  in a new session and independently owned worktree; the new prompt is an amendment. Scope covers
+  the cumulative change from the original baseline, not only the amendment. To deliberately start
+  fresh, omit `continueOf` and supply `base` instead.
 
 ## Verify, advisory verify and review
 
+- After the working-folder line, standing instructions name the recorded start commit, when known:
+  ``Your folder starts at commit `<full commit id>`. That is the base commit of this task; if the task text names another base commit, report the difference as a contradiction and go on.``
+  A `reviewOf` task instead gets:
+  ``Your folder starts at commit `<start>`, the tip of the reviewed task's branch. That task started from commit `<reviewed base>`; its change is the diff between the two.``
+  A `continueOf` task instead gets:
+  ``Your folder starts at commit `<start>`. This task continues an earlier attempt: its base commit is `<workspace.baseSha>`, and your change is judged as the diff from that commit to your final tree. If the task text names another base commit, report the difference as a contradiction and go on.``
+  The task prompt no longer has to carry the base commit; a `reviewOf` task is told both commits.
+  Recording and older-workspace availability: [workspace.startSha](ledger.md#taskjson).
+- When there are verify or advisory-verify commands, the next standing line says:
+  ``You may run the commands below before you finish; run the gates among them as you go, not only at the end. A command you cannot complete here, for lack of access or time, does not block your task: finish, say so in your report, and the harness runs it outside your sandbox. When you finish with `Status: done`, the harness runs these commands in your folder, in this order:``
+  For read-only tasks it says only:
+  ``When you finish with `Status: done`, the harness runs these commands in your folder, in this order:``
+  Each command follows on its own backticked line, indented four spaces under the bullet. Delimiters
+  have one more backtick than the command's longest run, with a space inside each delimiter when the
+  command starts or ends with a backtick. Continuation lines retain the item's indentation: `verify`
+  first, then `advisoryVerify`, with ` (advisory)` after each advisory command. No commands means no
+  command line; structured tasks have none. `rawPrompt` omits both standing lines, like all others.
 - `verify` lists the commands whose failure fails the task. They run after collection, on the task's
   result (the committed tree, or the working folder of an in-place `commit: none` task), as your user,
   outside any sandbox; a stopped or blocked worker's result is not verified. Run each one on the base once before you hand
@@ -113,8 +134,11 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 | `failures` | The machine-readable causes | Each cause has a row in [the ledger](ledger.md) |
 | `warnings` | Findings that did not fail the task | `worker-status-missing` means the success rests on the session outcome alone |
 | `routeVerified` | Every route the backend reported is the requested one | Only `true` supports a claim about which model did the work |
-| `workerStatus` | The worker's own verdict | `stopped` or `blocked`: fix the prompt or the environment, then run a new task |
+| `workerStatus` | The worker's own verdict | `stopped` or `blocked`: read the report, then use the continuation advice below |
 | `zombie` (a failure) | A stop could not be confirmed | The worktree keeps the work; commit and verify were skipped |
 | `wipPatch` | A stopped or blocked worker's unfinished changes, as `wip.patch` | Judge the partial state; verify did not run (`verify[].notRun`) |
 | `recoveredErrors` | Model calls that failed while the session still succeeded | Not a failure; read them when a result looks thin |
 | `tokens` | Input summed over every model call | Not a context size; `cacheRead` is the cached part |
+
+**Fix the prompt or the environment, then run a new task with `continueOf` to keep the eligible attempt’s collected work; its prompt is the amendment.**
+Eligibility and recovery boundaries: [Continuations](task-file.md#continuations).

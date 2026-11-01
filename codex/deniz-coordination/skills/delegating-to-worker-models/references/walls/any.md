@@ -3,7 +3,9 @@
 ## Clone gate
 
 Run a clone detector on the base; the base's clone set is the baseline. A new clone involving a touched
-or new file fails. Count clones by the file pair and the fragment, not by line numbers.
+or new file fails. Count clones by the file pair and the fragment, not by line numbers. When the baseline
+is a committed file, moved code leaves stale entries behind: say in the task whether the worker may remove
+the entries its own change made stale.
 
 Example, to verify once in your environment: `npx -y jscpd@5.4.1 --min-tokens 50 --format <language>
 --reporters json --output <scratch> --silent <source folder>`.

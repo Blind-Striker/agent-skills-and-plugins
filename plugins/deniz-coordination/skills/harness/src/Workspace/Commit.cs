@@ -85,7 +85,7 @@ static class Commit
     }
 
     static Task<byte[]> PatchAsync(Git git, string wt, string start, string end, CancellationToken ct) =>
-        git.CheckBytesAsync(wt, ct, "diff", "--ignore-submodules=none", "--submodule=short", "--binary", "--full-index", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", start, end);
+        git.CheckBytesAsync(wt, ct, "diff", "--ignore-submodules=none", "--submodule=short", "--binary", "--full-index", "--unified=3", "--no-color", "--no-ext-diff", "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", start, end);
 
-    static bool IsDispatch(string path) => path == ".dispatch" || path.StartsWith(".dispatch/", StringComparison.Ordinal);
+    public static bool IsDispatch(string path) => path == ".dispatch" || path.StartsWith(".dispatch/", StringComparison.Ordinal);
 }

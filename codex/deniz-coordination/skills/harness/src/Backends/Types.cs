@@ -124,7 +124,8 @@ static class ToolResource
             if (Credential(assignment.Groups["name"].Value, assignment.Groups["value"].Value))
                 return "[REDACTED]";
         if (Cli.RootEnvironment is { } environment)
-            foreach (var value in environment.Passthrough(environment.Removed).Values.Where(x => x.Length > 0).OrderByDescending(x => x.Length))
+            // A value under 4 characters (a flag such as 1) matches ordinary text such as dates; a short password does not.
+            foreach (var value in environment.Passthrough(environment.Removed).Values.Where(x => x.Length >= 4).OrderByDescending(x => x.Length))
                 resource = resource.Replace(value, "[REDACTED]", StringComparison.Ordinal);
         var lineEnd = resource.IndexOfAny(['\r', '\n']);
         if (lineEnd >= 0) resource = resource[..lineEnd];

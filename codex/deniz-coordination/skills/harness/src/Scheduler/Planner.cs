@@ -76,6 +76,9 @@ static class Planner
             }
             if (!Regex.IsMatch(spec.Id ?? "", "^[a-z0-9][a-z0-9-]{0,39}$")) e.Add("id must match ^[a-z0-9][a-z0-9-]{0,39}$");
             else if (!ids.Add(spec.Id!)) e.Add("duplicate id");
+            foreach (var tag in spec.Tags ?? [])
+                if (!Regex.IsMatch(tag ?? "", "^[a-z0-9][a-z0-9-]{0,39}$", RegexOptions.CultureInvariant))
+                    e.Add($"tag {tag} must match ^[a-z0-9][a-z0-9-]{{0,39}}$");
             if (!Constants.Kinds.Contains(spec.Kind)) e.Add($"kind must be one of {string.Join(", ", Constants.Kinds)}");
             if (spec.Kind == "structured" && spec.Shell is not null) e.Add("shell is forbidden for structured tasks");
             else if (spec.Shell is not null || spec.Verify is { Count: > 0 } || spec.AdvisoryVerify is { Count: > 0 } || spec.Kind != "structured" && spec.Prepare is { Count: > 0 })
@@ -117,6 +120,13 @@ static class Planner
                 && prompt is not null && Regex.IsMatch(prompt, @"\bskills?\b|`[A-Za-z0-9-]+:[A-Za-z0-9-]+`", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
                 plan.Warnings.Add($"{spec.Id}: the prompt mentions a skill, and the task defaults to profile clean, which loads no plugins or skills; set profile full if the worker needs them");
             if (spec.TimeoutMinutes is < 1 or > 720) e.Add("timeoutMinutes must be between 1 and 720");
+            if (spec.ContinueOf is not null)
+            {
+                if (spec.Kind is not ("code" or "mechanical")) e.Add("continueOf requires kind code or mechanical");
+                if (spec.Base is not null) e.Add("continueOf refuses base");
+                if (spec.ReviewOf is not null) e.Add("continueOf refuses reviewOf");
+                if (spec.Workspace == "in-place") e.Add("continueOf refuses in-place workspace");
+            }
             if (Scratch.Required(spec))
             {
                 try { _ = Scratch.Candidate(); }
@@ -137,6 +147,22 @@ static class Planner
                 {
                     if (await Worktree.DirtyAsync(git, repo, ct)) e.Add("workspace-dirty: in-place commit: harness requires a clean working tree");
                     if ((await git.RunAsync(repo, ct, "rev-parse", "--verify", "HEAD^{commit}")).ExitCode != 0) e.Add("in-place commit: harness requires a HEAD commit");
+                }
+            }
+            else if (spec.ContinueOf is not null)
+            {
+                if (e.Count == 0)
+                {
+                    try
+                    {
+                        var source = await CheckContinuationAsync(spec, plan.Config?.Effective.Tasks[spec.Id!].Settings ?? new(), runId, repo, git, ct);
+                        plan.Info.Add($"{spec.Id}: continues {source.Source.RunId}/{source.Task} from {source.CreationSha[..12]}");
+                        var recordedRepo = source.Source.LoadRunInfo().Repo;
+                        if (recordedRepo is not null && !Locations.Same(recordedRepo, repo))
+                            plan.Warnings.Add($"{spec.Id}: continueOf {source.Source.RunId}/{source.Task} was recorded in {recordedRepo}, not this repository; commit ids resolve, but its base ref may mean another commit here");
+                    }
+                    catch (Exception ex) when (ex is HarnessException or IOException or UnauthorizedAccessException or JsonException)
+                    { e.Add(ex.Message); }
                 }
             }
             else if (spec.ReviewOf is null)
@@ -173,8 +199,26 @@ static class Planner
                     {
                         var resolved = await git.RunAsync(repo, ct, "rev-parse", "--verify", "--quiet", $"{spec.Base}^{{commit}}");
                         if (resolved.ExitCode != 0) e.Add($"base {spec.Base} does not resolve in {repo}");
-                        else plan.Info.Add($"{spec.Id}: base {spec.Base} resolves to {resolved.Output.Trim()[..12]}"
-                            + (remote is null ? "" : $" (fetched from {remote})"));
+                        else
+                        {
+                            var sha = resolved.Output.Trim();
+                            plan.Info.Add($"{spec.Id}: base {spec.Base} resolves to {sha[..12]}"
+                                + (remote is null ? "" : $" (fetched from {remote})"));
+                            using var reader = new StringReader(prompt ?? "");
+                            var seen = new HashSet<string>(StringComparer.Ordinal);
+                            while (reader.ReadLine() is { } line)
+                            {
+                                if (!Regex.IsMatch(line, @"(?<![0-9A-Za-z])base(?:[_-]?(?:sha|commit))?(?![0-9A-Za-z])", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) continue;
+                                foreach (Match match in Regex.Matches(line, @"(?<![0-9A-Za-z./:_-])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])"))
+                                {
+                                    var token = match.Value.ToLowerInvariant();
+                                    if (token.Any(c => c is >= '0' and <= '9') && token.Any(c => c is >= 'a' and <= 'f')
+                                        && !line.AsSpan(match.Index + match.Length).StartsWith("..", StringComparison.Ordinal)
+                                        && !sha.StartsWith(token, StringComparison.Ordinal) && seen.Add(token))
+                                        plan.Warnings.Add($"{spec.Id}: the prompt names base commit {token}, but base {spec.Base} resolves to {sha[..12]}");
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -249,6 +293,61 @@ static class Planner
 
     static string EmptyHint(AllowList allow) =>
         allow.IsRestricted && allow.Count == 0 ? " (the effective allow-list allows no opencode routes)" : "";
+
+    public static async Task<(Ledger Source, string Task, TaskRecord Record, string CreationSha, string Final, string? Patch, bool HasChanges)> CheckContinuationAsync(
+        TaskSpec spec, EffectiveSettings settings, string currentRun, string repo, Git git, CancellationToken ct)
+    {
+        var (source, task) = Ledger.OpenContinuation(spec.ContinueOf!, currentRun);
+        var record = source.LoadRecord(task);
+        var result = source.LoadResult(task);
+        var lines = source.Read().Where(x => x.Task == task).ToList();
+        if (source.TaskStates().GetValueOrDefault(task) != "failed" || result is not { State: "failed" }
+            || result.Run != source.RunId || result.Task != task || record.Spec.Id != task)
+            throw new HarnessException("continueOf source must have a consistent final failed result");
+        if (record.Spec.Kind is not ("code" or "mechanical"))
+            throw new HarnessException($"continueOf {source.RunId}/{task}: its kind {record.Spec.Kind} holds no work to continue");
+        var restored = TaskRun.FromLedger(record, source);
+        if (result.Failures.Contains("zombie") || result.WorkerStopped == false || restored.Zombie || restored.WorkerStopped == false
+            || lines.Skip(lines.FindLastIndex(x => x.Type == "prompt") + 1).LastOrDefault(x => x.Type is "stop-unconfirmed" or "hard-stop"
+                || x.Type == "outcome" && x.Data?["workerStopped"] is not null) is { } stop
+                && (stop.Type == "stop-unconfirmed" || stop.Data?[stop.Type == "hard-stop" ? "stopped" : "workerStopped"]?.GetValue<bool>() != true))
+            throw new HarnessException("continueOf refuses a zombie or unconfirmed worker");
+        if (Worktree.InPlace(record) || Worktree.CommitMode(record) != "harness" || result.CommitMode != "harness"
+            || record.Workspace.Path is null || record.Workspace.Branch != $"dispatch/{source.RunId}/{task}" || record.Workspace.BaseRef is null)
+            throw new HarnessException("continueOf requires a harness-managed worktree with harness commit mode");
+        var stopped = result.WorkerStatus is "stopped" or "blocked";
+        var uncommitted = result.OutOfScope.Except(result.FilesChanged, StringComparer.Ordinal).Order(StringComparer.Ordinal).ToList();
+        if (!stopped && (result.Failures.Contains("commit-failed") || uncommitted.Count > 0))
+            throw new HarnessException($"continueOf {source.RunId}/{task}: its uncommitted work is not in the ledger: {(uncommitted.Count > 0 ? string.Join(", ", uncommitted) : "commit-failed")}");
+        if (!stopped && result.Commit is null)
+            throw new HarnessException("continueOf requires a stopped/blocked or committed failed target");
+        var finalIndex = lines.FindLastIndex(x => x.Type == "final");
+        if (finalIndex < 0) throw new HarnessException("continueOf source must have a consistent final failed result");
+        var previous = lines.FindLastIndex(finalIndex - 1, x => x.Type is "final" or "prompt");
+        var collected = lines.Skip(previous + 1).Take(finalIndex - previous - 1).LastOrDefault(x => x.Type == "collected");
+        var patch = Path.Combine(source.Dir, task, "wip.patch");
+        if (collected is null || collected.Data?["commit"]?.GetValue<string>() != result.Commit
+            || collected.Data?["files"]?.GetValue<int>() != result.FilesChanged.Count
+            || (result.WipPatch is not null
+                ? !stopped || result.WipPatch != "wip.patch" || !File.Exists(patch) || result.WipFileCount != result.FilesChanged.Count || result.FilesChanged.Count == 0
+                : File.Exists(patch) || result.WipFileCount is not null || stopped && result.FilesChanged.Count > 0))
+            throw new HarnessException("continueOf source collection evidence is incomplete or inconsistent");
+        var final = await File.ReadAllTextAsync(Path.Combine(source.Dir, task, "final.md"), ct);
+        async Task<string> CommitAsync(string? sha, string label)
+        {
+            if (sha is null || !Regex.IsMatch(sha, "\\A[0-9a-f]{40}([0-9a-f]{24})?\\z")
+                || (await git.RunAsync(repo, ct, "cat-file", "-t", sha)) is not { ExitCode: 0, Output: var type } || type.Trim() != "commit")
+                throw new HarnessException($"continueOf {label} {sha ?? "(missing)"} does not resolve as a commit in {repo}");
+            return sha;
+        }
+        var baseline = await CommitAsync(record.Workspace.BaseSha, "baseSha");
+        var creation = stopped ? baseline : await CommitAsync(result.Commit, "commit");
+        var ignoreCase = await Scope.IgnoreCaseAsync(git, repo, ct);
+        var scope = settings.Scope ?? new EffectiveScope { Value = spec.Scope ?? [] };
+        var outside = result.FilesChanged.Where(path => Commit.IsDispatch(path) || !Scope.InScope(path, scope, ignoreCase)).Order(StringComparer.Ordinal).ToList();
+        if (outside.Count > 0) throw new HarnessException($"continueOf inherited paths outside scope: {string.Join(", ", outside)}");
+        return (source, task, record, creation, final, result.WipPatch is null ? null : patch, result.FilesChanged.Count > 0);
+    }
 
     // Checks that need the server: the agent or route exists at the repo location, is enabled,
     // has its variant, is not manual-class; report shared review lineage as information only.

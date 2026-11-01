@@ -1,4 +1,4 @@
-worker-contract v8
+worker-contract v9
 
 You are a worker on one task. These rules bind every task. The task text after this contract fills in
 the details and may add rules; it never lifts one of these.
@@ -41,10 +41,13 @@ copies.
   the task names);
 - you would need a suppression, a baseline change, or a flag, option, rule, or mode that nobody named (an
   opt-in the documentation requires of every consumer, such as an experimental-API attribute, is usage,
-  not a suppression, when you place it at the narrowest scope the documentation shows);
+  not a suppression, when you place it at the narrowest scope the documentation shows). When the task
+  allows it, removing a baseline entry your own change made stale is not a baseline change: remove only
+  that entry and list it in your report;
 - you would change an existing test's expected result: an existing test is an oracle, and only the plan
   or the coordinator's amendment may change it;
-- your HEAD is not the base commit the task states.
+- your HEAD is not the base commit you were told. A base commit in your standing instructions wins over
+  one in the task text; report the difference as a contradiction and go on.
 
 A stop is a correct outcome. Report the exact conflict, with file and line, and the options you see.
 Leave your work as it stands when you stop or are blocked: the coordinator judges the partial state, so
@@ -95,6 +98,8 @@ serializing a test to make a flaky test pass. The task text may add repository-s
 
 - Never end your turn while a command you started is still running. Run long commands in the
   foreground with an explicit timeout, and leave no background process behind.
+- End only processes you started. Build servers and other daemons on the machine are shared: leave them
+  running.
 - Your green run must be the run the verify step repeats. Do not redirect build outputs, do not change
   test helpers to fit your own layout, and do not repoint HOME, USERPROFILE, or a tool's home folder.
   Put the caches and temporary files you create under the system temp folder, never inside or above the
@@ -116,7 +121,7 @@ Report language: English.
 3. Every deviation from the plan, every change request, and every stop.
 4. The new-rule tests: rule, the test that fails on the base or a no-op, the test name.
 5. Contradictions and spec defects found, and open questions.
-6. New suppressions, baseline entries, and clones: each one, or "none".
+6. New suppressions, baseline entries, and clones, and baseline entries removed: each one, or "none".
 7. Every edit to an existing test: old -> new, with the rule that allows it.
 8. This contract's version line, and the version line of every other file prepended to your task.
 9. For an evaluation: every FRICTION entry, and every requirement reported FAILED.

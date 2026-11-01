@@ -30,12 +30,15 @@ does not mean a flag has an effect. Use the flags below with their owning comman
 
 | Flag | Type | Default | Commands and validation |
 |---|---|---|---|
-| `--repo <path>` | absolute directory | Task-file `repo` for plan/run and selfcheck | Target repository. Required by `routes` (`routes needs --repo`); optional for `selfcheck`, which skips repository checks without one. Relative: `--repo must be an absolute path`. |
+| `--repo <path>` | absolute directory | Task-file `repo` for plan/run and selfcheck | Target repository, or recorded-repository filter for `usage`. Required by `routes` (`routes needs --repo`); optional for `selfcheck`, which skips repository checks without one. Relative: `--repo must be an absolute path`. |
 | `--dir <path>` | absolute directory | None | Parsed but not used by `routes`. It does not set a task's in-place directory. |
 | `--ledger <path>` | absolute directory | User location, then state default | Overrides ledger root for run-addressing commands and run creation. Relative: `--ledger must be an absolute path`. |
 | `--policy <path>` | absolute config-shaped file | No added CLI policy | Plan/run/selfcheck and routes load it. Only restrictions and instructions; recovery uses frozen policy. Relative: `--policy must be an absolute path`. |
 | `--contract <path>` | repeatable absolute file path | None | Plan/run, prepended whole to every task after file contracts. Relative paths: `--contract must be an absolute path`. Validation: [Contracts](task-file.md#contracts). |
-| `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. |
+| `--run <name>` | string | Task-file `run`, then task filename without extension and a trailing `.tasks`; no filter for `usage` | Run creation name; must match `^[a-z0-9][a-z0-9-]{0,40}$`. The harness adds a UTC day prefix. Plan uses it when checking generated workspace names. For `usage`, a wildcard matching recorded run ids instead. |
+| `--since <yyyy-MM-dd>`, `--until <yyyy-MM-dd>` | UTC calendar date | No boundary | `usage` only; inclusive run-creation date filters. Bad values exit 2 and name the value. |
+| `--by <dimensions>` | comma-separated dimension names | `kind,route` | `usage` only; names and grouping semantics below. Unknown names exit 2 and name the value. |
+| `--json` | switch | Off | `usage` prints one JSON document instead of its text table. |
 | `--max <n>` | integer | Layered parallelism, tool default `3` | Plan/run; range 1 through 8. Non-integer: `--max needs an integer`; out of range names `maxParallel` and source. |
 | `--backend <name>` | enum | None | Plan/run preference. For `routes` and `selfcheck` it limits the check to that backend; without it they cover every backend the task file and configuration layers use. Task-file-free `selfcheck` checks every installed backend when the configuration selects none, and names the installed ones it skips otherwise. `opencode` or `codex`. |
 | `--route <entry>` | repeatable qualified route | Effective task or configured route | Plan/run; one per backend, such as `codex:<model>` or `opencode:<provider>/<model>`. Duplicate backend: `--route may be given once per backend`. Invalid qualification fails normalization. |
@@ -206,6 +209,11 @@ For each task with contracts, `plan` prints
 deduplication. The version is the recorded first line described under [Contracts](task-file.md#contracts).
 The caller owns contract selection; planning does not warn about missing contracts.
 
+A valid `continueOf` prints `INFO <task>: continues <resolved-run>/<task> from <12 hex digits>` in
+task-file order. Source checks repeat at workspace preparation using frozen new-task settings;
+planning takes no source lock or lease, and a final target may belong to a still-supervised run.
+Grammar, eligibility, replay and diagnostics: [Continuations](task-file.md#continuations).
+
 When no preference layer set a profile and a task's own `prompt` or `promptFile` text contains
 the case-insensitive whole word `skill` or `skills`, or a backticked `<name>:<name>` token whose
 names contain only letters, digits and hyphens, plan prints:
@@ -251,6 +259,22 @@ git calls remain scrubbed. A failed fetch refuses the plan without retry:
 Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 hex digits>` for each
 base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
 are not fetched.
+
+For a worktree using `base` (neither `reviewOf` nor `continueOf`), plan reads the task's own prompt line by line.
+On lines matching case-insensitive `(?<![0-9A-Za-z])base(?:[_-]?(?:sha|commit))?(?![0-9A-Za-z])`
+(including `base_sha` and `baseSha`), it checks tokens matching
+`(?<![0-9A-Za-z./:_-])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])` with at least one digit and at least one
+letter. Range heads followed by `..`, digest values after `sha256:`, branch suffixes after a hyphen,
+all-digit numbers and all-letter tokens such as `defaced` do not count. Each token is lowercased and compared
+with the start of the resolved full commit id. A mismatch prints, once per distinct lowercased token
+in first-occurrence order:
+
+```text
+WARN <task>: the prompt names base commit <lower-case token>, but base <base> resolves to <12 hex digits>
+```
+
+This is advisory, not a plan error. No matching token means no warning; in-place, `reviewOf` and `continueOf`
+tasks do not get this check.
 
 On Windows, plan measures worktree path depth once per distinct repository and HEAD and reports each
 task's resulting depth when it reaches 248 characters. A measurement failure is advisory:
@@ -320,6 +344,76 @@ It does not wait for success.
 |---|---|---|
 | `0` | integer | Status read successfully, regardless of task outcomes. |
 | `2` | integer | Unknown/unreadable run, newer schema, or corrupt complete event line. |
+
+### `usage [--since <yyyy-MM-dd>] [--until <yyyy-MM-dd>] [--repo <path>] [--run <wildcard>] [--by <dimensions>] [--json] [--ledger <dir>]`
+
+Summarizes tasks across the ledger root without starting a backend or writing ledger files, control
+folders or locks. It can read ledgers whose control folders are absent. Tasks are the union of event
+state keys and non-dot task folders holding `task.json`; an event-only task without a readable record
+is skipped, not silently omitted. State always comes from the event-derived `Ledger.TaskStates()`,
+not the result's recorded state; a folder-only task has `unknown` state and counts as unsettled.
+
+Date filters use the UTC calendar date of `run.json`'s `created`, both boundaries inclusive, not the
+run id's date prefix. Missing or unparsable creation dates fail either date filter. `--repo` compares
+the recorded repository with the supplied full path, trimming a trailing directory separator from both
+with `Path.TrimEndingDirectorySeparator`, case-insensitively on Windows; absent repository
+metadata fails that filter. `--run` uses the harness wildcard matcher (`*` and `?`), ignoring case on
+Windows. No filter means all readable tasks are selected.
+
+`--by` defaults to `kind,route`. Each row is one combination of these dimension values, sorted by
+the selected values using ordinal comparison:
+
+| Dimension | Value |
+|---|---|
+| `kind` | Task spec's kind. |
+| `route` | Result's `routeRequested`, else recorded settings' route value, else `unknown`. |
+| `backend` | Result's backend, else recorded settings' backend value, else `unknown`. |
+| `state` | Event-derived task state. |
+| `outcome` | Result's outcome, else `none`. |
+| `status` | Result's `workerStatus`, else `none`. |
+| `repo` | Run's repository, else `unknown`. |
+| `run` | Run id. |
+| `day` | UTC date of run creation, else `unknown`. |
+| `tag` | Each caller-supplied task tag, ignoring null or empty entries, or `(none)` without remaining tags. |
+
+A task with two tags counts in both tag rows, but only once in the total. Tag-row counts and sums
+can therefore exceed the total; tags describe caller knowledge, such as work item or first scan
+versus re-scan, and do not alter execution.
+
+Each row and the total carry numeric counters `tasks`, `done`, `failed`, `cancelled`, `unsettled`
+(every other state), `stopped` (`workerStatus` is `stopped` or `blocked`), and `tokensIncomplete`
+(results with `tokensComplete: false`, whose known figures still contribute to sums). Measured sums are
+`seconds`, `input`, `cacheRead`, `output`, `reasoning` and `cost`, each paired with a `<sum>Known`
+count of tasks reporting that figure. Token fields are independently nullable. Cost is only the
+reported cost: a Codex task without cost never contributes a synthetic zero or estimate.
+
+OpenCode results written before the 2026-10-23 harness store `tokens.input` without cache reads, so
+`input` can be lower than `cacheRead` in old runs.
+`output` includes reasoning on Codex but not on OpenCode, so a row that mixes backends sums unlike figures.
+
+Seconds run from the task's first `prompt` event to its first `final` event on every backend,
+including harness settlement and verification, not just model execution. Later `collect` events do
+not extend this duration. Either event missing, or a first `final` before the first `prompt`, means
+duration is unknown and contributes nothing to `seconds` or `secondsKnown`.
+
+Text output uses `unknown` when no task reported a measured figure and `<sum> (<known>/<tasks>)`
+when only some did. The total row puts `total` in the first dimension column and leaves the remaining
+dimension columns empty, aligning its figures with the header. Numbers use invariant culture; text
+seconds are rounded to whole numbers and text cost has four decimal places. JSON retains fractional seconds. With no
+selected tasks text prints `no runs`. `--json` prints one document with `rows`, `total` and `skipped`:
+dimension values are under each row's `key` object (the total has an empty key), unknown sums are
+explicit `null`, counters and known counts are always numbers. An empty selection has empty rows,
+zero total counters/known counts and null total sums.
+
+An unreadable, corrupt or newer-schema run becomes a skipped entry `{ "run": "<id>", "task": null,
+"reason": "<text>" }`. An unreadable task record becomes a task-scoped entry; readable siblings
+still count. Skips sort by run, then task. Text prints them to stderr as
+`skipped <n> item(s): <run>[/<task>] (<reason>); ...`; JSON retains them in `skipped`.
+
+| Exit | Type | Meaning |
+|---|---|---|
+| `0` | integer | Ledger root read or missing, including empty selection and skipped runs/tasks. |
+| `2` | integer | Invalid arguments, configuration failure or inability to enumerate the ledger root. |
 
 ### `wait <run> [--timeout <minutes>] [--ledger <dir>]`
 
@@ -424,6 +518,12 @@ still abort the command. OpenCode cancellation semantics are unchanged.
 Already-final tasks are skipped. Prints `nothing to resume` when none need action, or events and a
 status summary. Recovery is backend-specific; see [backends](backends.md).
 
+`resume --continue` recovers the same recorded run/session; task-field `continueOf` instead creates
+a new attempt with an amendment. Prepared continuations recover without source replay; never-prepared
+ones revalidate their source, and incomplete workspace preparation refuses dispatch.
+Existing unprompted-contract limitations remain. [Continuations](task-file.md#continuations) owns
+the readiness and recovery boundaries.
+
 Exception in both forms: a non-terminal task with `prepareRunning` stays queued (a `queued` event is
 persisted), is omitted from supervisor candidates and gets this exact `error` event message:
 
@@ -469,6 +569,8 @@ including after scope cleanup, so a historical `zombie` result alone no longer r
 
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
+Clean, collect and status never follow `continueOf` into another run. Independent ownership and
+conservative inherited-base cleanup: [Continuations](task-file.md#continuations).
 
 Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
 its registration, branch, task temp and temporary index independently. A folder with a missing or

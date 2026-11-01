@@ -33,6 +33,7 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | Field | Type | Default | Validation and meaning |
 |---|---|---|---|
 | `id` | string | Required | `id must match ^[a-z0-9][a-z0-9-]{0,39}$`; duplicate ids fail. Use portable folder names. |
+| `tags` | string array | `[]` | Optional caller-owned labels, such as a work item and `scan-first` or `scan-again`. Each must match `^[a-z0-9][a-z0-9-]{0,39}$`; otherwise `tag <tag> must match ^[a-z0-9][a-z0-9-]{0,39}$`. They do not affect execution and are retained in `task.json`'s spec for `usage --by tag`. |
 | `kind` | string enum | Required | `code`, `review`, `research`, `mechanical`, `structured`; otherwise `kind must be one of code, review, research, mechanical, structured`. |
 | `route` | string | Effective backend's `defaultRoutes` entry | Exactly one effective route or `agent`: `name exactly one of route or agent after merging`. The catalog must offer the model and variant or effort. |
 | `agent` | string | None | opencode roster agent with a pinned model. Codex: `codex refuses agent and persona`. An inherited default route also counts against the exactly-one rule. Manual-class agents are refused. |
@@ -40,8 +41,9 @@ folder, or may be absolute. `dir` has a different base: the repository root.
 | `prompt` | string | None | Exactly one of `prompt` and `promptFile`; otherwise `name exactly one of prompt or promptFile`. Whitespace-only text: `prompt is empty`. |
 | `promptFile` | string path | None | Same exclusivity as `prompt`; missing file: `promptFile not found: <path>`. |
 | `contracts` | string array | `[]` | File paths added after top-level contracts and before CLI contracts. Same resolution and validation as top-level [Contracts](#contracts). |
-| `base` | string Git ref | Required for a non-structured worktree without `reviewOf` | `base is required (a branch, tag or commit of the repo)` or `base <ref> does not resolve in <repo>`. A remote-tracking base is fetched before resolution; plan and run print `INFO <task>: base <base> resolves to <12 hex digits> (fetched from <remote>)`, omitting the suffix for local branches, tags and SHAs (no fetch). In-place refuses it. |
+| `base` | string Git ref | Required for a non-structured worktree without `reviewOf` or `continueOf` | `base is required (a branch, tag or commit of the repo)` or `base <ref> does not resolve in <repo>`. A remote-tracking base is fetched before resolution; plan and run print `INFO <task>: base <base> resolves to <12 hex digits> (fetched from <remote>)`, omitting the suffix for local branches, tags and SHAs (no fetch). A prompt naming a different base commit produces a warning, not a refusal; [plan](cli.md#plan-tasksjsonc---repo-path---contract-path---policy-file) owns matching and warning text. In-place refuses it. |
 | `reviewOf` | string task id | None | Starts from that task's branch after it finishes. Refuses self or missing target: `reviewOf names no other task`; refuses chains: `reviewOf chains are not supported`. With `base`: `a reviewOf task starts from the reviewed task's branch; omit base`. A non-review kind produces a warning. Use a worktree author. |
+| `continueOf` | string `<run>/<task>` | None | Task-entry only. A new code or mechanical attempt from an eligible failed task's collected work; `prompt` or `promptFile` is its amendment. Refuses `base`, `reviewOf` and effective in-place workspace. See [Continuations](#continuations). |
 | `scope` | string array | `[]` | `code and mechanical tasks declare a scope` when absent or empty. Structured tasks refuse it. Every changed path on review or research is out of scope regardless of this field. |
 | `prepare` | string array | No commands | Task-entry only, never `defaults`. Unset/empty runs and records nothing, including for structured tasks. Every non-structured kind accepts it; a non-empty structured value refuses with `prepare is forbidden for structured tasks`. See [Preparation](#preparation). |
 | `verify` | string array | No commands | Runs after collection for a succeeded non-structured task. Structured tasks refuse it. A missing or unsupported shell is a plan error. |
@@ -169,6 +171,91 @@ settings, so a value inherited from defaults or CLI may reach a later start chec
 
 An in-place run refuses a worktree or ledger root inside the repository. `clean` removes its temp
 and temporary index, but leaves the in-place folder, edits and current branch alone.
+
+## Continuations
+
+Use `continueOf: "<recorded-run>/<task>"` in a new run. It is not a preference, default, config
+field or CLI flag. The run component uses lowercase letters, digits and hyphens, beginning with a
+letter or digit; the task component follows the normal task-id grammar. Exactly one forward slash
+is required. Absolute paths, traversal, backslashes and extra components refuse with
+`continueOf must name <run>/<task> using safe run and task names`.
+Resolution uses only the currently configured ledger root (including `--ledger`), and the usual
+full-id/unique-bare-name rules. Ambiguous names list matches; missing runs and tasks name the missing
+evidence. The source must be a distinct recorded run, not another task in the new run. Bare-name
+matching excludes the current run, including when a task-file name is reused on a later day.
+
+Only `code` and `mechanical` accept the field. Local diagnostics are `continueOf requires kind code
+or mechanical`, `continueOf refuses base`, `continueOf refuses reviewOf`, and `continueOf refuses
+in-place workspace`. Mandatory scope, contracts, routes, shells, overlap and workspace-collision
+checks still apply. An invalid continuation does not also require `base`.
+
+The source kind must be `code` or `mechanical`; otherwise the shared plan/preparation check refuses
+with `continueOf <run>/<task>: its kind <kind> holds no work to continue`.
+The source's event-derived state and result must both be failed, with consistent identities. It
+must have a recorded harness-managed worktree and harness commit mode, no `zombie` failure and no
+current unconfirmed-worker evidence. Eligibility is parsed `workerStatus: stopped` or `blocked`,
+or otherwise a recorded `commit` (a committed failed target, commonly a verify failure).
+For a source without stopped/blocked worker status, a `commit-failed` failure or an `outOfScope`
+path absent from `filesChanged` refuses: `continueOf <run>/<task>: its uncommitted work is not in the
+ledger: <sorted paths or commit-failed>`. The paths are ordinal-sorted; `commit-failed` is used only
+when there are no such paths. An ordinary verify failure with no leftovers remains eligible.
+The latest settlement must have a matching `collected` event and readable `final.md`.
+For stopped/blocked work, a nonempty collection must name exactly `wip.patch`, with matching file
+count and an existing artifact; inconsistent metadata, stray or missing WIP, and incomplete
+collection refuse. No patch is valid for a completed empty snapshot.
+
+Source refusals identify a `consistent final failed result`, a `zombie or unconfirmed worker`, a
+missing `harness-managed worktree with harness commit mode`, an ineligible target, or `source
+collection evidence is incomplete or inconsistent`. Both the original `workspace.baseSha` and the
+creation commit must resolve as commits in the destination repository; missing objects are not
+fetched. Every inherited `filesChanged` path must pass the new task's effective scope, exclusions
+and restriction ceilings, using repository `core.ignorecase`, plus protected `.dispatch` checks.
+One diagnostic lists all offenders in ordinal order: `continueOf inherited paths outside scope: ...`.
+Successful planning prints `INFO <task>: continues <resolved-run>/<task> from <12 hex digits>`.
+If the source `run.json` records a different repository path, plan warns:
+`<task>: continueOf <run>/<task> was recorded in <repo>, not this repository; commit ids resolve, but its base ref may mean another commit here`.
+It remains a warning because worktrees of the same repository have different paths.
+
+Preparation rechecks the source using the new task's frozen settings. A stopped/blocked source starts
+at its original `baseSha` and replays WIP with `git apply --index --whitespace=nowarn -- <patch>`;
+otherwise it starts at the source's result commit with no replay. Replayed changes are staged but
+uncommitted, and HEAD stays at the worker's `startSha`. The inherited `baseRef` and original
+`baseSha` remain the settlement baseline, so another stop collects the cumulative change, including
+earlier committed and uncommitted work, not just the latest amendment.
+
+The preservation contract is the collected Git tree: tracked edits, deletions, non-ignored untracked
+files and worker commits, not ignored outputs or original staging state. Git conversion, attributes
+and filters still apply. Binary hunks are replayed without text conversion by the harness. LFS carries
+pointer blobs and submodules carry gitlink IDs, not payloads, submodule-local edits or object transport;
+normal object/filter availability is required. No submodule initialization is added. Replay uses the
+new run's Git configuration baseline and all ordinary write protections, never the source's baseline.
+A case-only rename on a case-insensitive file system cannot be replayed and fails preparation with
+Git's message. A worker's untracked nested repository arrives as an empty folder and a commit id,
+not its working files or object database.
+
+The new prompt names the resolved source, fences its complete `final.md` safely, then includes the
+amendment. The new task's contracts and standing instructions precede that composed task text;
+`rawPrompt` still omits them. It uses a new worker, branch and worktree, not the source session.
+The first composed line says collected changes are already in the folder only when the source
+changed files; otherwise it says the earlier attempt left no changes. The standing start
+line distinguishes the new worker's start commit from the original `workspace.baseSha`, which
+remains the baseline for judging the final tree.
+Source ledgers are read without creating directories, locks or repairing torn tails. No source lock
+is taken: a final target stays readable while sibling tasks remain supervised. A queued task uses
+the latest eligible source evidence when prepared, not a plan-time lease.
+
+The source worktree may already be cleaned if retained evidence and required commits still resolve.
+After the successful `worktree` event, recovery uses only the new record/workspace and does not
+reread or replay the source. A saved workspace without that ready event refuses with `continueOf
+workspace preparation is incomplete; refusing recovery`. Apply failure retains owned workspace and
+composed text for inspection/cleanup, writes the existing workspace-start error/final events with
+Git's diagnostic, and runs no worker, shell prepare, collection or verify; `result.json` is not
+guaranteed. Unprompted tasks with contracts retain the existing contract-body recovery limitation.
+
+`collect`, `status` and `clean` stay run-local and never traverse `continueOf`. Cleanup of either run
+does not own the other's worktree or branch. Inherited `baseRef` can disappear when the source used
+a reviewed branch; ordinary non-force cleanup then remains conservative, not guaranteed to succeed.
+Manual deletion, forced pruning and unavailable LFS/submodule objects are not covered.
 
 ## Preparation
 

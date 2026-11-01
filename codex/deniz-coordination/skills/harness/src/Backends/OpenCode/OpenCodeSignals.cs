@@ -24,6 +24,11 @@ sealed partial class OpenCodeBackend
                 {
                     switch (item)
                     {
+                        case UnknownEvent unknown when unknown.Type.StartsWith("permission.", StringComparison.Ordinal)
+                            || unknown.Type.StartsWith("form.", StringComparison.Ordinal)
+                            || unknown.Type.StartsWith("session.execution.", StringComparison.Ordinal):
+                            Emit(new WorkerSignal.Fault(null, "unknown-event", unknown.Type));
+                            break;
                         case BusBarrier barrier:
                             barrier.Completion.TrySetResult();
                             break;

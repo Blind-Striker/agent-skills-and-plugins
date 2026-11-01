@@ -11,6 +11,9 @@ How `delegating-to-worker-models` maps onto the harness:
   `references/worker-contract.md` and then the worker file that `references/models/README.md` names
   for the task's model and role, taken from the loaded skill's folder. A model or role without a
   worker file gets only `worker-contract.md`.
+- After a worker stops, a new task with `continueOf: <run>/<task>` goes on from its collected work; its prompt
+  is the amendment. `usage` sums runs, tokens, cost and duration across the ledgers; give tasks `tags` to
+  group them by work item.
 - `clean --force` removes unmerged and dirty work, so it is a reserved action: run it only on runs you
   started, and only on the user's word.
 - The record of the model that ran is `routeVerified: true` in the task's result; the family claim

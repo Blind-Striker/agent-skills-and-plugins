@@ -28,6 +28,7 @@ static class Cli
             Locations.Resolve();
             a.ValidatePaths();
             ConfigLayers.Initialize(a);
+            if (a.Command == "usage") return Commands.Usage(a);
             RootEnvironment = WorkerEnvironment.Scrub(WorkerEnvironment.Snapshot(), ConfigLayers.User?.Restrictions?.Scrub);
             foreach (var name in RootEnvironment.Removed) Environment.SetEnvironmentVariable(name, null);
             using var gitControl = Git.Initialize();
@@ -101,6 +102,9 @@ static class Cli
               run <tasks.jsonc> [--run <name>] [--max <n>] [--repo <path>] [--policy <file>]
                                                    dispatch, supervise, settle and verify
               status [<run>]                       summarize one run, or list runs
+              usage [--since <yyyy-MM-dd>] [--until <yyyy-MM-dd>] [--repo <path>]
+                    [--run <wildcard>] [--by <dimensions>] [--json] [--ledger <dir>]
+                                                    summarize recorded task usage; read-only
               wait <run> [--timeout <minutes>] [--ledger <dir>]
                                                    wait for final tasks (default 60 minutes)
               resume <run> [--continue] [--policy <file>]

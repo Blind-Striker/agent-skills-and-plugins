@@ -42,7 +42,7 @@ dotnet dispatch.cs -- <command> [arguments]
   checks each backend the configuration selects, or every installed one when none is selected
   (version, sign-in, catalog, a clean profile), Windows readiness and every resolved folder, and sends
   no prompt. Discovery and exit behavior: `references/cli.md`.
-- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `wait`, `asks`, `reply`, `cancel`, `collect`,
+- Commands: `selfcheck`, `routes`, `plan`, `run`, `status`, `usage`, `wait`, `asks`, `reply`, `cancel`, `collect`,
   `resume`, `clean`. Arguments, output and exit codes of each: `references/cli.md`.
 
 ## Backend and modes
@@ -145,7 +145,10 @@ A recorded run is never run again and its ledger is never edited by hand.
   server is gone are also lost, never reconstructed. `resume <run> --continue` re-prompts interrupted
   unfenced opencode tasks and starts the tasks that never started.
 - A task without a result while no supervisor holds the run: `collect <run> <task>`.
-- Only what collect cannot recover goes into a new task file, under a new run id.
+- A new attempt can retain eligible failed work without reusing the recorded run: set task-field
+  [`continueOf`](references/task-file.md#continuations) and make its prompt the amendment.
+- Work that needs a fresh attempt goes into a new task file, under a new run id; use `base` for a
+  deliberate fresh start rather than retaining collected work.
 
 ## Traps
 
