@@ -27,6 +27,7 @@ sealed class CodexProcess : IAsyncDisposable
     readonly List<string> errors = [];
     readonly List<string> observations = [];
     Task<InterruptResult>? stopping;
+    TaskCompletionSource? stopRequested;
     bool disposed;
     bool trackingReliable = true;
 
@@ -113,15 +114,20 @@ sealed class CodexProcess : IAsyncDisposable
         }
     }
 
-    internal void SetPendingStop(Task<InterruptResult> pendingStop)
+    internal void SetPendingStop(Task<InterruptResult> pendingStop, TaskCompletionSource? requested = null)
     {
-        lock (gate) stopping = pendingStop;
+        lock (gate)
+        {
+            stopping = pendingStop;
+            stopRequested = requested;
+        }
     }
 
     public Task<InterruptResult> StopAsync()
     {
         lock (gate)
         {
+            stopRequested?.TrySetResult();
             if (stopping is null || stopping.IsCompleted && (!stopping.IsCompletedSuccessfully || !stopping.Result.Stopped))
                 stopping = StopCoreAsync();
             return stopping;
