@@ -9,6 +9,53 @@ namespace Dispatch.Tests.Unit;
 public sealed class PromptTests
 {
     [Test]
+    public async Task Start_commit_and_verify_commands_follow_working_folder_in_exact_order()
+    {
+        const string sha = "fedcba98765432100123456789abcdef0123456789";
+        var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
+        var spec = new TaskSpec { Kind = "research", Verify = ["dotnet test zulu", "dotnet build alpha"], AdvisoryVerify = ["clone-check zulu", "lint alpha"] };
+        var actual = policy.Render(new(spec, "Inspect."), "<workspace>", startSha: sha);
+        var expected = "Standing instructions from the dispatch harness (they apply to the whole task):\n"
+            + "- Your working folder: <workspace>\n"
+            + $"- Your folder starts at commit `{sha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.\n"
+            + "- After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            + "    `dotnet test zulu`\n"
+            + "    `dotnet build alpha`\n"
+            + "    `clone-check zulu` (advisory)\n"
+            + "    `lint alpha` (advisory)\n"
+            + "- Declared scope: (none declared). Changes outside it are flagged for review.\n"
+            + "- Nobody answers questions during this run: a question is cancelled, so continue without the answer.\n"
+            + "- End your final message with exactly one status line: `Status: done` when the task is done, "
+            + "`Status: stopped` when you stopped on a rule or a contradiction, "
+            + "`Status: blocked` when the environment kept you from the work (a missing tool, access or input).\n\n---\nTask:\n\nInspect.\n";
+        await Assert.That(actual).IsEqualTo(expected);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task A_single_verify_or_advisory_list_is_shown_without_a_start_commit(bool advisory)
+    {
+        var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
+        var spec = new TaskSpec { Kind = "research", Verify = advisory ? [] : ["gate"], AdvisoryVerify = advisory ? ["advice"] : [] };
+        var actual = policy.Render(new(spec, "Inspect."), "<workspace>");
+        await Assert.That(actual).Contains("- Your working folder: <workspace>\n"
+            + "- After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+            + (advisory ? "    `advice` (advisory)\n" : "    `gate`\n")
+            + "- Declared scope:");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Raw_prompt_omits_start_commit_and_commands(bool policyRaw)
+    {
+        var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [], RawPrompt = policyRaw };
+        var spec = new TaskSpec { Kind = "research", RawPrompt = !policyRaw, Verify = ["gate"], AdvisoryVerify = ["advice"] };
+        await Assert.That(policy.Render(new(spec, "Inspect."), "<workspace>", startSha: new string('1', 40))).IsEqualTo("Inspect.\n");
+    }
+
+    [Test]
     public async Task Contracts_cannot_silently_disappear_when_inputs_are_unavailable()
     {
         var policy = new Policy { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };

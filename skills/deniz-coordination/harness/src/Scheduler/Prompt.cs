@@ -68,7 +68,7 @@ static class Prompt
             throw new HarnessException($"{task.Id}: rawPrompt conflicts with contracts, instructions or structured input");
     }
 
-    public static string Render(this Policy policy, PlannedOrRecord task, string worktree, Inputs? inputs = null)
+    public static string Render(this Policy policy, PlannedOrRecord task, string worktree, Inputs? inputs = null, string? startSha = null)
     {
         var raw = policy.RawPrompt || task.Spec.RawPrompt == true;
         CheckRaw(raw, task.Spec, inputs?.Contracts.Count ?? task.Spec.Contracts?.Count ?? 0, policy.Instructions.Count);
@@ -83,6 +83,15 @@ static class Prompt
             text.Append('\n');
         }
         var lines = new List<string> { $"Your working folder: {worktree}" };
+        if (startSha is not null)
+            lines.Add($"Your folder starts at commit `{startSha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.");
+        if (task.Spec.Verify is { Count: > 0 } || task.Spec.AdvisoryVerify is { Count: > 0 })
+        {
+            var commands = (task.Spec.Verify ?? []).Select(command => $"    `{command}`")
+                .Concat((task.Spec.AdvisoryVerify ?? []).Select(command => $"    `{command}` (advisory)"));
+            lines.Add("After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:\n"
+                + string.Join("\n", commands));
+        }
         if (policy.Deny.Count > 0)
         {
             var denied = string.Join(", ", policy.Deny.SelectMany(rule => rule.Resources!.Select(resource => $"{rule.Action} `{resource}`")));

@@ -10,11 +10,68 @@ namespace Dispatch.Tests.Integration;
 public sealed class PromptTests
 {
     [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Unprompted_resume_records_a_new_worktree_start_but_does_not_backfill_a_prepared_workspace(bool prepared, CancellationToken ct)
+    {
+        using var lab = new CoreLab("prompt-resume");
+        var run = await lab.TaskAsync("inspect", ct);
+        var sha = run.Record.Workspace.BaseSha!;
+        run.Record.Spec.Base = "main";
+        run.Record.Spec.RawPrompt = false;
+        if (!prepared) run.Record.Workspace = new();
+        lab.Ledger.SaveRecord(run.Record);
+        lab.Backend.OnPrompt = (input, _) =>
+        {
+            lab.Backend.Emit(new WorkerSignal.Ended(run.Id, "turn", "succeeded", null));
+            return Task.FromResult(input.Worker with { Turn = "turn" });
+        };
+        await lab.Scheduler(ct).ResumeAsync([TaskRun.FromLedger(lab.Ledger.LoadRecord(run.Id), lab.Ledger)], true);
+        await Assert.That(lab.Ledger.LoadResult(run.Id)!.Failures).IsEmpty();
+        var record = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.Ledger.Dir, run.Id, "task.json")))!;
+        await Assert.That(record["workspace"]!.AsObject().ContainsKey("startSha")).IsEqualTo(!prepared);
+        await Assert.That(record["workspace"]!["startSha"]?.GetValue<string>()).IsEqualTo(prepared ? null : sha);
+        var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
+        await Assert.That(input.Prompt.Text.Split('\n').Where(line => line.StartsWith("- Your folder starts at commit", StringComparison.Ordinal)))
+            .IsEquivalentTo(prepared ? [] : new[] { $"- Your folder starts at commit `{sha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction." }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [NotInParallel]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task In_place_and_scratch_workspaces_leave_start_commit_unset(bool scratch, CancellationToken ct)
+    {
+        using var lab = new CoreLab("prompt-no-start");
+        var run = await lab.TaskAsync("inspect", ct);
+        run.Record.Workspace = new();
+        run.Record.Spec.RawPrompt = false;
+        if (scratch)
+        {
+            lab.Structured(run);
+            run.Record.Spec.Project = "off";
+        }
+        else run.Record.Spec.Workspace = "in-place";
+        try
+        {
+            await new TaskStarter(lab.Backend, lab.Ledger, lab.Tree.Repository, AllowList.From(null), lab.Policy, lab.Git).StartAsync(run, ct);
+            var record = JsonNode.Parse(File.ReadAllText(Path.Combine(lab.Ledger.Dir, run.Id, "task.json")))!;
+            await Assert.That(record["workspace"]!["path"]?.GetValue<string>()).IsEqualTo(run.Record.Workspace.Path);
+            await Assert.That(record["workspace"]!.AsObject().ContainsKey("startSha")).IsFalse();
+            var input = ((WorkerRef Worker, WorkerPrompt Prompt))lab.Backend.Calls.Single(call => call.Member == "PromptAsync").Input!;
+            await Assert.That(input.Prompt.Text).DoesNotContain("Your folder starts at commit");
+        }
+        finally { Scratch.Delete(run.Record, lab.Ledger); }
+    }
+
+    [Test]
     [Timeout(180_000)]
     public async Task Explicit_contract_files_are_prepended_whole_and_recorded(CancellationToken cancellationToken)
     {
         using var tree = new TempTree();
         var repo = await LabRepo.CreateAsync(tree, cancellationToken);
+        var baseSha = await repo.GitAsync(["rev-parse", "main"], cancellationToken);
         var tasks = Path.Combine(tree.Root, "tasks.jsonc");
         var paths = new[] { Path.Combine(tree.Root, "zulu.md"), Path.Combine(tree.Root, "alpha.md") };
         var texts = new[] { "Contract Z v1\r\nKeep this.\r\n", "Coordinator preamble\nworker-model example v1\nİyi günler 世界" };
@@ -28,6 +85,7 @@ public sealed class PromptTests
         (await harness.RunAsync(["run", tasks, "--repo", repo.Root], cancellationToken, environment)).RequireSuccess("contract run");
         var run = Directory.GetDirectories(Path.Combine(tree.DispatchHome, "state", "ledgers")).Single();
         var record = JsonNode.Parse(File.ReadAllText(Path.Combine(run, "inspect", "task.json")))!;
+        await Assert.That(record["workspace"]!["startSha"]?.GetValue<string>()).IsEqualTo(baseSha);
         var frozen = JsonNode.Parse(File.ReadAllText(Path.Combine(run, "config.json")))!;
         foreach (var contracts in new[] { record["contracts"]!, frozen["tasks"]!["inspect"]!["contracts"]! })
         {
@@ -46,6 +104,7 @@ public sealed class PromptTests
         var workspace = record["workspace"]!["path"]!.GetValue<string>();
         var expected = texts[0] + "\n" + texts[1] + "\n\nStanding instructions from the dispatch harness (they apply to the whole task):\n"
             + $"- Your working folder: {workspace}\n"
+            + $"- Your folder starts at commit `{baseSha}`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.\n"
             + "- Declared scope: (none declared). Changes outside it are flagged for review.\n"
             + "- This is a read-only task: do not create, change or delete files. Report your findings instead.\n"
             + "- Nobody answers questions during this run: a question is cancelled, so continue without the answer.\n"

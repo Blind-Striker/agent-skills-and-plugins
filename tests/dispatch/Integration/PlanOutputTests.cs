@@ -8,6 +8,48 @@ namespace Dispatch.Tests.Integration;
 public sealed class PlanOutputTests
 {
     [Test]
+    [Arguments("Base: fedcba98765432100123456789abcdef0123456789.", "fedcba98765432100123456789abcdef0123456789", "worktree")]
+    [Arguments("Base: 87654321.", "87654321", "worktree")]
+    [Arguments("bAsE: FEDCBA98765432100123456789ABCDEF0123456789.", "fedcba98765432100123456789abcdef0123456789", "worktree")]
+    [Arguments("Base: 87654321, 87654321.", "87654321", "worktree")]
+    [Arguments("Base: FEDCBA98-12345678, fedcba98.\r\nBASE: 87654321!", "fedcba98,12345678,87654321", "worktree")]
+    [Arguments("Base: RIGHT_SHA.", "", "worktree")]
+    [Arguments("Base: RIGHT_PREFIX.", "", "worktree")]
+    [Arguments("Inspect 87654321.\nBase: main.", "", "worktree")]
+    [Arguments("Base: defaced.", "", "worktree")]
+    [Arguments("Database: 87654321.", "", "worktree")]
+    [Arguments("Base: x87654321, 87654321z.", "", "worktree")]
+    [Arguments("Base: 87654321.", "", "reviewOf")]
+    [Arguments("Base: 87654321.", "", "in-place")]
+    public async Task Plan_warns_for_distinct_wrong_base_tokens_in_prompt_order(string prompt, string tokens, string workspace, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = await LabRepo.CreateAsync(tree, ct);
+        var sha = await repo.GitAsync(["rev-parse", "main"], ct);
+        prompt = prompt.Replace("RIGHT_SHA", sha, StringComparison.Ordinal).Replace("RIGHT_PREFIX", sha[..8], StringComparison.Ordinal);
+        var task = new System.Text.Json.Nodes.JsonObject { ["id"] = "inspect", ["kind"] = "research", ["route"] = "fixture/model", ["prompt"] = prompt };
+        var tasks = new System.Text.Json.Nodes.JsonArray();
+        if (workspace == "reviewOf")
+        {
+            tasks.Add(System.Text.Json.Nodes.JsonNode.Parse("""{"id":"author","kind":"code","base":"main","scope":["a.txt"],"route":"fixture/model","prompt":"Edit."}"""));
+            task["kind"] = "review";
+            task["reviewOf"] = "author";
+        }
+        else if (workspace == "in-place") task["workspace"] = "in-place";
+        else task["base"] = "main";
+        tasks.Add(task);
+        var path = Path.Combine(tree.Root, "tasks.jsonc");
+        File.WriteAllText(path, new System.Text.Json.Nodes.JsonObject { ["schemaVersion"] = 2,
+            ["defaults"] = new System.Text.Json.Nodes.JsonObject { ["backend"] = "opencode" }, ["tasks"] = tasks }.ToJsonString());
+        var git = new Git(Executables.Resolve("git"), Path.Combine(tree.Root, "control"), tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
+        var plan = await Planner.LoadAsync(path, repo.Root, AllowList.From(null), ct, git);
+        await Assert.That(plan.Errors).IsEmpty();
+        await Assert.That(plan.Tasks.Select(x => x.Spec.Id!)).IsEquivalentTo(workspace == "reviewOf" ? new[] { "author", "inspect" } : new[] { "inspect" }, CollectionOrdering.Matching);
+        await Assert.That(plan.Warnings).IsEquivalentTo(tokens.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(token =>
+            $"inspect: the prompt names base commit {token}, but base main resolves to {sha[..12]}"), CollectionOrdering.Matching);
+    }
+
+    [Test]
     [NotInParallel]
     [Arguments(false)]
     [Arguments(true)]

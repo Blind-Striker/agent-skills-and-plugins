@@ -105,6 +105,7 @@ static class Worktree
         record.Workspace.Branch = branch;
         record.Workspace.BaseRef = baseRef;
         record.Workspace.BaseSha = baseSha;
+        record.Workspace.StartSha = baseSha;
         ledger.SaveRecord(record);
         ledger.Write(run.Id, "worktree", new JsonObject { ["path"] = path, ["branch"] = branch, ["base"] = baseRef, ["baseSha"] = baseSha });
     }

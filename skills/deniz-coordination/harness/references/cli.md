@@ -252,6 +252,20 @@ Before warnings, plan and run print `INFO <task>: base <base> resolves to <12 he
 base, appending ` (fetched from <remote>)` for remote-tracking bases. Local branches, tags and SHAs
 are not fetched.
 
+For a non-`reviewOf` worktree whose base resolves, plan reads the task's own prompt line by line.
+On lines containing the case-insensitive whole word `base` (`\bbase\b`), it checks tokens matching
+`(?<![0-9A-Za-z])[0-9a-fA-F]{7,64}(?![0-9A-Za-z])` with at least one digit. Hyphens and punctuation
+end tokens; all-letter tokens such as `defaced` do not count. Each token is lowercased and compared
+with the start of the resolved full commit id. A mismatch prints, once per distinct lowercased token
+in first-occurrence order:
+
+```text
+WARN <task>: the prompt names base commit <lower-case token>, but base <base> resolves to <12 hex digits>
+```
+
+This is advisory, not a plan error. No matching token means no warning; in-place and `reviewOf`
+tasks do not get this check.
+
 On Windows, plan measures worktree path depth once per distinct repository and HEAD and reports each
 task's resulting depth when it reaches 248 characters. A measurement failure is advisory:
 `WARN <task>: worktree path depth not measured (<reason>)`; it does not refuse the plan.

@@ -171,6 +171,7 @@ sealed class WorkspaceRecord
     public string? Branch { get; set; }
     public string? BaseRef { get; set; }
     public string? BaseSha { get; set; }
+    public string? StartSha { get; set; }
 }
 
 sealed class SessionRecord

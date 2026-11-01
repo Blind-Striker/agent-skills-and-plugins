@@ -48,7 +48,7 @@ Each section says when to use a setting, why, and what it costs. Field details l
 `prepare` is a list of shell commands and names no ecosystem. Use it for dependency steps outside
 the sandbox before the worker starts; [task files](task-file.md#preparation) own execution rules,
 workspace protection and lifecycle. Name concrete offline build/test commands in the worker prompt
-and put adding dependencies out of its scope: the harness does not amend that prompt.
+or `verify`, and put adding dependencies out of its scope.
 
 `prepare` runs the task's base content as you, outside any sandbox: package install scripts and
 build-system hooks run with your rights. On a `reviewOf` task or a base a worker wrote, that is
@@ -86,6 +86,15 @@ Per-ecosystem configuration, each recipe labelled with where it was tried: [cook
 
 ## Verify, advisory verify and review
 
+- After the working-folder line, standing instructions name the recorded start commit, when known:
+  ``Your folder starts at commit `<full commit id>`. This is the base commit of the task, whatever the task text says; report a different commit named in the text as a contradiction.``
+  The task prompt no longer has to carry the base commit.
+  Recording and older-workspace availability: [workspace.startSha](ledger.md#taskjson).
+- When there are verify or advisory-verify commands, the next standing line says:
+  `After you finish, the harness runs these commands in your folder, in this order. You may run them earlier; run the gates among them as you go, not only at the end:`
+  Each command follows on its own backticked line, indented four spaces under the bullet: `verify`
+  first, then `advisoryVerify`, with ` (advisory)` after each advisory command. No commands means no
+  command line; structured tasks have none. `rawPrompt` omits both standing lines, like all others.
 - `verify` lists the commands whose failure fails the task. They run after collection, on the task's
   result (the committed tree, or the working folder of an in-place `commit: none` task), as your user,
   outside any sandbox; a stopped or blocked worker's result is not verified. Run each one on the base once before you hand

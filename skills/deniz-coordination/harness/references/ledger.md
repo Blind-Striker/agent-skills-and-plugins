@@ -169,6 +169,7 @@ Every scalar setting uses this wrapper. Not all wrappers have all optional metad
 | `workspace.branch` | string | Worktree tasks only | Task branch. |
 | `workspace.baseRef` | string | Worktree tasks only | Original base or reviewed task's branch. |
 | `workspace.baseSha` | string | Git tasks with HEAD | Starting commit id. |
+| `workspace.startSha` | string | Absent when unset | Full commit id at worktree creation. Recorded by new workspace preparation, including during `resume --continue`; unset for in-place and scratch tasks. An already-prepared workspace is not backfilled. [Standing instructions](guide.md#verify-advisory-verify-and-review) use it when available. |
 | `contracts` | object array | Absent without contracts | Records below, not copies of text. |
 | `contracts[].path` | string path | Resolved path | Original contract path. |
 | `contracts[].from` | string | First occurrence's layer | `task-file`, `task` or `cli`. |

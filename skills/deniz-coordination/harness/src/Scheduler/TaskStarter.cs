@@ -92,7 +92,7 @@ sealed class TaskStarter(IWorkerBackend backend, Ledger ledger, string repo, All
         ledger.Write(run.Id, "environment", new JsonObject { ["variables"] = launch.Environment.Count, ["removed"] = Json.Array(removed) });
         if (record.PromptInputs is null && record.Contracts is { Count: > 0 })
             throw new HarnessException("original contract text is unavailable; cannot start an unprompted task from the ledger");
-        var text = policy.Render(new PlannedOrRecord(record.Spec, record.PromptText), record.Workspace.Path!, record.PromptInputs);
+        var text = policy.Render(new PlannedOrRecord(record.Spec, record.PromptText), record.Workspace.Path!, record.PromptInputs, record.Workspace.StartSha);
         run.PromptAttempted = true;
         var prompted = await backend.PromptAsync(created.Worker, new(text, false), ct);
         run.SaveWorker(prompted, ledger);
