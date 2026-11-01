@@ -65,7 +65,9 @@ public sealed class WorkspaceTests
         File.Move(Path.Combine(sourcePath, "README.md"), Path.Combine(sourcePath, "renamed.md"));
         File.WriteAllText(Path.Combine(sourcePath, "spaced café.txt"), "Unicode path content\n");
         await repo.GitAsync(["-C", sourcePath, "add", "-A"], ct);
-        await repo.GitAsync(["-C", sourcePath, "update-index", "--chmod=+x", "crlf.txt"], ct);
+        // The stop's snapshot re-adds from disk: where the file system has modes, the mode must be there.
+        if (OperatingSystem.IsWindows()) await repo.GitAsync(["-C", sourcePath, "update-index", "--chmod=+x", "crlf.txt"], ct);
+        else File.SetUnixFileMode(Path.Combine(sourcePath, "crlf.txt"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         await Commit.CollectAsync(source.Ledger, source.Run, source.Result, ct, source.Git);
         source.Ledger.SaveResult(source.Result);
         source.Ledger.Write("source", "final", new() { ["state"] = "failed" });
