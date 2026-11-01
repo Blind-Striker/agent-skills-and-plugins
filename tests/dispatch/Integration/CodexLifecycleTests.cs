@@ -107,10 +107,11 @@ public sealed class CodexLifecycleTests
                 await holder.WaitForExitAsync(ct);
             }
             var stop = new TaskCompletionSource<InterruptResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-            process.SetPendingStop(stop.Task);
+            var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            process.SetPendingStop(stop.Task, requested);
             await Task.Factory.StartNew(cancel.Cancel, ct, TaskCreationOptions.None, serial);
             await UntilAsync(() => ledger.Read().Any(line => line.Type == "aborted"), ct);
-            await Task.Factory.StartNew(() => { }, ct, TaskCreationOptions.None, serial);
+            await requested.Task.WaitAsync(ct);
             stop.SetResult(new(false, "mid-turn process survives"));
             bounded = await Task.WhenAny(command, Task.Delay(TimeSpan.FromSeconds(15), ct)) == command;
             homeRetained = Directory.Exists(home);

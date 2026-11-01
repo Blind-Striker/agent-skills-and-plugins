@@ -134,7 +134,8 @@ static class Json
                         File.Move(temp, path, overwrite: true);
                     break;
                 }
-                catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && timer.Elapsed < TimeSpan.FromSeconds(2))
+                // Loaded machines can delay readers releasing their target handles beyond two seconds.
+                catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && timer.Elapsed < TimeSpan.FromSeconds(10))
                 {
                     Thread.Sleep(25);
                 }
