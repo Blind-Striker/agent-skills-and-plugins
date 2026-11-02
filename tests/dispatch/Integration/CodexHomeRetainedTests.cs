@@ -134,6 +134,7 @@ public sealed class CodexHomeRetainedTests
             else
             {
                 var result = core.Ledger.LoadResult(run.Id)!;
+                await Assert.That(result).IsNotNull();
                 await Assert.That(result.Outcome).IsEqualTo("lost");
                 await Assert.That(result.WorkerStopped).IsTrue();
                 await Assert.That(result.Warnings!).Contains("codex-home-retained");
@@ -276,14 +277,21 @@ public sealed class CodexHomeRetainedTests
         });
         using var held = new FileStream(Path.Combine(home.Home, "goals_1.sqlite"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
         await using var backend = new CodexBackend(context) { RunId = core.Ledger.RunId };
-        InterruptResult? stop;
-        if (collect)
+        InterruptResult? stop = null;
+        WorkerReport? report = null;
+        Exception? failure = null;
+        try
         {
-            var report = await backend.CollectAsync(worker, ct);
-            await Assert.That(report.Outcome).IsEqualTo("lost");
-            stop = report.StopResult;
+            if (collect)
+            {
+                report = await backend.CollectAsync(worker, ct);
+                stop = report.StopResult;
+            }
+            else stop = await backend.ReleaseAsync(worker, ct);
         }
-        else stop = await backend.ReleaseAsync(worker, ct);
+        catch (Exception error) { failure = error; }
+        await Assert.That(failure).IsNull();
+        if (collect) await Assert.That(report!.Outcome).IsEqualTo("lost");
         await Assert.That(stop!.Stopped).IsTrue();
         await Assert.That(stop.HomeRetained).Contains("goals_1.sqlite");
         await Assert.That(Directory.Exists(home.Home)).IsTrue();

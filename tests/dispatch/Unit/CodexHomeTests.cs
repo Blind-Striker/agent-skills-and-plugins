@@ -373,13 +373,25 @@ public sealed class CodexHomeTests
             catch (Exception error) { return error; }
         }, ct);
         bool markerKept;
+        bool retryPending;
         try
         {
             await Task.WhenAny(deleting, removed.Task).WaitAsync(ct);
+            // Keep the real lock across multiple retry ticks after deletion has begun.
+            // Releasing it at the first child event could let a non-retrying delete win.
+            await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+            retryPending = !deleting.IsCompleted;
             markerKept = File.Exists(marker);
         }
-        finally { held.Dispose(); await deleting; }
+        finally
+        {
+            held.Dispose();
+            await deleting;
+            // A base deletion can lose the marker; restore proof only for fixture teardown.
+            if (Directory.Exists(home.Home)) File.WriteAllText(marker, home.MarkerText);
+        }
         await Assert.That(await deleting).IsNull();
+        await Assert.That(retryPending).IsTrue();
         await Assert.That(markerKept).IsTrue();
         await Assert.That(Directory.Exists(home.Home)).IsFalse();
     }
@@ -396,12 +408,17 @@ public sealed class CodexHomeTests
         using var held = CreateFileW(home.Home, 0x80000000, 3, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
         await Assert.That(held.IsInvalid).IsFalse();
         var error = await Assert.ThrowsAsync<IOException>(() => Task.Run(home.Dispose, ct));
-        await Assert.That(error!.Message).Contains(Path.GetFileName(home.Home));
-        await Assert.That(Directory.GetFileSystemEntries(home.Home).Select(Path.GetFileName)).IsEquivalentTo(
-            new[] { home.MarkerName }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
-        await Assert.That(File.ReadAllText(Path.Combine(home.Home, home.MarkerName!))).IsEqualTo(home.MarkerText);
+        var children = Directory.GetFileSystemEntries(home.Home).Select(Path.GetFileName).ToArray();
+        var marker = Path.Combine(home.Home, home.MarkerName!);
+        var restoredText = File.Exists(marker) ? File.ReadAllText(marker) : null;
         held.Dispose();
+        // Keep a missing-restoration failure at its oracle, not in the using teardown.
+        File.WriteAllText(marker, home.MarkerText);
         home.Dispose();
+        await Assert.That(error!.Message).Contains(Path.GetFileName(home.Home));
+        await Assert.That(children).IsEquivalentTo(
+            new[] { home.MarkerName }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(restoredText).IsEqualTo(home.MarkerText);
         await Assert.That(Directory.Exists(home.Home)).IsFalse();
     }
 
