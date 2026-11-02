@@ -352,6 +352,89 @@ public sealed class CodexHomeTests
         await Assert.That(File.ReadAllText(auth)).IsEqualTo("synthetic-auth");
     }
 
+    [Test]
+    [Timeout(60_000)]
+    public async Task Locked_child_retries_with_the_marker_kept_until_the_child_goes(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows deletion locks require handles without delete sharing.");
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        var marker = Path.Combine(home.Home, home.MarkerName!);
+        using var held = new FileStream(Path.Combine(home.Home, "goals_1.sqlite"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+        var removed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var watcher = new FileSystemWatcher(home.Home, "config.toml");
+        watcher.Deleted += (_, _) => removed.TrySetResult();
+        watcher.EnableRaisingEvents = true;
+        var deleting = Task.Run(() =>
+        {
+            try { home.Dispose(); return (Exception?)null; }
+            catch (Exception error) { return error; }
+        }, ct);
+        bool markerKept;
+        try
+        {
+            await Task.WhenAny(deleting, removed.Task).WaitAsync(ct);
+            markerKept = File.Exists(marker);
+        }
+        finally { held.Dispose(); await deleting; }
+        await Assert.That(await deleting).IsNull();
+        await Assert.That(markerKept).IsTrue();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Locked_home_folder_restores_its_marker_after_children_are_removed(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows folder handles can deny deletion independently of children.");
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        using var held = CreateFileW(home.Home, 0x80000000, 3, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
+        await Assert.That(held.IsInvalid).IsFalse();
+        var error = await Assert.ThrowsAsync<IOException>(() => Task.Run(home.Dispose, ct));
+        await Assert.That(error!.Message).Contains(Path.GetFileName(home.Home));
+        await Assert.That(Directory.GetFileSystemEntries(home.Home).Select(Path.GetFileName)).IsEquivalentTo(
+            new[] { home.MarkerName }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, home.MarkerName!))).IsEqualTo(home.MarkerText);
+        held.Dispose();
+        home.Dispose();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+    }
+
+    // Preservation: include hidden/system children, and let .NET remove directory links as links.
+    [Test]
+    public async Task Cleanup_removes_hidden_children_without_following_an_outside_directory_link(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        var hidden = Path.Combine(home.Home, ".hidden");
+        File.WriteAllText(hidden, "private");
+        if (OperatingSystem.IsWindows()) File.SetAttributes(hidden, FileAttributes.Hidden | FileAttributes.System);
+        var outside = Directory.CreateDirectory(Path.Combine(tree.Root, "outside")).FullName;
+        File.WriteAllText(Path.Combine(outside, "canary"), "keep");
+        var link = Path.Combine(home.Home, "outside-link");
+        if (OperatingSystem.IsWindows())
+        {
+            using var command = new CapturedProcess();
+            (await command.RunAsync("cmd", ["/c", "mklink", "/J", link, outside], tree.Root, tree.ChildEnvironment(), ct)).RequireSuccess("junction fixture");
+        }
+        else Directory.CreateSymbolicLink(link, outside);
+        home.Dispose();
+        await Assert.That(File.Exists(hidden)).IsFalse();
+        await Assert.That(Directory.Exists(home.Home)).IsFalse();
+        await Assert.That(File.ReadAllText(Path.Combine(outside, "canary"))).IsEqualTo("keep");
+    }
+
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
+    static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security,
+        uint creation, uint flags, IntPtr template);
+
     internal static WorkerLaunch Launch(string directory, string project = "off", string profile = "clean",
         string? actual = null, string? reason = null, string task = "task") =>
         new("run", task, "structured", new("codex", "model-y", null), null, null,

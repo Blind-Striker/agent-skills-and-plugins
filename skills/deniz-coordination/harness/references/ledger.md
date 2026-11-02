@@ -221,6 +221,15 @@ unconfirmed Codex stop always produces failed state with `zombie`, even for a ca
 OpenCode cancellation retains its existing cancelled state and may retain a `zombie` failure.
 Some pre-dispatch errors produce only a final event; inspect events as well.
 
+A confirmed Codex stop with a home that could not be deleted keeps its execution outcome and can
+still settle done. `warnings` includes `codex-home-retained`; an `error` event with `while: release`
+holds the deletion message. Missing ownership markers retain the home too; changed markers and
+unrecognized owners or paths remain safety refusals. Retry `clean` after a lock is released, or
+inspect and manually delete the path when clean reports no ownership marker. A throwing release
+instead adds `release-failed` while preserving `final.md` and `result.json`; without stop evidence,
+workspace collection and verify are skipped. Multiple harness error messages are newline-joined
+in `error`, not replaced by later failures.
+
 For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked
 files without staging in the real index or committing. WIP compares against `workspace.baseSha` in a
 worktree and the recorded `startTree` in-place, excluding pre-existing dirt and supporting unborn
@@ -320,6 +329,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `worker-stopped` | string | The worker's status line says `stopped` or `blocked`: it did not do the task, whatever the session outcome. |
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
+| `release-failed` | string | Codex release threw a non-cancellation, non-ledger exception; the report is preserved, but workspace collection and verify need confirmed stop evidence. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |
 | `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or Codex settlement, release, recovery or cleanup): a process may still write, so workspace collection, commit, verify and scratch deletion were skipped. Codex settles failed even for cancelled outcome; siblings continue. The worktree keeps the work. |
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |

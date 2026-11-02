@@ -200,6 +200,21 @@ preserves the selected Windows sandbox mode, and checks a random marker through 
 by app-server. The worker state records the folder and ownership marker; cleanup refuses an
 unrecognized path or marker and removes the temporary home only after the process tree has stopped.
 
+Deletion includes hidden and system children, removes directory links without following them, and
+deletes the ownership marker last. I/O or access failures retry every 250 ms within one ten-second
+window. If only the home folder remains locked after its marker was deleted, the verified marker is
+restored for a later attempt. A deletion failure never undoes a confirmed stop or loses a live
+worker's report: process-resource cleanup still finishes, settlement records an `error` event with
+`while: release`, and the result gets the non-failing warning `codex-home-retained`.
+A missing ownership marker also retains the home and warns; a changed marker, unrecognized owner
+or path still refuses recorded cleanup. Run `clean` after releasing the lock; if the marker is
+missing, inspect the printed path and delete the home by hand rather than recreating ownership proof.
+
+If release itself throws a non-cancellation, non-ledger exception, settlement preserves the worker's
+text in `final.md` and writes `result.json` with `release-failed`. Without confirmed stop evidence it
+skips workspace collection and verify just as for a zombie; inspect the retained work and resolve
+the release error before cleanup. Cancellation and ledger write failures retain their error paths.
+
 If the sign-in file is unavailable, the hardlink fails, the folder already exists, the probe fails
 or the reported home cannot prove the marker, the backend can use the user home and records
 `settings.profile.actual: clean-partial` plus a reason. When neither location works, the reason names
@@ -253,8 +268,8 @@ unconfirmed Codex stop produces a failed task with `zombie`, including when its 
 cancelled. The harness records task-scoped stop evidence and skips workspace collection, commit,
 verify and scratch deletion while the worker may still write; sibling tasks continue normally.
 This applies at settlement, release, scope cleanup and recorded recovery, including resume and
-collect after a supervisor restart, on every platform. Stop uncertainty alone never aborts the run;
-genuine supervisor, ledger and cleanup errors still follow their error paths.
+collect after a supervisor restart, on every platform. Stop uncertainty and retained-home warnings
+alone never abort the run; other supervisor and ledger errors still follow their error paths.
 Process/job resources, connections, temporary homes and their owning command folders remain owned
 for a later cleanup attempt until stop is confirmed. On Windows the job closes with the supervisor
 (`KILL_ON_JOB_CLOSE`), so a later `resume` normally finds the retained processes ended. An unconfirmed

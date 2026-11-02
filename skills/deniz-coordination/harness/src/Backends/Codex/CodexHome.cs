@@ -277,8 +277,44 @@ sealed class CodexHome : IDisposable
                 throw new HarnessException("temporary Codex home ownership marker does not match");
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        { throw new HarnessException($"temporary Codex home ownership cannot be confirmed ({exception.GetType().Name})"); }
-        Directory.Delete(folder, recursive: true);
+        {
+            var refusal = new HarnessException($"temporary Codex home ownership cannot be confirmed ({exception.GetType().Name})");
+            // Keep Dispose's refusal shape while letting recorded cleanup distinguish a missing or
+            // unreadable marker from a marker mismatch (which must remain a safety refusal).
+            refusal.Data[nameof(CodexHome)] = exception;
+            throw refusal;
+        }
+        var clock = Stopwatch.StartNew();
+        Retry(() =>
+        {
+            foreach (var child in directory.EnumerateFileSystemInfos("*", new EnumerationOptions { AttributesToSkip = 0 }))
+            {
+                if (child.Name == name) continue;
+                if ((child.Attributes & FileAttributes.Directory) != 0) Directory.Delete(child.FullName, recursive: true);
+                else File.Delete(child.FullName);
+            }
+        });
+        Retry(() => File.Delete(marker));
+        try { Retry(() => Directory.Delete(folder)); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            File.WriteAllText(marker, text);
+            throw;
+        }
+
+        void Retry(Action attempt)
+        {
+            while (true)
+            {
+                try { attempt(); return; }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    var remaining = TimeSpan.FromSeconds(10) - clock.Elapsed;
+                    if (remaining <= TimeSpan.Zero) throw;
+                    Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, remaining.TotalMilliseconds)));
+                }
+            }
+        }
     }
 
     static class Native

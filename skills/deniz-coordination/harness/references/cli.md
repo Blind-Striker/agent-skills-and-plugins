@@ -496,6 +496,11 @@ stop writes task-scoped evidence and a failed final event with `zombie` and `wor
 returns 1 without `aborted`, and retains worktree, scratch and the temporary home. Recovery also checks
 a failed creation's recorded worker when it has no turn. A later confirmed check can clear
 restored uncertainty for recollection; historical stop evidence remains.
+In a fresh process Codex still reports `lost`: it cannot recover the live assistant report. A locked
+home or missing ownership marker no longer aborts collection; artifacts are written with `lost`
+and `codex-home-retained`. A changed marker or unrecognized owner/path still refuses. During live
+settlement a throwing release preserves the report with `release-failed`; without stop evidence,
+no workspace collection or verify runs. Ledger errors and cancellation keep their existing handling.
 
 | Exit | Type | Meaning |
 |---|---|---|
@@ -560,7 +565,14 @@ even when clean and merged, printing
 With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
 Git-configuration, lock and in-place protections still apply.
 Codex release checks the recorded stop and deletes its owned temporary home only after confirmation.
-It does not recheck final non-zombies or add stop evidence to them. Cleanup also works when the run's
+It does not recheck final non-zombies' processes or add stop evidence to them. A final non-zombie
+with `codex-home-retained` gets only an ownership-checked home deletion attempt, since its stop was
+already confirmed. Success prints `<task>: codex home removed`. A remaining lock prints
+`<task>: codex home retained (<message>)`, records `clean-failed`, returns 1 and keeps the control
+contents so another `clean` can retry; workspace and other task cleanup still finish. A missing
+marker prints `<task>: codex home has no ownership marker; delete it by hand: <path>`, keeps the
+home and does not fail cleanup. A changed marker still refuses deletion. Final non-zombies without
+the warning remain skipped entirely by session cleanup. Cleanup also works when the run's
 control folder is gone: a missing home needs no deletion, and a present home's owner is checked
 against the run's recorded control path as well as its ownership marker.
 An unconfirmed stop retains the home even with `--force`, prints

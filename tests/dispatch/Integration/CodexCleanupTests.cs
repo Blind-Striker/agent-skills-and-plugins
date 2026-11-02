@@ -148,8 +148,17 @@ public sealed class CodexCleanupTests
         try
         {
             await using var recovered = lab.Backend();
-            var error = await Assert.ThrowsAsync<HarnessException>(() => recovered.ReleaseAsync(worker with { State = state }, ct));
-            await Assert.That(error!.Message).Contains("ownership");
+            if (changedPath)
+            {
+                var error = await Assert.ThrowsAsync<HarnessException>(() => recovered.ReleaseAsync(worker with { State = state }, ct));
+                await Assert.That(error!.Message).Contains("ownership");
+            }
+            else
+            {
+                var stop = await recovered.ReleaseAsync(worker with { State = state }, ct);
+                await Assert.That(stop!.Stopped).IsTrue();
+                await Assert.That(stop.HomeRetained).IsEqualTo("temporary Codex home ownership cannot be confirmed (FileNotFoundException)");
+            }
             await Assert.That(Directory.Exists(home)).IsTrue();
             await Assert.That(Directory.Exists(lab.Tree.Repository)).IsTrue();
         }

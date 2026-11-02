@@ -617,10 +617,10 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (connection is not null) SaveState(connection, worker);
             if (stopped.Stopped && connection is not null)
             {
-                await DisposeConnectionAsync(connection);
+                stopped = await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
-            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker, RunId);
+            else if (stopped.Stopped) stopped = stopped with { HomeRetained = DeleteRetainedHome(worker)?.Message };
             recovered[worker.Id] = stopped;
         }
         return new ReattachResult.Ended("lost", recovered[worker.Id]);
@@ -637,14 +637,25 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         }
         else
         {
-            stopped = recovered.TryGetValue(worker.Id, out var previous) && previous.Stopped ? previous : await StopRecordedAsync(worker, ct);
-            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker, RunId);
+            if (recovered.TryGetValue(worker.Id, out var previous) && previous.Stopped) stopped = previous;
+            else
+            {
+                stopped = await StopRecordedAsync(worker, ct);
+                if (stopped.Stopped) stopped = stopped with { HomeRetained = DeleteRetainedHome(worker)?.Message };
+            }
         }
         recovered[worker.Id] = stopped;
         if (stopped.Stopped) released[worker.Id] = 0;
         return stopped;
     }
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) => Task.FromResult<IReadOnlyList<WorkerRef>>([]);
+    public Exception? DeleteRetainedHome(WorkerRef worker)
+    {
+        try { CodexHome.DeleteRecorded(context, worker, RunId); return null; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            || exception is HarnessException && exception.Data[nameof(CodexHome)] is IOException or UnauthorizedAccessException)
+        { return exception; }
+    }
     Task<InterruptResult> StopRecordedAsync(WorkerRef worker, CancellationToken ct) =>
         CodexProcess.StopRecordedAsync(worker.State, ct, OpenProcess, QueryLimitedStartTime, readSnapshot: ReadSnapshot);
     public async Task<RouteListing> ListRoutesAsync(string directory, CancellationToken ct)
@@ -725,9 +736,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (!stopped.Stopped) return stopped;
             await Rpc.DisposeAsync();
             await Pump;
-            Home?.Dispose();
+            try { Home?.Dispose(); }
+            catch (Exception exception)
+            { stopped = stopped with { HomeRetained = exception.Message }; }
             await Process.CleanupAsync();
             disposed = true;
+            StopResult = stopped;
             return stopped;
         }
         public async ValueTask DisposeAsync() => await CleanupAsync();

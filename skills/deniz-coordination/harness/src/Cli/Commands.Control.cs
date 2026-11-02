@@ -182,13 +182,29 @@ static partial class Commands
         var failures = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var record in records.Where(record => record.Settings.Backend?.Value == "codex" && record.Session.Id is not null))
         {
+            var result = ledger.LoadResult(record.Spec.Id!);
             if (states[record.Spec.Id!] is "done" or "failed" or "cancelled"
-                && ledger.LoadResult(record.Spec.Id!)?.Failures.Contains("zombie") != true) continue;
+                && result?.Failures.Contains("zombie") != true && result?.Warnings?.Contains("codex-home-retained") != true) continue;
             try
             {
                 await using var scope = new BackendScope(["codex"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
                 var run = TaskRun.FromLedger(record, ledger);
-                ((CodexBackend)scope.Backends["codex"]).RunId = ledger.RunId;
+                var codex = (CodexBackend)scope.Backends["codex"];
+                codex.RunId = ledger.RunId;
+                if (states[run.Id] is "done" or "failed" or "cancelled"
+                    && result?.Failures.Contains("zombie") != true)
+                {
+                    var error = codex.DeleteRetainedHome(run.SavedWorker());
+                    if (error?.Data[nameof(CodexHome)] is FileNotFoundException)
+                        Console.WriteLine($"{run.Id}: codex home has no ownership marker; delete it by hand: {record.BackendState.CodexHome}");
+                    else if (error is not null)
+                    {
+                        Console.WriteLine($"{run.Id}: codex home retained ({error.Message})");
+                        failures[run.Id] = error.Message;
+                    }
+                    else Console.WriteLine($"{run.Id}: codex home removed");
+                    continue;
+                }
                 var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
                 run.SaveWorker(run.SavedWorker(), ledger);
                 Settlement.RecordStop(ledger, run, stop);

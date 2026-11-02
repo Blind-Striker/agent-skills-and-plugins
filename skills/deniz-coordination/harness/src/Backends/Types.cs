@@ -153,7 +153,7 @@ abstract record BlockerAnswer
 
 enum InterruptKind { Cancel, Timeout, Hard, Shutdown }
 
-sealed record InterruptResult(bool Stopped, string Detail, bool? Interrupted = null, int? Status = null)
+sealed record InterruptResult(bool Stopped, string Detail, bool? Interrupted = null, int? Status = null, string? HomeRetained = null)
 {
     public string Detail { get; } = BackendValues.NonBlank(Detail, nameof(Detail));
 }
