@@ -126,12 +126,11 @@ static partial class Commands
                 }
                 step = "workspace";
                 var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
-                string? landed = null;
-                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git, reason => landed = reason)) throw new HarnessException("workspace cleanup refused");
+                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git,
+                    reason => ledger.Write(task, "landed", new JsonObject { ["reason"] = reason }))) throw new HarnessException("workspace cleanup refused");
                 if (error is null)
                 {
                     var data = new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force };
-                    if (landed is not null) data["landed"] = landed;
                     ledger.Write(task, "cleaned", data);
                 }
             }

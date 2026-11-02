@@ -558,7 +558,9 @@ Refuses while supervised. Releases opencode sessions and recorded Codex workers 
 or tasks settled with a `zombie` failure, then removes recognized worktrees and task
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base unless the landing checks below prove the work reached the target.
-It never removes an in-place folder or the ledger; `diff.patch` stays in the ledger. Successful
+It never removes an in-place folder or the ledger. If present, `diff.patch` stays in the ledger:
+it holds base-to-HEAD evidence as of settlement, not necessarily the worktree's current content,
+and it may not exist. Ignored files in a removed worktree are deleted, just as for any merged task. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
 It also retains a recorded zombie task's worktree and scratch on either backend, including opencode,
 even when clean and merged, printing
@@ -587,34 +589,43 @@ inherited-base cleanup: [Continuations](task-file.md#continuations).
 
 Plain clean first checks ancestry against the recorded `workspace.baseRef` (the task's `base` as
 written, or its inherited/review base). If that does not prove merger and the worktree is not dirty,
-the target is the ref named by `git symbolic-ref --quiet refs/remotes/origin/HEAD`. Clean does not
-fetch. Without that symbolic ref it keeps the recorded-base result. With a target, it tries:
+the target is the ref named by `git symbolic-ref --quiet refs/remotes/origin/HEAD`. It must start with
+`refs/remotes/origin/` and resolve to a commit; a symref to the task's own branch cannot prove itself.
+Clean does not fetch. Without that symbolic ref, or with an invalid target, it keeps the recorded-base
+result. With a target, it tries:
 
 1. **Ancestor:** both the task branch tip and any registered HEAD must be ancestors of the target.
    The reason is `ancestor of <target>`.
-2. **Same content:** collect paths with
+2. **Same content:** the recorded `workspace.baseSha` must be an ancestor of the target, so deleting
+   the task branch cannot discard unlanded base commits. Collect paths with
    `git diff --name-only -z --no-renames --ignore-submodules=none <workspace.baseSha> <branch tip>`.
-   An empty list or more than 500 paths gives no proof. Compare all those paths together against the
+   An empty list, more than 500 paths, a name containing U+FFFD (which cannot safely round-trip), or
+   space-joined paths exceeding 16,000 characters gives no proof. Compare all those paths together against the
    target tip, then commits from
-   `git --literal-pathspecs rev-list --full-history --max-count=2000 <merge-base of baseSha and target>..<target> -- <paths>`.
+   `git --literal-pathspecs rev-list --full-history --max-count=500 <baseSha>..<target> -- <paths>`.
    A candidate proves landing only when
    `git --literal-pathspecs diff --quiet --no-ext-diff --no-textconv --no-renames --ignore-submodules=none <branch tip> <candidate> -- <paths>`
    exits 0. These are tree comparisons: line-ending and filter settings do not take part; whitespace,
    binary content and modes count. The reason is `content matches <12 digits> on <target>`.
    A registered detached HEAD different from the branch tip takes only the ancestor step, never this
    content step. The recorded `workspace.baseSha` is used unchanged, including inherited continuation
-   bases and review bases (the reviewed task's tip), not `reviewedBaseSha`.
+   bases, not `startSha` or `reviewedBaseSha`. A review whose author branch is gone is refused when
+   its recorded base is not on the target.
 
-A landed task prints `<task>: landed (<reason>)` and is removed like a merged task; its `cleaned`
-event records the reason as `landed`. A landing whose content later changed on the target still
+A landed task prints `<task>: landed (<reason>)` and writes a separate `landed` event with `reason`
+just before removal starts, so the evidence survives a later cleanup failure. The `cleaned` event has
+no landing field and still means all cleanup succeeded. A landing whose content later changed on the target still
 counts when an earlier commit on the target held it. Without ancestry proof, a merge that changed
 the content needs `--force`, as does a task whose paths never matched one commit together. Clean cannot see unfetched
 landings, content only beyond the bounded history search, or content matches across more than 500
-changed paths. Empty changes are not content proof; a task with no commits on its pinned base still
+changed paths or more than 16,000 joined path characters. A stale tracking ref can claim a landing
+later force-pushed away on the remote. Empty changes are not content proof; a task with no commits on its pinned base still
 passes the original ancestry check. Exit 1 from an ancestry or quiet-diff probe means no match. Any
 other landing-probe failure prints
 `<task>: refused (landing check failed: <git's first line>); --force removes it anyway`, keeps the
-task and continues the run's other tasks.
+task and continues the run's other tasks. An empty Git message uses the command and exit code instead.
+Exceptions starting or running a probe use the same refusal with their message (or exception type
+when empty); cancellation propagates instead.
 
 Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
 its registration, branch, task temp and temporary index independently. A folder with a missing or

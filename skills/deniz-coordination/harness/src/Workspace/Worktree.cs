@@ -289,6 +289,11 @@ static class Worktree
                 }
                 if (registration?.Split('\0').Any(x => x == "locked" || x.StartsWith("locked ", StringComparison.Ordinal)) == true)
                     throw new HarnessException($"worktree is locked: {path}");
+                if (landingReason is not null)
+                {
+                    Console.WriteLine($"{task}: landed ({landingReason})");
+                    landed?.Invoke(landingReason);
+                }
                 if (force && !intact) DeleteTemp(path);
                 if ((registration is not null || intact)
                     && await git.RunAsync(repo, ct, force || !exists || removeSubmodules ? ["worktree", "remove", "--force", path] : ["worktree", "remove", path]) is { ExitCode: not 0 } removal)
@@ -314,11 +319,6 @@ static class Worktree
             step = "index";
             Snapshot.Delete(git, task);
             if (Path.Exists(Snapshot.Index(git, task))) throw new HarnessException("temporary index remains");
-            if (landingReason is not null)
-            {
-                Console.WriteLine($"{task}: landed ({landingReason})");
-                landed?.Invoke(landingReason);
-            }
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
@@ -332,29 +332,42 @@ static class Worktree
     {
         async Task<ProcessResult> ProbeAsync(bool noIsOne, params string[] args)
         {
-            var result = await git.RunAsync(repo, ct, args);
-            if (result.ExitCode != 0 && !(noIsOne && result.ExitCode == 1))
-                throw new HarnessException("landing check failed: " + result.Stderr.ReplaceLineEndings("\n").Split('\n')[0]);
-            return result;
+            try
+            {
+                var result = await git.RunAsync(repo, ct, args);
+                if (result.ExitCode != 0 && !(noIsOne && result.ExitCode == 1))
+                {
+                    var message = result.Stderr.ReplaceLineEndings("\n").Split('\n')[0];
+                    throw new HarnessException(string.IsNullOrWhiteSpace(message) ? $"git {args[0]} exited {result.ExitCode}" : message);
+                }
+                return result;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                throw new HarnessException("landing check failed: " + (string.IsNullOrWhiteSpace(ex.Message) ? ex.GetType().Name : ex.Message));
+            }
         }
         static string Text(ProcessResult result) => Encoding.UTF8.GetString(result.Stdout).Trim();
         var symbolic = await ProbeAsync(true, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD");
         if (symbolic.ExitCode == 1) return (null, null);
         var target = Text(symbolic);
+        if (!target.StartsWith("refs/remotes/origin/", StringComparison.Ordinal)) return (null, null);
+        var resolved = await ProbeAsync(true, "rev-parse", "--verify", "--quiet", $"{target}^{{commit}}");
+        if (resolved.ExitCode == 1) return (null, null);
+        var targetTip = Text(resolved);
         var tip = Text(await ProbeAsync(false, "rev-parse", "--verify", $"refs/heads/{branch}^{{commit}}"));
-        var ancestor = await ProbeAsync(true, "merge-base", "--is-ancestor", tip, target);
-        var headAncestor = head is null || head == tip || (await ProbeAsync(true, "merge-base", "--is-ancestor", head, target)).ExitCode == 0;
+        var ancestor = await ProbeAsync(true, "merge-base", "--is-ancestor", tip, targetTip);
+        var headAncestor = head is null || head == tip || (await ProbeAsync(true, "merge-base", "--is-ancestor", head, targetTip)).ExitCode == 0;
         if (ancestor.ExitCode == 0 && headAncestor) return (target, $"ancestor of {target}");
         if (head is not null && head != tip) return (target, null);
         var changed = await ProbeAsync(false, "diff", "--name-only", "-z", "--no-renames", "--ignore-submodules=none", baseSha, tip);
         var paths = Encoding.UTF8.GetString(changed.Stdout).Split('\0', StringSplitOptions.RemoveEmptyEntries);
-        if (paths.Length is 0 or > 500) return (target, null);
-        var targetTip = Text(await ProbeAsync(false, "rev-parse", "--verify", $"{target}^{{commit}}"));
+        if (paths.Length is 0 or > 500 || paths.Any(path => path.Contains('\uFFFD')) || string.Join(' ', paths).Length > 16_000) return (target, null);
+        if ((await ProbeAsync(true, "merge-base", "--is-ancestor", baseSha, targetTip)).ExitCode != 0) return (target, null);
         async Task<bool> MatchesAsync(string candidate) => (await ProbeAsync(true, ["--literal-pathspecs", "diff", "--quiet",
             "--no-ext-diff", "--no-textconv", "--no-renames", "--ignore-submodules=none", tip, candidate, "--", .. paths])).ExitCode == 0;
         if (await MatchesAsync(targetTip)) return (target, $"content matches {targetTip[..12]} on {target}");
-        var common = Text(await ProbeAsync(false, "merge-base", baseSha, target));
-        var history = Text(await ProbeAsync(false, ["--literal-pathspecs", "rev-list", "--full-history", "--max-count=2000", $"{common}..{target}", "--", .. paths]));
+        var history = Text(await ProbeAsync(false, ["--literal-pathspecs", "rev-list", "--full-history", "--max-count=500", $"{baseSha}..{targetTip}", "--", .. paths]));
         foreach (var candidate in history.Split('\n', StringSplitOptions.RemoveEmptyEntries))
             if (await MatchesAsync(candidate)) return (target, $"content matches {candidate[..12]} on {target}");
         return (target, null);
