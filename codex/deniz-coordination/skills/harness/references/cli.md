@@ -500,7 +500,7 @@ In a fresh process Codex still reports `lost`: it cannot recover the live assist
 final text is available, `result.json` exists and `final.md` holds worker text rather than the
 `_No final assistant text without an error._` placeholder, recollection keeps `final.md` unchanged
 and preserves the earlier outcome, worker status (even when absent), `routesUsed`, `routeResolved`
-and `executionError`, without `no-final-text` or `outcome:lost`. Prior route drift and execution errors
+and `executionError`, without `no-final-text` or a lost-outcome failure. Prior route drift and execution errors
 still fail the task; workspace collection, verify, scope and stop checks run as usual, and genuine
 recollection errors still fail. A failed start without worker text does not keep its placeholder.
 Otherwise a locked home or missing ownership marker no longer aborts collection; artifacts are written with `lost`

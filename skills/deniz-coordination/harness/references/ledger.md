@@ -245,7 +245,7 @@ preserves the previous `final.md`, `outcome`, `workerStatus` (even when absent),
 `routeResolved` and `executionError` when `result.json` exists and `final.md` holds worker text rather
 than the `_No final assistant text without an error._` placeholder. Prior route drift and execution
 errors still fail the task; workspace collection, verification, scope and stop checks still repeat,
-without `no-final-text` or `outcome:lost`, and genuine recollection errors still fail. Failed starts
+without `no-final-text` or a lost-outcome failure, and genuine recollection errors still fail. Failed starts
 without worker text do not keep the placeholder. Earlier stop confirmation still permits commit and
 verify when release throws.
 Multiple harness error messages are newline-joined in `error`, not replaced by later failures.

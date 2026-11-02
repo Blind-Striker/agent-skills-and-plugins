@@ -241,7 +241,7 @@ write failures retain their error paths.
 When recollection has no final assistant text, `result.json` exists and `final.md` holds worker text
 rather than the `_No final assistant text without an error._` placeholder, settlement preserves
 `final.md` byte-for-byte and retains the earlier `outcome`, `workerStatus` (even when absent),
-`routesUsed`, `routeResolved` and `executionError`, without adding `no-final-text` or `outcome:lost`.
+`routesUsed`, `routeResolved` and `executionError`, without adding `no-final-text` or a lost-outcome failure.
 Prior route drift and execution errors still fail the task; workspace collection, verify, scope and
 stop checks still run normally, and genuine recollection errors still fail. Failed starts without
 worker text do not keep the placeholder.
