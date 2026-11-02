@@ -555,7 +555,7 @@ before a backend starts. Do not alter any ledger inputs by hand.
 ### `clean <run> [--force] [--ledger <dir>]`
 
 Refuses while supervised. Releases opencode sessions and recorded Codex workers of non-final tasks
-or tasks settled with a `zombie` failure, then removes recognized worktrees and task
+or tasks settled with a `zombie` failure or `release-failed` without stop confirmation, then removes recognized worktrees and task
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base unless the landing checks below prove the work reached the target.
 It never removes an in-place folder or the ledger. If present, `diff.patch` stays in the ledger:
@@ -563,24 +563,29 @@ it holds base-to-HEAD evidence as of settlement, not necessarily the worktree's 
 and it may not exist. Ignored files in a removed worktree are deleted, just as for any merged task. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
 It also retains a recorded zombie task's worktree and scratch on either backend, including opencode,
+or a `release-failed` task's worktree and scratch without confirmed stop evidence,
 even when clean and merged, printing
 `<task>: retained zombie worktree and scratch; --force removes them anyway` and returning 1.
 With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
 Git-configuration, lock and in-place protections still apply.
 Codex release checks the recorded stop and deletes its owned temporary home only after confirmation.
-It does not recheck final non-zombies' processes or add stop evidence to them. A final non-zombie
-with `codex-home-retained` gets only an ownership-checked home deletion attempt, since its stop was
-already confirmed. Success prints `<task>: codex home removed`. A remaining lock prints
+It does not recheck final non-zombies' processes or add stop evidence to them (except `release-failed`
+without confirmation, which takes the zombie route). Every other final Codex task with a recorded
+session gets only an ownership-checked home deletion attempt, with or without `codex-home-retained`:
+failure paths may have recorded retention only as an event. A missing folder needs no deletion.
+Success prints `<task>: codex home removed`. A remaining lock on any route, including zombie and
+non-final release, prints
 `<task>: codex home retained (<message>)`, records `clean-failed`, returns 1 and keeps the control
-contents so another `clean` can retry; workspace and other task cleanup still finish. A missing
-marker prints `<task>: codex home has no ownership marker; delete it by hand: <path>`, keeps the
-home and does not fail cleanup. A changed marker still refuses deletion. Final non-zombies without
-the warning remain skipped entirely by session cleanup. Cleanup also works when the run's
+contents so another `clean` can retry; workspace and other task cleanup still finish. During
+deletion-only cleanup, a missing or changed marker prints
+`<task>: codex home has no valid ownership marker; delete it by hand: <path>`, keeps the home and
+does not fail cleanup. Changed markers still refuse recorded release/collection. Cleanup also works when the run's
 control folder is gone: a missing home needs no deletion, and a present home's owner is checked
 against the run's recorded control path as well as its ownership marker.
 An unconfirmed stop retains the home even with `--force`, prints
 `<task>: retained Codex home: <path>` and returns 1. Confirmation clears restored zombie uncertainty,
-including after scope cleanup, so a historical `zombie` result alone no longer refuses ordinary clean.
+including after scope cleanup, so a historical `zombie` or `release-failed` result alone no longer
+refuses ordinary clean.
 
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.

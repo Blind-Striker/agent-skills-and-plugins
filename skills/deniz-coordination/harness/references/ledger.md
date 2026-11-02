@@ -223,12 +223,20 @@ Some pre-dispatch errors produce only a final event; inspect events as well.
 
 A confirmed Codex stop with a home that could not be deleted keeps its execution outcome and can
 still settle done. `warnings` includes `codex-home-retained`; an `error` event with `while: release`
-holds the deletion message. Missing ownership markers retain the home too; changed markers and
-unrecognized owners or paths remain safety refusals. Retry `clean` after a lock is released, or
-inspect and manually delete the path when clean reports no ownership marker. A throwing release
-instead adds `release-failed` while preserving `final.md` and `result.json`; without stop evidence,
-workspace collection and verify are skipped. Multiple harness error messages are newline-joined
-in `error`, not replaced by later failures.
+holds the deletion message, once per release result. Missing ownership markers retain the home too.
+Changed markers refuse recorded release/collection, but during live settlement retain the home with
+the same warning rather than losing the report. Unrecognized owners or paths remain safety refusals
+on recorded cleanup. Retry `clean` after a lock is released, or inspect and manually delete the path
+when deletion-only clean reports no valid ownership marker (missing or changed); that case does not
+fail clean. Clean checks final non-zombie homes on disk even without a warning in the result, since
+failed-start paths may have recorded retention only as an event.
+
+A throwing release instead adds `release-failed`, accompanied by `settle-error` outside cancellation,
+while preserving `final.md` and `result.json`. Without stop evidence, workspace collection, verify and
+scratch deletion are skipped, and ordinary clean treats it like a zombie: retry the stop and retain
+worktree and home until confirmation. Force removes the worktree and branch but still retains an
+unconfirmed home. Earlier stop confirmation still permits commit and verify when release throws.
+Multiple harness error messages are newline-joined in `error`, not replaced by later failures.
 
 For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked
 files without staging in the real index or committing. WIP compares against `workspace.baseSha` in a
@@ -254,7 +262,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `backend` | string | Recorded when known | Backend name. |
 | `state` | string | Set at settlement | `done`, `failed` or `cancelled`. |
 | `failures` | string array | `[]` | Machine-readable causes below. |
-| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone, and `recovered-model-error` when an opencode session succeeded after an earlier model call ended with an error, and `prepare-interrupted: a prepare command may still run on this host` when an unsupervised `cancel` settled a task whose `prepare` was interrupted. |
+| `warnings` | string array | Absent without findings | Non-failing findings: non-blocking `git-config-changed`, `advisory-verify-failed` when an `advisoryVerify` command failed or timed out, `worker-status-missing` when a non-structured, non-raw task's final text has no status line, so its success rests on the session outcome alone, `codex-home-retained` when a confirmed Codex stop leaves its temporary home undeleted (including a missing or changed marker during live settlement), and `recovered-model-error` when an opencode session succeeded after an earlier model call ended with an error, and `prepare-interrupted: a prepare command may still run on this host` when an unsupervised `cancel` settled a task whose `prepare` was interrupted. |
 | `workerStatus` | string | Absent for structured tasks or without a status line | `done`, `stopped` or `blocked`, from the last `Status:` line of the final text. `stopped` and `blocked` add the `worker-stopped` failure. |
 | `outcome` | string | Absent if unavailable | Execution outcome, distinct from settled state. |
 | `session` | object | Recorded when available | `id` and `turn` strings, as in task record. |
@@ -329,7 +337,7 @@ verifies even when its diff is empty. Missing status remains `worker-status-miss
 | `worker-stopped` | string | The worker's status line says `stopped` or `blocked`: it did not do the task, whatever the session outcome. |
 | `invalid-output` | string | Structured deliverable did not validate. |
 | `settle-error` | string | Execution or harness settlement error. |
-| `release-failed` | string | Codex release threw a non-cancellation, non-ledger exception; the report is preserved, but workspace collection and verify need confirmed stop evidence. |
+| `release-failed` | string | Codex release threw a non-cancellation, non-ledger exception; the report is preserved. Accompanied by `settle-error` outside cancellation. Without confirmed stop evidence, collection, verify and scratch deletion are skipped and clean retries stop with zombie-like retention; force still retains an unconfirmed home. |
 | `git-config-changed` | string | Blocking Git configuration change prevented safe collection/commit. |
 | `zombie` | string | A stop was not confirmed (a hard stop after cancel or timeout, or Codex settlement, release, recovery or cleanup): a process may still write, so workspace collection, commit, verify and scratch deletion were skipped. Codex settles failed even for cancelled outcome; siblings continue. The worktree keeps the work. |
 | `workspace-dirty` | string | In-place harness-commit task became dirty before dispatch; no worker started. |

@@ -187,8 +187,6 @@ static partial class Commands
         foreach (var record in records.Where(record => record.Settings.Backend?.Value == "codex" && record.Session.Id is not null))
         {
             var result = ledger.LoadResult(record.Spec.Id!);
-            if (states[record.Spec.Id!] is "done" or "failed" or "cancelled"
-                && result?.Failures.Contains("zombie") != true && result?.Warnings?.Contains("codex-home-retained") != true) continue;
             try
             {
                 await using var scope = new BackendScope(["codex"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
@@ -196,17 +194,16 @@ static partial class Commands
                 var codex = (CodexBackend)scope.Backends["codex"];
                 codex.RunId = ledger.RunId;
                 if (states[run.Id] is "done" or "failed" or "cancelled"
-                    && result?.Failures.Contains("zombie") != true)
+                    && result?.Failures.Contains("zombie") != true
+                    && (result?.Failures.Contains("release-failed") != true || run.WorkerStopped == true || result.WorkerStopped == true))
                 {
-                    var error = codex.DeleteRetainedHome(run.SavedWorker());
-                    if (error?.Data[nameof(CodexHome)] is FileNotFoundException)
-                        Console.WriteLine($"{run.Id}: codex home has no ownership marker; delete it by hand: {record.BackendState.CodexHome}");
-                    else if (error is not null)
+                    var error = await Task.Run(() => codex.DeleteRetainedHome(run.SavedWorker()));
+                    if (error is not null)
                     {
                         Console.WriteLine($"{run.Id}: codex home retained ({error.Message})");
                         failures[run.Id] = error.Message;
                     }
-                    else Console.WriteLine($"{run.Id}: codex home removed");
+                    else if (!Directory.Exists(record.BackendState.CodexHome)) Console.WriteLine($"{run.Id}: codex home removed");
                     continue;
                 }
                 var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
@@ -216,6 +213,11 @@ static partial class Commands
                 {
                     failures[run.Id] = $"Codex stop unconfirmed: {stop.Detail}";
                     Console.WriteLine($"{run.Id}: retained Codex home: {record.BackendState.CodexHome}");
+                }
+                else if (stop?.HomeRetained is { } message)
+                {
+                    failures[run.Id] = message;
+                    Console.WriteLine($"{run.Id}: codex home retained ({message})");
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)

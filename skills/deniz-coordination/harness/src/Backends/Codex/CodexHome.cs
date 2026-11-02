@@ -274,32 +274,51 @@ sealed class CodexHome : IDisposable
         try
         {
             if (new FileInfo(marker).LinkTarget is not null || File.ReadAllText(marker) != text)
-                throw new HarnessException("temporary Codex home ownership marker does not match");
+            {
+                var refusal = new HarnessException("temporary Codex home ownership marker does not match");
+                refusal.Data[nameof(CodexHome)] = true;
+                throw refusal;
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             var refusal = new HarnessException($"temporary Codex home ownership cannot be confirmed ({exception.GetType().Name})");
-            // Keep Dispose's refusal shape while letting recorded cleanup distinguish a missing or
-            // unreadable marker from a marker mismatch (which must remain a safety refusal).
+            // Recorded release still refuses mismatches. Deletion-only clean can identify marker
+            // failures separately from an unrecognized owner or path and leave them for manual deletion.
             refusal.Data[nameof(CodexHome)] = exception;
             throw refusal;
         }
         var clock = Stopwatch.StartNew();
-        Retry(() =>
-        {
-            foreach (var child in directory.EnumerateFileSystemInfos("*", new EnumerationOptions { AttributesToSkip = 0 }))
-            {
-                if (child.Name == name) continue;
-                if ((child.Attributes & FileAttributes.Directory) != 0) Directory.Delete(child.FullName, recursive: true);
-                else File.Delete(child.FullName);
-            }
-        });
-        Retry(() => File.Delete(marker));
+        Retry(() => DeleteChildren(directory, name));
+        Retry(() => Remove(new FileInfo(marker)));
         try { Retry(() => Directory.Delete(folder)); }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             File.WriteAllText(marker, text);
             throw;
+        }
+
+        static void DeleteChildren(DirectoryInfo parent, string? keep = null)
+        {
+            Exception? last = null;
+            foreach (var child in parent.EnumerateFileSystemInfos("*", new EnumerationOptions { AttributesToSkip = 0 }))
+            {
+                if (child.Name == keep) continue;
+                try { Remove(child); }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { last = exception; }
+            }
+            if (last is not null) throw last;
+        }
+
+        static void Remove(FileSystemInfo child)
+        {
+            var attributes = child.Attributes;
+            if (child is DirectoryInfo directory && (attributes & FileAttributes.ReparsePoint) == 0)
+                DeleteChildren(directory);
+            // auth.json shares attributes with the user's file through its hard link.
+            if (child.Name != "auth.json" && (attributes & FileAttributes.ReparsePoint) == 0)
+                File.SetAttributes(child.FullName, attributes & ~FileAttributes.ReadOnly);
+            child.Delete();
         }
 
         void Retry(Action attempt)

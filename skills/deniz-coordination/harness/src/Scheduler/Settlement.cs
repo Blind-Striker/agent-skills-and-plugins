@@ -18,7 +18,7 @@ static class Settlement
             try { stop = await backend.ReleaseAsync(run.SavedWorker(), ct); }
             catch (Exception error) when (error is not OperationCanceledException and not LedgerWriteException)
             { releaseFailure = error.Message; }
-            RecordStop(ledger, run, stop, outcomeOverride ?? report.Outcome);
+            if (!ReferenceEquals(stop, report.StopResult)) RecordStop(ledger, run, stop, outcomeOverride ?? report.Outcome);
             homeRetained |= stop?.HomeRetained is not null;
             run.SaveWorker(run.SavedWorker(), ledger);
         }

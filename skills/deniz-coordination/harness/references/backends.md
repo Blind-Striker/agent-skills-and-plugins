@@ -197,23 +197,33 @@ Clean mode hardlinks the user's sign-in file and available Windows sandbox setup
 harness-owned temporary home on the user's `CODEX_HOME` volume: it tries system temp first, then a
 sibling folder beside the user home. It writes minimal configuration, disables skill instructions and app/plugin features,
 preserves the selected Windows sandbox mode, and checks a random marker through the home reported
-by app-server. The worker state records the folder and ownership marker; cleanup refuses an
-unrecognized path or marker and removes the temporary home only after the process tree has stopped.
+by app-server. The worker state records the folder and ownership marker; recorded release and
+collection refuse a changed marker or unrecognized owner/path, and remove the temporary home only
+after the process tree has stopped. Live settlement retains a missing or changed marker home with
+the warning below, so the worker's report survives.
 
-Deletion includes hidden and system children, removes directory links without following them, and
-deletes the ownership marker last. I/O or access failures retry every 250 ms within one ten-second
-window. If only the home folder remains locked after its marker was deleted, the verified marker is
+Deletion includes hidden and system children, removes directory links without following them, clears
+read-only attributes except on `auth.json` (whose hardlink shares the user's attributes), and deletes
+the ownership marker last. Every child is attempted in each pass; the last I/O or access failure is
+reported after retries every 250 ms within one ten-second window. The awaited deletion runs off the
+scheduler lock. If only the home folder remains locked after its marker was deleted, the verified marker is
 restored for a later attempt. A deletion failure never undoes a confirmed stop or loses a live
 worker's report: process-resource cleanup still finishes, settlement records an `error` event with
 `while: release`, and the result gets the non-failing warning `codex-home-retained`.
-A missing ownership marker also retains the home and warns; a changed marker, unrecognized owner
-or path still refuses recorded cleanup. Run `clean` after releasing the lock; if the marker is
-missing, inspect the printed path and delete the home by hand rather than recreating ownership proof.
+A missing ownership marker also retains the home and warns; a changed marker still refuses recorded
+release/collection. Run `clean` after releasing the lock. Deletion-only clean of a final non-zombie
+also leaves missing or changed markers for manual deletion without failing clean; unrecognized owners
+or paths still refuse. Inspect the printed path rather than recreating ownership proof. Probe home
+retention is reported to stderr even without a worker or signal drain. A throwing notification pump
+does not skip home deletion or process-resource cleanup, or lose the confirmed stop result.
 
 If release itself throws a non-cancellation, non-ledger exception, settlement preserves the worker's
-text in `final.md` and writes `result.json` with `release-failed`. Without confirmed stop evidence it
-skips workspace collection and verify just as for a zombie; inspect the retained work and resolve
-the release error before cleanup. Cancellation and ledger write failures retain their error paths.
+text in `final.md` and writes `result.json` with `release-failed` (and `settle-error` outside
+cancellation). Without confirmed stop evidence it skips workspace collection, verify and scratch
+deletion just as for a zombie. Clean retries the stop, retaining worktree, scratch and home until
+confirmation; force may remove the worktree and scratch, but never the unconfirmed home. Earlier
+stop confirmation still permits commit and verify even when release throws. Cancellation and ledger
+write failures retain their error paths.
 
 If the sign-in file is unavailable, the hardlink fails, the folder already exists, the probe fails
 or the reported home cannot prove the marker, the backend can use the user home and records
