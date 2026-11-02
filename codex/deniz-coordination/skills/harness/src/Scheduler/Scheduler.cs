@@ -603,7 +603,8 @@ sealed class Scheduler(IReadOnlyDictionary<string, IWorkerBackend> backends, Led
     {
         if (run.Worker is not null && !run.WorkerEnded && !run.Zombie)
             throw new InvalidOperationException("cannot finalize a task before its worker ended or was released");
-        if (!run.Zombie && Scratch.Required(run.Record.Spec))
+        if (!run.Zombie && !(run.WorkerStopped != true && ledger.LoadResult(run.Id)?.Failures.Contains("release-failed") == true)
+            && Scratch.Required(run.Record.Spec))
         {
             try { Scratch.Delete(run.Record, ledger); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)

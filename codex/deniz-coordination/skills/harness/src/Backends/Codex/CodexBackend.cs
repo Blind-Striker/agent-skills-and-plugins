@@ -130,7 +130,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     {
         CodexProcess process;
         try { process = CodexProcess.Start(context, directory, variables, configuredEnvironment); }
-        catch { home?.Dispose(); throw; }
+        catch
+        {
+            try { await Task.Run(() => home?.Dispose()); }
+            catch (Exception error) { Console.Error.WriteLine($"codex: creation cleanup retained untracked home: {home?.Home}; {error.Message}"); }
+            throw;
+        }
         var connection = new Connection(process, home) { Launch = launch };
         process.DescendantUnobservable = (pid, message) => signals.Writer.TryWrite(new WorkerSignal.Fault(connection.Launch?.TaskId,
             "descendant-unobservable", $"pid={pid}; {message}"));
@@ -167,6 +172,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     async Task FailedCreationAsync(Connection connection, Exception exception)
     {
         var stopped = await DisposeConnectionAsync(connection);
+        if (stopped.HomeRetained is { } message && connection.Launch is null)
+            Console.Error.WriteLine($"codex: creation cleanup retained untracked home: {connection.Home?.Home}; {message}");
         if (!stopped.Stopped && connection.Launch is not null)
         {
             var worker = Reference(connection);
@@ -617,10 +624,10 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             if (connection is not null) SaveState(connection, worker);
             if (stopped.Stopped && connection is not null)
             {
-                await DisposeConnectionAsync(connection);
+                stopped = await DisposeConnectionAsync(connection);
                 workers.TryRemove(worker.Id, out _);
             }
-            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker, RunId);
+            else if (stopped.Stopped) stopped = stopped with { HomeRetained = (await Task.Run(() => TryDeleteRecordedHome(worker)))?.Message };
             recovered[worker.Id] = stopped;
         }
         return new ReattachResult.Ended("lost", recovered[worker.Id]);
@@ -637,14 +644,43 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         }
         else
         {
-            stopped = recovered.TryGetValue(worker.Id, out var previous) && previous.Stopped ? previous : await StopRecordedAsync(worker, ct);
-            if (stopped.Stopped) CodexHome.DeleteRecorded(context, worker, RunId);
+            if (recovered.TryGetValue(worker.Id, out var previous) && previous.Stopped) stopped = previous;
+            else
+            {
+                stopped = await StopRecordedAsync(worker, ct);
+                if (stopped.Stopped)
+                {
+                    try { stopped = stopped with { HomeRetained = (await Task.Run(() => TryDeleteRecordedHome(worker)))?.Message }; }
+                    catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is not null)
+                    { exception.Data[nameof(InterruptResult)] = stopped; throw; }
+                }
+            }
         }
         recovered[worker.Id] = stopped;
         if (stopped.Stopped) released[worker.Id] = 0;
         return stopped;
     }
     public Task<IReadOnlyList<WorkerRef>> FindOrphansAsync(OrphanQuery query, CancellationToken ct) => Task.FromResult<IReadOnlyList<WorkerRef>>([]);
+    public Exception? DeleteRetainedHome(WorkerRef worker)
+    {
+        Exception? error;
+        try { error = TryDeleteRecordedHome(worker); }
+        catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is true) { error = exception; }
+        if (error is HarnessException && error.Data[nameof(CodexHome)] is true or IOException or UnauthorizedAccessException)
+        {
+            Console.WriteLine($"{worker.TaskId}: codex home has no valid ownership marker; delete it by hand: {worker.State["codexHome"]}");
+            return null;
+        }
+        return error;
+    }
+
+    Exception? TryDeleteRecordedHome(WorkerRef worker)
+    {
+        try { CodexHome.DeleteRecorded(context, worker, RunId); return null; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            || exception is HarnessException && exception.Data[nameof(CodexHome)] is IOException or UnauthorizedAccessException)
+        { return exception; }
+    }
     Task<InterruptResult> StopRecordedAsync(WorkerRef worker, CancellationToken ct) =>
         CodexProcess.StopRecordedAsync(worker.State, ct, OpenProcess, QueryLimitedStartTime, readSnapshot: ReadSnapshot);
     public async Task<RouteListing> ListRoutesAsync(string directory, CancellationToken ct)
@@ -680,6 +716,10 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     async Task<InterruptResult> DisposeConnectionAsync(Connection connection)
     {
         var stopped = await connection.CleanupAsync();
+        if (connection.Launch is null && stopped.HomeRetained is { } message)
+            Console.Error.WriteLine($"codex: release: {message}");
+        else if (connection.Worker is null && stopped.HomeRetained is { } retained)
+            Console.Error.WriteLine($"codex: creation cleanup retained untracked home: {connection.Home?.Home}; {retained}");
         if (stopped.Stopped) connections.TryRemove(connection, out _);
         else if (connection.Launch is null) Console.Error.WriteLine($"codex: probe stop unconfirmed: {stopped.Detail}");
         return stopped;
@@ -723,11 +763,17 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             var stopped = await Process.StopAsync();
             StopResult = stopped;
             if (!stopped.Stopped) return stopped;
-            await Rpc.DisposeAsync();
-            await Pump;
-            Home?.Dispose();
-            await Process.CleanupAsync();
+            try { await Rpc.DisposeAsync(); }
+            catch (Exception exception) { ExecutionError = Settlement.JoinErrors(ExecutionError, exception.Message); }
+            try { await Pump; }
+            catch (Exception exception) { ExecutionError = Settlement.JoinErrors(ExecutionError, exception.Message); }
+            try { await Task.Run(() => Home?.Dispose()); }
+            catch (Exception exception)
+            { stopped = stopped with { HomeRetained = exception.Message }; }
+            try { await Process.CleanupAsync(); }
+            catch (Exception exception) { ExecutionError = Settlement.JoinErrors(ExecutionError, exception.Message); }
             disposed = true;
+            StopResult = stopped;
             return stopped;
         }
         public async ValueTask DisposeAsync() => await CleanupAsync();

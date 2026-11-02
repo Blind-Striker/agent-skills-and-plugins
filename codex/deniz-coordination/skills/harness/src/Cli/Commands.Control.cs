@@ -126,9 +126,14 @@ static partial class Commands
                 }
                 step = "workspace";
                 var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
-                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git)) throw new HarnessException("workspace cleanup refused");
+                if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git,
+                    reason => { if (!ledger.Read().Any(line => line.Task == task && line.Type == "landed"))
+                        ledger.Write(task, "landed", new JsonObject { ["reason"] = reason }); })) throw new HarnessException("workspace cleanup refused");
                 if (error is null)
-                    ledger.Write(task, "cleaned", new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force });
+                {
+                    var data = new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force };
+                    ledger.Write(task, "cleaned", data);
+                }
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
             {
@@ -182,20 +187,50 @@ static partial class Commands
         var failures = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var record in records.Where(record => record.Settings.Backend?.Value == "codex" && record.Session.Id is not null))
         {
-            if (states[record.Spec.Id!] is "done" or "failed" or "cancelled"
-                && ledger.LoadResult(record.Spec.Id!)?.Failures.Contains("zombie") != true) continue;
+            var result = ledger.LoadResult(record.Spec.Id!);
             try
             {
                 await using var scope = new BackendScope(["codex"], Directory.Exists(control) ? control : null, subscribe: false, runId: ledger.RunId);
                 var run = TaskRun.FromLedger(record, ledger);
-                ((CodexBackend)scope.Backends["codex"]).RunId = ledger.RunId;
-                var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
+                var codex = (CodexBackend)scope.Backends["codex"];
+                codex.RunId = ledger.RunId;
+                if (states[run.Id] is "done" or "failed" or "cancelled"
+                    && ledger.Read().Any(line => line.Task == run.Id && line.Type == "collected") && !run.Zombie
+                    && (result?.Failures.Any(failure => failure is "zombie" or "release-failed") != true || run.WorkerStopped == true))
+                {
+                    var existed = Directory.Exists(record.BackendState.CodexHome);
+                    var error = await Task.Run(() => codex.DeleteRetainedHome(run.SavedWorker()));
+                    if (error is not null)
+                    {
+                        Console.WriteLine($"{run.Id}: codex home retained ({error.Message})");
+                        failures[run.Id] = error.Message;
+                    }
+                    else if (existed && !Directory.Exists(record.BackendState.CodexHome)) Console.WriteLine($"{run.Id}: codex home removed");
+                    continue;
+                }
+                var ownershipRefused = false;
+                InterruptResult? stop;
+                try { stop = await codex.ReleaseAsync(run.SavedWorker(), ct); }
+                catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is not null
+                    && exception.Data[nameof(InterruptResult)] is InterruptResult { Stopped: true })
+                { stop = (InterruptResult)exception.Data[nameof(InterruptResult)]!; ownershipRefused = true; }
+                try { CodexHome.CheckRecorded(new(Path.Combine(control, "profiles"), null, new Dictionary<string, string>()), run.SavedWorker(), ledger.RunId); }
+                catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is not null) { ownershipRefused = true; }
                 run.SaveWorker(run.SavedWorker(), ledger);
                 Settlement.RecordStop(ledger, run, stop);
+                if (ownershipRefused)
+                    Console.WriteLine(stop is { Stopped: true }
+                        ? $"{run.Id}: codex home has no valid ownership marker; delete it by hand: {record.BackendState.CodexHome}"
+                        : $"{run.Id}: codex home has no valid ownership marker and its stop is unconfirmed; check that the worker has ended before you delete {record.BackendState.CodexHome} by hand");
                 if (stop is { Stopped: false })
                 {
                     failures[run.Id] = $"Codex stop unconfirmed: {stop.Detail}";
                     Console.WriteLine($"{run.Id}: retained Codex home: {record.BackendState.CodexHome}");
+                }
+                else if (!ownershipRefused && stop?.HomeRetained is { } message)
+                {
+                    failures[run.Id] = message;
+                    Console.WriteLine($"{run.Id}: codex home retained ({message})");
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException and not LedgerWriteException)

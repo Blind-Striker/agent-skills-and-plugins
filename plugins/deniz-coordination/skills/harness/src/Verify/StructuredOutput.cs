@@ -44,7 +44,7 @@ static class StructuredOutput
         }
         catch (Exception error) when (error is HarnessException or IOException or UnauthorizedAccessException or JsonException or InvalidOperationException or KeyNotFoundException)
         {
-            result.Error = "structured validation failed: " + error.Message;
+            result.Error = Settlement.JoinErrors(result.Error, "structured validation failed: " + error.Message);
             result.Validation = new() { Errors = [new() { Message = error.Message }] };
         }
         ledger.Write(run.Id, "validated", new JsonObject

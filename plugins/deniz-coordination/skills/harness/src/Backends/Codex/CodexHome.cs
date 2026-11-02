@@ -229,6 +229,13 @@ sealed class CodexHome : IDisposable
 
     public static void DeleteRecorded(BackendContext context, WorkerRef worker, string? runId)
     {
+        CheckRecorded(context, worker, runId);
+        if (worker.State["codexHomeTemporary"]?.GetValue<bool>() == true && worker.State["codexHome"]?.GetValue<string>() is { } folder)
+            DeleteOwned(folder, worker.State["codexHomeMarkerName"]?.GetValue<string>(), worker.State["codexHomeMarkerText"]?.GetValue<string>());
+    }
+
+    public static void CheckRecorded(BackendContext context, WorkerRef worker, string? runId)
+    {
         if (worker.State["codexHomeTemporary"]?.GetValue<bool>() != true) return;
         var folder = worker.State["codexHome"]?.GetValue<string>();
         if (folder is not null && !Path.Exists(folder)) return;
@@ -237,8 +244,8 @@ sealed class CodexHome : IDisposable
             || Path.GetFileName(folder) != "codex-" + worker.TaskId
             || Directory.GetParent(folder)?.Name is not { } owner
             || owner != Owner(context.ProfilesFolder) && owner != recordedOwner)
-            throw new HarnessException("temporary Codex home ownership is not recognized");
-        DeleteOwned(folder, worker.State["codexHomeMarkerName"]?.GetValue<string>(), worker.State["codexHomeMarkerText"]?.GetValue<string>());
+            throw OwnershipRefusal("temporary Codex home ownership is not recognized");
+        CheckOwned(folder, worker.State["codexHomeMarkerName"]?.GetValue<string>(), worker.State["codexHomeMarkerText"]?.GetValue<string>());
     }
 
     static string? RecordedOwner(WorkerRef worker, string? runId)
@@ -250,35 +257,101 @@ sealed class CodexHome : IDisposable
         {
             if (text is null || JsonNode.Parse(text) is not JsonObject data
                 || data["run"] is not JsonValue value || !value.TryGetValue<string>(out run))
-                throw new HarnessException($"temporary Codex home ownership marker is invalid: {marker}");
+                throw OwnershipRefusal($"temporary Codex home ownership marker is invalid: {marker}");
         }
         catch (JsonException)
-        { throw new HarnessException($"temporary Codex home ownership marker is invalid: {marker}"); }
+        { throw OwnershipRefusal($"temporary Codex home ownership marker is invalid: {marker}"); }
         if (runId is not null && run != runId)
-            throw new HarnessException("temporary Codex home ownership is not recognized");
+            throw OwnershipRefusal("temporary Codex home ownership is not recognized");
         return runId is null ? null : Owner(Path.Combine(Locations.ControlDir(runId), "profiles"));
     }
 
     static string Owner(string profilesFolder) => Convert.ToHexString(SHA256.HashData(
         Encoding.UTF8.GetBytes(Path.GetFullPath(profilesFolder)))).ToLowerInvariant();
 
-    static void DeleteOwned(string folder, string? name, string? text)
+    static HarnessException OwnershipRefusal(string message, Exception? cause = null)
+    {
+        var refusal = new HarnessException(message);
+        refusal.Data[nameof(CodexHome)] = (object?)cause ?? true;
+        return refusal;
+    }
+
+    static void CheckOwned(string folder, string? name, string? text)
     {
         if (!Path.Exists(folder)) return;
         var directory = new DirectoryInfo(folder);
         if (directory.LinkTarget is not null || directory.Parent?.LinkTarget is not null
             || directory.Parent?.Parent?.Name is not ("deniz-dispatch-codex" or ".dispatch-codex")
             || name is null || !Regex.IsMatch(name, "^\\.dispatch-home-[a-f0-9]{32}$") || text is null)
-            throw new HarnessException("temporary Codex home ownership is not recognized");
+            throw OwnershipRefusal("temporary Codex home ownership is not recognized");
         var marker = Path.Combine(folder, name);
         try
         {
             if (new FileInfo(marker).LinkTarget is not null || File.ReadAllText(marker) != text)
-                throw new HarnessException("temporary Codex home ownership marker does not match");
+            {
+                throw OwnershipRefusal("temporary Codex home ownership marker does not match");
+            }
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
-        { throw new HarnessException($"temporary Codex home ownership cannot be confirmed ({exception.GetType().Name})"); }
-        Directory.Delete(folder, recursive: true);
+        {
+            throw OwnershipRefusal($"temporary Codex home ownership cannot be confirmed ({exception.GetType().Name})", exception);
+        }
+    }
+
+    static void DeleteOwned(string folder, string? name, string? text)
+    {
+        if (!Path.Exists(folder)) return;
+        CheckOwned(folder, name, text);
+        var directory = new DirectoryInfo(folder);
+        var marker = Path.Combine(folder, name!);
+        var clock = Stopwatch.StartNew();
+        Retry(() => DeleteChildren(directory, name));
+        Retry(() => Remove(new FileInfo(marker)));
+        try { Retry(() => Directory.Delete(folder)); }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            File.WriteAllText(marker, text);
+            throw;
+        }
+
+        void DeleteChildren(DirectoryInfo parent, string? keep = null)
+        {
+            Exception? last = null;
+            foreach (var child in parent.EnumerateFileSystemInfos("*", new EnumerationOptions { AttributesToSkip = 0 }))
+            {
+                if (child.Name == keep) continue;
+                try { Remove(child); }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException) { last = exception; }
+            }
+            if (last is not null) throw last;
+        }
+
+        void Remove(FileSystemInfo child)
+        {
+            var attributes = child.Attributes;
+            if (child is DirectoryInfo directory && (attributes & FileAttributes.ReparsePoint) == 0)
+                DeleteChildren(directory);
+            // Only these root-relative paths are hardlinks to user-owned files.
+            var relative = Path.GetRelativePath(folder, child.FullName).Replace(Path.DirectorySeparatorChar, '/');
+            if (child is FileInfo && relative is not ("auth.json" or ".sandbox/setup_marker.json" or ".sandbox-secrets/sandbox_users.json")
+                && (attributes & FileAttributes.ReadOnly) != 0 && (attributes & FileAttributes.ReparsePoint) == 0)
+                File.SetAttributes(child.FullName, attributes & ~FileAttributes.ReadOnly);
+            child.Delete();
+        }
+
+        void Retry(Action attempt)
+        {
+            while (true)
+            {
+                try { attempt(); return; }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                {
+                    var remaining = TimeSpan.FromSeconds(10) - clock.Elapsed;
+                    if (remaining <= TimeSpan.Zero) throw;
+                    Thread.Sleep(TimeSpan.FromMilliseconds(Math.Min(250, remaining.TotalMilliseconds)));
+                }
+            }
+        }
     }
 
     static class Native

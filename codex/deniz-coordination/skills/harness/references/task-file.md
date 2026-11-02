@@ -254,7 +254,11 @@ guaranteed. Unprompted tasks with contracts retain the existing contract-body re
 
 `collect`, `status` and `clean` stay run-local and never traverse `continueOf`. Cleanup of either run
 does not own the other's worktree or branch. Inherited `baseRef` can disappear when the source used
-a reviewed branch; ordinary non-force cleanup then remains conservative, not guaranteed to succeed.
+a reviewed branch. Ordinary non-force cleanup can still prove landing against the local `origin/HEAD`
+target, using the recorded inherited `workspace.baseSha`, not `startSha` or `reviewedBaseSha`; same-content
+proof requires that base to be an ancestor of the target. It does not fetch and refuses without proof.
+See [clean](cli.md#clean-run---force---ledger-dir) for the ancestry
+and bounded same-content checks and their limits.
 Manual deletion, forced pruning and unavailable LFS/submodule objects are not covered.
 
 ## Preparation

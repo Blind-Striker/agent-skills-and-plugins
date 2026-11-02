@@ -3,59 +3,77 @@ static class Settlement
     public static async Task<TaskResult> SettleAsync(IWorkerBackend backend, Ledger ledger, TaskRun run, string? outcomeOverride, CancellationToken ct, Git? git = null)
     {
         var record = run.Record;
+        var previous = ledger.LoadResult(run.Id);
         var report = run.Zombie && !run.ReportReady && backend.Name != "codex" ? new WorkerReport("lost", null, new(), null, false, [], null, false)
             : await backend.CollectAsync(run.SavedWorker(), ct);
         // Live zombie settlement is fixed at admission; only a later recovery/collect may clear it.
         if (run.State != TaskState.Settling || !run.Zombie || report.StopResult is not { Stopped: true })
             RecordStop(ledger, run, report.StopResult, outcomeOverride ?? report.Outcome);
         if (backend.Name == "codex") run.SaveWorker(run.SavedWorker(), ledger);
+        string? releaseFailure = null;
+        var homeRetained = report.StopResult?.HomeRetained is not null;
         // Codex release owns process/home cleanup; confirm it before touching worker-owned bytes.
         if (backend.Name == "codex" && !run.Zombie)
         {
-            RecordStop(ledger, run, await backend.ReleaseAsync(run.SavedWorker(), ct), outcomeOverride ?? report.Outcome);
+            InterruptResult? stop = null;
+            try { stop = await backend.ReleaseAsync(run.SavedWorker(), ct); }
+            catch (Exception error) when (error is not OperationCanceledException and not LedgerWriteException)
+            { releaseFailure = error.Message; }
+            if (!ReferenceEquals(stop, report.StopResult)) RecordStop(ledger, run, stop, outcomeOverride ?? report.Outcome);
+            homeRetained |= stop?.HomeRetained is not null;
             run.SaveWorker(run.SavedWorker(), ledger);
         }
-        var outcome = outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
+        const string noFinalText = "_No final assistant text without an error._";
+        var finalPath = Path.Combine(ledger.TaskDir(run.Id), "final.md");
+        var keepReport = string.IsNullOrWhiteSpace(report.FinalText) && previous is not null
+            && File.Exists(finalPath) && !File.ReadAllText(finalPath).Contains(noFinalText, StringComparison.Ordinal);
+        var executionError = keepReport && backend.Name == "codex" && report.StopResult is { Stopped: true } recovery
+            && report.ExecutionError == recovery.Detail ? null : report.ExecutionError;
+        var outcome = keepReport ? previous!.Outcome : outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
         var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
-        await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
+        if (!keepReport) await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
             # {ledger.RunId}/{run.Id}
 
             Outcome: {outcome}
             {timeout}
 
-            {report.FinalText ?? "_No final assistant text without an error._"}
+            {report.FinalText ?? noFinalText}
             """, ct);
         var result = new TaskResult
         {
             Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name, Outcome = outcome,
             Prepare = record.Prepare,
-            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = record.RouteResolved,
-            RoutesUsed = report.RoutesUsed.ToList(),
+            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = keepReport ? previous!.RouteResolved : record.RouteResolved,
+            RoutesUsed = keepReport ? previous!.RoutesUsed.ToList() : report.RoutesUsed.ToList(),
             Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,
             TokensComplete = report.UsageComplete,
             ContextWindow = report.ContextWindow,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
-            TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped, ExecutionError = report.ExecutionError,
+            TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped,
+            ExecutionError = keepReport ? JoinErrors(previous!.ExecutionError, executionError) : executionError,
             BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,
-            CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = run.StartFailure,
+            CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = JoinErrors(run.StartFailure, releaseFailure),
             CapabilityNotes = ConfigResolver.CapabilityNotes(record.Settings) is { Count: > 0 } notes ? notes : null,
         };
-        (result.RouteVerified, var drift) = CheckRoutes(record.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
+        if (releaseFailure is not null) result.Failures.Add("release-failed");
+        if (homeRetained) (result.Warnings ??= []).Add("codex-home-retained");
+        (result.RouteVerified, var drift) = CheckRoutes(result.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
         result.RouteDrift = drift.Count > 0 ? drift : null;
-        if (record.Spec.Kind != "structured") result.WorkerStatus = ReadStatus(report.FinalText);
+        if (record.Spec.Kind != "structured") result.WorkerStatus = keepReport ? previous!.WorkerStatus : ReadStatus(report.FinalText);
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
+        var mayStillWrite = run.Zombie || releaseFailure is not null && run.WorkerStopped != true;
         if (record.Spec.Kind == "structured")
         {
             ledger.Write(run.Id, "collected", new JsonObject { ["outcome"] = outcome, ["routesUsed"] = Json.Array(result.RoutesUsed) });
             await StructuredOutput.ValidateAsync(ledger, run, result, report.FinalText, ct);
-            if (!run.Zombie)
+            if (!mayStillWrite)
             {
                 try { Scratch.Delete(record, ledger); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or HarnessException)
-                { result.Error = "scratch cleanup failed: " + error.Message; }
+                { result.Error = JoinErrors(result.Error, "scratch cleanup failed: " + error.Message); }
             }
         }
-        else if (!run.Zombie)
+        else if (!mayStillWrite)
         {
             try { await Commit.CollectAsync(ledger, run, result, ct, git); }
             catch (GitConfigChangedException) { result.Failures.Add("git-config-changed"); }
@@ -64,21 +82,21 @@ static class Settlement
         if (run.Zombie) result.Failures.Add("zombie");
         if (outcome == "cancelled")
         {
-            result.Failures = result.Failures.Where(x => x == "zombie").Distinct().ToList();
-            result.State = run.Zombie && backend.Name == "codex" ? "failed" : "cancelled";
+            result.Failures = result.Failures.Where(x => x is "zombie" or "release-failed").Distinct().ToList();
+            result.State = run.Zombie && backend.Name == "codex" || releaseFailure is not null ? "failed" : "cancelled";
         }
         else
         {
             if (outcome != "succeeded") result.Failures.Add($"outcome:{outcome ?? "unknown"}");
             if (result.Error is not null)
-                result.Failures.Add(result.Error.StartsWith("harness commit failed:", StringComparison.Ordinal) ? "commit-failed" : "settle-error");
+                result.Failures.Add(result.Error.Split('\n').Any(message => message.StartsWith("harness commit failed:", StringComparison.Ordinal)) ? "commit-failed" : "settle-error");
             if (result.ExecutionError is not null) result.Failures.Add("settle-error");
             if (report.RecoveredErrors is { Count: > 0 } recovered)
             {
                 result.RecoveredErrors = [.. recovered];
                 (result.Warnings ??= []).Add("recovered-model-error");
             }
-            if (string.IsNullOrWhiteSpace(report.FinalText))
+            if (!keepReport && string.IsNullOrWhiteSpace(report.FinalText))
             {
                 result.Failures.Add("no-final-text");
                 if (outcome == "succeeded")
@@ -121,13 +139,16 @@ static class Settlement
     public static void RecordStop(Ledger ledger, TaskRun run, InterruptResult? stop, string? outcome = null)
     {
         if (stop is null) return;
+        if (stop.HomeRetained is { } message)
+            ledger.Write(run.Id, "error", new JsonObject { ["while"] = "release", ["message"] = message });
         var wasZombie = run.Zombie;
+        var wasStopped = run.WorkerStopped;
         run.WorkerStopped = stop.Stopped;
         run.Zombie = !stop.Stopped;
         if (stop.Stopped)
         {
             run.WorkerEnded = true;
-            if (wasZombie)
+            if (wasZombie || wasStopped != true && ledger.LoadResult(run.Id)?.Failures.Contains("release-failed") == true)
                 ledger.Write(run.Id, "hard-stop", new JsonObject { ["stopped"] = true, ["detail"] = stop.Detail });
         }
         else if (!wasZombie)
@@ -135,6 +156,9 @@ static class Settlement
     }
 
     public const string StatusPrefix = "Status:";
+
+    public static string? JoinErrors(string? earlier, string? later) => earlier is null ? later
+        : later is null ? earlier : earlier + "\n" + later;
 
     // The last status line of the final text wins; the worker may quote the instruction earlier.
     public static string? ReadStatus(string? text) => text is null ? null : Regex
