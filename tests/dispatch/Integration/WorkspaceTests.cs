@@ -1328,6 +1328,44 @@ public sealed class WorkspaceTests
             .IsEquivalentTo(new[] { $"content matches {proof[..12]} on refs/remotes/origin/main" }, CollectionOrdering.Matching);
     }
 
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_compares_repository_relative_paths_despite_diff_relative(CancellationToken ct)
+    {
+        using var lab = new CoreLab("diff-relative");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        File.WriteAllText(Path.Combine(run.Record.Workspace.Path!, "change.txt"), "only copy\n");
+        await CommitFilesAsync(repo, run.Record.Workspace.Path!, ct);
+        File.WriteAllText(Path.Combine(repo.Root, "change.txt"), "different target\n");
+        await CommitFilesAsync(repo, repo.Root, ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        await repo.GitAsync(["config", "diff.relative", "true"], ct);
+        var info = lab.Ledger.LoadRunInfo();
+        info.Repo = Directory.CreateDirectory(Path.Combine(repo.Root, "subfolder")).FullName;
+        Json.WriteFile(Path.Combine(lab.Ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+        var probes = new List<string[]>();
+        Proc.BeforeTimeout.Value = (process, _) =>
+        {
+            var args = process.StartInfo.ArgumentList.ToArray();
+            if (args.Contains("diff") || args.Contains("diff-tree")) probes.Add(args);
+            return Task.CompletedTask;
+        };
+        (int Exit, string Output) result;
+        try { result = await CleanCommandAsync(lab.Ledger, run, ct); }
+        finally { Proc.BeforeTimeout.Value = null; }
+        await Assert.That(result.Exit).IsEqualTo(1);
+        await Assert.That(result.Output.ReplaceLineEndings("\n").Split('\n').Where(line => line.StartsWith("inspect:", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { $"inspect: refused (unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently); --force removes it anyway" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(run.Record.Workspace.Path!, "change.txt"))).IsEqualTo("only copy\n");
+        await Assert.That(lab.Ledger.Read().Where(line => line.Type is "landed" or "cleaned" or "clean-failed")
+            .Select(line => line.Type + ":" + line.Data?["error"]?.GetValue<string>()))
+            .IsEquivalentTo(new[] { "clean-failed:workspace cleanup refused" }, CollectionOrdering.Matching);
+        await Assert.That(probes.Select(args => args.Contains("--name-only") ? "names" : "comparison"))
+            .IsEquivalentTo(new[] { "names", "comparison" }, CollectionOrdering.Matching);
+        foreach (var args in probes) await Assert.That(args).Contains("--no-relative");
+    }
+
     static async Task<string> TreeNameCommitAsync(CoreLab lab, string path, byte[] name, string text, CancellationToken ct)
     {
         var blob = await GitInputAsync(lab, path, ["hash-object", "-w", "--stdin"], System.Text.Encoding.UTF8.GetBytes(text), ct);

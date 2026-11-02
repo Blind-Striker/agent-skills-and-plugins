@@ -23,7 +23,12 @@ static class Settlement
             homeRetained |= stop?.HomeRetained is not null;
             run.SaveWorker(run.SavedWorker(), ledger);
         }
-        var keepReport = string.IsNullOrWhiteSpace(report.FinalText) && previous?.WorkerStatus is not null;
+        const string noFinalText = "_No final assistant text without an error._";
+        var finalPath = Path.Combine(ledger.TaskDir(run.Id), "final.md");
+        var keepReport = string.IsNullOrWhiteSpace(report.FinalText) && previous is not null
+            && File.Exists(finalPath) && !File.ReadAllText(finalPath).Contains(noFinalText, StringComparison.Ordinal);
+        var executionError = keepReport && backend.Name == "codex" && report.StopResult is { Stopped: true } recovery
+            && report.ExecutionError == recovery.Detail ? null : report.ExecutionError;
         var outcome = keepReport ? previous!.Outcome : outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
         var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
         if (!keepReport) await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
@@ -32,28 +37,27 @@ static class Settlement
             Outcome: {outcome}
             {timeout}
 
-            {report.FinalText ?? "_No final assistant text without an error._"}
+            {report.FinalText ?? noFinalText}
             """, ct);
         var result = new TaskResult
         {
             Task = run.Id, Run = ledger.RunId, Kind = record.Spec.Kind, Backend = backend.Name, Outcome = outcome,
             Prepare = record.Prepare,
-            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = record.RouteResolved,
-            RoutesUsed = report.RoutesUsed.ToList(),
+            Session = record.Session, RouteRequested = record.Settings.Route?.Value, RouteResolved = keepReport ? previous!.RouteResolved : record.RouteResolved,
+            RoutesUsed = keepReport ? previous!.RoutesUsed.ToList() : report.RoutesUsed.ToList(),
             Cost = report.Cost, Tokens = report.Usage is { Input: null, Output: null, Reasoning: null, CacheRead: null, CacheWrite: null } ? null : report.Usage,
             TokensComplete = report.UsageComplete,
             ContextWindow = report.ContextWindow,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
             TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped,
-            ExecutionError = keepReport && backend.Name == "codex" && report.StopResult is { Stopped: true } recovery
-                && report.ExecutionError == recovery.Detail ? null : report.ExecutionError,
+            ExecutionError = keepReport ? JoinErrors(previous!.ExecutionError, executionError) : executionError,
             BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,
             CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = JoinErrors(run.StartFailure, releaseFailure),
             CapabilityNotes = ConfigResolver.CapabilityNotes(record.Settings) is { Count: > 0 } notes ? notes : null,
         };
         if (releaseFailure is not null) result.Failures.Add("release-failed");
         if (homeRetained) (result.Warnings ??= []).Add("codex-home-retained");
-        (result.RouteVerified, var drift) = CheckRoutes(record.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
+        (result.RouteVerified, var drift) = CheckRoutes(result.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
         result.RouteDrift = drift.Count > 0 ? drift : null;
         if (record.Spec.Kind != "structured") result.WorkerStatus = keepReport ? previous!.WorkerStatus : ReadStatus(report.FinalText);
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.

@@ -360,13 +360,13 @@ static class Worktree
         var headAncestor = head is null || head == tip || (await ProbeAsync(true, "merge-base", "--is-ancestor", head, targetTip)).ExitCode == 0;
         if (ancestor.ExitCode == 0 && headAncestor) return (target, $"ancestor of {target}");
         if (head is not null && head != tip) return (target, null);
-        var changed = await ProbeAsync(false, "diff", "--name-only", "-z", "--no-renames", "--ignore-submodules=none", baseSha, tip);
+        var changed = await ProbeAsync(false, "diff", "--no-relative", "--name-only", "-z", "--no-renames", "--ignore-submodules=none", baseSha, tip);
         var paths = Encoding.UTF8.GetString(changed.Stdout).Split('\0', StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length is 0 or > 500 || paths.Any(path => path.Contains('\uFFFD')) || string.Join(' ', paths).Length > 16_000) return (target, null);
         if ((await ProbeAsync(true, "merge-base", "--is-ancestor", baseSha, targetTip)).ExitCode != 0) return (target, null);
         async Task<bool> MatchesAsync(string candidate)
         {
-            var difference = await ProbeAsync(false, "diff-tree", "-r", "-z", "--no-renames", "--ignore-submodules=none",
+            var difference = await ProbeAsync(false, "diff-tree", "--no-relative", "-r", "-z", "--no-renames", "--ignore-submodules=none",
                 "--no-ext-diff", "--no-textconv", tip, candidate);
             return !Encoding.UTF8.GetString(difference.Stdout).Split('\0').Intersect(paths, StringComparer.Ordinal).Any();
         }

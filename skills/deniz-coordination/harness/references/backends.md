@@ -216,10 +216,12 @@ A missing ownership marker also retains the home and warns; a changed marker sti
 release/collection. Run `clean` after releasing the lock. Deletion-only clean of a final non-zombie
 with a `collected` event and neither zombie nor unconfirmed stop evidence leaves every ownership
 refusal for manual deletion without failing clean, including missing recorded marker fields and
-unrecognized owners or paths. Every clean route prints
+unrecognized owners or paths. After confirmed stop or on the deletion-only route, clean prints
 `<task>: codex home has no valid ownership marker; delete it by hand: <path>` for these refusals.
 After confirmed stop, the zombie and non-final routes treat these refusals the same way; an
-unconfirmed stop still fails clean and protects the worktree and home. Inspect the printed path
+unconfirmed stop instead prints
+`<task>: codex home has no valid ownership marker and its stop is unconfirmed; check that the worker has ended before you delete <path> by hand`,
+still fails clean and protects the worktree and home. Inspect the printed path
 rather than recreating ownership proof. A read-only `auth.json` on Windows, or a read-only folder on Linux,
 retains the home; the printed home path is what to clean by hand. Probe home
 retention is reported to stderr even without a worker or signal drain. A throwing notification pump
@@ -236,9 +238,13 @@ the unconfirmed home. Earlier
 stop confirmation still permits commit and verify even when release throws. Cancellation and ledger
 write failures retain their error paths.
 
-When recollection has no final assistant text but `result.json` has a `workerStatus`, settlement
-preserves `final.md` byte-for-byte and retains the earlier `outcome` and `workerStatus`, without
-adding `no-final-text` or `outcome:lost`. Workspace collection and verify still run normally.
+When recollection has no final assistant text, `result.json` exists and `final.md` holds worker text
+rather than the `_No final assistant text without an error._` placeholder, settlement preserves
+`final.md` byte-for-byte and retains the earlier `outcome`, `workerStatus` (even when absent),
+`routesUsed`, `routeResolved` and `executionError`, without adding `no-final-text` or `outcome:lost`.
+Prior route drift and execution errors still fail the task; workspace collection, verify, scope and
+stop checks still run normally, and genuine recollection errors still fail. Failed starts without
+worker text do not keep the placeholder.
 
 If creation fails and disposal also fails, the original start error wins and stderr prints the
 retained home's path. Such a home is not tracked by a task: look at the printed path under

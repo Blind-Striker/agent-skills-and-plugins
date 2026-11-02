@@ -219,7 +219,9 @@ static partial class Commands
                 run.SaveWorker(run.SavedWorker(), ledger);
                 Settlement.RecordStop(ledger, run, stop);
                 if (ownershipRefused)
-                    Console.WriteLine($"{run.Id}: codex home has no valid ownership marker; delete it by hand: {record.BackendState.CodexHome}");
+                    Console.WriteLine(stop is { Stopped: true }
+                        ? $"{run.Id}: codex home has no valid ownership marker; delete it by hand: {record.BackendState.CodexHome}"
+                        : $"{run.Id}: codex home has no valid ownership marker and its stop is unconfirmed; check that the worker has ended before you delete {record.BackendState.CodexHome} by hand");
                 if (stop is { Stopped: false })
                 {
                     failures[run.Id] = $"Codex stop unconfirmed: {stop.Detail}";

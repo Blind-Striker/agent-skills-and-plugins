@@ -228,8 +228,9 @@ Changed markers refuse recorded release/collection, but during live settlement r
 the same warning rather than losing the report. Unrecognized owners or paths remain safety refusals
 on recorded cleanup. Retry `clean` after a lock is released, or inspect and manually delete the path
 when clean reports no valid ownership marker (including missing recorded fields or unrecognized
-ownership). This does not fail deletion-only clean or clean after confirmed stop; unconfirmed stop
-still protects the worktree and fails clean. Only final, collected tasks with neither zombie nor
+ownership), but only after checking the worker has ended if stop is unconfirmed. This does not fail
+deletion-only clean or clean after confirmed stop; unconfirmed stop still protects the worktree and
+fails clean. Only final, collected tasks with neither zombie nor
 unconfirmed stop evidence skip the process check. Other final tasks stop first, even if failed-start
 paths recorded retention only as an event.
 
@@ -240,9 +241,13 @@ worktree and home until confirmation. Force removes the worktree and branch but 
 unconfirmed home. Confirmation writes `hard-stop` even when only `release-failed`, not a previous
 zombie, required the stop check; later clean restores it and applies normal workspace checks.
 Uncommitted edits refuse as dirty and `collect` preserves them. Recollection without final text
-preserves the previous `final.md`, `outcome` and `workerStatus` when `result.json` holds a
-`workerStatus`; workspace collection and verification still repeat, without `no-final-text` or
-`outcome:lost`. Earlier stop confirmation still permits commit and verify when release throws.
+preserves the previous `final.md`, `outcome`, `workerStatus` (even when absent), `routesUsed`,
+`routeResolved` and `executionError` when `result.json` exists and `final.md` holds worker text rather
+than the `_No final assistant text without an error._` placeholder. Prior route drift and execution
+errors still fail the task; workspace collection, verification, scope and stop checks still repeat,
+without `no-final-text` or `outcome:lost`, and genuine recollection errors still fail. Failed starts
+without worker text do not keep the placeholder. Earlier stop confirmation still permits commit and
+verify when release throws.
 Multiple harness error messages are newline-joined in `error`, not replaced by later failures.
 
 For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked

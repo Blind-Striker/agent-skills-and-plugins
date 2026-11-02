@@ -850,8 +850,10 @@ public sealed class CodexHomeRetainedTests
         {
             await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(route == "unconfirmed" ? 1 : 0);
             await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n").Split('\n')
-                .Where(line => line.Contains("delete it by hand:", StringComparison.Ordinal)))
-                .IsEquivalentTo(new[] { $"edit: codex home has no valid ownership marker; delete it by hand: {home.Home}" }, CollectionOrdering.Matching);
+                .Where(line => line.Contains("codex home has no valid ownership marker", StringComparison.Ordinal)))
+                .IsEquivalentTo(new[] { route == "unconfirmed"
+                    ? $"edit: codex home has no valid ownership marker and its stop is unconfirmed; check that the worker has ended before you delete {home.Home} by hand"
+                    : $"edit: codex home has no valid ownership marker; delete it by hand: {home.Home}" }, CollectionOrdering.Matching);
             await Assert.That(Directory.Exists(home.Home)).IsTrue();
             await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsEqualTo(route == "unconfirmed");
             await Assert.That(core.Ledger.Read().Where(line => line.Type == "clean-failed").Select(line => line.Data!["step"]!.GetValue<string>()))
@@ -922,6 +924,76 @@ public sealed class CodexHomeRetainedTests
             await Assert.That(backend.HasResources).IsFalse();
         }
         finally { File.WriteAllText(marker, home.MarkerText); }
+    }
+
+    [Test]
+    [Arguments("route-drift")]
+    [Arguments("settle-error")]
+    [Arguments("done")]
+    [Arguments("no-status")]
+    [Timeout(60_000)]
+    public async Task Collect_keeps_settled_report_and_failure_evidence(string condition, CancellationToken ct)
+    {
+        using var core = new CoreLab("collect-evidence");
+        var run = await PrepareAsync(core, ct);
+        run.Record.RouteResolved = "codex:model-y#high";
+        run.SaveWorker(new("codex", run.Id, "recorded", null, new() { ["pid"] = int.MaxValue }), core.Ledger);
+        var routes = condition == "route-drift" ? new[] { "codex:model-z#high" } : ["codex:model-y#high"];
+        var executionError = condition == "settle-error" ? "original execution error" : null;
+        var text = condition == "no-status" ? "Raw worker report without a status line." : "Worker report\nStatus: done";
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false))
+        {
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", text, new(), null, true, routes, executionError, true)),
+            OnRelease = (_, _) => Task.FromResult<InterruptResult?>(new(true, "confirmed stop")),
+        };
+        var expectedState = condition is "route-drift" or "settle-error" ? "failed" : "done";
+        string[] failures = expectedState == "failed" ? [condition] : [];
+        var first = await Settlement.SettleAsync(backend, core.Ledger, run, null, ct, core.Git);
+        await Assert.That(first.State).IsEqualTo(expectedState);
+        await Assert.That(first.Failures).IsEquivalentTo(failures, CollectionOrdering.Matching);
+        var final = File.ReadAllBytes(Path.Combine(core.Ledger.TaskDir(run.Id), "final.md"));
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = first.State });
+        // Backend details need not be available again when a recorded worker is recollected.
+        run.Record.RouteResolved = null;
+        core.Ledger.SaveRecord(run.Record);
+        await Assert.That(await Commands.CollectAsync(Args.Parse(["collect", core.Ledger.RunId, run.Id]), ct)).IsEqualTo(expectedState == "done" ? 0 : 1);
+        var result = core.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.State).IsEqualTo(expectedState);
+        await Assert.That(result.Failures).IsEquivalentTo(failures, CollectionOrdering.Matching);
+        await Assert.That(result.Outcome).IsEqualTo("succeeded");
+        await Assert.That(result.WorkerStatus).IsEqualTo(condition == "no-status" ? null : "done");
+        await Assert.That(result.RoutesUsed).IsEquivalentTo(routes, CollectionOrdering.Matching);
+        await Assert.That(result.RouteResolved).IsEqualTo("codex:model-y#high");
+        if (condition == "route-drift") await Assert.That(result.RouteDrift!).IsEquivalentTo(routes, CollectionOrdering.Matching);
+        else await Assert.That(result.RouteDrift).IsNull();
+        await Assert.That(result.ExecutionError).IsEqualTo(executionError);
+        await Assert.That(File.ReadAllBytes(Path.Combine(core.Ledger.TaskDir(run.Id), "final.md"))).IsEquivalentTo(final, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Collect_does_not_keep_a_failed_starts_placeholder(CancellationToken ct)
+    {
+        using var core = new CoreLab("collect-placeholder");
+        var run = await PrepareAsync(core, ct);
+        run.SaveWorker(new("codex", run.Id, "recorded", null, new() { ["pid"] = int.MaxValue }), core.Ledger);
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false))
+        {
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport("failed", null, new(), null, false, [], "creation failed", true)),
+            OnRelease = (_, _) => Task.FromResult<InterruptResult?>(new(true, "confirmed stop")),
+        };
+        var first = await Settlement.SettleAsync(backend, core.Ledger, run, null, ct, core.Git);
+        await Assert.That(first.Failures).IsEquivalentTo(new[] { "outcome:failed", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
+        var finalPath = Path.Combine(core.Ledger.TaskDir(run.Id), "final.md");
+        await Assert.That(File.ReadAllText(finalPath)).Contains("_No final assistant text without an error._");
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = first.State });
+        await Assert.That(await Commands.CollectAsync(Args.Parse(["collect", core.Ledger.RunId, run.Id]), ct)).IsEqualTo(1);
+        var result = core.Ledger.LoadResult(run.Id)!;
+        await Assert.That(result.State).IsEqualTo("failed");
+        await Assert.That(result.Outcome).IsEqualTo("lost");
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "outcome:lost", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(finalPath)).Contains("Outcome: lost");
+        await Assert.That(File.ReadAllText(finalPath)).Contains("_No final assistant text without an error._");
     }
 
     static string RecordedStopError()

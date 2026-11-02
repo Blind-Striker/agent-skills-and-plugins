@@ -497,10 +497,13 @@ returns 1 without `aborted`, and retains worktree, scratch and the temporary hom
 a failed creation's recorded worker when it has no turn. A later confirmed check can clear
 restored uncertainty for recollection; historical stop evidence remains.
 In a fresh process Codex still reports `lost`: it cannot recover the live assistant report. If no
-final text is available and `result.json` holds a `workerStatus`, recollection instead keeps the
-existing `final.md` unchanged and preserves the earlier outcome and worker status, without
-`no-final-text` or `outcome:lost`. Workspace collection and verify run as usual. Otherwise a locked
-home or missing ownership marker no longer aborts collection; artifacts are written with `lost`
+final text is available, `result.json` exists and `final.md` holds worker text rather than the
+`_No final assistant text without an error._` placeholder, recollection keeps `final.md` unchanged
+and preserves the earlier outcome, worker status (even when absent), `routesUsed`, `routeResolved`
+and `executionError`, without `no-final-text` or `outcome:lost`. Prior route drift and execution errors
+still fail the task; workspace collection, verify, scope and stop checks run as usual, and genuine
+recollection errors still fail. A failed start without worker text does not keep its placeholder.
+Otherwise a locked home or missing ownership marker no longer aborts collection; artifacts are written with `lost`
 and `codex-home-retained`. A changed marker or unrecognized owner/path still refuses. During live
 settlement a throwing release preserves the report with `release-failed`; without stop evidence,
 no workspace collection or verify runs. Ledger errors and cancellation keep their existing handling.
@@ -581,10 +584,12 @@ non-final release, prints
 `<task>: codex home retained (<message>)`, records `clean-failed`, returns 1 and keeps the control
 contents so another `clean` can retry; workspace and other task cleanup still finish. During
 every clean route, any ownership refusal (including missing or changed markers, missing recorded
-marker fields and unrecognized ownership) prints
+marker fields and unrecognized ownership) after a confirmed stop or on the deletion-only route prints
 `<task>: codex home has no valid ownership marker; delete it by hand: <path>`, keeps the home and
 does not fail cleanup after a confirmed stop or on the deletion-only route. If stop remains
-unconfirmed, clean still returns 1 and protects the worktree. Changed markers still refuse recorded
+unconfirmed, clean instead prints
+`<task>: codex home has no valid ownership marker and its stop is unconfirmed; check that the worker has ended before you delete <path> by hand`,
+still returns 1 and protects the worktree. Changed markers still refuse recorded
 release/collection. Shared `auth.json`, `.sandbox/setup_marker.json` and
 `.sandbox-secrets/sandbox_users.json` never have their attributes changed. A read-only `auth.json` on Windows,
 or a read-only folder on Linux, retains the home; the printed home path is what to clean by hand.
