@@ -3,7 +3,10 @@ static class Settlement
     public static async Task<TaskResult> SettleAsync(IWorkerBackend backend, Ledger ledger, TaskRun run, string? outcomeOverride, CancellationToken ct, Git? git = null)
     {
         var record = run.Record;
-        var previous = ledger.LoadResult(run.Id);
+        TaskResult? previous = null;
+        // An unreadable earlier result only means there is no report to keep.
+        try { previous = ledger.LoadResult(run.Id); }
+        catch (JsonException) { }
         var report = run.Zombie && !run.ReportReady && backend.Name != "codex" ? new WorkerReport("lost", null, new(), null, false, [], null, false)
             : await backend.CollectAsync(run.SavedWorker(), ct);
         // Live zombie settlement is fixed at admission; only a later recovery/collect may clear it.

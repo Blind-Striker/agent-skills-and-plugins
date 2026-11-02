@@ -66,7 +66,8 @@ public sealed class CodexBackendTests
             var result = ledger.LoadResult(run.Id)!;
             await Assert.That(result.State).IsEqualTo("failed");
             await Assert.That(result.WorkerStopped).IsFalse();
-            await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "outcome:lost", "settle-error", "no-final-text" }, CollectionOrdering.Matching);
+            // The first settlement holds the worker's report, so the recollection keeps it.
+            await Assert.That(result.Failures).IsEquivalentTo(new[] { "zombie", "settle-error" }, CollectionOrdering.Matching);
             await Assert.That(result.Verify).IsEmpty();
             await Assert.That(ledger.Read().Select(line => line.Type)).IsEquivalentTo(operation == "resume"
                 ? new[] { "stop-unconfirmed", "outcome", "outcome", "final" }
