@@ -3,6 +3,7 @@ static class Settlement
     public static async Task<TaskResult> SettleAsync(IWorkerBackend backend, Ledger ledger, TaskRun run, string? outcomeOverride, CancellationToken ct, Git? git = null)
     {
         var record = run.Record;
+        var previous = ledger.LoadResult(run.Id);
         var report = run.Zombie && !run.ReportReady && backend.Name != "codex" ? new WorkerReport("lost", null, new(), null, false, [], null, false)
             : await backend.CollectAsync(run.SavedWorker(), ct);
         // Live zombie settlement is fixed at admission; only a later recovery/collect may clear it.
@@ -22,9 +23,10 @@ static class Settlement
             homeRetained |= stop?.HomeRetained is not null;
             run.SaveWorker(run.SavedWorker(), ledger);
         }
-        var outcome = outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
+        var keepReport = string.IsNullOrWhiteSpace(report.FinalText) && previous?.WorkerStatus is not null;
+        var outcome = keepReport ? previous!.Outcome : outcomeOverride ?? (run.CancelRequested ? "cancelled" : run.TimedOut ? "timeout" : null) ?? report.Outcome;
         var timeout = run.TimedOut ? $"\nTimeout limit (timeoutMinutes: {record.Spec.TimeoutMinutes ?? Constants.DefaultTimeoutMinutes}).\n" : "";
-        await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
+        if (!keepReport) await ledger.WriteArtifactAsync(run.Id, "final.md", $"""
             # {ledger.RunId}/{run.Id}
 
             Outcome: {outcome}
@@ -42,7 +44,9 @@ static class Settlement
             TokensComplete = report.UsageComplete,
             ContextWindow = report.ContextWindow,
             Asks = run.Asks, AsksEscalated = run.Escalated, FormsCancelled = run.Forms, Retries = run.Retries,
-            TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped, ExecutionError = report.ExecutionError,
+            TimedOut = run.TimedOut, CancelRequested = run.CancelRequested, WorkerStopped = run.WorkerStopped,
+            ExecutionError = keepReport && backend.Name == "codex" && report.StopResult is { Stopped: true } recovery
+                && report.ExecutionError == recovery.Detail ? null : report.ExecutionError,
             BaseSha = record.Spec.Kind == "structured" ? null : record.Workspace.BaseSha,
             CommitMode = record.Spec.Kind == "structured" ? null : Worktree.CommitMode(record), Error = JoinErrors(run.StartFailure, releaseFailure),
             CapabilityNotes = ConfigResolver.CapabilityNotes(record.Settings) is { Count: > 0 } notes ? notes : null,
@@ -51,7 +55,7 @@ static class Settlement
         if (homeRetained) (result.Warnings ??= []).Add("codex-home-retained");
         (result.RouteVerified, var drift) = CheckRoutes(record.RouteResolved ?? record.Settings.Route?.Value, result.RoutesUsed);
         result.RouteDrift = drift.Count > 0 ? drift : null;
-        if (record.Spec.Kind != "structured") result.WorkerStatus = ReadStatus(report.FinalText);
+        if (record.Spec.Kind != "structured") result.WorkerStatus = keepReport ? previous!.WorkerStatus : ReadStatus(report.FinalText);
         // A worker whose stop is unconfirmed may still be writing: no commit and no verify then.
         var mayStillWrite = run.Zombie || releaseFailure is not null && run.WorkerStopped != true;
         if (record.Spec.Kind == "structured")
@@ -88,7 +92,7 @@ static class Settlement
                 result.RecoveredErrors = [.. recovered];
                 (result.Warnings ??= []).Add("recovered-model-error");
             }
-            if (string.IsNullOrWhiteSpace(report.FinalText))
+            if (!keepReport && string.IsNullOrWhiteSpace(report.FinalText))
             {
                 result.Failures.Add("no-final-text");
                 if (outcome == "succeeded")
@@ -134,12 +138,13 @@ static class Settlement
         if (stop.HomeRetained is { } message)
             ledger.Write(run.Id, "error", new JsonObject { ["while"] = "release", ["message"] = message });
         var wasZombie = run.Zombie;
+        var wasStopped = run.WorkerStopped;
         run.WorkerStopped = stop.Stopped;
         run.Zombie = !stop.Stopped;
         if (stop.Stopped)
         {
             run.WorkerEnded = true;
-            if (wasZombie)
+            if (wasZombie || wasStopped != true && ledger.LoadResult(run.Id)?.Failures.Contains("release-failed") == true)
                 ledger.Write(run.Id, "hard-stop", new JsonObject { ["stopped"] = true, ["detail"] = stop.Detail });
         }
         else if (!wasZombie)

@@ -448,6 +448,132 @@ public sealed class CodexHomeTests
         await Assert.That(File.ReadAllText(Path.Combine(outside, "canary"))).IsEqualTo("keep");
     }
 
+    [Test]
+    public async Task Recorded_owner_rejects_a_different_run_even_in_the_current_profiles_folder()
+    {
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        var context = new BackendContext(Path.Combine(tree.Root, "profiles"), null, new Dictionary<string, string>());
+        using var home = CodexHome.Create(context, Launch(tree.Repository), source);
+        var other = new Ledger(Path.Combine(tree.Root, "different-run"));
+        Json.WriteFile(Path.Combine(other.Dir, "run.json"), new RunInfo { Run = other.RunId, ControlId = Locations.NewControlId() }, LedgerJson.Files.RunInfo);
+        var worker = new WorkerRef("codex", "task", "worker", null, new()
+        {
+            ["codexHome"] = home.Home, ["codexHomeTemporary"] = true,
+            ["codexHomeMarkerName"] = home.MarkerName, ["codexHomeMarkerText"] = home.MarkerText,
+        });
+        var error = await Assert.ThrowsAsync<HarnessException>(() => Task.Run(() => CodexHome.DeleteRecorded(context, worker, Path.Combine(tree.Root, "different-run"))));
+        await Assert.That(error!.Message).IsEqualTo("temporary Codex home ownership is not recognized");
+        await Assert.That(Directory.Exists(home.Home)).IsTrue();
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, home.MarkerName!))).IsEqualTo(home.MarkerText);
+    }
+
+    [Test]
+    [Arguments(".sandbox/setup_marker.json")]
+    [Arguments(".sandbox-secrets/sandbox_users.json")]
+    [Timeout(60_000)]
+    public async Task Cleanup_never_changes_read_only_sandbox_hardlink_attributes(string relative, CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Sandbox receipt hardlinks are Windows-only.");
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        var shared = Path.Combine(source, relative);
+        Directory.CreateDirectory(Path.GetDirectoryName(shared)!);
+        File.WriteAllText(shared, "receipt");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        File.SetAttributes(shared, FileAttributes.ReadOnly);
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Task.Run(home.Dispose, ct));
+            await Assert.That(File.GetAttributes(shared) & FileAttributes.ReadOnly).IsEqualTo(FileAttributes.ReadOnly);
+            await Assert.That(File.ReadAllText(shared)).IsEqualTo("receipt");
+            await Assert.That(File.Exists(Path.Combine(home.Home, relative))).IsTrue();
+        }
+        finally { File.SetAttributes(shared, FileAttributes.Normal); }
+    }
+
+    [Test]
+    public async Task Cleanup_clears_read_only_on_a_nested_auth_name()
+    {
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        var nested = Path.Combine(Directory.CreateDirectory(Path.Combine(home.Home, "nested")).FullName, "auth.json");
+        File.WriteAllText(nested, "private");
+        File.SetAttributes(nested, FileAttributes.ReadOnly);
+        try
+        {
+            await Assert.That(() => home.Dispose()).ThrowsNothing();
+            await Assert.That(Directory.Exists(home.Home)).IsFalse();
+            await Assert.That(File.GetAttributes(Path.Combine(source, "auth.json")) & FileAttributes.ReadOnly).IsEqualTo((FileAttributes)0);
+        }
+        finally { if (File.Exists(nested)) File.SetAttributes(nested, FileAttributes.Normal); }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Cleanup_does_not_set_attributes_on_a_writable_file_that_denies_attribute_changes(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) { Skip.Test("Windows ACL independently denies attribute writes."); return; }
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        var file = new FileInfo(Path.Combine(home.Home, "writable.sqlite"));
+        File.WriteAllText(file.FullName, "private");
+        var security = System.IO.FileSystemAclExtensions.GetAccessControl(file);
+        var identity = System.Security.Principal.WindowsIdentity.GetCurrent().User!;
+        security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(identity,
+            System.Security.AccessControl.FileSystemRights.WriteAttributes, System.Security.AccessControl.AccessControlType.Deny));
+        System.IO.FileSystemAclExtensions.SetAccessControl(file, security);
+        try
+        {
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Task.Run(() => File.SetAttributes(file.FullName, FileAttributes.Normal), ct));
+            await Assert.That(file.Attributes & FileAttributes.ReadOnly).IsEqualTo((FileAttributes)0);
+            await Assert.That(() => home.Dispose()).ThrowsNothing();
+            await Assert.That(Directory.Exists(home.Home)).IsFalse();
+        }
+        finally
+        {
+            if (File.Exists(file.FullName)) File.Delete(file.FullName);
+        }
+    }
+
+    [Test]
+    public async Task Cleanup_never_changes_read_only_attributes_through_a_file_link()
+    {
+        using var tree = new TempTree();
+        var source = Directory.CreateDirectory(Path.Combine(tree.Root, "user-codex")).FullName;
+        File.WriteAllText(Path.Combine(source, "auth.json"), "{}");
+        using var home = CodexHome.Create(new(tree.Root, null, new Dictionary<string, string>()), Launch(tree.Repository), source);
+        var outside = Path.Combine(tree.Root, "readonly.txt");
+        File.WriteAllText(outside, "keep");
+        var link = Path.Combine(home.Home, "outside-link");
+        File.CreateSymbolicLink(link, outside);
+        File.SetAttributes(outside, FileAttributes.ReadOnly);
+        if (OperatingSystem.IsWindows()) File.SetAttributes(link, File.GetAttributes(link) | FileAttributes.ReadOnly);
+        var expected = File.GetAttributes(outside);
+        try
+        {
+            // Ensure the fixture exposes ReadOnly on the link, so removing the reparse guard is observable.
+            await Assert.That(File.GetAttributes(link) & FileAttributes.ReadOnly).IsEqualTo(FileAttributes.ReadOnly);
+            if (OperatingSystem.IsWindows()) await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Task.Run(home.Dispose));
+            else home.Dispose();
+            await Assert.That(File.GetAttributes(outside)).IsEqualTo(expected);
+            await Assert.That(File.ReadAllText(outside)).IsEqualTo("keep");
+            await Assert.That(Directory.Exists(home.Home)).IsEqualTo(OperatingSystem.IsWindows());
+            if (OperatingSystem.IsWindows()) await Assert.That(File.GetAttributes(link) & FileAttributes.ReadOnly).IsEqualTo(FileAttributes.ReadOnly);
+        }
+        finally
+        {
+            if (OperatingSystem.IsWindows() && File.Exists(link)) File.SetAttributes(link, FileAttributes.Normal);
+            File.SetAttributes(outside, FileAttributes.Normal);
+        }
+    }
+
     [System.Runtime.InteropServices.DllImport("kernel32.dll", ExactSpelling = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode, SetLastError = true)]
     static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security,
         uint creation, uint flags, IntPtr template);

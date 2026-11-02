@@ -127,7 +127,8 @@ static partial class Commands
                 step = "workspace";
                 var git = Directory.Exists(control) ? Worktree.Runner(ledger, task) : Git.ForTask(task, ledger.RunId);
                 if (!await Worktree.CleanAsync(ledger, record, info.Repo!, force, ct, git,
-                    reason => ledger.Write(task, "landed", new JsonObject { ["reason"] = reason }))) throw new HarnessException("workspace cleanup refused");
+                    reason => { if (!ledger.Read().Any(line => line.Task == task && line.Type == "landed"))
+                        ledger.Write(task, "landed", new JsonObject { ["reason"] = reason }); })) throw new HarnessException("workspace cleanup refused");
                 if (error is null)
                 {
                     var data = new JsonObject { ["worktree"] = record.Workspace.Path, ["branch"] = record.Workspace.Branch, ["force"] = force };
@@ -194,27 +195,37 @@ static partial class Commands
                 var codex = (CodexBackend)scope.Backends["codex"];
                 codex.RunId = ledger.RunId;
                 if (states[run.Id] is "done" or "failed" or "cancelled"
-                    && result?.Failures.Contains("zombie") != true
-                    && (result?.Failures.Contains("release-failed") != true || run.WorkerStopped == true || result.WorkerStopped == true))
+                    && ledger.Read().Any(line => line.Task == run.Id && line.Type == "collected") && !run.Zombie
+                    && (result?.Failures.Any(failure => failure is "zombie" or "release-failed") != true || run.WorkerStopped == true))
                 {
+                    var existed = Directory.Exists(record.BackendState.CodexHome);
                     var error = await Task.Run(() => codex.DeleteRetainedHome(run.SavedWorker()));
                     if (error is not null)
                     {
                         Console.WriteLine($"{run.Id}: codex home retained ({error.Message})");
                         failures[run.Id] = error.Message;
                     }
-                    else if (!Directory.Exists(record.BackendState.CodexHome)) Console.WriteLine($"{run.Id}: codex home removed");
+                    else if (existed && !Directory.Exists(record.BackendState.CodexHome)) Console.WriteLine($"{run.Id}: codex home removed");
                     continue;
                 }
-                var stop = await scope.Backends["codex"].ReleaseAsync(run.SavedWorker(), ct);
+                var ownershipRefused = false;
+                InterruptResult? stop;
+                try { stop = await codex.ReleaseAsync(run.SavedWorker(), ct); }
+                catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is not null
+                    && exception.Data[nameof(InterruptResult)] is InterruptResult { Stopped: true })
+                { stop = (InterruptResult)exception.Data[nameof(InterruptResult)]!; ownershipRefused = true; }
+                try { CodexHome.CheckRecorded(new(Path.Combine(control, "profiles"), null, new Dictionary<string, string>()), run.SavedWorker(), ledger.RunId); }
+                catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is not null) { ownershipRefused = true; }
                 run.SaveWorker(run.SavedWorker(), ledger);
                 Settlement.RecordStop(ledger, run, stop);
+                if (ownershipRefused)
+                    Console.WriteLine($"{run.Id}: codex home has no valid ownership marker; delete it by hand: {record.BackendState.CodexHome}");
                 if (stop is { Stopped: false })
                 {
                     failures[run.Id] = $"Codex stop unconfirmed: {stop.Detail}";
                     Console.WriteLine($"{run.Id}: retained Codex home: {record.BackendState.CodexHome}");
                 }
-                else if (stop?.HomeRetained is { } message)
+                else if (!ownershipRefused && stop?.HomeRetained is { } message)
                 {
                     failures[run.Id] = message;
                     Console.WriteLine($"{run.Id}: codex home retained ({message})");

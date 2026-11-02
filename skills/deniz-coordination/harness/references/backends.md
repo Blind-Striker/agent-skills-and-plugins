@@ -202,8 +202,10 @@ collection refuse a changed marker or unrecognized owner/path, and remove the te
 after the process tree has stopped. Live settlement retains a missing or changed marker home with
 the warning below, so the worker's report survives.
 
+The shared files are `auth.json` and, on Windows, `.sandbox/setup_marker.json` and
+`.sandbox-secrets/sandbox_users.json`; logs, helpers and other sandbox state remain private.
 Deletion includes hidden and system children, removes directory links without following them, clears
-read-only attributes except on `auth.json` (whose hardlink shares the user's attributes), and deletes
+attributes only on read-only private files (never on links or those root-relative shared paths), and deletes
 the ownership marker last. Every child is attempted in each pass; the last I/O or access failure is
 reported after retries every 250 ms within one ten-second window. The awaited deletion runs off the
 scheduler lock. If only the home folder remains locked after its marker was deleted, the verified marker is
@@ -212,18 +214,37 @@ worker's report: process-resource cleanup still finishes, settlement records an 
 `while: release`, and the result gets the non-failing warning `codex-home-retained`.
 A missing ownership marker also retains the home and warns; a changed marker still refuses recorded
 release/collection. Run `clean` after releasing the lock. Deletion-only clean of a final non-zombie
-also leaves missing or changed markers for manual deletion without failing clean; unrecognized owners
-or paths still refuse. Inspect the printed path rather than recreating ownership proof. Probe home
+with a `collected` event and neither zombie nor unconfirmed stop evidence leaves every ownership
+refusal for manual deletion without failing clean, including missing recorded marker fields and
+unrecognized owners or paths. Every clean route prints
+`<task>: codex home has no valid ownership marker; delete it by hand: <path>` for these refusals.
+After confirmed stop, the zombie and non-final routes treat these refusals the same way; an
+unconfirmed stop still fails clean and protects the worktree and home. Inspect the printed path
+rather than recreating ownership proof. A read-only `auth.json` on Windows, or a read-only folder on Linux,
+retains the home; the printed home path is what to clean by hand. Probe home
 retention is reported to stderr even without a worker or signal drain. A throwing notification pump
 does not skip home deletion or process-resource cleanup, or lose the confirmed stop result.
 
 If release itself throws a non-cancellation, non-ledger exception, settlement preserves the worker's
 text in `final.md` and writes `result.json` with `release-failed` (and `settle-error` outside
 cancellation). Without confirmed stop evidence it skips workspace collection, verify and scratch
-deletion just as for a zombie. Clean retries the stop, retaining worktree, scratch and home until
-confirmation; force may remove the worktree and scratch, but never the unconfirmed home. Earlier
+deletion just as for a zombie. Clean retries an unconfirmed stop and records a later confirmation
+with `hard-stop`, including for `release-failed` without earlier zombie evidence. Normal workspace
+checks then apply: uncommitted edits refuse as `dirty worktree`, and `collect` keeps those edits by
+collecting, committing and verifying them. Force may discard the worktree and scratch, but never
+the unconfirmed home. Earlier
 stop confirmation still permits commit and verify even when release throws. Cancellation and ledger
 write failures retain their error paths.
+
+When recollection has no final assistant text but `result.json` has a `workerStatus`, settlement
+preserves `final.md` byte-for-byte and retains the earlier `outcome` and `workerStatus`, without
+adding `no-final-text` or `outcome:lost`. Workspace collection and verify still run normally.
+
+If creation fails and disposal also fails, the original start error wins and stderr prints the
+retained home's path. Such a home is not tracked by a task: look at the printed path under
+`<system temp>/deniz-dispatch-codex/<owner>/codex-<task>` (or `probe-codex` for a probe), or the
+same owner/task layout under `.dispatch-codex` beside the user home. Clean it by hand once no
+worker can use it.
 
 If the sign-in file is unavailable, the hardlink fails, the folder already exists, the probe fails
 or the reported home cannot prove the marker, the backend can use the user home and records

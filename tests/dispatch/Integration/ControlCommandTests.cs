@@ -33,11 +33,11 @@ public sealed class ControlCommandTests
             ["codexHomeMarkerName"] = home.MarkerName, ["codexHomeMarkerText"] = home.MarkerText,
         }), core.Ledger);
         var output = TestContext.Current!.Output;
-        var start = output.GetErrorOutput().Length;
+        var start = output.GetStandardOutput().Length;
 
-        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(1);
-        await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(
-            "inspect: session: temporary Codex home ownership is not recognized\n");
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n").Split('\n').Where(line => line.StartsWith("inspect:", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { $"inspect: codex home has no valid ownership marker; delete it by hand: {home.Home}" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(Directory.Exists(home.Home)).IsTrue();
         await Assert.That(File.ReadAllText(Path.Combine(home.Home, home.MarkerName!))).IsEqualTo(home.MarkerText);
     }
@@ -74,17 +74,17 @@ public sealed class ControlCommandTests
             var args = Args.Parse([command, core.Ledger.RunId, run.Id]);
             var exit = command == "clean" ? await Commands.CleanAsync(args, ct)
                 : command == "collect" ? await Commands.CollectAsync(args, ct) : await Commands.ResumeAsync(args, ct);
-            await Assert.That(exit).IsEqualTo(1);
+            await Assert.That(exit).IsEqualTo(command == "clean" ? 0 : 1);
             await Assert.That(Directory.Exists(home.Home)).IsTrue();
             await Assert.That(File.ReadAllText(marker)).IsEqualTo(text);
             await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n")).IsEqualTo(command == "clean"
-                ? $"inspect: session: {error}\n" : command == "collect" ? $"dispatch: HarnessException: {error}\n" : "");
+                ? "" : command == "collect" ? $"dispatch: HarnessException: {error}\n" : "");
             await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(command == "clean"
-                ? new[] { "queued", "clean-failed" } : command == "collect" ? new[] { "queued", "aborted" } : new[] { "queued", "resume", "error", "error" },
+                ? new[] { "queued", "cleaned" } : command == "collect" ? new[] { "queued", "aborted" } : new[] { "queued", "resume", "error", "error" },
                 TUnit.Assertions.Enums.CollectionOrdering.Matching);
             await Assert.That(core.Ledger.Read().Where(line => line.Data?["message"] is not null || line.Data?["error"] is not null)
                 .Select(line => (line.Data!["message"] ?? line.Data["error"])!.GetValue<string>())).IsEquivalentTo(command == "resume"
-                ? new[] { error, $"resume failed; worker release unconfirmed: {error}" } : new[] { error },
+                ? new[] { error, $"resume failed; worker release unconfirmed: {error}" } : command == "clean" ? [] : new[] { error },
                 TUnit.Assertions.Enums.CollectionOrdering.Matching);
         }
         finally { if (Directory.Exists(home.Home)) File.WriteAllText(marker, home.MarkerText); }
@@ -109,6 +109,7 @@ public sealed class ControlCommandTests
         run.SaveWorker(new("codex", run.Id, "old-worker", "old-turn", new() { ["pid"] = Environment.ProcessId }), core.Ledger);
         var failures = state == "failed" ? new List<string> { "no-final-text" } : [];
         core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = state, WorkerStopped = true, Failures = failures });
+        core.Ledger.Write(run.Id, "collected", new());
         core.Ledger.Write(run.Id, "final", new() { ["state"] = state });
         var info = core.Ledger.LoadRunInfo();
         info.Repo = core.Tree.Repository;
@@ -116,7 +117,7 @@ public sealed class ControlCommandTests
         var before = File.ReadAllText(Path.Combine(core.Ledger.TaskDir(run.Id), "result.json"));
 
         await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
-        await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "worktree", "final", "cleaned" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+        await Assert.That(core.Ledger.Read().Select(line => line.Type)).IsEquivalentTo(new[] { "worktree", "collected", "final", "cleaned" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
         await Assert.That(File.ReadAllText(Path.Combine(core.Ledger.TaskDir(run.Id), "result.json"))).IsEqualTo(before);
         await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
         await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsFalse();

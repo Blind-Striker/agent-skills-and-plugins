@@ -173,7 +173,7 @@ static class Worktree
             if (!force && (restored.Zombie || (record.Settings.Backend?.Value != "codex" || restored.WorkerStopped != true)
                 && ledger.LoadResult(task)?.Failures.Any(failure => failure is "zombie" or "release-failed") == true))
             {
-                Console.WriteLine($"{task}: retained zombie worktree and scratch; --force removes them anyway");
+                Console.WriteLine($"{task}: retained zombie worktree and scratch; collect keeps uncommitted work; --force removes them anyway");
                 return false;
             }
             Scratch.Delete(record, ledger);
@@ -242,7 +242,7 @@ static class Worktree
                         ? (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all")).Length == 0
                             ? "submodule has changes" : "dirty worktree"
                         : $"unmerged: not on {record.Workspace.BaseRef}" + (target is null ? "" : $" or {target}; fetch if it landed recently");
-                    Console.WriteLine($"{task}: refused ({reason}); --force removes it anyway");
+                    Console.WriteLine($"{task}: refused ({reason}); {(dirty && ledger.LoadResult(task)?.Failures.Contains("release-failed") == true ? "collect keeps uncommitted work; " : "")}--force removes it anyway");
                     return false;
                 }
                 var removeSubmodules = false;
@@ -364,8 +364,12 @@ static class Worktree
         var paths = Encoding.UTF8.GetString(changed.Stdout).Split('\0', StringSplitOptions.RemoveEmptyEntries);
         if (paths.Length is 0 or > 500 || paths.Any(path => path.Contains('\uFFFD')) || string.Join(' ', paths).Length > 16_000) return (target, null);
         if ((await ProbeAsync(true, "merge-base", "--is-ancestor", baseSha, targetTip)).ExitCode != 0) return (target, null);
-        async Task<bool> MatchesAsync(string candidate) => (await ProbeAsync(true, ["--literal-pathspecs", "diff", "--quiet",
-            "--no-ext-diff", "--no-textconv", "--no-renames", "--ignore-submodules=none", tip, candidate, "--", .. paths])).ExitCode == 0;
+        async Task<bool> MatchesAsync(string candidate)
+        {
+            var difference = await ProbeAsync(false, "diff-tree", "-r", "-z", "--no-renames", "--ignore-submodules=none",
+                "--no-ext-diff", "--no-textconv", tip, candidate);
+            return !Encoding.UTF8.GetString(difference.Stdout).Split('\0').Intersect(paths, StringComparer.Ordinal).Any();
+        }
         if (await MatchesAsync(targetTip)) return (target, $"content matches {targetTip[..12]} on {target}");
         var history = Text(await ProbeAsync(false, ["--literal-pathspecs", "rev-list", "--full-history", "--max-count=500", $"{baseSha}..{targetTip}", "--", .. paths]));
         foreach (var candidate in history.Split('\n', StringSplitOptions.RemoveEmptyEntries))

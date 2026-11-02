@@ -356,7 +356,7 @@ public sealed class WorkspaceTests
         }
         var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
         await Assert.That(removed).IsFalse();
-        await Assert.That(output).IsEqualTo("inspect: retained zombie worktree and scratch; --force removes them anyway" + Environment.NewLine);
+        await Assert.That(output).IsEqualTo("inspect: retained zombie worktree and scratch; collect keeps uncommitted work; --force removes them anyway" + Environment.NewLine);
         await Assert.That(File.ReadAllText(Path.Combine(path, "README.md"))).IsEqualTo("# Lab repository\n");
         await Assert.That(File.ReadAllText(Path.Combine(temp, "keep"))).IsEqualTo("scratch bytes");
         await Assert.That(await Worktree.CleanAsync(lab.Ledger, run.Record, lab.Tree.Repository, true, ct, lab.Git)).IsTrue();
@@ -913,15 +913,11 @@ public sealed class WorkspaceTests
         using var origin = new TempTree();
         var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
         var path = run.Record.Workspace.Path!;
-        var blob = await GitInputAsync(lab, path, ["hash-object", "-w", "--stdin"], "only copy\n"u8.ToArray(), ct);
         byte[] name = [.. "bad-"u8.ToArray(), 0xff, .. ".txt"u8.ToArray()];
-        var entry = System.Text.Encoding.ASCII.GetBytes($"100644 {blob}\t").Concat(name).Append((byte)0).ToArray();
-        await GitInputAsync(lab, path, ["update-index", "-z", "--index-info"], entry, ct);
-        if (OperatingSystem.IsWindows())
-            await GitInputAsync(lab, path, ["update-index", "--skip-worktree", "-z", "--stdin"], [.. name, 0], ct);
-        else await GitInputAsync(lab, path, ["checkout-index", "-z", "--stdin"], [.. name, 0], ct);
-        await repo.GitAsync(["-C", path, "commit", "-m", "Non UTF-8 name"], ct);
-        var tip = await repo.GitAsync(["-C", path, "rev-parse", "HEAD"], ct);
+        var tip = await TreeNameCommitAsync(lab, path, name, "only copy\n", ct);
+        await repo.GitAsync(["-C", path, "read-tree", tip], ct);
+        await GitInputAsync(lab, path, ["update-index", "--skip-worktree", "-z", "--stdin"], [.. name, 0], ct);
+        await repo.GitAsync(["update-ref", "refs/heads/" + run.Record.Workspace.Branch, tip], ct);
         var names = await lab.Git.CheckBytesAsync(path, ct, "ls-files", "-z");
         await Assert.That(names.Contains((byte)0xff)).IsTrue();
         await Assert.That(await repo.GitAsync(["-C", path, "status", "--porcelain=v1"], ct)).IsEqualTo("");
@@ -1135,14 +1131,15 @@ public sealed class WorkspaceTests
         Proc.BeforeTimeout.Value = (process, _) =>
         {
             var args = process.StartInfo.ArgumentList.ToArray();
-            if (args.Contains("--quiet") && args.Contains("diff") || args.Contains("rev-list")) probes.Add(args);
+            if (args.Contains("diff-tree") || args.Contains("rev-list")) probes.Add(args);
             return Task.CompletedTask;
         };
         try { await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct); }
         finally { Proc.BeforeTimeout.Value = null; }
-        await Assert.That(probes.Select(args => args.Contains("rev-list") ? "rev-list" : "diff"))
-            .IsEquivalentTo(new[] { "diff", "rev-list", "diff" }, CollectionOrdering.Matching);
-        foreach (var args in probes) await Assert.That(args).Contains("--literal-pathspecs");
+        await Assert.That(probes.Select(args => args.Contains("rev-list") ? "rev-list" : "diff-tree"))
+            .IsEquivalentTo(new[] { "diff-tree", "rev-list", "diff-tree" }, CollectionOrdering.Matching);
+        await Assert.That(probes.Single(args => args.Contains("rev-list"))).Contains("--literal-pathspecs");
+        foreach (var args in probes.Where(args => args.Contains("diff-tree"))) await Assert.That(args).DoesNotContain("--literal-pathspecs");
     }
 
     [Test]
@@ -1161,14 +1158,14 @@ public sealed class WorkspaceTests
         Proc.BeforeTimeout.Value = (process, _) =>
         {
             var args = process.StartInfo.ArgumentList.ToArray();
-            if (args.Contains("diff")) probes.Add(args);
+            if (args.Contains("diff") || args.Contains("diff-tree")) probes.Add(args);
             return Task.CompletedTask;
         };
         try { await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct); }
         finally { Proc.BeforeTimeout.Value = null; }
         await Assert.That(probes.Select(args => args.Contains("--name-only") ? "names" : "comparison"))
             .IsEquivalentTo(new[] { "names", "comparison", "comparison" }, CollectionOrdering.Matching);
-        foreach (var args in probes) await Assert.That(args).Contains("--no-renames");
+        await Assert.That(probes.Single(args => args.Contains("diff"))).Contains("--no-renames");
     }
 
     [Test]
@@ -1278,6 +1275,66 @@ public sealed class WorkspaceTests
             await AssertLandedAsync(lab, run, $"content matches {proof[..12]} on refs/remotes/origin/main", ct);
         }
         else await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct);
+    }
+
+    [Test]
+    [Arguments("weird\\name.txt")]
+    [Arguments(":(glob)magic*.txt")]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_literal_tree_names_absent_on_target(string name, CancellationToken ct)
+    {
+        using var lab = new CoreLab("tree-name");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var path = run.Record.Workspace.Path!;
+        var bytes = System.Text.Encoding.UTF8.GetBytes(name);
+        var tip = await TreeNameCommitAsync(lab, path, bytes, "only copy\n", ct);
+        await repo.GitAsync(["update-ref", "refs/heads/" + run.Record.Workspace.Branch, tip], ct);
+        if (name.StartsWith(':'))
+        {
+            var target = await TreeNameCommitAsync(lab, repo.Root, bytes, "different target\n", ct);
+            await repo.GitAsync(["update-ref", "refs/remotes/origin/main", target], ct);
+        }
+        // No host filesystem needs to represent this tree name. Only the branch holds the work.
+        Directory.Delete(path, recursive: true);
+        var registration = await repo.GitAsync(["worktree", "list", "--porcelain"], ct);
+        var (exit, output) = await CleanCommandAsync(lab.Ledger, run, ct);
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(output.ReplaceLineEndings("\n").Split('\n')[0])
+            .IsEqualTo($"inspect: refused (unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently); --force removes it anyway");
+        await Assert.That(await repo.GitAsync(["rev-parse", run.Record.Workspace.Branch!], ct)).IsEqualTo(tip);
+        await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).IsEqualTo(registration);
+        await Assert.That(lab.Ledger.Read().Where(line => line.Type == "clean-failed").Select(line => line.Data!["error"]!.GetValue<string>()))
+            .IsEquivalentTo(new[] { "workspace cleanup refused" }, CollectionOrdering.Matching);
+        await Assert.That(await repo.GitAsync(["show", $"{run.Record.Workspace.Branch}:{name}"], ct)).IsEqualTo("only copy");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_records_landing_only_once_across_failed_removals(CancellationToken ct)
+    {
+        using var lab = new CoreLab("landing-once");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        File.WriteAllText(Path.Combine(run.Record.Workspace.Path!, "change.txt"), "landed work\n");
+        await CommitFilesAsync(repo, run.Record.Workspace.Path!, ct);
+        var proof = await SquashAsync(repo, run, ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        var branchLock = Path.Combine(repo.Root, ".git", "refs", "heads", run.Record.Workspace.Branch! + ".lock");
+        File.WriteAllText(branchLock, "prevent branch removal");
+        await Assert.That((await CleanCommandAsync(lab.Ledger, run, ct)).Exit).IsEqualTo(1);
+        await Assert.That((await CleanCommandAsync(lab.Ledger, run, ct)).Exit).IsEqualTo(1);
+        await Assert.That(lab.Ledger.Read().Where(line => line.Type == "landed").Select(line => line.Data!["reason"]!.GetValue<string>()))
+            .IsEquivalentTo(new[] { $"content matches {proof[..12]} on refs/remotes/origin/main" }, CollectionOrdering.Matching);
+    }
+
+    static async Task<string> TreeNameCommitAsync(CoreLab lab, string path, byte[] name, string text, CancellationToken ct)
+    {
+        var blob = await GitInputAsync(lab, path, ["hash-object", "-w", "--stdin"], System.Text.Encoding.UTF8.GetBytes(text), ct);
+        var existing = await lab.Git.CheckBytesAsync(path, ct, "ls-tree", "-z", "HEAD");
+        var tree = await GitInputAsync(lab, path, ["mktree", "-z"],
+            [.. existing, .. System.Text.Encoding.ASCII.GetBytes($"100644 blob {blob}\t"), .. name, 0], ct);
+        return await GitInputAsync(lab, path, ["commit-tree", tree, "-p", "HEAD", "-m", "Literal tree name"], [], ct);
     }
 
     static async Task<string> GitInputAsync(CoreLab lab, string cwd, string[] args, byte[] input, CancellationToken ct)

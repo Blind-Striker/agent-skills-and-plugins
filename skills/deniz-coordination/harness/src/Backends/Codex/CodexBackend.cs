@@ -130,7 +130,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     {
         CodexProcess process;
         try { process = CodexProcess.Start(context, directory, variables, configuredEnvironment); }
-        catch { await Task.Run(() => home?.Dispose()); throw; }
+        catch
+        {
+            try { await Task.Run(() => home?.Dispose()); }
+            catch (Exception error) { Console.Error.WriteLine($"codex: creation cleanup retained untracked home: {home?.Home}; {error.Message}"); }
+            throw;
+        }
         var connection = new Connection(process, home) { Launch = launch };
         process.DescendantUnobservable = (pid, message) => signals.Writer.TryWrite(new WorkerSignal.Fault(connection.Launch?.TaskId,
             "descendant-unobservable", $"pid={pid}; {message}"));
@@ -167,6 +172,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
     async Task FailedCreationAsync(Connection connection, Exception exception)
     {
         var stopped = await DisposeConnectionAsync(connection);
+        if (stopped.HomeRetained is { } message && connection.Launch is null)
+            Console.Error.WriteLine($"codex: creation cleanup retained untracked home: {connection.Home?.Home}; {message}");
         if (!stopped.Stopped && connection.Launch is not null)
         {
             var worker = Reference(connection);
@@ -641,7 +648,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
             else
             {
                 stopped = await StopRecordedAsync(worker, ct);
-                if (stopped.Stopped) stopped = stopped with { HomeRetained = (await Task.Run(() => TryDeleteRecordedHome(worker)))?.Message };
+                if (stopped.Stopped)
+                {
+                    try { stopped = stopped with { HomeRetained = (await Task.Run(() => TryDeleteRecordedHome(worker)))?.Message }; }
+                    catch (HarnessException exception) when (exception.Data[nameof(CodexHome)] is not null)
+                    { exception.Data[nameof(InterruptResult)] = stopped; throw; }
+                }
             }
         }
         recovered[worker.Id] = stopped;
@@ -706,6 +718,8 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         var stopped = await connection.CleanupAsync();
         if (connection.Launch is null && stopped.HomeRetained is { } message)
             Console.Error.WriteLine($"codex: release: {message}");
+        else if (connection.Worker is null && stopped.HomeRetained is { } retained)
+            Console.Error.WriteLine($"codex: creation cleanup retained untracked home: {connection.Home?.Home}; {retained}");
         if (stopped.Stopped) connections.TryRemove(connection, out _);
         else if (connection.Launch is null) Console.Error.WriteLine($"codex: probe stop unconfirmed: {stopped.Detail}");
         return stopped;

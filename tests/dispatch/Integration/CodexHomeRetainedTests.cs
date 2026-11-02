@@ -347,11 +347,7 @@ public sealed class CodexHomeRetainedTests
         using var codex = new CodexLab(core.Tree);
         var run = await PrepareAsync(core, ct);
         using var home = RecordedHome(core, codex, run, Environment.ProcessId);
-        using var current = System.Diagnostics.Process.GetCurrentProcess();
-        var detail = OperatingSystem.IsWindows()
-            ? $"pid={Environment.ProcessId}; recordedStartTime=unknown; currentStartTime={current.StartTime.ToUniversalTime():O}; handle=uncertain; process identity unavailable; cannot safely terminate by PID"
-            : $"kill descendant pid={Environment.ProcessId}: process identity unavailable; cannot safely terminate by PID";
-        var stopError = $"Codex stop unconfirmed: recorded process recovery; {detail}";
+        var stopError = RecordedStopError();
         core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = "failed", Failures = ["release-failed", "settle-error"] });
         core.Ledger.Write(run.Id, "final", new() { ["state"] = "failed" });
         if (!force)
@@ -404,9 +400,10 @@ public sealed class CodexHomeRetainedTests
         // A reused/live unidentifiable PID makes any process recheck refuse; deletion-only clean must ignore it.
         if (reusedPid) run.Worker!.State["pid"] = Environment.ProcessId;
         run.SaveWorker(run.SavedWorker(), core.Ledger);
-        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
-        await Assert.That(Directory.Exists(home.Home)).IsFalse();
-        await Assert.That(core.Ledger.Read().Where(line => line.Type is "stop-unconfirmed" or "hard-stop")).IsEmpty();
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(reusedPid ? 1 : 0);
+        await Assert.That(Directory.Exists(home.Home)).IsEqualTo(reusedPid);
+        await Assert.That(core.Ledger.Read().Where(line => line.Type is "stop-unconfirmed" or "hard-stop").Select(line => line.Type))
+            .IsEquivalentTo(reusedPid ? new[] { "stop-unconfirmed" } : [], CollectionOrdering.Matching);
     }
 
     [Test]
@@ -681,6 +678,259 @@ public sealed class CodexHomeRetainedTests
         var error = await Assert.ThrowsAsync<HarnessException>(() => Planner.CheckContinuationAsync(next.Record.Spec, next.Record.Settings,
             core.Ledger.RunId, core.Tree.Repository, core.Git, ct));
         await Assert.That(error!.Message).IsEqualTo("continueOf source collection evidence is incomplete or inconsistent");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Release_failed_clean_records_confirmation_and_checks_dirt(bool dirty, CancellationToken ct)
+    {
+        using var core = new CoreLab("release-confirmed");
+        using var codex = new CodexLab(core.Tree);
+        var run = await PrepareAsync(core, ct);
+        using var home = RecordedHome(core, codex, run, int.MaxValue);
+        core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = "failed", Failures = ["release-failed", "settle-error"] });
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = "failed" });
+        if (dirty) File.WriteAllText(Path.Combine(run.Record.Workspace.Path!, "a.txt"), "keep edits");
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(dirty ? 1 : 0);
+        await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).WorkerStopped).IsTrue();
+        await Assert.That(core.Ledger.Read().Where(line => line.Type == "hard-stop").Select(line => line.Data!["stopped"]!.GetValue<bool>()))
+            .IsEquivalentTo(new[] { true }, CollectionOrdering.Matching);
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsEqualTo(dirty);
+        await Assert.That(core.Ledger.Read().Where(line => line.Type == "clean-failed").Select(line => line.Data!["error"]!.GetValue<string>()))
+            .IsEquivalentTo(dirty ? new[] { "workspace cleanup refused" } : [], CollectionOrdering.Matching);
+        if (dirty)
+        {
+            await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n").Split('\n').Single(line => line.StartsWith("edit:", StringComparison.Ordinal)))
+                .IsEqualTo("edit: refused (dirty worktree); collect keeps uncommitted work; --force removes it anyway");
+            await Assert.That(File.ReadAllText(Path.Combine(run.Record.Workspace.Path!, "a.txt"))).IsEqualTo("keep edits");
+        }
+        else await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Recollect_after_release_failure_preserves_report_outcome_status_and_commits_edits(CancellationToken ct)
+    {
+        using var core = new CoreLab("release-recollect");
+        var run = await PrepareAsync(core, ct);
+        var verify = Path.Combine(core.Tree.Root, "verify-ran");
+        run.Record.Spec.Verify = [OperatingSystem.IsWindows() ? $"Set-Content -LiteralPath '{verify}' -Value ran" : $"echo ran > '{verify}'"];
+        run.SaveWorker(new("codex", run.Id, "recorded", null, new() { ["pid"] = int.MaxValue }), core.Ledger);
+        File.WriteAllText(Path.Combine(run.Record.Workspace.Path!, "a.txt"), "worker edits");
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false))
+        {
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport("succeeded", "Worker report\nStatus: done", new(), null, true, ["codex:model-y#high"], null, true)),
+            OnRelease = (_, _) => throw new InvalidOperationException("release broke"),
+        };
+        var first = await Settlement.SettleAsync(backend, core.Ledger, run, null, ct, core.Git);
+        await Assert.That(first.Failures).IsEquivalentTo(new[] { "release-failed", "settle-error" }, CollectionOrdering.Matching);
+        var report = File.ReadAllBytes(Path.Combine(core.Ledger.TaskDir(run.Id), "final.md"));
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = first.State });
+        await Assert.That(await Commands.CollectAsync(Args.Parse(["collect", core.Ledger.RunId, run.Id]), ct)).IsEqualTo(0);
+        var result = core.Ledger.LoadResult(run.Id)!;
+        await Assert.That(File.ReadAllBytes(Path.Combine(core.Ledger.TaskDir(run.Id), "final.md"))).IsEquivalentTo(report, CollectionOrdering.Matching);
+        await Assert.That(result.Outcome).IsEqualTo("succeeded");
+        await Assert.That(result.WorkerStatus).IsEqualTo("done");
+        await Assert.That(result.Failures).IsEmpty();
+        await Assert.That(result.FilesChanged).IsEquivalentTo(new[] { "a.txt" }, CollectionOrdering.Matching);
+        await Assert.That(result.Commit).IsNotNull();
+        await Assert.That((await core.Git.CheckAsync(run.Record.Workspace.Path!, ct, "show", $"{result.Commit}:a.txt")).Trim()).IsEqualTo("worker edits");
+        await Assert.That(await Worktree.DirtyAsync(core.Git, run.Record.Workspace.Path!, ct)).IsFalse();
+        await Assert.That(result.Verify.Select(check => check.ExitCode)).IsEquivalentTo(new[] { 0 }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(verify).Trim()).IsEqualTo("ran");
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    [Timeout(60_000)]
+    public async Task Final_without_collection_stops_before_deleting_home(bool cancelled, CancellationToken ct)
+    {
+        using var core = new CoreLab("final-uncollected");
+        using var codex = new CodexLab(core.Tree);
+        var run = await PrepareAsync(core, ct);
+        using var home = RecordedHome(core, codex, run, Environment.ProcessId);
+        core.Ledger.Write(run.Id, "queued", new());
+        if (cancelled) await Assert.That(Commands.Cancel(Args.Parse(["cancel", core.Ledger.RunId, run.Id]))).IsEqualTo(0);
+        else
+        {
+            core.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["detail"] = "uncertain" });
+            core.Ledger.Write(run.Id, "final", new() { ["state"] = "failed" });
+        }
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(1);
+        await Assert.That(Directory.Exists(home.Home)).IsTrue();
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsTrue();
+        await Assert.That(File.ReadAllText(Path.Combine(home.Home, home.MarkerName!))).IsEqualTo(home.MarkerText);
+        await Assert.That(TaskRun.FromLedger(core.Ledger.LoadRecord(run.Id), core.Ledger).Zombie).IsTrue();
+        await Assert.That(core.Ledger.Read().Where(line => line.Type == "clean-failed").Select(line => line.Data!["error"]!.GetValue<string>()))
+            .IsEquivalentTo(new[] { RecordedStopError(), "workspace cleanup refused" }, CollectionOrdering.Matching);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Recollect_preserves_genuine_execution_errors_while_reusing_the_prior_report(CancellationToken ct)
+    {
+        using var core = new CoreLab("recollect-error");
+        var run = await PrepareAsync(core, ct);
+        run.SaveWorker(new("codex", run.Id, "worker", null, new()), core.Ledger);
+        core.Ledger.SaveResult(new() { Run = core.Ledger.RunId, Task = run.Id, State = "failed", Outcome = "succeeded", WorkerStatus = "done", Failures = ["release-failed"] });
+        await core.Ledger.WriteArtifactAsync(run.Id, "final.md", "Worker report\nStatus: done\n", ct);
+        await using var backend = new FakeBackend("codex", new("sandbox", "approval-gate", "native", false))
+        {
+            OnCollect = (_, _) => Task.FromResult(new WorkerReport("lost", null, new(), null, false, [], "actual execution error", true,
+                StopResult: new(true, "confirmed stop"))),
+            OnRelease = (_, _) => Task.FromResult<InterruptResult?>(new(true, "confirmed stop")),
+        };
+        var result = await Settlement.SettleAsync(backend, core.Ledger, run, null, ct, core.Git);
+        await Assert.That(result.Outcome).IsEqualTo("succeeded");
+        await Assert.That(result.WorkerStatus).IsEqualTo("done");
+        await Assert.That(result.ExecutionError).IsEqualTo("actual execution error");
+        await Assert.That(result.Failures).IsEquivalentTo(new[] { "settle-error" }, CollectionOrdering.Matching);
+        await Assert.That(File.ReadAllText(Path.Combine(core.Ledger.TaskDir(run.Id), "final.md"))).IsEqualTo("Worker report\nStatus: done\n");
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_does_not_print_removed_when_no_home_existed(CancellationToken ct)
+    {
+        using var core = new CoreLab("no-home");
+        var run = await PrepareAsync(core, ct);
+        run.SaveWorker(new("codex", run.Id, "recorded", null, new() { ["pid"] = int.MaxValue }), core.Ledger);
+        core.Ledger.Write(run.Id, "collected", new());
+        core.Ledger.Write(run.Id, "final", new() { ["state"] = "done" });
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(0);
+        await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n").Split('\n').Where(line => line.StartsWith("edit:", StringComparison.Ordinal)))
+            .IsEmpty();
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("final", "changed")]
+    [Arguments("final", "missing")]
+    [Arguments("final", "text")]
+    [Arguments("final", "name")]
+    [Arguments("zombie", "changed")]
+    [Arguments("zombie", "missing")]
+    [Arguments("zombie", "text")]
+    [Arguments("zombie", "name")]
+    [Arguments("non-final", "changed")]
+    [Arguments("non-final", "missing")]
+    [Arguments("non-final", "text")]
+    [Arguments("non-final", "name")]
+    [Arguments("unconfirmed", "changed")]
+    [Arguments("unconfirmed", "missing")]
+    [Arguments("unconfirmed", "text")]
+    [Arguments("unconfirmed", "name")]
+    [Timeout(60_000)]
+    public async Task Clean_reports_manual_home_deletion_on_every_route(string route, string markerState, CancellationToken ct)
+    {
+        using var core = new CoreLab("marker-routes");
+        using var codex = new CodexLab(core.Tree);
+        var run = await PrepareAsync(core, ct);
+        using var home = RecordedHome(core, codex, run, route == "unconfirmed" ? Environment.ProcessId : int.MaxValue);
+        core.Ledger.Write(run.Id, "queued", new());
+        if (route == "final") core.Ledger.Write(run.Id, "collected", new());
+        if (route == "zombie") core.Ledger.Write(run.Id, "stop-unconfirmed", new() { ["detail"] = "old uncertainty" });
+        if (route is "final" or "zombie") core.Ledger.Write(run.Id, "final", new() { ["state"] = "failed" });
+        var marker = Path.Combine(home.Home, home.MarkerName!);
+        if (markerState == "changed") File.WriteAllText(marker, "not ours");
+        if (markerState == "missing") File.Delete(marker);
+        if (markerState == "text") run.Worker!.State["codexHomeMarkerText"] = null;
+        if (markerState == "name") run.Worker!.State["codexHomeMarkerName"] = null;
+        run.SaveWorker(run.SavedWorker(), core.Ledger);
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        try
+        {
+            await Assert.That(await Commands.CleanAsync(Args.Parse(["clean", core.Ledger.RunId]), ct)).IsEqualTo(route == "unconfirmed" ? 1 : 0);
+            await Assert.That(output.GetStandardOutput()[start..].ReplaceLineEndings("\n").Split('\n')
+                .Where(line => line.Contains("delete it by hand:", StringComparison.Ordinal)))
+                .IsEquivalentTo(new[] { $"edit: codex home has no valid ownership marker; delete it by hand: {home.Home}" }, CollectionOrdering.Matching);
+            await Assert.That(Directory.Exists(home.Home)).IsTrue();
+            await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsEqualTo(route == "unconfirmed");
+            await Assert.That(core.Ledger.Read().Where(line => line.Type == "clean-failed").Select(line => line.Data!["step"]!.GetValue<string>()))
+                .IsEquivalentTo(route == "unconfirmed" ? new[] { "session", "workspace" } : [], CollectionOrdering.Matching);
+            await Assert.That(core.Ledger.Read().Where(line => line.Type == "clean-failed").Select(line => line.Data!["error"]!.GetValue<string>()))
+                .IsEquivalentTo(route == "unconfirmed" ? new[] { RecordedStopError(), "workspace cleanup refused" } : [], CollectionOrdering.Matching);
+            await Assert.That(File.Exists(marker)).IsEqualTo(markerState != "missing");
+            if (markerState != "missing") await Assert.That(File.ReadAllText(marker)).IsEqualTo(markerState == "changed" ? "not ours" : home.MarkerText);
+        }
+        finally { File.WriteAllText(marker, home.MarkerText); }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Live_release_returns_pending_before_retrying_a_locked_home(CancellationToken ct)
+    {
+        if (!OperatingSystem.IsWindows()) Skip.Test("Windows deletion lock makes synchronous deletion observable.");
+        using var lab = new CodexLab();
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        lab.Write("task-edit", CodexLab.Handshake + CodexLab.Thread.Split("{\"expect\":\"turn/start\"")[0]);
+        await using var backend = lab.Backend();
+        var worker = (await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("clean", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "clean", null), ct)).Worker;
+        var connection = Connections(backend).Single();
+        await Assert.That((await backend.InterruptAsync(worker, InterruptKind.Hard, ct)).Stopped).IsTrue();
+        await ((CodexRpc)connection.GetType().GetProperty("Rpc")!.GetValue(connection)!).DisposeAsync();
+        await (Task)connection.GetType().GetProperty("Pump")!.GetValue(connection)!;
+        var home = worker.State["codexHome"]!.GetValue<string>();
+        using var held = new FileStream(Path.Combine(home, "locked.sqlite"), FileMode.Create, FileAccess.ReadWrite, FileShare.Read);
+        var release = backend.ReleaseAsync(worker, ct);
+        var pending = !release.IsCompleted;
+        held.Dispose();
+        var stopped = await release;
+        try
+        {
+            await Assert.That(pending).IsTrue();
+            await Assert.That(stopped!.Stopped).IsTrue();
+            await Assert.That(stopped.HomeRetained).IsNull();
+            await Assert.That(Directory.Exists(home)).IsFalse();
+        }
+        finally { backend.DeleteRetainedHome(worker); }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Failed_process_start_keeps_start_error_and_prints_untracked_retained_home(CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        File.WriteAllText(Path.Combine(lab.Environment["CODEX_HOME"], "auth.json"), "{}");
+        await using var backend = lab.Backend();
+        using var home = CodexHome.CreateProbe(new(lab.Tree.Root, null, new Dictionary<string, string>()),
+            lab.Environment["CODEX_HOME"], lab.Tree.Repository);
+        var marker = Path.Combine(home.Home, home.MarkerName!);
+        File.Delete(marker);
+        var missing = Path.Combine(lab.Tree.Root, "missing-directory");
+        var output = TestContext.Current!.Output;
+        var start = output.GetErrorOutput().Length;
+        try
+        {
+            var error = await Assert.ThrowsAsync<HarnessException>(async () =>
+                await (Task)typeof(CodexBackend).GetMethod("ConnectAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .Invoke(backend, [missing, lab.Environment, home, ct, null, null])!);
+            await Assert.That(error!.Message).Contains(missing);
+            await Assert.That(error.Message).StartsWith("cannot start codex app-server: ");
+            await Assert.That(output.GetErrorOutput()[start..].ReplaceLineEndings("\n"))
+                .IsEqualTo($"codex: creation cleanup retained untracked home: {home.Home}; temporary Codex home ownership cannot be confirmed (FileNotFoundException)\n");
+            await Assert.That(Directory.Exists(home.Home)).IsTrue();
+            await Assert.That(backend.HasResources).IsFalse();
+        }
+        finally { File.WriteAllText(marker, home.MarkerText); }
+    }
+
+    static string RecordedStopError()
+    {
+        using var current = System.Diagnostics.Process.GetCurrentProcess();
+        var detail = OperatingSystem.IsWindows()
+            ? $"pid={Environment.ProcessId}; recordedStartTime=unknown; currentStartTime={current.StartTime.ToUniversalTime():O}; handle=uncertain; process identity unavailable; cannot safely terminate by PID"
+            : $"kill descendant pid={Environment.ProcessId}: process identity unavailable; cannot safely terminate by PID";
+        return $"Codex stop unconfirmed: recorded process recovery; {detail}";
     }
 
     static BackendContext HomeContext(CoreLab core) => new(Path.Combine(Locations.ControlDir(core.Ledger.RunId), "profiles"), null, new Dictionary<string, string>());

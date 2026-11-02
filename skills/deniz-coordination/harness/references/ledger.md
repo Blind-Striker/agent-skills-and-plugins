@@ -227,15 +227,22 @@ holds the deletion message, once per release result. Missing ownership markers r
 Changed markers refuse recorded release/collection, but during live settlement retain the home with
 the same warning rather than losing the report. Unrecognized owners or paths remain safety refusals
 on recorded cleanup. Retry `clean` after a lock is released, or inspect and manually delete the path
-when deletion-only clean reports no valid ownership marker (missing or changed); that case does not
-fail clean. Clean checks final non-zombie homes on disk even without a warning in the result, since
-failed-start paths may have recorded retention only as an event.
+when clean reports no valid ownership marker (including missing recorded fields or unrecognized
+ownership). This does not fail deletion-only clean or clean after confirmed stop; unconfirmed stop
+still protects the worktree and fails clean. Only final, collected tasks with neither zombie nor
+unconfirmed stop evidence skip the process check. Other final tasks stop first, even if failed-start
+paths recorded retention only as an event.
 
 A throwing release instead adds `release-failed`, accompanied by `settle-error` outside cancellation,
 while preserving `final.md` and `result.json`. Without stop evidence, workspace collection, verify and
 scratch deletion are skipped, and ordinary clean treats it like a zombie: retry the stop and retain
 worktree and home until confirmation. Force removes the worktree and branch but still retains an
-unconfirmed home. Earlier stop confirmation still permits commit and verify when release throws.
+unconfirmed home. Confirmation writes `hard-stop` even when only `release-failed`, not a previous
+zombie, required the stop check; later clean restores it and applies normal workspace checks.
+Uncommitted edits refuse as dirty and `collect` preserves them. Recollection without final text
+preserves the previous `final.md`, `outcome` and `workerStatus` when `result.json` holds a
+`workerStatus`; workspace collection and verification still repeat, without `no-final-text` or
+`outcome:lost`. Earlier stop confirmation still permits commit and verify when release throws.
 Multiple harness error messages are newline-joined in `error`, not replaced by later failures.
 
 For parsed `stopped`/`blocked` statuses, collection snapshots tracked edits, deletions and untracked
@@ -413,7 +420,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `interrupted` | Optional `reason` string | Task left interrupted without a harness stop request. |
 | `timeout` | Optional `interrupted` boolean and `status` integer | Timeout interrupt attempt. |
 | `cancel` | Request `time`/`state` strings, or interrupt `interrupted` boolean and `status` integer | Request receipt or stop attempt. |
-| `hard-stop` | Optional `kind` string, `stopped` boolean, `detail` string | Hard-stop report; kind is cancel or timeout. A later affirmative Codex stop check clearing recorded uncertainty also writes this evidence, without kind. Stopped value feeds restored `workerStopped`; late interrupt replies after settlement begins are ignored. |
+| `hard-stop` | Optional `kind` string, `stopped` boolean, `detail` string | Hard-stop report; kind is cancel or timeout. A later affirmative Codex stop check clearing recorded uncertainty or confirming a `release-failed` task also writes this evidence, without kind. Stopped value feeds restored `workerStopped`; late interrupt replies after settlement begins are ignored. |
 | `stop-unconfirmed` | Optional `outcome` string, `detail` string | Task-local stop uncertainty at turn end or Codex settlement, release, recovery or scope cleanup, including failed initialization before a thread exists. Records stop evidence; a completed turn retains its final report. |
 | `collected` | `outcome` string, `routesUsed` string array; Git adds `commit`/`diffstat`, `files` integer, `outOfScope` string array and optional `endTree` | Evidence collected. `endTree` is an in-place no-commit snapshot. |
 | `verified` | `commands`/`failed` integers; `advisoryFailed` integer when advisory commands are recorded; `notRun` integer when any entry did not run | Verify summary; `commands` includes not-run records; `notRun` counts those records, not passes. `failed` counts executed `verify` commands only. Zero commands can mean skipped or absent. |

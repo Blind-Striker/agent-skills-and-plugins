@@ -496,7 +496,10 @@ stop writes task-scoped evidence and a failed final event with `zombie` and `wor
 returns 1 without `aborted`, and retains worktree, scratch and the temporary home. Recovery also checks
 a failed creation's recorded worker when it has no turn. A later confirmed check can clear
 restored uncertainty for recollection; historical stop evidence remains.
-In a fresh process Codex still reports `lost`: it cannot recover the live assistant report. A locked
+In a fresh process Codex still reports `lost`: it cannot recover the live assistant report. If no
+final text is available and `result.json` holds a `workerStatus`, recollection instead keeps the
+existing `final.md` unchanged and preserves the earlier outcome and worker status, without
+`no-final-text` or `outcome:lost`. Workspace collection and verify run as usual. Otherwise a locked
 home or missing ownership marker no longer aborts collection; artifacts are written with `lost`
 and `codex-home-retained`. A changed marker or unrecognized owner/path still refuses. During live
 settlement a throwing release preserves the report with `release-failed`; without stop evidence,
@@ -554,8 +557,8 @@ before a backend starts. Do not alter any ledger inputs by hand.
 
 ### `clean <run> [--force] [--ledger <dir>]`
 
-Refuses while supervised. Releases opencode sessions and recorded Codex workers of non-final tasks
-or tasks settled with a `zombie` failure or `release-failed` without stop confirmation, then removes recognized worktrees and task
+Refuses while supervised. Releases opencode sessions and recorded Codex workers unless the task is
+final, has a `collected` event, and is neither zombie nor stop-unconfirmed, then removes recognized worktrees and task
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
 not merged into their recorded base unless the landing checks below prove the work reached the target.
 It never removes an in-place folder or the ledger. If present, `diff.patch` stays in the ledger:
@@ -565,27 +568,35 @@ control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
 It also retains a recorded zombie task's worktree and scratch on either backend, including opencode,
 or a `release-failed` task's worktree and scratch without confirmed stop evidence,
 even when clean and merged, printing
-`<task>: retained zombie worktree and scratch; --force removes them anyway` and returning 1.
+`<task>: retained zombie worktree and scratch; collect keeps uncommitted work; --force removes them anyway` and returning 1.
 With `--force`, owned zombie artifacts are removed as for any task; all existing ownership,
 Git-configuration, lock and in-place protections still apply.
 Codex release checks the recorded stop and deletes its owned temporary home only after confirmation.
-It does not recheck final non-zombies' processes or add stop evidence to them (except `release-failed`
-without confirmation, which takes the zombie route). Every other final Codex task with a recorded
-session gets only an ownership-checked home deletion attempt, with or without `codex-home-retained`:
-failure paths may have recorded retention only as an event. A missing folder needs no deletion.
-Success prints `<task>: codex home removed`. A remaining lock on any route, including zombie and
+Only a final Codex task with `collected` evidence and neither zombie nor unconfirmed stop evidence
+gets a deletion-only ownership-checked home attempt without rechecking its process, with or without
+`codex-home-retained`. Other final tasks, including unsupervised cancellation or failed starts with
+only retention events, take the stop-first route. A missing folder needs no deletion.
+`<task>: codex home removed` prints only when a folder was present and is now gone. A remaining lock on any route, including zombie and
 non-final release, prints
 `<task>: codex home retained (<message>)`, records `clean-failed`, returns 1 and keeps the control
 contents so another `clean` can retry; workspace and other task cleanup still finish. During
-deletion-only cleanup, a missing or changed marker prints
+every clean route, any ownership refusal (including missing or changed markers, missing recorded
+marker fields and unrecognized ownership) prints
 `<task>: codex home has no valid ownership marker; delete it by hand: <path>`, keeps the home and
-does not fail cleanup. Changed markers still refuse recorded release/collection. Cleanup also works when the run's
+does not fail cleanup after a confirmed stop or on the deletion-only route. If stop remains
+unconfirmed, clean still returns 1 and protects the worktree. Changed markers still refuse recorded
+release/collection. Shared `auth.json`, `.sandbox/setup_marker.json` and
+`.sandbox-secrets/sandbox_users.json` never have their attributes changed. A read-only `auth.json` on Windows,
+or a read-only folder on Linux, retains the home; the printed home path is what to clean by hand.
+Cleanup also works when the run's
 control folder is gone: a missing home needs no deletion, and a present home's owner is checked
 against the run's recorded control path as well as its ownership marker.
 An unconfirmed stop retains the home even with `--force`, prints
-`<task>: retained Codex home: <path>` and returns 1. Confirmation clears restored zombie uncertainty,
-including after scope cleanup, so a historical `zombie` or `release-failed` result alone no longer
-refuses ordinary clean.
+`<task>: retained Codex home: <path>` and returns 1. A confirmed stop writes `hard-stop` when clearing
+zombie uncertainty or a `release-failed` task without confirmation. The task then goes through normal
+workspace checks, on this and later cleans. Historical `zombie` or `release-failed` failures do not
+override that confirmation. Uncommitted work still refuses as `dirty worktree`: `collect` keeps it
+by collecting, committing and verifying; `--force` discards it.
 
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
@@ -609,15 +620,19 @@ result. With a target, it tries:
    target tip, then commits from
    `git --literal-pathspecs rev-list --full-history --max-count=500 <baseSha>..<target> -- <paths>`.
    A candidate proves landing only when
-   `git --literal-pathspecs diff --quiet --no-ext-diff --no-textconv --no-renames --ignore-submodules=none <branch tip> <candidate> -- <paths>`
-   exits 0. These are tree comparisons: line-ending and filter settings do not take part; whitespace,
+    `git diff-tree -r -z --no-renames --ignore-submodules=none --no-ext-diff --no-textconv <branch tip> <candidate>`
+    exits 0 and prints no path whose whole name exactly equals a run path. No run path is passed to
+    this comparison: Git for Windows can rewrite backslashes in pathspecs, and macOS can rewrite
+    normalization. Pathspecs in the bounded candidate search can only miss candidates, which refuses;
+    the target tip is also compared. Recursive tree comparisons include blobs and gitlinks:
+    line-ending and filter settings do not take part; whitespace,
    binary content and modes count. The reason is `content matches <12 digits> on <target>`.
    A registered detached HEAD different from the branch tip takes only the ancestor step, never this
    content step. The recorded `workspace.baseSha` is used unchanged, including inherited continuation
    bases, not `startSha` or `reviewedBaseSha`. A review whose author branch is gone is refused when
    its recorded base is not on the target.
 
-A landed task prints `<task>: landed (<reason>)` and writes a separate `landed` event with `reason`
+A landed task prints `<task>: landed (<reason>)` and, only if none exists yet, writes a separate `landed` event with `reason`
 just before removal starts, so the evidence survives a later cleanup failure. The `cleaned` event has
 no landing field and still means all cleanup succeeded. A landing whose content later changed on the target still
 counts when an earlier commit on the target held it. Without ancestry proof, a merge that changed
@@ -625,8 +640,8 @@ the content needs `--force`, as does a task whose paths never matched one commit
 landings, content only beyond the bounded history search, or content matches across more than 500
 changed paths or more than 16,000 joined path characters. A stale tracking ref can claim a landing
 later force-pushed away on the remote. Empty changes are not content proof; a task with no commits on its pinned base still
-passes the original ancestry check. Exit 1 from an ancestry or quiet-diff probe means no match. Any
-other landing-probe failure prints
+passes the original ancestry check. Exit 1 from an ancestry probe means no match. Every non-zero
+tree-comparison exit is a probe failure. Any other landing-probe failure prints
 `<task>: refused (landing check failed: <git's first line>); --force removes it anyway`, keeps the
 task and continues the run's other tasks. An empty Git message uses the command and exit code instead.
 Exceptions starting or running a probe use the same refusal with their message (or exception type
