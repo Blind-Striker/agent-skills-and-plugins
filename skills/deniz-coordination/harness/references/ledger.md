@@ -415,7 +415,7 @@ Each row describes the emitted payload, not a guarantee that every optional memb
 | `outcome` | `outcome` string, optional `cost`/`tokensIn`/`tokensOut` numbers, `tokensComplete` boolean, `error` string; Codex `workerStopped` boolean when known | Settlement outcome summary. `tokensIn` and `tokensOut` are `result.json`'s `tokens.input` and `tokens.output`, respectively. |
 | `final` | `state` string, optional `outcome`/`reason`/`via` strings | Final task state; collect uses `via: collect`. |
 | `resume` | `continue` boolean, `tasks` integer | Reconciliation began. |
-| `cleaned` | Optional `worktree`/`branch` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. |
+| `cleaned` | Optional `worktree`/`branch`/`landed` strings, `force` boolean | Success only: the task's session, workspace, branch, temp and index cleanup succeeded. `landed` is present only when target landing proved cleanup safe: `ancestor of <target>` or `content matches <12 digits> on <target>`; see [clean](cli.md#clean-run---force---ledger-dir). |
 | `clean-failed` | `step`/`error` strings, `force` boolean; task identity in envelope | Task cleanup refused or failed at `session`, `workspace`, `branch`, `temp` or `index`; other tasks continue. Retry reconciles remaining artifacts. |
 | `bus` | `state` string, optional `reason` string | Disconnected or reconnected event stream. |
 | `error` | Optional `while`/`message`/`id`/`file`/`backend` strings | Operation error. Owner-chain cuts appear here with `while: owner-chain-cut`; they are not a separate event type. |

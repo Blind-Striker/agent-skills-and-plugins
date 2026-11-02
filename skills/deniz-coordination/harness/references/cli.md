@@ -557,7 +557,8 @@ before a backend starts. Do not alter any ledger inputs by hand.
 Refuses while supervised. Releases opencode sessions and recorded Codex workers of non-final tasks
 or tasks settled with a `zombie` failure, then removes recognized worktrees and task
 branches, temp directories and temporary indexes. Without force, keeps dirty worktrees or branches
-not merged into their recorded base. It never removes an in-place folder or the ledger. Successful
+not merged into their recorded base unless the landing checks below prove the work reached the target.
+It never removes an in-place folder or the ledger; `diff.patch` stays in the ledger. Successful
 control cleanup keeps `supervisor.lock` and `run.ref`; a second clean is safe.
 It also retains a recorded zombie task's worktree and scratch on either backend, including opencode,
 even when clean and merged, printing
@@ -582,7 +583,38 @@ including after scope cleanup, so a historical `zombie` result alone no longer r
 Clean does not discover or kill leftover prepare/verify processes, remove an in-place workspace, or
 undo dependency-cache writes outside the workspace. Confirm stale commands have stopped first.
 Clean, collect and status never follow `continueOf` into another run. Independent ownership and
-conservative inherited-base cleanup: [Continuations](task-file.md#continuations).
+inherited-base cleanup: [Continuations](task-file.md#continuations).
+
+Plain clean first checks ancestry against the recorded `workspace.baseRef` (the task's `base` as
+written, or its inherited/review base). If that does not prove merger and the worktree is not dirty,
+the target is the ref named by `git symbolic-ref --quiet refs/remotes/origin/HEAD`. Clean does not
+fetch. Without that symbolic ref it keeps the recorded-base result. With a target, it tries:
+
+1. **Ancestor:** both the task branch tip and any registered HEAD must be ancestors of the target.
+   The reason is `ancestor of <target>`.
+2. **Same content:** collect paths with
+   `git diff --name-only -z --no-renames --ignore-submodules=none <workspace.baseSha> <branch tip>`.
+   An empty list or more than 500 paths gives no proof. Compare all those paths together against the
+   target tip, then commits from
+   `git --literal-pathspecs rev-list --full-history --max-count=2000 <merge-base of baseSha and target>..<target> -- <paths>`.
+   A candidate proves landing only when
+   `git --literal-pathspecs diff --quiet --no-ext-diff --no-textconv --no-renames --ignore-submodules=none <branch tip> <candidate> -- <paths>`
+   exits 0. These are tree comparisons: line-ending and filter settings do not take part; whitespace,
+   binary content and modes count. The reason is `content matches <12 digits> on <target>`.
+   A registered detached HEAD different from the branch tip takes only the ancestor step, never this
+   content step. The recorded `workspace.baseSha` is used unchanged, including inherited continuation
+   bases and review bases (the reviewed task's tip), not `reviewedBaseSha`.
+
+A landed task prints `<task>: landed (<reason>)` and is removed like a merged task; its `cleaned`
+event records the reason as `landed`. A landing whose content later changed on the target still
+counts when an earlier commit on the target held it. Without ancestry proof, a merge that changed
+the content needs `--force`, as does a task whose paths never matched one commit together. Clean cannot see unfetched
+landings, content only beyond the bounded history search, or content matches across more than 500
+changed paths. Empty changes are not content proof; a task with no commits on its pinned base still
+passes the original ancestry check. Exit 1 from an ancestry or quiet-diff probe means no match. Any
+other landing-probe failure prints
+`<task>: refused (landing check failed: <git's first line>); --force removes it anyway`, keeps the
+task and continues the run's other tasks.
 
 Cleanup is resumable: missing artifacts are already removed; retry reconciles the recorded folder,
 its registration, branch, task temp and temporary index independently. A folder with a missing or
@@ -593,8 +625,9 @@ configuration/filter checks, worktree locks, structured-scratch ownership or in-
 finds the task's registration by its recorded path, or by its branch when Git records the path
 differently (a root reached through a link); a detached worktree is found by path. A worktree in
 the task's folder that is on another branch is never the task's: clean refuses it, even with force.
-Without force, a worktree whose registered HEAD (detached or not, folder present or not) is not merged into the recorded base is
-kept. Only the task's registration is removed, never repository-wide pruning.
+Without force, the registered HEAD (detached or not, folder present or not) must also pass the
+recorded-base ancestry check or qualify under the landing checks above. Only the task's registration
+is removed, never repository-wide pruning.
 
 Without force, clean finds the registered worktree's administrative folder under
 `<common git dir>/worktrees/*` by matching its `gitdir` file to the registration's `.git` path or the
@@ -603,7 +636,7 @@ Every matching folder's `modules` folder permits `git worktree remove --force` o
 three conditions hold:
 
 1. If the worktree is intact, its `git status --porcelain=v1 -z --untracked-files=all --ignore-submodules=none` is empty.
-2. The existing dirty, recorded-base merge and lock checks pass.
+2. The dirty, recorded-base merge or target landing, and lock checks pass.
 3. Every folder recursively under `modules` holding a `HEAD` file and an `objects` folder reports `0`
    from `git --git-dir=<dir> rev-list --count --all --not --remotes`. This covers deinited and
    nested submodules' git data, not their `logs` folders, and skips filesystem links when recursing.
@@ -616,13 +649,17 @@ Submodule changes refuse cleanup with
 `<task>: refused (submodule has changes); --force removes it anyway`.
 Commits no remote has refuse it with
 `<task>: refused (submodule holds commits no remote has); --force removes it anyway`.
-A dirty superproject or unmerged task keeps the existing `dirty or unmerged worktree` refusal; dirt only
-inside submodules uses the `submodule has changes` refusal only when the task is merged.
+A dirty superproject refuses first with
+`<task>: refused (dirty worktree); --force removes it anyway`. Dirt only inside submodules uses
+`submodule has changes` whether or not the task is merged, before any landing probes. Otherwise,
+unmerged work refuses with
+`<task>: refused (unmerged: not on <baseRef> or <target>; fetch if it landed recently); --force removes it anyway`;
+without a target the reason is just `unmerged: not on <baseRef>`.
 A failure of these git probes follows the normal git error path. Removal deletes the submodule's
 git directory and reflog, normally kept under the linked worktree's administrative folder
 at `<common git dir>/worktrees/<id>/modules/<name>`. These checks do not preserve reflog-only history.
 A remote-tracking ref inside the deleted git data is the only evidence that a remote has a commit.
-After the harness's recorded-base merge check passes, branch deletion uses `git branch -D`, not
+After the harness's recorded-base merge or target landing check passes, branch deletion uses `git branch -D`, not
 Git's separate `-d` check against the repository's current HEAD or the branch's upstream. Force
 continues to bypass dirtiness and merge checks, including these submodule refusals.
 

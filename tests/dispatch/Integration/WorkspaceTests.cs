@@ -399,7 +399,7 @@ public sealed class WorkspaceTests
         await Assert.That(await repo.GitAsync(["rev-parse", "feature"], ct)).IsEqualTo(feature);
         await Assert.That(await repo.GitAsync(["branch", "--show-current"], ct)).IsEqualTo("main");
         if (taskCommit)
-            await Assert.That(output).IsEqualTo("inspect: refused (dirty or unmerged worktree); --force removes it anyway" + Environment.NewLine);
+            await Assert.That(output).IsEqualTo("inspect: refused (unmerged: not on feature); --force removes it anyway" + Environment.NewLine);
         else await Assert.That(output).DoesNotContain("refused");
     }
 
@@ -528,7 +528,7 @@ public sealed class WorkspaceTests
         File.AppendAllText(Path.Combine(path, "README.md"), "keep changes\n");
         var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
         await Assert.That(removed).IsFalse();
-        await Assert.That(output).IsEqualTo("inspect: refused (dirty or unmerged worktree); --force removes it anyway" + Environment.NewLine);
+        await Assert.That(output).IsEqualTo("inspect: refused (dirty worktree); --force removes it anyway" + Environment.NewLine);
         await Assert.That(File.ReadAllText(Path.Combine(path, "README.md"))).IsEqualTo("# Lab repository\nkeep changes\n");
     }
 
@@ -617,7 +617,372 @@ public sealed class WorkspaceTests
         var (removed, output) = await CaptureCleanAsync(lab, run, false, ct);
         await Assert.That(removed).IsFalse();
         await Assert.That(Directory.Exists(path)).IsTrue();
-        await Assert.That(output).IsEqualTo("inspect: refused (dirty or unmerged worktree); --force removes it anyway" + Environment.NewLine);
+        await Assert.That(output).IsEqualTo("inspect: refused (submodule has changes); --force removes it anyway" + Environment.NewLine);
+    }
+
+    [Test]
+    [Arguments("fast-forward")]
+    [Arguments("detached landed")]
+    [Arguments("rebase")]
+    [Arguments("squash")]
+    [Arguments("later edit")]
+    [Arguments("CRLF and binary")]
+    [Timeout(60_000)]
+    public async Task Clean_recognizes_landed_work_on_a_pinned_base(string landing, CancellationToken ct)
+    {
+        using var lab = new CoreLab("landed");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var path = run.Record.Workspace.Path!;
+        File.WriteAllText(Path.Combine(path, "change [1].txt"), "first\n");
+        if (landing == "CRLF and binary")
+        {
+            File.WriteAllText(Path.Combine(path, "crlf.txt"), "first\r\nsecond\r\n");
+            File.WriteAllBytes(Path.Combine(path, "data.bin"), [0, 255, 0, 128, 5]);
+        }
+        var first = await CommitFilesAsync(repo, path, ct);
+        File.AppendAllText(Path.Combine(path, "change [1].txt"), "second\n");
+        var tip = await CommitFilesAsync(repo, path, ct);
+        string proof;
+        if (landing is "fast-forward" or "detached landed")
+        {
+            await repo.GitAsync(["merge", "--ff-only", run.Record.Workspace.Branch!], ct);
+            proof = tip;
+            if (landing == "detached landed")
+            {
+                await repo.GitAsync(["-C", path, "checkout", "--detach"], ct);
+                File.WriteAllText(Path.Combine(path, "detached.txt"), "detached landed work\n");
+                var detached = await CommitFilesAsync(repo, path, ct);
+                await repo.GitAsync(["merge", "--ff-only", detached], ct);
+            }
+        }
+        else
+        {
+            File.WriteAllText(Path.Combine(repo.Root, "unrelated.txt"), "target work\n");
+            await CommitFilesAsync(repo, repo.Root, ct);
+            if (landing == "rebase")
+            {
+                await repo.GitAsync(["checkout", "-b", "landing", tip], ct);
+                await repo.GitAsync(["rebase", "main"], ct);
+                proof = await repo.GitAsync(["rev-parse", "HEAD"], ct);
+                await Assert.That(proof).IsNotEqualTo(tip);
+                await Assert.That(await repo.GitAsync(["rev-parse", "HEAD~1"], ct)).IsNotEqualTo(first);
+                await Assert.That(await repo.GitAsync(["rev-list", "--count", "main..HEAD"], ct)).IsEqualTo("2");
+                await repo.GitAsync(["checkout", "main"], ct);
+                await repo.GitAsync(["merge", "--ff-only", "landing"], ct);
+            }
+            else proof = await SquashAsync(repo, run, ct);
+        }
+        if (landing == "later edit")
+        {
+            File.WriteAllText(Path.Combine(repo.Root, "change [1].txt"), "later target content\n");
+            await CommitFilesAsync(repo, repo.Root, ct);
+        }
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        await AssertLandedAsync(lab, run, landing is "fast-forward" or "detached landed" ? "ancestor of refs/remotes/origin/main"
+            : $"content matches {proof[..12]} on refs/remotes/origin/main", ct);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_recognizes_a_continuations_inherited_base(CancellationToken ct)
+    {
+        using var lab = new CoreLab("2026-11-01-source");
+        using var origin = new TempTree();
+        var (repo, source) = await LandingWorktreeAsync(lab, origin, ct);
+        File.WriteAllText(Path.Combine(source.Record.Workspace.Path!, "source.txt"), "source work\n");
+        var sourceResult = new TaskResult { Run = lab.Ledger.RunId, Task = source.Id, State = "failed", WorkerStatus = "done", Failures = ["verify-failed"] };
+        await Commit.CollectAsync(lab.Ledger, source, sourceResult, ct);
+        lab.Ledger.SaveResult(sourceResult);
+        await lab.Ledger.WriteArtifactAsync(source.Id, "final.md", "Source report.\nStatus: done\n", ct);
+        lab.Ledger.Write(source.Id, "final", new() { ["state"] = "failed" });
+        var nextLedger = new Ledger("2026-11-02-next");
+        Json.WriteFile(Path.Combine(nextLedger.Dir, "run.json"), new RunInfo { Run = nextLedger.RunId, Repo = repo.Root, ControlId = Locations.NewControlId() }, LedgerJson.Files.RunInfo);
+        var next = lab.Continuation("next", $"{lab.Ledger.RunId}/{source.Id}");
+        next.Record.Settings.Backend = new() { Value = "codex" };
+        await Worktree.PrepareAsync(next, nextLedger, repo.Root, ct);
+        await Assert.That(next.Record.Workspace.BaseSha).IsEqualTo(source.Record.Workspace.BaseSha);
+        await Assert.That(next.Record.Workspace.StartSha).IsEqualTo(sourceResult.Commit);
+        File.WriteAllText(Path.Combine(next.Record.Workspace.Path!, "next.txt"), "next work\n");
+        await CommitFilesAsync(repo, next.Record.Workspace.Path!, ct);
+        var proof = await SquashAsync(repo, next, ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        await AssertLandedAsync(lab, next, $"content matches {proof[..12]} on refs/remotes/origin/main", ct, nextLedger);
+        await Assert.That(File.ReadAllText(Path.Combine(source.Record.Workspace.Path!, "source.txt"))).IsEqualTo("source work\n");
+    }
+
+    [Test]
+    [Arguments("nowhere")]
+    [Arguments("one line")]
+    [Arguments("indentation")]
+    [Arguments("no origin HEAD")]
+    [Arguments("needs fetch")]
+    [Arguments("dirty")]
+    [Arguments("untracked")]
+    [Arguments("detached")]
+    [Arguments("missing base")]
+    [Arguments("empty commit")]
+    [Timeout(60_000)]
+    public async Task Clean_refuses_without_landing_proof(string state, CancellationToken ct)
+    {
+        using var lab = new CoreLab("not-landed");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var path = run.Record.Workspace.Path!;
+        string tip;
+        if (state == "empty commit")
+        {
+            await repo.GitAsync(["-C", path, "commit", "--allow-empty", "-m", "Empty task commit"], ct);
+            tip = await repo.GitAsync(["-C", path, "rev-parse", "HEAD"], ct);
+        }
+        else
+        {
+            File.WriteAllText(Path.Combine(path, "change.txt"), "first\n    second\nlast\n");
+            tip = await CommitFilesAsync(repo, path, ct);
+        }
+        if (state is "one line" or "indentation")
+        {
+            await repo.GitAsync(["merge", "--squash", run.Record.Workspace.Branch!], ct);
+            File.WriteAllText(Path.Combine(repo.Root, "change.txt"), state == "one line" ? "first\n    different\nlast\n" : "first\n  second\nlast\n");
+            await CommitFilesAsync(repo, repo.Root, ct);
+            await repo.GitAsync(["push", "origin", "main"], ct);
+        }
+        if (state is "dirty" or "untracked" or "detached")
+        {
+            await repo.GitAsync(["merge", "--ff-only", run.Record.Workspace.Branch!], ct);
+            await repo.GitAsync(["push", "origin", "main"], ct);
+            if (state == "dirty") File.AppendAllText(Path.Combine(path, "change.txt"), "keep dirty work\n");
+            if (state == "untracked") File.WriteAllText(Path.Combine(path, "untracked.txt"), "keep untracked work\n");
+            if (state == "detached")
+            {
+                await repo.GitAsync(["-C", path, "checkout", "--detach"], ct);
+                File.WriteAllText(Path.Combine(path, "detached.txt"), "only copy\n");
+                await CommitFilesAsync(repo, path, ct);
+            }
+        }
+        if (state == "no origin HEAD") await repo.GitAsync(["symbolic-ref", "--delete", "refs/remotes/origin/HEAD"], ct);
+        if (state == "needs fetch")
+            await repo.GitAsync(["-C", origin.Repository, "fetch", repo.Root, $"{run.Record.Workspace.Branch}:refs/heads/main"], ct);
+        var reason = $"unmerged: not on {run.Record.Workspace.BaseRef}" + (state == "no origin HEAD" ? "" : " or refs/remotes/origin/main; fetch if it landed recently");
+        if (state is "dirty" or "untracked")
+        {
+            // A broken baseline would fail a landing probe: dirt must refuse before reaching it.
+            run.Record.Workspace.BaseSha = new string('f', 40);
+            reason = "dirty worktree";
+        }
+        if (state == "missing base")
+        {
+            run.Record.Workspace.BaseSha = new string('f', 40);
+            var failure = await lab.Git.RunAsync(repo.Root, ct, "diff", "--name-only", "-z", "--no-renames", "--ignore-submodules=none", run.Record.Workspace.BaseSha, tip);
+            await Assert.That(failure.ExitCode).IsNotEqualTo(0);
+            reason = "landing check failed: " + failure.Stderr.ReplaceLineEndings("\n").Split('\n')[0];
+        }
+        await AssertRefusedAsync(lab, run, reason, ct);
+        if (state == "needs fetch")
+        {
+            await Assert.That(await repo.GitAsync(["rev-parse", "origin/main"], ct)).IsEqualTo(run.Record.Workspace.BaseSha);
+            await repo.GitAsync(["fetch", "origin"], ct);
+            await Assert.That(await repo.GitAsync(["rev-parse", "origin/main"], ct)).IsEqualTo(tip);
+        }
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_a_merge_resolutions_content_that_never_landed(CancellationToken ct)
+    {
+        using var lab = new CoreLab("merge-resolution");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var path = run.Record.Workspace.Path!;
+        File.WriteAllText(Path.Combine(path, "task.txt"), "task work\n");
+        var taskCommit = await CommitFilesAsync(repo, path, ct);
+        await repo.GitAsync(["checkout", "-b", "side", run.Record.Workspace.BaseSha!], ct);
+        File.WriteAllText(Path.Combine(repo.Root, "side.txt"), "side work\n");
+        var sideCommit = await CommitFilesAsync(repo, repo.Root, ct);
+        await repo.GitAsync(["checkout", "main"], ct);
+        await repo.GitAsync(["-C", path, "merge", "--no-ff", "--no-commit", "side"], ct);
+        File.WriteAllText(Path.Combine(path, "resolution.txt"), "only in merge\n");
+        await CommitFilesAsync(repo, path, ct);
+        await repo.GitAsync(["cherry-pick", taskCommit, sideCommit], ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_a_mode_change_the_target_lacks(CancellationToken ct)
+    {
+        using var lab = new CoreLab("mode-change");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var path = run.Record.Workspace.Path!;
+        // core.filemode=false makes the index-only fixture clean on every host; the tree still carries 100755.
+        await repo.GitAsync(["-C", path, "-c", "core.filemode=false", "update-index", "--chmod=+x", "README.md"], ct);
+        await repo.GitAsync(["-C", path, "-c", "core.filemode=false", "commit", "-m", "Executable readme"], ct);
+        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(Path.Combine(path, "README.md"), UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute | UnixFileMode.GroupRead | UnixFileMode.OtherRead);
+        await Assert.That(await repo.GitAsync(["-C", path, "status", "--porcelain=v1"], ct)).IsEqualTo("");
+        await Assert.That(await repo.GitAsync(["-C", path, "ls-files", "--stage", "README.md"], ct)).StartsWith("100755 ");
+        await Assert.That(await repo.GitAsync(["ls-files", "--stage", "README.md"], ct)).StartsWith("100644 ");
+        await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_keeps_todays_empty_pinned_base_result(CancellationToken ct)
+    {
+        using var lab = new CoreLab("empty-pinned");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var (exit, output) = await CleanCommandAsync(lab.Ledger, run, ct);
+        await Assert.That(exit).IsEqualTo(0);
+        await Assert.That(output).DoesNotContain("landed (");
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
+        await Assert.That(await repo.GitAsync(["branch", "--format=%(refname:short)"], ct)).IsEqualTo("main");
+        await Assert.That(lab.Ledger.Read().Single(x => x.Type == "cleaned").Data!.ContainsKey("landed")).IsFalse();
+    }
+
+    [Test]
+    [Arguments(500)]
+    [Arguments(501)]
+    [Timeout(60_000)]
+    public async Task Clean_bounds_same_content_paths(int count, CancellationToken ct)
+    {
+        using var lab = new CoreLab("path-bound");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        for (var i = 0; i < count; i++) File.WriteAllText(Path.Combine(run.Record.Workspace.Path!, $"file-{i}.txt"), "landed work\n");
+        await CommitFilesAsync(repo, run.Record.Workspace.Path!, ct);
+        var proof = await SquashAsync(repo, run, ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        if (count == 500) await AssertLandedAsync(lab, run, $"content matches {proof[..12]} on refs/remotes/origin/main", ct);
+        else await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_needs_one_candidate_holding_all_paths_together(CancellationToken ct)
+    {
+        using var lab = new CoreLab("paths-together");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        var path = run.Record.Workspace.Path!;
+        File.WriteAllText(Path.Combine(path, "first.txt"), "first work\n");
+        File.WriteAllText(Path.Combine(path, "second.txt"), "second work\n");
+        await CommitFilesAsync(repo, path, ct);
+        File.WriteAllText(Path.Combine(repo.Root, "first.txt"), "first work\n");
+        await CommitFilesAsync(repo, repo.Root, ct);
+        File.WriteAllText(Path.Combine(repo.Root, "first.txt"), "changed before second landed\n");
+        File.WriteAllText(Path.Combine(repo.Root, "second.txt"), "second work\n");
+        await CommitFilesAsync(repo, repo.Root, ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        await AssertRefusedAsync(lab, run, $"unmerged: not on {run.Record.Workspace.BaseRef} or refs/remotes/origin/main; fetch if it landed recently", ct);
+    }
+
+    [Test]
+    [Timeout(60_000)]
+    public async Task Clean_continues_other_tasks_after_a_landing_probe_failure(CancellationToken ct)
+    {
+        using var lab = new CoreLab("probe-siblings");
+        using var origin = new TempTree();
+        var (repo, run) = await LandingWorktreeAsync(lab, origin, ct);
+        File.WriteAllText(Path.Combine(run.Record.Workspace.Path!, "only-copy.txt"), "keep this work\n");
+        await CommitFilesAsync(repo, run.Record.Workspace.Path!, ct);
+        run.Record.Workspace.BaseSha = new string('f', 40);
+        var sibling = new TaskRun { Record = new()
+        {
+            Spec = new() { Id = "sibling", Kind = "code", Base = run.Record.Spec.Base },
+            Settings = new() { Backend = new() { Value = "codex" } },
+        } };
+        await Worktree.PrepareAsync(sibling, lab.Ledger, repo.Root, ct);
+        lab.Ledger.Write(sibling.Id, "final", new() { ["state"] = "done" });
+        var (exit, _) = await CleanCommandAsync(lab.Ledger, run, ct);
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(File.ReadAllText(Path.Combine(run.Record.Workspace.Path!, "only-copy.txt"))).IsEqualTo("keep this work\n");
+        await Assert.That(Directory.Exists(sibling.Record.Workspace.Path)).IsFalse();
+        await Assert.That(await repo.GitAsync(["branch", "--format=%(refname:short)"], ct)).IsEqualTo($"{run.Record.Workspace.Branch}\nmain");
+        await Assert.That(lab.Ledger.Read().Where(x => x.Type is "cleaned" or "clean-failed").Select(x => x.Task + ":" + x.Type
+            + (x.Type == "clean-failed" ? ":" + x.Data!["error"]!.GetValue<string>() : "")))
+            .IsEquivalentTo(new[] { "inspect:clean-failed:workspace cleanup refused", "sibling:cleaned" }, CollectionOrdering.Matching);
+    }
+
+    static async Task<(LabRepo Repo, TaskRun Run)> LandingWorktreeAsync(CoreLab lab, TempTree origin, CancellationToken ct)
+    {
+        var repo = await LabRepo.CreateAsync(lab.Tree, ct);
+        File.WriteAllText(Path.Combine(repo.Root, ".gitattributes"), "crlf.txt text eol=crlf\n*.bin -text\n");
+        await CommitFilesAsync(repo, repo.Root, ct);
+        await repo.GitAsync(["init", "--bare", "--initial-branch=main", origin.Repository], ct);
+        await repo.GitAsync(["remote", "add", "origin", origin.Repository], ct);
+        await repo.GitAsync(["push", "origin", "main"], ct);
+        await repo.GitAsync(["symbolic-ref", "refs/remotes/origin/HEAD", "refs/remotes/origin/main"], ct);
+        var run = new TaskRun { Record = new()
+        {
+            Spec = new() { Id = "inspect", Kind = "code", Base = await repo.GitAsync(["rev-parse", "HEAD"], ct), Scope = ["**"] },
+            Settings = new() { Backend = new() { Value = "codex" } },
+        } };
+        var info = lab.Ledger.LoadRunInfo();
+        info.Repo = repo.Root;
+        Json.WriteFile(Path.Combine(lab.Ledger.Dir, "run.json"), info, LedgerJson.Files.RunInfo);
+        await Worktree.PrepareAsync(run, lab.Ledger, repo.Root, ct);
+        return (repo, run);
+    }
+
+    static async Task<string> CommitFilesAsync(LabRepo repo, string path, CancellationToken ct)
+    {
+        await repo.GitAsync(["-C", path, "add", "-A"], ct);
+        await repo.GitAsync(["-C", path, "commit", "-m", "Fixture content"], ct);
+        return await repo.GitAsync(["-C", path, "rev-parse", "HEAD"], ct);
+    }
+
+    static async Task<string> SquashAsync(LabRepo repo, TaskRun run, CancellationToken ct)
+    {
+        await repo.GitAsync(["merge", "--squash", run.Record.Workspace.Branch!], ct);
+        await repo.GitAsync(["commit", "-m", "Landed squash"], ct);
+        return await repo.GitAsync(["rev-parse", "HEAD"], ct);
+    }
+
+    static async Task<(int Exit, string Output)> CleanCommandAsync(Ledger ledger, TaskRun run, CancellationToken ct)
+    {
+        ledger.SaveRecord(run.Record);
+        ledger.Write(run.Id, "final", new() { ["state"] = "done" });
+        var output = TestContext.Current!.Output;
+        var start = output.GetStandardOutput().Length;
+        var exit = await Commands.CleanAsync(Args.Parse(["clean", ledger.RunId]), ct);
+        return (exit, output.GetStandardOutput()[start..]);
+    }
+
+    static async Task AssertLandedAsync(CoreLab lab, TaskRun run, string reason, CancellationToken ct, Ledger? ledger = null)
+    {
+        ledger ??= lab.Ledger;
+        var repo = new LabRepo(lab.Tree);
+        var patch = await repo.GitAsync(["diff", "--binary", "--full-index", run.Record.Workspace.BaseSha!, run.Record.Workspace.Branch!], ct);
+        await ledger.WriteArtifactAsync(run.Id, "diff.patch", patch, ct);
+        var (exit, output) = await CleanCommandAsync(ledger, run, ct);
+        await Assert.That(output.ReplaceLineEndings("\n").Split('\n')[0]).IsEqualTo($"{run.Id}: landed ({reason})");
+        await Assert.That(exit).IsEqualTo(0);
+        await Assert.That(ledger.Read().Single(x => x.Task == run.Id && x.Type == "cleaned").Data!["landed"]!.GetValue<string>()).IsEqualTo(reason);
+        await Assert.That(Directory.Exists(run.Record.Workspace.Path)).IsFalse();
+        await Assert.That(await repo.GitAsync(["branch", "--list", run.Record.Workspace.Branch!, "--format=%(refname:short)"], ct)).IsEqualTo("");
+        await Assert.That(File.ReadAllText(Path.Combine(ledger.TaskDir(run.Id), "diff.patch"))).IsEqualTo(patch);
+    }
+
+    static async Task AssertRefusedAsync(CoreLab lab, TaskRun run, string reason, CancellationToken ct)
+    {
+        var repo = new LabRepo(lab.Tree);
+        var path = run.Record.Workspace.Path!;
+        string[] Files() => Directory.GetFiles(path, "*", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
+            .Select(file => Path.GetRelativePath(path, file) + ":" + Convert.ToBase64String(File.ReadAllBytes(file))).ToArray();
+        var files = Files();
+        var registration = await repo.GitAsync(["worktree", "list", "--porcelain"], ct);
+        var tip = await repo.GitAsync(["rev-parse", run.Record.Workspace.Branch!], ct);
+        var (exit, output) = await CleanCommandAsync(lab.Ledger, run, ct);
+        await Assert.That(output.ReplaceLineEndings("\n").Split('\n')[0]).IsEqualTo($"{run.Id}: refused ({reason}); --force removes it anyway");
+        await Assert.That(exit).IsEqualTo(1);
+        await Assert.That(Directory.Exists(path)).IsTrue();
+        await Assert.That(Files()).IsEquivalentTo(files, CollectionOrdering.Matching);
+        await Assert.That(await repo.GitAsync(["worktree", "list", "--porcelain"], ct)).IsEqualTo(registration);
+        await Assert.That(await repo.GitAsync(["rev-parse", run.Record.Workspace.Branch!], ct)).IsEqualTo(tip);
+        await Assert.That(lab.Ledger.Read().Where(x => x.Type is "cleaned" or "clean-failed").Select(x => x.Type + ":" + x.Data?["error"]?.GetValue<string>()))
+            .IsEquivalentTo(new[] { "clean-failed:workspace cleanup refused" }, CollectionOrdering.Matching);
     }
 
     static async Task<(LabRepo Repo, TaskRun Run, string Path)> SubmoduleWorktreeAsync(CoreLab lab, LabRepo upstream, CancellationToken ct)

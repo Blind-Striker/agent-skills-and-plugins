@@ -162,10 +162,11 @@ static class Worktree
         return folder;
     }
 
-    public static async Task<bool> CleanAsync(Ledger ledger, TaskRecord record, string repo, bool force, CancellationToken ct, Git? runner = null)
+    public static async Task<bool> CleanAsync(Ledger ledger, TaskRecord record, string repo, bool force, CancellationToken ct, Git? runner = null, Action<string>? landed = null)
     {
         var task = record.Spec.Id!;
         var step = "workspace";
+        string? landingReason = null;
         try
         {
             var restored = TaskRun.FromLedger(record, ledger);
@@ -213,17 +214,34 @@ static class Worktree
                 var branchExists = (await git.RunAsync(repo, ct, "show-ref", "--verify", "--quiet", "refs/heads/" + branch)).ExitCode == 0;
                 if ((exists || registration is not null || branchExists) && Directory.Exists(Locations.ControlDir(ledger.RunId)))
                     await new GitConfigGate(git).CheckAsync(repo, ct);
-                var dirty = !force && intact && await DirtyAsync(git, path, ct);
+                var dirty = !force && intact && (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")).Length > 0;
                 var merged = force || !branchExists || (record.Workspace.BaseRef is { } baseRef &&
                     (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", branch, baseRef)).ExitCode == 0);
                 // A detached HEAD can hold commits the dispatch branch does not; git records it in the registration.
                 if (!force && merged && registration?.Split('\0').FirstOrDefault(x => x.StartsWith("HEAD ", StringComparison.Ordinal)) is { } headLine)
                     merged = record.Workspace.BaseRef is { } headBase
                         && (await git.RunAsync(repo, ct, "merge-base", "--is-ancestor", headLine[5..], headBase)).ExitCode == 0;
+                string? target = null;
+                if (!force && !dirty && !merged)
+                {
+                    try
+                    {
+                        (target, landingReason) = await LandingAsync(git, repo, record.Workspace.BaseSha!, branch,
+                            registration?.Split('\0').FirstOrDefault(x => x.StartsWith("HEAD ", StringComparison.Ordinal))?[5..], ct);
+                        merged = landingReason is not null;
+                    }
+                    catch (HarnessException ex)
+                    {
+                        Console.WriteLine($"{task}: refused ({ex.Message}); --force removes it anyway");
+                        return false;
+                    }
+                }
                 if (!force && (dirty || !merged))
                 {
-                    var reason = dirty && merged && (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all")).Length == 0
-                        ? "submodule has changes" : "dirty or unmerged worktree";
+                    var reason = dirty
+                        ? (await git.CheckAsync(path, ct, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=all")).Length == 0
+                            ? "submodule has changes" : "dirty worktree"
+                        : $"unmerged: not on {record.Workspace.BaseRef}" + (target is null ? "" : $" or {target}; fetch if it landed recently");
                     Console.WriteLine($"{task}: refused ({reason}); --force removes it anyway");
                     return false;
                 }
@@ -296,6 +314,11 @@ static class Worktree
             step = "index";
             Snapshot.Delete(git, task);
             if (Path.Exists(Snapshot.Index(git, task))) throw new HarnessException("temporary index remains");
+            if (landingReason is not null)
+            {
+                Console.WriteLine($"{task}: landed ({landingReason})");
+                landed?.Invoke(landingReason);
+            }
             return true;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or HarnessException)
@@ -303,6 +326,38 @@ static class Worktree
             ex.Data["step"] = step;
             throw;
         }
+    }
+
+    static async Task<(string? Target, string? Reason)> LandingAsync(Git git, string repo, string baseSha, string branch, string? head, CancellationToken ct)
+    {
+        async Task<ProcessResult> ProbeAsync(bool noIsOne, params string[] args)
+        {
+            var result = await git.RunAsync(repo, ct, args);
+            if (result.ExitCode != 0 && !(noIsOne && result.ExitCode == 1))
+                throw new HarnessException("landing check failed: " + result.Stderr.ReplaceLineEndings("\n").Split('\n')[0]);
+            return result;
+        }
+        static string Text(ProcessResult result) => Encoding.UTF8.GetString(result.Stdout).Trim();
+        var symbolic = await ProbeAsync(true, "symbolic-ref", "--quiet", "refs/remotes/origin/HEAD");
+        if (symbolic.ExitCode == 1) return (null, null);
+        var target = Text(symbolic);
+        var tip = Text(await ProbeAsync(false, "rev-parse", "--verify", $"refs/heads/{branch}^{{commit}}"));
+        var ancestor = await ProbeAsync(true, "merge-base", "--is-ancestor", tip, target);
+        var headAncestor = head is null || head == tip || (await ProbeAsync(true, "merge-base", "--is-ancestor", head, target)).ExitCode == 0;
+        if (ancestor.ExitCode == 0 && headAncestor) return (target, $"ancestor of {target}");
+        if (head is not null && head != tip) return (target, null);
+        var changed = await ProbeAsync(false, "diff", "--name-only", "-z", "--no-renames", "--ignore-submodules=none", baseSha, tip);
+        var paths = Encoding.UTF8.GetString(changed.Stdout).Split('\0', StringSplitOptions.RemoveEmptyEntries);
+        if (paths.Length is 0 or > 500) return (target, null);
+        var targetTip = Text(await ProbeAsync(false, "rev-parse", "--verify", $"{target}^{{commit}}"));
+        async Task<bool> MatchesAsync(string candidate) => (await ProbeAsync(true, ["--literal-pathspecs", "diff", "--quiet",
+            "--no-ext-diff", "--no-textconv", "--no-renames", "--ignore-submodules=none", tip, candidate, "--", .. paths])).ExitCode == 0;
+        if (await MatchesAsync(targetTip)) return (target, $"content matches {targetTip[..12]} on {target}");
+        var common = Text(await ProbeAsync(false, "merge-base", baseSha, target));
+        var history = Text(await ProbeAsync(false, ["--literal-pathspecs", "rev-list", "--full-history", "--max-count=2000", $"{common}..{target}", "--", .. paths]));
+        foreach (var candidate in history.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            if (await MatchesAsync(candidate)) return (target, $"content matches {candidate[..12]} on {target}");
+        return (target, null);
     }
 
     static void DeleteTemp(string path)
