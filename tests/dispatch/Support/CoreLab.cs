@@ -7,7 +7,7 @@ internal sealed class CoreLab : IDisposable
     public TempTree Tree { get; } = new();
     public Ledger Ledger { get; }
     public Policy Policy { get; } = new() { Path = "config.json", Deny = [], Escalate = [], Instructions = [] };
-    public Git Git { get; }
+    public Git Git { get; private set; }
     public FakeBackend Backend { get; } = new("opencode", new("policy", "policy", "text", true));
     readonly string controlFolder;
     readonly string? savedDispatchHome = Environment.GetEnvironmentVariable("DISPATCH_HOME");
@@ -32,6 +32,9 @@ internal sealed class CoreLab : IDisposable
         Backend.OnInterrupt = (_, _) => Task.FromResult(new InterruptResult(false, "interrupt"));
         Backend.OnRelease = (_, _) => Task.FromResult<InterruptResult?>(null);
     }
+
+    // In-process commands must share their production git environment with fixture preparation.
+    public void UseProductionGit(string task) => Git = Worktree.Runner(Ledger, task);
 
     public async Task<TaskRun> TaskAsync(string id, CancellationToken ct)
     {

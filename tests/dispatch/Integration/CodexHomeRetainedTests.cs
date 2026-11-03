@@ -1040,6 +1040,7 @@ public sealed class CodexHomeRetainedTests
     static async Task<TaskRun> PrepareAsync(CoreLab core, CancellationToken ct)
     {
         ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        core.UseProductionGit("edit");
         var run = await core.TaskAsync("edit", ct);
         run.Record.Spec.Kind = "code";
         run.Record.Spec.Base = "main";

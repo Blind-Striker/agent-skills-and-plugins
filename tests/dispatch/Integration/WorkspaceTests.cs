@@ -1396,6 +1396,7 @@ public sealed class WorkspaceTests
 
     static async Task<(LabRepo Repo, TaskRun Run)> LandingWorktreeAsync(CoreLab lab, TempTree origin, CancellationToken ct)
     {
+        lab.UseProductionGit("inspect");
         var repo = await LabRepo.CreateAsync(lab.Tree, ct);
         File.WriteAllText(Path.Combine(repo.Root, ".gitattributes"), "crlf.txt text eol=crlf\n*.bin -text\n");
         await CommitFilesAsync(repo, repo.Root, ct);
