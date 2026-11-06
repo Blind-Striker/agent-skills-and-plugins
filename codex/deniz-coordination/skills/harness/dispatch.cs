@@ -1,5 +1,5 @@
 #!/usr/bin/env -S dotnet --
-#:package OpenCodeDotNet.Sdk@0.9.0-preview.15
+#:package OpenCodeDotNet.Sdk@1.0.0
 #:include src/Usings.cs
 #:include src/Contracts/Errors.cs
 #:include src/Contracts/Constants.cs
