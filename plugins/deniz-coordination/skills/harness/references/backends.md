@@ -173,6 +173,9 @@ turns also supply the output schema. Approval, tool, retry and token events feed
 The `workspace-write` sandbox lets a task write inside its workspace, its task temp folder and the
 configured `writableRoots`. A task that must write elsewhere (another cache folder, for example) or start
 `wsl.exe` fails there.
+Codex does not implicitly grant `/tmp` or `$TMPDIR`: they are writable only when listed in the
+policy's `writableRoots`, because a writable `/tmp` makes Codex create `/tmp/.git` on Linux hosts.
+The task's non-empty `TEMP`, `TMP` and `TMPDIR` values are added as writable roots.
 
 **Windows sandbox limits.** With `[windows] sandbox = "elevated"`, a .NET build and test ran inside
 the sandbox after an outside restore (`prepare`), while the restore's package download inside it
