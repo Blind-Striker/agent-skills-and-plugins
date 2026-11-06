@@ -124,6 +124,10 @@ full access cannot enforce a writable-root boundary. The resolved list and sourc
 in settings. The workspace and task temp are already writable; opencode also adds its Git common
 folder and backend-owned folders, as described in [backends](backends.md#opencode-process-and-profile).
 Its fence is an [accident guard](backends.md#opencode-accident-guard), not a security boundary.
+For Codex workspace tasks, `/tmp` and `$TMPDIR` are writable only when listed in the policy's
+`writableRoots`, because a writable `/tmp` makes Codex create `/tmp/.git` on Linux hosts.
+The task's non-empty `TEMP`, `TMP` and `TMPDIR` values are added as writable roots
+([Codex sandbox](backends.md#codex-process-and-sandbox)).
 
 Dependency downloads can run in `prepare` instead of widening writable roots; see
 [Dependencies and the sandbox](guide.md#dependencies-and-the-sandbox).
