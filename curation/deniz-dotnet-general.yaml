@@ -32,7 +32,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.16.0
+  version: 0.17.0
 original_skills:
   writing-tunit-tests:
     invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
@@ -45,6 +45,12 @@ original_skills:
     # ratchet, the build traps) that the coordination craft's walls preflight loads beside its generic
     # gates. It moved here from Coordination, which stays language-agnostic; auto, so a coordinator in
     # a .NET repository reaches it by its description
+  csharp-15:
+    invocation: auto # C# 15 language reference (unions, closed hierarchies, collection expression
+    # arguments, extension indexers, labeled break/continue, the preview memory-safety model); its
+    # description names net11.0, the features and their diagnostics, so the model loads it while writing
+    # or reviewing C# 15 code. Third-party and kept verbatim: its NOTICE.md and the root
+    # THIRD_PARTY_NOTICES.md name the author and the terms; it is not original work of this repository
 items:
   # --- language & API design ---
   - source: dotnet-skills/skills/csharp-coding-standards

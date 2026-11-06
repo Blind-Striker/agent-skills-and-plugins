@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-general",
-  "version": "0.16.0",
-  "digest": "sha256:87c8751a58a9c5571c5acc6becf6a1e9525a8ff776e243d826ef840675c903f1",
+  "version": "0.17.0",
+  "digest": "sha256:c0228c324f9a0e5099ed19a7cae59b33f96567a3312028ee8a8296bbb5fa5288",
   "requiredModules": [
     "deniz-dotnet-aspire",
     "deniz-process"
@@ -166,6 +166,14 @@
     },
     "skills/deniz-dotnet-general.cscheck/references/stateful-and-async.md": {
       "sha256": "sha256:b3bf50b6556e10d1e6e2995ee8e8386ea953432006366b09fa960c160a93534a",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.csharp-15/NOTICE.md": {
+      "sha256": "sha256:4fd9d0cdbc73026aa6df56d78f9cfc3cf2faba4ffdd267f235271fe9593ceeb2",
+      "mode": "100644"
+    },
+    "skills/deniz-dotnet-general.csharp-15/SKILL.md": {
+      "sha256": "sha256:4efac91c75eccadb454154946f52adbcf2c98b8e6c8551bad8a7a2d96d6c0b25",
       "mode": "100644"
     },
     "skills/deniz-dotnet-general.csharp-concurrency-patterns/SKILL.md": {

@@ -12,7 +12,7 @@ bold pointers are user-started ceremonies, while the reference skills support au
 
 | Situation | Route and boundary |
 |---|---|
-| New C# code or a public API | `dotnet-skills:csharp-coding-standards` for idioms; `dotnet-skills:csharp-api-design` for extend-only API and wire compatibility. For behavior-preserving changes use `dotnet:csharp-refactoring`, not idioms that change equality or copying. |
+| New C# code or a public API | `dotnet-skills:csharp-coding-standards` for idioms; `dotnet-skills:csharp-api-design` for extend-only API and wire compatibility. For behavior-preserving changes use `dotnet:csharp-refactoring`, not idioms that change equality or copying. Code that targets `net11.0` or uses a C# 15 feature (unions, closed hierarchies, collection expression arguments, extension indexers, labeled `break`/`continue`) adds `deniz-dotnet-general:csharp-15`. |
 | Concurrency or reactive events | `dotnet-skills:csharp-concurrency-patterns` chooses the abstraction; `dotnet-skills:r3-reactive-extensions` covers R3 event streams rather than ordinary request/response I/O. |
 | Serialization | `dotnet-skills:serialization` chooses formats and wire evolution; use `dotnet-skills:snapshot-testing` for human-reviewed output baselines, not email authoring. |
 | Service composition | `dotnet-skills:microsoft-extensions-dependency-injection` groups registrations; `dotnet-skills:microsoft-extensions-configuration` handles Options and validation. |

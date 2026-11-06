@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.14.2
+  version: 0.14.3
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -535,6 +535,7 @@ items:
       - coordinator
       - coverage-analysis
       - cscheck
+      - csharp-15
       - csharp-concurrency-patterns
       - csharp-nullable-reference-types
       - csharp-refactoring
