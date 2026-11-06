@@ -21,3 +21,12 @@ Module Bundles.
 The root [LICENSE](LICENSE) applies to this repository's original code, documentation, overlays, and
 modifications. It does not replace the upstream notices above. See each generated distribution's
 `THIRD_PARTY_NOTICES.md` and `third_party/` directory for its exact source-specific notice set.
+
+## Unlicensed third-party files
+
+The files below are not under the MIT License and not under the root `LICENSE`. They are kept
+verbatim, and each one ships with a `NOTICE.md` beside it that names its author and terms.
+
+| File | Author | Terms |
+|---|---|---|
+| `skills/deniz-dotnet-general/csharp-15/SKILL.md` | Nick Chapsas / Dometrain | No license stated; distributed free of charge by Dometrain (<https://dometrain.com>) and downloaded from the source |

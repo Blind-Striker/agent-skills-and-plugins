@@ -12,7 +12,7 @@ bold pointers are user-started ceremonies, while the reference skills support au
 
 | Situation | Route and boundary |
 |---|---|
-| New C# code or a public API | `$deniz-dotnet-general:modern-csharp-coding-standards` for idioms; `$deniz-dotnet-general:api-design` for extend-only API and wire compatibility. For behavior-preserving changes use `$deniz-dotnet-general:csharp-refactoring`, not idioms that change equality or copying. |
+| New C# code or a public API | `$deniz-dotnet-general:modern-csharp-coding-standards` for idioms; `$deniz-dotnet-general:api-design` for extend-only API and wire compatibility. For behavior-preserving changes use `$deniz-dotnet-general:csharp-refactoring`, not idioms that change equality or copying. Code that targets `net11.0` or uses a C# 15 feature (unions, closed hierarchies, collection expression arguments, extension indexers, labeled `break`/`continue`) adds `$deniz-dotnet-general:csharp-15`. |
 | Concurrency or reactive events | `$deniz-dotnet-general:csharp-concurrency-patterns` chooses the abstraction; `$deniz-dotnet-general:r3-reactive-extensions` covers R3 event streams rather than ordinary request/response I/O. |
 | Serialization | `$deniz-dotnet-general:serialization` chooses formats and wire evolution; use `$deniz-dotnet-general:snapshot-testing` for human-reviewed output baselines, not email authoring. |
 | Service composition | `$deniz-dotnet-general:dependency-injection-patterns` groups registrations; `$deniz-dotnet-general:microsoft-extensions-configuration` handles Options and validation. |
