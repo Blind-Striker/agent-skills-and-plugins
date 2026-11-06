@@ -30,9 +30,9 @@
       },
       "OpenCodeDotNet.Sdk": {
         "type": "Direct",
-        "requested": "[0.9.0-preview.15, )",
-        "resolved": "0.9.0-preview.15",
-        "contentHash": "aGVtpIKMuSkPWfCBIB8KnQlOV18oPMvNd5g0aXp3PJ00jfQ/ZRv4NwxDejZqkPKuCqlaq01m/xUL6aTq303axg=="
+        "requested": "[1.0.0, )",
+        "resolved": "1.0.0",
+        "contentHash": "w8BB5EJ5V/OIVt+9zFr07MfIoL0/sNdNgkJw1y0uUqaE7wNXhBQqUsqd874jdwk21xZNyoFgs4jPafBLg/jkgA=="
       },
       "Tomlyn": {
         "type": "Direct",
