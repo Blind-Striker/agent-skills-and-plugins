@@ -175,6 +175,10 @@ original_skills:
     invocation: auto
 ```
 
+A third-party file that has no upstream repository to pin as a submodule also takes this slot, kept
+verbatim. Its directory holds a `NOTICE.md` that names the author and the terms, and root
+`THIRD_PARTY_NOTICES.md` lists it among the files outside the root `LICENSE`.
+
 The SKILL.md owns content and description, and its body still owns the model-edge facts themselves;
 the declaration owns invocation, the `depends_on` list that declares the body's mandatory model-edge facts,
 the `optional_refs` list of conditional facts, `harness_files`, and `harnesses`. A declaration is not a second body manifest: it holds `invocation`,
