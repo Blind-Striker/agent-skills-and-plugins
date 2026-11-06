@@ -86,25 +86,33 @@ public sealed class GitRunnerTests
         var command = $"printf ran > '{marker.Replace('\\', '/')}'; cat";
         if (origin == "worktree") await repo.GitAsync(["config", "extensions.worktreeConfig", "true"], cancellationToken);
         var key = "filter.x." + operation;
-        if (origin == "included")
+        var global = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL")!;
+        var saved = origin == "global" ? File.ReadAllText(global) : null;
+        try
         {
-            var included = Path.Combine(tree.Root, "included.config");
-            await repo.GitAsync(["config", "--file", included, key, command], cancellationToken);
-            await repo.GitAsync(["config", "include.path", included], cancellationToken);
+            if (origin == "included")
+            {
+                var included = Path.Combine(tree.Root, "included.config");
+                await repo.GitAsync(["config", "--file", included, key, command], cancellationToken);
+                await repo.GitAsync(["config", "include.path", included], cancellationToken);
+            }
+            else await repo.GitAsync(origin == "global"
+                ? ["config", "--file", global, key, command]
+                : origin == "worktree"
+                    ? ["-C", run.Worktree, "config", "--worktree", key, command]
+                    : ["config", "--local", key, command], cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(run.Worktree, ".gitattributes"), "*.txt filter=x\n", cancellationToken);
+            await File.WriteAllTextAsync(Path.Combine(run.Worktree, "new.txt"), "change\n", cancellationToken);
+            await CollectAsync(tree, run.RunId, cancellationToken, expectedExit: 1);
+            await Assert.That(File.Exists(marker)).IsFalse();
+            await Assert.That(await repo.GitAsync(["-C", run.Worktree, "rev-parse", "HEAD"], cancellationToken)).IsEqualTo(run.BaseSha);
+            var result = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(run.TaskDir, "result.json"), cancellationToken))!;
+            await Assert.That(result["failures"]!.AsArray().Select(x => x!.GetValue<string>())).Contains("git-config-changed");
+            var events = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(run.TaskDir)!, "events.jsonl"), cancellationToken);
+            await Assert.That(events).Contains(key);
+            await Assert.That(events).DoesNotContain(command);
         }
-        else await repo.GitAsync(origin == "worktree"
-            ? ["-C", run.Worktree, "config", "--worktree", key, command]
-            : ["config", origin == "global" ? "--global" : "--local", key, command], cancellationToken);
-        await File.WriteAllTextAsync(Path.Combine(run.Worktree, ".gitattributes"), "*.txt filter=x\n", cancellationToken);
-        await File.WriteAllTextAsync(Path.Combine(run.Worktree, "new.txt"), "change\n", cancellationToken);
-        await CollectAsync(tree, run.RunId, cancellationToken, expectedExit: 1);
-        await Assert.That(File.Exists(marker)).IsFalse();
-        await Assert.That(await repo.GitAsync(["-C", run.Worktree, "rev-parse", "HEAD"], cancellationToken)).IsEqualTo(run.BaseSha);
-        var result = JsonNode.Parse(await File.ReadAllTextAsync(Path.Combine(run.TaskDir, "result.json"), cancellationToken))!;
-        await Assert.That(result["failures"]!.AsArray().Select(x => x!.GetValue<string>())).Contains("git-config-changed");
-        var events = await File.ReadAllTextAsync(Path.Combine(Path.GetDirectoryName(run.TaskDir)!, "events.jsonl"), cancellationToken);
-        await Assert.That(events).Contains(key);
-        await Assert.That(events).DoesNotContain(command);
+        finally { if (saved is not null) File.WriteAllText(global, saved); }
     }
 
     [Test]
