@@ -8,6 +8,62 @@ namespace Dispatch.Tests.Integration;
 public sealed class GitRunnerTests
 {
     [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    public async Task Session_config_without_a_developer_file_has_empty_excludes_and_attributes(string? developer, CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = new LabRepo(tree);
+        var config = Path.Combine(tree.Root, "session.gitconfig");
+        Exception? failure = null;
+        try { Gates.WriteSessionGitConfig(config, developer); }
+        catch (Exception error) { failure = error; }
+        await Assert.That(failure).IsNull();
+        await Assert.That(await repo.GitAsync(["config", "--file", config, "--name-only", "--list"], ct))
+            .IsEqualTo("core.excludesfile\ncore.attributesfile\nfilter.lfs.clean\nfilter.lfs.smudge\nfilter.lfs.process\nfilter.lfs.required");
+        var ignore = await repo.GitAsync(["config", "--file", config, "--get", "core.excludesFile"], ct);
+        var attributes = await repo.GitAsync(["config", "--file", config, "--get", "core.attributesFile"], ct);
+        await Assert.That(ignore).IsEqualTo(Path.Combine(tree.Root, "git-ignore"));
+        await Assert.That(attributes).IsEqualTo(Path.Combine(tree.Root, "git-attributes"));
+        await Assert.That(File.ReadAllText(ignore)).IsEqualTo("");
+        await Assert.That(File.ReadAllText(attributes)).IsEqualTo("");
+        await Assert.That(Gates.SessionGitConfig).StartsWith(Path.Combine(TestPaths.Tests, "bin", "labs") + Path.DirectorySeparatorChar);
+        await Assert.That(File.Exists(Gates.SessionGitConfig)).IsTrue();
+    }
+
+    [Test]
+    public async Task Session_config_keeps_developer_excludes_and_attributes_after_its_empty_defaults(CancellationToken ct)
+    {
+        using var tree = new TempTree();
+        var repo = new LabRepo(tree);
+        var developer = Path.Combine(tree.Root, "developer.gitconfig");
+        await repo.GitAsync(["config", "--file", developer, "core.excludesFile", "developer-ignore"], ct);
+        await repo.GitAsync(["config", "--file", developer, "core.attributesFile", "developer-attributes"], ct);
+        var config = Path.Combine(tree.Root, "session.gitconfig");
+        Gates.WriteSessionGitConfig(config, developer);
+        await Assert.That(await repo.GitAsync(["config", "--file", config, "--includes", "--get-all", "core.excludesFile"], ct))
+            .IsEqualTo(Path.Combine(tree.Root, "git-ignore") + "\ndeveloper-ignore");
+        await Assert.That(await repo.GitAsync(["config", "--file", config, "--includes", "--get-all", "core.attributesFile"], ct))
+            .IsEqualTo(Path.Combine(tree.Root, "git-attributes") + "\ndeveloper-attributes");
+        await Assert.That(await repo.GitAsync(["config", "--file", config, "--includes", "--get", "core.excludesFile"], ct))
+            .IsEqualTo("developer-ignore");
+        await Assert.That(await repo.GitAsync(["config", "--file", config, "--includes", "--get", "core.attributesFile"], ct))
+            .IsEqualTo("developer-attributes");
+    }
+
+    [Test]
+    public async Task Session_config_quotes_newlines_backslashes_and_quotes_in_the_include_path()
+    {
+        using var tree = new TempTree();
+        var config = Path.Combine(tree.Root, "session.gitconfig");
+        var root = Path.GetPathRoot(tree.Root)!;
+        Gates.WriteSessionGitConfig(config, root + "developer\n\"config\\git");
+        var quotedRoot = OperatingSystem.IsWindows() ? root[..^1] + "\\\\" : root;
+        await Assert.That(File.ReadAllLines(config).Where(line => line.StartsWith("\tpath = ", StringComparison.Ordinal)))
+            .IsEquivalentTo(new[] { "\tpath = \"" + quotedRoot + "developer\\n\\\"config\\\\git\"" }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     [Arguments(false)]
     [Arguments(true)]
     [Timeout(180_000)]
@@ -74,6 +130,7 @@ public sealed class GitRunnerTests
     public Task FilterChangedByWorker_SkipsCommitAndFails(string origin, string operation, CancellationToken cancellationToken) => CheckFilterAsync(origin, operation, cancellationToken);
 
     [Test]
+    [NotInParallel]
     [Timeout(180_000)]
     public Task FilterInGlobalConfig_IsCaught(CancellationToken ct) => CheckFilterAsync("global", "clean", ct);
 
@@ -86,7 +143,7 @@ public sealed class GitRunnerTests
         var command = $"printf ran > '{marker.Replace('\\', '/')}'; cat";
         if (origin == "worktree") await repo.GitAsync(["config", "extensions.worktreeConfig", "true"], cancellationToken);
         var key = "filter.x." + operation;
-        var global = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL")!;
+        var global = Gates.SessionGitConfig;
         var saved = origin == "global" ? File.ReadAllText(global) : null;
         try
         {

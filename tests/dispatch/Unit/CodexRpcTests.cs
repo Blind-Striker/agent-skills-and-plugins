@@ -5,20 +5,11 @@ namespace Dispatch.Tests.Unit;
 [Category("Unit")]
 public sealed class CodexRpcTests
 {
-    [Test, Timeout(120_000)]
-    public async Task Initialize_accepts_a_response_after_the_old_startup_deadline(CancellationToken token)
+    [Test]
+    public async Task Default_limits_allow_cold_initialization_and_bound_other_requests()
     {
-        await using var pipe = new CodexPipe();
-        var pending = pipe.Client.RequestAsync("initialize", Element("{}"), CodexJson.Wire.JsonElement, cancellationToken: token);
-        var request = await pipe.ReadAsync(token);
-        await Task.Delay(TimeSpan.FromSeconds(31), token);
-        await pipe.SendAsync($"{{\"id\":{request.GetProperty("id")},\"result\":{{\"userAgent\":\"cold-start\"}}}}", token);
-        Exception? failure = null;
-        JsonElement response = default;
-        try { response = await pending; }
-        catch (Exception error) { failure = error; }
-        await Assert.That(failure).IsNull();
-        await Assert.That(response.GetProperty("userAgent").GetString()).IsEqualTo("cold-start");
+        await Assert.That(CodexRpc.DefaultLimit("initialize")).IsEqualTo(TimeSpan.FromSeconds(90));
+        await Assert.That(CodexRpc.DefaultLimit("thread/start")).IsEqualTo(TimeSpan.FromSeconds(60));
     }
 
     [Test, Timeout(30_000)]

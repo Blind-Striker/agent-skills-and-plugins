@@ -7,6 +7,43 @@ namespace Dispatch.Tests.Unit;
 public sealed class PathGuardEnvironmentTests
 {
     [Test]
+    public async Task Session_git_overrides_are_removed_and_restored_without_changing_the_global_config()
+    {
+        string[] names = ["GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
+            "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_COMMON_DIR", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",
+            "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0", "GIT_CONFIG_KEY_7", "GIT_CONFIG_VALUE_7"];
+        var original = names.ToDictionary(name => name, Environment.GetEnvironmentVariable);
+        var global = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL");
+        try
+        {
+            foreach (var name in names) Environment.SetEnvironmentVariable(name, "synthetic-" + name);
+            var saved = Gates.ClearGitOverrides();
+            foreach (var name in names)
+            {
+                await Assert.That(Environment.GetEnvironmentVariable(name)).IsNull();
+                await Assert.That(saved[name]).IsEqualTo("synthetic-" + name);
+            }
+            await Assert.That(Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL")).IsEqualTo(global);
+            Gates.RestoreGitOverrides(saved);
+            foreach (var name in names)
+                await Assert.That(Environment.GetEnvironmentVariable(name)).IsEqualTo("synthetic-" + name);
+        }
+        finally
+        {
+            foreach (var (name, value) in original) Environment.SetEnvironmentVariable(name, value);
+        }
+    }
+
+    [Test]
+    public async Task Global_filter_case_has_method_level_unkeyed_exclusion()
+    {
+        var method = typeof(Integration.GitRunnerTests).GetMethod(nameof(Integration.GitRunnerTests.FilterInGlobalConfig_IsCaught))!;
+        await Assert.That(method.GetCustomAttributesData().Where(attribute => attribute.AttributeType == typeof(NotInParallelAttribute))
+            .Select(attribute => attribute.ConstructorArguments.Count))
+            .IsEquivalentTo(new[] { 0 }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+    }
+
+    [Test]
     public async Task WorkerEnvironment_DisablesGlobalToolsPathAppend()
     {
         if (!OperatingSystem.IsWindows()) Skip.Test("The .NET tools PATH append affects the Windows user registry.");

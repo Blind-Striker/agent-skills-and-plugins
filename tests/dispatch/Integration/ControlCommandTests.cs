@@ -17,7 +17,9 @@ public sealed class ControlCommandTests
         using var core = new CoreLab("crafted-home-clean");
         using var codex = new CodexLab(core.Tree);
         ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        core.UseProductionGit("inspect");
         var run = await core.TaskAsync("inspect", ct);
+        await AssertProductionBaselineAsync(core);
         run.Record.Settings.Backend = new() { Value = "codex" };
         core.Ledger.Write(run.Id, "queued", new());
         var other = new Ledger("other-run");
@@ -55,7 +57,9 @@ public sealed class ControlCommandTests
         using var core = new CoreLab("invalid-home-marker");
         using var codex = new CodexLab(core.Tree);
         ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        core.UseProductionGit("inspect");
         var run = await core.TaskAsync("inspect", ct);
+        await AssertProductionBaselineAsync(core);
         run.Record.Settings.Backend = new() { Value = "codex" };
         core.Ledger.Write(run.Id, "queued", new());
         using var home = RecordedHome(core, codex, run, int.MaxValue);
@@ -132,7 +136,9 @@ public sealed class ControlCommandTests
         using var core = new CoreLab("missing-control-clean");
         using var codex = new CodexLab(core.Tree);
         ConfigLayers.Initialize(Args.Parse(["status", "--ledger", Path.GetDirectoryName(core.Ledger.Dir)!]));
+        core.UseProductionGit("inspect");
         var run = await core.TaskAsync("inspect", ct);
+        await AssertProductionBaselineAsync(core);
         run.Record.Settings.Backend = new() { Value = "codex" };
         run.Record.Workspace = new();
         run.Record.Spec.Base = "main";
@@ -244,6 +250,14 @@ public sealed class ControlCommandTests
         await Assert.That(result.WorkerStopped).IsTrue();
         await Assert.That(Directory.Exists(home.Home)).IsFalse();
         await Assert.That(core.Ledger.Read().Where(line => line.Type == "aborted")).IsEmpty();
+    }
+
+    static async Task AssertProductionBaselineAsync(CoreLab core)
+    {
+        var baseline = JsonNode.Parse(File.ReadAllText(Path.Combine(core.Git.ControlFolder, "git-baseline.json")))!.AsObject();
+        await Assert.That(baseline.Select(entry => entry.Key)).Contains("filter.lfs.clean");
+        await Assert.That(baseline["filter.lfs.clean"]!.AsArray().Select(entry => entry!["origin"]!.GetValue<string>()))
+            .Contains("file:" + Gates.SessionGitConfig);
     }
 
     static CodexHome RecordedHome(CoreLab core, CodexLab codex, TaskRun run, int pid)
@@ -447,16 +461,23 @@ public sealed class ControlCommandTests
         var profile = Directory.CreateDirectory(Path.Combine(tree.Root, "profiles", "opencode")).FullName;
         var environment = FakeOpenCode.Environment(tree, "one-task.jsonl");
         environment["FAKE_OPENCODE_PROFILE_HANDLES"] = "32768";
+        var clock = Stopwatch.StartNew();
+        Console.WriteLine("Starting profile-handle host");
         await using var host = await HarnessServer.StartAsync(false,
             new(tree.Root, FakeOpenCode.Executable, environment), profile,
             new("full", "on", "workspace", "on", "worktree"), ct);
+        Console.WriteLine($"Profile-handle host ready after {clock.Elapsed}");
         using var process = System.Diagnostics.Process.GetProcessById(host.Server.ProcessId);
         _ = process.Handle;
         var holder = ObservedProcess.Capture(process.Id);
+        using var diagnostic = ct.Register(() => Console.WriteLine(
+            $"Profile-handle timeout after {clock.Elapsed}: signaled={process.WaitForExit(0)}, SDK exit={host.Server.Exited.Status}"));
         process.Kill();
         while (!process.HasExited) ct.ThrowIfCancellationRequested();
 
+        Console.WriteLine("Profile-handle host exit reported; disposing");
         await host.DisposeAsync();
+        Console.WriteLine("Profile-handle host disposed");
 
         var signaled = process.WaitForExit(0);
         IOException? deletionError = null;
