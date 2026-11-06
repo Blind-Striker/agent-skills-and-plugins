@@ -87,8 +87,7 @@ internal sealed class CoreLab : IDisposable
         if (!Directory.Exists(Path.Combine(Tree.Repository, ".git"))) await LabRepo.CreateAsync(Tree, ct);
         var source = new Ledger("2026-10-31-source");
         var sourceControl = Locations.NewControlId();
-        var sourceGit = new Git(Executables.Resolve("git"), Locations.CreateControlFolder(sourceControl),
-            Tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!));
+        var sourceGit = global::Git.ForTask("source", source.RunId, Locations.CreateControlFolder(sourceControl));
         Json.WriteFile(Path.Combine(source.Dir, "run.json"), new RunInfo { Run = source.RunId, Repo = Tree.Repository, ControlId = sourceControl }, LedgerJson.Files.RunInfo);
         source.Write(null, "run");
         var run = Continuation("source");

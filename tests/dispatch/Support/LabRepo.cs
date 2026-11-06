@@ -47,5 +47,5 @@ internal sealed class LabRepo(TempTree tree)
     }
 
     public Task BaselineAsync(string control, CancellationToken ct) => new Git(Executables.Resolve("git"), control,
-        tree.ChildEnvironment().ToDictionary(x => x.Key, x => x.Value!)).InitializeBaselineAsync(Root, ct);
+        WorkerEnvironment.Scrub(WorkerEnvironment.Snapshot()).Variables).InitializeBaselineAsync(Root, ct);
 }

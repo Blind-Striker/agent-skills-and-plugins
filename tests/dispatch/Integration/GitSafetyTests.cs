@@ -9,6 +9,17 @@ namespace Dispatch.Tests.Integration;
 public sealed class GitSafetyTests
 {
     [Test]
+    [Timeout(60_000)]
+    public async Task Production_git_sees_the_session_global_lfs_filter(CancellationToken ct)
+    {
+        using var lab = new CoreLab();
+        var git = Worktree.Runner(lab.Ledger, "inspect");
+        var result = await git.RunAsync(lab.Tree.Repository, ct, "config", "--global", "--get", "filter.lfs.required");
+        await Assert.That(Encoding.UTF8.GetString(result.Stdout).TrimEnd()).IsEqualTo("true");
+        await Assert.That(result.ExitCode).IsEqualTo(0);
+    }
+
+    [Test]
     [Arguments("filter")]
     [Arguments("cancel")]
     [Arguments("owned-lock")]

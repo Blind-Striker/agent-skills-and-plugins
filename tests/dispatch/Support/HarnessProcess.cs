@@ -16,6 +16,8 @@ internal sealed class HarnessProcess(TempTree tree) : IDisposable
         {
             foreach (var (name, value) in environment) childEnvironment[name] = value;
         }
+        // Harness commands use the session config, not TempTree's isolated fixture config.
+        childEnvironment["GIT_CONFIG_GLOBAL"] = Environment.GetEnvironmentVariable("GIT_CONFIG_GLOBAL");
         if (documentedEntry) Gates.UseBuildCache(childEnvironment);
         string[] invocation = documentedEntry ? ["dispatch.cs", "--", .. arguments] : [Gates.HarnessDll, .. arguments];
         return child.RunAsync("dotnet", invocation, TestPaths.Harness, childEnvironment, cancellationToken);

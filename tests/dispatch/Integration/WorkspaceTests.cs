@@ -267,6 +267,7 @@ public sealed class WorkspaceTests
     public async Task Continuation_cleanup_and_status_stay_run_local(bool sourceFirst, CancellationToken ct)
     {
         using var lab = new CoreLab("next-run");
+        lab.UseProductionGit("next");
         var source = await lab.SourceAttemptAsync(ct);
         var next = lab.Continuation();
         await Worktree.PrepareAsync(next, lab.Ledger, lab.Tree.Repository, ct, lab.Git);
