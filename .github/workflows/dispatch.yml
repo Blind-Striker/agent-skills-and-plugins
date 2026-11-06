@@ -15,12 +15,15 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        shard: [1, 2]
     runs-on: ${{ matrix.os }}
-    # A run takes about 42 minutes on Windows; a hung test otherwise holds the runner for six hours.
+    # Each shard sums about 50 minutes of class durations; keep the existing limits for headroom.
     timeout-minutes: 90
     env:
       DOTNET_NOLOGO: "1"
       DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      # Shard 2 excludes only shard 1's classes, so future classes land there automatically.
+      DISPATCH_TEST_FILTER: ${{ matrix.shard == 1 && '/*/*/(CodexBackendTests)|(StructuredRunTests)|(CodexHomeRetainedTests)|(ControlCommandTests)|(WorkspaceTests)/*[Category!=Functional]' || '/*/*/(!CodexBackendTests)&(!StructuredRunTests)&(!CodexHomeRetainedTests)&(!ControlCommandTests)&(!WorkspaceTests)/*[Category!=Functional]' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -93,7 +96,7 @@ jobs:
         # pipe has exited, so a process a test leaves behind would keep it open past every timeout.
         run: |
           set +e
-          dotnet run -c Release --no-build -- --treenode-filter "/*/*/*/*[Category!=Functional]" --results-directory "$GITHUB_WORKSPACE/test-results" \
+          dotnet run -c Release --no-build -- --treenode-filter "$DISPATCH_TEST_FILTER" --results-directory "$GITHUB_WORKSPACE/test-results" \
             --timeout 60m --hangdump --hangdump-timeout 15m --hangdump-type Mini > "$RUNNER_TEMP/tests.log" 2>&1
           code=$?
           # TUnit colors its lines; strip the codes so the failed tests and the totals are found.
@@ -114,7 +117,7 @@ jobs:
           $script = Join-Path $env:RUNNER_TEMP 'run-tests.cmd'
           @(
             '@echo off'
-            "dotnet run -c Release --no-build -- --treenode-filter ""/*/*/*/*[Category!=Functional]"" --results-directory ""$results"" --timeout 60m --hangdump --hangdump-timeout 15m --hangdump-type Mini > ""$log"" 2>&1"
+            "dotnet run -c Release --no-build -- --treenode-filter ""$env:DISPATCH_TEST_FILTER"" --results-directory ""$results"" --timeout 60m --hangdump --hangdump-timeout 15m --hangdump-type Mini > ""$log"" 2>&1"
           ) | Set-Content -LiteralPath $script -Encoding ascii
           $started = Get-Date
           $run = Start-Process -FilePath $script -WindowStyle Hidden -PassThru
@@ -146,6 +149,6 @@ jobs:
         if: failure() || cancelled()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: dispatch-test-results-${{ matrix.os }}-${{ github.run_id }}
+          name: dispatch-test-results-${{ matrix.os }}-shard-${{ matrix.shard }}-${{ github.run_id }}
           path: test-results/**
           if-no-files-found: ignore

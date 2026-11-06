@@ -15,7 +15,7 @@ The matrix is additive. When a change matches more than one row, run the union o
 |---|---|---|
 | Repository tooling under `tools/`, or its TypeScript, package, formatter, or linter configuration | `npm test`; `npm run typecheck`; `npm run lint`; `npm run format:check`; `npm run check:public-safety` | Review failures and warnings; do not weaken a gate to make the change pass |
 | Installer, packaging, emitter, or other generated-output behavior; `curation/`, overlays, root license/notices, or original `skills/`; an upstream submodule pin | The five tooling commands, then `npm run build`; `npm run inventory`; `npm run validate` | Perform the idempotence rerun and generated-output review below |
-| The dispatch harness's source under `skills/deniz-coordination/harness/`, or `tests/dispatch/` | The generated-output row, then the build gate `dotnet build dispatch.cs` in `skills/deniz-coordination/harness/` and `dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"` in `tests/dispatch/` | CI's `dispatch` workflow repeats the build gate, the usage exit, and the tests on Windows, Linux, and macOS, restoring the tests in locked mode; tests that need a model login are opt-in and prove nothing in CI |
+| The dispatch harness's source under `skills/deniz-coordination/harness/`, or `tests/dispatch/` | The generated-output row, then the build gate `dotnet build dispatch.cs` in `skills/deniz-coordination/harness/` and `dotnet run -c Release -- --treenode-filter "/*/*/*/*[Category!=Functional]"` in `tests/dispatch/` | CI's `dispatch` workflow repeats the build gate, the usage exit, and the tests in two complementary shards per OS on Windows, Linux, and macOS, restoring the tests in locked mode; tests that need a model login are opt-in and prove nothing in CI |
 | Prose protected by `tools/repository-docs.test.ts` | `npm test` | Retarget the assertion in the same change when protected prose intentionally moves |
 | Harness-invocation experiment scripts, method, or prose protected by the subsystem selftest | The applicable repository row above, plus `pwsh -NoProfile -File experiments/harness-invocation/selftest.ps1 -SkipLab` | Use the full prepared-lab selftest only for the claims described below |
 | Release Package production or replacement | The generated-output row, then `npm run verify:package -- <package.tgz>` on the exact artifact | Run the manual `release-package` workflow build job on Linux; publish only the artifact that passed isolated Plan, Apply, status, digest, and remote re-download verification |
@@ -29,6 +29,12 @@ These gates produce per-change evidence. A prior green local or CI run is not st
 health recorded in the roadmap; rerun every applicable gate for the change being completed.
 
 ## What CI enforces
+
+The [dispatch workflow](../../.github/workflows/dispatch.yml) runs two separate matrix jobs per OS.
+Shard 1 selects a fixed set of classes; shard 2 excludes precisely those classes, so new classes enter
+shard 2 automatically. Both retain `Category!=Functional`; together they cover the full local filter
+without overlap. Both shells use the same matrix-selected filter, and failure artifacts include the
+OS and shard. Session, watchdog, step, and job limits retain their existing headroom.
 
 The current workflow is [`.github/workflows/validate.yml`](../../.github/workflows/validate.yml). On
 pull requests and pushes to `master`, it checks out recursive submodules, installs with Node 24 and

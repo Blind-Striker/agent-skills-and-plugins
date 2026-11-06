@@ -2,8 +2,57 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { parse as parseYaml } from "yaml";
 
 const root = join(import.meta.dirname, "..");
+
+test("dispatch CI shards each OS with complementary non-functional filters", () => {
+  const workflow = parseYaml(readFileSync(join(root, ".github", "workflows", "dispatch.yml"), "utf8"));
+  const job = workflow.jobs.dotnet;
+  assert.deepEqual(job.strategy.matrix, {
+    os: ["ubuntu-latest", "windows-latest", "macos-latest"],
+    shard: [1, 2],
+  });
+  const classes = [
+    "CodexBackendTests",
+    "StructuredRunTests",
+    "CodexHomeRetainedTests",
+    "ControlCommandTests",
+    "WorkspaceTests",
+  ];
+  const shard1 = `/*/*/${classes.map((name) => `(${name})`).join("|")}/*[Category!=Functional]`;
+  const shard2 = `/*/*/${classes.map((name) => `(!${name})`).join("&")}/*[Category!=Functional]`;
+  assert.equal(job.env.DISPATCH_TEST_FILTER, `\${{ matrix.shard == 1 && '${shard1}' || '${shard2}' }}`);
+});
+
+test("dispatch CI uses the shard filter in both shells and isolates artifacts", () => {
+  const workflow = parseYaml(readFileSync(join(root, ".github", "workflows", "dispatch.yml"), "utf8"));
+  const steps = workflow.jobs.dotnet.steps;
+  const bash = steps.find((step: { name?: string }) => step.name === "Unit and Integration tests");
+  const windows = steps.find(
+    (step: { name?: string }) => step.name === "Unit and Integration tests (Windows, with a watchdog)",
+  );
+  assert.ok(bash);
+  assert.ok(windows);
+  assert.match(
+    bash.run,
+    /dotnet run -c Release --no-build -- --treenode-filter "\$DISPATCH_TEST_FILTER" --results-directory/,
+  );
+  assert.match(
+    windows.run,
+    /dotnet run -c Release --no-build -- --treenode-filter ""\$env:DISPATCH_TEST_FILTER"" --results-directory/,
+  );
+  for (const step of [bash, windows]) {
+    assert.match(step.run, /--timeout 60m --hangdump --hangdump-timeout 15m --hangdump-type Mini/);
+    assert.doesNotMatch(step.run, /\/\*\/\*\/\*\/\*\[Category!=Functional\]/);
+  }
+  const artifact = steps.find((step: { name?: string }) => step.name === "Keep the results and any hang dump");
+  assert.ok(artifact);
+  assert.equal(
+    artifact.with.name,
+    `dispatch-test-results-\${{ matrix.os }}-shard-\${{ matrix.shard }}-\${{ github.run_id }}`,
+  );
+});
 
 test("README build command names every committed generated tree", () => {
   const readme = readFileSync(join(root, "README.md"), "utf8");
