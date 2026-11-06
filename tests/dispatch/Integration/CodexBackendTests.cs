@@ -400,26 +400,65 @@ public sealed class CodexBackendTests
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
     [Timeout(180_000)]
-    public async Task Workspace_writableRoots_guard_sends_worktree_temp_and_configured_roots(CancellationToken ct)
+    public async Task Workspace_writableRoots_guard_sends_worktree_temp_and_configured_roots(bool sharedTemp, CancellationToken ct)
     {
         using var lab = new CodexLab();
         await LabRepo.CreateAsync(lab.Tree, ct);
         lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + CodexLab.Final);
         await using var backend = lab.Backend();
         var temp = Path.Combine(lab.Tree.Root, "task-temp");
+        var tmp = sharedTemp ? temp : Path.Combine(lab.Tree.Root, "z-tmp");
+        var tmpdir = sharedTemp ? temp : Path.Combine(lab.Tree.Root, "a-tmpdir");
         var first = Path.Combine(lab.Tree.Root, "z-cache");
         var second = Path.Combine(lab.Tree.Root, "a-cache");
-        var variables = new Dictionary<string, string>(lab.Environment) { ["TEMP"] = temp };
+        var variables = lab.Environment.Where(entry => entry.Key is not ("TEMP" or "TMP" or "TMPDIR"))
+            .ToDictionary(entry => entry.Key, entry => entry.Value);
+        variables["TMPDIR"] = tmpdir;
+        variables["TMP"] = tmp;
+        variables["TEMP"] = temp;
         var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
             new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), variables, null, "full", null,
-            [first, second]), ct);
+            [first, second, "/tmp", first, lab.Tree.Repository, temp, tmpdir]), ct);
         var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), ct);
         // The fake records turn/start when it reads it, which can be after the prompt returns.
         await backend.CollectAsync(worker, ct);
         var turn = lab.Input().Single(x => x["method"]?.GetValue<string>() == "turn/start")["params"]!;
+        await Assert.That(turn["sandboxPolicy"]!["excludeSlashTmp"]?.GetValue<bool>()).IsTrue();
+        await Assert.That(turn["sandboxPolicy"]!["excludeTmpdirEnvVar"]?.GetValue<bool>()).IsTrue();
         await Assert.That(turn["sandboxPolicy"]!["writableRoots"]!.AsArray().Select(x => x!.GetValue<string>()))
-            .IsEquivalentTo(new[] { lab.Tree.Repository, temp, first, second }, TUnit.Assertions.Enums.CollectionOrdering.Matching);
+            .IsEquivalentTo(sharedTemp ? new[] { lab.Tree.Repository, temp, first, second, "/tmp" }
+                : new[] { lab.Tree.Repository, temp, tmp, tmpdir, first, second, "/tmp" }, CollectionOrdering.Matching);
+        var thread = lab.Input().Single(x => x["method"]?.GetValue<string>() == "thread/start")["params"]!;
+        await Assert.That(thread["sandbox"]!.GetValue<string>()).IsEqualTo("workspace-write");
+    }
+
+    [Test]
+    [Arguments(null)]
+    [Arguments("")]
+    [Timeout(180_000)]
+    public async Task Workspace_writableRoots_omit_missing_or_empty_temp_variables(string? temp, CancellationToken ct)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + CodexLab.Final);
+        var variables = new Dictionary<string, string>(lab.Environment);
+        foreach (var name in new[] { "TEMP", "TMP", "TMPDIR" })
+        {
+            variables.Remove(name);
+            if (temp is not null) variables[name] = temp;
+        }
+        var configured = Path.Combine(lab.Tree.Root, "cache");
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "edit", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), variables, null, "full", null,
+            [configured, lab.Tree.Repository, configured]), ct);
+        var worker = await backend.PromptAsync(created.Worker, new("Perform the task.", false), ct);
+        await backend.CollectAsync(worker, ct);
+        var turn = lab.Input().Single(x => x["method"]?.GetValue<string>() == "turn/start")["params"]!;
+        await Assert.That(turn["sandboxPolicy"]!["writableRoots"]!.AsArray().Select(x => x!.GetValue<string>()))
+            .IsEquivalentTo(new[] { lab.Tree.Repository, configured }, CollectionOrdering.Matching);
     }
 
     [Test]

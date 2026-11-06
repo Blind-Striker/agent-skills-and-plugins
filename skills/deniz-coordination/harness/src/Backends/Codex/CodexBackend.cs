@@ -253,8 +253,10 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         "workspace" => new()
         {
             ["type"] = "workspaceWrite", ["networkAccess"] = launch.Modes.Network == "on",
-            ["writableRoots"] = Json.Array([launch.Directory, .. launch.Environment.TryGetValue("TEMP", out var temp) ? [temp] : Array.Empty<string>(),
-                .. launch.WritableRoots ?? []]),
+            ["excludeSlashTmp"] = true, ["excludeTmpdirEnvVar"] = true,
+            ["writableRoots"] = Json.Array(new[] { launch.Directory }
+                .Concat(new[] { "TEMP", "TMP", "TMPDIR" }.Select(name => launch.Environment.GetValueOrDefault(name)).OfType<string>().Where(value => value.Length > 0))
+                .Concat(launch.WritableRoots ?? []).Distinct(StringComparer.Ordinal)),
         },
         "full" => new() { ["type"] = "dangerFullAccess" },
         _ => throw new HarnessException($"unknown Codex access: {launch.Modes.Access}"),

@@ -84,7 +84,8 @@ public sealed class CodexProtocolTests
             })),
             var m when m.StartsWith("turn/start/", StringComparison.Ordinal) => ("v2/TurnStartParams.json", new CodexTurnStartParams("thread", input, "/workspace",
                 m[11..] == "dangerFullAccess" ? new JsonObject { ["type"] = "dangerFullAccess" }
-                : m[11..] == "workspaceWrite" ? new JsonObject { ["type"] = "workspaceWrite", ["writableRoots"] = new JsonArray(), ["networkAccess"] = true }
+                : m[11..] == "workspaceWrite" ? new JsonObject { ["type"] = "workspaceWrite", ["writableRoots"] = new JsonArray(), ["networkAccess"] = true,
+                    ["excludeSlashTmp"] = true, ["excludeTmpdirEnvVar"] = true }
                 : new JsonObject { ["type"] = "readOnly", ["networkAccess"] = false }, "high", new JsonObject
                 {
                     ["type"] = "object", ["properties"] = new JsonObject { ["text"] = new JsonObject { ["type"] = "string" } },
