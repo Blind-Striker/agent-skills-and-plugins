@@ -41,7 +41,8 @@ sealed class CodexRpc : IAsyncDisposable
     public async Task<JsonElement> RequestAsync<T>(string method, T parameters, JsonTypeInfo<T> typeInfo,
         TimeSpan? timeout = null, CancellationToken cancellationToken = default)
     {
-        var limit = timeout ?? TimeSpan.FromSeconds(method == "initialize" ? 30 : 60);
+        // Cold starts and loaded machines can take longer to answer the first request.
+        var limit = timeout ?? TimeSpan.FromSeconds(method == "initialize" ? 90 : 60);
         if (limit <= TimeSpan.Zero || limit.TotalMilliseconds > uint.MaxValue - 1)
             throw new ArgumentOutOfRangeException(nameof(timeout));
         var id = Interlocked.Increment(ref nextId);
