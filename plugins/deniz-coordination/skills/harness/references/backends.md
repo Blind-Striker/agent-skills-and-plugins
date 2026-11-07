@@ -159,7 +159,7 @@ user D-Bus and systemd sockets. This remains only an [accident guard](#opencode-
 
 ## Codex process and sandbox
 
-The backend runs `codex app-server` over stdio and requires CLI pin `0.163.0`. Its protocol contract
+The backend runs `codex app-server` over stdio and requires CLI pin `0.167.0`. Its protocol contract
 tests cover expected request shapes; installed version and sign-in are also checked before use.
 The probe checks account state and paginates the model catalog. It reads Windows readiness, but
 the base selfcheck does not fail on readiness alone. Plan/run refuse read-only or workspace tasks
@@ -169,6 +169,8 @@ Access maps to `read-only`, `workspace-write` and `danger-full-access` at thread
 backend checks the returned sandbox type. Each `turn/start` supplies the resolved sandbox policy
 and network value. The selected effort comes from the route or the catalog's default. Structured
 turns also supply the output schema. Approval, tool, retry and token events feed the common ledger.
+Managed `humanCommand` checkpoints are declined with a visible request fault, never routed as ordinary
+shell approvals; the backend does not request the `requiredHumanApproval` capability.
 
 The `workspace-write` sandbox lets a task write inside its workspace, its task temp folder and the
 configured `writableRoots`. A task that must write elsewhere (another cache folder, for example) or start
