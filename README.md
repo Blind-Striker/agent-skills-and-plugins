@@ -272,6 +272,12 @@ retrying.
 
 ### OpenCode from a Release Package
 
+Package 0.17.0 is being prepared with Process 0.14.3, General 0.17.0, Akka 0.4.1, Aspire 0.6.0, and
+Coordination 0.1.11. General adds the `csharp-15` skill, and Process routes to it from `ask-deniz`. The
+verified recipe below remains on the last published Release until the new asset passes publication
+checks. For the current recipe after publication, use the
+[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
+
 The current Package is attached to GitHub Release `installer-v0.16.0`, targeting commit `170e782`.
 It carries OpenCode 2 Bundles: Process 0.14.2, General 0.16.0, Akka 0.4.1, Aspire 0.6.0, and
 Coordination 0.1.8. `delegating-to-worker-models` and `verified-waves` moved from Process into
