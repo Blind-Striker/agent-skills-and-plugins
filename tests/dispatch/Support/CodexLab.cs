@@ -22,7 +22,7 @@ internal sealed class CodexLab : IDisposable
         Records = Path.Combine(Tree.Root, "record");
         Environment["FAKE_CODEX_SCENARIOS"] = Scenarios;
         Environment["FAKE_CODEX_RECORD"] = Records;
-        File.WriteAllText(Path.Combine(Scenarios, "version.txt"), "codex-cli 0.163.0\n");
+        File.WriteAllText(Path.Combine(Scenarios, "version.txt"), "codex-cli 0.167.0\n");
         File.WriteAllText(Path.Combine(Scenarios, "login-status.json"), "{\"exit\":0,\"stdout\":\"Signed in\"}");
         Write("preflight", Handshake + """
             {"expect":"account/read","reply":{"account":{"type":"chatgpt"},"requiresOpenaiAuth":true}}
@@ -74,12 +74,12 @@ internal sealed class CodexLab : IDisposable
 
         """;
     public const string Thread = """
-        {"expect":"thread/start","reply":{"thread":{"id":"$threadId","cliVersion":"0.163.0"},"model":"model-y","modelProvider":"fixture","sandbox":{"type":"workspaceWrite"},"approvalPolicy":"on-request","cwd":"$cwd"}}
+        {"expect":"thread/start","reply":{"thread":{"id":"$threadId","cliVersion":"0.167.0"},"model":"model-y","modelProvider":"fixture","sandbox":{"type":"workspaceWrite"},"approvalPolicy":"on-request","cwd":"$cwd"}}
         {"expect":"turn/start","reply":{"turn":{"id":"$turnId","status":"inProgress"}}}
 
         """;
     public const string Final = """
-        {"notify":"item/completed","params":{"threadId":"$threadId","turnId":"$turnId","item":{"id":"answer","type":"agentMessage","phase":"final_answer","text":"Completed."}}}
+        {"notify":"item/completed","params":{"threadId":"$threadId","turnId":"$turnId","item":{"id":"answer","type":"agentMessage","phase":"final_answer","text":"Completed.","startedAtMs":1000,"completedAtMs":2000}}}
         {"notify":"turn/completed","params":{"threadId":"$threadId","turn":{"id":"$turnId","status":"completed"}}}
         """;
 }

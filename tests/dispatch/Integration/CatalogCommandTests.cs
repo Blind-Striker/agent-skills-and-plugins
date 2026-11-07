@@ -140,7 +140,7 @@ public sealed class CatalogCommandTests
         TestContext.Current!.Output.WriteLine(result.ToString());
         result.RequireSuccess("selfcheck");
         await Assert.That(result.Stdout).Contains("backend codex");
-        await Assert.That(result.Stdout).Contains("pin: installed 0.163.0");
+        await Assert.That(result.Stdout).Contains("pin: installed 0.167.0");
         await Assert.That(result.Stdout).Contains("login:");
         await Assert.That(result.Stdout).Contains("model catalog:");
         await Assert.That(result.Stdout).Contains("clean profile: clean");

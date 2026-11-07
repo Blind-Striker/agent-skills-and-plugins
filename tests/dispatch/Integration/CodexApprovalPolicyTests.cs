@@ -9,6 +9,33 @@ public sealed class CodexApprovalPolicyTests
 {
     [Test]
     [Timeout(180_000)]
+    public async Task Human_command_checkpoint_is_declined_and_reported_without_a_shell_approval(CancellationToken cancellationToken)
+    {
+        using var lab = new CodexLab();
+        lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + """
+            {"request":"item/commandExecution/requestApproval","params":{"threadId":"$threadId","turnId":"$turnId","itemId":"checkpoint","kind":"humanCommand","command":"publish package"},"result":{"decision":"decline"}}
+
+            """ + CodexLab.Final);
+        await using var backend = lab.Backend();
+        var created = await backend.CreateAsync(new("run", "inspect", "code", new("codex", "model-y", "high"), null, null,
+            new("full", "on", "workspace", "on", "worktree"), lab.Tree.Repository, new([], []), lab.Environment, null, "full", null), cancellationToken);
+        var worker = await backend.PromptAsync(created.Worker, new("Inspect.", false), cancellationToken);
+        var signal = await backend.Signals.ReadAsync(cancellationToken);
+        await Assert.That(signal).IsTypeOf<WorkerSignal.Fault>();
+        var fault = (WorkerSignal.Fault)signal;
+        await Assert.That(fault.TaskId).IsEqualTo("inspect");
+        await Assert.That(fault.Operation).IsEqualTo("request");
+        await Assert.That(fault.Message).IsEqualTo("unsupported command approval kind: humanCommand");
+        var report = await backend.CollectAsync(worker, cancellationToken);
+        await Assert.That(report.FinalText).IsEqualTo("Completed.");
+        await Assert.That(lab.Input().Single(x => x.ContainsKey("result"))["result"]!["decision"]!.GetValue<string>()).IsEqualTo("decline");
+        var remaining = new List<WorkerSignal>();
+        while (backend.Signals.TryRead(out var next)) remaining.Add(next);
+        await Assert.That(remaining.OfType<WorkerSignal.Ask>()).IsEmpty();
+    }
+
+    [Test]
+    [Timeout(180_000)]
     public async Task File_change_approval_without_grant_root_matches_the_preceding_item_path(CancellationToken cancellationToken)
     {
         using var core = new CoreLab();

@@ -502,7 +502,7 @@ public sealed class CodexBackendTests
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("repository-selected catalog command");
         await Assert.That(result.Stdout).Contains("backend codex");
-        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.163.0");
+        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.167.0");
         // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
             .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
@@ -825,7 +825,7 @@ public sealed class CodexBackendTests
         var result = await harness.RunAsync([command, "--backend", "codex", "--repo", repo.Root], cancellationToken,
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         result.RequireSuccess("Codex catalog command");
-        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.163.0");
+        await Assert.That(result.Stdout).Contains(command == "routes" ? "codex:model-y" : "Codex 0.167.0");
         // Selfcheck's launch check starts one thread and never a turn; routes starts neither.
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() is "thread/start" or "turn/start")
             .Select(x => x["method"]!.GetValue<string>()).ToArray()).IsEquivalentTo(command == "selfcheck" ? new[] { "thread/start" } : []);
@@ -952,8 +952,8 @@ public sealed class CodexBackendTests
         using var lab = new CodexLab();
         lab.Write("preflight", CodexLab.Handshake + CodexLab.Thread + """
             {"notify":"turn/started","params":{"threadId":"$threadId","turn":{"id":"$turnId","status":"inProgress"}}}
-            {"notify":"item/started","params":{"threadId":"$otherThreadId","turnId":"child-turn","item":{"id":"call","type":"commandExecution","command":"echo progress"},"startedAtMs":1000}}
-            {"notify":"item/completed","params":{"threadId":"$otherThreadId","turnId":"child-turn","item":{"id":"call","type":"commandExecution","command":"echo progress","status":"completed","exitCode":0},"completedAtMs":2000}}
+            {"notify":"item/started","params":{"threadId":"$otherThreadId","turnId":"child-turn","item":{"id":"call","type":"commandExecution","command":"echo progress","startedAtMs":1000,"completedAtMs":null},"startedAtMs":1000}}
+            {"notify":"item/completed","params":{"threadId":"$otherThreadId","turnId":"child-turn","item":{"id":"call","type":"commandExecution","command":"echo progress","status":"completed","exitCode":0,"startedAtMs":1000,"completedAtMs":2000},"completedAtMs":2000}}
             {"notify":"error","params":{"threadId":"$threadId","turnId":"$turnId","willRetry":true,"error":{"message":"retrying"}}}
             {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"inputTokens":10,"outputTokens":2,"reasoningOutputTokens":1,"cachedInputTokens":3,"cacheWriteInputTokens":4}}}}
             {"notify":"thread/tokenUsage/updated","params":{"threadId":"$threadId","turnId":"$turnId","tokenUsage":{"total":{"inputTokens":20,"outputTokens":4,"reasoningOutputTokens":2,"cachedInputTokens":6,"cacheWriteInputTokens":8}}}}
@@ -1185,7 +1185,7 @@ public sealed class CodexBackendTests
         var result = await harness.RunAsync(["run", lab.Tasks, "--repo", repo.Root], cancellationToken,
             lab.Environment.ToDictionary(x => x.Key, x => (string?)x.Value));
         await Assert.That(result.ExitCode).IsEqualTo(2);
-        await Assert.That(result.Stderr).Contains(failure == "version" ? "0.163.0" : "codex login");
+        await Assert.That(result.Stderr).Contains(failure == "version" ? "0.167.0" : "codex login");
         await Assert.That(Directory.GetFiles(lab.Tree.DispatchHome, "run.json", SearchOption.AllDirectories)).IsEmpty();
         await Assert.That(lab.Input().Where(x => x["method"]?.GetValue<string>() == "turn/start")).IsEmpty();
     }

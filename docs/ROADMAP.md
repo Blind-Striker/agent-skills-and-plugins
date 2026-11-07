@@ -292,7 +292,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 ## Known Gaps
 
 - **A sandbox-denied Codex command leaves no ledger tool event on macOS and Linux:** the dispatch
-  harness's pinned Codex 0.163.0 sends no command item for a code-mode exec whose sandboxed session
+  harness's pinned Codex 0.167.0 sends no command item for a code-mode exec whose sandboxed session
   fails to open. So a sandbox-denied attempt is missing from the ledger, although the sandbox refused
   it. A request to rerun the command outside the sandbox still arrives as an approval request and is
   recorded. Windows records the denied attempt. The fault is upstream
