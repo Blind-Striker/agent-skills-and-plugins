@@ -272,15 +272,9 @@ retrying.
 
 ### OpenCode from a Release Package
 
-Package 0.17.0 is being prepared with Process 0.14.3, General 0.17.0, Akka 0.4.1, Aspire 0.6.0, and
-Coordination 0.1.11. General adds the `csharp-15` skill, and Process routes to it from `ask-deniz`. The
-verified recipe below remains on the last published Release until the new asset passes publication
-checks. For the current recipe after publication, use the
-[repository README](https://github.com/Blind-Striker/agent-skills-and-plugins#opencode-from-a-release-package).
-
-The current Package is attached to GitHub Release `installer-v0.16.0`, targeting commit `170e782`.
-It carries OpenCode 2 Bundles: Process 0.14.2, General 0.16.0, Akka 0.4.1, Aspire 0.6.0, and
-Coordination 0.1.8. `delegating-to-worker-models` and `verified-waves` moved from Process into
+The current Package is attached to GitHub Release `installer-v0.17.0`, targeting commit `aa4d9ee`.
+It carries OpenCode 2 Bundles: Process 0.14.3, General 0.17.0, Akka 0.4.1, Aspire 0.6.0, and
+Coordination 0.1.11. `delegating-to-worker-models` and `verified-waves` moved from Process into
 Coordination in Package 0.13.0, so a Selection that uses either one adds `deniz-coordination`. The Bundles
 need OpenCode 2 at v2.0.4 or later; OpenCode 1 is not supported and there is no compatibility layer.
 It was built on Linux and verified through manifest-backed tar-mode checks, zero-write Plan, Apply,
@@ -289,12 +283,12 @@ digest detects replacement or corruption but cannot prevent an authorized re-upl
 an npm-format transport artifact, not an npm publication or Git package install:
 
 ```powershell
-$download = Join-Path $env:TEMP "deniz-skills-installer-v0.16.0"
+$download = Join-Path $env:TEMP "deniz-skills-installer-v0.17.0"
 New-Item -ItemType Directory -Path $download -Force | Out-Null
-gh release download installer-v0.16.0 --repo Blind-Striker/agent-skills-and-plugins `
-  --pattern "deniz-agent-skills-0.16.0.tgz" --dir $download
-$package = Join-Path $download "deniz-agent-skills-0.16.0.tgz"
-$expected = "3ef9e9419b6b8a964005a03cb6dd62524d1a92d9cefadd09adfea443254fe44b"
+gh release download installer-v0.17.0 --repo Blind-Striker/agent-skills-and-plugins `
+  --pattern "deniz-agent-skills-0.17.0.tgz" --dir $download
+$package = Join-Path $download "deniz-agent-skills-0.17.0.tgz"
+$expected = "c303183219b8f4e1f861635155e0777918a23dcdc76c49a6050f1cf3f6b84790"
 $actual = (Get-FileHash -LiteralPath $package -Algorithm SHA256).Hash.ToLowerInvariant()
 if ($actual -ne $expected) { throw "downloaded Package SHA-256 mismatch: $actual" }
 
@@ -322,7 +316,7 @@ mechanics are in [distribution and installation](docs/architecture/distribution-
 the dated [adapter research](docs/research/harness-adapters.md) and
 [experiment protocol](experiments/harness-invocation/protocol.md) retain measured evidence and its
 verification method. The exact asset identity and source-snapshot boundary are in the
-[v0.16.0 release record](experiments/harness-invocation/records/2026-11-01-opencode-installer-v0.16.0.md).
+[v0.17.0 release record](experiments/harness-invocation/records/2026-11-07-opencode-installer-v0.17.0.md).
 
 ## Limits and support
 
