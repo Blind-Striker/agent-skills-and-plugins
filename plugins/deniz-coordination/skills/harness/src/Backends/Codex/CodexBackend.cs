@@ -1,6 +1,6 @@
 sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, string>? environment = null) : IWorkerBackend
 {
-    public const string PinnedVersion = "0.163.0";
+    public const string PinnedVersion = "0.167.0";
     readonly IReadOnlyDictionary<string, string> environment = environment ?? WorkerEnvironment.Snapshot();
     readonly Channel<WorkerSignal> signals = Channel.CreateUnbounded<WorkerSignal>();
     readonly ConcurrentDictionary<string, Connection> workers = new(StringComparer.Ordinal);
@@ -441,6 +441,12 @@ sealed class CodexBackend(BackendContext context, IReadOnlyDictionary<string, st
         }
         var worker = await connection.Admitted.Task.WaitAsync(ct);
         var data = request.Params;
+        if (request.Method == "item/commandExecution/requestApproval"
+            && data.TryGetProperty("kind", out var kind) && kind.ValueKind == JsonValueKind.String && kind.GetString() == "humanCommand")
+        {
+            signals.Writer.TryWrite(new WorkerSignal.Fault(worker.TaskId, "request", "unsupported command approval kind: humanCommand"));
+            return CodexReply.Success(new CodexCommandExecutionRequestApprovalResponse(CodexApprovalDecision.Decline), CodexJson.Wire.CodexCommandExecutionRequestApprovalResponse);
+        }
         var thread = data.GetProperty("threadId").GetString()!;
         if (!form && thread == worker.Id && data.GetProperty("turnId").GetString() != worker.Turn)
             return request.Method switch
