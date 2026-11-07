@@ -60,7 +60,7 @@ public sealed class CodexProtocolTests
             var info = CodexJson.Wire.GetTypeInfo(value.GetType()) ?? throw new NotSupportedException($"missing protocol metadata: {value.GetType().Name}");
             json = JsonSerializer.Serialize(value, info);
         }
-        var validator = new JsonValidator(File.ReadAllText(Path.Combine(TestPaths.Tests, "fixtures", "codex-schema", "0.163.0", schema)));
+        var validator = new JsonValidator(File.ReadAllText(Path.Combine(TestPaths.Tests, "fixtures", "codex-schema", "0.167.0", schema)));
         var result = validator.Validate(json);
         await Assert.That(result.IsValid).IsTrue().Because($"{message}: {json}");
         await Assert.That(json).DoesNotContain("acceptForSession");

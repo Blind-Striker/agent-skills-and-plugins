@@ -51,154 +51,6 @@
       ],
       "type": "object"
     },
-    "CodexErrorInfo": {
-      "anyOf": [
-        {
-          "enum": [
-            "contextWindowExceeded",
-            "sessionBudgetExceeded",
-            "usageLimitExceeded",
-            "rateLimitExceeded",
-            "flexUnavailable",
-            "serverOverloaded",
-            "cyberPolicy",
-            "misalignmentPolicyViolation",
-            "tooManyDenials",
-            "internalServerError",
-            "unauthorized",
-            "badRequest",
-            "threadRollbackFailed",
-            "sandboxError",
-            "other"
-          ],
-          "type": "string"
-        },
-        {
-          "additionalProperties": false,
-          "properties": {
-            "httpConnectionFailed": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "httpConnectionFailed"
-          ],
-          "title": "HttpConnectionFailedCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Failed to connect to the response SSE stream.",
-          "properties": {
-            "responseStreamConnectionFailed": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "responseStreamConnectionFailed"
-          ],
-          "title": "ResponseStreamConnectionFailedCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "The response SSE stream disconnected in the middle of a turn before completion.",
-          "properties": {
-            "responseStreamDisconnected": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "responseStreamDisconnected"
-          ],
-          "title": "ResponseStreamDisconnectedCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Reached the retry limit for responses.",
-          "properties": {
-            "responseTooManyFailedAttempts": {
-              "properties": {
-                "httpStatusCode": {
-                  "format": "uint16",
-                  "minimum": 0.0,
-                  "type": [
-                    "integer",
-                    "null"
-                  ]
-                }
-              },
-              "type": "object"
-            }
-          },
-          "required": [
-            "responseTooManyFailedAttempts"
-          ],
-          "title": "ResponseTooManyFailedAttemptsCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "additionalProperties": false,
-          "description": "Returned when `turn/start` or `turn/steer` is submitted while the current active turn cannot accept same-turn steering, for example `/review` or manual `/compact`.",
-          "properties": {
-            "activeTurnNotSteerable": {
-              "properties": {
-                "turnKind": {
-                  "$ref": "#/definitions/NonSteerableTurnKind"
-                }
-              },
-              "required": [
-                "turnKind"
-              ],
-              "type": "object"
-            }
-          },
-          "required": [
-            "activeTurnNotSteerable"
-          ],
-          "title": "ActiveTurnNotSteerableCodexErrorInfo",
-          "type": "object"
-        },
-        {
-          "type": [
-            "string",
-            "object"
-          ]
-        }
-      ],
-      "description": "This translation layer make sure that we expose codex error code in camel case.\n\nWhen an upstream HTTP status is available (for example, from the Responses API or a provider), it is forwarded in `httpStatusCode` on the relevant `codexErrorInfo` variant."
-    },
     "CollabAgentState": {
       "properties": {
         "message": {
@@ -655,6 +507,23 @@
         }
       ]
     },
+    "ImageGenerationInputImage": {
+      "description": "A local image file successfully read for this exact image-generation request.",
+      "properties": {
+        "path": {
+          "$ref": "#/definitions/AbsolutePathBuf"
+        },
+        "sha256": {
+          "description": "Lowercase SHA-256 of the file bytes read before image normalization.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
     "LegacyAppPathString": {
       "type": "string"
     },
@@ -823,61 +692,6 @@
         }
       ]
     },
-    "MisalignmentErrorDetails": {
-      "properties": {
-        "detailedExplanation": {
-          "description": "A substantive localized explanation is required before offering continuation.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "errorType": {
-          "description": "Open-ended classification; clients must accept categories added by Responses.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "reviewTarget": {
-          "description": "Opaque server-issued block target. Presence alone does not enable target-based continuation.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "steer": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MisalignmentSteer"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Instruction to submit as the next turn's user input if continuation is confirmed."
-        }
-      },
-      "type": "object"
-    },
-    "MisalignmentSteer": {
-      "properties": {
-        "message": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "type": "object"
-    },
-    "NonSteerableTurnKind": {
-      "enum": [
-        "review",
-        "compact"
-      ],
-      "type": "string"
-    },
     "PatchApplyStatus": {
       "enum": [
         "inProgress",
@@ -983,6 +797,7 @@
       "type": "object"
     },
     "ThreadItem": {
+      "description": "A thread item and its recorded lifecycle times. The payload stays flat on the wire.",
       "oneOf": [
         {
           "properties": {
@@ -1726,6 +1541,33 @@
           "type": "object"
         },
         {
+          "anyOf": [
+            {
+              "properties": {
+                "fileId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fileId"
+              ],
+              "title": "FileIdThreadItem",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "result": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "result"
+              ],
+              "title": "ResultThreadItem",
+              "type": "object"
+            }
+          ],
+          "description": "Either inline generated-image data or its durable attachment-store identity.\n\n`File` must remain first so rollouts written during the migration, which contain both an empty `result` and a `fileId`, retain the file reference when deserialized.",
           "properties": {
             "failure": {
               "anyOf": [
@@ -1738,11 +1580,23 @@
               ],
               "default": null
             },
+            "generationId": {
+              "default": null,
+              "description": "Image generation identifier for the generated image, when provided by the image backend.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "id": {
               "type": "string"
             },
-            "result": {
-              "type": "string"
+            "inputImages": {
+              "description": "Observed local inputs for a completed generation, absent on older items.",
+              "items": {
+                "$ref": "#/definitions/ImageGenerationInputImage"
+              },
+              "type": "array"
             },
             "revisedPrompt": {
               "type": [
@@ -1780,7 +1634,6 @@
           },
           "required": [
             "id",
-            "result",
             "status",
             "type"
           ],
@@ -1855,156 +1708,28 @@
           "title": "ContextCompactionThreadItem",
           "type": "object"
         }
-      ]
-    },
-    "Turn": {
+      ],
       "properties": {
-        "completedAt": {
-          "description": "Unix timestamp (in seconds) when the turn completed.",
+        "completedAtMs": {
+          "default": null,
+          "description": "Unix timestamp in milliseconds when the item completed, if recorded.",
           "format": "int64",
           "type": [
             "integer",
             "null"
           ]
         },
-        "durationMs": {
-          "description": "Duration between turn start and completion in milliseconds, if known.",
+        "startedAtMs": {
+          "default": null,
+          "description": "Unix timestamp in milliseconds when the item started, if recorded.",
           "format": "int64",
           "type": [
             "integer",
             "null"
           ]
-        },
-        "error": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/TurnError"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "description": "Error associated with a failed or interrupted turn."
-        },
-        "id": {
-          "description": "Identifier for this turn. Codex-generated turn IDs are UUIDv7.",
-          "type": "string"
-        },
-        "items": {
-          "description": "Thread items currently included in this turn payload.",
-          "items": {
-            "$ref": "#/definitions/ThreadItem"
-          },
-          "type": "array"
-        },
-        "itemsView": {
-          "allOf": [
-            {
-              "$ref": "#/definitions/TurnItemsView"
-            }
-          ],
-          "default": "full",
-          "description": "Describes how much of `items` has been loaded for this turn."
-        },
-        "rootTurnId": {
-          "description": "ID of the first turn in the chain of work that led to this turn. Pass this as `rootTurnId` when starting work on behalf of this turn. May be null in older history or a `review/start` response.",
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "startedAt": {
-          "description": "Unix timestamp (in seconds) when the turn started.",
-          "format": "int64",
-          "type": [
-            "integer",
-            "null"
-          ]
-        },
-        "status": {
-          "$ref": "#/definitions/TurnStatus"
         }
       },
-      "required": [
-        "id",
-        "items",
-        "status"
-      ],
       "type": "object"
-    },
-    "TurnError": {
-      "properties": {
-        "additionalDetails": {
-          "default": null,
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "codexErrorInfo": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/CodexErrorInfo"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "message": {
-          "type": "string"
-        },
-        "misalignment": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/MisalignmentErrorDetails"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "description": "Optional public explanation and continuation instruction for a misalignment block."
-        }
-      },
-      "required": [
-        "message"
-      ],
-      "type": "object"
-    },
-    "TurnItemsView": {
-      "oneOf": [
-        {
-          "description": "`items` was not loaded for this turn. The field is intentionally empty.",
-          "enum": [
-            "notLoaded"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "`items` contains only a display summary for this turn.",
-          "enum": [
-            "summary"
-          ],
-          "type": "string"
-        },
-        {
-          "description": "`items` contains every ThreadItem available from persisted app-server history for this turn.",
-          "enum": [
-            "full"
-          ],
-          "type": "string"
-        }
-      ]
-    },
-    "TurnStatus": {
-      "enum": [
-        "completed",
-        "interrupted",
-        "failed",
-        "inProgress"
-      ],
-      "type": "string"
     },
     "UserInput": {
       "oneOf": [
@@ -2121,6 +1846,32 @@
           "type": "object"
         },
         {
+          "anyOf": [
+            {
+              "properties": {
+                "url": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url"
+              ],
+              "title": "UrlUserInput",
+              "type": "object"
+            },
+            {
+              "properties": {
+                "fileId": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "fileId"
+              ],
+              "title": "FileIdUserInput",
+              "type": "object"
+            }
+          ],
           "properties": {
             "type": {
               "enum": [
@@ -2128,14 +1879,10 @@
               ],
               "title": "AudioUserInputType",
               "type": "string"
-            },
-            "url": {
-              "type": "string"
             }
           },
           "required": [
-            "type",
-            "url"
+            "type"
           ],
           "title": "AudioUserInput",
           "type": "object"
@@ -2313,17 +2060,27 @@
     }
   },
   "properties": {
+    "completedAtMs": {
+      "description": "Unix timestamp (in milliseconds) when this item lifecycle completed.",
+      "format": "int64",
+      "type": "integer"
+    },
+    "item": {
+      "$ref": "#/definitions/ThreadItem"
+    },
     "threadId": {
       "type": "string"
     },
-    "turn": {
-      "$ref": "#/definitions/Turn"
+    "turnId": {
+      "type": "string"
     }
   },
   "required": [
+    "completedAtMs",
+    "item",
     "threadId",
-    "turn"
+    "turnId"
   ],
-  "title": "TurnStartedNotification",
+  "title": "ItemCompletedNotification",
   "type": "object"
 }

@@ -52,7 +52,7 @@ jobs:
       # to the harness pin; S5 compares them.
       - name: Pinned Codex CLI for the schema contract test (Linux only)
         if: runner.os == 'Linux'
-        run: npm install --no-save --prefix "$RUNNER_TEMP/codex" @openai/codex@0.163.0
+        run: npm install --no-save --prefix "$RUNNER_TEMP/codex" @openai/codex@0.167.0
       # On Linux the harness fences opencode tasks with bubblewrap and refuses them when it cannot (no
       # unfenced fallback). The runner gets bubblewrap, and its user-namespace restriction is lifted on
       # this throwaway VM only when bwrap reports exactly that failure. Operators decide that on real hosts.
