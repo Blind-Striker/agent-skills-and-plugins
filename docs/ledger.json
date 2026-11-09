@@ -83,7 +83,6 @@
       ],
       "edges": {
         "model": [
-          "deniz-coordination:delegating-to-worker-models",
           "deniz-process:requesting-code-review"
         ],
         "pointer": [
@@ -99,7 +98,6 @@
       "advertised": true,
       "edges": {
         "model": [
-          "deniz-coordination.delegating-to-worker-models",
           "deniz-process.requesting-code-review"
         ],
         "pointer": [
@@ -121,7 +119,6 @@
       "policyFiles": [],
       "edges": {
         "model": [
-          "$deniz-coordination:delegating-to-worker-models",
           "$deniz-process:requesting-code-review"
         ],
         "pointer": [
@@ -5381,7 +5378,6 @@
       ],
       "edges": {
         "model": [
-          "deniz-process:executing-plans",
           "deniz-process:finishing-a-development-branch",
           "deniz-process:requesting-code-review",
           "deniz-process:subagent-driven-development",
@@ -5402,7 +5398,6 @@
       "advertised": true,
       "edges": {
         "model": [
-          "deniz-process.executing-plans",
           "deniz-process.finishing-a-development-branch",
           "deniz-process.requesting-code-review",
           "deniz-process.subagent-driven-development",
@@ -5429,7 +5424,6 @@
       "policyFiles": [],
       "edges": {
         "model": [
-          "$deniz-process:executing-plans",
           "$deniz-process:finishing-a-development-branch",
           "$deniz-process:requesting-code-review",
           "$deniz-process:subagent-driven-development",
@@ -6584,7 +6578,6 @@
           "deniz-process:executing-plans",
           "deniz-process:finishing-a-development-branch",
           "deniz-process:requesting-code-review",
-          "deniz-process:subagent-driven-development",
           "deniz-process:systematic-debugging",
           "deniz-process:test-driven-development",
           "deniz-process:using-git-worktrees"
@@ -6604,7 +6597,6 @@
           "deniz-process.executing-plans",
           "deniz-process.finishing-a-development-branch",
           "deniz-process.requesting-code-review",
-          "deniz-process.subagent-driven-development",
           "deniz-process.systematic-debugging",
           "deniz-process.test-driven-development",
           "deniz-process.using-git-worktrees"
@@ -6630,7 +6622,6 @@
           "$deniz-process:executing-plans",
           "$deniz-process:finishing-a-development-branch",
           "$deniz-process:requesting-code-review",
-          "$deniz-process:subagent-driven-development",
           "$deniz-process:systematic-debugging",
           "$deniz-process:test-driven-development",
           "$deniz-process:using-git-worktrees"
@@ -7554,8 +7545,7 @@
       "edges": {
         "model": [
           "deniz-process:systematic-debugging",
-          "deniz-process:test-driven-development",
-          "deniz-process:writing-skills"
+          "deniz-process:test-driven-development"
         ],
         "pointer": []
       }
@@ -7569,8 +7559,7 @@
       "edges": {
         "model": [
           "deniz-process.systematic-debugging",
-          "deniz-process.test-driven-development",
-          "deniz-process.writing-skills"
+          "deniz-process.test-driven-development"
         ],
         "pointer": []
       },
@@ -7590,8 +7579,7 @@
       "edges": {
         "model": [
           "$deniz-process:systematic-debugging",
-          "$deniz-process:test-driven-development",
-          "$deniz-process:writing-skills"
+          "$deniz-process:test-driven-development"
         ],
         "pointer": []
       },
