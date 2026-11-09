@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.15.0, General 0.17.1, Akka 0.4.1, Aspire 0.6.0, and
+  Checkout Module versions are Process 0.15.1, General 0.17.1, Akka 0.4.1, Aspire 0.7.0, and
   Coordination 0.1.12. Coordination is unreleased: it holds the new `coordinator` mode,
   `delegating-to-worker-models` and `verified-waves`, both moved out of Process, and the `harness` skill with its bundled .NET
   source ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
@@ -115,16 +115,19 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   [Aaronontheweb/dotnet-skills#98](https://github.com/Aaronontheweb/dotnet-skills/issues/98), currently
   open with no comments. The next sync checks whether the patch can shrink; retiring it remains the
   curator's decision.
-- `aspire-skills` is reviewed through `da1230c`, three commits past the v0.0.3 tag (2026-09-23);
-  wave W3 is done. Its source metadata is 0.0.3 and its guidance covers the Aspire 13.5 and 13.6
-  release family; the post-tag commit carries the 13.6 agent-setup and MCP opt-in guidance that
-  `aspire-init` and the router need. Following merged main ahead of release tags is the reviewed
-  choice, not a claim about upstream Releases. The six official workflow patches still own only
-  package-local routing, and those items now state `both`, which keeps their passthrough posture.
-  Aspire takes `aspire-project-v2-migration` as `manual`, reached by a user-pointer in the router,
-  and `aspire-init` declares its edge to the router. Description length is now checked in every
-  harness tree, so `aspireify` and `aspire-orchestration` shorten their rendered descriptions
-  instead of Codex truncating them.
+- `aspire-skills` is reviewed through `1117fac`, its v0.0.5 release; waves W3 and W-A are done.
+  Its source metadata is 0.0.5 and its guidance covers the Aspire 13.5 and 13.6 release family,
+  including the 13.6 agent-setup and MCP opt-in guidance that `aspire-init` and the router need.
+  Following merged main ahead of release tags is the reviewed choice, not a claim about upstream
+  Releases. The seven official workflow patches still own only package-local routing, and those
+  items state `both`, which keeps their passthrough posture. Aspire takes
+  `aspire-project-v2-migration` as `manual`, reached by a user-pointer in the router, and
+  `aspire-init` declares its edge to the router. Aspire takes `aspire-terminals` as `both`:
+  upstream split terminal authoring and automation out of `aspireify` and `aspire-orchestration`,
+  and the router, those two, and `aspire-monitoring` now hand terminal work to it. Description
+  length is checked in every harness tree, so `aspireify`, `aspire-orchestration`, and
+  `aspire-monitoring` shorten their rendered descriptions instead of Codex truncating them; at
+  v0.0.5 each drops upstream's trailing "FOR SINGLE OPERATIONS" sentence to fit 1,024 characters.
 - `superpowers` is reviewed through v7.0.2 (`22f0b46`) and `asd-ste100` through `d48bfca`;
   wave W4 is done, and v7.0.2 landed in wave W-P. `asd-ste100`'s later linter fixes flow
   unpatched, and its own Claude plugin packaging (`.claude-plugin/`) is omitted. v7 rebuilt

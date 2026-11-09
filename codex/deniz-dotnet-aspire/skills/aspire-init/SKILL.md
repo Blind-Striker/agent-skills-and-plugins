@@ -17,7 +17,7 @@ description: "**WORKFLOW SKILL** - First-run flow for adding Aspire to a repo.
 license: MIT
 metadata:
   author: Microsoft
-  version: 0.0.3
+  version: 0.0.5
 ---
 
 # Aspire Init

@@ -47,7 +47,8 @@ Applies only when the `deniz-dotnet-aspire` Module is installed.
 
 Start AppHost/CLI work through `deniz-dotnet-aspire:aspire`. Its downstream workflows are `aspire-init`
 (no AppHost, skeleton), `aspireify` (resource wiring and TS toolchains), `aspire-orchestration`
-(lifecycle and CLI migration), `aspire-deployment`, and `aspire-monitoring`. Let that router choose
+(lifecycle and CLI migration), `aspire-deployment`, `aspire-monitoring`, and `aspire-terminals`
+(terminal authoring and automation). Let that router choose
 the workflow; these descriptive names are not direct-load instructions. Ordinary build/test work
 is not an Aspire lifecycle request.
 

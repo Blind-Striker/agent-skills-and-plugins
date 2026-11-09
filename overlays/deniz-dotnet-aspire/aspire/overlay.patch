@@ -1,29 +1,29 @@
 diff --git a/SKILL.md b/SKILL.md
-index d9d92c2..b502699 100644
+index 0ed48e9..0c7a5b3 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -4,18 +4,18 @@ description: >-
-   **WORKFLOW SKILL** - Aspire router. Detects AppHosts, enforces guardrails,
+@@ -5,18 +5,18 @@ description: >-
    and selects the right sub-skill.
    USE FOR: Aspire AppHost, Aspire CLI, distributed app, cloud-native .NET, aspire
    start/stop/resource/deploy/destroy/publish/init/new/add/wait/describe/ps/logs/otel,
-   aspire agent init, WithBrowserLogs, WithTerminal, Interaction Service, apphost.mts,
+   aspire agent init, WithBrowserLogs, WithTerminal, TerminalService, terminal prompts,
+   WithRepl, tapes, Interaction Service, apphost.mts,
    TS package managers, Yarn Classic, custom resource commands, .aspire/modules recovery,
    ProjectResource to DotnetProjectResource migration, or Playwright URL discovery.
    DO NOT USE FOR: non-Aspire projects or ordinary build/test tasks.
 -  INVOKES: aspire-init, aspireify, aspire-project-v2-migration,
--  aspire-orchestration, aspire-deployment, aspire-monitoring.
+-  aspire-orchestration, aspire-deployment, aspire-monitoring, aspire-terminals.
 +  INVOKES: aspire:aspire-init, aspire:aspireify, aspire:aspire-orchestration,
-+  aspire:aspire-deployment, aspire:aspire-monitoring.
++  aspire:aspire-deployment, aspire:aspire-monitoring, aspire:aspire-terminals.
    FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.
  license: MIT
  metadata:
    author: Microsoft
-   version: "0.0.3"
+   version: "0.0.5"
  ---
  
  # Aspire
-@@ -30,61 +30,61 @@ Three intents are commonly misread — resolve them before doing anything else:
+@@ -31,64 +31,64 @@ Three intents are commonly misread — resolve them before doing anything else:
  
  - **"Better / improve AI agent support", "set up agent skills", "make Copilot smarter about
    my Aspire app"** → recommend running **`aspire agent init`**, which generates project-local
@@ -62,7 +62,7 @@ index d9d92c2..b502699 100644
  | Aspire config with AppHost | `aspire.config.json` present **and** AppHost above | High | AppHost present → orchestration / deployment / monitoring |
  | Aspire settings | `.aspire/` directory present | High | AppHost present (usually) |
  | Generated TS modules | `.aspire/modules/` directory present | High | AppHost present (TS) |
- | Service defaults | `Aspire.ServiceDefaults` in project references | Medium | AppHost present |
+ | Service defaults | `<IsAspireSharedProject>true` or a `*.ServiceDefaults.csproj` project reference | Medium | AppHost present |
 -| **No AppHost, no `aspire.config.json`** | None of the above and user asks to add Aspire | n/a | Bootstrap → `aspire-init` (skeleton drop) |
 +| **No AppHost, no `aspire.config.json`** | None of the above and user asks to add Aspire | n/a | Bootstrap → `aspire:aspire-init` (skeleton drop) |
  
@@ -85,6 +85,10 @@ index d9d92c2..b502699 100644
  
  ## Key Rules
  
+-- Terminal requests require invoking `aspire-terminals` **before answering**, even
++- Terminal requests require invoking `aspire:aspire-terminals` **before answering**, even
+   for read-only advice. Do not answer terminal API, prompt, REPL or VHS tape
+   questions from this router's overview; the specialist owns the exact contracts.
  - For agent AppHost lifecycle requests, identify one exact AppHost and route to
 -  `aspire-orchestration`. New 13.5 C# templates can make `dotnet run` delegate through the
 +  `aspire:aspire-orchestration`. New 13.5 C# templates can make `dotnet run` delegate through the
@@ -96,7 +100,7 @@ index d9d92c2..b502699 100644
  - Use `aspire ps` for running AppHost processes and `aspire describe` for resource
    state/endpoints. Never generate removed 13.5 forms such as `aspire ps --resources`
    or `aspire ps --include-hidden`.
-@@ -98,38 +98,38 @@ the bootstrap skills (`aspire-init` / `aspireify`) or to a runtime sub-skill:
+@@ -105,39 +105,39 @@ the bootstrap skills (`aspire-init` / `aspireify`) or to a runtime sub-skill:
  - **Always** `aspire docs search <topic>` before editing unfamiliar AppHost APIs
  - **Always** `aspire docs api search <query> --language csharp|typescript` for API reference before editing AppHost code
  - **Always** `--non-interactive` for agent execution
@@ -129,6 +133,7 @@ index d9d92c2..b502699 100644
 -| Migrate legacy TypeScript `apphost.ts` (`aspire update --migrate`) | → [aspire-orchestration](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-orchestration/SKILL.md); hand back to aspireify only if source authoring remains |
 -| Deploy, publish, destroy, pipeline steps | → [aspire-deployment](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-deployment/SKILL.md) |
 -| Logs, traces, metrics, dashboard, browser logs | → [aspire-monitoring](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-monitoring/SKILL.md) |
+-| WithTerminal/withTerminal, TerminalService, dock/dialog/headless terminals, terminal prompts, WithRepl, terminal CLI or tapes | → [aspire-terminals](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-terminals/SKILL.md); choose owner and lifetime before code |
 -| Diagnose a running app — "something's wrong", "show me what's happening", investigate errors / health / unexpected behavior | → [aspire-monitoring](https://github.com/microsoft/aspire-skills/blob/main/skills/aspire-monitoring/SKILL.md) — start with `aspire describe` for resource state, then `aspire logs` / `aspire otel logs` / `aspire otel traces`; **investigate before editing code** |
 +| Start, stop, wait, restart, rebuild | → [aspire:aspire-orchestration](../aspire-orchestration/SKILL.md) |
 +| Create a new Aspire project from a template (`aspire new`) | → [aspire:aspire-init](../aspire-init/SKILL.md) (in-plugin) |
@@ -138,6 +143,7 @@ index d9d92c2..b502699 100644
 +| Migrate legacy TypeScript `apphost.ts` (`aspire update --migrate`) | → [aspire:aspire-orchestration](../aspire-orchestration/SKILL.md); hand back to aspire:aspireify only if source authoring remains |
 +| Deploy, publish, destroy, pipeline steps | → [aspire:aspire-deployment](../aspire-deployment/SKILL.md) |
 +| Logs, traces, metrics, dashboard, browser logs | → [aspire:aspire-monitoring](../aspire-monitoring/SKILL.md) |
++| WithTerminal/withTerminal, TerminalService, dock/dialog/headless terminals, terminal prompts, WithRepl, terminal CLI or tapes | → [aspire:aspire-terminals](../aspire-terminals/SKILL.md); choose owner and lifetime before code |
 +| Diagnose a running app — "something's wrong", "show me what's happening", investigate errors / health / unexpected behavior | → [aspire:aspire-monitoring](../aspire-monitoring/SKILL.md) — start with `aspire describe` for resource state, then `aspire logs` / `aspire otel logs` / `aspire otel traces`; **investigate before editing code** |
  | Improve AI agent support / generate project-local Aspire agent skills | → run `aspire agent init` (see below) |
  | Explicitly configure the Aspire MCP server for agents | → `aspire agent init --mcp` on 13.6+ (see [Skills vs. MCP](#improving-ai-agent-support-aspire-agent-init)) |
@@ -147,7 +153,7 @@ index d9d92c2..b502699 100644
  
  When the user asks for **better AI agent support** for their Aspire project (or to
  set up / refresh project-local agent guidance), recommend running **`aspire agent
-@@ -158,17 +158,17 @@ choices:
+@@ -166,49 +166,49 @@ choices:
  - Never add `--mcp` when you run `aspire new`, `aspire init`, a skill refresh, or
    missing-skill recovery.
  
@@ -165,15 +171,32 @@ index d9d92c2..b502699 100644
  resource graph (Postgres / Redis / Rabbit / etc.), edits the AppHost (C#, file-based C#, or
  TypeScript), wires `Aspire.ServiceDefaults` + OTel, validates with `aspire start`, then
  self-deactivates. Owns current AppHost authoring patterns (`AddNextJsApp`, `AddViteApp`,
- `WithBrowserLogs()`, command arguments, Interaction Service availability, experimental
-@@ -180,17 +180,17 @@ Approval-first migration for eligible Aspire 13.6+ AppHosts that replaces existi
+ `WithBrowserLogs()`, command arguments, nonterminal Interaction Service availability,
+ generated `.aspire/modules/`, unified TS `withEnvironment`, endpoint references,
+-and config/secret migration). Terminal authoring belongs to `aspire-terminals`.
++and config/secret migration). Terminal authoring belongs to `aspire:aspire-terminals`.
+ 
+ ### aspire-terminals
+ Code-authoring-first terminal guidance: choose resource `WithTerminal` versus
+ AppHost-owned dock, terminal prompt or headless process; reuse integration REPLs.
+ Owns terminal lifetimes, cancellation, screen/input automation, terminal CLI and
+-Aspire's VHS tape subset/output formats. Hands lifecycle to `aspire-orchestration`
+-and console/telemetry diagnostics to `aspire-monitoring`. `PromptTerminalAsync`
++Aspire's VHS tape subset/output formats. Hands lifecycle to `aspire:aspire-orchestration`
++and console/telemetry diagnostics to `aspire:aspire-monitoring`. `PromptTerminalAsync`
+ borrows a caller-owned Dialog terminal: caller disposal stops the process, not
+ prompt completion itself.
+ 
+ ### aspire-project-v2-migration
+ Approval-first migration for eligible Aspire 13.6+ AppHosts that replaces existing
  legacy `ProjectResource` APIs with experimental `DotnetProjectResource` APIs while
  preserving supported behavior and removing only proven-obsolete AppHost references.
  
  ### aspire-orchestration
  Lifecycle management: start, stop, wait, resource commands, default watch/HMR guidance, and file-lock recovery.
  Safety guardrails that prevent agent self-harm. Owns `aspire ps` for AppHost discovery,
- `aspire describe` for resource inspection, destructive `aspire stop --force` safeguards,
+ `aspire describe` for resource inspection, destructive `aspire stop --force` and
+ `--volumes` safeguards,
  CLI-driven legacy TypeScript migration, and CLI upgrades (`aspire update --self`). It
 -hands back to `aspireify` only when AppHost source authoring remains after migration.
 +hands back to `aspire:aspireify` only when AppHost source authoring remains after migration.
@@ -185,7 +208,7 @@ index d9d92c2..b502699 100644
  Kubernetes volumes, delegated Azure subnets, cross-scope Azure references, deterministic
  Container Apps naming, Foundry hosted agents, JS `PublishAs*`, and
  `--pipeline-log-level`) and 13.5 API naming.
-@@ -237,15 +237,15 @@ update command when it cannot update a managed installation in place.
+@@ -256,15 +256,15 @@ update command when it cannot update a managed installation in place.
  - [aspire-13-5-breaking-changes.md](references/aspire-13-5-breaking-changes.md) — Aspire
    13.5 compatibility notes, breaking-change scrub, current CLI/AppHost behavior, deployment
    additions, and patch-level fixes.
@@ -270,7 +293,7 @@ index 3d3783d..77d70ac 100644
      MCP-aligned schema.
  12. **Update Docker Swarm overrides** for the new `UpdateConfig` property types.
 diff --git a/references/aspire-13-5-breaking-changes.md b/references/aspire-13-5-breaking-changes.md
-index 4fc3406..3f5093f 100644
+index b60f485..d0da8fe 100644
 --- a/references/aspire-13-5-breaking-changes.md
 +++ b/references/aspire-13-5-breaking-changes.md
 @@ -51,18 +51,18 @@ with `ASPIRE_PROXYLESS_ENDPOINT_PORT_RANGE=start-end`.

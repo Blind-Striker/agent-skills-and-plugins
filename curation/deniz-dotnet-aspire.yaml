@@ -6,7 +6,7 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.6.0
+  version: 0.7.0
 items:
   - source: aspire-skills/skills/aspire
     invocation: both # stated so the passthrough posture is explicit: the model routes Aspire work here and
@@ -20,6 +20,7 @@ items:
       - aspire-orchestration
       - aspire-deployment
       - aspire-monitoring
+      - aspire-terminals
   - source: aspire-skills/skills/aspire-init
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
@@ -30,14 +31,16 @@ items:
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize authoring handoffs, including the CLI migration owned by orchestration; drop the
-    # description's INVOKES line, which repeats its summary, so the rendered description fits 1,024 characters
-    depends_on: [aspire-init, aspire-orchestration, aspire-deployment, aspire-monitoring]
+    # description's INVOKES line, which repeats its summary, and its trailing "FOR SINGLE OPERATIONS"
+    # sentence, the clause least relevant to triggering, so the rendered description fits 1,024 characters
+    depends_on: [aspire-init, aspire-orchestration, aspire-deployment, aspire-monitoring, aspire-terminals]
   - source: aspire-skills/skills/aspire-orchestration
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
     body: patch # localize lifecycle routing while preserving project-local precedence; drop the
-    # description's trailing "below" so the rendered description fits 1,024 characters
-    depends_on: [aspireify, aspire-init, aspire-deployment, aspire-monitoring]
+    # description's trailing "FOR SINGLE OPERATIONS" sentence so the rendered description fits 1,024
+    # characters: it repeats INVOKES' editor-tool-first rule, and the body owns the exact-target rules
+    depends_on: [aspireify, aspire-init, aspire-deployment, aspire-monitoring, aspire-terminals]
   - source: aspire-skills/skills/aspire-deployment
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
@@ -46,8 +49,17 @@ items:
   - source: aspire-skills/skills/aspire-monitoring
     invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command
     omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
-    body: patch # localize diagnostics routing to the packaged sibling skills
-    depends_on: [aspire-orchestration, aspire-deployment, aspireify]
+    body: patch # localize diagnostics routing to the packaged sibling skills; drop the description's
+    # trailing "FOR SINGLE OPERATIONS" sentence, the clause least relevant to triggering, so the
+    # rendered description fits 1,024 characters
+    depends_on: [aspire-orchestration, aspire-deployment, aspireify, aspire-terminals]
+  - source: aspire-skills/skills/aspire-terminals
+    invocation: both # stated so the passthrough posture is explicit; auto would remove the slash command.
+    # Taken: terminal authoring and automation, split upstream out of aspireify and orchestration;
+    # their bodies hand terminal work here, so the workflow set is incomplete without it
+    omit: ["evals/**"] # upstream evaluation assets are not harness runtime content
+    body: patch # localize the sibling handoffs
+    depends_on: [aspireify, aspire-init, aspire-orchestration, aspire-monitoring, aspire-deployment]
   - source: aspire-skills/skills/aspire-project-v2-migration
     invocation: manual # approval-first rewrite of experimental 13.6+ project resources; only an explicit user
     # decision starts it, unlike the primary workflows above, which the model must be able to reach
@@ -72,6 +84,25 @@ items:
   # --- exclusions ---
   - source: aspire-skills/.github/skills/pr-review
     exclude: true # upstream repository-maintainer review workflow, not an Aspire application skill
+  # upstream's opencode/v1/ is its generated OpenCode catalog: copies of skills/<x> (out-of-skill
+  # links respelled as GitHub URLs). This estate compiles its own OpenCode Bundle from skills/, so
+  # every copy is excluded; opencode/v2/ holds no SKILL.md and the scanner does not list it.
+  - source: aspire-skills/opencode/v1/aspire
+    exclude: true # OpenCode v1 catalog copy of skills/aspire, taken above
+  - source: aspire-skills/opencode/v1/aspire-init
+    exclude: true # OpenCode v1 catalog copy of skills/aspire-init, taken above
+  - source: aspire-skills/opencode/v1/aspireify
+    exclude: true # OpenCode v1 catalog copy of skills/aspireify, taken above
+  - source: aspire-skills/opencode/v1/aspire-orchestration
+    exclude: true # OpenCode v1 catalog copy of skills/aspire-orchestration, taken above
+  - source: aspire-skills/opencode/v1/aspire-deployment
+    exclude: true # OpenCode v1 catalog copy of skills/aspire-deployment, taken above
+  - source: aspire-skills/opencode/v1/aspire-monitoring
+    exclude: true # OpenCode v1 catalog copy of skills/aspire-monitoring, taken above
+  - source: aspire-skills/opencode/v1/aspire-project-v2-migration
+    exclude: true # OpenCode v1 catalog copy of skills/aspire-project-v2-migration, taken above
+  - source: aspire-skills/opencode/v1/aspire-terminals
+    exclude: true # OpenCode v1 catalog copy of skills/aspire-terminals, taken above
   - source: dotnet-skills/skills/aspire-configuration
     exclude: true # its application service-discovery ban contradicts the selected ServiceDefaults approach
   - source: dotnet-skills/skills/aspire-mailpit-integration

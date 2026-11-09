@@ -568,9 +568,10 @@
       "aspire-init",
       "aspire-monitoring",
       "aspire-orchestration",
+      "aspire-terminals",
       "aspireify"
     ],
-    "description": "**WORKFLOW SKILL** - Aspire router. Detects AppHosts, enforces guardrails, and selects the right sub-skill. USE FOR: Aspire AppHost, Aspire CLI, distributed app, cloud-native .NET, aspire start/stop/resource/deploy/destroy/publish/init/new/add/wait/describe/ps/logs/otel, aspire agent init, WithBrowserLogs, WithTerminal, Interaction Service, apphost.mts, TS package managers, Yarn Classic, custom resource commands, .aspire/modules recovery, ProjectResource to DotnetProjectResource migration, or Playwright URL discovery. DO NOT USE FOR: non-Aspire projects or ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init, deniz-dotnet-aspire:aspireify, deniz-dotnet-aspire:aspire-orchestration, deniz-dotnet-aspire:aspire-deployment, deniz-dotnet-aspire:aspire-monitoring. FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.",
+    "description": "**WORKFLOW SKILL** - Aspire router. Detects AppHosts, enforces guardrails, and selects the right sub-skill. USE FOR: Aspire AppHost, Aspire CLI, distributed app, cloud-native .NET, aspire start/stop/resource/deploy/destroy/publish/init/new/add/wait/describe/ps/logs/otel, aspire agent init, WithBrowserLogs, WithTerminal, TerminalService, terminal prompts, WithRepl, tapes, Interaction Service, apphost.mts, TS package managers, Yarn Classic, custom resource commands, .aspire/modules recovery, ProjectResource to DotnetProjectResource migration, or Playwright URL discovery. DO NOT USE FOR: non-Aspire projects or ordinary build/test tasks. INVOKES: deniz-dotnet-aspire:aspire-init, deniz-dotnet-aspire:aspireify, deniz-dotnet-aspire:aspire-orchestration, deniz-dotnet-aspire:aspire-deployment, deniz-dotnet-aspire:aspire-monitoring, deniz-dotnet-aspire:aspire-terminals. FOR SINGLE OPERATIONS: Route directly to the matching sub-skill.",
     "claude": {
       "artifacts": [
         "skill"
@@ -581,6 +582,7 @@
           "deniz-dotnet-aspire:aspire-init",
           "deniz-dotnet-aspire:aspire-monitoring",
           "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspire-terminals",
           "deniz-dotnet-aspire:aspireify"
         ],
         "pointer": [
@@ -600,6 +602,7 @@
           "deniz-dotnet-aspire.aspire-init",
           "deniz-dotnet-aspire.aspire-monitoring",
           "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspire-terminals",
           "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": [
@@ -627,6 +630,7 @@
           "$deniz-dotnet-aspire:aspire-init",
           "$deniz-dotnet-aspire:aspire-monitoring",
           "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspire-terminals",
           "$deniz-dotnet-aspire:aspireify"
         ],
         "pointer": [
@@ -832,9 +836,10 @@
     "dependsOn": [
       "aspire-deployment",
       "aspire-orchestration",
+      "aspire-terminals",
       "aspireify"
     ],
-    "description": "**ANALYSIS SKILL** - Observe Aspire apps: logs, traces, metrics, resource state, telemetry export, browser telemetry, and the standalone dashboard. Routes between local Aspire CLI, AKS workload diagnostics, and deployed Azure resource health. USE FOR: aspire logs, aspire otel logs, aspire otel traces, aspire otel spans, aspire describe, aspire ps, aspire export, aspire dashboard run, describe --include-hidden, browser logs in dashboard, terminal view, DevTunnel URLs, WithBrowserLogs, App Insights query, AKS pod logs, container app logs. DO NOT USE FOR: start/stop/wait (use deniz-dotnet-aspire:aspire-orchestration), deploy/publish/destroy (use deniz-dotnet-aspire:aspire-deployment), AppHost code edits like WithBrowserLogs() (use deniz-dotnet-aspire:aspireify), Azure provisioning (use azure-prepare). INVOKES: aspire CLI, azure-diagnostics (deployed Azure), kubectl + Container Insights. FOR SINGLE OPERATIONS: Run the aspire CLI command directly for quick log or describe lookups.",
+    "description": "**ANALYSIS SKILL** - Observe Aspire apps: logs, traces, metrics, resource state, telemetry export, browser telemetry, and the standalone dashboard. Routes between local Aspire CLI, AKS workload diagnostics, and deployed Azure resource health. USE FOR: aspire logs, aspire otel logs, aspire otel traces, aspire otel spans, aspire describe, aspire ps, aspire export, aspire dashboard run, describe --include-hidden, browser logs in dashboard, DevTunnel URLs, WithBrowserLogs, App Insights query, AKS pod logs, container app logs. DO NOT USE FOR: start/stop/wait (use deniz-dotnet-aspire:aspire-orchestration), deploy/publish/destroy (use deniz-dotnet-aspire:aspire-deployment), AppHost code edits like WithBrowserLogs() (use deniz-dotnet-aspire:aspireify), Azure provisioning (use azure-prepare), terminal authoring/input/tapes (use deniz-dotnet-aspire:aspire-terminals). INVOKES: aspire CLI, azure-diagnostics (deployed Azure), kubectl + Container Insights.",
     "claude": {
       "artifacts": [
         "skill"
@@ -843,6 +848,7 @@
         "model": [
           "deniz-dotnet-aspire:aspire-deployment",
           "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspire-terminals",
           "deniz-dotnet-aspire:aspireify"
         ],
         "pointer": []
@@ -858,6 +864,7 @@
         "model": [
           "deniz-dotnet-aspire.aspire-deployment",
           "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspire-terminals",
           "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
@@ -881,6 +888,7 @@
         "model": [
           "$deniz-dotnet-aspire:aspire-deployment",
           "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspire-terminals",
           "$deniz-dotnet-aspire:aspireify"
         ],
         "pointer": []
@@ -897,9 +905,10 @@
       "aspire-deployment",
       "aspire-init",
       "aspire-monitoring",
+      "aspire-terminals",
       "aspireify"
     ],
-    "description": "**WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the CLI. WHEN: \"start or stop my Aspire app\", \"aspire_apphost_start\", \"aspire_apphost_stop\", \"notEditorOwned\", \"ambiguousSession\", \"aspire start\", \"aspire stop\", \"aspire wait\", resource restart, file-lock errors (MSB3491 or CS2012), port conflicts, git worktrees, \"--isolated\", \"aspire update --self\", \"aspire update --migrate\", \"aspire describe --include-hidden\", \"aspire stop --force\", \"aspire terminal\", integration discovery, default watch, or hot reload. INVOKES: VS Code lifecycle tools first when exposed; Aspire CLI for readiness, inspection, resource operations, isolated worktree starts, and allowed fallbacks. DO NOT USE FOR: deploy/publish/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces/metrics (deniz-dotnet-aspire:aspire-monitoring), or AppHost code and resource wiring (deniz-dotnet-aspire:aspireify). FOR SINGLE OPERATIONS: Load the matching editor tool first, then obey the exact-target, worktree-isolation, and stop-result rules.",
+    "description": "**WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the CLI. WHEN: \"start or stop my Aspire app\", \"aspire_apphost_start\", \"aspire_apphost_stop\", \"notEditorOwned\", \"ambiguousSession\", \"aspire start\", \"aspire stop\", \"aspire wait\", resource restart, file-lock errors (MSB3491 or CS2012), port conflicts, git worktrees, \"--isolated\", \"aspire update --self\", \"aspire update --migrate\", \"aspire describe --include-hidden\", \"aspire stop --force\", \"aspire stop --force --volumes\", integration discovery, default watch, or hot reload. INVOKES: VS Code lifecycle tools first when exposed; Aspire CLI for readiness, inspection, resource operations, isolated worktree starts, and allowed fallbacks. DO NOT USE FOR: deploy/publish/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces/metrics (deniz-dotnet-aspire:aspire-monitoring), terminal authoring/attach/tapes (deniz-dotnet-aspire:aspire-terminals), or AppHost code and resource wiring (deniz-dotnet-aspire:aspireify).",
     "claude": {
       "artifacts": [
         "skill"
@@ -909,6 +918,7 @@
           "deniz-dotnet-aspire:aspire-deployment",
           "deniz-dotnet-aspire:aspire-init",
           "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-terminals",
           "deniz-dotnet-aspire:aspireify"
         ],
         "pointer": []
@@ -925,6 +935,7 @@
           "deniz-dotnet-aspire.aspire-deployment",
           "deniz-dotnet-aspire.aspire-init",
           "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-terminals",
           "deniz-dotnet-aspire.aspireify"
         ],
         "pointer": []
@@ -949,6 +960,7 @@
           "$deniz-dotnet-aspire:aspire-deployment",
           "$deniz-dotnet-aspire:aspire-init",
           "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-terminals",
           "$deniz-dotnet-aspire:aspireify"
         ],
         "pointer": []
@@ -1095,17 +1107,18 @@
       "bodyTransformations": []
     }
   },
-  "deniz-dotnet-aspire/skill/aspireify": {
-    "source": "aspire-skills/skills/aspireify",
+  "deniz-dotnet-aspire/skill/aspire-terminals": {
+    "source": "aspire-skills/skills/aspire-terminals",
     "invocation": "both",
     "body": "patch",
     "dependsOn": [
       "aspire-deployment",
       "aspire-init",
       "aspire-monitoring",
-      "aspire-orchestration"
+      "aspire-orchestration",
+      "aspireify"
     ],
-    "description": "**WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript AppHost toolchains. Scans the repo, proposes a resource graph, edits C#, file-based C#, or TypeScript AppHosts, wires ServiceDefaults + OTel, validates with `aspire start`, then stops. USE FOR: wire/scaffold AppHost, add Postgres/Redis/Rabbit/Mongo, connect frontend to API, after `aspire init`, AddNextJsApp, AddViteApp, WithBrowserLogs, WithTerminal, Interaction Service, command arguments, apphost.cs, apphost.mts, unified withEnvironment, .aspire/modules refusal, config/secrets, TS dependency restore, pnpm/yarn/bun, or Yarn Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init), lifecycle-only start/stop/wait/restart or `aspire update --migrate` (deniz-dotnet-aspire:aspire-orchestration), publish/deploy/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring). FOR SINGLE OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration.",
+    "description": "**WORKFLOW SKILL** - Author and automate Aspire terminals. USE FOR: WithTerminal, withTerminal, TerminalService, TerminalLaunchOptions, docked terminals, terminal prompts, PromptTerminalAsync, TerminalPlacement, AspireTerminalKey, WithRepl, withRepl, aspire terminal ps/attach/tape play, VHS tapes for Aspire, or terminal screen/input automation. DO NOT USE FOR: generic shell commands, ordinary AppHost resource wiring (deniz-dotnet-aspire:aspireify), start/stop/wait (deniz-dotnet-aspire:aspire-orchestration), logs/traces or browser telemetry (deniz-dotnet-aspire:aspire-monitoring), deployment (deniz-dotnet-aspire:aspire-deployment), or nonterminal Interaction Service prompts (deniz-dotnet-aspire:aspireify). INVOKES: Aspire docs/API lookup, AppHost edits, Aspire terminal CLI; deniz-dotnet-aspire:aspire-orchestration for lifecycle validation. FOR SINGLE OPERATIONS: Choose the terminal owner and lifetime first, then read the matching reference.",
     "claude": {
       "artifacts": [
         "skill"
@@ -1115,7 +1128,80 @@
           "deniz-dotnet-aspire:aspire-deployment",
           "deniz-dotnet-aspire:aspire-init",
           "deniz-dotnet-aspire:aspire-monitoring",
-          "deniz-dotnet-aspire:aspire-orchestration"
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire.aspire-terminals",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire.aspire-deployment",
+          "deniz-dotnet-aspire.aspire-init",
+          "deniz-dotnet-aspire.aspire-monitoring",
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-aspire:aspire-terminals",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-aspire:aspire-deployment",
+          "$deniz-dotnet-aspire:aspire-init",
+          "$deniz-dotnet-aspire:aspire-monitoring",
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspireify"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-aspire/skill/aspireify": {
+    "source": "aspire-skills/skills/aspireify",
+    "invocation": "both",
+    "body": "patch",
+    "dependsOn": [
+      "aspire-deployment",
+      "aspire-init",
+      "aspire-monitoring",
+      "aspire-orchestration",
+      "aspire-terminals"
+    ],
+    "description": "**WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript AppHost toolchains. Scans the repo, proposes a resource graph, edits C#, file-based C#, or TypeScript AppHosts, wires ServiceDefaults + OTel, validates with `aspire start`, then stops. USE FOR: wire/scaffold AppHost, add Postgres/Redis/Rabbit/Mongo, connect frontend to API, after `aspire init`, AddNextJsApp, AddViteApp, WithBrowserLogs, Interaction Service, command arguments, apphost.cs, apphost.mts, unified withEnvironment, .aspire/modules refusal, config/secrets, TS dependency restore, pnpm/yarn/bun, or Yarn Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init), lifecycle-only start/stop/wait/restart or `aspire update --migrate` (deniz-dotnet-aspire:aspire-orchestration), publish/deploy/destroy (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring), terminal authoring or automation (deniz-dotnet-aspire:aspire-terminals).",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-aspire:aspire-deployment",
+          "deniz-dotnet-aspire:aspire-init",
+          "deniz-dotnet-aspire:aspire-monitoring",
+          "deniz-dotnet-aspire:aspire-orchestration",
+          "deniz-dotnet-aspire:aspire-terminals"
         ],
         "pointer": []
       }
@@ -1131,7 +1217,8 @@
           "deniz-dotnet-aspire.aspire-deployment",
           "deniz-dotnet-aspire.aspire-init",
           "deniz-dotnet-aspire.aspire-monitoring",
-          "deniz-dotnet-aspire.aspire-orchestration"
+          "deniz-dotnet-aspire.aspire-orchestration",
+          "deniz-dotnet-aspire.aspire-terminals"
         ],
         "pointer": []
       },
@@ -1155,7 +1242,8 @@
           "$deniz-dotnet-aspire:aspire-deployment",
           "$deniz-dotnet-aspire:aspire-init",
           "$deniz-dotnet-aspire:aspire-monitoring",
-          "$deniz-dotnet-aspire:aspire-orchestration"
+          "$deniz-dotnet-aspire:aspire-orchestration",
+          "$deniz-dotnet-aspire:aspire-terminals"
         ],
         "pointer": []
       },

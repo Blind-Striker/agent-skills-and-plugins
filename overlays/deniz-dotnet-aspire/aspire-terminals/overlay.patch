@@ -1,0 +1,93 @@
+diff --git a/SKILL.md b/SKILL.md
+index 4a9ecec..1f45764 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -2,21 +2,21 @@
+ name: aspire-terminals
+ description: >-
+   **WORKFLOW SKILL** - Author and automate Aspire terminals.
+   USE FOR: WithTerminal, withTerminal, TerminalService, TerminalLaunchOptions,
+   docked terminals, terminal prompts, PromptTerminalAsync, TerminalPlacement,
+   AspireTerminalKey, WithRepl, withRepl, aspire terminal ps/attach/tape play,
+   VHS tapes for Aspire, or terminal screen/input automation.
+   DO NOT USE FOR: generic shell commands, ordinary AppHost resource wiring
+-  (aspireify), start/stop/wait (aspire-orchestration), logs/traces or browser
+-  telemetry (aspire-monitoring), deployment (aspire-deployment), or nonterminal
+-  Interaction Service prompts (aspireify).
++  (aspire:aspireify), start/stop/wait (aspire:aspire-orchestration), logs/traces or browser
++  telemetry (aspire:aspire-monitoring), deployment (aspire:aspire-deployment), or nonterminal
++  Interaction Service prompts (aspire:aspireify).
+   INVOKES: Aspire docs/API lookup, AppHost edits, Aspire terminal CLI;
+-  aspire-orchestration for lifecycle validation.
++  aspire:aspire-orchestration for lifecycle validation.
+   FOR SINGLE OPERATIONS: Choose the terminal owner and lifetime first, then read
+   the matching reference.
+ license: MIT
+ metadata:
+   author: Microsoft
+   version: "0.0.5"
+ ---
+ 
+@@ -105,24 +105,24 @@ Recheck capabilities against the user's actual build.
+ ## Authoring workflow
+ 
+ 1. Identify which process needs the PTY and whether it should remain visible,
+    block a focused workflow, or run headlessly. Ask if the lifetime is unclear.
+ 2. Read [resource terminals](references/resource-terminals.md) for `WithTerminal`
+    and built-in REPLs; read [AppHost terminals](references/apphost-terminals.md)
+    for complete dock, manual prompt, automated prompt and headless recipes.
+ 3. Keep terminal-specific edits separate from unrelated resource/dependency changes.
+-   Use `aspireify` for new general resource wiring and `aspire-init` if no AppHost
++   Use `aspire:aspireify` for new general resource wiring and `aspire:aspire-init` if no AppHost
+    exists. Do not turn a terminal request into a migration or version upgrade.
+ 4. Resolve actual executable paths, working directories and OS shell choices.
+    Use argument lists, not concatenated untrusted shell input. Children inherit
+    the AppHost environment; add only the necessary overrides.
+ 5. Guard AppHost-owned terminal commands with `builder.ExecutionContext.IsRunMode`.
+    Do not launch tools at model-construction time or during publish/deploy.
+-6. Validate the changed code, then route lifecycle work to `aspire-orchestration`.
++6. Validate the changed code, then route lifecycle work to `aspire:aspire-orchestration`.
+    Use the exact AppHost, worktree isolation and bounded resource readiness.
+    Validate the requested lifetime, cancellation and visible result, not merely
+    that the AppHost compiled.
+ 
+ ## Non-negotiable ownership and completion rules
+ 
+ - Terminal types are in `Aspire.Hosting.ApplicationModel`, not the old
+   `Aspire.Hosting.Terminals` namespace. `TerminalService` is already registered;
+@@ -155,11 +155,11 @@ Recheck capabilities against the user's actual build.
+ 
+ Read [automation and CLI](references/automation-and-cli.md) for C# screen/key
+ operations, owner-aware discovery and interactive attach. Use
+ [tapes](references/tapes.md) for unattended resource-terminal playback: supported
+ VHS syntax, explicit examples, stdout versus `.txt`/`.ascii` checkpoints, and
+ unsupported output formats. Do not install VHS or assume its whole feature set.
+ 
+ For missing/disconnected terminals, inspect resource state and terminal discovery;
+-route console logs/traces to `aspire-monitoring`. Terminal views supplement logs,
++route console logs/traces to `aspire:aspire-monitoring`. Terminal views supplement logs,
+ not replace them. Publishing a resource does not publish a development PTY or
+ grant production shell access.
+diff --git a/references/automation-and-cli.md b/references/automation-and-cli.md
+index 9ff184e..7ec1446 100644
+--- a/references/automation-and-cli.md
++++ b/references/automation-and-cli.md
+@@ -62,17 +62,17 @@ resource list:
+ 
+ Inspect actual fields from the installed CLI rather than deriving IDs from titles.
+ Both owners can appear in discovery, but **attach and tape play target resource
+ names, not arbitrary AppHost terminal IDs**.
+ 
+ For a resource, use `aspire describe --apphost <path> --non-interactive` and
+ `aspire wait <resource> --apphost <path> --non-interactive` before input. If several
+ AppHosts/replicas exist, choose the exact target. Lifecycle operations belong to
+-`aspire-orchestration`, logs/traces to `aspire-monitoring`.
++`aspire:aspire-orchestration`, logs/traces to `aspire:aspire-monitoring`.
+ 
+ ## Interactive attach is for a human terminal
+ 
+ ```sh
+ aspire terminal attach <resource> --replica <zero-based-index> --apphost <apphost-path>
+ ```
+ 
+ This command runs an interactive TUI. Do not launch it as an unattended agent

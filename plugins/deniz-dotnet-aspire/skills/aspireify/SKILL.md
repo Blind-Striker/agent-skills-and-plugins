@@ -5,18 +5,18 @@ description: "**WORKFLOW SKILL** - Wire Aspire AppHosts or repair TypeScript
   file-based C#, or TypeScript AppHosts, wires ServiceDefaults + OTel, validates
   with `aspire start`, then stops. USE FOR: wire/scaffold AppHost, add
   Postgres/Redis/Rabbit/Mongo, connect frontend to API, after `aspire init`,
-  AddNextJsApp, AddViteApp, WithBrowserLogs, WithTerminal, Interaction Service,
-  command arguments, apphost.cs, apphost.mts, unified withEnvironment,
-  .aspire/modules refusal, config/secrets, TS dependency restore, pnpm/yarn/bun,
-  or Yarn Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init),
-  lifecycle-only start/stop/wait/restart or `aspire update --migrate`
+  AddNextJsApp, AddViteApp, WithBrowserLogs, Interaction Service, command
+  arguments, apphost.cs, apphost.mts, unified withEnvironment, .aspire/modules
+  refusal, config/secrets, TS dependency restore, pnpm/yarn/bun, or Yarn
+  Classic. DO NOT USE FOR: skeleton drop (deniz-dotnet-aspire:aspire-init), lifecycle-only
+  start/stop/wait/restart or `aspire update --migrate`
   (deniz-dotnet-aspire:aspire-orchestration), publish/deploy/destroy
-  (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring). FOR SINGLE
-  OPERATIONS: Run `aspire add PACKAGE` directly for a one-off integration."
+  (deniz-dotnet-aspire:aspire-deployment), logs/traces (deniz-dotnet-aspire:aspire-monitoring), terminal
+  authoring or automation (deniz-dotnet-aspire:aspire-terminals)."
 license: MIT
 metadata:
   author: Microsoft
-  version: 0.0.3
+  version: 0.0.5
 ---
 
 # Aspireify
@@ -263,7 +263,7 @@ catalog.
 | Azure Cache for Redis (Entra) | `AddAzureRedis("cache")` (now GA) | `addAzureRedis('cache')` |
 | Next.js frontend | `AddNextJsApp("web", "./web")` | `addNextJsApp('web', '../web')` |
 | Vite SPA | `AddViteApp("web", "./web")` | `addViteApp('web', '../web')` |
-| Plain Node app | `AddNodeApp("api", "server.js")` | `addNodeApp('api', 'server.js')` |
+| Plain Node app | `AddNodeApp("api", "./api", "server.js")` | `addNodeApp('api', './api', 'server.js')` |
 
 ## Current Authoring Rules
 
@@ -281,7 +281,7 @@ catalog.
 | Use context `.Services` / `await ctx.services().getInteractionService()` | `.ServiceProvider` is obsolete, and `ctx.services()` alone returns a services accessor |
 | Use `AddConnectionString` for external connection strings | `PublishAsConnectionString` is obsolete |
 | Check `IInteractionService.IsAvailable` before prompting | CLI-invoked commands may be noninteractive; prefer command arguments for dashboard + CLI input |
-| Treat `WithTerminal()` as experimental | Suppress `ASPIRETERMINAL001`; do not generate removed `TerminalOptions.Shell` or TypeScript dimension options |
+| Route terminal authoring to `deniz-dotnet-aspire:aspire-terminals` | Owns `WithTerminal`, `TerminalService`, dock/dialog/headless lifetimes, terminal prompts, REPLs and tapes; nonterminal interactions remain here |
 | Keep all Aspire SDK and `Aspire.Hosting.*` packages on the same release family | Mixed release families can fail at startup |
 | Migrate GitHub Models integrations to Azure AI Foundry | `Aspire.Hosting.GitHub.Models` is deprecated and absent from integration discovery |
 | Use `WithModule(RedisModules.*)` for Redis 8 modules | Prefer typed JSON, Search, Bloom Filter, and TimeSeries constants over raw module paths |
