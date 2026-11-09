@@ -43,7 +43,8 @@
   "deniz-dotnet-aspire/aspire-integration-testing": {
     "source": "dotnet-skills/skills/aspire-integration-testing",
     "files": {
-      "SKILL.md": "db6000bd4acb5b4124f36c429582d350c568b5b4"
+      "SKILL.md": "db6000bd4acb5b4124f36c429582d350c568b5b4",
+      "ci-and-tooling.md": "8cd3cb260ab98cb09adc4d8480eb4fd70727f816"
     }
   },
   "deniz-dotnet-aspire/aspire-monitoring": {
@@ -107,7 +108,7 @@
   "deniz-dotnet-general/check-bin-obj-clash": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/check-bin-obj-clash",
     "files": {
-      "SKILL.md": "48be61270517bf2bf6f2adbf738734a15caffb46"
+      "SKILL.md": "4d287d0fa4881931379d9d8d16b27db5b84d88b8"
     }
   },
   "deniz-dotnet-general/code-testing": {
@@ -121,8 +122,7 @@
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis",
     "files": {
       "SKILL.md": "a09d36cee78a6a1e21ff8c6d869450727c644f39",
-      "references/setup-discovery.md": "220d6f3e2a20013c104d8d0ec362b1d6e8a56a20",
-      "scripts/Extract-MethodCoverage.ps1": "999a8273d1459180d28d74612da90b2a093fa917"
+      "references/setup-discovery.md": "220d6f3e2a20013c104d8d0ec362b1d6e8a56a20"
     }
   },
   "deniz-dotnet-general/csharp-nullable-reference-types": {
@@ -134,7 +134,7 @@
   "deniz-dotnet-general/csharp-refactoring": {
     "source": "dotnet-agent-skills/plugins/dotnet/skills/csharp-refactoring",
     "files": {
-      "SKILL.md": "e383626307341fabed40f255056c27dff6f9faf1",
+      "SKILL.md": "35fed1bc91198f5376022d215ad372755dbabe01",
       "references/operation-catalog.md": "340eed23a741c817aff916db52ecc28f292c0a34"
     }
   },
@@ -145,7 +145,7 @@
     },
     "mergeSources": {
       "dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries": {
-        "SKILL.md": "7892ee5ea6b71c8c599df6bad49f86f5852ce0b6"
+        "SKILL.md": "84f69884b0d02b42421d08a9e00888799a843ac3"
       }
     }
   },
@@ -170,6 +170,12 @@
       "dotnet-skills/skills/aot-trimming": {
         "aot-trimming-playbook-reference.md": "1d1ed9d4d4235fff4ef1d0df3ad053e91e8ca327"
       }
+    }
+  },
+  "deniz-dotnet-general/dotnet-breaking-changes": {
+    "source": "dotnet-agent-skills/plugins/dotnet/skills/dotnet-breaking-changes",
+    "files": {
+      "SKILL.md": "ee31f494c59231fb20f1f16b3eaddae27348c607"
     }
   },
   "deniz-dotnet-general/dotnet-devcert-trust": {
@@ -210,8 +216,20 @@
     },
     "mergeSources": {
       "dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries": {
-        "SKILL.md": "7892ee5ea6b71c8c599df6bad49f86f5852ce0b6"
+        "SKILL.md": "84f69884b0d02b42421d08a9e00888799a843ac3"
       }
+    }
+  },
+  "deniz-dotnet-general/eliminate-redundant-restores": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eliminate-redundant-restores",
+    "files": {
+      "SKILL.md": "41b18f10cabcd59678047ab491bbdb7a1b3d9a1b"
+    }
+  },
+  "deniz-dotnet-general/find-repeated-work-within-one-build": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/find-repeated-work-within-one-build",
+    "files": {
+      "SKILL.md": "677cb24b9a8be1ba52558a99acbc2ff3a1b19a98"
     }
   },
   "deniz-dotnet-general/generate-testability-wrappers": {
@@ -246,9 +264,10 @@
   "deniz-dotnet-general/msbuild": {
     "source": "dotnet-agent-skills/plugins/dotnet/skills/msbuild",
     "files": {
-      "SKILL.md": "81347bdac90ae3972889b2ea7e495ffc172fd3e8",
-      "references/build-perf-baseline.md": "58bdb77937901db79ef360b76b06ca5503e67e3a",
-      "references/msbuild-antipatterns.md": "23fd3ec81bfd7272c066eed8c1ba5d3a5e8562f1"
+      "SKILL.md": "f08087610805ae643a223e8081cf1346d230cc95",
+      "references/binlog-failure-analysis.md": "5f92c0595ce01a7d853d4dca37062e3941df135e",
+      "references/build-perf-baseline.md": "17b8a165b1fc12c42f4054383b5d2e8bfa898bea",
+      "references/msbuild-antipatterns.md": "70a92bcd4621b2a7888045cd376d9576007ec4af"
     }
   },
   "deniz-dotnet-general/msbuild-modernization": {
@@ -338,7 +357,7 @@
   "deniz-dotnet-general/test-gap-analysis": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-gap-analysis",
     "files": {
-      "SKILL.md": "25de7f61787e3c88b56e1085d9877cd8d3c1ea70",
+      "SKILL.md": "9893ffac852f6ff5b788f0bffa1ab1865f693362",
       "references/mutation-catalog.md": "34cc79c40213f072d9aec138fe391b9552f9bef6"
     }
   },
@@ -346,6 +365,12 @@
     "source": "dotnet-skills/skills/testcontainers",
     "files": {
       "SKILL.md": "080023d95138f2945b41f072c1825b9c7e027004"
+    }
+  },
+  "deniz-dotnet-general/troubleshoot-binlog-mcp": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/troubleshoot-binlog-mcp",
+    "files": {
+      "SKILL.md": "fb490c3e16a70e8d4b7ff5b0b95f078e4fc5ff44"
     }
   },
   "deniz-process/asd-ste100": {

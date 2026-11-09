@@ -6,7 +6,7 @@
 plugin:
   name: deniz-dotnet-aspire
   description: "Deniz's curated .NET Aspire skills"
-  version: 0.7.0
+  version: 0.7.1
 items:
   - source: aspire-skills/skills/aspire
     invocation: both # stated so the passthrough posture is explicit: the model routes Aspire work here and
@@ -71,7 +71,11 @@ items:
     # its upstream companions remain unowned despite known example/API proof limits
     body: patch # one
     # TUnit guard, curator's call: in a TUnit project, never add xUnit or Microsoft.NET.Test.Sdk,
-    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written
+    # which break TUnit's discovery, and use the TUnit equivalents; the examples stay as written.
+    # Its CI-and-tooling MCP section dated from Aspire 13.1 (`aspire mcp init`, an MCP endpoint
+    # printed by `aspire run`) and would add a project-level server beside a user-level one, so it
+    # uses a connected Aspire MCP server first, never runs `aspire mcp init` or adds a project-level
+    # server, and links the router's Skills vs. MCP guidance by path, which adds no dependency
   - source: dotnet-skills/skills/aspire-service-defaults
     invocation: auto # canonical shared OTel, health, resilience, and HTTP service-discovery guidance
     body: patch # its description led with "Create a shared ServiceDefaults project" and its body

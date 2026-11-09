@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index a09d36c..fb6398c 100644
+index a09d36c..3b46404 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,22 +1,23 @@
@@ -37,7 +37,7 @@ index a09d36c..fb6398c 100644
  ## Purpose
  
  Explain what .NET coverage evidence proves, reconcile target arithmetic, and
-@@ -27,53 +28,83 @@ safety.
+@@ -27,53 +28,92 @@ safety.
  ## When to Use
  
  Use this skill for interpreting supplied .NET line/branch/condition evidence,
@@ -90,19 +90,30 @@ index a09d36c..fb6398c 100644
 +
 +When the user names one exact method, class, or source file, use supplied or
 +existing Cobertura data when available; otherwise follow the normal collection
-+path once. Before using a report, verify that it parses, contains at least one
-+class and method, and contains the requested target. An empty report, one that
-+omits the target, or one whose covered counts exceed its valid counts is failed
-+collection or filtering, not 0% coverage: regenerate coverage when possible,
-+otherwise stop without publishing a CRAP score.
++path once. Then run
++`pwsh -File scripts/Extract-MethodCoverage.ps1 -CoberturaPath <report> -Filter all -OutputFormat json-v1`
++and read its exit code beside the JSON:
 +
-+Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
-+filter the returned rows by exact `Method`, exact `Class`, or normalized `File`
-+path. A row with `ComplexityKnown: false` came from a Cobertura method with no
-+`complexity` attribute, and its `Complexity` of 1 is a placeholder, not a
-+measurement: count that method's decision points in the current source and label
-+the result a manual count, or report its CRAP score as unavailable. For each
-+matching row with a known or counted complexity, calculate:
++- **Exit 2:** the input is invalid or contradictory, such as a non-Cobertura
++  root, covered counts above valid counts, or duplicate method identities. That
++  is failed collection, not 0% coverage: regenerate coverage when possible,
++  otherwise stop without publishing a CRAP score.
++- **Exit 3:** the evidence is partial. Continue, and score only the rows whose
++  measurements are exact.
++- **Exit 0:** every measurement is exact.
++
++Filter `data.methods` by exact `Method`, exact `Class`, or normalized `File`
++path; the script writes `/` separators. A report with no method rows, or no row
++that matches, is failed collection or filtering, not 0% coverage: report that
++the target is absent from the Cobertura data and do not invent a score.
++
++A matching row with `ComplexityStatus: unknown` has a null `Complexity`: its
++Cobertura method had no `complexity` attribute, or the merged reports disagree.
++Count that method's decision points in the current source and label the result a
++manual count, or report its CRAP score as unavailable. A row with
++`LineCoverageStatus: unknown` has no line evidence, so its CRAP score is
++unavailable. For each matching row with an exact or counted complexity and exact
++line coverage, calculate:
 +
 +```text
 +CRAP(m) = complexity^2 * (1 - lineCoverage)^3 + complexity
@@ -111,11 +122,9 @@ index a09d36c..fb6398c 100644
 +Here `lineCoverage` is a fraction: the row's `LineCoverage` percentage divided by
 +100.
 +
-+If no row matches, report that the target is absent from the Cobertura data and
-+do not invent a score. Otherwise report only the selected rows, the formula
-+inputs, the resulting score, and one concrete coverage or complexity
-+recommendation. Do not emit the project-wide hotspot inventory or optional
-+reports unless the user separately requests them.
++Report only the selected rows, the formula inputs, the resulting score, and one
++concrete coverage or complexity recommendation. Do not emit the project-wide
++hotspot inventory or optional reports unless the user separately requests them.
 +
  ## Existing-data fast path
  
@@ -125,7 +134,7 @@ index a09d36c..fb6398c 100644
  - Do not discover the solution or test projects unless source mapping is necessary.
  - Do not run `dotnet test`, install ReportGenerator, add a coverage package, or
    read `references/setup-discovery.md` or `references/report-generation.md`.
-@@ -94,29 +125,31 @@ artifact.
+@@ -94,29 +134,31 @@ artifact.
  
  ## Collection path
  
@@ -213,72 +222,3 @@ index 220d6f3..2b74ef2 100644
  $pattern = "**/TestResults/"
  $gitRoot = (git -C $testOutputRoot rev-parse --show-toplevel 2>$null)
  if ($gitRoot) { $gitRoot = [System.IO.Path]::GetFullPath($gitRoot) }
-diff --git a/scripts/Extract-MethodCoverage.ps1 b/scripts/Extract-MethodCoverage.ps1
-index 999a827..297ff38 100644
---- a/scripts/Extract-MethodCoverage.ps1
-+++ b/scripts/Extract-MethodCoverage.ps1
-@@ -19,17 +19,17 @@ Extract method-level coverage from Cobertura XML and output as JSON.
- 
- .DESCRIPTION
- Parses one or more Cobertura code coverage XML files and extracts per-method coverage metrics:
- - Method name and class
- - Line coverage percentage
- - Branch coverage percentage  
- - Lines covered / total
- - Branches covered / total
--- Complexity (if available)
-+- Complexity, with ComplexityKnown false when the method carries no complexity attribute
- 
- When multiple files are provided, line hits are merged across files so a line is counted
- as covered if any test project covered it.
- 
- Filters by coverage status (uncovered, below threshold, or all).
- Output is JSON for easy post-processing into tables, CSV, or other formats.
- 
- .PARAMETER CoberturaPath
-@@ -83,24 +83,26 @@ foreach ($p in $CoberturaPath) {
-         foreach ($class in $package.classes.class) {
-             $className = $class.name
-             $classFilename = $class.filename
-             
-             foreach ($method in $class.methods.method) {
-                 $key = "$className|$($method.name)|$($method.signature)|$classFilename"
-                 
-                 if (-not $methodMap.ContainsKey($key)) {
--                    $complexity = if ($null -ne $method.complexity) { [int]$method.complexity } else { 1 }
-+                    $complexityKnown = $null -ne $method.complexity
-+                    $complexity = if ($complexityKnown) { [int]$method.complexity } else { 1 }
-                     if ($complexity -lt 1) { $complexity = 1 }
-                     $methodMap[$key] = @{
-                         Class          = $className
-                         Method         = $method.name
-                         Signature      = $method.signature
-                         File           = $classFilename
-                         Complexity     = $complexity
-+                        ComplexityKnown = $complexityKnown
-                         LineHits       = @{}
-                         BranchData     = @{}
-                     }
-                 }
- 
-                 # Accumulate line hits across files
-                 foreach ($line in $method.lines.line) {
-                     $lineNo = $line.number
-@@ -161,16 +163,17 @@ foreach ($entry in $methodMap.Values) {
-     }
-     
-     $methods.Add([PSCustomObject]@{
-         Class               = $entry.Class
-         Method              = $entry.Method
-         Signature           = $entry.Signature
-         File                = $entry.File
-         Complexity          = $entry.Complexity
-+        ComplexityKnown     = $entry.ComplexityKnown
-         LineCoverage        = $lineCoveragePercent
-         BranchCoverage      = $branchCoveragePercent
-         CoveredLines        = $coveredLineCount
-         TotalLines          = $totalLines
-         UncoveredLines      = ($totalLines - $coveredLineCount)
-         CoveredBranches     = $branchesCovered
-         TotalBranches       = $branchesTotal
-     })

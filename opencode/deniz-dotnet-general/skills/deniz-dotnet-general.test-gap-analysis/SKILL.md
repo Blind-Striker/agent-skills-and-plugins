@@ -4,7 +4,8 @@ description: "Performs report-only pseudo-mutation analysis of existing tests:
   find caller-visible production-code changes that current assertions would not
   catch. Use when asked whether a bug or mutation could survive, where tests are
   behaviorally blind, or which production outcomes lack protection. Polyglot. DO
-  NOT USE FOR: writing tests, suite organization or taxonomy, coverage/CRAP
+  NOT USE FOR: writing tests, proof that tests catch an identified fix or
+  feature (test-value-evidence), suite organization or taxonomy, coverage/CRAP
   interpretation, assertion/smell audits, or running a mutation-testing tool."
 ---
 

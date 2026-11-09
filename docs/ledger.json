@@ -1498,7 +1498,7 @@
   "deniz-dotnet-general/skill/build-parallelism": {
     "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-parallelism",
     "invocation": "auto",
-    "description": "Analyze an MSBuild solution, solution filter, or Build.proj that schedules multiple project files. USE FOR: measured idle worker nodes, `-m` that does not scale, a serial ProjectReference critical path, graph builds, or an MSBuild task that builds a Projects list. Requires at least two distinct project files whose scheduling or throughput must be analyzed. DO NOT USE for non-MSBuild build systems.",
+    "description": "Analyze MSBuild scheduling across at least two distinct projects in a solution/filter/Build.proj. USE FOR: measured idle workers, -m not scaling, serial ProjectReference critical paths, graph builds, MSBuild Projects-list scheduling. DO NOT USE FOR: duplicate executions or invariant-generation races (find-repeated-work-within-one-build), non-MSBuild systems.",
     "claude": {
       "artifacts": [
         "skill"
@@ -1551,7 +1551,7 @@
     "dependsOn": [
       "msbuild"
     ],
-    "description": "Detects MSBuild projects with conflicting OutputPath or IntermediateOutputPath. USE FOR: builds failing with 'Cannot create a file when that file already exists', 'The process cannot access the file because it is being used by another process', intermittent build failures that succeed on retry, or missing/overwritten outputs in multi-project or multi-targeting builds where bin/obj (or project.assets.json) collide. Common causes: shared OutputPath, missing AppendTargetFrameworkToOutputPath, extra global properties (e.g. PublishReadyToRun), or SetTargetFramework on a ProjectReference to a single-targeting project. DO NOT USE FOR: file access errors unrelated to MSBuild (OS-level locking), single-project single-TFM builds, non-MSBuild build systems.",
+    "description": "Find OutputPath/IntermediateOutputPath collisions between distinct projects or required property/TFM variants. USE FOR: missing/overwritten bin/obj or project.assets.json, parallel 'Cannot create a file when that file already exists' or 'file is being used by another process', shared paths, missing AppendTargetFrameworkToOutputPath, PublishReadyToRun, SetTargetFramework on single-target references. DO NOT USE FOR: duplicates or invariant-generation races (find-repeated-work-within-one-build), OS locking, single-instance builds, non-MSBuild systems.",
     "claude": {
       "artifacts": [
         "skill"
@@ -2001,15 +2001,17 @@
     "invocation": "both",
     "body": "patch",
     "dependsOn": [
+      "dotnet-breaking-changes",
       "modern-csharp-coding-standards"
     ],
-    "description": "Safely refactors C#/.NET code without changing behavior. USE FOR any request to refactor, rename, move, extract, inline, merge, consolidate, deduplicate, split, or modernize C# code, including partial/generated declarations, wrappers, public APIs, serialization/reflection/configuration names, friend assemblies, conditional compilation, and multi-targeted projects. Also use when a request calls a feature, bug fix, package/framework upgrade, or public nullability change a refactor and the behavior-changing part must be separated or declined. DO NOT USE FOR ordinary feature or bug fixes not presented as refactoring; standalone upgrades after reclassification; adding tests; or formatting-only work.",
+    "description": "Safely refactors C#/.NET code without changing behavior. USE FOR any request to refactor, rename, move, extract, inline, merge, consolidate, deduplicate, split, or modernize C# code, even a small extract, inline, or rename, or merging near-identical types; green builds miss drift in #if branches, generated partials, and reflection/config names. When a changed member is visible outside the assembly (PublicAPI.*.txt, InternalsVisibleTo, shipped package), also invoke deniz-dotnet-general:dotnet-breaking-changes; local/private renames do not need it. Also use when a request calls a feature, bug fix, package/framework upgrade, or public nullability change a refactor and the behavior-changing part must be separated or declined. DO NOT USE FOR ordinary feature or bug fixes not presented as refactoring; standalone upgrades after reclassification; adding tests; or formatting-only work.",
     "claude": {
       "artifacts": [
         "skill"
       ],
       "edges": {
         "model": [
+          "deniz-dotnet-general:dotnet-breaking-changes",
           "deniz-dotnet-general:modern-csharp-coding-standards"
         ],
         "pointer": [
@@ -2025,6 +2027,7 @@
       "advertised": true,
       "edges": {
         "model": [
+          "deniz-dotnet-general.dotnet-breaking-changes",
           "deniz-dotnet-general.modern-csharp-coding-standards"
         ],
         "pointer": [
@@ -2048,6 +2051,7 @@
       "policyFiles": [],
       "edges": {
         "model": [
+          "$deniz-dotnet-general:dotnet-breaking-changes",
           "$deniz-dotnet-general:modern-csharp-coding-standards"
         ],
         "pointer": [
@@ -2379,6 +2383,65 @@
       ],
       "edges": {
         "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-general/skill/dotnet-breaking-changes": {
+    "source": "dotnet-agent-skills/plugins/dotnet/skills/dotnet-breaking-changes",
+    "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "csharp-refactoring"
+    ],
+    "description": "Use before changing .NET/C# code whose callers you do not control: a NuGet library, or a repo with PublicAPI.Shipped/Unshipped.txt, ApiCompat, multiple TargetFrameworks, InternalsVisibleTo, or generated (.g.cs) partials. Green builds miss silent breaks from optional parameters, parameter names, sealing, const values, nullability, and #if. USE FOR: \"without breaking existing callers\"; adding a public method, overload, optional parameter, or interface member to a shipped library; renaming a public method or an internal helper a friend assembly uses; consolidating duplicated logic; changing a signature, nullability, default, or attribute; adding a target framework; RS0016/RS0017 or ApiCompat errors; \"is this PR breaking?\". For a rename, extract, or merge, also invoke csharp-refactoring. DO NOT USE FOR: an executable whose callers all live in one project; renaming a local variable or private member, even in a shipped library; formatting; framework/SDK/NuGet upgrades.\n",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:csharp-refactoring"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.dotnet-breaking-changes",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general.csharp-refactoring"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:dotnet-breaking-changes",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:csharp-refactoring"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -2902,6 +2965,65 @@
       "bodyTransformations": []
     }
   },
+  "deniz-dotnet-general/skill/eliminate-redundant-restores": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/eliminate-redundant-restores",
+    "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "msbuild"
+    ],
+    "description": "Remove repeated NuGet restores from multi-step .NET builds safely. USE FOR: build/test/publish steps that each restore, Directory.Build.rsp with -restore, safe restore suppression, NETSDK1004/NETSDK1047 after --no-restore. DO NOT USE FOR: slow first restore, only one restore, version or lock errors, unranked build slowness (use msbuild).",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.eliminate-redundant-restores",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general.msbuild"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:eliminate-redundant-restores",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
   "deniz-dotnet-general/skill/filter-syntax": {
     "source": "dotnet-agent-skills/plugins/dotnet-test/skills/filter-syntax",
     "invocation": "auto",
@@ -2953,6 +3075,65 @@
         "disable-model-invocation",
         "user-invocable"
       ],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-general/skill/find-repeated-work-within-one-build": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/find-repeated-work-within-one-build",
+    "invocation": "auto",
+    "body": "patch",
+    "dependsOn": [
+      "msbuild"
+    ],
+    "description": "Use ONLY for auditing executed-task counts or batching/hoisting costs within ONE MSBuild invocation: per-project Exec, duplicate dependency builds, per-item generators, run-once races. NEVER load for evaluation-only global-property variants with once-only target/task execution, idle-node/serial-chain investigations, second/unchanged builds, restores across commands, required-variant bin/obj collisions or unranked slowness. Do not load to check scope or replace an unavailable specialist; answer directly.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.find-repeated-work-within-one-build",
+      "advertised": true,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general.msbuild"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:find-repeated-work-within-one-build",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "dropped": [],
       "bodyTransformations": []
     }
   },
@@ -3443,13 +3624,15 @@
       "build-parallelism",
       "check-bin-obj-clash",
       "directory-build-organization",
+      "eliminate-redundant-restores",
+      "find-repeated-work-within-one-build",
       "including-generated-files",
       "item-management",
       "msbuild-modernization",
       "property-patterns",
       "target-authoring"
     ],
-    "description": "Use only for MSBuild failure investigation, build-performance analysis, or review of existing build XML/extension contracts. A plan to convert a working legacy/non-SDK project to SDK style or migrate packages.config is a project-system migration, NOT a build-file review: do not activate, even to check scope. Framework/API upgrades are also excluded. Activate for advisory Import/Exists hook and NuGet packed-import questions even without a checkout or failed build; .csproj/.fsproj/.vbproj/.props/.targets conditions; custom targets that rerun or skip; .binlog capture/replay; failing dotnet build/restore/pack/publish or MSBuild-based test builds; slow evaluation, compilation, copying, or no-change builds; and controlled timing comparisons. Exclude SDK installation alone, C# refactoring, runtime profiling, assertions after successful builds, and non-MSBuild builds.",
+    "description": "Use for MSBuild failure investigation, build-performance analysis and build-speedup claims, .binlog capture/replay, or review of existing build XML, imports, and extension hooks, even without a checkout. Activate for failing dotnet build/restore/pack/publish; slow evaluation, compilation, copying, or no-change builds; and custom targets that rerun, skip, or leave stale outputs. Legacy/non-SDK or packages.config conversions and framework/API upgrades are migrations: DO NOT activate. Exclude SDK installation alone, C# refactoring, runtime CPU profiling, assertions after successful builds, and non-MSBuild builds.",
     "claude": {
       "artifacts": [
         "skill"
@@ -3459,6 +3642,8 @@
           "deniz-dotnet-general:build-parallelism",
           "deniz-dotnet-general:check-bin-obj-clash",
           "deniz-dotnet-general:directory-build-organization",
+          "deniz-dotnet-general:eliminate-redundant-restores",
+          "deniz-dotnet-general:find-repeated-work-within-one-build",
           "deniz-dotnet-general:including-generated-files",
           "deniz-dotnet-general:item-management",
           "deniz-dotnet-general:msbuild-modernization",
@@ -3482,6 +3667,8 @@
           "deniz-dotnet-general.build-parallelism",
           "deniz-dotnet-general.check-bin-obj-clash",
           "deniz-dotnet-general.directory-build-organization",
+          "deniz-dotnet-general.eliminate-redundant-restores",
+          "deniz-dotnet-general.find-repeated-work-within-one-build",
           "deniz-dotnet-general.including-generated-files",
           "deniz-dotnet-general.item-management",
           "deniz-dotnet-general.msbuild-modernization",
@@ -3510,6 +3697,8 @@
           "$deniz-dotnet-general:build-parallelism",
           "$deniz-dotnet-general:check-bin-obj-clash",
           "$deniz-dotnet-general:directory-build-organization",
+          "$deniz-dotnet-general:eliminate-redundant-restores",
+          "$deniz-dotnet-general:find-repeated-work-within-one-build",
           "$deniz-dotnet-general:including-generated-files",
           "$deniz-dotnet-general:item-management",
           "$deniz-dotnet-general:msbuild-modernization",
@@ -3849,6 +4038,55 @@
       "dropped": [
         "user-invocable"
       ],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-general/skill/process-api-net11": {
+    "source": "dotnet-agent-skills/plugins/dotnet11/skills/process-api-net11",
+    "invocation": "auto",
+    "description": "Provides guidance on the new System.Diagnostics.Process APIs introduced in .NET 11: Process.Run, Process.RunAndCaptureText, Process.StartAndForget, Process.ReadAllText/Bytes/Lines, KillOnParentExit, InheritedHandles, and StartDetached. USE FOR: starting, orchestrating, or capturing output from external processes in applications targeting net11.0 or later. DO NOT USE FOR: applications targeting .NET 10 or earlier, or basic pre-.NET 11 Process.Start usage without new APIs.\n",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.process-api-net11",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:process-api-net11",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [],
       "bodyTransformations": []
     }
   },
@@ -4369,7 +4607,7 @@
     "dependsOn": [
       "test-analysis-extensions"
     ],
-    "description": "Performs report-only pseudo-mutation analysis of existing tests: find caller-visible production-code changes that current assertions would not catch. Use when asked whether a bug or mutation could survive, where tests are behaviorally blind, or which production outcomes lack protection. Polyglot. DO NOT USE FOR: writing tests, suite organization or taxonomy, coverage/CRAP interpretation, assertion/smell audits, or running a mutation-testing tool.",
+    "description": "Performs report-only pseudo-mutation analysis of existing tests: find caller-visible production-code changes that current assertions would not catch. Use when asked whether a bug or mutation could survive, where tests are behaviorally blind, or which production outcomes lack protection. Polyglot. DO NOT USE FOR: writing tests, proof that tests catch an identified fix or feature (test-value-evidence), suite organization or taxonomy, coverage/CRAP interpretation, assertion/smell audits, or running a mutation-testing tool.",
     "claude": {
       "artifacts": [
         "skill"
@@ -4415,6 +4653,55 @@
         "model": [
           "$deniz-dotnet-general:test-analysis-extensions"
         ],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-general/skill/test-value-evidence": {
+    "source": "dotnet-agent-skills/plugins/dotnet-test/skills/test-value-evidence",
+    "invocation": "auto",
+    "description": "Assess tests for an identified code or test change, feature, PR or commit. USE FOR: review changed behavior or regression tests, prove pre-fix/missing behavior is detected, revision-bound red-green evidence. Polyglot. DO NOT USE without an identified change: hypothetical mutations or general suite blind spots (test-gap-analysis). Also exclude per-test readiness/A-F grades (grade-tests), coverage (coverage-analysis), new suites (code-testing), or mutation engines.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "flags": {
+        "user-invocable": false
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.test-value-evidence",
+      "advertised": true,
+      "edges": {
+        "model": [],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:test-value-evidence",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "enabled",
+      "explicit": "available",
+      "policyFiles": [],
+      "edges": {
+        "model": [],
         "pointer": []
       },
       "dropped": [],
@@ -4518,6 +4805,67 @@
       ],
       "edges": {
         "model": [],
+        "pointer": []
+      },
+      "dropped": [],
+      "bodyTransformations": []
+    }
+  },
+  "deniz-dotnet-general/skill/troubleshoot-binlog-mcp": {
+    "source": "dotnet-agent-skills/plugins/dotnet-msbuild/skills/troubleshoot-binlog-mcp",
+    "invocation": "manual",
+    "body": "patch",
+    "dependsOn": [
+      "msbuild"
+    ],
+    "description": "Diagnose binlog MCP server startup failures. USE FOR: CONNECTION_CLOSED, binlog server won't connect, missing binlog tools, Microsoft.AITools.BinlogMcp not found, dnx launch errors. Checks workspace SDK, feeds, and source mapping without bypassing policy. DO NOT USE FOR: errors inside a binlog or capturing binlogs (use msbuild), unrelated MCP servers.",
+    "claude": {
+      "artifacts": [
+        "skill"
+      ],
+      "edges": {
+        "model": [
+          "deniz-dotnet-general:msbuild"
+        ],
+        "pointer": []
+      },
+      "flags": {
+        "disable-model-invocation": true
+      }
+    },
+    "opencode": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general.troubleshoot-binlog-mcp",
+      "advertised": false,
+      "edges": {
+        "model": [
+          "deniz-dotnet-general.msbuild"
+        ],
+        "pointer": []
+      },
+      "dropped": [
+        "license"
+      ]
+    },
+    "codex": {
+      "artifacts": [
+        "skill"
+      ],
+      "identity": "deniz-dotnet-general:troubleshoot-binlog-mcp",
+      "sourceKind": "skill",
+      "resolvedKind": "skill",
+      "emittedKind": "skill",
+      "implicit": "disabled",
+      "explicit": "available",
+      "policyFiles": [
+        "agents/openai.yaml"
+      ],
+      "edges": {
+        "model": [
+          "$deniz-dotnet-general:msbuild"
+        ],
         "pointer": []
       },
       "dropped": [],
@@ -4754,6 +5102,7 @@
       "detect-static-dependencies",
       "directory-build-organization",
       "dotnet-aot-compat",
+      "dotnet-breaking-changes",
       "dotnet-devcert-trust",
       "dotnet-local-tools",
       "dotnet-pinvoke",
@@ -4764,7 +5113,9 @@
       "dotnet-webapi",
       "dump-collect",
       "efcore-patterns",
+      "eliminate-redundant-restores",
       "filter-syntax",
+      "find-repeated-work-within-one-build",
       "generate-testability-wrappers",
       "harness",
       "ilspy-decompile",
@@ -4782,6 +5133,7 @@
       "package-management",
       "platform-detection",
       "playwright-blazor-testing",
+      "process-api-net11",
       "property-patterns",
       "r3-reactive-extensions",
       "run-tests",
@@ -4792,8 +5144,10 @@
       "test-analysis-extensions",
       "test-anti-patterns",
       "test-gap-analysis",
+      "test-value-evidence",
       "testcontainers-integration-tests",
       "thread-abort-migration",
+      "troubleshoot-binlog-mcp",
       "vectorization",
       "verified-waves",
       "writing-tunit-tests"
@@ -4839,6 +5193,7 @@
           "deniz-dotnet-general:dependency-injection-patterns",
           "deniz-dotnet-general:detect-static-dependencies",
           "deniz-dotnet-general:directory-build-organization",
+          "deniz-dotnet-general:dotnet-breaking-changes",
           "deniz-dotnet-general:dotnet-devcert-trust",
           "deniz-dotnet-general:dotnet-local-tools",
           "deniz-dotnet-general:dotnet-pinvoke",
@@ -4847,7 +5202,9 @@
           "deniz-dotnet-general:dotnet-walls",
           "deniz-dotnet-general:dotnet-webapi",
           "deniz-dotnet-general:efcore-patterns",
+          "deniz-dotnet-general:eliminate-redundant-restores",
           "deniz-dotnet-general:filter-syntax",
+          "deniz-dotnet-general:find-repeated-work-within-one-build",
           "deniz-dotnet-general:ilspy-decompile",
           "deniz-dotnet-general:including-generated-files",
           "deniz-dotnet-general:item-management",
@@ -4861,6 +5218,7 @@
           "deniz-dotnet-general:package-management",
           "deniz-dotnet-general:platform-detection",
           "deniz-dotnet-general:playwright-blazor-testing",
+          "deniz-dotnet-general:process-api-net11",
           "deniz-dotnet-general:property-patterns",
           "deniz-dotnet-general:r3-reactive-extensions",
           "deniz-dotnet-general:run-tests",
@@ -4871,6 +5229,7 @@
           "deniz-dotnet-general:test-analysis-extensions",
           "deniz-dotnet-general:test-anti-patterns",
           "deniz-dotnet-general:test-gap-analysis",
+          "deniz-dotnet-general:test-value-evidence",
           "deniz-dotnet-general:testcontainers-integration-tests",
           "deniz-dotnet-general:vectorization",
           "deniz-dotnet-general:writing-tunit-tests",
@@ -4899,6 +5258,7 @@
           "deniz-dotnet-general:migrate-nullable-references",
           "deniz-dotnet-general:migrate-static-to-wrapper",
           "deniz-dotnet-general:thread-abort-migration",
+          "deniz-dotnet-general:troubleshoot-binlog-mcp",
           "deniz-process:brainstorming",
           "deniz-process:diagnosing-superpowers",
           "deniz-process:executing-plans",
@@ -4969,6 +5329,7 @@
           "deniz-dotnet-general.dependency-injection-patterns",
           "deniz-dotnet-general.detect-static-dependencies",
           "deniz-dotnet-general.directory-build-organization",
+          "deniz-dotnet-general.dotnet-breaking-changes",
           "deniz-dotnet-general.dotnet-devcert-trust",
           "deniz-dotnet-general.dotnet-local-tools",
           "deniz-dotnet-general.dotnet-pinvoke",
@@ -4977,7 +5338,9 @@
           "deniz-dotnet-general.dotnet-walls",
           "deniz-dotnet-general.dotnet-webapi",
           "deniz-dotnet-general.efcore-patterns",
+          "deniz-dotnet-general.eliminate-redundant-restores",
           "deniz-dotnet-general.filter-syntax",
+          "deniz-dotnet-general.find-repeated-work-within-one-build",
           "deniz-dotnet-general.ilspy-decompile",
           "deniz-dotnet-general.including-generated-files",
           "deniz-dotnet-general.item-management",
@@ -4991,6 +5354,7 @@
           "deniz-dotnet-general.package-management",
           "deniz-dotnet-general.platform-detection",
           "deniz-dotnet-general.playwright-blazor-testing",
+          "deniz-dotnet-general.process-api-net11",
           "deniz-dotnet-general.property-patterns",
           "deniz-dotnet-general.r3-reactive-extensions",
           "deniz-dotnet-general.run-tests",
@@ -5001,6 +5365,7 @@
           "deniz-dotnet-general.test-analysis-extensions",
           "deniz-dotnet-general.test-anti-patterns",
           "deniz-dotnet-general.test-gap-analysis",
+          "deniz-dotnet-general.test-value-evidence",
           "deniz-dotnet-general.testcontainers-integration-tests",
           "deniz-dotnet-general.vectorization",
           "deniz-dotnet-general.writing-tunit-tests",
@@ -5030,6 +5395,7 @@
           "@deniz-dotnet-general.migrate-nullable-references",
           "@deniz-dotnet-general.migrate-static-to-wrapper",
           "@deniz-dotnet-general.thread-abort-migration",
+          "@deniz-dotnet-general.troubleshoot-binlog-mcp",
           "@deniz-process.brainstorming",
           "@deniz-process.diagnosing-superpowers",
           "@deniz-process.executing-plans",
@@ -5107,6 +5473,7 @@
           "$deniz-dotnet-general:dependency-injection-patterns",
           "$deniz-dotnet-general:detect-static-dependencies",
           "$deniz-dotnet-general:directory-build-organization",
+          "$deniz-dotnet-general:dotnet-breaking-changes",
           "$deniz-dotnet-general:dotnet-devcert-trust",
           "$deniz-dotnet-general:dotnet-local-tools",
           "$deniz-dotnet-general:dotnet-pinvoke",
@@ -5115,7 +5482,9 @@
           "$deniz-dotnet-general:dotnet-walls",
           "$deniz-dotnet-general:dotnet-webapi",
           "$deniz-dotnet-general:efcore-patterns",
+          "$deniz-dotnet-general:eliminate-redundant-restores",
           "$deniz-dotnet-general:filter-syntax",
+          "$deniz-dotnet-general:find-repeated-work-within-one-build",
           "$deniz-dotnet-general:ilspy-decompile",
           "$deniz-dotnet-general:including-generated-files",
           "$deniz-dotnet-general:item-management",
@@ -5129,6 +5498,7 @@
           "$deniz-dotnet-general:package-management",
           "$deniz-dotnet-general:platform-detection",
           "$deniz-dotnet-general:playwright-blazor-testing",
+          "$deniz-dotnet-general:process-api-net11",
           "$deniz-dotnet-general:property-patterns",
           "$deniz-dotnet-general:r3-reactive-extensions",
           "$deniz-dotnet-general:run-tests",
@@ -5139,6 +5509,7 @@
           "$deniz-dotnet-general:test-analysis-extensions",
           "$deniz-dotnet-general:test-anti-patterns",
           "$deniz-dotnet-general:test-gap-analysis",
+          "$deniz-dotnet-general:test-value-evidence",
           "$deniz-dotnet-general:testcontainers-integration-tests",
           "$deniz-dotnet-general:vectorization",
           "$deniz-dotnet-general:writing-tunit-tests",
@@ -5168,6 +5539,7 @@
           "$deniz-dotnet-general:migrate-nullable-references",
           "$deniz-dotnet-general:migrate-static-to-wrapper",
           "$deniz-dotnet-general:thread-abort-migration",
+          "$deniz-dotnet-general:troubleshoot-binlog-mcp",
           "$deniz-process:brainstorming",
           "$deniz-process:diagnosing-superpowers",
           "$deniz-process:executing-plans",

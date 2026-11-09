@@ -32,7 +32,7 @@
 plugin:
   name: deniz-dotnet-general
   description: "Deniz's curated general .NET skills"
-  version: 0.17.1
+  version: 0.18.0
 original_skills:
   writing-tunit-tests:
     invocation: auto # fires while a TUnit test is being written; code-testing loads it through a
@@ -106,16 +106,28 @@ items:
     # to write and deniz-process:codebase-design what shape to aim for, this item how to change code
     # without changing behavior. Upstream's broad "any refactor" trigger stays; the curator also
     # starts it by hand
-    body: patch # its stop rule pointed at upgrade, feature, and API-contract workflows this estate
-    # does not have, so a request outside behavior-preserving refactoring is stated as such and then
-    # continued as ordinary work when it clearly asks for it, or asked about once. It also names a
-    # generic C# language server instead of upstream's plugin LSP, drops the dotnet-upgrade route,
+    body: patch # its stop rule pointed at upgrade and feature workflows this estate does not have,
+    # so a request outside behavior-preserving refactoring is stated as such and then continued as
+    # ordinary work when it clearly asks for it, or asked about once. Its API-contract hand-offs, the
+    # nullable row, the cross-boundary hazards, and the description, name dotnet-breaking-changes as
+    # checked facts. It also names a generic C# language server instead of upstream's plugin LSP, drops
+    # the dotnet-upgrade route,
     # resolves the baseline and pass-count contradiction and the duplicated on-red sentence, and turns
     # the catalog's nullable pointer into a user pointer to the manual migrate-nullable-references.
     # The catalog's "Modernize" section adds one boundary sentence, curator's call: converting to a
     # record or a readonly record struct, which modern-csharp-coding-standards prefers for new code,
     # changes equality, copying, and ToString, so it is not a modernize step here
-    depends_on: [modern-csharp-coding-standards] # the boundary sentence names it as a checked fact
+    depends_on: [modern-csharp-coding-standards, dotnet-breaking-changes] # the boundary sentence and
+    # the three API-contract hand-offs name them as checked facts
+  - source: dotnet-agent-skills/plugins/dotnet/skills/dotnet-breaking-changes
+    invocation: auto # edit-time compatibility checking of the surfaces a change can break without a
+    # failing test (PublicAPI files, ApiCompat, multiple target frameworks, InternalsVisibleTo,
+    # generated partials), with concrete safe shapes. csharp-api-design stays the design-time
+    # philosophy. Upstream built it as csharp-refactoring's co-loading partner, and csharp-refactoring
+    # hands it the compatibility decisions
+    body: patch # drops the dotnet-upgrade route this estate does not have, and its csharp-refactoring
+    # load is a checked fact
+    depends_on: [csharp-refactoring]
   - source: dotnet-skills/agents/roslyn-incremental-generator-specialist.md
     # the one persona worth keeping: deep IIncrementalGenerator pipeline discipline with no skill
     # equivalent anywhere in the corpus. An agent in Claude Code and OpenCode; Codex emits it as a
@@ -128,14 +140,21 @@ items:
   - source: dotnet-skills/skills/efcore-patterns
     invocation: auto # EF usage patterns: tracking, migrations, split queries
     body: patch # absorbs the EF-Core-specific half of the excluded optimizing-ef-core-queries:
-    # EF.CompileQuery on a hot path, framed as the last thing to try rather than the first
+    # EF.CompileQuery on a hot path, framed as the last thing to try rather than the first, in
+    # upstream's corrected wording (EF Core already caches translation, so a compiled delegate only
+    # skips the lookup; EF Core 9 rejects EF.Parameter and EF.Constant inside one). Pattern 5 carries
+    # upstream's ExecuteUpdate/ExecuteDelete caveats: stale tracked values, unchecked concurrency
+    # tokens, no atomicity with SaveChanges, and bypassed SaveChanges hooks
     merged_from: [dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries]
   - source: dotnet-skills/skills/database-performance
     invocation: auto # data-access architecture/perf — a different job from efcore-patterns despite the overlap; merging costs more than it saves
     body: patch # absorbs the SQL-level half of the excluded optimizing-ef-core-queries: predicate
     # sargability and keyset pagination. Both are engine-level rather than EF-level — the same
     # predicate written in Dapper scans for the same reason — so this skill, which already spans
-    # EF Core and Dapper and already teaches offset paging, is where they belong. Provider-specific
+    # EF Core and Dapper and already teaches offset paging, is where they belong. The imported text
+    # follows upstream's corrections: no full-table-scan claim from LINQ alone, an untranslatable
+    # predicate throws rather than running on the client, full-text search is no drop-in for
+    # substring matching, and a composite keyset cursor needs a lexicographic predicate. Provider-specific
     # expression-index exceptions are upstream factual detail, not set-level placement or dependency
     # debt, so this curation does not expand the imported section to teach them.
     merged_from: [dotnet-agent-skills/plugins/dotnet-data/skills/optimizing-ef-core-queries]
@@ -162,6 +181,11 @@ items:
     invocation: auto # file-based C# apps (.NET 10+) — prototype/spike knowledge
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/dotnet-pinvoke
     invocation: auto # P/Invoke + LibraryImport specialist reference; rare but exactly-when-needed
+  - source: dotnet-agent-skills/plugins/dotnet11/skills/process-api-net11
+    invocation: auto # curator's call, taken without waiting for .NET 11 GA: the new System.Diagnostics.Process APIs
+    # (Process.Run, RunAndCaptureText, StartAndForget, KillOnParentExit, InheritedHandles,
+    # StartDetached) are BCL knowledge no other item carries; csharp-15 covers the language, not the
+    # library. Its siblings system-text-json-net11 and migrate-dotnet10-to-dotnet11 stay excluded
   - source: dotnet-agent-skills/plugins/dotnet-advanced/skills/vectorization
     invocation: auto # official SIMD authoring/review knowledge: contract preservation, portable
     # Vector128-first implementation, tail/memory safety, fallbacks, and measurement. Its bounded
@@ -210,20 +234,26 @@ items:
   # The MSBuild estate (curator's call): Microsoft's own MSBuild-team content, taken as knowledge.
   # Upstream's consolidated `msbuild` skill is the one auto entry for build failures, build
   # performance, and authoring review; its bundled references are corrected copies of nine former
-  # specialists, which are excluded below as merged into it. Eight narrow specialists stay beside
-  # it, and its routing rows reach each of them as a checked fact. Router/review agents are excluded:
-  # their value is orchestration glue that none of the three harness outputs preserves.
-  # This repository ships no MCP servers. Upstream registers the BinlogMcp server at its plugin level
-  # (an auto-downloaded prerelease), and that registration does not travel with individual curation,
-  # so binlog analysis takes the text-log replay path. An upstream body that offers MCP as optional
-  # flows as written; only a claim that the server is bundled with the plugin, false where the body
-  # lands, is patched, and no kept body makes one at this pin.
+  # specialists, which are excluded below as merged into it. Ten narrow specialists stay beside it,
+  # and its routing rows reach each of them as a checked fact; troubleshoot-binlog-mcp, a manual
+  # repair ceremony, is outside that set. Router/review agents are excluded: their value is
+  # orchestration glue that none of the three harness outputs preserves.
+  # This repository ships and registers no MCP servers. Upstream registers the BinlogMcp server at
+  # its plugin level (an auto-downloaded prerelease), and that registration does not travel with
+  # curated items; a host that registers a `binlog` server itself, as the curator's estate does at
+  # user level, gets it. Bodies use a connected server first and keep the text-log replay path for a
+  # host without one or a call that fails. A claim that the server is bundled with the plugin is
+  # false where a body lands and is patched out.
   - source: dotnet-agent-skills/plugins/dotnet/skills/msbuild
     invocation: auto # the consolidated entry: troubleshooting, performance, and authoring review, each
-    # reading only its relevant bundled reference. Replay-only, so it needs no MCP server
-    body: patch # its "do not load the original plugin's skills" rule would fence off the eight kept
+    # reading only its relevant bundled reference. Upstream wrote it replay-only; the patch adds a
+    # binlog-server step ahead of replay, which stays the fallback
+    body: patch # its "do not load the original plugin's skills" rule would fence off the ten kept
     # specialists, so it is rewritten to route to them, and routing rows reach each one as a checked
-    # fact. It also carries what its bundled copies lost against the specialists they replace: the
+    # fact. Its binlog-failure-analysis reference opens the replay section with one paragraph: query a
+    # connected binlog MCP server first, replay when none is connected or a call fails, and replay as
+    # the cross-check; the failure routing row and the shared-evidence rule say the same. It also
+    # carries what its bundled copies lost against the specialists they replace: the
     # analyzer-evidence step (ReportAnalyzer) and the no-universal-thresholds rule in
     # build-perf-baseline, whose 5s/30s no-op hints it drops; that rule reads build-perf-diagnostics'
     # seconds and percentages as starting hints for where to look, not pass/fail thresholds, so the
@@ -231,8 +261,11 @@ items:
     # msbuild-quality-reviewer agent (message-only, validation, orchestration, and intentionally
     # always-running targets need no Inputs/Outputs). It restores the merged msbuild-antipatterns'
     # contract that a review only reports unless fixes are asked for, because "review this .csproj"
-    # now auto-loads an entry whose route reads as improvement. Its description claims custom targets
-    # that rerun or skip, the diagnosis, and its target-authoring row takes the Inputs/Outputs fix
+    # now auto-loads an entry whose route reads as improvement. Its description is our own, curator's
+    # call: upstream's newer text claims every project-file edit and custom-target repairs, which
+    # compete with property-patterns, item-management, directory-build-organization,
+    # package-management, and target-authoring. Ours claims custom targets that rerun, skip, or leave
+    # stale outputs, the diagnosis, and its target-authoring row takes the Inputs/Outputs fix
     depends_on:
       - check-bin-obj-clash
       - build-parallelism
@@ -242,6 +275,8 @@ items:
       - including-generated-files
       - directory-build-organization
       - msbuild-modernization
+      - find-repeated-work-within-one-build
+      - eliminate-redundant-restores
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/msbuild-antipatterns
     exclude: true # merged into msbuild: its references/msbuild-antipatterns.md and the AP-16 to AP-23
     # catalog carry the review entry point, with upstream's later corrections
@@ -276,15 +311,16 @@ items:
     exclude: true # merged into msbuild: its references/binlog-generation.md captures a log for the
     # build under investigation, without this copy's every-build mandate
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/binlog-failure-analysis
-    exclude: true # merged into msbuild: its references/binlog-failure-analysis.md is replay-only and
-    # makes no bundled-MCP claim
+    exclude: true # merged into msbuild: its references/binlog-failure-analysis.md carries the stronger
+    # method; the msbuild patch restores the binlog-server step this copy led with
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/incremental-build
     exclude: true # merged into msbuild: its references/incremental-build.md
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-diagnostics
     exclude: true # merged into msbuild: its references/build-perf-diagnostics.md, which also carries
     # the ResolveProjectReferences wait rule
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-parallelism
-    invocation: auto # upstream's maxcpucount correction flows; MCP stays optional as upstream writes it
+    invocation: auto # upstream's maxcpucount correction flows; MCP stays optional as upstream writes it.
+    # Its description names find-repeated-work-within-one-build, which ships
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/build-perf-baseline
     exclude: true # merged into msbuild: its references/build-perf-baseline.md gates working-tree
     # cleanup on approval; the msbuild patch restores the analyzer step and the no-thresholds rule
@@ -296,7 +332,35 @@ items:
     # caveat, which it links to: an explicit publish comes first, the private-flag pattern is not a
     # universal repair and can hit MSB4006 through `dotnet msbuild -t:Publish`, and a build-order
     # reference schedules the producer's build, not its Publish. A lock held by a running process,
-    # such as an Aspire AppHost, is not a path clash: the process stops first
+    # such as an Aspire AppHost, is not a path clash: the process stops first. Upstream's shorter
+    # description flows; it names find-repeated-work-within-one-build, which ships
+    depends_on: [msbuild]
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/find-repeated-work-within-one-build
+    invocation: auto # repeat counting within one MSBuild invocation (per-project Exec, a dependency
+    # built under several global-property sets, one process per item, racing run-once guards), which
+    # msbuild's references do not cover; a kept specialist that msbuild's performance table routes to
+    body: patch # "prefer the bundled binlog MCP server" is false where the body lands, so it reads:
+    # when the binlog MCP server is connected, use it first; otherwise replay. Its binlog-generation
+    # load is a checked fact on msbuild's binlog-generation reference, and its routes to the merged
+    # incremental-build, eval-performance, build-perf-baseline, and build-perf-diagnostics go to msbuild
+    depends_on: [msbuild]
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/eliminate-redundant-restores
+    invocation: auto # restore coverage across the steps of a multi-step CLI or CI build, with exact SDK
+    # facts (`--no-restore -restore:false` against an rsp `-restore`, RID matching, NETSDK1004 and
+    # NETSDK1047); no other item carries it, and msbuild's performance table routes to it
+    body: patch # its two routes to the merged build-perf-baseline and build-perf-diagnostics go to
+    # msbuild
+    depends_on: [msbuild]
+  - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/troubleshoot-binlog-mcp
+    invocation: manual # repairs a binlog MCP server that will not start. The curator's estate registers
+    # its `binlog` server at user level and launches it with `dotnet dnx` in the session's working
+    # directory, so a repository's global.json or NuGet settings (`clear`, source mapping) can stop
+    # it: the failure class this skill diagnoses. Manual, curator's call: the user starts it when the
+    # server fails, and msbuild's replay path covers analysis meanwhile
+    body: patch # diagnoses the host's registered launch command and environment instead of the
+    # plugin's shipped `--prerelease` command, which no host here registers; registering a server is
+    # left to the user, and its routes to the merged binlog-failure-analysis and binlog-generation go
+    # to msbuild's references
     depends_on: [msbuild]
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/skills/eval-performance
     exclude: true # merged into msbuild: its references/eval-performance.md corrects this copy's
@@ -353,15 +417,24 @@ items:
     body: patch # preserves the report-only contract by removing upstream's close-gaps/test-writing
     # path and its verifier checkbox, and strips the per-test grading dispatch with the mutation
     # catalog's link to the omitted reference; dead redirects stay out; SKILL.md and the bundled
-    # mutation catalog load test-analysis-extensions through a namespaced fact
+    # mutation catalog load test-analysis-extensions through a namespaced fact. Its description
+    # override hands proof that tests catch an identified fix or feature to test-value-evidence
     depends_on: [test-analysis-extensions]
+  - source: dotnet-agent-skills/plugins/dotnet-test/skills/test-value-evidence
+    invocation: auto # change-bound evidence that tests catch an identified fix or feature, red-green
+    # against the revision before it; read-only unless execution is authorized in an owned isolated
+    # checkout. It answers whether a worker's regression test catches the bug in the delegation and
+    # review flow; test-gap-analysis keeps hypothetical mutations, and both descriptions draw that
+    # line. Its bare grade-tests mention routes nowhere here, tolerated
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/coverage-analysis
     invocation: auto # the module's single CRAP/coverage home (Cobertura-based) — including the
     # targeted method/class/file job it absorbed from the excluded crap-score
-    body: patch # adds a bounded targeted branch using the existing all-method coverage extractor,
-    # run through `pwsh -File` like every bundled script (curation/SCHEMA.md "Bundled scripts"); the
-    # extractor flags a missing complexity instead of a silent 1, and the branch rejects empty or
-    # contradictory reports. Collection loads run-tests through namespaced facts, and a missing
+    body: patch # adds a bounded targeted branch that runs upstream's method extractor in its json-v1
+    # format through `pwsh -File` like every bundled script (curation/SCHEMA.md "Bundled scripts").
+    # Upstream's shared parser, scripts/CoverageData.ps1, which ships, reports a missing complexity as
+    # unknown; the branch scores only exact or hand-counted rows, reads exit 2 as invalid input and
+    # exit 3 as partial evidence, and rejects a report with no matching row. Collection loads
+    # run-tests through namespaced facts, and a missing
     # coverage provider is reported as a prerequisite, never installed without authorization
     depends_on: [run-tests]
   - source: dotnet-agent-skills/plugins/dotnet-test/skills/detect-static-dependencies
@@ -603,7 +676,9 @@ items:
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/msbuild-code-review.agent.md
     exclude: true # its substantive rules live in the antipatterns references of msbuild (taken)
   - source: dotnet-agent-skills/plugins/dotnet-msbuild/agents/build-perf.agent.md
-    exclude: true # orchestrates the performance references msbuild (taken) now bundles; harness-specific tool wiring
+    exclude: true # orchestrates the performance references msbuild (taken) now bundles; its
+    # binlog-server sequence is the only content they lack, and an agent would compete with the
+    # msbuild entry
   - source: dotnet-agent-skills/plugins/dotnet-diag/agents/optimizing-dotnet-performance.agent.md
     exclude: true # choreography wrapper over analyzing-dotnet-performance (taken directly)
   - source: dotnet-agent-skills/plugins/dotnet-template-engine/agents/template-engine.agent.md
@@ -723,8 +798,9 @@ items:
     exclude: true # validator fixture
   # --- gh-aw consumer workflow packages (GitHub Actions runtime that none of the three harnesses hosts) ---
   - source: dotnet-agent-skills/agentic-workflows/build-failure-analysis/agents/build-failure-analyst.agent.md
-    exclude: true # queries a containerised binlog MCP server and posts PR comments through gh-aw safe
-    # outputs; no harvest: its triage rules would need single-file agent merges
+    exclude: true # a gh-aw CI agent: its inputs are workflow env vars and mounted binlogs, and its
+    # output is PR comments through safe outputs, which none of the three harnesses hosts; no
+    # harvest: its triage rules would need single-file agent merges
   - source: dotnet-agent-skills/agentic-workflows/msbuild-quality-review/agents/msbuild-quality-reviewer.agent.md
     exclude: true # a PR reviewer whose rules duplicate the msbuild antipatterns references and would
     # compete as an agent; its AP-11 exception is ported into the msbuild patch

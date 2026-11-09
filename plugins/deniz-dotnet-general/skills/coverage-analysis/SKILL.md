@@ -74,19 +74,30 @@ or an equivalent request to combine complexity with coverage.
 
 When the user names one exact method, class, or source file, use supplied or
 existing Cobertura data when available; otherwise follow the normal collection
-path once. Before using a report, verify that it parses, contains at least one
-class and method, and contains the requested target. An empty report, one that
-omits the target, or one whose covered counts exceed its valid counts is failed
-collection or filtering, not 0% coverage: regenerate coverage when possible,
-otherwise stop without publishing a CRAP score.
+path once. Then run
+`pwsh -File scripts/Extract-MethodCoverage.ps1 -CoberturaPath <report> -Filter all -OutputFormat json-v1`
+and read its exit code beside the JSON:
 
-Run `pwsh -File scripts/Extract-MethodCoverage.ps1` with `-Filter all`, then
-filter the returned rows by exact `Method`, exact `Class`, or normalized `File`
-path. A row with `ComplexityKnown: false` came from a Cobertura method with no
-`complexity` attribute, and its `Complexity` of 1 is a placeholder, not a
-measurement: count that method's decision points in the current source and label
-the result a manual count, or report its CRAP score as unavailable. For each
-matching row with a known or counted complexity, calculate:
+- **Exit 2:** the input is invalid or contradictory, such as a non-Cobertura
+  root, covered counts above valid counts, or duplicate method identities. That
+  is failed collection, not 0% coverage: regenerate coverage when possible,
+  otherwise stop without publishing a CRAP score.
+- **Exit 3:** the evidence is partial. Continue, and score only the rows whose
+  measurements are exact.
+- **Exit 0:** every measurement is exact.
+
+Filter `data.methods` by exact `Method`, exact `Class`, or normalized `File`
+path; the script writes `/` separators. A report with no method rows, or no row
+that matches, is failed collection or filtering, not 0% coverage: report that
+the target is absent from the Cobertura data and do not invent a score.
+
+A matching row with `ComplexityStatus: unknown` has a null `Complexity`: its
+Cobertura method had no `complexity` attribute, or the merged reports disagree.
+Count that method's decision points in the current source and label the result a
+manual count, or report its CRAP score as unavailable. A row with
+`LineCoverageStatus: unknown` has no line evidence, so its CRAP score is
+unavailable. For each matching row with an exact or counted complexity and exact
+line coverage, calculate:
 
 ```text
 CRAP(m) = complexity^2 * (1 - lineCoverage)^3 + complexity
@@ -95,11 +106,9 @@ CRAP(m) = complexity^2 * (1 - lineCoverage)^3 + complexity
 Here `lineCoverage` is a fraction: the row's `LineCoverage` percentage divided by
 100.
 
-If no row matches, report that the target is absent from the Cobertura data and
-do not invent a score. Otherwise report only the selected rows, the formula
-inputs, the resulting score, and one concrete coverage or complexity
-recommendation. Do not emit the project-wide hotspot inventory or optional
-reports unless the user separately requests them.
+Report only the selected rows, the formula inputs, the resulting score, and one
+concrete coverage or complexity recommendation. Do not emit the project-wide
+hotspot inventory or optional reports unless the user separately requests them.
 
 ## Existing-data fast path
 

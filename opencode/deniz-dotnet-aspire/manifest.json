@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-dotnet-aspire",
-  "version": "0.7.0",
-  "digest": "sha256:f56b96f6e8d386156f0c33198aa3dee9d98101755e9048553ca8da05195b89d1",
+  "version": "0.7.1",
+  "digest": "sha256:d00ceb4ab86bc2e2e2102aaa5ca2570cad85a69e5c0d1c402541b6746f3719da",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -74,7 +74,7 @@
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-integration-testing/ci-and-tooling.md": {
-      "sha256": "sha256:14e4ee423dd610c2f18c65e49e85387c6025beb0a252b57ae149a3a66948862f",
+      "sha256": "sha256:22f6149a96517ea4efcf0a543800baf99f5f6e7c16b0f0594ee374ad84f1c697",
       "mode": "100644"
     },
     "skills/deniz-dotnet-aspire.aspire-monitoring/SKILL.md": {

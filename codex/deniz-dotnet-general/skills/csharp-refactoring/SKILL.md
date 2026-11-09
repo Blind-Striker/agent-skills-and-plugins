@@ -1,15 +1,17 @@
 ---
 name: csharp-refactoring
-description: Safely refactors C#/.NET code without changing behavior. USE FOR
+description: "Safely refactors C#/.NET code without changing behavior. USE FOR
   any request to refactor, rename, move, extract, inline, merge, consolidate,
-  deduplicate, split, or modernize C# code, including partial/generated
-  declarations, wrappers, public APIs, serialization/reflection/configuration
-  names, friend assemblies, conditional compilation, and multi-targeted
-  projects. Also use when a request calls a feature, bug fix, package/framework
-  upgrade, or public nullability change a refactor and the behavior-changing
-  part must be separated or declined. DO NOT USE FOR ordinary feature or bug
-  fixes not presented as refactoring; standalone upgrades after
-  reclassification; adding tests; or formatting-only work.
+  deduplicate, split, or modernize C# code, even a small extract, inline, or
+  rename, or merging near-identical types; green builds miss drift in #if
+  branches, generated partials, and reflection/config names. When a changed
+  member is visible outside the assembly (PublicAPI.*.txt, InternalsVisibleTo,
+  shipped package), also invoke $deniz-dotnet-general:dotnet-breaking-changes;
+  local/private renames do not need it. Also use when a request calls a feature,
+  bug fix, package/framework upgrade, or public nullability change a refactor
+  and the behavior-changing part must be separated or declined. DO NOT USE FOR
+  ordinary feature or bug fixes not presented as refactoring; standalone
+  upgrades after reclassification; adding tests; or formatting-only work."
 license: MIT
 ---
 
@@ -44,7 +46,7 @@ For a whole request that is outside behavior-preserving refactoring:
 | Framework or NuGet version change | **Upgrade.** Do not edit or validate the upgrade as a refactor; it is upgrade work. |
 | New capability, flag, endpoint, tier, or behavior | **Feature.** Do not implement it as a refactor; it is feature work. |
 | Threshold, rate, output, or bug-result change | **Behavior change.** Defer it as bug-fix or behavior-change work; still complete any clearly separable structural operation. |
-| Tighten or loosen a shipped/public nullable annotation | **Source-contract change.** Leave the declaration and API record unchanged unless the user explicitly authorizes that contract change, which is not a refactor. |
+| Tighten or loosen a shipped/public nullable annotation | **Source-contract change.** Leave the declaration and API record unchanged; hand off to the `$deniz-dotnet-general:dotnet-breaking-changes` skill. |
 
 For a mixed request, never stop after classification. Perform the separable structural operation,
 explicitly defer the behavior/contract change, and never state `No files changed.` after completing
@@ -107,7 +109,7 @@ injection, configuration binding, source generators, P/Invoke, or `dynamic`.
 | Boundary | Required decision |
 |---|---|
 | Serialized/configuration name | Preserve the external name with the repository's existing mechanism (for example, `JsonPropertyName`) while migrating C# callers; run a focused round-trip or payload test. |
-| Public nullable annotation | The mandatory classification gate applies: leave it unchanged and report it as a source-contract change. |
+| Public nullable annotation | The mandatory classification gate applies: leave it unchanged and hand off as a source-contract change. |
 | Uncovered reflection or runtime lookup | Do not guess that a compile-clean rename is safe. Preserve the observed name or stop and report the unverified runtime boundary. |
 
 ## Verify proportionally
@@ -156,8 +158,12 @@ Keep the handoff concise and evidence-based:
 
 ## Cross-boundary hazards (only when it touches a boundary)
 
-If — and only if — the change touches a **public** symbol, a **multi-targeted** project, or
-`partial`/generated code, some breaks won't show up as a failing test. Search the repo for the surface
+If — and only if — the change touches a **public** symbol, an **internal** symbol exposed to a friend
+assembly through `InternalsVisibleTo`, a **multi-targeted** project, or `partial`/generated code, some
+breaks won't show up as a failing test. Before invoking `$deniz-dotnet-general:dotnet-breaking-changes`, apply its scope
+exclusions: skip it for local/private renames and for public-member renames in an executable whose
+callers all live in that project. Otherwise invoke it before editing; it owns the compatibility
+decisions, while this skill owns the structural steps. Search the repo for the surface
 that governs the symbol (don't assume): the public-API gate (`PublicAPI.Shipped/Unshipped.txt` for
 PublicApiAnalyzers, and/or `ApiCompat`/`<EnablePackageValidation>` — not interchangeable),
 `<TargetFrameworks>`/`#if` branches, and `InternalsVisibleTo`. Moving a public type to another assembly

@@ -148,31 +148,15 @@ dotnet tool install -g aspire.cli
 dotnet tool update -g aspire.cli
 ```
 
-### Initializing MCP for Claude Code
+### Using the Aspire MCP server
 
-```bash
-# Navigate to your Aspire project
-cd src/MyApp.AppHost
-
-# Initialize MCP configuration (auto-detects Claude Code)
-aspire mcp init
-```
-
-This creates the necessary configuration files for Claude Code to connect to your running Aspire application.
-
-### Running with MCP Enabled
-
-```bash
-# Run your Aspire app with MCP server
-aspire run
-
-# The CLI will output the MCP endpoint URL
-# Claude Code can then connect and query:
-# - Resource states and health status
-# - Real-time console logs
-# - Distributed traces
-# - Available Aspire integrations
-```
+When an Aspire MCP server is connected to the session, use it first to query the running
+application; otherwise use the Aspire CLI against the running AppHost. Never run `aspire mcp init`,
+and never add a project-level MCP server: a host that already registers an `aspire` server would
+get a duplicate, and configuring MCP is an explicit user opt-in. For when and how to configure the
+Aspire MCP server, follow the
+[Skills vs. MCP guidance](../deniz-dotnet-aspire.aspire/SKILL.md#improving-ai-agent-support-aspire-agent-init) of the
+Aspire router.
 
 ### MCP Capabilities
 
@@ -192,4 +176,3 @@ When connected, AI assistants can:
 
 For more details, see:
 - [Aspire MCP Configuration](https://aspire.dev/get-started/configure-mcp/)
-- [Aspire CLI Commands](https://aspire.dev/reference/cli/commands/aspire-mcp-init/)

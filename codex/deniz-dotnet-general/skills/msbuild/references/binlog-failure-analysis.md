@@ -15,6 +15,13 @@ an existing `.binlog`, including when the original checkout is unavailable.
 
 ## Replay a binary log
 
+When a `binlog` MCP server (Microsoft.AITools.BinlogMcp) is connected, query the log through its
+tools first: overview and failure diagnosis, deduplicated errors with the task output of an `Exec`
+or custom-task failure, and what replay cannot give (where a property got its value, why a target
+ran or was skipped, double writes, and the embedded project and import files when no checkout
+exists). Work from the server's own tool list. Otherwise, or when a server call fails, replay the
+log as below; replay is also the cross-check when a server answer and local source disagree.
+
 Choose unused text-log filenames, substitute the supplied binary-log path, and replay it:
 
 ```powershell

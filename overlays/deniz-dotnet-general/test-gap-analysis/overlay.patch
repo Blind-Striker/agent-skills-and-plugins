@@ -1,27 +1,25 @@
 diff --git a/SKILL.md b/SKILL.md
-index 25de7f6..c7ac5a1 100644
+index 9893ffa..bef7f7d 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -1,83 +1,60 @@
+@@ -1,80 +1,61 @@
  ---
  name: test-gap-analysis
  description: >-
--  Pseudo-mutation analysis ONLY: answer whether tests would catch a bug if
--  production code changed, which meaningful changes would still pass, or which
--  caller-visible mutations existing assertions would miss; verify candidates
--  when requested, then optionally close verified gaps. Includes explicit
--  read-only per-test composition for grading. Activate for behavioral blind
--  spots tied to production behavior. Polyglot. DO NOT USE FOR: suite taxonomy,
--  metadata, or distribution reports (test-tagging); .NET line-vs-branch or
--  Cobertura interpretation, arithmetic, plateaus, project-wide coverage gaps,
--  or coverage-backed test/CRAP priorities (coverage-analysis; use native
--  coverage tooling outside .NET); named-target CRAP (crap-score); new suites
--  (code-testing); assertion/smell audits; or mutation tools.
+-  Find caller-visible production changes existing tests would miss through
+-  pseudo-mutation analysis; verify candidates or close gaps only when requested.
+-  Includes read-only per-test composition for grading. Polyglot.
+-  USE FOR: would tests catch a bug, behavioral blind spots, surviving mutations.
+-  DO NOT USE FOR: concrete fix/feature revision proof (test-value-evidence);
+-  suite taxonomy (test-tagging); .NET coverage, Cobertura, plateaus or
+-  coverage-backed priorities (coverage-analysis); named CRAP (crap-score);
+-  new suites (code-testing); assertion/smell audits; mutation tools.
 +  Performs report-only pseudo-mutation analysis of existing tests: find
 +  caller-visible production-code changes that current assertions would not
 +  catch. Use when asked whether a bug or mutation could survive, where tests are
 +  behaviorally blind, or which production outcomes lack protection. Polyglot.
-+  DO NOT USE FOR: writing tests, suite organization or taxonomy, coverage/CRAP
++  DO NOT USE FOR: writing tests, proof that tests catch an identified fix or
++  feature (test-value-evidence), suite organization or taxonomy, coverage/CRAP
 +  interpretation, assertion/smell audits, or running a mutation-testing tool.
  license: MIT
  ---
@@ -98,7 +96,7 @@ index 25de7f6..c7ac5a1 100644
  name a cause only when the command reports it.
  
  Missing runner output limits only claims of empirical mutation survival. It does
-@@ -86,17 +63,17 @@ is still **No coverage**, and an exact expected value derived from the
+@@ -83,17 +64,17 @@ is still **No coverage**, and an exact expected value derived from the
  unmodified implementation is still actionable. State the baseline limitation
  once, then give the static source/assertion conclusion directly instead of
  hedging every row.
@@ -117,7 +115,7 @@ index 25de7f6..c7ac5a1 100644
  
  For each public entry point, map:
  
-@@ -225,27 +202,26 @@ calculate a score.
+@@ -222,27 +203,26 @@ calculate a score.
  |---|---|
  | **Likely killed** | An existing assertion observes the changed outcome |
  | **Candidate survivor (unverified)** | Observable change appears unasserted; not executed |
@@ -148,7 +146,7 @@ index 25de7f6..c7ac5a1 100644
     edit only. Build, discovery, infrastructure, or unrelated failures leave
     the candidate **unverified**, not Killed.
  3. Revert immediately and confirm the clean source/test baseline.
-@@ -254,42 +230,16 @@ requested test addition.
+@@ -251,42 +231,16 @@ requested test addition.
     unobservable mutants.
  
  Never leave mutations in the workspace. Before reporting, reconcile every
@@ -191,7 +189,7 @@ index 25de7f6..c7ac5a1 100644
  
  1. A one-line verdict: **Strong**, **Mixed**, or **Weak**, with the reason.
  2. For a **Strong** suite, one short strengths sentence naming the concrete
-@@ -315,19 +265,16 @@ For focused or small analysis, return:
+@@ -312,19 +266,16 @@ For focused or small analysis, return:
  Do not repeat the table in prose or report discarded mutants, tool chronology,
  or in-flight reasoning.
  
@@ -211,7 +209,7 @@ index 25de7f6..c7ac5a1 100644
    does not prove siblings: allow does not prove deny; read does not prove write;
    null does not prove empty or whitespace when those inputs have different
    caller-visible outcomes. A kill clears only the edit and path that ran.
-@@ -350,10 +297,8 @@ the successful final command.
+@@ -347,10 +298,8 @@ the successful final command.
  - [ ] Original and mutant have different caller-visible observations
  - [ ] Every outcome labeled **Survived** was executed; unexecuted candidates use
        **Candidate survivor (unverified)**

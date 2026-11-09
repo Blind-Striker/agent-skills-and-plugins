@@ -1,23 +1,40 @@
 diff --git a/SKILL.md b/SKILL.md
-index 129f403..230bbba 100644
+index e9d5bdc..fdcf6f9 100644
 --- a/SKILL.md
 +++ b/SKILL.md
-@@ -411,16 +411,43 @@ await _db.Orders
+@@ -409,16 +409,59 @@ await _db.Orders
+         .SetProperty(o => o.UpdatedAt, DateTimeOffset.UtcNow));
+ 
  // ✅ FAST - Single SQL DELETE statement
  await _db.Orders
      .Where(o => o.Status == OrderStatus.Cancelled && o.CreatedAt < cutoffDate)
      .ExecuteDeleteAsync();
  ```
  
- ---
- 
++These calls execute immediately and bypass the change tracker, so check the whole write workflow:
++
++- Loaded entities keep their old values and snapshots. A later change to the same properties through
++  a tracked entity can overwrite the SQL change, even in one sequential request. Use one coherent
++  tracked save, or keep the set-based path free of tracked copies; a transaction alone does not
++  refresh tracked state.
++- Configured concurrency tokens are not checked. When optimistic concurrency is required, keep the
++  token predicate, the token update, and the affected-row check.
++- Each call executes on its own: a later `SaveChanges` neither batches it nor makes it atomic with
++  audit or outbox writes. Use one save unit, or an explicit shared transaction where atomicity is
++  required.
++- Client-side cascades and `SaveChanges`-based hooks do not run; command interceptors still see the
++  SQL. Keep the domain behavior those hooks carry instead of bypassing it to save queries.
++
++---
++
 +## Pattern 6: Compiled Queries on a Hot Path
 +
 +On a path that runs the *same* query shape thousands of times over a reused context, EF Core
-+re-parses the LINQ expression tree and probes its query cache on every call. When the query is
-+already minimal — an indexed lookup or a small projection — and `AsNoTracking` buys nothing, that
-+per-call translation is the remaining cost. Compile once with `EF.CompileQuery` /
-+`EF.CompileAsyncQuery` and reuse the delegate:
++already caches the translation, but it still processes the expression tree and looks up that cache on
++every call. When the query is already minimal — an indexed lookup or a small projection — and
++`AsNoTracking` buys nothing, that per-call work is the remaining cost. `EF.CompileQuery` /
++`EF.CompileAsyncQuery` compile once and reuse a delegate that bypasses the lookup; they do not make
++database I/O cheaper:
 +
 +```csharp
 +private static readonly Func<AppDbContext, int, ProductListItem> GetProduct =
@@ -32,17 +49,16 @@ index 129f403..230bbba 100644
 +The delegate is `static`, so it compiles once, and takes the `DbContext` plus each parameter as
 +arguments. Reach for it on endpoints or loops that execute one query shape at very high frequency; it
 +does nothing for a one-off query, and it is the last thing to try rather than the first — a
-+non-sargable predicate or an N+1 costs far more than translation does.
++non-sargable predicate or an N+1 costs far more than translation does. EF Core 9 does not support
++`EF.Parameter` or `EF.Constant` inside a compiled query.
 +
 +**Verify:** the hot loop's mean time drops with identical results.
 +
-+---
-+
+ ---
+ 
  ## Common Pitfalls
  
  ### 1. Forgetting to Update When NoTracking
  
  ```csharp
  // ❌ Silent failure - entity not tracked
- var customer = await _db.Customers.FindAsync(id);
- customer.Name = "New Name";
