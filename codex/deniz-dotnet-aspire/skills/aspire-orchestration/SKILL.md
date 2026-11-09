@@ -6,19 +6,18 @@ description: '**WORKFLOW SKILL** — Manage Aspire lifecycle in VS Code or the
   "aspire stop", "aspire wait", resource restart, file-lock errors (MSB3491 or
   CS2012), port conflicts, git worktrees, "--isolated", "aspire update --self",
   "aspire update --migrate", "aspire describe --include-hidden", "aspire stop
-  --force", "aspire terminal", integration discovery, default watch, or hot
-  reload. INVOKES: VS Code lifecycle tools first when exposed; Aspire CLI for
-  readiness, inspection, resource operations, isolated worktree starts, and
-  allowed fallbacks. DO NOT USE FOR: deploy/publish/destroy
+  --force", "aspire stop --force --volumes", integration discovery, default
+  watch, or hot reload. INVOKES: VS Code lifecycle tools first when exposed;
+  Aspire CLI for readiness, inspection, resource operations, isolated worktree
+  starts, and allowed fallbacks. DO NOT USE FOR: deploy/publish/destroy
   ($deniz-dotnet-aspire:aspire-deployment), logs/traces/metrics
-  ($deniz-dotnet-aspire:aspire-monitoring), or AppHost code and resource wiring
-  ($deniz-dotnet-aspire:aspireify). FOR SINGLE OPERATIONS: Load the matching
-  editor tool first, then obey the exact-target, worktree-isolation, and
-  stop-result rules.'
+  ($deniz-dotnet-aspire:aspire-monitoring), terminal authoring/attach/tapes
+  ($deniz-dotnet-aspire:aspire-terminals), or AppHost code and resource wiring
+  ($deniz-dotnet-aspire:aspireify).'
 license: MIT
 metadata:
   author: Microsoft
-  version: 0.0.3
+  version: 0.0.5
 ---
 
 # Aspire Orchestration
@@ -50,7 +49,7 @@ Activate when ANY signal is present:
 | Aspire config | `aspire.config.json` in project root | High |
 | Aspire settings | `.aspire/` directory present | High |
 | Generated TS modules | `.aspire/modules/` directory present | High |
-| Service defaults | `Aspire.ServiceDefaults` in project references | Medium |
+| Service defaults | `<IsAspireSharedProject>true` or a `*.ServiceDefaults.csproj` project reference | Medium |
 
 See [detection.md](references/detection.md) for detailed fingerprinting.
 
@@ -127,7 +126,8 @@ its filesystem path first.
 | Task complete | `aspire_apphost_stop` with the exact selected `appHostPath` when available; follow its result matrix | Use an unapproved CLI fallback |
 | Check running AppHosts | `aspire ps` | Manual process inspection |
 | Check resource status | `aspire describe` | `aspire ps --resources` (removed in 13.5) |
-| Remove persistent resources | Confirm data loss and exact AppHost before `aspire stop --force --apphost <filesystem-path>` | Combining `--force` with `--all`, or using it for an ordinary stop |
+| Remove persistent resources | Confirm the exact AppHost and that its persistent resource instances will be removed before `aspire stop --force --apphost <filesystem-path>`; explain that `--force` alone preserves persistent volumes | Combining `--force` with `--all`, or using it for an ordinary stop |
+| Delete Aspire-owned volumes | Aspire CLI 13.6+ only. After explicit approval naming the exact AppHost and accepting that every named volume Aspire created and owns for it is deleted, which can span several databases and caches: `aspire stop --force --volumes --apphost <filesystem-path>` | Adding `--volumes` to routine shutdown, lock recovery, or a single-resource fix without approval for that broader data scope |
 | Working in git worktree | `aspire start --non-interactive --isolated --apphost <filesystem-path>` | `aspire_apphost_start` when it cannot request isolation |
 | Running from AI agent | Load available lifecycle tools first; resolve CLI `--apphost` fallbacks to `<filesystem-path>`; add `--non-interactive` | Assuming interactive terminal |
 | Editing unfamiliar API | `aspire docs search <topic>` then `aspire docs api search <query>` for API reference | Guessing API shape |
@@ -159,7 +159,7 @@ See [safety-guardrails.md](references/safety-guardrails.md) for detailed rules a
 | Show hidden resources (proxies, helpers, migrations) | `aspire describe --include-hidden` |
 | Resource operation | `aspire resource <resource-name> <command>` such as `stop`, `start`, or `rebuild` when exposed |
 | Discover resource commands | `aspire resource <resource-name> --help` |
-| Attach to an experimental resource terminal | Enable `features.terminalCommandsEnabled`, then use `aspire terminal ps` / `aspire terminal attach` |
+| Terminal discovery, attach or tape playback | Invoke `$deniz-dotnet-aspire:aspire-terminals`; lifecycle/readiness remain here |
 | Create new project | `aspire new aspire-starter` |
 | Add Aspire to existing | `aspire init` (then hand off to `$deniz-dotnet-aspire:aspireify` skill for wiring) |
 | Add integration | `aspire add <package>` |
@@ -220,6 +220,7 @@ aspire start --non-interactive --isolated --apphost <filesystem-path>
 | Delete `bin/` / `obj/` to "fix" the lock | Stop the AppHost; deletion may succeed but the next build relocks |
 | `pkill dotnet` or `kill <PID>` to free locks | Use the editor stop tool or exact-target CLI fallback for clean shutdown |
 | Tell the user to "reboot" or "restart your machine" | Stop the AppHost through lifecycle routing |
+| Add `--force` or `--volumes` to release locks | Use an ordinary exact-target stop; lock recovery never needs persistent-resource or volume cleanup |
 
 The same rule applies to any "file in use", "cannot access the file", or
 "another process is using" error during a build of an Aspire-managed resource.
@@ -230,7 +231,8 @@ The same rule applies to any "file in use", "cannot access the file", or
 |----------|----------|
 | AppHost wiring after `aspire init` (scan repo, add resources, ServiceDefaults/OTel) | → `$deniz-dotnet-aspire:aspireify` skill ([`$deniz-dotnet-aspire:aspireify`](../aspireify/SKILL.md)) or project-local `.agents/skills/aspireify/SKILL.md` |
 | Browser logs (`Aspire.Hosting.Browsers` / `WithBrowserLogs()`) and dashboard authoring | → `$deniz-dotnet-aspire:aspireify` skill (code edits) and `$deniz-dotnet-aspire:aspire-monitoring` (discovery) |
-| Custom resource commands, arguments, interactions, or terminals (`WithCommand`, `CommandOptions.Arguments`, `IInteractionService`, `WithTerminal`) | → `$deniz-dotnet-aspire:aspireify` skill |
+| Custom resource commands, arguments, or nonterminal interactions (`WithCommand`, `CommandOptions.Arguments`, `IInteractionService`) | → `$deniz-dotnet-aspire:aspireify` skill |
+| Terminal commands, prompts, dock/headless sessions, REPLs, `WithTerminal`, attach or tapes | → `$deniz-dotnet-aspire:aspire-terminals` skill |
 | Lifecycle hooks (`SubscribeBeforeStart`, `SubscribeAfterResourcesCreated`, BeforeStart pipeline phase) | → `$deniz-dotnet-aspire:aspireify` skill |
 | Endpoint authoring (`WithEndpoint` updates, `ExcludeReferenceEndpoint` flag) | → `$deniz-dotnet-aspire:aspireify` skill |
 | Deploy, publish, pipeline steps, `aspire destroy` | → `$deniz-dotnet-aspire:aspire-deployment` skill |

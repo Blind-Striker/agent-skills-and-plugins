@@ -20,24 +20,24 @@
   "deniz-dotnet-aspire/aspire": {
     "source": "aspire-skills/skills/aspire",
     "files": {
-      "SKILL.md": "d9d92c26825011128543e6b45afaac922e5be8da",
+      "SKILL.md": "0ed48e9d1117196ec8211b1bc3bd48bea18b376e",
       "references/aspire-13-3-breaking-changes.md": "3d3783d03c66ba091b0a4f673fe4d8a1f2e4c2fa",
-      "references/aspire-13-5-breaking-changes.md": "4fc340624d1951a483739052f350f188ddb4dd74"
+      "references/aspire-13-5-breaking-changes.md": "b60f4859dbb05774d5647220f981198dcaf6ebe6"
     }
   },
   "deniz-dotnet-aspire/aspire-deployment": {
     "source": "aspire-skills/skills/aspire-deployment",
     "files": {
-      "SKILL.md": "5c6266ccb07ed7dfdb9ed85f0c1b584fe2a177c0",
+      "SKILL.md": "62e9bddb6cd116124dc19c720cbe9c426fc3b102",
       "references/preflight.md": "0d0a8772361820c14943d3bd7f244af862ffe470"
     }
   },
   "deniz-dotnet-aspire/aspire-init": {
     "source": "aspire-skills/skills/aspire-init",
     "files": {
-      "SKILL.md": "53025f95e0a54682e4f8ba82dc8263105b6b485d",
+      "SKILL.md": "3dbcead3b0dd2c5b787d7b122ece41e989ce7eac",
       "references/init-workflow.md": "2dc71ae3cbb2959a60ec5f1c3542dd2ed8151e28",
-      "references/templates.md": "83bace71a6b586b109857f646db53bb2ae21f45f"
+      "references/templates.md": "fae2c0216fae91f72b60cae08ee9b904c4cb3dcf"
     }
   },
   "deniz-dotnet-aspire/aspire-integration-testing": {
@@ -49,22 +49,22 @@
   "deniz-dotnet-aspire/aspire-monitoring": {
     "source": "aspire-skills/skills/aspire-monitoring",
     "files": {
-      "SKILL.md": "0265bb104b34a6c452152b35feee17b86ac5900a",
+      "SKILL.md": "5ee5225261b94e565c64d1194d3ffaed652b480a",
       "references/diagnostics-bridge.md": "115d77ea6bb2711a4aca05b48bdabdce7ef007cf",
-      "references/monitoring.md": "43a1bd664018f7a189bbccb726c71c826ceb7c2e"
+      "references/monitoring.md": "9194c704587bfab87c16b32b1e9b36143e46f5ac"
     }
   },
   "deniz-dotnet-aspire/aspire-orchestration": {
     "source": "aspire-skills/skills/aspire-orchestration",
     "files": {
-      "SKILL.md": "780390c79a56b590e0b94e6c2da5b1ae831c1162",
-      "references/app-commands.md": "1a95c824119b0f8b65477457ca988967406f6c32"
+      "SKILL.md": "81d5e2f5894e206638b0c4bbe64d6699c58a1b49",
+      "references/app-commands.md": "64c19e184aa9e0edda15e517c13791cc01b6830a"
     }
   },
   "deniz-dotnet-aspire/aspire-project-v2-migration": {
     "source": "aspire-skills/skills/aspire-project-v2-migration",
     "files": {
-      "SKILL.md": "66c71ee6a0d8df8cf741275f61e2bb3776437d16"
+      "SKILL.md": "f2a4706ef35da1f277759fd1bee5ad02eea4351b"
     }
   },
   "deniz-dotnet-aspire/aspire-service-defaults": {
@@ -73,11 +73,20 @@
       "SKILL.md": "524473322418f887ab0850a0ea66dd6b57dbddc0"
     }
   },
+  "deniz-dotnet-aspire/aspire-terminals": {
+    "source": "aspire-skills/skills/aspire-terminals",
+    "files": {
+      "SKILL.md": "4a9ecec7dd98886dda8a8b03601821c311be47ae",
+      "references/automation-and-cli.md": "9ff184eb324a1f1ae2cbb4ba7ff32ff0a8c1c10f"
+    }
+  },
   "deniz-dotnet-aspire/aspireify": {
     "source": "aspire-skills/skills/aspireify",
     "files": {
-      "SKILL.md": "501aa3305c4d62f6b3b58a9982071f02ead71006",
-      "references/typescript-authoring.md": "60b418a73d9d5ce9cb4066f1fe6d3940d68807ef",
+      "SKILL.md": "96ede2a23c175f72c25163623cd4ea93760fee1b",
+      "references/apphost-wiring.md": "5e2dae44def40a1038cfb9948d4834bf784883df",
+      "references/csharp-authoring.md": "1d36af5e7e6d66e9d3b8850dd01d2e71ee52472c",
+      "references/typescript-authoring.md": "dab63352081688f0afc07f9a8f9e3927f2de72e2",
       "references/validation.md": "8dc6f326b890383edad4878488d03962cf277401"
     }
   },

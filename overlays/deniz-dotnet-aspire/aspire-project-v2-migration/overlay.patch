@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 66c71ee..ad6d5ec 100644
+index f2a4706..2b17bed 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -5,17 +5,17 @@ description: >-
@@ -19,9 +19,9 @@ index 66c71ee..ad6d5ec 100644
  license: MIT
  metadata:
    author: Microsoft
-   version: "0.0.3"
+   version: "0.0.5"
  ---
-@@ -242,13 +242,13 @@ Do not disable file-app Native AOT, replace a custom publishing model, or promis
+@@ -246,13 +246,13 @@ Do not disable file-app Native AOT, replace a custom publishing model, or promis
  unfinished watch/hot-reload/partial-run behavior without explicit evidence and
  approval.
  
