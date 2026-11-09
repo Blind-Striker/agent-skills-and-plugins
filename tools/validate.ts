@@ -1045,13 +1045,18 @@ export function validateRepo(root: string): Finding[] {
         return t.codexUser ? undefined : "no Codex skill";
     }
   };
-  /** Links every own fact of one shipped file against the harnesses whose trees ship it. */
+  /**
+   * Links every own fact of one shipped file against the harnesses whose trees ship it. A model fact
+   * naming the item itself (`self`, as in "Part of ns:name") is no dependency and no model-edge: it
+   * only sets `selfNamed`, which keeps a declared self-entry from reading as stale.
+   */
   const linkFacts = (
     rel: string,
     text: string,
     harnesses: readonly Harness[],
     derived: Set<string>,
     optional: Set<string>,
+    self: { plugin: string; name: string; named: boolean },
   ): void => {
     for (const ref of extractRefs(text)) {
       if (!ownNs.has(ref.ns)) {
@@ -1063,6 +1068,10 @@ export function validateRepo(root: string): Finding[] {
           level: "error",
           message: `${rel}: dangling reference ${ref.address} — no built output has that name`,
         });
+        continue;
+      }
+      if (ref.kind === "model" && ref.ns === self.plugin && ref.name === self.name) {
+        self.named = true;
         continue;
       }
       if (ref.kind === "model" && !optional.has(ref.name)) {
@@ -1186,6 +1195,7 @@ export function validateRepo(root: string): Finding[] {
           path === "" ? folder[harness] : `${folder[harness]}/${path}`;
         const derived = new Set<string>();
         const optional = new Set(intent.optional_refs ?? []);
+        const self = { plugin: m.plugin.name, name: outName, named: false };
         const referenceFiles: ReferenceFile[] = [];
         const readSource = files || outType !== "skill" ? harnessSourceReader(m, declared, id) : undefined;
         for (const file of treeMarkdown(
@@ -1197,7 +1207,7 @@ export function validateRepo(root: string): Finding[] {
         )) {
           const reach = file.own ? [primary] : emitting;
           referenceFiles.push({ path: relIn(primary, file.path), text: file.text, harnesses: reach });
-          linkFacts(relIn(primary, file.path), file.text, reach, derived, optional);
+          linkFacts(relIn(primary, file.path), file.text, reach, derived, optional, self);
           if (neutral) {
             // Read by the Claude-tree text checks below as if it sat in the Claude folder.
             harnessOwnFiles.push({
@@ -1215,7 +1225,7 @@ export function validateRepo(root: string): Finding[] {
           for (const file of treeMarkdown(shipped, files, harness, readSource, rewriteMap)) {
             if (file.own) {
               referenceFiles.push({ path: relIn(harness, file.path), text: file.text, harnesses: [harness] });
-              linkFacts(relIn(harness, file.path), file.text, [harness], derived, optional);
+              linkFacts(relIn(harness, file.path), file.text, [harness], derived, optional, self);
               harnessOwnFiles.push({
                 rel: relIn(harness, file.path),
                 text: file.text,
@@ -1235,7 +1245,7 @@ export function validateRepo(root: string): Finding[] {
             try {
               const text = rewriteRefs(readSource(bundled), rewriteMap, "claude");
               referenceFiles.push({ path: relIn("codex", bundled), text, harnesses: ["codex"] });
-              linkFacts(relIn("codex", bundled), text, ["codex"], derived, optional);
+              linkFacts(relIn("codex", bundled), text, ["codex"], derived, optional, self);
             } catch (error) {
               findings.push({
                 level: "error",
@@ -1285,7 +1295,8 @@ export function validateRepo(root: string): Finding[] {
           }
         }
         for (const d of dependsOn) {
-          if (!derived.has(d)) {
+          // A declared self-entry stays legal while the body names itself, and is stale once it does not.
+          if (!derived.has(d) && !(d === outName && self.named)) {
             findings.push({
               level: "error",
               message: `${id}: stale depends_on: ${d} — no model-edge in any tree's shipped body references it`,

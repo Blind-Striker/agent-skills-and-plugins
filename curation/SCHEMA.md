@@ -332,7 +332,9 @@ as its overlay or patch stamps the same document.
 ## Dependencies
 
 `depends_on:`, on an item or an [original-skill declaration](#original_skills), lists output names
-reached by mandatory model-edge facts in the shipped body. Conditional cross-Module facts use
+reached by mandatory model-edge facts in the shipped body. A fact naming the item itself is no edge,
+so the list need not name the item
+([References and linking](../docs/architecture/references-and-linking.md#depends_on-and-audience-reachability)). Conditional cross-Module facts use
 [`optional_refs`](#optional_refs) instead. Author those facts in neutral upstream spelling
 (`namespace:name`), or, for an original-skill target, in the spelling
 [Localization](../docs/architecture/references-and-linking.md#localization) gives it; use

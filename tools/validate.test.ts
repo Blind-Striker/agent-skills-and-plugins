@@ -869,6 +869,57 @@ test("linker: depends_on is enforced in both directions", () => {
   );
 });
 
+test("linker: a skill naming itself is no dependency and no model-edge; its rendering is unchanged", () => {
+  const selfRepo = (invocation: string, dependsOn: string[], body: string): string => {
+    const root = makeRepo();
+    writeFileSync(
+      join(root, "external", "sp", "skills", "alpha", "SKILL.md"),
+      `---\nname: alpha\ndescription: Alpha upstream\n---\n\n${body}\n`,
+    );
+    writeFileSync(
+      join(root, "curation", "deniz-process.yaml"),
+      `${[
+        "plugin:",
+        "  name: deniz-process",
+        "  description: Process skills",
+        "  version: 0.1.0",
+        "items:",
+        "  - source: sp/skills/alpha",
+        `    invocation: ${invocation}`,
+        ...(dependsOn.length ? [`    depends_on: [${dependsOn.join(", ")}]`] : []),
+      ].join("\n")}\n`,
+    );
+    buildAll(root);
+    return root;
+  };
+  const alphaErrors = (root: string): string[] =>
+    validateRepo(root)
+      .filter((f) => f.level === "error" && f.message.includes("alpha"))
+      .map((f) => f.message);
+
+  // A manual item may name itself: the self-fact is neither undeclared nor an unreachable model-edge.
+  const manual = selfRepo("manual", [], "Part of superpowers:alpha.");
+  assert.deepEqual(alphaErrors(manual), []);
+  assert.match(
+    readFileSync(join(manual, "plugins", "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    /Part of deniz-process:alpha\./,
+  );
+  assert.match(
+    readFileSync(opencodeIdPath(manual, "deniz-process", "skill", "alpha", "SKILL.md"), "utf8"),
+    /Part of deniz-process\.alpha\./,
+  );
+  assert.match(
+    readFileSync(codexPluginPath(manual, "deniz-process", "skills", "alpha", "SKILL.md"), "utf8"),
+    /Part of \$deniz-process:alpha\./,
+  );
+
+  // A declared self-entry stays legal while the body names itself, and is stale once it does not.
+  assert.deepEqual(alphaErrors(selfRepo("both", ["alpha"], "Part of superpowers:alpha.")), []);
+  assert.ok(
+    alphaErrors(selfRepo("both", ["alpha"], "No self-reference.")).some((m) => m.includes("stale depends_on: alpha")),
+  );
+});
+
 test("linker: a declared original-skill target passes", () => {
   const root = makeRepo();
   writeOwnTargetCase(root, "Load deniz-process:my-own.");
