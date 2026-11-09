@@ -99,7 +99,7 @@ export function collectOriginalSkillProblems(root: string, manifests: CurationMa
       const text = readFileSync(skillFile, "utf8");
       let frontmatter: Record<string, unknown>;
       try {
-        frontmatter = parseDoc(text).frontmatter;
+        frontmatter = parseDoc(text, { strict: true }).frontmatter;
       } catch (error) {
         const reason = error instanceof Error ? error.message : String(error);
         problems.push(`${path}/SKILL.md: frontmatter does not parse — ${reason.trimEnd()}`);

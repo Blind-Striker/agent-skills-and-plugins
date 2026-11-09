@@ -170,7 +170,7 @@ test("malformed frontmatter in a root-level skill is reported as a build stop", 
     readFile: oneFile(
       "SKILL.md",
       "---\nname: root\ndescription: old\n---\nB.\n",
-      "---\nname: root\ndescription: broken: yaml\n---\nB.\n",
+      "---\nname: root\ndescription: [broken, unclosed\n---\nB.\n",
     ),
   });
   assert.ok(lines.some((line) => line.includes("FRONTMATTER NO LONGER PARSES")));
@@ -594,7 +594,7 @@ test("frontmatter that no longer parses is reported, not thrown", () => {
       readFile: oneFile(
         "skills/alpha/SKILL.md",
         "---\nname: alpha\ndescription: fine\n---\nB.\n",
-        "---\nname: alpha\ndescription: broken: unquoted: colons\n---\nB.\n",
+        "---\nname: alpha\ndescription: [broken, unclosed\n---\nB.\n",
       ),
     });
   });
@@ -613,7 +613,7 @@ test("malformed frontmatter in a file-shaped source is reported as a build stop"
     readFile: oneFile(
       "agents/helper.md",
       "---\nname: helper\ndescription: fine\n---\nB.\n",
-      "---\nname: helper\ndescription: broken: unquoted: colons\n---\nB.\n",
+      "---\nname: helper\ndescription: [broken, unclosed\n---\nB.\n",
     ),
   });
   assert.equal(lines.length, 1);
@@ -628,7 +628,7 @@ test("malformed frontmatter in an excluded skill is reported as a global scan bu
     readFile: oneFile(
       "skills/gone/SKILL.md",
       "---\nname: gone\ndescription: fine\n---\nB.\n",
-      "---\nname: gone\ndescription: broken: unquoted: colons\n---\nB.\n",
+      "---\nname: gone\ndescription: [broken, unclosed\n---\nB.\n",
     ),
   });
   assert.equal(lines.length, 1);

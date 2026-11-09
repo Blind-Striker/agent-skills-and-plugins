@@ -69,6 +69,11 @@ address and namespace fallback; its `SKILL.md` remains the component document. U
 metadata is never copied into output, including the machine-path gitdir file a submodule root
 contains. Item-level `omit` continues to own runtime files such as installation-only READMEs.
 
+Upstream frontmatter is read leniently in one case: a top-level plain value that holds `: ` unquoted,
+which strict YAML rejects as a nested mapping, is read again with that value quoted, and the
+emitters write it back as valid YAML ([`parseDoc`](../../tools/lib/frontmatter.ts)). An original
+skill's frontmatter is authored here and stays strict.
+
 Current implementation support is narrower than the design dial: skill-to-command and
 skill-to-agent conversions work, but command-to-skill and agent-to-skill conversions stop in
 preflight. That is a current compiler limit, not a rule that upstream kind should govern curation.
