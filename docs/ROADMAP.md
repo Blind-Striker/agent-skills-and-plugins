@@ -12,7 +12,7 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
 
 - The five current curation manifests pass through one common assembly and emit matching Claude
   Code Plugins, OpenCode Module Bundles, and native Codex Plugins plus both repository marketplaces.
-  Checkout Module versions are Process 0.15.1, General 0.17.1, Akka 0.4.1, Aspire 0.7.0, and
+  Checkout Module versions are Process 0.15.2, General 0.18.0, Akka 0.4.1, Aspire 0.7.1, and
   Coordination 0.1.12. Coordination is unreleased: it holds the new `coordinator` mode,
   `delegating-to-worker-models` and `verified-waves`, both moved out of Process, and the `harness` skill with its bundled .NET
   source ([ADR-0009](adr/0009-coordination-ships-in-its-own-module.md)); `harnesses` narrows
@@ -83,11 +83,20 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   and the per-machine rollout records. This repository keeps Package release records; the existing
   rollout records remain historical evidence. The location of the runbook's real-profile discovery
   method remains an open curator decision: move it there, or keep it here as the method it follows.
-- `dotnet/skills` is reviewed through `1d40f95` (main, 2026-10-09; it has no release-shaped
-  tag); wave W6 is done, and with it every upstream sync wave of the 2026-10-08 review. General
-  takes upstream's consolidated `msbuild` skill as the auto entry for build failures, build
-  performance, and build-file review; it routes to eight kept MSBuild specialists through checked
-  facts, and nine former specialists are excluded as merged into it. `code-testing` succeeds the
+- `dotnet/skills` is reviewed through `96c3d68` (main, 2026-11-06; it has no release-shaped
+  tag); waves W6 and W-D are done, and W6 closed every upstream sync wave of the 2026-10-08
+  review. General takes upstream's consolidated `msbuild` skill as the auto entry for build
+  failures, build performance, and build-file review; it routes to ten kept MSBuild specialists
+  through checked facts, and nine former specialists are excluded as merged into it. W-D added two
+  of those ten, `find-repeated-work-within-one-build` and `eliminate-redundant-restores`, and took
+  `troubleshoot-binlog-mcp` as a `manual` repair for a binlog MCP server that will not start.
+  `msbuild` keeps its own description, which leaves every project-file edit and custom-target
+  repairs to the specialists. W-D also took `dotnet-breaking-changes` as `auto`, the compatibility
+  partner that `csharp-refactoring` now hands public-contract decisions to through checked facts,
+  `test-value-evidence` as `auto` beside `test-gap-analysis`, and `process-api-net11` as `auto`.
+  `coverage-analysis` reads upstream's json-v1 extractor output for a targeted CRAP score, and the
+  EF Core passages that `efcore-patterns` and `database-performance` imported follow upstream's
+  corrections. `code-testing` succeeds the
   `code-testing-agent` alias as a `manual` ceremony that writes and strengthens tests only: it runs
   its pipeline inline, writes TUnit-first, and hands a repair or flaky-test request to Process's
   `systematic-debugging`, so General now requires the Process Module as well as Aspire.
@@ -527,13 +536,16 @@ skill.
   refuses an incomplete Selection and names each missing Module, and the automation would serve
   only the OpenCode installer. Reopen when someone other than the curator installs the estate, or
   when the Module count makes hand Selection error-prone.
-- **MCP servers:** this repository ships none, in any harness. dotnet/skills registers its BinlogMcp
-  server at its own plugin level, as an auto-downloaded prerelease, and that registration does not
-  travel with curated items; OpenCode would also need an installer change to own an `opencode.json`
-  fragment. The `msbuild` skill reads binlogs through text-log replay, and a kept specialist that
-  offers the MCP server as its first workflow falls back to replay where no server is configured.
-  A user who installs the server separately gets it wherever a body offers it.
-- **.NET 11 skills:** `system-text-json-net11` and `migrate-dotnet10-to-dotnet11` stay excluded
+- **MCP servers:** this repository ships and registers none, in any harness. dotnet/skills
+  registers its BinlogMcp server at its own plugin level, as an auto-downloaded prerelease, and that
+  registration does not travel with curated items; OpenCode would also need an installer change to
+  own an `opencode.json` fragment. The curator's estate registers its servers at user level on each
+  harness, `binlog` among them. Bodies use a connected server first: the `msbuild` skill queries a
+  binlog through it, and the kept specialists that lead with it do the same. Each falls back to
+  text-log replay where no server is connected or it fails to start, which still happens outside
+  the estate and when a repository's SDK or NuGet settings block the server's `dotnet dnx` launch.
+- **.NET 11 skills:** General takes `process-api-net11` as `auto`, curator's call.
+  `system-text-json-net11` and `migrate-dotnet10-to-dotnet11` stay excluded
   as preview-era content until .NET 11 reaches general availability; revisit both then. A taken
   migration would be `manual`, and `system-text-json-net11` would need its dotnet-install block
   and its unconditional "not done until the program runs" mandate removed.

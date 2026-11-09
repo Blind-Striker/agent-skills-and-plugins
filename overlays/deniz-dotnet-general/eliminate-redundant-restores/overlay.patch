@@ -1,0 +1,36 @@
+diff --git a/SKILL.md b/SKILL.md
+index 41b18f1..90f6e6c 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -1,11 +1,11 @@
+ ---
+ name: eliminate-redundant-restores
+-description: "Remove repeated NuGet restores from multi-step .NET builds safely. USE FOR: build/test/publish steps that each restore, Directory.Build.rsp with -restore, safe restore suppression, NETSDK1004/NETSDK1047 after --no-restore. DO NOT USE FOR: slow first restore, only one restore, version or lock errors, unranked build slowness (use build-perf-baseline)."
++description: "Remove repeated NuGet restores from multi-step .NET builds safely. USE FOR: build/test/publish steps that each restore, Directory.Build.rsp with -restore, safe restore suppression, NETSDK1004/NETSDK1047 after --no-restore. DO NOT USE FOR: slow first restore, only one restore, version or lock errors, unranked build slowness (use msbuild)."
+ license: MIT
+ ---
+ 
+ # Eliminate Redundant Restores
+ 
+ A no-op restore still evaluates every project and checks restore state, so each extra restore in a multi-step build costs seconds to tens of seconds in a large repo. The cure is easy to get wrong: `--no-restore` on a step that no earlier restore actually covered turns a slow build into a failed one. This skill finds which invocations restore, proves which are already covered, and changes only those.
+ 
+ ## When to Use
+@@ -16,17 +16,17 @@ A no-op restore still evaluates every project and checks restore state, so each
+ - Someone asks where `--no-restore` or `-restore:false` can safely be added
+ - `NETSDK1004` or `NETSDK1047` appeared after `--no-restore` was added
+ 
+ ## When Not to Use
+ 
+ - The first restore is slow (feed latency, missing package cache): that is caching, not redundancy
+ - There is only one restore across all invocations: nothing to deduplicate
+ - Restore errors about versions, lock files or auditing: fix the restore itself
+-- Unranked "why is my build slow": start with `build-perf-baseline`, then `build-perf-diagnostics`
++- Unranked "why is my build slow": use the build-performance route of the `dotnet:msbuild` skill, which starts from a baseline
+ 
+ ## Inputs
+ 
+ Discover repository inputs in the working directory; do not ask the user for paths.
+ 
+ - CI definitions (`*.yml`, `.github/workflows`, `azure-pipelines*.yml`, `Jenkinsfile`) and build scripts (`build.cmd`, `build.sh`, `build.ps1`, `eng/`)
+ - `Directory.Build.rsp`, `Directory.Build.props`/`.targets`, `NuGet.config`
+ - Auto-loaded `MSBuild.rsp` beside the active MSBuild executable, or response files passed explicitly with `@file`. A repository-local `MSBuild.rsp` is not auto-loaded

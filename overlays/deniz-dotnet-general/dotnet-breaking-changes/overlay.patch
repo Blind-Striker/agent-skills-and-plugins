@@ -1,0 +1,37 @@
+diff --git a/SKILL.md b/SKILL.md
+index ee31f49..dec6ed4 100644
+--- a/SKILL.md
++++ b/SKILL.md
+@@ -6,30 +6,29 @@ description: >
+   generated (.g.cs) partials. Green builds miss silent breaks from optional parameters, parameter
+   names, sealing, const values, nullability, and #if.
+   USE FOR: "without breaking existing callers"; adding a public method, overload, optional
+   parameter, or interface member to a shipped library; renaming a public method or an internal
+   helper a friend assembly uses; consolidating duplicated logic; changing a signature,
+   nullability, default, or attribute; adding a target framework; RS0016/RS0017 or ApiCompat errors;
+   "is this PR breaking?". For a rename, extract, or merge, also invoke csharp-refactoring.
+   DO NOT USE FOR: an executable whose callers all live in one project; renaming a local variable
+-  or private member, even in a shipped library; formatting; framework/SDK/NuGet upgrades
+-  (use dotnet-upgrade).
++  or private member, even in a shipped library; formatting; framework/SDK/NuGet upgrades.
+ license: MIT
+ ---
+ 
+ # .NET breaking changes: the contract is wider than the file
+ 
+ When you edit .NET code, the observable contract is usually **larger than the snippet in front of you**.
+ A change that compiles and keeps tests green can still break a downstream consumer, another target
+ framework, a friend assembly, or regenerate away on the next build. This applies to a feature or a bug
+ fix as much as a refactor, and to **additions** — a new public member, overload, or target framework — as
+ much as removals: added surface is a permanent contract obligation, and added behavior on a multi-targeted
+ or partial type must stay correct on every target and survive the next regeneration. (For the
+-behavior-preserving refactoring *process*, use the `csharp-refactoring` skill; this skill is the
++behavior-preserving refactoring *process*, use the `dotnet:csharp-refactoring` skill; this skill is the
+ compatibility knowledge it — and any other change — taps into.)
+ 
+ ## Inspect first — find which surfaces this repo actually has
+ 
+ The most valuable move is to **look before you leap**: find which hidden surfaces exist here, then check
+ only those. Don't recite these or assume — the markers present dictate the plan; markers absent tell you a
+ surface is not in play.
+ 

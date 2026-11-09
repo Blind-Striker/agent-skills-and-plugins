@@ -1,0 +1,6 @@
+interface:
+  display_name: "Troubleshoot Binlog MCP"
+  short_description: "Diagnose binlog MCP server startup failures."
+  default_prompt: "Use $deniz-dotnet-general:troubleshoot-binlog-mcp for this task."
+policy:
+  allow_implicit_invocation: false

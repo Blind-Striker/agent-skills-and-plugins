@@ -198,6 +198,10 @@ db.Orders.Where(o => o.Id > lastSeenId).OrderBy(o => o.Id).Take(pageSize);
 ```
 
 Order by a unique, stable, indexed key, adding tie-breakers when the sort column is not unique.
+A composite cursor needs a lexicographic predicate, not independent bounds on each key: a descending
+`(CreatedAt, Id)` page continues with `CreatedAt < lastDate || (CreatedAt == lastDate && Id < lastId)`.
+Keep every ordering key with its direction, and add a secondary key with `ThenBy`, because a second
+`OrderBy` replaces the first.
 Keyset pages by the last key rather than a page number, so it changes the method's inputs; when a
 fixed signature rules out an in-place switch, still flag the deep-offset scan and recommend keyset.
 
@@ -209,30 +213,37 @@ fixed signature rules out an in-place switch, still flag the deep-offset scan an
 
 An index can only be used when the indexed column appears **bare** on one side of the comparison.
 Wrapping it in a function or arithmetic — `CreatedAt.Year == y`, `ToLower(Name) == n`,
-`Price * 1.1 > x`, or a leading-wildcard `LIKE '%foo'` — forces a per-row computation the index
-cannot satisfy, so the query **scans the whole table even though the index exists**. Adding another
-index changes nothing. Rewrite the predicate so the column stays bare, usually as a half-open range:
+`Price * 1.1 > x`, or a leading-wildcard `LIKE '%foo'` — forces a per-row computation that an
+ordinary column index cannot satisfy, so the query usually **cannot seek even though the index
+exists**, and another ordinary index does not repair the expression. Do not assert a full-table scan
+from the LINQ alone: provider translations, computed or expression indexes, and other predicates can
+change the plan. Rewrite the predicate so the column stays bare, usually as a half-open range:
 
 ```csharp
-// Non-sargable: a function is computed for every row → full scan
+// Non-sargable: a year is computed for every row instead of comparing the indexed date
 db.Logs.Where(l => l.CreatedAt.Year == year);
 
-// Sargable: bare column compared to constants → index seek
+// Sargable: a bare-column range an ordinary date index can seek
 var start = new DateTime(year, 1, 1);
 db.Logs.Where(l => l.CreatedAt >= start && l.CreatedAt < start.AddYears(1));
 ```
 
 The same rule covers several common shapes:
 
-- **Case-insensitive text** — compare a stored normalized column instead of `ToLower(...)`/`ToUpper(...)`.
+- **Case-insensitive text** — compare a stored normalized column, or use a compatible column
+  collation, instead of `ToLower(...)`/`ToUpper(...)`. Relational providers generally do not
+  translate the `StringComparison` overloads, and current EF Core throws for such a predicate
+  rather than filtering on the client.
 - **Computed expressions** — compare against the precomputed constant, not `column * k > x`.
 - **Converting the column to another type** — a predicate over `column.ToString()` applies a
-  function to every row and often cannot be translated to SQL at all, forcing client-side evaluation
-  that pulls the whole table into memory. Filter on the typed column with a real comparison or range.
-- **Substring search** — `name.Contains(term)` becomes an unanchored `LIKE '%term%'` that cannot
-  seek and scans the table; a trailing wildcard (`name.StartsWith(term)` → `'term%'`) can seek.
-  Anchoring changes which rows match, so confirm the behaviour first, and put real substring or fuzzy
-  search behind a full-text index on large tables.
+  function to every row and may not translate to SQL at all; current EF Core then reports a
+  translation failure rather than silently evaluating it on the client. Filter on the typed column
+  with a real comparison or range.
+- **Substring search** — `name.Contains(term)` becomes an unanchored `LIKE '%term%'` that an
+  ordinary B-tree index cannot seek; a trailing wildcard (`name.StartsWith(term)` → `'term%'`) can.
+  Neither prefix matching nor token-based full-text search is a drop-in replacement for arbitrary
+  substring matching: keep the required search mode or state the change, and on large tables
+  consider a provider-appropriate substring index or search design.
 
 This is a SQL-level rule, not an EF Core one: the same predicate written in Dapper scans for the same
 reason.

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.15.1",
-  "digest": "sha256:fc119da4210bc355db0cc2a6d78a78f77ff2411f41365c07b4e0855658d8e6fd",
+  "version": "0.15.2",
+  "digest": "sha256:d7516b2289e1d5399c4cd2d44aebdf0376691d95eef2ebcab89ba33c4a749b53",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -46,7 +46,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/dotnet.md": {
-      "sha256": "sha256:c4548586fd20f02fd994d34751f7357b279f75e8277d3e0401b93e6ec188ceca",
+      "sha256": "sha256:e92286869ba164292d0d661122aa1c99346e005b3da1b2f7dea3e16a8d8c8fab",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {

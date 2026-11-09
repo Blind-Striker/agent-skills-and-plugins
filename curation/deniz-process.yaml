@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.15.1
+  version: 0.15.2
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -558,6 +558,7 @@ items:
       - detect-static-dependencies
       - directory-build-organization
       - dotnet-aot-compat
+      - dotnet-breaking-changes
       - dotnet-devcert-trust
       - dotnet-local-tools
       - dotnet-pinvoke
@@ -568,7 +569,9 @@ items:
       - dotnet-webapi
       - dump-collect
       - efcore-patterns
+      - eliminate-redundant-restores
       - filter-syntax
+      - find-repeated-work-within-one-build
       - generate-testability-wrappers
       - harness
       - ilspy-decompile
@@ -586,6 +589,7 @@ items:
       - package-management
       - platform-detection
       - playwright-blazor-testing
+      - process-api-net11
       - property-patterns
       - r3-reactive-extensions
       - run-tests
@@ -596,8 +600,10 @@ items:
       - test-analysis-extensions
       - test-anti-patterns
       - test-gap-analysis
+      - test-value-evidence
       - testcontainers-integration-tests
       - thread-abort-migration
+      - troubleshoot-binlog-mcp
       - vectorization
       - verified-waves
       - writing-tunit-tests
