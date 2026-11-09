@@ -97,7 +97,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   Microsoft.Testing.Platform 2.x has no VSTest bridge, `run-tests` collects coverage as Cobertura,
   and the reference husks stay loadable through facts against upstream's new read-only stance.
   General keeps its report-only, manual-ceremony, TUnit-first, and targeted-CRAP boundaries.
-- `dotnet-skills` is reviewed through v1.7.1 (`84b5bee`); waves W2 and W2b are done. General
+- `dotnet-skills` is reviewed through `5ca5db8`, three commits past v1.7.1 that change only its
+  README and release scripts; waves W2 and W2b are done. General
   takes `aot-trimming` as the `auto` partner of the `manual` `dotnet-aot-compat` ceremony, which
   now carries the warning-approval baseline; `aot-trimming` also owns turning on `PublishAot` and
   `PublishTrimmed` in an app, new or existing. General also takes `cscheck` and
@@ -125,7 +126,8 @@ It shrinks as work lands and is not a chronology. Current mechanics live in
   harness tree, so `aspireify` and `aspire-orchestration` shorten their rendered descriptions
   instead of Codex truncating them.
 - `superpowers` is reviewed through v7.0.0 (`bb92a77`, released 2026-10-09) and `asd-ste100`
-  through `32511c6`; wave W4 is done. v7 rebuilt `brainstorming`, which first flowed pristine under
+  through `d48bfca`; wave W4 is done. `asd-ste100`'s later linter fixes flow unpatched, and its
+  own Claude plugin packaging (`.claude-plugin/`) is omitted. v7 rebuilt `brainstorming`, which first flowed pristine under
   a description override; an autonomy audit since patched its body so a small change the request
   already names is built without a second approval, and recon in the user's own project is done
   rather than offered. The same audit removed routine stops from the finish, worktree, review-taking,
