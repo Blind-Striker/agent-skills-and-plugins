@@ -21,6 +21,19 @@ test("parseDoc without frontmatter returns empty object", () => {
   assert.equal(doc.body, "Just body");
 });
 
+test("parseDoc reads an upstream value holding an unquoted ': ' as a string, and serializeDoc quotes it", () => {
+  const text =
+    "---\nname: factory\ndescription: Shared language for a factory: the tasks it runs.\ndisable-model-invocation: true\n---\n\nBody\n";
+  const doc = parseDoc(text);
+  assert.deepEqual(doc.frontmatter, {
+    name: "factory",
+    description: "Shared language for a factory: the tasks it runs.",
+    "disable-model-invocation": true,
+  });
+  assert.deepEqual(parseDoc(serializeDoc(doc)).frontmatter, doc.frontmatter);
+  assert.throws(() => parseDoc(text, { strict: true }), /Nested mappings/);
+});
+
 test("serializeDoc round-trips", () => {
   const out = serializeDoc({ frontmatter: { name: "x", description: "d" }, body: "B\n" });
   assert.equal(out, "---\nname: x\ndescription: d\n---\n\nB\n");
