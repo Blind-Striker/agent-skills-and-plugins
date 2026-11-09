@@ -19,25 +19,25 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.14.4
+  version: 0.15.0
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
     invocation: both # curator's call: reachable both ways — typed by hand, and a
     # skill-driven session may open the ceremony itself (using-superpowers routes "build X" here);
-    # a project's exit invokes writing-plans (taken). Measured before flipping: the only
-    # jump-pressure was the upstream description (overridden below); the v7 body carries no
-    # "You MUST" of its own.
+    # the exit after an approved design doc invokes writing-plans (taken), whose patch sizes that
+    # work again. Measured before flipping, against the v7.0.0 body: the only jump-pressure was the
+    # upstream description (overridden below). v7.0.2's body has its own "you must, in order" list
+    # (approaches, design doc, approval, writing-plans); the description below still scopes when the
+    # skill fires, so `both` stays.
     # v7 rebuilt the body around drawing out intent first and sizing the work after, which fits the
-    # no-heavy-ceremony-for-small-asks taste better than v6 did. It was first taken pristine, so an
-    # upstream tune cost no rebase; that call is reversed, curator's call, for two stops the body
-    # added to goal-driven runs. A small change the request already names is stated and built, not
-    # held for approval: the gate waits only when the description adds something the request did not
-    # name, which keeps it the fence against building more than was asked. Recon in the user's own
-    # project is done, not offered, since the gate already says reading and exploring are fine; the
-    # web and the user's files outside the project are still offered first. Each upstream tune now
-    # costs a patch rebase. v7 writes superpowers:writing-plans itself, so no handoff namespacing.
-    body: patch
+    # no-heavy-ceremony-for-small-asks taste better than v6 did. Taken pristine again at v7.0.2,
+    # curator's call, to stay close to upstream: the patch that built a small change the request
+    # named without approval is dropped for upstream's one-message design plus approval, and the
+    # recon hunk is dropped for upstream's "Do recon", which looks into the project, the user's own
+    # files and the web without asking. A small change now gets a short design doc and goes on to
+    # writing-plans, whose patch builds it without a plan. v7 writes superpowers:writing-plans
+    # itself, so no handoff namespacing.
     frontmatter:
       # replaces upstream's coercive trigger prose ("You MUST use this before any creative work");
       # read by a human browsing the / menu and by the model matching triggers — honest, no pressure.
@@ -56,8 +56,10 @@ items:
     # work, or several people's worth, as ask-deniz's heavy ladder and brainstorming's sizing put it,
     # so a change that fits one sitting never automatically opens a plan document. The body now
     # enforces that gate before artifact creation. Work that arrives already sized is not sized
-    # again: an explicit written-plan request (a typed invocation included), or a design the user
-    # approved in brainstorming, whose agreed size the user could have overridden there.
+    # again: an explicit written-plan request (a typed invocation included). Work brainstorming hands
+    # over with an approved design doc is sized again, curator's call: upstream v7.0.2 sends every
+    # approved design doc, the short one for a small change included, to this skill, so a small
+    # change is built from its doc without a plan, and only multi-session work gets one.
     # The handoff distinguishes plan-only delivery from authorized execution: it preserves an
     # approved scope and chosen method instead of asking for the same approval again. Curator's
     # call: a request to build/add/fix ("let's add X") is a request to execute, so the agent goes on
@@ -83,21 +85,27 @@ items:
     # repository's completion checks, still test-first for behavior and root-cause debugging for an
     # unexplained failure. The weight is the agent's judgment; it asks once only when genuinely torn.
     # A resumed plan is never re-sized: the ledger's second line records the executor, so a later
-    # session keeps the chosen workflow instead of downsizing a small remainder. Setup preserves an
-    # already approved current checkout, so loading another skill does not reopen that choice; the
+    # session keeps the chosen workflow instead of downsizing a small remainder; the rule for an
+    # existing ledger sits in references/resuming.md, beside upstream's resume text. Setup preserves
+    # an already approved current checkout, so loading another skill does not reopen that choice; the
     # default branch counts as approved only by an earlier answer or a standing instruction, else one
     # question before the first commit there (upstream's main/master consent, kept without the loop).
+    # That checkout rule sits in references/preflight.md, and Setup opens with a pointer to it.
     # After the four stops, one line puts the repository's own instructions above the skill and the
     # plan, the worker contract's precedence: a stop they add holds and a question they answer is not
     # asked; no auto-loaded body stated that order, and using-superpowers, which did, is manual.
     # The When-to-Use graph's inline branch reads "chosen or a better fit". In the selected heavy workflow, fix
     # rounds still run the project's whole suite after the covering tests, as the
     # test-driven-development overlay requires, where upstream said a one-line fix needs only the
-    # covering tests: SKILL.md says so, its Example Workflow's fix round shows both runs, the final
-    # fix wave's single fixer gets a report file and the same instruction, the implementer prompt's
-    # fix round runs and reports both, and the re-review prompt checks the whole suite's output as
-    # the evidence. The re-review reports that run as GREEN, RED, or MISSING: a MISSING run keeps the
-    # round open, and a red test goes to New Breakage when the fix caused it, else out of scope. The
+    # covering tests: references/fix-loop.md says so, the final fix wave's single fixer gets a report
+    # file and the same instruction in references/final-review.md, the implementer prompt's fix round
+    # runs and reports both, and the re-review prompt checks the whole suite's output as the evidence.
+    # v7.0.2 moved the fix loop and the final review out of SKILL.md and deleted the Example
+    # Workflow, so its whole-suite fix round went with it. Toward the 20,000-character cut at which
+    # Claude Code re-attaches a skill after compaction, curator's call, the size gate drops its
+    # connective text and keeps every guarded phrase; SKILL.md still ships about 1,200 over.
+    # The re-review reports that run as GREEN, RED, or MISSING: a MISSING run keeps the round open,
+    # and a red test goes to New Breakage when the fix caused it, else out of scope. The
     # final whole-branch review triages the reviewer's "Declined to judge" list as ledgered rulings,
     # as executing-plans does; upstream's SDD never read that list. Before the first dispatch the
     # controller reads the one tool-notes file using-superpowers ships to every tree
@@ -119,7 +127,11 @@ items:
     # or one that already has a ledger, always runs the formal path however little is left, and
     # the ledger's second line records the executor so a resume keeps it. Setup respects an approved
     # current checkout and requests isolation only for a concrete need; the default branch needs an
-    # earlier answer or a standing instruction, else one question before its first commit. The
+    # earlier answer or a standing instruction, else one question before its first commit. That
+    # checkout rule sits in references/checkout.md, which Setup reads first, so SKILL.md stays under
+    # the 20,000-character cut at which Claude Code re-attaches a skill after compaction. v7.0.2
+    # appended "by its absolute path, from the working tree you're executing in" to the four helper
+    # runs, which keep their `bash`, and deleted the Example Workflow. The
     # description and When to Use say inline execution "was chosen", by the user or by the handoff's
     # judgment, since the handoff no longer always asks. After the four stops, the same precedence
     # line as subagent-driven-development: the repository's own instructions win over skill and plan
@@ -160,8 +172,8 @@ items:
     # task-reviewer-prompt.md), has the plan AS the requirements, so a second subagent would read one
     # document twice for the range, in a skill that already warns its final-review fix wave outcosts
     # all its tasks.
-    # code-reviewer.md keeps its name and place: SDD reaches it by relative path from three spots
-    # including a flowchart, and validate now guards that (ADR-0008 path tier).
+    # code-reviewer.md keeps its name and place: SDD reaches it by relative path from
+    # references/final-review.md, and validate guards that (ADR-0008 path tier).
     # Superpowers v7's two reviewer sections are ported into that design, curator's call. "The spec
     # is a vision document" is split: its silence-is-not-permission half sits in the Spec axis and
     # reads only a supplied spec, its grade-by-effect half in Calibration for both axes. The
@@ -173,7 +185,9 @@ items:
     # exist, in SKILL.md and in the template's placeholder; and the coordinator waits for every
     # reviewer before reading or acting on any review, the outcome behind upstream's "foreground",
     # which is a Claude Code mechanism. The scope-creep and spec-quote wording stays ours: a finding
-    # where the spec is silent may cite a reasonable user's expectation.
+    # where the spec is silent may cite a reasonable user's expectation. Dispatch also takes its
+    # fresh-context rule, one sentence for one reviewer or two: Codex's subagent tool forks the
+    # whole transcript by default, which defeats "never your session's history".
     # The description names only the body's mandatory moments (each subagent-driven-development
     # task, a major feature, a merge to main) and the typed range review, where upstream's
     # "completing a task" dispatched a reviewer after every small edit. Its route to
@@ -250,10 +264,6 @@ items:
     frontmatter:
       # merged skill also covers matt's perf-regression ground, so the trigger names it
       description: "Use when encountering any bug, test failure, performance regression, or unexpected behavior, before proposing fixes"
-    omit: # author-facing material shipped alongside the skill (see upstream-repo-layouts.md)
-      - CREATION-LOG.md
-      - test-academic.md
-      - "test-pressure-*.md"
   - source: superpowers/skills/using-superpowers
     invocation: manual # the opt-in "work skill-driven this session" switch — flipped by hand, never a bootstrap hook (ADR-0007)
     # Softened body, curator's call (level ii of three): the "1% chance" coercion block and the Red
@@ -612,6 +622,11 @@ items:
     # fixes before feature work, against the smallest correct change; its dispatch parts are taken
     # already (subagent-driven-development, dispatching-parallel-agents, research), and retro covers
     # its environment track as a skill you start. Re-raise it if it graduates out of in-progress.
+  - source: mattpocock-skills/skills/in-progress/software-factory
+    invocation: manual # upstream's own flag. Taken while still in-progress, curator's call: a glossary
+    # for designing a remote, ticket-triggered agent factory (tasks, triggers, runners, trackers, git
+    # hosts), loaded beside a grilling session, which nothing else here covers. Self-contained: it
+    # links only its own sibling files, and its four vendor surveys are dated lists that age fast
   - source: mattpocock-skills/skills/misc/git-guardrails-claude-code
     exclude: true # installs Claude Code hooks; harness-specific setup with no OpenCode equivalent,
     # and hook installation is deliberately off here (hooks.include stays empty)
@@ -634,10 +649,13 @@ items:
       # here, so the lock stamps upstream's SKILL.md under this override
       description: "Use when facing 2+ independent failures or investigations that can be worked on without shared state or sequential dependencies"
   - source: superpowers/skills/writing-skills
-    invocation: manual # authoring ceremony, opened by hand — its body then reaches the two auto disciplines below
+    invocation: both # curator's call, was manual: upstream ships it model-invocable; this repo's
+    # own guard lives in AGENTS.md, where its test process (subagent pressure scenarios,
+    # RED-GREEN-REFACTOR) waits for the maintainer's agreement
     depends_on: [systematic-debugging, test-driven-development]
-    # One-line patch: the clause sent the reader to codex-tools.md or gemini-tools.md for the
-    # personal-skills path "on those runtimes", but codex-tools.md names no skills path and
+    # One-line patch, re-cut at v7.0.2, where only its context moved: the clause sent the reader to
+    # codex-tools.md or gemini-tools.md for the personal-skills path "on those runtimes", but
+    # codex-tools.md names no skills path and
     # gemini-tools.md is for a harness this estate does not ship (using-superpowers omits it). The
     # clause named nothing but those two links; the runtime paths it wrapped stay, because they are
     # the ones our harnesses actually use.

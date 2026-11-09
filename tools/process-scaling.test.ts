@@ -11,7 +11,8 @@ import { scanSubmodule } from "./lib/scan.ts";
 
 const root = join(import.meta.dirname, "..");
 
-function body(name: string): string {
+/** An assembled Markdown file of a curated Process item: its SKILL.md body, or another file it ships. */
+function body(name: string, file = "SKILL.md"): string {
   const manifest = loadManifest(join(root, "curation", "deniz-process.yaml"));
   const components = scanSubmodule(join(root, "external"), "superpowers");
   const item = manifest.items.find(
@@ -22,7 +23,7 @@ function body(name: string): string {
   try {
     const assembled = assembleItem(root, staging, manifest, item, components);
     assert.ok(assembled, `${name} must be taken`);
-    return parseDoc(readFileSync(join(assembled.dir, "SKILL.md"), "utf8")).body;
+    return parseDoc(readFileSync(join(assembled.dir, ...file.split("/")), "utf8")).body;
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
@@ -68,15 +69,22 @@ test("SDD gates per-task orchestration without weakening its selected heavy work
   assert.match(gate, /single final review/);
   assert.match(gate, /do not create a plan, ledger, or child/);
   assert.ok(text.indexOf("## Size before orchestration") < text.indexOf("## The Process"));
-  assert.match(section(text, "The Task Loop"), /even a one-line fix runs the whole suite/);
+  // v7.0.2 moved the fix loop out of SKILL.md; the whole-suite rule moved with it.
+  assert.match(
+    body("subagent-driven-development", "references/fix-loop.md").replace(/\s+/g, " "),
+    /even a one-line fix runs the whole suite/,
+  );
 });
 
 test("selected SDD honors an already approved current checkout", () => {
+  // Setup points at the checkout rule, which lives in references/preflight.md.
   const setup = section(body("subagent-driven-development"), "Setup");
-  assert.match(setup, /approved current checkout/);
-  assert.match(setup, /do not ask again/);
-  assert.match(setup, /isolation is requested/);
+  assert.match(setup, /Settle the checkout first, as \[references\/preflight\.md\]/);
   assert.doesNotMatch(setup, /Ensure the work happens in an isolated workspace/);
+  const checkout = section(body("subagent-driven-development", "references/preflight.md"), "The checkout");
+  assert.match(checkout, /approved current checkout/);
+  assert.match(checkout, /do not ask again/);
+  assert.match(checkout, /isolation is requested/);
 });
 
 test("inline execution does not turn small work or an approved checkout into another ceremony", () => {
@@ -85,10 +93,13 @@ test("inline execution does not turn small work or an approved checkout into ano
   assert.match(gate, /one sitting/);
   assert.match(gate, /do not create another plan or execution workspace/);
   assert.match(gate, /one final review/);
+  // Setup points at the checkout rule, which lives in references/checkout.md.
   const setup = section(text, "Setup");
-  assert.match(setup, /approved current checkout/);
-  assert.match(setup, /do not ask again/);
+  assert.match(setup, /Read \[references\/checkout\.md\]\(references\/checkout\.md\) first/);
   assert.doesNotMatch(setup, /Ensure the work happens in an isolated workspace/);
+  const checkout = body("executing-plans", "references/checkout.md").replace(/\s+/g, " ");
+  assert.match(checkout, /approved current checkout/);
+  assert.match(checkout, /do not ask again/);
 });
 
 test("worktree setup needs an isolation reason and preserves creation consent", () => {
@@ -102,11 +113,14 @@ test("worktree setup needs an isolation reason and preserves creation consent", 
   assert.match(section(text, "Step 0: Detect Existing Isolation"), /ask for consent before creating a worktree/);
 });
 
-test("writing-plans does not re-size work that arrives already sized", () => {
+test("writing-plans does not re-size an explicit plan request, and sizes brainstorming's design doc", () => {
   const gate = section(body("writing-plans"), "Size before ceremony");
   assert.match(gate, /explicitly asks for a written plan \(typing this skill's invocation counts\)/);
-  assert.match(gate, /design document the user approved during brainstorming/);
   assert.match(gate, /do not size that work again/);
+  // Upstream brainstorming sends every approved design doc here, the short one for a small change too.
+  assert.match(gate, /Work that brainstorming hands over with an approved design doc is sized here too/);
+  assert.match(gate, /a change that fits one sitting skips the plan and is built from the doc/);
+  assert.doesNotMatch(gate, /design document the user approved during brainstorming says a plan comes next/);
 });
 
 test("executor choice is judgment, with one question only when genuinely torn", () => {
@@ -146,22 +160,28 @@ test("a resumed plan keeps its formal path and recorded executor", () => {
     section(sdd, "Size before orchestration"),
     /a resumed plan keeps its workflow, however little work is left/,
   );
-  for (const [text, executor] of [
-    [inline, "executing-plans"],
-    [sdd, "subagent-driven-development"],
+  // SDD keeps the existing-ledger rule in references/resuming.md, beside upstream's resume text.
+  const sddResume = body("subagent-driven-development", "references/resuming.md").replace(/\s+/g, " ");
+  for (const [text, resume, executor] of [
+    [inline, section(inline, "Setup"), "executing-plans"],
+    [sdd, sddResume, "subagent-driven-development"],
   ] as const) {
-    const setup = section(text, "Setup");
-    assert.match(setup, new RegExp(`\`Executor: ${executor}\``));
-    assert.match(setup, /existing ledger's `Executor:` line is the workflow this plan runs/);
-    assert.match(setup, /no `Executor:` line keeps the executor that loaded it/);
+    assert.match(section(text, "Setup"), new RegExp(`\`Executor: ${executor}\``));
+    assert.match(resume, /existing ledger's `Executor:` line is the workflow this plan runs/);
+    assert.match(resume, /no `Executor:` line keeps the executor that loaded it/);
   }
+  assert.match(sddResume, /A resumed plan is never re-sized/);
 });
 
 test("the default branch needs an earlier answer or standing preference, else one question", () => {
-  for (const name of ["subagent-driven-development", "executing-plans"]) {
-    const setup = section(body(name), "Setup");
-    assert.match(setup, /default branch \(main\/master\) is approved only by your human partner/, name);
-    assert.match(setup, /standing preference/, name);
-    assert.match(setup, /ask once before the first commit there/, name);
+  // Each executor keeps its checkout rule in a reference file its Setup points at.
+  for (const [name, file] of [
+    ["subagent-driven-development", "references/preflight.md"],
+    ["executing-plans", "references/checkout.md"],
+  ] as const) {
+    const checkout = body(name, file).replace(/\s+/g, " ");
+    assert.match(checkout, /default branch \(main\/master\) is approved only by your human partner/, name);
+    assert.match(checkout, /standing preference/, name);
+    assert.match(checkout, /ask once before the first commit there/, name);
   }
 });

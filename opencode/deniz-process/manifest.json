@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "module": "deniz-process",
-  "version": "0.14.4",
-  "digest": "sha256:0cadb50912945ce1aaaf6186a53ea06b0c98aa56f5d2bcc0706dc00b9486551f",
+  "version": "0.15.0",
+  "digest": "sha256:dbbab3a029523990f6eb3cabee9ddf580b6db28a44a586cc3e6c3ca9f0c31b3a",
   "requiredModules": [],
   "files": {
     "LICENSE": {
@@ -38,7 +38,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/SKILL.md": {
-      "sha256": "sha256:383fcadb12dc1c3dd8e0847d153e0d70206babb0559742f0cab4bb070bbbe336",
+      "sha256": "sha256:0672da87cb8f6e7ea7fabc32e4bbd7652f058fe54efd6ff2678bfd19b505370d",
       "mode": "100644"
     },
     "skills/deniz-process.ask-deniz/references/coordination.md": {
@@ -50,7 +50,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/SKILL.md": {
-      "sha256": "sha256:378ef88e87d7a32149b6b0bb66300ca2267bf862a795af9a913a1fc4d393385e",
+      "sha256": "sha256:58d47784ac5145869d7ac24665a7762d694da5b1548ac5b24f115fb00bb5c677",
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/builder-check-prompt.md": {
@@ -70,7 +70,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.brainstorming/scripts/start-server.sh": {
-      "sha256": "sha256:a4e5ae84275bcaacd2f84345afeabe59cf7b00ba080e123da7cc1fb226f12847",
+      "sha256": "sha256:314dd68dc00e8dd94c7491aca8a5f004c7fddffc161e2b07482f29f48d13659a",
       "mode": "100755"
     },
     "skills/deniz-process.brainstorming/scripts/stop-server.sh": {
@@ -86,7 +86,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.codebase-design/DESIGN-IT-TWICE.md": {
-      "sha256": "sha256:52b52e75655a27aea59c6966b410bac82448968ad46ef1ebb9f07c274e3ae010",
+      "sha256": "sha256:c222ab5a82e0405672eb9062d62496139a08828e45d07fc5f18e4952c10fac1a",
       "mode": "100644"
     },
     "skills/deniz-process.codebase-design/SKILL.md": {
@@ -94,7 +94,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/SKILL.md": {
-      "sha256": "sha256:f531d6a7216f1870b90fa073923dd68dace5989110eb8c689b92f894a64aa510",
+      "sha256": "sha256:5f0ddc024e9ef1fcf4dc5d2a765a4c8de9e96f4eb788e85b4fcbbf1cfa43f9d9",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/prompts/analyst-common.md": {
@@ -146,7 +146,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/references/github-issues.md": {
-      "sha256": "sha256:a656f5e15b21c7a200c39c038f5ede74b9d6ea3ceeb90f39af7e930c8d8424d6",
+      "sha256": "sha256:d26ef9197b4a6ae5159ae6d11abd162bcc624d95fc7ccf508e07b68f916a1b19",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/references/redaction-policy.md": {
@@ -166,7 +166,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/templates/issue.md": {
-      "sha256": "sha256:8f28dbfe60602f77dda76d81815cb4e2dce7d3e2a93348890e1581be8310ac1f",
+      "sha256": "sha256:afd21779e5de5bc5adfe2f5a50a04e44ab8d50d9ad0f829243de248d6f023eed",
       "mode": "100644"
     },
     "skills/deniz-process.diagnosing-superpowers/templates/report.md": {
@@ -190,15 +190,19 @@
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/SKILL.md": {
-      "sha256": "sha256:387cdb905345a83373bf61a2f5fd7ebe2685d4be2e95e16b161a7e377693569a",
+      "sha256": "sha256:3e716e671e3b4fc361c3a39bfa39223bc1c20bcd99e5e53d73aaf6759d49354c",
+      "mode": "100644"
+    },
+    "skills/deniz-process.executing-plans/references/checkout.md": {
+      "sha256": "sha256:59b7793e0f0ccdf21c513c8a92b76188c41385d58b3f2b8ac519fb61cdc95868",
       "mode": "100644"
     },
     "skills/deniz-process.executing-plans/scripts/task-done": {
-      "sha256": "sha256:ce051f56dde27853b987ccc611342595ba412dc0e277203fb6e45e17089c5946",
+      "sha256": "sha256:e796b53cc2ae1c58e22aacc699204c6d6b11f467504276409d74aee86c4ac1a2",
       "mode": "100755"
     },
     "skills/deniz-process.executing-plans/scripts/task-start": {
-      "sha256": "sha256:30d95f36339daadbe2fb4680e6085187a0d1ef8a09f2732925f202835cd36ac4",
+      "sha256": "sha256:9e3c5cc049f00c81157a0d92ed7ecc0b2dcfa3f670ac51ac2859bf804366877e",
       "mode": "100755"
     },
     "skills/deniz-process.finishing-a-development-branch/SKILL.md": {
@@ -214,7 +218,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.grilling/SKILL.md": {
-      "sha256": "sha256:a46cd56cbd97e1f61ce1cf3ae332e1dd14ab70d149735f3890db00085850734c",
+      "sha256": "sha256:a25cf98ddc7ed391729a7bf4414dab4f5c68b5f3c5f0a95b9eb320b69e66e79a",
       "mode": "100644"
     },
     "skills/deniz-process.handoff/SKILL.md": {
@@ -222,7 +226,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.implement-spec/SKILL.md": {
-      "sha256": "sha256:2a82ff04015a34fb15a3246992c891efd73a9a13823effd06f8a019839825951",
+      "sha256": "sha256:e7cfcfce6e3c436d371ef710dfebdbb0bf55445696ddb84a791404ac19ae892b",
       "mode": "100644"
     },
     "skills/deniz-process.implement/SKILL.md": {
@@ -234,7 +238,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.improve-codebase-architecture/SKILL.md": {
-      "sha256": "sha256:645d533db057442ecb067de2ee436ca85af044d5dd046e5e23ba1780f10808f2",
+      "sha256": "sha256:d81bcf1aa136e914aac39b2f789395dad75435969845cccf6bcbdb2702e2bdd7",
       "mode": "100644"
     },
     "skills/deniz-process.ponytail-audit/SKILL.md": {
@@ -278,7 +282,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/SKILL.md": {
-      "sha256": "sha256:498cdd2458e80acbfbd1e8dc8d5a58cb60bddcf040f44836305c481ebd772088",
+      "sha256": "sha256:1be5ce1dfa89964e0641ab9e2a250f175f2fdf6ac054262ddf734f931182e250",
       "mode": "100644"
     },
     "skills/deniz-process.requesting-code-review/code-reviewer.md": {
@@ -286,7 +290,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.research/SKILL.md": {
-      "sha256": "sha256:d07191e03963bba98da1b065cee9f198d12053371f2e32191366dfea9c6b52f5",
+      "sha256": "sha256:82f92a184513a96526c5dae0981e7cfe7b4df5f36e3ee5f738aea140e5b043ff",
       "mode": "100644"
     },
     "skills/deniz-process.retro/SKILL.md": {
@@ -294,7 +298,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/SKILL.md": {
-      "sha256": "sha256:731f3b2856052479113e9c3a7b5d2a830aec4ca4748c54ffcea18154336cf0e7",
+      "sha256": "sha256:c730c48eb9287919f1ac9d15383e39f454a6a3d5e8e15de8d1d330e8dc4983b3",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/domain.md": {
@@ -302,11 +306,11 @@
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/issue-tracker-github.md": {
-      "sha256": "sha256:368a0ca1299b9d28614c3a870bee2b44ae97794504982dc115990ce82028a41c",
+      "sha256": "sha256:18ac74262179298af4717e93fc3cfd32dd3d95076cc64eae4ddee9c8c7f4ee3b",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/issue-tracker-gitlab.md": {
-      "sha256": "sha256:52e678ed0da3651c7181d6a62081763aaf2eacd1056b23fb394d5f27f7883a6d",
+      "sha256": "sha256:bac6ca2880fc95b6747b3dcdc0d9367bcf2e30f6bca2bd4685dcf1af902765bf",
       "mode": "100644"
     },
     "skills/deniz-process.setup-matt-pocock-skills/issue-tracker-local.md": {
@@ -317,8 +321,32 @@
       "sha256": "sha256:ae512af838c78b8750471c42cd2b20fa32319553e61d84c9a23d171b40ce14aa",
       "mode": "100644"
     },
+    "skills/deniz-process.software-factory/EXAMPLE-TASKS.md": {
+      "sha256": "sha256:34bfb01ced8fbbff8185d347df423533d157c29e8d58bf044f8450602f162875",
+      "mode": "100644"
+    },
+    "skills/deniz-process.software-factory/GIT-HOSTS.md": {
+      "sha256": "sha256:f6b453cd0b1601c329dcfbffcb4added077683a4b777c819530ff0a940b1147f",
+      "mode": "100644"
+    },
+    "skills/deniz-process.software-factory/OBSERVABILITY-PLATFORMS.md": {
+      "sha256": "sha256:c3bd68e1bd105ccdda407a7aa909807131a20117bbf510d1ad0cfefffa25cb4c",
+      "mode": "100644"
+    },
+    "skills/deniz-process.software-factory/RUNNERS.md": {
+      "sha256": "sha256:85aacfb9acac67948c1659562d60b52c2a13936faddd24de26c9094b35ff70e7",
+      "mode": "100644"
+    },
+    "skills/deniz-process.software-factory/SKILL.md": {
+      "sha256": "sha256:d8091e539a6c73c4fa743db924533c347cfca4e4bd3ad6462197a7b49d6451f6",
+      "mode": "100644"
+    },
+    "skills/deniz-process.software-factory/TICKET-TRACKERS.md": {
+      "sha256": "sha256:4b68a198d6c1a6d47f9ad7eb1f02cc3e60778a2b1610f8b2ac23f72230d575b2",
+      "mode": "100644"
+    },
     "skills/deniz-process.subagent-driven-development/SKILL.md": {
-      "sha256": "sha256:08d92503a559ab70e61fad9bfa54b2e6c8c0f61ccdcffe56d6221a8cf18e8f0b",
+      "sha256": "sha256:65ad1b5f8f722ab7376fa743366476f137ba72e69fe4241c1a6a21dcc6a05613",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/implementer-prompt.md": {
@@ -326,23 +354,55 @@
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/re-review-prompt.md": {
-      "sha256": "sha256:665e5d55c917734e5d69ff59cc097e329991cb62061f6f90c3345b25d454a91b",
+      "sha256": "sha256:93fcd306fc8c82f336f00e932a19ecb2ffc1c26cf8d55019397dc57ff10b94c0",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/batching.md": {
+      "sha256": "sha256:e8f5533345a8421b4e6bdc71efa9c30394777f909c8c9d080c753b15dd99dc7f",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/cannot-verify.md": {
+      "sha256": "sha256:c82b3114d5d961224ce15614c2086a2eecd7bf1dbed2a819f1dd399816afcee5",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/final-review.md": {
+      "sha256": "sha256:cf11333241d81554f0da6234be2dbdbb6735d9b332b8873641bf4e35e294bae1",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/fix-loop.md": {
+      "sha256": "sha256:de49edb05beaca62fcc193e7cd7585f503291801f151e1e881500e2961be1d1f",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/handling-reports.md": {
+      "sha256": "sha256:63f825d33d6c8a0977e4d53cd51a0a38418ac14d80f42f4313fce12bfbc256f5",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/preflight.md": {
+      "sha256": "sha256:7523c10d0e341ac41d08fe8ebee4b98eb37969e871ac639e9557a9c3e0f5e2ba",
+      "mode": "100644"
+    },
+    "skills/deniz-process.subagent-driven-development/references/resuming.md": {
+      "sha256": "sha256:a8b981ce571c7493b7857fbb65c8d89f31b0ced51c056ff604c35e622ed43ab4",
       "mode": "100644"
     },
     "skills/deniz-process.subagent-driven-development/scripts/review-package": {
-      "sha256": "sha256:f9275175b2276b1d5fdb1bae0bedaadd2a950659b7c6f311ea37ff85e1861b1f",
+      "sha256": "sha256:aed7c6e09fc660417d28898ed975e84651cb9f18f4675141cd475edfb7037f3d",
+      "mode": "100755"
+    },
+    "skills/deniz-process.subagent-driven-development/scripts/sdd-repo": {
+      "sha256": "sha256:6f8256a776968d394bae679572e41ce572fd45c72074b98f9a8eb8b4f160e06f",
       "mode": "100755"
     },
     "skills/deniz-process.subagent-driven-development/scripts/sdd-workspace": {
-      "sha256": "sha256:4fd9770e7a49b6bde488c0e92bac1b3bd01fcbdaf8f06b6c4efbe3a1abd99f86",
+      "sha256": "sha256:de3af5252fa595fc2000ba05cf69e06187d5c8aae9d283cced4c167ad1813061",
       "mode": "100755"
     },
     "skills/deniz-process.subagent-driven-development/scripts/task-brief": {
-      "sha256": "sha256:cc563538e09abf719b34ddf4b2fa7a65cf3b301729039dbfa923cb060f729146",
+      "sha256": "sha256:0f244a12e146393c552ba62069d3eedcc85cb3f76de67b01f4e11219e5ebbcd8",
       "mode": "100755"
     },
     "skills/deniz-process.subagent-driven-development/task-reviewer-prompt.md": {
-      "sha256": "sha256:6b4fb84c1b7d17262c8fc6d14d90dff0b27722e98217e1c06d16155b1001a7bf",
+      "sha256": "sha256:bc1a047aaa7070490db27816a2270016c871a44b9d55b3b12355a770f538f33c",
       "mode": "100644"
     },
     "skills/deniz-process.systematic-debugging/SKILL.md": {
@@ -442,7 +502,7 @@
       "mode": "100644"
     },
     "skills/deniz-process.wayfinder/SKILL.md": {
-      "sha256": "sha256:fe00443b551b23b76d78bd1279d3ae9a2253bd7ebe34f4b694f5ea9dd865d6d9",
+      "sha256": "sha256:d3b2f8d3ce0436c410c5600372e193952b0abaea8817c0b49b16158af9424eaa",
       "mode": "100644"
     },
     "skills/deniz-process.wizard/SKILL.md": {
@@ -462,36 +522,48 @@
       "mode": "100644"
     },
     "skills/deniz-process.writing-plans/SKILL.md": {
-      "sha256": "sha256:65f20156a2592bb625fd086a29c2c1a33eb12292c5bea50a066252f84cca3ae4",
+      "sha256": "sha256:13156a808dbc30391d9c283d9c0c04a3dcd042e70bfa51a35caef02416b1575d",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/SKILL.md": {
-      "sha256": "sha256:3c09e0c6c512f83ac3c189b2dacd9ac35096345e201029bbc95a9ddbc33010f2",
+      "sha256": "sha256:7cfc9a692a09009b0d42d1dccfe39771458946a36c8bbb4ec611c6a8c0c288f2",
       "mode": "100644"
     },
-    "skills/deniz-process.writing-skills/anthropic-best-practices.md": {
-      "sha256": "sha256:217629b356c09c9bd11017c9788e8fc654ca1b32c92d4a51cd490e16dd65e59a",
-      "mode": "100644"
-    },
-    "skills/deniz-process.writing-skills/examples/CLAUDE_MD_TESTING.md": {
+    "skills/deniz-process.writing-skills/references/CLAUDE_MD_TESTING.md": {
       "sha256": "sha256:0b379a3415e185d3c434b3ad283d8aa132f3022c2a4f210f168865b5986bcef0",
       "mode": "100644"
     },
-    "skills/deniz-process.writing-skills/graphviz-conventions.dot": {
+    "skills/deniz-process.writing-skills/references/anthropic-best-practices.md": {
+      "sha256": "sha256:217629b356c09c9bd11017c9788e8fc654ca1b32c92d4a51cd490e16dd65e59a",
+      "mode": "100644"
+    },
+    "skills/deniz-process.writing-skills/references/bulletproofing.md": {
+      "sha256": "sha256:0903fb479c06d265ea8327353603dede2179b539c21604189963d8072785c59f",
+      "mode": "100644"
+    },
+    "skills/deniz-process.writing-skills/references/discovery.md": {
+      "sha256": "sha256:831f4fe6cdd9fe9ebc47c128e20ba50aad020470c1216bb80ffab2ba329319a6",
+      "mode": "100644"
+    },
+    "skills/deniz-process.writing-skills/references/flowcharts.md": {
+      "sha256": "sha256:5114f200658e471d93c31970ac36fe41f85c1171f9c99bb5b8c477126d012283",
+      "mode": "100644"
+    },
+    "skills/deniz-process.writing-skills/references/graphviz-conventions.dot": {
       "sha256": "sha256:e2890a593c91370e384b42f2f67b1a6232c9e69dddea7891a0c1c46d7b20b694",
       "mode": "100644"
     },
-    "skills/deniz-process.writing-skills/persuasion-principles.md": {
+    "skills/deniz-process.writing-skills/references/persuasion-principles.md": {
       "sha256": "sha256:54737d5668b8b0ff0788011f8d33fe8e2b3d046a53e093166c95eecd6d513b82",
+      "mode": "100644"
+    },
+    "skills/deniz-process.writing-skills/references/testing-skills-with-subagents.md": {
+      "sha256": "sha256:658c259a324d5f38e4c753534b25d909965f285ef9f67e49104b6940bf44e72b",
       "mode": "100644"
     },
     "skills/deniz-process.writing-skills/render-graphs.js": {
       "sha256": "sha256:c7f412cc629461c4d10287e668731874c0497707023e3e3f74a5355eb2cee196",
       "mode": "100755"
-    },
-    "skills/deniz-process.writing-skills/testing-skills-with-subagents.md": {
-      "sha256": "sha256:5ec67d349c7bdeea4d5885ec7dc8c6f0eaa8cc5728602f51ee48649046c0946f",
-      "mode": "100644"
     },
     "third_party/asd-ste100/LICENSE": {
       "sha256": "sha256:d3c674e8592076c9021a59b55177adbcba6fd7e1710082becb922522b22ec672",

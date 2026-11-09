@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index fecee97..8d41481 100644
+index ffc9eb8..043a313 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,12 +1,15 @@
@@ -8,7 +8,7 @@ index fecee97..8d41481 100644
  description: Investigate a question against high-trust primary sources and capture the findings as a Markdown file in the repo. Use when the user wants a topic researched, docs or API facts gathered, or reading legwork delegated to a background agent.
  ---
  
- Spin up a **background agent** to do the research, so you keep working while it reads.
+ Spin up a **background agent** to do the research, so you keep working while it reads. Start it with a fresh context window.
  
 +Craft its dispatch the way the superpowers:dispatching-parallel-agents skill teaches: focused
 +scope, self-contained context, and an explicit expected output.

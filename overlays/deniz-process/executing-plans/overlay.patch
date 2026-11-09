@@ -1,5 +1,5 @@
 diff --git a/SKILL.md b/SKILL.md
-index 49077ad..baf4657 100644
+index ea23196..16ad7db 100644
 --- a/SKILL.md
 +++ b/SKILL.md
 @@ -1,15 +1,28 @@
@@ -62,7 +62,7 @@ index 49077ad..baf4657 100644
  it runs well on a mid-tier session model, and the one place the most
  capable model earns its cost is the final review, which this skill
  dispatches separately. Tell your human partner so when they choose inline.
-@@ -102,46 +117,57 @@ digraph process {
+@@ -102,47 +117,51 @@ digraph process {
      "Final whole-branch review (fresh reviewer if you have one)" -> "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger";
      "Re-grade, then: Critical/Important → ONE fix pass, each fix RED→GREEN + green suite; Minor → ledger" -> "Final review clean: delete this plan's workspace";
      "Final review clean: delete this plan's workspace" -> "Use superpowers:finishing-a-development-branch";
@@ -75,15 +75,8 @@ index 49077ad..baf4657 100644
 -superpowers:using-git-worktrees to create one or verify the existing one.
 -Never start implementation on a main/master branch without your human
 -partner's explicit consent.
-+Respect an approved current checkout, including main/master, and do not ask again merely because
-+this skill loaded. Use superpowers:using-git-worktrees only when isolation is requested or a concrete
-+conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
-+approval, and this setup grants no permission to discard existing work.
-+
-+The default branch (main/master) is approved only by your human partner: an earlier answer in this
-+work or a standing preference in their instructions (AGENTS.md, CLAUDE.md, or similar). Without one,
-+ask once before the first commit there, in the same message as any other question you have at
-+start, and keep the answer for the rest of the plan.
++Read [references/checkout.md](references/checkout.md) first: it says which
++checkout this plan runs in.
  
  Conversation memory does not survive compaction. An inline executor that
  loses its place re-implements tasks whose commits already exist — the same
@@ -96,8 +89,9 @@ index 49077ad..baf4657 100644
  and the new one resumes from the same ledger.
  
  - Each plan owns a workspace: at skill start, run
--  `../subagent-driven-development/scripts/sdd-workspace PLAN_FILE` — it
-+  `bash ../subagent-driven-development/scripts/sdd-workspace PLAN_FILE` — it
+-  `../subagent-driven-development/scripts/sdd-workspace PLAN_FILE` by its
++  `bash ../subagent-driven-development/scripts/sdd-workspace PLAN_FILE` by its
+   absolute path, from the working tree you're executing in — it
    prints the plan's git-ignored directory
    (`<repo-root>/.superpowers/sdd/<plan-basename>/`), home to every
    artifact for THIS plan: ledger, briefs, review packages. Another plan's
@@ -127,7 +121,7 @@ index 49077ad..baf4657 100644
  authority the plan argues from, and conflicts inside the plan resolve
  against it. A plan with no reachable spec gets a ledger note saying so —
  rulings made without one are provisional.
-@@ -164,17 +190,17 @@ its brief, not here.
+@@ -165,17 +184,17 @@ its brief, not here.
  ## The Task Loop
  
  Everything you print, and every tool result, stays resident in your
@@ -136,8 +130,9 @@ index 49077ad..baf4657 100644
  
  ### 1. Take the task
  
--- Run this skill's `scripts/task-start PLAN_FILE N`. It prints the brief
-+- Run this skill's `bash scripts/task-start PLAN_FILE N`. It prints the brief
+-- Run this skill's `scripts/task-start PLAN_FILE N` by its absolute path,
++- Run this skill's `bash scripts/task-start PLAN_FILE N` by its absolute path,
+   from the working tree you're executing in. It prints the brief
    path and BASE (the commit the task's range is cut from) in one call.
    Read the brief for every task, including ones you remember from setup:
    what you remember is a summary, the brief has the exact values,
@@ -145,8 +140,7 @@ index 49077ad..baf4657 100644
  - Mark the task's todo in_progress.
  
  Every tool call is a turn that re-reads your whole context. Bookkeeping
- rides along with work — a ledger append in the same call as the commit,
-@@ -216,29 +242,29 @@ in this session — not inferred from the diff looking right:
+@@ -218,29 +237,29 @@ in this session — not inferred from the diff looking right:
  - Every `Expected:` line in the brief was compared against real output.
  - Every deviation from the brief has a `Ruling:` line in the ledger.
  
@@ -157,7 +151,7 @@ index 49077ad..baf4657 100644
  
 -Run this skill's `scripts/task-done PLAN_FILE N BASE -- <test command>`
 +Run this skill's `bash scripts/task-done PLAN_FILE N BASE -- <test command>`
- with the test command the brief names for the whole task. It runs the
+ by its absolute path, from the working tree you're executing in, with the test command the brief names for the whole task. It runs the
  tests, keeps the full output in the workspace, prints the tail, and — only
  if they pass — appends the completion line to the ledger:
  
@@ -170,7 +164,7 @@ index 49077ad..baf4657 100644
  
 -Run `../subagent-driven-development/scripts/review-package PLAN_FILE MERGE_BASE HEAD`
 +Run `bash ../subagent-driven-development/scripts/review-package PLAN_FILE MERGE_BASE HEAD`
- (MERGE_BASE = the commit the branch started from, e.g.
+ by its absolute path, from the working tree you're executing in (MERGE_BASE = the commit the branch started from, e.g.
  `git merge-base main HEAD`) and review from the file it prints.
  
  **With a subagent tool:** dispatch the reviewer on the most capable
@@ -178,37 +172,38 @@ index 49077ad..baf4657 100644
  superpowers:requesting-code-review's
  [code-reviewer.md](../requesting-code-review/code-reviewer.md), with the
  package path, the plan and spec paths, the plan's Review Focus section
-@@ -320,17 +346,17 @@ Use superpowers:finishing-a-development-branch.
- | "The fix is obvious, no need for a failing test first" | The failing test is the only proof the finding was real and is now gone. Without it you have a diff and a hope. |
- | "I'll fix the minors too while I'm in there" | Every minor you fix is a test, a fix, and a suite run your partner did not ask for. Ledger them; your partner decides. |
- 
- ## Example Workflow
- 
- ```
- You: I'm using the executing-plans skill to implement this plan inline.
- 
--[Setup: worktree verified]
-+[Setup: current checkout kept; ledger created with Executor: executing-plans]
- [Read plan once: docs/superpowers/plans/feature-plan.md; spec read]
- [Resolve workspace: sdd-workspace docs/superpowers/plans/feature-plan.md — no ledger inside, fresh start]
- [Pre-flight scan: 2 shared-interface rows, 4 self-consistency rows, clean; written to ledger]
- [Create todos for all tasks]
- 
- Task 1: Hook installation script
- 
- [task-start plan 1 → brief read; BASE a1b2c3d]
+diff --git b/references/checkout.md b/references/checkout.md
+new file mode 100644
+index 0000000..a95b85b
+--- /dev/null
++++ b/references/checkout.md
+@@ -0,0 +1,14 @@
++# The Checkout
++
++Part of superpowers:executing-plans. Read it at skill start, before the
++workspace is created.
++
++Respect an approved current checkout, including main/master, and do not ask again merely because
++this skill loaded. Use superpowers:using-git-worktrees only when isolation is requested or a concrete
++conflict requires it; otherwise retain the current workspace. A new checkout choice still needs
++approval, and this setup grants no permission to discard existing work.
++
++The default branch (main/master) is approved only by your human partner: an earlier answer in this
++work or a standing preference in their instructions (AGENTS.md, CLAUDE.md, or similar). Without one,
++ask once before the first commit there, in the same message as any other question you have at
++start, and keep the answer for the rest of the plan.
 diff --git a/scripts/task-done b/scripts/task-done
-index e5fc6a9..1789126 100644
+index d6400b4..b8cd725 100644
 --- a/scripts/task-done
 +++ b/scripts/task-done
-@@ -17,17 +17,17 @@ fi
- plan=$1
- n=$2
- base=$3
+@@ -20,17 +20,17 @@ base=$3
  shift 4
  sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"
  
- git rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
+ # The repository the workspace and ledger belong to (see sdd-repo); BASE and
+ # HEAD are read there, not in the bare cwd.
+ repo=$("${BASH:-bash}" "$sdd/sdd-repo" --with-commit)
+ git -C "$repo" rev-parse --verify --quiet "$base" >/dev/null || { echo "bad BASE: $base" >&2; exit 2; }
  
 -dir=$("$sdd/sdd-workspace" "$plan")
 +dir=$("${BASH:-bash}" "$sdd/sdd-workspace" "$plan")
@@ -221,22 +216,23 @@ index e5fc6a9..1789126 100644
    case "$a" in
      *[[:space:]\"\;\|\&]*) cmd="$cmd '$a'" ;;
 diff --git a/scripts/task-start b/scripts/task-start
-index fab75b5..25c0541 100644
+index 04f1c65..23680cb 100644
 --- a/scripts/task-start
 +++ b/scripts/task-start
-@@ -15,14 +15,14 @@ if [ $# -ne 2 ]; then
-   echo "usage: task-start PLAN_FILE TASK_NUMBER" >&2
-   exit 2
- fi
+@@ -18,15 +18,15 @@ fi
  
  plan=$1
  n=$2
  sdd="$(cd "$(dirname "$0")/../../subagent-driven-development/scripts" && pwd)"
  
+ # BASE comes from the same repository the brief is written into (sdd-repo
+ # also refuses one with no commit yet), not from the bare cwd.
+ repo=$("${BASH:-bash}" "$sdd/sdd-repo" --with-commit)
 -out=$("$sdd/task-brief" "$plan" "$n")
 +out=$("${BASH:-bash}" "$sdd/task-brief" "$plan" "$n")
  brief=$(printf '%s\n' "$out" | sed -n 's/^wrote \(.*\): [0-9][0-9]* lines$/\1/p')
  [ -n "$brief" ] || { echo "task-brief did not report a path: $out" >&2; exit 1; }
+ base=$(git -C "$repo" rev-parse --verify HEAD)
  
  echo "brief: $brief"
- echo "base: $(git rev-parse HEAD)"
+ echo "base: $base"
