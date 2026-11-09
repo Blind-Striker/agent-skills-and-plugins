@@ -250,3 +250,37 @@ test("everListedNames reads every top-level key any committed ledger listed", ()
     }
   }
 });
+
+test("a file naming its own item ('Part of ns:name') adds no model edge to the ledger", () => {
+  const root = makeRepo();
+  mkdirSync(join(root, "external", "sp", "skills", "alpha", "references"), { recursive: true });
+  writeFileSync(
+    join(root, "external", "sp", "skills", "alpha", "references", "part.md"),
+    "Part of superpowers:alpha. Read it with superpowers:beta.\n",
+  );
+  writeFileSync(
+    join(root, "curation", "deniz-process.yaml"),
+    `${[
+      "plugin:",
+      "  name: deniz-process",
+      "  description: Process skills",
+      "  version: 0.1.0",
+      "items:",
+      "  - source: sp/skills/alpha",
+      "    invocation: auto",
+      "    depends_on: [beta]",
+      "  - source: sp/skills/beta",
+      "    invocation: manual",
+    ].join("\n")}\n`,
+  );
+  buildAll(root);
+  const alpha = JSON.parse(readFileSync(join(root, "docs", "ledger.json"), "utf8"))["deniz-process/skill/alpha"];
+  assert.deepEqual(alpha.claude.edges.model, ["deniz-process:beta"]);
+  assert.deepEqual(alpha.opencode.edges.model, ["deniz-process.beta"]);
+  assert.deepEqual(alpha.codex.edges.model, ["$deniz-process:beta"]);
+  // the self-reference still renders in the shipped file
+  assert.match(
+    readFileSync(join(root, "plugins", "deniz-process", "skills", "alpha", "references", "part.md"), "utf8"),
+    /Part of deniz-process:alpha\./,
+  );
+});

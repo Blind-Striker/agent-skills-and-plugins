@@ -98,12 +98,18 @@ function emittedClaudeFlags(outType: string, frontmatter: Record<string, unknown
   return Object.keys(flags).length > 0 ? flags : undefined;
 }
 
-/** Facts in one shipped Markdown set, filtered to our own output namespaces, spelled as found. */
-function edgesInTexts(texts: string[], ownNs: Set<string>): Record<RefKind, string[]> {
+/**
+ * Facts in one shipped Markdown set, filtered to our own output namespaces, spelled as found. A model
+ * fact naming the item itself ("Part of ns:name") is no edge, as validate's linker treats it.
+ */
+function edgesInTexts(texts: string[], ownNs: Set<string>, self: string): Record<RefKind, string[]> {
   const model: string[] = [];
   const pointer: string[] = [];
   for (const text of texts) {
     for (const r of extractRefs(text)) {
+      if (r.kind === "model" && r.address === self) {
+        continue;
+      }
       if (ownNs.has(r.ns)) {
         (r.kind === "model" ? model : pointer).push(r.address);
       }
@@ -190,9 +196,11 @@ export function writeLedger(
               text: rewriteRefs(readFileSync(join(neutral.dir, file), "utf8"), rewriteMap, "claude"),
             }));
       // The shared Markdown in Claude spelling; for an item the Claude tree ships, exactly its files.
+      const self = `${m.plugin.name}:${outName}`;
       const claudeEdges = edgesInTexts(
         shipped.map((file) => file.text),
         ownNs,
+        self,
       );
       const edgesOf = (harness: Exclude<Harness, "claude">): Record<RefKind, string[]> =>
         harness === "codex" && outType !== "skill"
@@ -204,6 +212,7 @@ export function writeLedger(
                   .map((file) => rewriteRefs(readFileSync(join(neutral.dir, file), "utf8"), rewriteMap, "claude")),
               ],
               ownNs,
+              self,
             )
           : harnessFiles
             ? edgesInTexts(
@@ -215,6 +224,7 @@ export function writeLedger(
                   rewriteMap,
                 ).map((file) => file.text),
                 ownNs,
+                self,
               )
             : claudeEdges;
       const openCodeEdges = edgesOf("opencode");
