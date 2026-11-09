@@ -353,6 +353,10 @@ names, while bodies keep neutral namespaced addresses. The linker derives model 
 Markdown that each non-excluded manifest item and each declared original skill ships in any of the
 three trees, read in the Claude tree's spelling before rendering, and enforces exact agreement in
 both directions: a mandatory model fact no declaration names and a declaration no tree's fact names are both errors.
+A model fact that names the item itself, such as the "Part of" line that opens an upstream reference
+file with the item's own namespaced address, is no dependency and no model-edge: the linker derives no target from
+it and checks no audience for it, while the build still renders it in each harness's spelling. A
+declared self-entry stays legal while some shipped file names the item, and is stale once none does.
 An original skill declares its edges under
 [`original_skills`](../../curation/SCHEMA.md#original_skills). User-pointers, paths, and candidates
 are not mandatory dependency declarations. Conditional model facts and pointers have the separate
