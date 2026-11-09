@@ -19,7 +19,7 @@
 plugin:
   name: deniz-process
   description: "Deniz's curated process skills (brainstorming, planning, debugging)"
-  version: 0.14.3
+  version: 0.14.4
 items:
   # --- superpowers spine: brainstorm → plan → execute → finish ---
   - source: superpowers/skills/brainstorming
@@ -450,6 +450,8 @@ items:
       # submodule git metadata from every source tree before item-specific omission
       - examples/linter-edge-cases.md # the linter's deliberately invalid test fixture: no step reads
       # it, and beside before-after.md a model could take it for an example to imitate
+      - ".claude-plugin/**" # upstream's own Claude Code plugin and marketplace manifests; this
+      # estate compiles its own packaging
   - source: mattpocock-skills/skills/productivity/wait-what
     invocation: manual # upstream's own flag, and the right one: a mid-conversation corrective typed
     # when a message did not land. Its STE request now loads the curated rules rather than naming a
